@@ -1,0 +1,4 @@
+# requirements.txt
+Django>=5.0,<6.0
+djangorestframework
+psycopg2-binary
