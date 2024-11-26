@@ -7,33 +7,34 @@ from .models import Video
 from pytubefix import YouTube
 from pytubefix.cli import on_progress
 from pydub import AudioSegment
-import whisper
 import os
+import whisper
 import uuid
 
-# Utility function to generate a transcript
 def generate_transcript_from_url(url, timestamps):
-    unique_id = str(uuid.uuid4())[:8]  # Shorten UUID for brevity
-    m4a_file = f"{unique_id}"
-    wav_file = f"{unique_id}.wav"
 
     try:
-        # Step 1: Download audio from YouTube
+        unique_id = str(uuid.uuid4())[:8]  # Shorten UUID for brevity
+        m4a_file = f"{unique_id}"
+        wav_file = f"{unique_id}.wav"
+
+        # Step 1: Download audio file from YouTube
         yt = YouTube(url, on_progress_callback=on_progress)
-        print(f"Downloading audio for video: {yt.title}")
+        print(f"Video Title: {yt.title}")
         ys = yt.streams.get_audio_only()
         ys.download(filename=m4a_file)
+        print(f"Downloaded file: {m4a_file}.m4a")
 
-        # Step 2: Convert .m4a to .wav
-        audio = AudioSegment.from_file(f"{m4a_file}.m4a", format="m4a")
+        # Step 2: Convert the downloaded .m4a file to .wav
+        audio = AudioSegment.from_file(f"{m4a_file}", format="m4a")
         audio.export(wav_file, format="wav")
-        print(f"Conversion complete: {wav_file}")
+        print(f"Conversion complete! File saved as {wav_file}")
 
-        # Step 3: Transcribe audio using Whisper
+        # Step 3: Divide the audio into segments based on timestamps
         transcripts = []
         for i in range(len(timestamps)):
-            start_time = timestamps[i]
-            end_time = timestamps[i + 1] if i + 1 < len(timestamps) else len(audio)
+            start_time = timestamps[i]*1000
+            end_time = timestamps[i + 1]*1000 if i + 1 < len(timestamps) else len(audio)
             segment = audio[start_time:end_time]
 
             # Save the segment to a temporary file
@@ -44,16 +45,17 @@ def generate_transcript_from_url(url, timestamps):
             # Step 4: Transcribe the segment using Whisper model
             model = whisper.load_model("base")
             result = model.transcribe(segment_file)
-            transcripts.append(f"Segment {i + 1} Transcript:\n{result['text']}\n")
+            transcripts.append(f"---Segment {i + 1} Transcript:\n{result['text']}\n")
 
             # Delete the segment file
             os.remove(segment_file)
 
-        # Step 4: Clean up temporary files
-        os.remove(f"{m4a_file}.m4a")
+        # Step 5: Auto-delete the main audio files
+        os.remove(f"{m4a_file}")
         os.remove(wav_file)
-        print(f"Temporary files deleted: {m4a_file}.m4a, {wav_file}")
+        print(f"Temporary files deleted: {m4a_file}, {wav_file}")
 
+        # Combine all transcripts into one string
         full_transcript = "\n".join(transcripts)
         print("Full Transcript:")
         print(full_transcript)
