@@ -1,0 +1,6 @@
+# Frontend package files
+
+frontend-cal/node_modules
+frontend-cal/dist
+frontend-cal/dist-ssr
+frontend-cal/*.local
