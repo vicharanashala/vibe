@@ -1,0 +1,78 @@
+transcript,question,option_1,option_2,option_3,option_4,correct_answer
+"Water boils at 100 degrees Celsius under standard atmospheric pressure.","At what temperature does water boil?","90°C","100°C","110°C","120°C",1
+"The Great Wall of China is over 13,000 miles long.","What is the length of the Great Wall of China?","5,000 miles","10,000 miles","13,000 miles","15,000 miles",2
+"Albert Einstein developed the theory of relativity.","Who developed the theory of relativity?","Isaac Newton","Albert Einstein","Nikola Tesla","Galileo Galilei",1
+"The heart pumps blood throughout the body.","Which organ pumps blood in the body?","Lungs","Heart","Liver","Kidney",1
+"The Amazon rainforest is known as the lungs of the Earth.","Which rainforest is called the lungs of the Earth?","Congo","Amazon","Sundarbans","Borneo",1
+"The Sun is a star at the center of our solar system.","What is the Sun?","A planet","A star","A moon","An asteroid",1
+"The Eiffel Tower is located in Paris, France.","Where is the Eiffel Tower located?","London","Rome","Paris","Berlin",2
+"The Statue of Liberty was a gift from France to the United States.","Who gifted the Statue of Liberty to the United States?","Italy","France","Germany","Spain",1
+"Photosynthesis occurs in the chloroplasts of plant cells.","Where does photosynthesis occur in plants?","Nucleus","Chloroplasts","Mitochondria","Ribosomes",1
+"The Pacific Ocean is the largest ocean in the world.","Which is the largest ocean in the world?","Atlantic","Indian","Arctic","Pacific",3
+"The Earth has one natural satellite, the Moon.","What is Earth's natural satellite?","Sun","Mars","Moon","Venus",2
+"Electricity is measured in units called volts.","What is the unit of electricity?","Volts","Amperes","Watts","Ohms",0
+"Mount Everest is the highest mountain in the world.","What is the highest mountain in the world?","K2","Mount Kilimanjaro","Mount Everest","Mount Denali",2
+"Shakespeare wrote Romeo and Juliet.","Who wrote Romeo and Juliet?","Charles Dickens","William Shakespeare","Mark Twain","Jane Austen",1
+"The Mona Lisa was painted by Leonardo da Vinci.","Who painted the Mona Lisa?","Vincent van Gogh","Pablo Picasso","Leonardo da Vinci","Claude Monet",2
+"The capital of Japan is Tokyo.","What is the capital of Japan?","Osaka","Tokyo","Kyoto","Nagoya",1
+"Thomas Edison invented the light bulb.","Who invented the light bulb?","Nikola Tesla","Alexander Graham Bell","Thomas Edison","James Watt",2
+"The human body has 206 bones.","How many bones are in the human body?","204","205","206","207",2
+"The speed of light is approximately 300,000 kilometers per second.","What is the speed of light?","200,000 km/s","300,000 km/s","400,000 km/s","500,000 km/s",1
+"Oxygen is essential for human survival.","Which gas is essential for humans to survive?","Nitrogen","Oxygen","Carbon dioxide","Hydrogen",1
+"Neil Armstrong was the first person to walk on the Moon.","Who was the first person to walk on the Moon?","Buzz Aldrin","Yuri Gagarin","Neil Armstrong","Michael Collins",2
+"The capital of Australia is Canberra.","What is the capital of Australia?","Sydney","Melbourne","Canberra","Perth",2
+"A triangle has three sides.","How many sides does a triangle have?","2","3","4","5",1
+"The first element in the periodic table is Hydrogen.","What is the first element in the periodic table?","Oxygen","Helium","Hydrogen","Nitrogen",2
+"J.K. Rowling wrote the Harry Potter series.","Who wrote the Harry Potter series?","J.R.R. Tolkien","J.K. Rowling","George R.R. Martin","Suzanne Collins",1
+"The primary colors are red, blue, and yellow.","Which of these is a primary color?","Green","Purple","Blue","Orange",2
+"The piano has 88 keys.","How many keys does a standard piano have?","76","88","92","100",1
+"The Great Pyramid of Giza is located in Egypt.","Where is the Great Pyramid of Giza located?","Mexico","Egypt","China","India",1
+"The formula for water is H2O.","What is the chemical formula for water?","CO2","H2O","NaCl","O2",1
+"The longest river in the world is the Nile.","What is the longest river in the world?","Amazon","Yangtze","Nile","Mississippi",2
+transcript,question,option_1,option_2,option_3,option_4,correct_answer
+"The capital of France is Paris.","What is the capital of France?","Berlin","Madrid","Paris","Rome",2
+"Mount Everest is the highest mountain in the world.","Which is the highest mountain in the world?","K2","Kangchenjunga","Mount Everest","Makalu",3
+"The Sun is the center of our solar system.","What is the center of our solar system?","Earth","Moon","Sun","Mars",3
+"Milk is a source of calcium.","What is milk a good source of?","Iron","Calcium","Vitamin C","Potassium",2
+"The currency of Japan is the Yen.","What is the currency of Japan?","Dollar","Pound","Euro","Yen",4
+"The Earth has one moon.","How many moons does Earth have?","1","2","3","4",1
+"Albert Einstein developed the theory of relativity.","Who developed the theory of relativity?","Isaac Newton","Albert Einstein","Galileo Galilei","Nikola Tesla",2
+"Australia is known as the Land Down Under.","Which country is known as the Land Down Under?","Canada","South Africa","Australia","New Zealand",3
+"The Great Wall of China is visible from space.","What is the only man-made structure visible from space?","Eiffel Tower","Pyramids of Giza","Great Wall of China","Statue of Liberty",3
+"Oxygen is essential for human survival.","Which gas is essential for human survival?","Carbon dioxide","Nitrogen","Oxygen","Hydrogen",3
+"The national animal of India is the tiger.","What is the national animal of India?","Lion","Elephant","Peacock","Tiger",4
+"The Sahara Desert is the largest hot desert in the world.","What is the largest hot desert in the world?","Gobi Desert","Sahara Desert","Kalahari Desert","Mojave Desert",2
+"The Taj Mahal is located in India.","Where is the Taj Mahal located?","Pakistan","Bangladesh","India","Nepal",3
+"The Pacific Ocean is the largest ocean in the world.","Which is the largest ocean in the world?","Atlantic Ocean","Indian Ocean","Pacific Ocean","Arctic Ocean",3
+"The human heart has four chambers.","How many chambers does the human heart have?","2","3","4","5",3
+"Photosynthesis occurs in plant leaves.","Where does photosynthesis occur in plants?","Roots","Stem","Leaves","Flowers",3
+"The Eiffel Tower is in Paris.","Where is the Eiffel Tower located?","London","New York","Berlin","Paris",4
+"The cheetah is the fastest land animal.","Which is the fastest land animal?","Lion","Cheetah","Leopard","Tiger",2
+"The largest planet in our solar system is Jupiter.","Which is the largest planet in our solar system?","Saturn","Earth","Jupiter","Neptune",3
+"Rupee is the currency of India.","What is the currency of India?","Dollar","Rupee","Pound","Yen",2
+"The Mona Lisa was painted by Leonardo da Vinci.","Who painted the Mona Lisa?","Pablo Picasso","Leonardo da Vinci","Vincent van Gogh","Claude Monet",2
+"The Amazon is the largest river by discharge.","Which is the largest river by discharge?","Nile","Ganga","Amazon","Yangtze",3
+"The primary colors are red, blue, and yellow.","Which of the following is a primary color?","Green","Purple","Red","Orange",3
+"A day has 24 hours.","How many hours are in a day?","12","24","36","48",2
+"The first President of the United States was George Washington.","Who was the first President of the United States?","Abraham Lincoln","George Washington","Thomas Jefferson","John Adams",2
+"The capital of Italy is Rome.","What is the capital of Italy?","Venice","Florence","Milan","Rome",4
+"A triangle has three sides.","How many sides does a triangle have?","2","3","4","5",2
+"The Moon orbits the Earth.","What does the Moon orbit?","Sun","Mars","Earth","Jupiter",3
+"Newton discovered the law of gravity.","Who discovered the law of gravity?","Albert Einstein","Isaac Newton","Galileo Galilei","Charles Darwin",2
+"China is the most populous country in the world.","Which country has the largest population?","India","USA","China","Russia",3
+"The piano is a stringed instrument.","What type of instrument is a piano?","Percussion","String","Wind","Brass",2
+"Venus is the hottest planet in the solar system.","Which is the hottest planet in the solar system?","Mars","Mercury","Venus","Jupiter",3
+"The national flag of the USA has 50 stars.","How many stars are there on the USA's national flag?","48","50","52","54",2
+"An octopus has three hearts.","How many hearts does an octopus have?","1","2","3","4",3
+"A leap year occurs every four years.","How often does a leap year occur?","2 years","3 years","4 years","5 years",3
+"Shakespeare wrote 'Romeo and Juliet'.","Who wrote 'Romeo and Juliet'?","Charles Dickens","Mark Twain","William Shakespeare","Jane Austen",3
+"The Indian Ocean is located to the south of India.","Which ocean lies to the south of India?","Atlantic Ocean","Arctic Ocean","Pacific Ocean","Indian Ocean",4
+"Penguins are flightless birds.","Which bird cannot fly?","Eagle","Penguin","Parrot","Owl",2
+"Mercury is the smallest planet in the solar system.","Which is the smallest planet in the solar system?","Mars","Mercury","Pluto","Venus",2
+"The capital of Germany is Berlin.","What is the capital of Germany?","Berlin","Munich","Frankfurt","Hamburg",1
+"Bananas are rich in potassium.","Which fruit is rich in potassium?","Apple","Banana","Orange","Grapes",2
+"A hexagon has six sides.","How many sides does a hexagon have?","5","6","7","8",2
+"The Golden Gate Bridge is in San Francisco.","Where is the Golden Gate Bridge located?","Los Angeles","New York","Chicago","San Francisco",4
+"The Sahara is located in Africa.","Where is the Sahara Desert located?","Asia","Africa","South America","Australia",2
+"A thermometer is used to measure temperature.","What does a thermometer measure?","Pressure","Temperature","Speed","Weight",2
+"The national flower of India is the lotus.","What is the national flower of India?","Rose","Lily","Lotus","Tulip",3
