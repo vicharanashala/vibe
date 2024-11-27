@@ -1,7 +1,0 @@
-# Django
-db.sqlite3
-media/
-staticfiles/
-
-# PostgreSQL
-pgdata/
