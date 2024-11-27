@@ -7,6 +7,8 @@ import LoginPage from "../pages/LoginPage";
 import AdminHome from "@/pages/Admins/AdminHome";
 import SuperHome from "@/pages/Admins/SuperHome";
 import Admins from "@/pages/Admins/Admins";
+import Courses from "@/pages/Students/Courses";
+import DummyForm from "@/pages/Students/DummyForm";
 
 const router = createBrowserRouter([
     {
@@ -15,7 +17,17 @@ const router = createBrowserRouter([
         children: [
             {
                 path: "",
-                element: React.createElement(Home)
+                element: React.createElement(Home),
+                children:[
+                    {
+                        path: "/courses",
+                        element: React.createElement(Courses)
+                    },
+                    {
+                        path: "/dummyform",
+                        element: React.createElement(DummyForm)
+                    }
+                ]
             },
             {
                 path: "/login",

@@ -13,6 +13,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Outlet } from 'react-router-dom'
 
 const Home = () => {
   return (
@@ -35,8 +36,7 @@ const Home = () => {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="mx-auto h-24 w-full max-w-3xl rounded-xl bg-muted/50" />
-          <div className="mx-auto h-[100vh] w-full max-w-3xl rounded-xl bg-muted/50" />
+          <Outlet/>
         </div>
       </SidebarInset>
       <SidebarRight />

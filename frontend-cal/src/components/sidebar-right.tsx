@@ -15,6 +15,7 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import RealTimeHandBlurDetection from "./proctoring-components/realTimeBlurDetection"
 
 // This is sample data.
 const data = {
@@ -58,6 +59,7 @@ export function SidebarRight({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+        <RealTimeHandBlurDetection/>
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Plus />

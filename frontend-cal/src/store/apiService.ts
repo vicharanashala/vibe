@@ -110,6 +110,34 @@ export const apiService = createApi({
           })),
         };
       },
+    }), 
+    fetchVideoDetailsWithAuth: builder.query<{ videoDetails: any[] }, void>({
+      query: () => ({
+        url: "/videos/",
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${Cookies.get("access_token")}`, // Send token with request
+        },
+      }),
+      transformResponse: (response: any) => {
+        return {
+          videoDetails: response.map((videoDetails: any) => ({
+            ...videoDetails,
+            status: mapStatus(videoDetails.status),
+          })),
+        };
+      },
+    }),
+    createVideoDetails: builder.mutation({
+      query: (videoData) => ({
+        url: "/videos", // Replace with your actual API endpoint
+        method: "POST",
+        body: videoData,
+        headers: {
+          Authorization: `Bearer ${Cookies.get("access_token")}`, // Include token if required
+          "Content-Type": "application/json", // Ensure JSON data is sent
+        },
+      }),
     }),
 
 
@@ -117,6 +145,8 @@ export const apiService = createApi({
 });
 
 export const { 
+  useCreateVideoDetailsMutation,
+  useFetchVideoDetailsWithAuthQuery,
   useFetchInstitutesWithAuthQuery, 
   useFetchUsersWithAuthQuery,
   useLoginMutation, 
