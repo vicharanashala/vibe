@@ -1,0 +1,10 @@
+FROM python:3-slim
+
+WORKDIR /app
+
+COPY backend-cal/project/requirements.txt /app/backend-cal/project/requirements.txt
+
+RUN pip install --upgrade pip
+RUN pip install -r backend-cal/project/requirements.txt
+
+EXPOSE 8000

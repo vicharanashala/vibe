@@ -1,6 +1,38 @@
-# Frontend package files
+# OS Specific
+.DS_Store
+Thumbs.db
 
-frontend-cal/node_modules
-frontend-cal/dist
-frontend-cal/dist-ssr
-frontend-cal/*.local
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+*.tmp
+
+# Environment Variables
+.env
+.env.*
+
+# Python Bytecode
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Node Modules (Frontend)
+node_modules/
+
+# Docker
+*.pid
+.env.docker
+
+# Ignore package managers' lock files (if not shared)
+package-lock.json
+yarn.lock
+
+# Production Builds
+/dist
+/build

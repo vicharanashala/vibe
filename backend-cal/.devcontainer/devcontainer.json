@@ -1,0 +1,23 @@
+{
+	"name": "Cal Backend",
+	"dockerComposeFile": "../../dev/docker-compose-backend.yml",
+	"service": "backend",
+	"workspaceFolder": "/app/backend-cal",
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {}
+	},
+
+	"forwardPorts": [8000],
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.debugpy"
+			]
+		}
+	}
+}
