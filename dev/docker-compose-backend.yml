@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: dev/Dockerfile-backend
-    command: python backend-cal/project/manage.py runserver 0.0.0.0:8000
+    command: python backend-cal/manage.py runserver 0.0.0.0:8000
     volumes:
       - ..:/app
     ports:
@@ -11,7 +11,7 @@ services:
     depends_on:
       - db
     environment:
-      - DB_NAME=postgres
+      - DB_NAME=django_db
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_HOST=db
@@ -24,7 +24,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=django_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
 
