@@ -80,3 +80,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+.no-interaction {
+  pointer-events: none;
+  cursor: none;
+}
+
+.video-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.video-container:hover {
+  cursor: none;
+}
