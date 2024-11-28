@@ -1,0 +1,20 @@
+frontend:
+  - changed_files:
+      - any-glob-to-any-file: ["frontend-cal/**"]
+
+backend:
+  - changed_files:
+      - any-glob-to-any-file: ["backend-cal/**"]
+
+devops:
+  - changed_files:
+      - any-glob-to-any-file:
+        - ".github/**"
+        - "**/.devcontainer/**"
+        - "dev/**"
+
+docs:
+  - changed_files:
+      - any-glob-to-any-file:
+        - "**/README.md"
+        - "**/docs/**"
