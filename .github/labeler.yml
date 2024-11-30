@@ -1,20 +1,26 @@
 frontend:
-  - changed_files:
+  - changed-files:
       - any-glob-to-any-file: ["frontend-cal/**"]
 
 backend:
-  - changed_files:
+  - changed-files:
       - any-glob-to-any-file: ["backend-cal/**"]
 
 devops:
-  - changed_files:
+  - changed-files:
       - any-glob-to-any-file:
         - ".github/**"
         - "**/.devcontainer/**"
         - "dev/**"
 
 docs:
-  - changed_files:
+  - changed-files:
       - any-glob-to-any-file:
         - "**/README.md"
         - "**/docs/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+        - "frontend-cal/package*.json"
+        - "backend-cal/requirements.txt"
