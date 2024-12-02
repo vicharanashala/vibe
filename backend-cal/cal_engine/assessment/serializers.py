@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Assessment, Question, QuestionOption, AssessmentGrading
+from .models import Assessment, Question
 
 class AssessmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,12 +11,3 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = '__all__'
 
-class QuestionOptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = QuestionOption
-        fields = '__all__'
-
-class AssessmentGradingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AssessmentGrading
-        fields = '__all__'
