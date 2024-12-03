@@ -79,9 +79,21 @@ class NATSolution(models.Model):
             if self.tolerance_max is not None and not validate_decimal_precision(self.tolerance_max, self.decimal_precision):
                 raise ValidationError(f"The 'tolerance_max' does not adhere to the decimal precision of {self.decimal_precision}.")
 
+            if self.tolerance_min is not None and self.tolerance_max is not None:
+                if self.tolerance_min > self.tolerance_max:
+                    raise ValidationError("tolerance_min cannot be greater than tolerance_max.")
+
+    def save(self, *args, **kwargs):
+        # Calculate default tolerances if not provided
+        if self.tolerance_min is None:
+            self.tolerance_min = self.value * 0.99  # -1%
+        if self.tolerance_max is None:
+            self.tolerance_max = self.value * 1.01  # +1%
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Value: {self.value}, Tolerance: [{self.tolerance_min}, {self.tolerance_max}]"
-
+    
 class ChoiceSolution(models.Model):
     FORMAT_CHOICES = [
         ('text', 'Text'),
