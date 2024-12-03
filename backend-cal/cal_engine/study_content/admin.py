@@ -1,7 +1,22 @@
 from django.contrib import admin
 from django.apps import apps
+from .models import Video, VideoSegment
 
-app = apps.get_app_config(__name__.split('.')[-2])  # Get current app's config
-for model in app.get_models():
-    admin.site.register(model)
+
+class VideoSegmentInline(admin.TabularInline):
+    model = VideoSegment
+    fields = ('title', 'sequence', 'start_time', 'end_time', 'assessment')
+    extra = 0
+
+
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ('title', 'module', 'created_at', 'updated_at')
+    inlines = [VideoSegmentInline]
+
+# class ArticleAdmin(admin.ModelAdmin):
+#     list_display = ('title', 'content_type', 'module', 'created_at', 'updated_at')
+
+
+admin.site.register(Video, VideoAdmin)
+# admin.site.register(Article, ArticleAdmin)
 

@@ -39,7 +39,7 @@ class Command(BaseCommand):
             title="Dummy Quiz",
             course=course,
             defaults={
-                "type": "Quiz",
+                "type": "normal",
                 "deadline": None,  # No deadline for dummy data
             },
         )

@@ -1,11 +1,8 @@
 from rest_framework.routers import DefaultRouter
-from .views import VideoViewSet, VideoMetadataViewSet, ArticleViewSet, ArticleAuthorViewSet, ArticleTopicViewSet
+from .views import VideoViewSet
 
 router = DefaultRouter()
 router.register(r'videos', VideoViewSet)
-router.register(r'video-metadata', VideoMetadataViewSet)
-router.register(r'articles', ArticleViewSet)
-router.register(r'article-authors', ArticleAuthorViewSet)
-router.register(r'article-topics', ArticleTopicViewSet)
+# router.register(r'articles', ArticleViewSet)
 
 urlpatterns = router.urls

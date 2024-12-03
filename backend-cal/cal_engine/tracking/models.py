@@ -2,7 +2,7 @@ from django.db import models
 
 class StudySession(models.Model):
     user = models.ForeignKey('user.User', on_delete=models.CASCADE)
-    chapter = models.ForeignKey('course.Chapter', on_delete=models.CASCADE)
+    # chapter = models.ForeignKey('course.Chapter', on_delete=models.CASCADE)
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     duration = models.PositiveIntegerField(default=0)
@@ -17,6 +17,6 @@ class SessionViolation(models.Model):
 
 class ChapterCompletion(models.Model):
     user = models.ForeignKey('user.User', on_delete=models.CASCADE)
-    chapter = models.ForeignKey('course.Chapter', on_delete=models.CASCADE)
+    # chapter = models.ForeignKey('course.Chapter', on_delete=models.CASCADE)
     completion_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     last_updated = models.DateTimeField(auto_now=True)

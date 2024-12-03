@@ -7,7 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 class Assessment(models.Model):
     title = models.CharField(max_length=255)
     course = models.ForeignKey('course.Course', on_delete=models.CASCADE)
-    type = models.CharField(max_length=50, choices=[('Quiz', 'Quiz'), ('Assignment', 'Assignment'), ('Exam', 'Exam')])
+    type = models.CharField(max_length=50, choices=[('normal', 'Normal'), ('video', 'Video')])
     deadline = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
