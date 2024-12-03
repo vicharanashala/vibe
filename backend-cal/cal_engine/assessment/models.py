@@ -29,7 +29,6 @@ class Question(models.Model):
     text = models.TextField()
     type = models.CharField(max_length=20, choices=QUESTION_TYPES)
     marks = models.PositiveIntegerField(help_text="Maximum marks for the question.", default=0)
-    partial_marking = models.BooleanField(default=False, help_text="Allow partial marking for MSQ (if applicable).")
     assessments = models.ManyToManyField('Assessment', related_name='questions', blank=True)
     tags = models.TextField(null=True, blank=True, help_text="Comma-separated tags for question segregation.")
     time_limit = models.PositiveIntegerField(null=True, blank=True, help_text="Time limit in seconds.")
@@ -38,21 +37,6 @@ class Question(models.Model):
 
     def __str__(self):
         return self.text
-
-@receiver(post_save, sender=Question)
-def validate_total_marks(sender, instance, **kwargs):
-    """
-    Validate that the total marks assigned to choices match the question's total marks.
-    """
-    if instance.type in ['MCQ', 'MSQ']:
-        # Calculate the total marks from all related ChoiceSolution objects
-        total_marks_from_choices = sum(choice.marks for choice in instance.choice_solutions.all())
-
-        # Check if the total marks match the question's marks
-        if total_marks_from_choices != instance.marks:
-            raise ValidationError(
-                f"Total marks assigned to choices ({total_marks_from_choices}) must equal the question's total marks ({instance.marks})."
-            )
 
 class NATSolution(models.Model):
     VALUE_TYPES = [
@@ -112,15 +96,38 @@ class ChoiceSolution(models.Model):
     )
     format = models.CharField(max_length=10, choices=FORMAT_CHOICES, default='text', help_text="Format of the option (text or image).")
     value = models.TextField(help_text="The text or image url for the option.")
-    marks = models.FloatField(default=0, help_text="Marks for selecting this option.")
     is_correct = models.BooleanField(default=False, help_text="Is this the correct option?")
 
+    
+    def __str__(self):
+        return f"{self.value} (Correct: {self.is_correct}"
+
+class DescSolution(models.Model):
+    question = models.OneToOneField(
+        'Question',
+        on_delete=models.CASCADE,
+        related_name='desc_solution',
+        help_text="Link to the related question."
+    )
+    model_answer = models.TextField(
+        help_text="The correct or model answer for the descriptive question."
+    )
+    max_word_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum allowed word count for the answer. Leave blank if unlimited."
+    )
+    min_word_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Minimum required word count for the answer. Leave blank if no minimum."
+    )
+
     def clean(self):
-        # Validation for MCQ
-        if self.question.type == 'MCQ':
-            correct_options = self.question.choice_solutions.filter(is_correct=True)
-            if self.is_correct and correct_options.exists() and self.pk not in [opt.pk for opt in correct_options]:
-                raise ValidationError("For MCQ questions, only one option can be marked as correct.")
+        """Validation for word limits."""
+        if self.min_word_limit and self.max_word_limit:
+            if self.min_word_limit > self.max_word_limit:
+                raise ValidationError("Minimum word limit cannot be greater than the maximum word limit.")
 
     def __str__(self):
-        return f"{self.value} (Correct: {self.is_correct}, Marks: {self.marks})"
+        return f"Model Answer: {self.model_answer[:50]}..."  # Display first 50 characters

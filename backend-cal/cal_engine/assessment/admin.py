@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Assessment, ChoiceSolution, NATSolution, Question
+from django.forms import ValidationError
+from .models import Assessment, ChoiceSolution, DescSolution, NATSolution, Question
 
 class NATSolutionInline(admin.StackedInline):
     model = NATSolution
@@ -11,8 +12,8 @@ class NATSolutionInline(admin.StackedInline):
 
 class ChoiceSolutionInline(admin.TabularInline):
     model = ChoiceSolution
-    extra = 1  # Allow adding one option initially
-    fields = ('format', 'value', 'marks', 'is_correct')
+    extra = 0 # No extra empty forms
+    fields = ('format', 'value', 'is_correct')
     verbose_name = "Choice Solution"
     verbose_name_plural = "Choice Solutions"
 
@@ -21,22 +22,32 @@ class ChoiceSolutionInline(admin.TabularInline):
         qs = super().get_queryset(request)
         return qs.filter(question__type__in=['MCQ', 'MSQ'])
 
+class DescSolutionInline(admin.StackedInline):
+    model = DescSolution
+    extra = 0  # No extra empty forms
+    fields = ('model_answer', 'min_word_limit', 'max_word_limit')
+    can_delete = False
+    verbose_name = "Descriptive Solution"
+    verbose_name_plural = "Descriptive Solutions"
 
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('text', 'type', 'marks', 'partial_marking', 'created_at', 'updated_at')
+    list_display = ('text', 'type', 'marks', 'created_at', 'updated_at')
     search_fields = ('text', 'tags')
-    list_filter = ('type', 'partial_marking', 'created_at')
+    list_filter = ('type', 'created_at')
     ordering = ('created_at',)
     readonly_fields = ('created_at', 'updated_at')
 
     def get_inlines(self, request, obj=None):
-        if obj and obj.type in ['MCQ', 'MSQ']:
-            return [ChoiceSolutionInline]
-        elif obj and obj.type == 'NAT':
+        """Dynamically determine inlines based on question type."""
+        if obj and obj.type == 'NAT':
             return [NATSolutionInline]
+        elif obj and obj.type in ['MCQ', 'MSQ']:
+            return [ChoiceSolutionInline]
+        elif obj and obj.type == 'DESC':
+            return [DescSolutionInline]
         return []
+            
 
-@admin.register(Assessment)
 class AssessmentAdmin(admin.ModelAdmin):
     list_display = ('title', 'course', 'deadline', 'created_at', 'updated_at')
     search_fields = ('title', 'course__name')
@@ -44,4 +55,5 @@ class AssessmentAdmin(admin.ModelAdmin):
     ordering = ('created_at',)
 
 admin.site.register(Question, QuestionAdmin)
+admin.site.register(Assessment, AssessmentAdmin)
 
