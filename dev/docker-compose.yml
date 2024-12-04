@@ -1,12 +1,12 @@
 services:
-  frontend:
-    build:
-      context: ..
-      dockerfile: dev/Dockerfile-frontend
-    volumes:
-      - ..:/app
-    ports:
-      - "3000:3000"
+  # frontend:
+  #   build:
+  #     context: ..
+  #     dockerfile: dev/Dockerfile-frontend
+  #   volumes:
+  #     - ..:/app
+  #   ports:
+  #     - "3000:3000"
 
   backend:
     build:
