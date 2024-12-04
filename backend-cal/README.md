@@ -1,4 +1,4 @@
-# CAL Frontend
+# CAL Backend
 
 ## Table of Contents
 
@@ -9,15 +9,12 @@
 
 ## Introduction
 
-This is the frontend application for the project.
+This is the backend service for the project, built using Django. It provides RESTful APIs for various functionalities required by the frontend application.
 
 ## Technologies Used
 
-- React
-- TypeScript
-- Tailwind CSS
-- Vite for build tooling
-- ESLint and Prettier for code quality
+- Django + Django REST Framework
+- PostgreSQL
 
 ## Getting Started
 
@@ -25,13 +22,9 @@ Please see the [contributing guide](../docs/CONTRIBUTING.md) for detailed instru
 
 ## Linting and Formatting
 
-We use ESLint for linting and Prettier for code formatting. To run the linters, use the following commands:
+The project uses `Flake8` for linting and `Black` for code formatting. To run the linters, use the following commands:
 
 ```sh
-npm run lint
-```
-
-To see formatting issues, run:
-```sh
-npm run format
+flake8 .
+black --check .
 ```
