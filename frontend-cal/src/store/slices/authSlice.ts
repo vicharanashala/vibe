@@ -1,10 +1,8 @@
-// src/store/authSlice.ts
-
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { apiService, AuthResponse } from './apiService';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { apiService, AuthResponse } from "../apiService";
 
 interface AuthState {
-  user: AuthResponse['user'] | null;
+  user: { role: string; email: string; name: string } | null;
   token: string | null;
   isAuthenticated: boolean;
 }
@@ -16,7 +14,7 @@ const initialState: AuthState = {
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     logoutState: (state) => {
@@ -25,22 +23,22 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
     },
     setUser: (state, action: PayloadAction<AuthResponse>) => {
-      const { user, token } = action.payload;
-      state.user = user;
-      state.token = token;
+      const { role, email, full_name, access } = action.payload;
+      state.user = { role, email, name: full_name };
+      state.token = access;
       state.isAuthenticated = true;
     },
   },
   extraReducers: (builder) => {
     builder
       .addMatcher(apiService.endpoints.login.matchFulfilled, (state, { payload }) => {
-        state.user = payload.user;
-        state.token = payload.token;
+        state.user = { role: payload.role, email: payload.email, name: payload.full_name };
+        state.token = payload.access;
         state.isAuthenticated = true;
       })
       .addMatcher(apiService.endpoints.signup.matchFulfilled, (state, { payload }) => {
-        state.user = payload.user;
-        state.token = payload.token;
+        state.user = { role: payload.role, email: payload.email, name: payload.full_name };
+        state.token = payload.access;
         state.isAuthenticated = true;
       })
       .addMatcher(apiService.endpoints.logout.matchFulfilled, (state) => {

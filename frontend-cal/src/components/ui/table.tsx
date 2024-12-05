@@ -118,20 +118,3 @@ export {
   TableCell,
   TableCaption,
 }
-const FixedTableRows = ({ children }: { children: React.ReactNode }) => {
-  const rows = React.Children.toArray(children);
-  const emptyRows = Array.from({ length: 5 - rows.length });
-
-  return (
-    <>
-      {rows}
-      {emptyRows.map((_, index) => (
-        <TableRow key={`empty-row-${index}`}>
-          <TableCell colSpan={100}>&nbsp;</TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-};
-
-export { FixedTableRows };

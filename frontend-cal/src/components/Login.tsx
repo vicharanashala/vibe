@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useLoginMutation } from '../store/apiService';
-import { setUser } from '../store/authSlice';
+import { setUser } from '../store/slices/authSlice';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState<string>('');

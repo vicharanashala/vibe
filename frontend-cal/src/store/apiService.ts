@@ -2,20 +2,13 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import API_URL from "../../constant";
 import Cookies from "js-cookie";
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
 export interface AuthResponse {
-  user: User;
-  token: string;
+  refresh: string;
+  access: string;
+  role: string;
+  email: string;
+  full_name: string;
 }
-
-const mapStatus = (status: string): string => {
-  return status;
-};
 
 export const apiService = createApi({
   reducerPath: "api",
@@ -23,53 +16,50 @@ export const apiService = createApi({
     baseUrl: API_URL, // Replace with your API base URL
   }),
   endpoints: (builder) => ({
-    login: builder.mutation<AuthResponse, { email: string; password: string }>({
+    login: builder.mutation<AuthResponse, { username: string; password: string }>({
       query: (credentials) => ({
-        url: "/login/",
+        url: "/auth/login/",
         method: "POST",
         body: credentials,
       }),
       onQueryStarted: async (arg, { queryFulfilled }) => {
         try {
           const { data } = await queryFulfilled;
-          Cookies.set("access_token", data.token); // Store token after login
+          Cookies.set("access_token", data.access); // Store the correct access token
         } catch (error) {
           console.error("Failed to store access token in cookies", error);
         }
       },
     }),
 
-    signup: builder.mutation<
-      AuthResponse,
-      { first_name: string; last_name: string; username: string; email: string; password: string; user_type: string }
-    >({
+    signup: builder.mutation<AuthResponse, { first_name: string; last_name: string; username: string; email: string; password: string }>({
       query: (userData) => ({
-      url: "/register/",
-      method: "POST",
-      body: userData,
+        url: "/auth/register/",
+        method: "POST",
+        body: userData,
       }),
       onQueryStarted: async (arg, { queryFulfilled }) => {
-      try {
-        const { data } = await queryFulfilled;
-        Cookies.set("access_token", data.token); // Store token after signup
-      } catch (error) {
-        console.error("Failed to store access token in cookies", error);
-      }
+        try {
+          const { data } = await queryFulfilled;
+          Cookies.set("access_token", data.access); // Optionally store the token here too
+        } catch (error) {
+          console.error("Signup failed", error);
+        }
       },
     }),
 
     logout: builder.mutation<void, void>({
       query: () => ({
-        url: "/login/",  // Assuming your logout endpoint is still '/login/' as in your original code
-        method: "DELETE",
+        url: "/auth/login/",
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${Cookies.get("access_token")}`, // Send the token for authentication
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
         },
       }),
       onQueryStarted: async (arg, { queryFulfilled }) => {
         try {
           await queryFulfilled;
-          Cookies.remove("access_token"); // Remove the token from cookies after logout
+          Cookies.remove("access_token"); // Remove the token after logout
         } catch (error) {
           console.error("Failed to remove access token from cookies", error);
         }
@@ -81,73 +71,61 @@ export const apiService = createApi({
         url: "/institutes/",
         method: "GET",
         headers: {
-          Authorization: `Bearer ${Cookies.get("access_token")}`, // Send token with request
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
         },
       }),
-      transformResponse: (response: any) => {
-        return {
-          institutes: response.map((institute: any) => ({
-            ...institute,
-            status: mapStatus(institute.status),
-          })),
-        };
-      },
     }),
 
     fetchUsersWithAuth: builder.query<{ users: any[] }, void>({
       query: () => ({
-        url: "/login/",
+        url: "/users/",
         method: "GET",
         headers: {
-          Authorization: `Bearer ${Cookies.get("access_token")}`, // Send token with request
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
         },
       }),
-      transformResponse: (response: any) => {
-        return {
-          users: response.map((user: any) => ({
-            ...user,
-            status: mapStatus(user.status),
-          })),
-        };
-      },
-    }), 
+    }),
+
     fetchVideoDetailsWithAuth: builder.query<{ videoDetails: any[] }, void>({
       query: () => ({
         url: "/videos/",
         method: "GET",
         headers: {
-          Authorization: `Bearer ${Cookies.get("access_token")}`, // Send token with request
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
         },
       }),
-      transformResponse: (response: any) => {
-        return {
-          videoDetails: response.map((videoDetails: any) => ({
-            ...videoDetails,
-            status: mapStatus(videoDetails.status),
-          })),
-        };
-      },
     }),
+
     createVideoDetails: builder.mutation({
       query: (videoData) => ({
-        url: "/videos", // Replace with your actual API endpoint
+        url: "/videos",
         method: "POST",
         body: videoData,
         headers: {
-          Authorization: `Bearer ${Cookies.get("access_token")}`, // Include token if required
-          "Content-Type": "application/json", // Ensure JSON data is sent
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
+          "Content-Type": "application/json",
         },
+      }),
+    }),
+    fetchCoursesWithAuth: builder.query<{ courses: any[] }, void>({
+      query: () => ({
+      url: "/courses/",
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${Cookies.get("access_token")}`,
+        "Content-Type": "application/json",
+      },
       }),
     }),
   }),
 });
 
-export const { 
-  useCreateVideoDetailsMutation,
-  useFetchVideoDetailsWithAuthQuery,
-  useFetchInstitutesWithAuthQuery, 
+export const {
+  useLoginMutation,
+  useSignupMutation,
+  useLogoutMutation,
+  useFetchInstitutesWithAuthQuery,
   useFetchUsersWithAuthQuery,
-  useLoginMutation, 
-  useSignupMutation, 
-  useLogoutMutation 
+  useFetchVideoDetailsWithAuthQuery,
+  useCreateVideoDetailsMutation,
 } = apiService;

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useDispatch } from "react-redux";
 import { useLogoutMutation } from "../store/apiService";
-import { logoutState } from "../store/authSlice";
+import { logoutState } from "../store/slices/authSlice";
 
 export function NavUser({
   user,

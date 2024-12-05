@@ -20,7 +20,6 @@ const Courses: React.FC = () => {
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<YT.Player | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [timestamps] = useState<number[]>([10, 20, 30, 40, 50, 120]);
   const [showPopup, setShowPopup] = useState<boolean>(false);
   const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -30,61 +29,63 @@ const Courses: React.FC = () => {
   const triggeredTimestamps = useRef<Set<number>>(new Set());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
-  const [questions] = useState<Question[]>([
-    {
-      question: "What is the capital of France?",
-      options: ["Paris", "London", "Berlin"],
-      correctAnswer: "Paris",
-    },
-    {
-      question: "What is 2 + 2?",
-      options: ["3", "4", "5"],
-      correctAnswer: "4",
-    },
-  ]);
+  const [timestamps, setTimestamps] = useState<number[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [data] = useState([
     {
       video: "1z-E_KOC2L0",
       timestamps: {
-        35 : [
+        5: [
           {
             question_id: 1,
             question: "What is the capital of France?",
-            options: ["Paris", "London", "Berlin"]
+            options: ["Paris", "London", "Berlin"],
+            correctAnswer: "Paris",
           },
           {
             question_id: 2,
             question: "What is 2 + 2?",
-            options: ["3", "4", "5"]
+            options: ["3", "4", "5"],
+            correctAnswer: "4",
           },
         ],
-        45 : [
+        10: [
           {
             question_id: 3,
-            question: "What is the capital of France?",
-            options: ["Paris", "London", "Berlin"]
+            question: "What is the capital of India?",
+            options: ["Paris", "London", "Berlin"],
+            correctAnswer: "Berlin",
           },
           {
             question_id: 4,
-            question: "What is 2 + 2?",
-            options: ["3", "4", "5"]
+            question: "What is 2 + 3?",
+            options: ["3", "4", "5"],
+            correctAnswer: "5",
           },
         ],
-        55 : [
+        15: [
           {
             question_id: 5,
             question: "What is the capital of France?",
-            options: ["Paris", "London", "Berlin"]
+            options: ["Paris", "London", "Berlin"],
+            correctAnswer: "Paris",
           },
           {
             question_id: 6,
             question: "What is 2 + 2?",
-            options: ["3", "4", "5"]
+            options: ["3", "4", "5"],
+            correctAnswer: "4",
           },
         ],
-      }
-    }
-  ])
+      },
+    },
+  ]);
+
+  useEffect(() => {
+    const videoData = data[0]; // Assuming single video data
+    const ts = Object.keys(videoData.timestamps).map(Number);
+    setTimestamps(ts);
+  }, [data]);
 
   useEffect(() => {
     if (!window.YT) {
@@ -155,11 +156,17 @@ const Courses: React.FC = () => {
       setIsPlaying(false);
     }
     setCurrentTimestamp(timestamp);
+    setQuestions(data[0].timestamps[timestamp]); // Load questions for this timestamp
+    setSelectedAnswer(""); // Clear previous selections
+    setCurrentQuestionIndex(0); // Start at the first question for this timestamp
     setShowPopup(true);
   };
 
   const closePopup = () => {
     setShowPopup(false);
+    setCurrentQuestionIndex(0); // Reset question index
+    setSelectedAnswer(""); // Clear selected answer
+    setQuestions([]); // Clear the current questions
     if (player) {
       player.playVideo();
       setIsPlaying(true);
@@ -196,15 +203,15 @@ const Courses: React.FC = () => {
     const currentQuestion = questions[currentQuestionIndex];
     if (selectedAnswer !== currentQuestion.correctAnswer) {
       handleIncorrectAnswer();
-      setSelectedAnswer("");
+      setSelectedAnswer(""); // Clear the selection for the current question
       return;
     }
 
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer("");
+      setSelectedAnswer(""); // Reset selected answer for the new question
     } else {
-      closePopup();
+      closePopup(); // Reset state when all questions are answered
     }
   };
 
@@ -241,7 +248,9 @@ const Courses: React.FC = () => {
   };
 
   const toggleFullscreen = () => {
-    const videoContainer = document.querySelector(".video-container") as HTMLElement;
+    const videoContainer = document.querySelector(
+      ".video-container"
+    ) as HTMLElement;
     if (videoContainer.requestFullscreen) {
       videoContainer.requestFullscreen();
     } else if ((videoContainer as any).mozRequestFullScreen) {
@@ -265,7 +274,10 @@ const Courses: React.FC = () => {
       <KeyboardLock />
       <div className="youtube-player h-4/5">
         <div className="video-container h-full bg-gray-400 p-3 mx-20">
-          <div ref={videoPlayerRef} className="w-full h-full no-interaction"></div>
+          <div
+            ref={videoPlayerRef}
+            className="w-full h-full no-interaction"
+          ></div>
         </div>
         <div className="flex justify-center">
           <div className="controls-container w-full mx-20 mt-4 bg-white p-4 rounded-lg shadow">
@@ -336,30 +348,36 @@ const Courses: React.FC = () => {
       </div>
       {showPopup && (
         <div className="popup absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="popup-content bg-white p-5 rounded shadow-lg">
-            <div className="mb-4">
-              <p className="font-semibold">
-                {questions[currentQuestionIndex].question}
-              </p>
-              {questions[currentQuestionIndex].options.map((option, i) => (
-                <div key={i} className="flex items-center mt-2">
-                  <input
-                    type="radio"
-                    id={`option-${i}`}
-                    name="current-question"
-                    value={option}
-                    onChange={() => handleAnswerSelection(option)}
-                    checked={selectedAnswer === option}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`option-${i}`}>{option}</label>
-                </div>
-              ))}
+          <div className="popup-content bg-white p-5 rounded shadow-lg w-1/2 h-1/2 px-10">
+            <h1 className="text-2xl font-bold uppercase my-5 flex justify-center">
+              Assesment
+            </h1>
+            <div className="flex pt-4">
+              <div className="mb-4">
+                <p className="font-semibold">
+                  {questions[currentQuestionIndex].question}
+                </p>
+                {questions[currentQuestionIndex].options.map((option, i) => (
+                  <div key={i} className="flex items-center mt-2">
+                    <input
+                      type="radio"
+                      id={`option-${i}`}
+                      name="current-question"
+                      value={option}
+                      onChange={() => handleAnswerSelection(option)}
+                      checked={selectedAnswer === option} // Explicitly bind the state
+                      className="mr-2"
+                    />
+
+                    <label htmlFor={`option-${i}`}>{option}</label>
+                  </div>
+                ))}
+              </div>
             </div>
             <button
               onClick={goToNextQuestion}
               disabled={!selectedAnswer}
-              className={`mt-4 px-4 py-2 rounded ${
+              className={`mt-4 px-4 py-2 h-10 rounded ${
                 selectedAnswer
                   ? "bg-blue-500 text-white hover:bg-blue-600"
                   : "bg-gray-300 text-gray-600 cursor-not-allowed"

@@ -6,6 +6,7 @@ const MultiPersonDetection = () => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const [peopleCount, setPeopleCount] = useState(0);
+    const alertTriggered = useRef(false); // Track if the alert was triggered
 
     useEffect(() => {
         // Set up webcam feed
@@ -57,6 +58,17 @@ const MultiPersonDetection = () => {
                         });
 
                         setPeopleCount(count); // Update the people count
+
+                        // Trigger an alert if count is 2 and hasn't been triggered yet
+                        if (count === 2 && !alertTriggered.current) {
+                            alert('There are two people in the frame!');
+                            alertTriggered.current = true; // Set the flag
+                        }
+
+                        // Reset the flag if the count changes from 2
+                        if (count !== 2) {
+                            alertTriggered.current = false;
+                        }
                     });
                 }
             };
@@ -79,7 +91,7 @@ const MultiPersonDetection = () => {
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
             <video ref={videoRef} style={{ display: 'none' }} />
             <canvas ref={canvasRef} style={{ border: '1px solid black', maxWidth: '80%', display: 'none' }}></canvas>
-            <div style={{marginTop: '10px' }}>
+            <div style={{ marginTop: '10px' }}>
                 People Count: {peopleCount}
             </div>
         </div>

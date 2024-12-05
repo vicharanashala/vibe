@@ -1,21 +1,29 @@
-import React from 'react'
-import { SidebarLeft } from "@/components/sidebar-left"
-import { SidebarRight } from "@/components/sidebar-right"
+import React, { useState } from 'react';
+import { SidebarLeft } from "@/components/sidebar-left";
+import { SidebarRight } from "@/components/sidebar-right";
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Outlet } from 'react-router-dom'
+} from "@/components/ui/sidebar";
+import { Outlet } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { PanelLeft, PanelRight } from 'lucide-react';
 
 const Home = () => {
+  const [isRightSidebarVisible, setIsRightSidebarVisible] = useState(true);
+
+  const toggleRightSidebar = () => {
+    setIsRightSidebarVisible(!isRightSidebarVisible);
+  };
+
   return (
     <SidebarProvider>
       <SidebarLeft />
@@ -28,20 +36,37 @@ const Home = () => {
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbPage className="line-clamp-1">
-                    Project Management & Task Tracking
+                    Student Portal
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleRightSidebar}
+              className="ml-auto"
+            >
+              <PanelRight />
+            </Button>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <Outlet/>
+          <Outlet />
         </div>
       </SidebarInset>
-      <SidebarRight />
+      <div
+        className={`transition-all duration-300 ease-in-out ${
+          isRightSidebarVisible ? 'w-64 opacity-100' : 'w-0 opacity-0'
+        }`}
+        style={{
+          overflow: isRightSidebarVisible ? 'visible' : 'hidden',
+        }}
+      >
+        <SidebarRight />
+      </div>
     </SidebarProvider>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

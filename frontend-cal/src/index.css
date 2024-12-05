@@ -94,3 +94,22 @@
 .video-container:hover {
   cursor: none;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Hide scrollbars but keep scrolling functional */
+.custom-scroll::-webkit-scrollbar {
+  width: 0; /* Remove scrollbar space */
+  height: 0;
+}
+.custom-scroll {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useSignupMutation } from '../store/apiService';
-import { setUser } from '../store/authSlice';
+import { setUser } from '../store/slices/authSlice';
 
 const Signup: React.FC = () => {
   const [email, setEmail] = useState<string>('');

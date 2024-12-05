@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/sidebar"
 import RealTimeHandBlurDetection from "./proctoring-components/realTimeBlurDetection"
 import MultiPersonDetection from "./proctoring-components/MultiPersonDetection"
+import CameraAndMicCheck from "./proctoring-components/CameraAndMicCheck"
+import EyeTrackingWithWebGazer from "./proctoring-components/EyeTrackingWithWebGazer"
 
 
 // This is sample data.
@@ -28,16 +30,16 @@ const data = {
   },
   calendars: [
     {
-      name: "My Calendars",
-      items: ["Personal", "Work", "Family"],
+      name: "My Schedules",
+      items: [],
     },
     {
-      name: "Favorites",
-      items: ["Holidays", "Birthdays"],
+      name: "Announcements",
+      items: [],
     },
     {
-      name: "Other",
-      items: ["Travel", "Reminders", "Deadlines"],
+      name: "Updates",
+      items: [],
     },
   ],
 }
@@ -61,13 +63,14 @@ export function SidebarRight({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-        <MultiPersonDetection/>
+        {/* <MultiPersonDetection/>
         <RealTimeHandBlurDetection/>
-        
+        <EyeTrackingWithWebGazer/>
+        <CameraAndMicCheck/> */}
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Plus />
-              <span>New Calendar</span>
+              <span>New Schedule</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
