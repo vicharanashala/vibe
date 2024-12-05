@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
-from .models import User, UserCourse
+from .models import User
 
 class UserAdmin(BaseUserAdmin):
     list_display = ('username', 'email', 'role', 'is_active', 'is_staff', 'is_superuser', 'created_at', 'updated_at')
@@ -24,12 +24,6 @@ class UserAdmin(BaseUserAdmin):
 
     # Mark created_at and updated_at as read-only fields
     readonly_fields = ('created_at', 'updated_at')
-
-@admin.register(UserCourse)
-class UserCoursesAdmin(admin.ModelAdmin):
-    list_display = ('user', 'course','start_date', 'end_date')
-    list_filter = ('start_date', 'end_date')
-    search_fields = ('user__username', 'course__title')
 
 # Unregister the default Group model (optional)
 admin.site.unregister(Group)

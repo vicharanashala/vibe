@@ -4,8 +4,3 @@ gunicorn>=20.1.0
 djangorestframework
 djangorestframework-simplejwt
 
-
-# dev_dependencies
-django-extensions
-pydotplus
-

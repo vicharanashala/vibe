@@ -1,7 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
-
 class UserManager(BaseUserManager):
     """Manager for custom User model."""
     def create_user(self, username, email, password=None, **extra_fields):
@@ -18,7 +17,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', 'superadmin')  # Superuser is always superadmin
         return self.create_user(username, email, password, **extra_fields)
-
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom User model."""
@@ -61,20 +59,9 @@ class UserInstitution(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.institution.name}"
 
-
 class UserRole(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.name
-
-
-class UserCourse(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    course = models.ForeignKey('course.Course', on_delete=models.CASCADE)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.course.name}"
