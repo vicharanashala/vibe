@@ -109,7 +109,7 @@ export const apiService = createApi({
     }),
     fetchCoursesWithAuth: builder.query<{ courses: any[] }, void>({
       query: () => ({
-      url: "/courses/",
+      url: "/course/courses/",
       method: "GET",
       headers: {
         Authorization: `Bearer ${Cookies.get("access_token")}`,
@@ -128,4 +128,5 @@ export const {
   useFetchUsersWithAuthQuery,
   useFetchVideoDetailsWithAuthQuery,
   useCreateVideoDetailsMutation,
+  useFetchCoursesWithAuthQuery,
 } = apiService;

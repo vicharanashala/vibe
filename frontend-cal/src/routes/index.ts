@@ -49,7 +49,7 @@ const router = createBrowserRouter([
                         element: React.createElement(Testing)
                     },
                     {
-                        path : "/singleCourse",
+                        path : "/singleCourse/:courseId",
                         element: React.createElement(SingleCourse)
                     }
                 ]

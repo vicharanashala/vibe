@@ -15,10 +15,10 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import RealTimeHandBlurDetection from "./proctoring-components/realTimeBlurDetection"
 import MultiPersonDetection from "./proctoring-components/MultiPersonDetection"
 import CameraAndMicCheck from "./proctoring-components/CameraAndMicCheck"
-import EyeTrackingWithWebGazer from "./proctoring-components/EyeTrackingWithWebGazer"
+import RealTimeHandBlurDetection from "./proctoring-components/RealTimeBlurDetection"
+import FacePoseDetection from "./proctoring-components/FacePoseDetector"
 
 
 // This is sample data.
@@ -65,7 +65,7 @@ export function SidebarRight({
         <SidebarMenu>
         {/* <MultiPersonDetection/>
         <RealTimeHandBlurDetection/>
-        <EyeTrackingWithWebGazer/>
+        <FacePoseDetection/>
         <CameraAndMicCheck/> */}
           <SidebarMenuItem>
             <SidebarMenuButton>
