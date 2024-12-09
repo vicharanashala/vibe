@@ -1,5 +1,7 @@
 from django.db import models
 from django.db import models
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 
 
 class Course(models.Model):
@@ -9,10 +11,11 @@ class Course(models.Model):
         ('unlisted', 'Unlisted'),
     ]
     name = models.CharField(max_length=255, unique=True)
+    image = models.ImageField(upload_to='course_images/', null=True, blank=True)
     description = models.TextField()
     visibility = models.CharField(
-        max_length=50, 
-        choices=VISIBILITY_CHOICES, 
+        max_length=50,
+        choices=VISIBILITY_CHOICES,
         default='public',
         help_text="Set the visibility of the course."
     )
@@ -54,4 +57,26 @@ class Section(models.Model):  # Sub-parts within a Module
 
     def __str__(self):
         return f"Section {self.sequence}: {self.title} (Module {self.module.sequence})"
+
+
+class SectionItem(models.Model):
+    section = models.ForeignKey(
+        Section,
+        on_delete=models.CASCADE,
+        related_name="%(class)s_items",  # Dynamically generate related_name
+        help_text="The section this item belongs to."
+    )
+    content_type = models.CharField(max_length=10)
+    sequence = models.PositiveIntegerField(help_text="The order of this item within the section.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('section', 'sequence')
+        ordering = ['sequence']
+        abstract = True
+
+    def __str__(self):
+        return f"{self.section} - Item Sequence {self.sequence}"
+
 

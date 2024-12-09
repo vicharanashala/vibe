@@ -36,3 +36,9 @@ yarn.lock
 # Production Builds
 /dist
 /build
+
+
+# Ignore all .py files in migrations folders
+*/migrations/*.py
+# Except __init__.py
+!*/migrations/__init__.py

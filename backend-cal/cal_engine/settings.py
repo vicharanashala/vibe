@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-a315e&x&14d_34iz$7608d81v3y)0fov--goz$j@#&w*vjib%8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -38,10 +38,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    'corsheaders',
+
+    #3rd Party
     'rest_framework',
     'rest_framework_simplejwt',
-    
+    'django_extensions',
+
     'cal_engine.authentication',
     'cal_engine.user',
     'cal_engine.institution',
@@ -56,14 +59,23 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Add before CommonMiddleware
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'cal_engine.urls'
+
+CORS_ORIGIN_ALLOW_ALL = True
+
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",  # Example: React app URL
+#     "http://127.0.0.1:8000",
+#     "http://192.168.137.2"
+# ]
 
 TEMPLATES = [
     {

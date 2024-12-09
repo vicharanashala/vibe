@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import User, UserInstitution, UserRole
-from .serializers import UserSerializer, UserInstitutionSerializer, UserRoleSerializer
+from .models import User, UserInstitution, UserRole, UserCourse
+from .serializers import UserSerializer, UserInstitutionSerializer, UserRoleSerializer, UserCoursesSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -13,3 +13,7 @@ class UserInstitutionViewSet(viewsets.ModelViewSet):
 class UserRoleViewSet(viewsets.ModelViewSet):
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
+
+class UserCoursesViewSet(viewsets.ModelViewSet):
+    queryset = UserCourse.objects.all()
+    serializer_class = UserCoursesSerializer
