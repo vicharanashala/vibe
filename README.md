@@ -24,6 +24,51 @@
 
 ---
 
+## Installation and Setup
+
+### Prerequisites
+To set up the development environment, the following tools are required:
+- **Docker**: For containerized development and deployment.
+- **VSCode**: For IDE-based development and DevContainer support.
+- **Git**: For version control and repository management.
+
+### Steps
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/your-repo/continuous-active-learning.git
+   cd cal
+   ```
+
+2. **Set Up Dev Containers**
+   - Open the repository in VSCode with Docker enabled.
+   - Select the relevant DevContainer configuration based on the `.devcontainer` folder.
+
+3. **Run Backend Services open the Dev Containers**
+   - For LMS Engine:
+     ```bash
+     cd backend-cal/lms_engine
+     ```
+     
+   - For Ephemeral Data Engine:
+     ```bash
+     cd backend-cal/ephemeral_data_engine
+     ```
+     
+   - For AI Engine:
+     ```bash
+     cd backend-cal/ai_engine
+     ```
+
+4. **Run the Frontend**
+   - Navigate to `frontend-cal` and start the React app:
+     ```bash
+     cd frontend-cal
+     npm install
+     npm start
+     ```
+
+---
+
 ## Repository Structure
 ```
 ├── .devcontainer/             # Docker and DevContainer setup for backend development
@@ -82,51 +127,6 @@
 
 ---
 
-## Installation and Setup
-
-### Prerequisites
-To set up the development environment, the following tools are required:
-- **Docker**: For containerized development and deployment.
-- **VSCode**: For IDE-based development and DevContainer support.
-- **Git**: For version control and repository management.
-
-### Steps
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/your-repo/continuous-active-learning.git
-   cd cal
-   ```
-
-2. **Set Up Dev Containers**
-   - Open the repository in VSCode with Docker enabled.
-   - Select the relevant DevContainer configuration based on the `.devcontainer` folder.
-
-3. **Run Backend Services open the Dev Containers**
-   - For LMS Engine:
-     ```bash
-     cd backend-cal/lms_engine
-     ```
-     
-   - For Ephemeral Data Engine:
-     ```bash
-     cd backend-cal/ephemeral_data_engine
-     ```
-     
-   - For AI Engine:
-     ```bash
-     cd backend-cal/ai_engine
-     ```
-
-4. **Run the Frontend**
-   - Navigate to `frontend-cal` and start the React app:
-     ```bash
-     cd frontend-cal
-     npm install
-     npm start
-     ```
-
----
-
 ## Documentation
 For more detailed documentation and guides, refer to the **[Wiki](https://github.com/your-repo/wiki)**.
 
@@ -145,4 +145,11 @@ This project is licensed under the **MIT License**. See `LICENSE` for more infor
 
 ---
 
-For any inquiries, feedback, or suggestions, feel free to open an issue or reach out to the maintainers.
+For any inquiries, feedback, or suggestions, feel free to:
+
+- Open an issue on the repository.
+- Reach out to the maintainers at staff.aditya.bmv@iitrpr.ac.in or at sidrao2006@gmail.com.
+
+
+
+
