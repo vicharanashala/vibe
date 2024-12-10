@@ -4,12 +4,6 @@ gunicorn>=20.1.0
 djangorestframework
 djangorestframework-simplejwt
 django-cors-headers
-openai-whisper
-google
-google-generativeai
-pytubefix
-youtube-transcript-api
-ffmpeg-python
 Pillow
 
 # dev_dependencies
