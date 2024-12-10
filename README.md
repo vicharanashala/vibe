@@ -128,7 +128,7 @@ To set up the development environment, the following tools are required:
 ---
 
 ## Documentation
-For more detailed documentation and guides, refer to the **[Wiki](https://github.com/your-repo/wiki)**.
+For more detailed documentation and guides, refer to the **[Wiki](https://github.com/sudarshansudarshan/cal/wiki)**.
 
 ---
 
