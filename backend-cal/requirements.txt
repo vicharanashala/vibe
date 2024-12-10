@@ -10,6 +10,7 @@ google-generativeai
 pytubefix
 youtube-transcript-api
 ffmpeg-python
+Pillow
 
 # dev_dependencies
 django-extensions
