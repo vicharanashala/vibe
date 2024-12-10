@@ -1,0 +1,14 @@
+# Force text files to use LF line endings in the repository
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+
+# Specify binary files to ensure they are not affected by line ending changes
+*.png binary
+*.jpg binary
+*.gif binary
+*.exe binary

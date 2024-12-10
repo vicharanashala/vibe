@@ -6,17 +6,24 @@
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
-		"ghcr.io/devcontainers/features/git:1": {}
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "18"
+		}
 	},
 
-	"forwardPorts": [9000],
+	"forwardPorts": [9000, 8000],
 
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"esbenp.prettier-vscode",
-				"Prisma.prisma"
+				"Prisma.prisma",
+				"ms-python.python",
+				"ms-python.vscode-pylance"
 			]
 		}
-	}
+	},
+
+	"postCreateCommand": "npm install && pip install -r /app/backend-cal/requirements.txt"
 }

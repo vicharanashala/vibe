@@ -1,9 +1,62 @@
+version: '3.9'
+
 services:
   backend-ede:
     build:
       context: ..
       dockerfile: dev/Dockerfile-backend-ede
+    command: npm run dev # Use `npm start` for production
     volumes:
       - ..:/app
     ports:
       - "9000:9000"
+    depends_on:
+      - db-ede
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db-ede:5432/ede_db
+      - NODE_ENV=development
+      - PORT=9000
+
+  backend-django:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile-backend
+    command: python backend-cal/lms_engine/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ..:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db-django
+    environment:
+      - DB_NAME=django_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db-django
+      - DB_PORT=5432
+
+  db-ede:
+    image: postgres:17
+    volumes:
+      - postgres_data_ede:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432" # Different port to avoid conflict
+    environment:
+      - POSTGRES_DB=ede_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  db-django:
+    image: postgres:17
+    volumes:
+      - postgres_data_django:/var/lib/postgresql/data/
+    ports:
+      - "5434:5432" # Different port to avoid conflict
+    environment:
+      - POSTGRES_DB=django_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+volumes:
+  postgres_data_ede:
+  postgres_data_django:
