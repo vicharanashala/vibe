@@ -5,6 +5,7 @@ Thumbs.db
 # IDEs and Editors
 .idea/
 .vscode/
+!.vscode/settings.json
 *.swp
 *.swo
 
@@ -28,10 +29,6 @@ node_modules/
 # Docker
 *.pid
 .env.docker
-
-# Ignore package managers' lock files (if not shared)
-package-lock.json
-yarn.lock
 
 # Production Builds
 /dist
