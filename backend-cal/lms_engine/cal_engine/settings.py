@@ -49,10 +49,7 @@ INSTALLED_APPS = [
     'cal_engine.user',
     'cal_engine.institution',
     'cal_engine.course',
-    'cal_engine.study_content',
     'cal_engine.assessment',
-    'cal_engine.tracking',
-    'cal_engine.feedback',
     'cal_engine.log',
 ]
 

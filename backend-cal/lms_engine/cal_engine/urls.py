@@ -23,10 +23,7 @@ urlpatterns = [
     path('api/user/', include('cal_engine.user.urls')),
     path('api/institution/', include('cal_engine.institution.urls')),
     path('api/course/', include('cal_engine.course.urls')),
-    path('api/study_content/', include('cal_engine.study_content.urls')),
     path('api/assessment/', include('cal_engine.assessment.urls')),
-    path('api/tracking/', include('cal_engine.tracking.urls')),
-    path('api/feedback/', include('cal_engine.feedback.urls')),
     path('api/log/', include('cal_engine.log.urls')),
 ]
 

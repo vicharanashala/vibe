@@ -1,6 +1,6 @@
 {
 	"name": "Cal LMS Backend",
-	"dockerComposeFile": "../../../dev/docker-compose-backend.yml",
+	"dockerComposeFile": "../../../dev/docker-compose-backend-lmse.yml",
 	"service": "backend",
 	"workspaceFolder": "/app/backend-cal/lms_engine",
 
