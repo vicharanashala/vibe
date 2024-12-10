@@ -1,0 +1,12 @@
+{
+  "name": "ephemeral_data_engine",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "echo Running dev && sleep 10000",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "description": ""
+}

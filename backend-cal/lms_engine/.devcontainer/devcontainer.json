@@ -1,8 +1,8 @@
 {
-	"name": "Cal Backend",
-	"dockerComposeFile": "../../dev/docker-compose-backend.yml",
+	"name": "Cal LMS Backend",
+	"dockerComposeFile": "../../../dev/docker-compose-backend.yml",
 	"service": "backend",
-	"workspaceFolder": "/app/backend-cal",
+	"workspaceFolder": "/app/backend-cal/lms_engine",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {

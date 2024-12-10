@@ -1,0 +1,9 @@
+services:
+  backend-ede:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile-backend-ede
+    volumes:
+      - ..:/app
+    ports:
+      - "9000:9000"

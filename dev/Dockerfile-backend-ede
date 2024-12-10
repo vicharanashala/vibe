@@ -1,0 +1,11 @@
+FROM node:22
+
+WORKDIR /app/backend-cal/ephemeral_data_engine
+
+COPY backend-cal/ephemeral_data_engine/package*.json /app/backend-cal/ephemeral_data_engine
+
+RUN npm install
+
+EXPOSE 9000
+
+CMD ["npm", "run", "dev"]
