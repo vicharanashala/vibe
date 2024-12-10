@@ -43,7 +43,7 @@ To set up the development environment, the following tools are required:
    - Open the repository in VSCode with Docker enabled.
    - Select the relevant DevContainer configuration based on the `.devcontainer` folder.
 
-3. **Run Backend Services open the Dev Containers**
+3. **Run Backend Services by opening the Dev Containers**
    - For LMS Engine:
      ```bash
      cd backend-cal/lms_engine
