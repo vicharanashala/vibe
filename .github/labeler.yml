@@ -4,7 +4,7 @@ frontend:
 
 backend:
   - changed-files:
-      - any-glob-to-any-file: ["backend-cal/**"]
+      - any-glob-to-any-file: ["backend/**"]
 
 devops:
   - changed-files:
@@ -23,4 +23,4 @@ dependencies:
   - changed-files:
       - any-glob-to-any-file:
         - "frontend-cal/package*.json"
-        - "backend-cal/requirements.txt"
+        - "backend/requirements.txt"

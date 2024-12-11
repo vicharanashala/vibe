@@ -1,5 +1,5 @@
 """
-URL configuration for cal_engine project.
+URL configuration for core project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
@@ -19,11 +19,11 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('cal_engine.authentication.urls')),
-    path('api/user/', include('cal_engine.user.urls')),
-    path('api/institution/', include('cal_engine.institution.urls')),
-    path('api/course/', include('cal_engine.course.urls')),
-    path('api/assessment/', include('cal_engine.assessment.urls')),
-    path('api/log/', include('cal_engine.log.urls')),
+    path('api/auth/', include('core.authentication.urls')),
+    path('api/user/', include('core.user.urls')),
+    path('api/institution/', include('core.institution.urls')),
+    path('api/course/', include('core.course.urls')),
+    path('api/assessment/', include('core.assessment.urls')),
+    path('api/log/', include('core.log.urls')),
 ]
 

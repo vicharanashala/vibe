@@ -33,7 +33,7 @@ git clone https://github.com/sudarshansudarshan/cal.git
 ```
 3. Change to the backend directory.
 ```bash
-cd cal/backend-cal
+cd cal/backend
 ```
 4. Open the project in VS Code and click on the "Reopen in Container" button.
 

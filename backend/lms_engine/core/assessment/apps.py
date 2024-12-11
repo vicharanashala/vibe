@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class UserConfig(AppConfig):
+class AssessmentConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'cal_engine.user'
+    name = 'core.assessment'

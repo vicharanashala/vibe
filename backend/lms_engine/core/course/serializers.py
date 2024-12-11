@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Course, Module, Section, SectionItem
-from cal_engine.institution.models import Institution
+from core.institution.models import Institution
 
 
 class SectionItemSerializer(serializers.ModelSerializer):

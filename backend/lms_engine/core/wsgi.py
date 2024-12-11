@@ -1,5 +1,5 @@
 """
-WSGI config for cal_engine project.
+WSGI config for core project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cal_engine.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 application = get_wsgi_application()

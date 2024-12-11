@@ -13,7 +13,7 @@ Thank you for considering contributing to our project! We welcome contributions 
 
 ## Getting Started
 
-Please refer to the [installation guide](./INSTALLATION.md) for detailed instructions on setting up the project. `README.md` files are available in the `frontend-cal` and `backend-cal` directories for domain-specific instructions.
+Please refer to the [installation guide](./INSTALLATION.md) for detailed instructions on setting up the project. `README.md` files are available in the `frontend-cal` and `backend` directories for domain-specific instructions.
 
 ## How to Contribute
 
@@ -55,7 +55,7 @@ Please see `frontend-cal/.prettierrc` for the Prettier configuration. To sum up,
   - Use [Black](https://black.readthedocs.io/en/stable/) for Python code formatting.
   - Follow the PEP 8 style guide.
 
-Some custom rules have been enforced, inspired by [Django's Style Guide](https://docs.djangoproject.com/en/5.1/internals/contributing/writing-code/coding-style/#python-style). Please refer to the `backend-cal/.flake8` file for the complete list of rules.
+Some custom rules have been enforced, inspired by [Django's Style Guide](https://docs.djangoproject.com/en/5.1/internals/contributing/writing-code/coding-style/#python-style). Please refer to the `backend/.flake8` file for the complete list of rules.
 
 ## Commit Messages
 

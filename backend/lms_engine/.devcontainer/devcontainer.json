@@ -2,15 +2,14 @@
 	"name": "Cal LMS Backend",
 	"dockerComposeFile": "../../../dev/docker-compose-backend-lmse.yml",
 	"service": "backend",
-	"workspaceFolder": "/app/backend-cal/lms_engine",
-
+	"workspaceFolder": "/app/backend/lms_engine",
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		"ghcr.io/devcontainers/features/git:1": {}
 	},
-
-	"forwardPorts": [8000],
-
+	"forwardPorts": [
+		8000
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [

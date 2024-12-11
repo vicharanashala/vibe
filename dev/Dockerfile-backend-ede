@@ -1,8 +1,8 @@
 FROM node:22
 
-WORKDIR /app/backend-cal/ephemeral_data_engine
+WORKDIR /app/backend/ephemeral_data_engine
 
-COPY backend-cal/ephemeral_data_engine/package*.json /app/backend-cal/ephemeral_data_engine
+COPY backend/ephemeral_data_engine/package*.json /app/backend/ephemeral_data_engine
 
 RUN npm install
 

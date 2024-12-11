@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: dev/Dockerfile-backend-lmse
-    command: python backend-cal/lms_engine/manage.py runserver 0.0.0.0:8000
+    command: python backend/lms_engine/manage.py runserver 0.0.0.0:8000
     volumes:
       - ..:/app
     ports:

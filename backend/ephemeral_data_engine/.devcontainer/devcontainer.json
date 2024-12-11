@@ -2,8 +2,7 @@
 	"name": "Cal Ephemeral Data Engine",
 	"dockerComposeFile": "../../../dev/docker-compose-backend-ede.yml",
 	"service": "backend-ede",
-	"workspaceFolder": "/app/backend-cal/ephemeral_data_engine",
-
+	"workspaceFolder": "/app/backend/ephemeral_data_engine",
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		"ghcr.io/devcontainers/features/git:1": {},
@@ -11,9 +10,10 @@
 			"version": "18"
 		}
 	},
-
-	"forwardPorts": [9000, 8000],
-
+	"forwardPorts": [
+		9000,
+		8000
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -23,7 +23,5 @@
 				"ms-python.vscode-pylance"
 			]
 		}
-	},
-
-	"postCreateCommand": "npm install && pip install -r /app/backend-cal/requirements.txt"
+	}
 }

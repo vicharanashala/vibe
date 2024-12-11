@@ -20,8 +20,8 @@ services:
   backend-django:
     build:
       context: ..
-      dockerfile: dev/Dockerfile-backend
-    command: python backend-cal/lms_engine/manage.py runserver 0.0.0.0:8000
+      dockerfile: dev/Dockerfile-backend-lmse
+    command: python backend/lms_engine/manage.py runserver 0.0.0.0:8000
     volumes:
       - ..:/app
     ports:
@@ -29,11 +29,11 @@ services:
     depends_on:
       - db-django
     environment:
-      - DB_NAME=django_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_HOST=db-django
-      - DB_PORT=5432
+      - POSTGRES_DB=django_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db-django
+      - POSTGRES_PORT=5432
 
   db-ede:
     image: postgres:17

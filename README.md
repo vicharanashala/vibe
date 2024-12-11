@@ -46,17 +46,17 @@ To set up the development environment, the following tools are required:
 3. **Run Backend Services by opening the Dev Containers**
    - For LMS Engine:
      ```bash
-     cd backend-cal/lms_engine
+     cd backend/lms_engine
      ```
      
    - For Ephemeral Data Engine:
      ```bash
-     cd backend-cal/ephemeral_data_engine
+     cd backend/ephemeral_data_engine
      ```
      
    - For AI Engine:
      ```bash
-     cd backend-cal/ai_engine
+     cd backend/ai_engine
      ```
 
 4. **Run the Frontend**
@@ -78,7 +78,7 @@ To set up the development environment, the following tools are required:
 │   ├── ISSUE_TEMPLATE/        # Issue templates for GitHub
 │   └── workflows/             # CI/CD workflows for linting, testing, etc.
 │
-├── backend-cal/               # Backend systems
+├── backend/               # Backend systems
 │   ├── .vscode/               # VSCode-specific settings for backend development
 │   ├── ai_engine/             # AI Engine: Handles AI-related tasks (e.g., question generation, proctoring)
 │   ├── ephemeral_data_engine/ # Handles student-specific ephemeral data

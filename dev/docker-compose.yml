@@ -12,7 +12,7 @@ services:
     build:
       context: ..
       dockerfile: dev/Dockerfile-backend
-    command: python backend-cal/manage.py runserver 0.0.0.0:8000
+    command: python backend/manage.py runserver 0.0.0.0:8000
     volumes:
       - ..:/app
     ports:

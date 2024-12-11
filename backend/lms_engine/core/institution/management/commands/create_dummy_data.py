@@ -1,9 +1,9 @@
 from django.core.management.base import BaseCommand
-from cal_engine.institution.models import Institution
-from cal_engine.course.models import Course, Module, Section
-from cal_engine.study_content.models import Video, VideoSegment, Article
-from cal_engine.assessment.models import Assessment
-from cal_engine.user.models import User
+from core.institution.models import Institution
+from core.course.models import Course, Module, Section
+from core.study_content.models import Video, VideoSegment, Article
+from core.assessment.models import Assessment
+from core.user.models import User
 
 class Command(BaseCommand):
     help = "Create a dummy Institution, Course, Modules, Sections, Videos, Articles, and a Superuser"
