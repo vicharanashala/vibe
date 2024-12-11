@@ -49,9 +49,9 @@ To set up the development environment, the following tools are required:
      cd backend/lms_engine
      ```
      
-   - For Ephemeral Data Engine:
+   - For Content Engine:
      ```bash
-     cd backend/ephemeral_data_engine
+     cd backend/content_engine
      ```
      
    - For AI Engine:
@@ -81,8 +81,8 @@ To set up the development environment, the following tools are required:
 ├── backend/               # Backend systems
 │   ├── .vscode/               # VSCode-specific settings for backend development
 │   ├── ai_engine/             # AI Engine: Handles AI-related tasks (e.g., question generation, proctoring)
-│   ├── ephemeral_data_engine/ # Handles student-specific ephemeral data
-│   │   └── .devcontainer/     # DevContainer setup for Ephemeral Data Engine
+│   ├── content_engine/ # Handles student-specific ephemeral data
+│   │   └── .devcontainer/     # DevContainer setup for Content Engine
 │   └── lms_engine/            # Core LMS engine
 │       ├── .devcontainer/     # DevContainer setup for LMS engine
 │       └── cal_engine/        # Main LMS engine code

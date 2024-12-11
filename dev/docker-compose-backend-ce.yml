@@ -1,19 +1,19 @@
 version: '3.9'
 
 services:
-  backend-ede:
+  backend-ce:
     build:
       context: ..
-      dockerfile: dev/Dockerfile-backend-ede
+      dockerfile: dev/Dockerfile-backend-ce
     command: npm run dev # Use `npm start` for production
     volumes:
       - ..:/app
     ports:
       - "9000:9000"
     depends_on:
-      - db-ede
+      - db-ce
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db-ede:5432/ede_db
+      - DATABASE_URL=postgresql://postgres:postgres@db-ce:5432/ce_db
       - NODE_ENV=development
       - PORT=9000
 
@@ -35,14 +35,14 @@ services:
       - POSTGRES_HOST=db-django
       - POSTGRES_PORT=5432
 
-  db-ede:
+  db-ce:
     image: postgres:17
     volumes:
-      - postgres_data_ede:/var/lib/postgresql/data/
+      - postgres_data_ce:/var/lib/postgresql/data/
     ports:
       - "5433:5432" # Different port to avoid conflict
     environment:
-      - POSTGRES_DB=ede_db
+      - POSTGRES_DB=ce_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
 
@@ -58,5 +58,5 @@ services:
       - POSTGRES_PASSWORD=postgres
 
 volumes:
-  postgres_data_ede:
+  postgres_data_ce:
   postgres_data_django:
