@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pose } from '@mediapipe/pose';
 import { Camera } from '@mediapipe/camera_utils';
 
 const FacePoseDetection = () => {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const lookAwayCountRef = useRef(0);
 
   const [status, setStatus] = useState('User not detected');
@@ -14,7 +14,8 @@ const FacePoseDetection = () => {
   useEffect(() => {
     const videoElement = videoRef.current;
     const canvasElement = canvasRef.current;
-    const canvasCtx = canvasElement.getContext('2d');
+    const canvasCtx = canvasElement?.getContext('2d');
+    if (!canvasCtx) return;
 
     const centerBox = {
       x: 320 - 100, // Adjusted for smaller frame
@@ -35,6 +36,7 @@ const FacePoseDetection = () => {
       minTrackingConfidence: 0.5,
     });
 
+    if (!videoElement) return;
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
@@ -45,18 +47,24 @@ const FacePoseDetection = () => {
 
     camera.start();
 
-    canvasElement.width = 640;
-    canvasElement.height = 360;
+    if (canvasElement) {
+      canvasElement.width = 640;
+      canvasElement.height = 360;
+    }
 
     pose.onResults((results) => {
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(
-        results.image,
-        0,
-        0,
-        canvasElement.width,
-        canvasElement.height
-      );
+      if (canvasElement) {
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      }
+      if (canvasElement) {
+        canvasCtx.drawImage(
+          results.image,
+          0,
+          0,
+          canvasElement.width,
+          canvasElement.height
+        );
+      }
 
       // Draw the center box
       canvasCtx.lineWidth = 2;
@@ -72,7 +80,7 @@ const FacePoseDetection = () => {
         const leftEye = results.poseLandmarks[2]; // Left eye
         const rightEye = results.poseLandmarks[5]; // Right eye
 
-        if (
+        if (canvasElement && 
           nose.x * canvasElement.width > centerBox.x &&
           nose.x * canvasElement.width < centerBox.x + centerBox.width &&
           nose.y * canvasElement.height > centerBox.y &&

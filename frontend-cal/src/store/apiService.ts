@@ -117,6 +117,16 @@ export const apiService = createApi({
       },
       }),
     }),
+    fetchModulesWithAuth: builder.query<{ modules: any[] }, number>({
+      query: (courseId) => ({
+        url: `/course/courses/${courseId}/`,
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${Cookies.get("access_token")}`,
+          "Content-Type": "application/json",
+        },
+      }),
+    }),
   }),
 });
 
@@ -129,4 +139,5 @@ export const {
   useFetchVideoDetailsWithAuthQuery,
   useCreateVideoDetailsMutation,
   useFetchCoursesWithAuthQuery,
+  useFetchModulesWithAuthQuery,
 } = apiService;

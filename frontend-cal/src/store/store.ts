@@ -7,6 +7,7 @@ import instituteReducer from './slices/instituteSlice';
 import userReducer from './slices/usersSlice';
 import videoDetailsReducer from './slices/videoDetailsSlice';
 import courseReducer from './slices/courseSlice';
+import moduleReducer from './slices/fetchModulesSlice';
 
 const store = configureStore({
   reducer: {
@@ -15,6 +16,7 @@ const store = configureStore({
     user: userReducer,
     videoDetails: videoDetailsReducer,
     course: courseReducer,
+    module: moduleReducer,
     [apiService.reducerPath]: apiService.reducer,
   },
   middleware: (getDefaultMiddleware) =>

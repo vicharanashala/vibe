@@ -6,7 +6,7 @@ import {
   BookMarked,
   Calendar,
   Command,
-  File,
+  FilePen,
   Home,
   Inbox,
   LogOut,
@@ -15,10 +15,13 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { Sidebar, SidebarContent, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { TeamSwitcher } from "@/components/team-switcher";
+import { CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Separator } from "./ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Sample data with subparts for each navigation item
+// Sample data with subparts and sub-subparts
 const data = {
   teams: [
     { name: "CAL", logo: Command, plan: "Enterprise" },
@@ -37,30 +40,59 @@ const data = {
       url: "#",
       icon: BookMarked,
       subparts: [
-        { title: "Math 101", url: "#math" },
-        { title: "Physics 202", url: "#physics" },
-        { title: "Biology 303", url: "#biology" },
+        {
+          title: "Math 101",
+          url: "#math",
+          subsubparts: [
+            { title: "Algebra", url: "#algebra" },
+            { title: "Geometry", url: "#geometry" },
+          ],
+        },
+        {
+          title: "Physics 202",
+          url: "#physics",
+          subsubparts: [
+            { title: "Kinematics", url: "#kinematics" },
+            { title: "Dynamics", url: "#dynamics" },
+          ],
+        },
       ],
     },
     {
       title: "Assignments",
       url: "#",
-      icon: File,
+      icon: FilePen,
       subparts: [
-        { title: "Assignment 1", url: "#assign1" },
-        { title: "Assignment 2", url: "#assign2" },
+        {
+          title: "Assignment 1",
+          url: "#assign1",
+          subsubparts: [
+            { title: "Part A", url: "#parta" },
+            { title: "Part B", url: "#partb" },
+          ],
+        },
       ],
     },
+
     {
       title: "Announcements",
       url: "#",
       icon: Inbox,
       badge: "10",
       subparts: [
-        { title: "General Updates", url: "#updates" },
-        { title: "New Policies", url: "#policies" },
+        {
+          title: "General Updates",
+          url: "#updates",
+          subsubparts: []
+        },
+        {
+          title: "New Policies",
+          url: "#policies",
+          subsubparts: []
+        },
       ],
     },
+
   ],
   navSecondary: [
     { title: "Calendar", url: "#", icon: Calendar },
@@ -71,85 +103,139 @@ const data = {
   ],
 };
 
-export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [selectedNav, setSelectedNav] = React.useState(null);
 
-  const handleNavClick = (item) => {
+
+export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [selectedNav, setSelectedNav] = React.useState<NavItem | null>(null);
+  const [selectedSubpart, setSelectedSubpart] = React.useState<Subpart | null>(null);
+  const { setOpen } = useSidebar(); // Access setOpen to control the sidebar state
+  console.log("props")
+  console.log("setOpen",setOpen)
+
+  interface NavItem {
+    title: string;
+    url: string;
+    icon: React.ComponentType;
+    subparts: Subpart[];
+    badge?: string;
+  }
+
+  interface Subpart {
+    title: string;
+    url: string;
+    subsubparts: Subsubpart[];
+  }
+
+  interface Subsubpart {
+    title: string;
+    url: string;
+  }
+
+  const handleNavClick = (item: NavItem) => {
     if (selectedNav?.title === item.title) {
-      setSelectedNav(null); // Close the subparts panel if the same item is clicked again
+      setSelectedNav(null); // Toggle off if already selected
     } else {
-      setSelectedNav(item); // Open subparts panel
+      setSelectedNav(item); // Show dropdown for subparts
+      setOpen(true);
     }
+    setSelectedSubpart(null); // Reset subparts panel when switching main nav
+    setOpen(true);
+  };
+
+  const handleSubpartClick = (subpart: Subpart) => {
+    setSelectedSubpart(subpart); // Show panel for subsubparts
+    setOpen(false);
+    setSelectedNav(null);
   };
 
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
-      <Sidebar className="w-60 bg-gray-50 border-r border-gray-200 flex flex-col" {...props}>
-        <SidebarHeader className="px-4 py-3">
+      <Sidebar className="w-60 border-r" {...props} collapsible="icon">
+        <SidebarHeader className="pr-4 pl-2 py-3">
           <TeamSwitcher teams={data.teams} />
         </SidebarHeader>
-        <SidebarContent className="flex-1 px-2">
+        <SidebarContent className="flex-col justify-between px-2">
           <nav className="space-y-1">
             {data.navMain.map((item) => (
-              <button
-                key={item.title}
-                className={`flex items-center w-full px-4 py-2 text-sm font-medium rounded-md ${
-                  selectedNav?.title === item.title
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-gray-800 hover:bg-gray-100"
-                }`}
-                onClick={() => handleNavClick(item)}
-              >
-                <item.icon className="w-5 h-5 mr-3" />
-                <span className="flex-1">{item.title}</span>
-                {item.badge && (
-                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                    {item.badge}
-                  </span>
+              <div key={item.title}>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <SidebarMenuButton
+                        className={`flex items-center text-left w-56 pl-2 pr-4 py-2 text-sm rounded-md`}
+                        onClick={() => handleNavClick(item)}
+                      >
+                        <item.icon className="w-5 h-5 mr-3" />
+                        <span className="flex-1">{item.title}</span>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{item.title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {selectedNav?.title === item.title && item.subparts.length > 0 && (
+                  <div className="pl-8 space-y-1">
+                    {item.subparts.map((subpart) => (
+                      <SidebarMenuButton
+                        key={subpart.title}
+                        className=""
+                        onClick={() => {
+                          handleSubpartClick(subpart);
+                        }}
+                      >
+                        {subpart.title}
+                      </SidebarMenuButton>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
+            ))}
+          </nav>
+          <nav className="space-y-1">
+            {data.navSecondary.map((item) => (
+              <SidebarMenuButton
+                key={item.title}
+                onClick={() => window.location.href = item.url}
+                className="flex items-center pl-2 pr-4 py-2 text-sm rounded-md"
+              >
+                <item.icon className="w-5 h-5 mr-3 flex" />
+                <span>{item.title}</span>
+              </SidebarMenuButton>
             ))}
           </nav>
         </SidebarContent>
-
-        {/* NavSecondary Section */}
-        <div className="border-t border-gray-200">
-          <nav className="p-2 space-y-1">
-            {data.navSecondary.map((item) => (
-              <a
-                key={item.title}
-                href={item.url}
-                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md"
-              >
-                <item.icon className="w-5 h-5 mr-3" />
-                <span>{item.title}</span>
-              </a>
-            ))}
-          </nav>
-        </div>
       </Sidebar>
 
       {/* Subparts Panel */}
-      {selectedNav && selectedNav.subparts.length > 0 && (
-        <div className="w-64 bg-gray-50 border-l border-gray-200 mr-2">
-          <div className="p-4">
-            <h2 className="text-lg text-gray-800">{selectedNav.title}</h2>
-            <ul className="mt-4 space-y-2">
-              {selectedNav.subparts.map((subpart) => (
-                <li key={subpart.title}>
-                  <a
-                    href={subpart.url}
-                    className="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded"
-                  >
-                    {subpart.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
+      {
+        selectedSubpart && (
+          <div className="w-56 border-r rounded-none">
+            <CardHeader>
+              <CardTitle className="text-lg">{selectedSubpart.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <ul className="mt-2 w-full">
+                {selectedSubpart.subsubparts.map((subsubpart) => (
+                  <li key={subsubpart.title}>
+                    <SidebarMenuButton>
+                      <a
+                        href={subsubpart.url}
+                        className=""
+                      >
+                        {subsubpart.title}
+                      </a>
+                    </SidebarMenuButton>
+                    <Separator />
+
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

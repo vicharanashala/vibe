@@ -39,11 +39,11 @@ const ongoingCourses = [
   
   const StudentHome = () => {
     return (
-      <ResizablePanelGroup direction="vertical" className="max-w-full h-full bg-gray-50">
-        <ResizablePanel defaultSize={50} className="bg-white">
+      <ResizablePanelGroup direction="vertical" className="max-w-full h-full">
+        <ResizablePanel defaultSize={50} className="">
           <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-            <h1 className="text-xl font-semibold text-gray-700">All Courses</h1>
-            <Button variant="outline" className="text-gray-600 hover:bg-gray-100">View All</Button>
+            <h1 className="text-xl font-semibold">All Courses</h1>
+            <Button variant="outline" className="">View All</Button>
           </div>
           <div className="px-6 py-4 max-h-60 overflow-auto custom-scroll">
             <Table>
@@ -71,10 +71,10 @@ const ongoingCourses = [
         <ResizableHandle className="bg-gray-300 cursor-pointer" />
   
         {/* On-Going Courses Block */}
-        <ResizablePanel defaultSize={50} className="bg-white">
-          <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-            <h1 className="text-xl font-semibold text-gray-700">On-Going Courses</h1>
-            <Button variant="outline" className="text-gray-600 hover:bg-gray-100">View All</Button>
+        <ResizablePanel defaultSize={50} className="">
+          <div className="flex justify-between items-center px-6 py-4 border-b">
+            <h1 className="text-xl font-semibold">On-Going Courses</h1>
+            <Button variant="outline" className="">View All</Button>
           </div>
           <div className="px-6 py-4 max-h-60 overflow-auto custom-scroll">
             <Table>

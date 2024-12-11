@@ -52,7 +52,7 @@ const DummyForm = () => {
         ))}
       </ul>
     </div>
-  )
-}
+  );
+};
 
-export default DummyForm
+export default DummyForm;

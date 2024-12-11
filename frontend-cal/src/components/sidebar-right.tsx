@@ -16,11 +16,10 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import MultiPersonDetection from "./proctoring-components/MultiPersonDetection"
-import VoiceActivityDetection from "./proctoring-components/VoiceActivityDetection"
 import CameraAndMicCheck from "./proctoring-components/CameraAndMicCheck"
 import RealTimeHandBlurDetection from "./proctoring-components/RealTimeBlurDetection"
 import FacePoseDetection from "./proctoring-components/FacePoseDetector"
-
+import { ModeToggle } from "./mode-toggle"
 
 
 // This is sample data.
@@ -65,11 +64,10 @@ export function SidebarRight({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-        <MultiPersonDetection/>
+        {/* <MultiPersonDetection/>
         <RealTimeHandBlurDetection/>
-        <VoiceActivityDetection/> 
         <FacePoseDetection/>
-        <CameraAndMicCheck/>
+        <CameraAndMicCheck/> */}
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Plus />

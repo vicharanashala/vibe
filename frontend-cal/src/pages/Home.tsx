@@ -15,10 +15,11 @@ import {
 } from "@/components/ui/sidebar";
 import { Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { PanelLeft, PanelRight } from 'lucide-react';
+import { PanelRight } from 'lucide-react';
+import { ModeToggle } from '@/components/mode-toggle';
 
 const Home = () => {
-  const [isRightSidebarVisible, setIsRightSidebarVisible] = useState(true);
+  const [isRightSidebarVisible, setIsRightSidebarVisible] = useState(false);
 
   const toggleRightSidebar = () => {
     setIsRightSidebarVisible(!isRightSidebarVisible);
@@ -41,14 +42,17 @@ const Home = () => {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            <div className="ml-auto">
+            <ModeToggle/>
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleRightSidebar}
-              className="ml-auto"
+              
             >
               <PanelRight />
             </Button>
+            </div>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">

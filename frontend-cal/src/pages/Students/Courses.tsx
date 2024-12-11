@@ -9,6 +9,9 @@ declare global {
 import KeyboardLock from "@/components/proctoring-components/KeyboardLock";
 import RightClickDisabler from "@/components/proctoring-components/RightClickDisable";
 import { FaPlay, FaPause, FaExpand } from "react-icons/fa";
+import { Fullscreen, Pause, Play } from "lucide-react";
+import { Slider } from "@/components/ui/slider"
+
 
 interface Question {
   question: string;
@@ -280,37 +283,35 @@ const Courses: React.FC = () => {
           ></div>
         </div>
         <div className="flex justify-center">
-          <div className="controls-container w-full mx-20 mt-4 bg-white p-4 rounded-lg shadow">
-            <div className="mt-2">
-              <input
-                type="range"
-                className="w-full"
-                min="0"
-                max={totalDuration}
-                value={currentTime}
-                onChange={(e) => seekVideo(Number(e.target.value))}
+          <div className="controls-container w-full mx-20 mt-4 p-4 rounded-lg shadow border border-white">
+            <div className="mt-2 mb-4">
+              <Slider
+              defaultValue={[currentTime]}
+              max={totalDuration}
+              step={1}
+              value={[currentTime]}
+              onValueChange={(value) => seekVideo(value[0])}
               />
             </div>
             <div className="flex justify-between">
               <div className="flex items-center">
                 <button
                   onClick={togglePlayPause}
-                  className="text-2xl p-2 bg-gray-200 rounded-full hover:bg-gray-300"
+                  className="text-2xl p-2 rounded-full"
                 >
-                  {isPlaying ? <FaPause /> : <FaPlay />}
+                  {isPlaying ? <Pause /> : <Play />}
                 </button>
                 <div className="ml-6 flex items-center">
                   <label htmlFor="volume" className="mr-2 text-sm font-medium">
-                    Volume:
+                  Volume:
                   </label>
-                  <input
-                    id="volume"
-                    type="range"
-                    className="w-24"
-                    min="0"
-                    max="100"
-                    value={volume}
-                    onChange={(e) => changeVolume(Number(e.target.value))}
+                  <Slider
+                  defaultValue={[volume]}
+                  max={100}
+                  step={1}
+                  value={[volume]}
+                  onValueChange={(value) => changeVolume(value[0])}
+                  className="w-24"
                   />
                 </div>
               </div>
@@ -326,8 +327,8 @@ const Courses: React.FC = () => {
                     onClick={() => changePlaybackSpeed(speed)}
                     className={`mx-1 px-3 py-1 text-sm rounded-full ${
                       playbackSpeed === speed
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-200 hover:bg-gray-300"
+                        ? "bg-gray-500"
+                        : ""
                     }`}
                   >
                     {speed}x
@@ -337,9 +338,9 @@ const Courses: React.FC = () => {
               <div>
                 <button
                   onClick={toggleFullscreen}
-                  className="text-xl p-2 bg-gray-200 rounded-full hover:bg-gray-300"
+                  className="text-xl p-2 rounded-full"
                 >
-                  <FaExpand />
+                  <Fullscreen />
                 </button>
               </div>
             </div>

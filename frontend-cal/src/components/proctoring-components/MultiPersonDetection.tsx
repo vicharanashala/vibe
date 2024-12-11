@@ -8,6 +8,7 @@ const MultiPersonDetection = () => {
     const [peopleCount, setPeopleCount] = useState(0);
     const alertTriggered = useRef(false); // Track if the alert was triggered
 
+    
     useEffect(() => {
         // Set up webcam feed
         const setupCamera = async () => {

@@ -9,14 +9,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useFetchCoursesWithAuthQuery } from "../../store/apiService";
+import { useFetchCoursesWithAuthQuery, useFetchModulesWithAuthQuery } from "../../store/apiService";
 
 const SingleCourse = () => {
-  const { courseId } = useParams();
-  const { data } = useFetchCoursesWithAuthQuery();
+  const { courseId } = useParams(); // Get courseId from route params
 
-  // Find the course by ID
-  const course = data?.find((c) => c.id === parseInt(courseId, 10));
+  // Fetch all courses to get course details
+  const { data: courseData, isLoading: courseLoading, error: courseError } = useFetchCoursesWithAuthQuery();
+
+  // Fetch modules for the specific course
+  const { data: moduleData, isLoading: moduleLoading, error: moduleError } = useFetchModulesWithAuthQuery(parseInt(courseId, 10));
+
+  if (courseLoading || moduleLoading) {
+    return <p>Loading course and modules...</p>;
+  }
+
+  if (courseError) {
+    return <p>Error fetching course: {courseError.message}</p>;
+  }
+
+  if (moduleError) {
+    return <p>Error fetching modules: {moduleError.message}</p>;
+  }
+
+  // Find the specific course details
+  const course = courseData?.find((c) => c.id === parseInt(courseId, 10));
 
   if (!course) {
     return <p>Course not found!</p>;
@@ -24,6 +41,10 @@ const SingleCourse = () => {
 
   const defaultImage =
     "https://i.pinimg.com/originals/24/12/bc/2412bc5c012e7360f602c13a92901055.jpg";
+
+  // Modules data
+  const modules = moduleData || [];
+  console.log("modules",modules);
 
   return (
     <div className="flex justify-between h-full">
@@ -54,7 +75,7 @@ const SingleCourse = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {course.modules?.map((module) => (
+              {modules.map((module) => (
                 <TableRow key={module.id}>
                   <TableCell className="font-medium">{module.id}</TableCell>
                   <TableCell>{module.title}</TableCell>
