@@ -19,6 +19,7 @@ import MultiPersonDetection from "./proctoring-components/MultiPersonDetection"
 import CameraAndMicCheck from "./proctoring-components/CameraAndMicCheck"
 import RealTimeHandBlurDetection from "./proctoring-components/RealTimeBlurDetection"
 import FacePoseDetection from "./proctoring-components/FacePoseDetector"
+import VoiceActivityDetection from "./proctoring-components/VoiceActivityDetection"
 import { ModeToggle } from "./mode-toggle"
 
 
@@ -66,6 +67,7 @@ export function SidebarRight({
         <SidebarMenu>
         <MultiPersonDetection/>
         <RealTimeHandBlurDetection/>
+        <VoiceActivityDetection/>
         <FacePoseDetection/>
         <CameraAndMicCheck/>
           <SidebarMenuItem>
