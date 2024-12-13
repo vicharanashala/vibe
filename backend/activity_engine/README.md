@@ -44,35 +44,8 @@ To access the API documentation for the Activity Engine, follow these steps:
 
 ### API Structure
 
-The Activity Engine API is structured around the following primary entities:
+Please view the API documentation at /reference.
 
-- **Assessment Attempts**
-  - `GET /attempts`: Retrieve a list of assessment attempts.
-  - `POST /attempts`: Create a new assessment attempt.
-  - `GET /attempts/:id`: Retrieve a specific assessment attempt.
-  - `PUT /attempts/:id`: Update a specific assessment attempt.
-  - `DELETE /attempts/:id`: Delete a specific assessment attempt.
-
-- **Answers**
-  - `GET /answers`: Retrieve a list of answers.
-  - `POST /answers`: Submit a new answer.
-  - `GET /answers/:id`: Retrieve a specific answer.
-  - `PUT /answers/:id`: Update a specific answer.
-  - `DELETE /answers/:id`: Delete a specific answer.
-
-- **Metrics**
-  - `GET /metrics`: Retrieve a list of metrics.
-  - `POST /metrics`: Submit new metrics.
-  - `GET /metrics/:id`: Retrieve specific metrics.
-  - `PUT /metrics/:id`: Update specific metrics.
-  - `DELETE /metrics/:id`: Delete specific metrics.
-
-- **Grading**
-  - `GET /grading`: Retrieve grading results.
-  - `POST /grading`: Submit grading results.
-  - `GET /grading/:id`: Retrieve specific grading results.
-  - `PUT /grading/:id`: Update specific grading results.
-  - `DELETE /grading/:id`: Delete specific grading results.
 
 ## Conclusion
 
