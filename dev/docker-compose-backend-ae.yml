@@ -1,19 +1,19 @@
 version: '3.9'
 
 services:
-  backend-ce:
+  backend-ae:
     build:
       context: ..
-      dockerfile: dev/Dockerfile-backend-ce
+      dockerfile: dev/Dockerfile-backend-ae
     command: npm run dev # Use `npm start` for production
     volumes:
       - ..:/app
     ports:
       - "9000:9000"
     depends_on:
-      - db-ce
+      - db-ae
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db-ce:5432/ce_db
+      - DATABASE_URL=postgresql://postgres:postgres@db-ae:5432/ae_db
       - NODE_ENV=development
       - PORT=9000
 
@@ -35,14 +35,14 @@ services:
       - POSTGRES_HOST=db-django
       - POSTGRES_PORT=5432
 
-  db-ce:
+  db-ae:
     image: postgres:17
     volumes:
-      - postgres_data_ce:/var/lib/postgresql/data/
+      - postgres_data_ae:/var/lib/postgresql/data/
     ports:
       - "5433:5432" # Different port to avoid conflict
     environment:
-      - POSTGRES_DB=ce_db
+      - POSTGRES_DB=ae_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
 
@@ -58,5 +58,5 @@ services:
       - POSTGRES_PASSWORD=postgres
 
 volumes:
-  postgres_data_ce:
+  postgres_data_ae:
   postgres_data_django:

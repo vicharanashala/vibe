@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or any other database provider
+  url      = env("DATABASE_URL")
+}
+
+model StudentCourseProgress {
+  studentId        String
+  courseInstanceId String
+  progress         CourseProgressEnum
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@id([studentId, courseInstanceId])
+}
+
+model StudentAssessmentProgress {
+  id               Int                  @id @default(autoincrement())
+  studentId        String
+  assessmentId     String
+  courseInstanceId String
+  assessmentStatus AssessmentStatusEnum
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+model StudentAssessmentAttemptHistory {
+  attemptId           Int                        @id @default(autoincrement())
+  studentId          String
+  assessmentId       String
+  courseInstanceId   String
+  status             AssessmentAttemptStatusEnum                    @default(IN_PROGRESS)
+  attemptTime         DateTime
+  submissionTime     DateTime?
+  natAnswers         StudentNATAnswer[]
+  descriptiveAnswers StudentDescriptiveAnswer[]
+  mcqAnswers         StudentMCQAnswer[]
+  msqAnswers         StudentMSQAnswer[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+}
+
+model StudentAssessmentAttemptSummary {
+  studentId        String   @map("studentId")
+  assessmentId     String   @map("assessmentId")
+  courseInstanceId String   @map("courseInstanceId")
+  latestAttemptId   Int      @map("latestAttemptId")
+  attemptCount      Int      @map("attemptCount")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@id([studentId, assessmentId, courseInstanceId])
+}
+
+model StudentVideoMetrics {
+  courseInstanceId String   @map("courseInstanceId")
+  studentId        String   @map("studentId")
+  videoId          String   @map("videoId")
+  replays          Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@id([studentId, videoId, courseInstanceId])
+}
+
+model StudentViolationMetrics {
+  id            Int             @id @default(autoincrement())
+  studentId     String          @map("studentId")
+  contentType   ContentTypeEnum
+  contentTypeId String          @map("contentTypeId")
+  violationType String          @map("violationType")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model StudentNATAnswer {
+  id               Int      @id @default(autoincrement())
+  questionId       String   @map("questionId")
+  studentId        String   @map("studentId")
+  courseInstanceId String   @map("courseInstanceId")
+  value            String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assessmentAttemptId             Int                            @map("assessmentAttemptId")
+  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
+}
+
+model StudentDescriptiveAnswer {
+  id               Int      @id @default(autoincrement())
+  questionId       String
+  studentId        String
+  courseInstanceId String
+  answerText       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assessmentAttemptId             Int
+  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
+}
+
+model StudentMCQAnswer {
+  id               Int      @id @default(autoincrement())
+  questionId       String
+  studentId        String
+  courseInstanceId String
+  choiceId         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assessmentAttemptId             Int
+  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
+}
+
+model StudentMSQAnswer {
+  id               Int      @id @default(autoincrement())
+  questionId       String
+  studentId        String
+  courseInstanceId String
+  choiceId         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assessmentAttemptId             Int
+  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
+}
+
+// Enums
+enum CourseProgressEnum {
+  ENROLLED
+  DROPPED
+  COMPLETED
+}
+
+enum ContentTypeEnum {
+  VIDEO
+  ARTICLE
+  ASSESSMENT
+}
+
+enum ViolationTypeEnum {
+  MULTIPLE_PEOPLE_DETECTED
+  BLURRY_IMAGE
+  SPEAKING_DETECTED
+  INACTIVE_USER
+  INVALID_FACE_DETECTED
+  OUT_OF_FRAME
+  NOT_FOCUSED
+}
+
+enum AssessmentStatusEnum {
+  PENDING
+  GRADED
+  FAILED
+  PASSED
+}
+
+enum AssessmentAttemptStatusEnum {
+  IN_PROGRESS
+  SUBMITTED
+}
