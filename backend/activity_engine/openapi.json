@@ -1,9 +1,9 @@
 {
     "openapi": "3.0.2",
     "info": {
-      "title": "Activity Service API",
+      "title": "Activity Engine API",
       "version": "1.0.0",
-      "description": "The Activity Service manages all user-generated data such as student assessment attempts, answers, and metrics (video metrics and violations)."
+      "description": "The Activity Engine manages all user-generated data such as student assessment attempts, answers, and metrics (video metrics and violations)."
     },
     "servers": [
       {
