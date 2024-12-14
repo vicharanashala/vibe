@@ -35,7 +35,7 @@ To set up the development environment, the following tools are required:
 ### Steps
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-repo/continuous-active-learning.git
+   git clone https://github.com/sudarshansudarshan/cal.git
    cd cal
    ```
 
