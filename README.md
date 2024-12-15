@@ -64,7 +64,7 @@ To set up the development environment, the following tools are required:
      ```bash
      cd frontend-cal
      npm install
-     npm start
+     npm run dev
      ```
 
 ---
