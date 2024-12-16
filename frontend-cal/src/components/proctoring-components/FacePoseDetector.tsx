@@ -1,149 +1,115 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pose } from '@mediapipe/pose';
-import { Camera } from '@mediapipe/camera_utils';
+import React, { useEffect, useRef, useState } from "react";
+import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
-const FacePoseDetection = () => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lookAwayCountRef = useRef(0);
+const PoseLandmarkerComponent = ({filesetResolver}) => {
+    const videoRef = useRef(null);
+    const poseLandmarkerRef = useRef(null);
+    const lookAwayCountRef = useRef(0);
+    const [status, setStatus] = useState('User not detected');
+    const [noseEyeDistance, setNoseEyeDistance] = useState(0);
+    const [lookAwayCount, setLookAwayCount] = useState(0);
+    const [numPeople, setNumPeople] = useState(0);
 
-  const [status, setStatus] = useState('User not detected');
-  const [noseEyeDistance, setNoseEyeDistance] = useState(0);
-  const [lookAwayCount, setLookAwayCount] = useState(0);
+    useEffect(() => {
+        const initializePoseLandmarker = async () => {
 
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    const canvasElement = canvasRef.current;
-    const canvasCtx = canvasElement?.getContext('2d');
-    if (!canvasCtx) return;
+            poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: "src/models/pose_landmarker_lite.task", 
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                numPoses: 2
+            });
+        };
 
-    const centerBox = {
-      x: 320 - 100, // Adjusted for smaller frame
-      y: 180 - 100, // Adjusted for smaller frame
-      width: 200,
-      height: 200,
-    };
+        const startWebcam = async () => {
+            const video = videoRef.current;
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.play();
+            }
+        };
 
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-    });
+        initializePoseLandmarker();
+        startWebcam();
 
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
+        return () => {
+            const video = videoRef.current;
+            if (video && video.srcObject) {
+                const tracks = video.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+            }
+        };
+    }, []);
 
-    if (!videoElement) return;
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
-      width: 640, // Adjusted for smaller frame
-      height: 360, // Adjusted for smaller frame
-    });
+    useEffect(() => {
+        const video = videoRef.current;
 
-    camera.start();
+        const detectLandmarks = async () => {
+            if (poseLandmarkerRef.current && video.readyState === 4) {
+                const landmarks = await poseLandmarkerRef.current.detectForVideo(video, performance.now());
 
-    if (canvasElement) {
-      canvasElement.width = 640;
-      canvasElement.height = 360;
-    }
+                if (landmarks && landmarks.landmarks[0]) {
+                    setNumPeople(landmarks.landmarks.length);
+                    if(numPeople>1){
+                        console.log(numPeople, " people are present in the feed.")
+                    }
+                  
+                  // checking if the person's face is in the middle of the fame
+                  const nose = landmarks.landmarks[0][0]
+                  if (nose) {
+                    const videoWidth = video.videoWidth;
+                    const videoHeight = video.videoHeight;
 
-    pose.onResults((results) => {
-      if (canvasElement) {
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      }
-      if (canvasElement) {
-        canvasCtx.drawImage(
-          results.image,
-          0,
-          0,
-          canvasElement.width,
-          canvasElement.height
-        );
-      }
+                    const box = {
+                        left: videoWidth / 4,
+                        right: (videoWidth * 3) / 4,
+                        top: videoHeight / 4,
+                        bottom: (videoHeight * 3) / 4
+                    };
 
-      // Draw the center box
-      canvasCtx.lineWidth = 2;
-      if (status === 'User is inside the frame') {
-        canvasCtx.strokeStyle = 'green';
-      } else {
-        canvasCtx.strokeStyle = 'red';
-      }
-      canvasCtx.strokeRect(centerBox.x, centerBox.y, centerBox.width, centerBox.height);
+                    const noseX = nose.x * videoWidth;
+                    const noseY = nose.y * videoHeight;
 
-      if (results.poseLandmarks) {
-        const nose = results.poseLandmarks[0]; // Nose landmark
-        const leftEye = results.poseLandmarks[2]; // Left eye
-        const rightEye = results.poseLandmarks[5]; // Right eye
+                    const isInBox = 
+                        noseX >= box.left &&
+                        noseX <= box.right &&
+                        noseY >= box.top &&
+                        noseY <= box.bottom;
 
-        if (canvasElement && 
-          nose.x * canvasElement.width > centerBox.x &&
-          nose.x * canvasElement.width < centerBox.x + centerBox.width &&
-          nose.y * canvasElement.height > centerBox.y &&
-          nose.y * canvasElement.height < centerBox.y + centerBox.height
-        ) {
-          setStatus('User is inside the frame');
-        } else {
-          setStatus('User is outside the frame');
-        }
+                    isInBox ? setStatus("User is in box") : setStatus("User is not in box")
+                 }
+                 const leftEye = landmarks.landmarks[0][2];
+                 const rightEye = landmarks.landmarks[0][5];
+                 const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
+                 if (eyeDiff < 0.070) {
+                   lookAwayCountRef.current++;
+                   setLookAwayCount(lookAwayCountRef.current);
+                   setStatus('Focus on the lecture!');
+                 }
+                } else {
+                  setStatus("User not detected.")
+                }
+            }
 
-        const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
-        const calculatedNoseEyeDistance = Math.abs(nose.x - (leftEye.x + rightEye.x) / 2); // Distance between nose and eyes
+            requestAnimationFrame(detectLandmarks);
+        };
 
-        setNoseEyeDistance(calculatedNoseEyeDistance);
+        detectLandmarks();
+    }, []);
 
-        if (eyeDiff < 0.050 || calculatedNoseEyeDistance < 0.0010) {
-          lookAwayCountRef.current++;
-          setLookAwayCount(lookAwayCountRef.current);
-          setStatus('Focus on the lecture!');
-        }
-      } else {
-        setStatus('User not detected');
-      }
-    });
-
-    return () => {
-      camera.stop();
-      pose.close();
-    };
-  }, []);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* Video and Canvas Container */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: '320px', // Small size for sidebar
-          aspectRatio: '16 / 9',
-          margin: '0 auto',
-        }}
-      >
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-        />
-        <canvas
-          ref={canvasRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-        />
-      </div>
-
-      {/* Text Output Section */}
-      <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '14px' }}>
-        <h4>Status: {status}</h4>
-        <p>Look Away Count: {lookAwayCount} ms</p>
-      </div>
-    </div>
-  );
+    return (
+        <div>
+            <video ref={videoRef} style={{ display: "none" }} />
+            <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '14px' }}>
+              <h4>People Count: {numPeople}</h4>
+              <h4>Status: {status}</h4>
+              <p>Look Away Count: {lookAwayCount} ms</p>
+            </div>
+        </div>
+    );
 };
 
-export default FacePoseDetection;
+export default PoseLandmarkerComponent;

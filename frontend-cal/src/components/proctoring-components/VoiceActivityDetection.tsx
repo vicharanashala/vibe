@@ -3,50 +3,72 @@ import audio from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@0.10.0";
 
 const { AudioClassifier, FilesetResolver } = audio;
 
-const VoiceActivityDetection: React.FC = () => {
+const VoiceActivityDetection: React.FC = ({ filesetResolver }) => {
   const [audioClassifier, setAudioClassifier] = useState<AudioClassifier | null>(null);
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState("No");
+  const [initialized, setInitialized] = useState(false);
 
   const MODEL_URL = "src/models/yamnet.tflite";
   const CACHE_NAME = "tflite-model-cache";
 
   useEffect(() => {
-    const createAudioClassifier = async () => {
+    const initialize = async () => {
       try {
-        const modelUrl = await cacheModel(MODEL_URL);
-        const resolver = await FilesetResolver.forAudioTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@0.10.0/wasm"
-        );
+        // Request microphone permissions early
+        await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        const classifier = await AudioClassifier.createFromOptions(resolver, {
+        // Create AudioClassifier
+        const modelUrl = await cacheModel(MODEL_URL);
+        const classifier = await AudioClassifier.createFromOptions(filesetResolver, {
           baseOptions: {
             modelAssetPath: modelUrl,
           },
         });
 
         setAudioClassifier(classifier);
+        setInitialized(true);
 
-        // Start streaming classification automatically
+        // Ensure AudioContext is ready
+        const localAudioCtx = getOrCreateAudioContext();
+        if (localAudioCtx.state === "suspended") {
+          await localAudioCtx.resume();
+        }
+
+        // Start streaming classification
         handleStreamClassification(classifier);
       } catch (error) {
-        console.error("Error initializing AudioClassifier:", error);
+        console.error("Error initializing VoiceActivityDetection:", error);
       }
     };
 
-    createAudioClassifier();
+    // Automatically initialize on mount
+    initialize();
+
+    // Fallback: Resume AudioContext on user interaction if suspended
+    const resumeAudioContextOnInteraction = () => {
+      const localAudioCtx = getOrCreateAudioContext();
+      if (localAudioCtx.state === "suspended") {
+        localAudioCtx.resume();
+      }
+    };
+
+    window.addEventListener("click", resumeAudioContextOnInteraction);
+    window.addEventListener("keydown", resumeAudioContextOnInteraction);
+
+    return () => {
+      window.removeEventListener("click", resumeAudioContextOnInteraction);
+      window.removeEventListener("keydown", resumeAudioContextOnInteraction);
+    };
   }, []);
 
-  // Function to cache the model
   const cacheModel = async (url: string): Promise<string> => {
-    // Open the cache storage
     const cache = await caches.open(CACHE_NAME);
-
-    // Check if the model is already cached
     const cachedResponse = await cache.match(url);
 
     if (cachedResponse) {
       console.log("Model loaded from cache:", url);
-      return url; // Use the cached version
+      return url;
     }
 
     console.log("Downloading model and caching it...");
@@ -55,10 +77,9 @@ const VoiceActivityDetection: React.FC = () => {
       throw new Error(`Failed to fetch model: ${response.statusText}`);
     }
 
-    // Store the model in the cache
     await cache.put(url, response);
     console.log("Model cached successfully.");
-    return url; // Use the newly cached version
+    return url;
   };
 
   const getOrCreateAudioContext = () => {
@@ -71,15 +92,9 @@ const VoiceActivityDetection: React.FC = () => {
   };
 
   const handleStreamClassification = async (classifier: AudioClassifier) => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("getUserMedia is not supported on your browser.");
-      return;
-    }
-
     try {
       const localAudioCtx = getOrCreateAudioContext();
 
-      // Ensure the AudioContext is running
       if (localAudioCtx.state === "suspended") {
         await localAudioCtx.resume();
       }
@@ -91,20 +106,23 @@ const VoiceActivityDetection: React.FC = () => {
       scriptNode.onaudioprocess = (event) => {
         try {
           const inputData = event.inputBuffer.getChannelData(0);
-          if (classifier) {
-            const results = classifier.classify(inputData);
+          const results = classifier.classify(inputData);
 
-            if (results?.length > 0) {
-              const categories = results[0]?.classifications[0]?.categories;
+          if (results?.length > 0) {
+            const categories = results[0]?.classifications[0]?.categories;
 
-              if (categories && categories[0]?.categoryName === "Speech" && parseFloat(categories[0]?.score.toFixed(3)) > 0.5) {
-                console.log("Speaking detected:", categories[0]?.score.toFixed(3));
-              }
+            if (
+              categories &&
+              categories[0]?.categoryName === "Speech" &&
+              parseFloat(categories[0]?.score.toFixed(3)) > 0.5
+            ) {
+              setIsSpeaking("Yes");
+              console.log("Speaking detected.")
             } else {
-              console.warn("No classifications found in results.");
+              setIsSpeaking("No");
             }
           } else {
-            console.warn("AudioClassifier is null or undefined.");
+            console.warn("No classifications found in results.");
           }
         } catch (error) {
           console.error("Error during classification:", error);
@@ -118,12 +136,9 @@ const VoiceActivityDetection: React.FC = () => {
     }
   };
 
-  
-
   return (
     <div>
-      <h1>Voice Activity Detection</h1>
-      <p>Listening for voice activity...</p>
+      <h4>Speaking: {isSpeaking}</h4>
     </div>
   );
 };
