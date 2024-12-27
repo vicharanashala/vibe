@@ -2,9 +2,12 @@ FROM python:3.12
 
 WORKDIR /app
 
-COPY backend/lms_engine/requirements.txt /app/backend/lms_engine/requirements.txt
+COPY backend/lms_engine/requirements-dev.txt /app/backend/lms_engine/requirements-dev.txt
+COPY backend/lms_engine/scripts.sh /app/backend/lms_engine/scripts.sh
 
 RUN pip install --upgrade pip
-RUN pip install -r backend/lms_engine/requirements.txt
+RUN pip install -r backend/lms_engine/requirements-dev.txt
+
+RUN chmod +x /app/backend/lms_engine/scripts.sh
 
 EXPOSE 8000

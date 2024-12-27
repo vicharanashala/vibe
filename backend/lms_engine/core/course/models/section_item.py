@@ -1,40 +1,46 @@
 from django.db import models
 
-from enum import Enum
-
+from ...auth.permissions import ModelPermissionsMixin
+from ...utils.models import TimestampMixin
 from . import Section
 
 
-class ItemTypeChoices(Enum):
-    ARTICLE = 'article'
-    ASSESSMENT = 'assessment'
-    VIDEO = 'video'
+class ItemTypeChoices(models.TextChoices):
+    ARTICLE = "article", "Article"
+    ASSESSMENT = "assessment", "Assessment"
+    VIDEO = "video", "Video"
 
-    @classmethod
-    def choices(cls):
-        return [(key.value, key.name.title()) for key in cls]
 
-class SectionItem(models.Model):
+class SectionItem(TimestampMixin, ModelPermissionsMixin, models.Model):
     section = models.ForeignKey(
         Section,
         on_delete=models.CASCADE,
-        related_name="%(class)s_items",  # Dynamically generate related_name
-        help_text="The section this item belongs to."
+        related_name="%(class)ss",  # Dynamically generate related_name
+        help_text="The section this item belongs to.",
     )
-    item_type = models.CharField(choices=ItemTypeChoices.choices(), max_length=10)
-    sequence = models.PositiveIntegerField(help_text="The order of this item within the section.")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    item_type = models.CharField(choices=ItemTypeChoices.choices)
+    sequence = models.PositiveIntegerField(
+        help_text="The order of this item within the section."
+    )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['section', 'sequence'],
-                name='%(class)s_sequence_in_section'
+                fields=["section", "sequence"], name="%(class)s_sequence_in_section"
             )
         ]
-        ordering = ['sequence']
+        ordering = ["sequence"]
         abstract = True
 
     def __str__(self):
         return f"{self.section} - Item Sequence {self.sequence}"
+
+    def __getattr__(self, name):
+        """
+        Delegate permission checks to the related section object.
+        """
+        if name.endswith("_has_access"):
+            return getattr(self.section, name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
