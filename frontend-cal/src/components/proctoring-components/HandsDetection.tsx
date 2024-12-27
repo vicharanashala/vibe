@@ -63,7 +63,7 @@ const HandLandmarkerComponent = ({filesetResolver}) => {
 
     useEffect(() => {
         for(let i = 0; i<3; i++){
-            if(handCount>1){
+            if(handCount>2){
                 handleSaveSnapshot({anomalyType: "more than 2 hands", video: videoRef.current});
             }
         }

@@ -59,16 +59,7 @@ const BlurDetection = () => {
         const scale = 0.5; // Scale down to 50% of the original size
         const width = Math.floor(imageData.width * scale);
         const height = Math.floor(imageData.height * scale);
-  
-        // Create an offscreen canvas for processing
-        // const offscreenCanvas = document.createElement("canvas");
-        // offscreenCanvas.width = width;
-        // offscreenCanvas.height = height;
-        // const offscreenCtx = offscreenCanvas.getContext("2d");
-        // offscreenCtx.drawImage(image, 0, 0, width, height);
-  
-        // Get image data
-        // const imageData = offscreenCtx.getImageData(0, 0, width, height);
+
   
         // Convert to grayscale
         const gray = rgbToGrayscale(imageData);
