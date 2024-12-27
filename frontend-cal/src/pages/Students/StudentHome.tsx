@@ -10,7 +10,6 @@ import {
   } from "@/components/ui/table";
   import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
   import { Button } from "@/components/ui/button";
-  import SnapShow from "../../components/SnapShow";
   
 const courses = [
     { id: 1, name: "Introduction to AI", duration: "6 weeks" },
@@ -70,8 +69,6 @@ const ongoingCourses = [
         </ResizablePanel>
   
         <ResizableHandle className="bg-gray-300 cursor-pointer" />
-
-        <SnapShow />
   
         {/* On-Going Courses Block */}
         <ResizablePanel defaultSize={50} className="">

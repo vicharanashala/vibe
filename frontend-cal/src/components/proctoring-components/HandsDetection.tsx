@@ -50,10 +50,6 @@ const HandLandmarkerComponent = ({filesetResolver}) => {
 
                 if (results && results.landmarks) {
                     setHandCount(results.landmarks.length);
-                    console.log(handCount)
-                    if(results.landmarks.length>1){
-                        handleSaveSnapshot({anomalyType: "more than 2 hands", video: videoRef.current});
-                    }
                 } else {
                     setHandCount(0);
                 }
@@ -64,6 +60,15 @@ const HandLandmarkerComponent = ({filesetResolver}) => {
 
         detectHands();
     }, []);
+
+    useEffect(() => {
+        for(let i = 0; i<3; i++){
+            if(handCount>1){
+                handleSaveSnapshot({anomalyType: "more than 2 hands", video: videoRef.current});
+            }
+        }
+    }, [handCount]); // Triggered whenever handCount changes
+    
 
     return (
         <div>

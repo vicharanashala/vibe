@@ -31,6 +31,7 @@ const captureFrame = async (video) => {
 };
 
 export const handleSaveSnapshot = async ({ anomalyType, video }) => {
+  console.log("capturing for", anomalyType)
   const base64Img = await captureFrame(video); // Await the async function
   if (base64Img) {
     const newSnapshot = {

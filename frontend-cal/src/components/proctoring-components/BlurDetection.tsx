@@ -29,38 +29,46 @@ const BlurDetection = () => {
     }, []);
 
     useEffect(() => {
-        const captureFrame = () => {
-            const video = videoRef.current;
-            if (video) {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                setImage(canvas.toDataURL("image/png"));
-
-            }
-        };
+      const captureFrame = () => {
+        const video = videoRef.current;
+        if (video) {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            setImage(imageData)
+        }
+    };
+    
 
         const interval = setInterval(captureFrame, 200);
         return () => clearInterval(interval);
     }, []);
 
-    function checkBlur(image) {
+    useEffect(() => {
+      if(! image){
+        return;
+      }
+      checkBlur(image);
+    }, [image]);
+
+    function checkBlur(imageData) {
         // Downscale the image for performance
         const scale = 0.5; // Scale down to 50% of the original size
-        const width = Math.floor(image.width * scale);
-        const height = Math.floor(image.height * scale);
+        const width = Math.floor(imageData.width * scale);
+        const height = Math.floor(imageData.height * scale);
   
         // Create an offscreen canvas for processing
-        const offscreenCanvas = document.createElement("canvas");
-        offscreenCanvas.width = width;
-        offscreenCanvas.height = height;
-        const offscreenCtx = offscreenCanvas.getContext("2d");
-        offscreenCtx.drawImage(image, 0, 0, width, height);
+        // const offscreenCanvas = document.createElement("canvas");
+        // offscreenCanvas.width = width;
+        // offscreenCanvas.height = height;
+        // const offscreenCtx = offscreenCanvas.getContext("2d");
+        // offscreenCtx.drawImage(image, 0, 0, width, height);
   
         // Get image data
-        const imageData = offscreenCtx.getImageData(0, 0, width, height);
+        // const imageData = offscreenCtx.getImageData(0, 0, width, height);
   
         // Convert to grayscale
         const gray = rgbToGrayscale(imageData);
@@ -76,12 +84,19 @@ const BlurDetection = () => {
   
         if(isBlurry){
             setIsBlur("Yes")
-            handleSaveSnapshot({anomalyType: "Blurry video", video: videoRef.current})
         } else {
             setIsBlur("No")
         }
         return;
       }
+
+      useEffect(() => {
+          for(let i = 0; i<3; i++){
+              if(isBlur === "Yes"){
+                  handleSaveSnapshot({anomalyType: "Blurry video", video: videoRef.current});
+              }
+          }
+      }, [isBlur]);
   
       /**
        * Converts RGB image data to grayscale.

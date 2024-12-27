@@ -53,13 +53,7 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
                 const landmarks = await poseLandmarkerRef.current.detectForVideo(video, performance.now());
                 
                 if (landmarks && landmarks.landmarks[0]) {
-                    setNumPeople(landmarks.landmarks.length);
-                    if(landmarks.landmarks.length>1){
-                        // if anomaly persists for more than 3 snaps, stop taking snaps.
-
-                        handleSaveSnapshot({anomalyType: "Multiple people", video: videoRef.current})
-                    }
-                  
+                    setNumPeople(landmarks.landmarks.length);                 
                   // checking if the person's face is in the middle of the fame
                   const nose = landmarks.landmarks[0][0]
                   if (nose) {
@@ -105,6 +99,14 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
 
         detectLandmarks();
     }, []);
+
+    useEffect(() => {
+        for(let i = 0; i<3; i++){
+            if(numPeople>1){
+                handleSaveSnapshot({anomalyType: "multiple people", video: videoRef.current});
+            }
+        }
+    }, [numPeople]);
 
     return (
         <div>
