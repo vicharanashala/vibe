@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { handleSaveSnapshot } from "../../lib/snapUtils";
 
 const PoseLandmarkerComponent = ({filesetResolver}) => {
     const videoRef = useRef(null);
@@ -50,11 +51,13 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
         const detectLandmarks = async () => {
             if (poseLandmarkerRef.current && video.readyState === 4) {
                 const landmarks = await poseLandmarkerRef.current.detectForVideo(video, performance.now());
-
+                
                 if (landmarks && landmarks.landmarks[0]) {
                     setNumPeople(landmarks.landmarks.length);
-                    if(numPeople>1){
-                        console.log(numPeople, " people are present in the feed.")
+                    if(landmarks.landmarks.length>1){
+                        // if anomaly persists for more than 3 snaps, stop taking snaps.
+
+                        handleSaveSnapshot({anomalyType: "Multiple people", video: videoRef.current})
                     }
                   
                   // checking if the person's face is in the middle of the fame
@@ -86,6 +89,9 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
                  const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
                  if (eyeDiff < 0.070) {
                    lookAwayCountRef.current++;
+                   if(lookAwayCountRef.current % 1000 == 0 && lookAwayCount.current != 0){
+                    handleSaveSnapshot({anomalyType: "not focusing", video: videoRef.current})
+                   }
                    setLookAwayCount(lookAwayCountRef.current);
                    setStatus('Focus on the lecture!');
                  }

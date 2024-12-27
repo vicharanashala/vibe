@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { handleSaveSnapshot } from "../../lib/snapUtils";
 
 const BlurDetection = () => {
 
@@ -75,6 +76,7 @@ const BlurDetection = () => {
   
         if(isBlurry){
             setIsBlur("Yes")
+            handleSaveSnapshot({anomalyType: "Blurry video", video: videoRef.current})
         } else {
             setIsBlur("No")
         }

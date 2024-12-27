@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { handleSaveSnapshot } from "../../lib/snapUtils.js";
 
 const HandLandmarkerComponent = ({filesetResolver}) => {
     const videoRef = useRef(null);
@@ -49,8 +50,9 @@ const HandLandmarkerComponent = ({filesetResolver}) => {
 
                 if (results && results.landmarks) {
                     setHandCount(results.landmarks.length);
-                    if(handCount>2){
-                        console.log(handCount, " hands are present in the feed.")
+                    console.log(handCount)
+                    if(results.landmarks.length>1){
+                        handleSaveSnapshot({anomalyType: "more than 2 hands", video: videoRef.current});
                     }
                 } else {
                     setHandCount(0);
