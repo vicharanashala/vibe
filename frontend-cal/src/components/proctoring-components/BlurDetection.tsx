@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { handleSaveSnapshot } from "../../lib/snapUtils";
 
-const BlurDetection = () => {
+// take isBlur as props
+const BlurDetection = ({isBlur, setIsBlur}) => {
 
     const videoRef = useRef(null);
     const [image, setImage] = useState(null);
-    const [isBlur, setIsBlur] = useState("No");
 
     useEffect(() => {
         const startWebcam = async () => {
@@ -80,14 +79,6 @@ const BlurDetection = () => {
         }
         return;
       }
-
-      useEffect(() => {
-          for(let i = 0; i<3; i++){
-              if(isBlur === "Yes"){
-                  handleSaveSnapshot({anomalyType: "Blurry video", video: videoRef.current});
-              }
-          }
-      }, [isBlur]);
   
       /**
        * Converts RGB image data to grayscale.

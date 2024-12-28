@@ -117,7 +117,6 @@ const VoiceActivityDetection: React.FC = ({ filesetResolver }) => {
               parseFloat(categories[0]?.score.toFixed(3)) > 0.5
             ) {
               setIsSpeaking("Yes");
-              console.log("Speaking detected.")
             } else {
               setIsSpeaking("No");
             }

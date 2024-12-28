@@ -1,5 +1,6 @@
-import { saveSnapshot } from "./dbUtils";
+import { saveSnapshot, deleteSnapshot, getSnapshots } from "./dbUtils";
 
+const memoryCapacity = 20; // number of images stored in the database at any given time.
 
 const captureFrame = async (video) => {
   if (video.srcObject) {
@@ -42,11 +43,42 @@ export const handleSaveSnapshot = async ({ anomalyType, video }) => {
 
     try {
       const id = await saveSnapshot(newSnapshot); // Save snapshot to database
+      console.log("saved snapshot with id ", id)
+      await deleteOldSnapshot(id);
       return id;
     } catch (error) {
       console.error("Error saving snapshot to database:", error);
     }
   } else {
     console.error("Failed to capture or save snapshot.");
+  }
+};
+
+/**
+ * Deletes a snapshot with id = added_id - 20 if its anomalyType is "none".
+ * @param {number} added_id - The ID of the recently added snapshot.
+ */
+const deleteOldSnapshot = async (added_id) => {
+  const target_id = added_id - (memoryCapacity-1);
+
+  if (target_id <= 0) {
+    console.log(`Invalid target_id: ${target_id}. Skipping deletion.`);
+    return;
+  }
+
+  try {
+    const snapshots = await getSnapshots(); // Fetch all snapshots
+    const snapshotToDelete = snapshots.find((snapshot) => snapshot.id === target_id);
+
+    if (!snapshotToDelete) {
+      console.log(`No snapshot found with id: ${target_id}. Skipping deletion.`);
+      return;
+    }
+
+    await deleteSnapshot(target_id);
+    console.log(`Snapshot with id: ${target_id} has been deleted.`);
+  } catch (error) {
+    console.error("Error in deleteOldSnapshotIfNone:", error);
+    throw error; // Re-throw the error to propagate it back to the caller
   }
 };

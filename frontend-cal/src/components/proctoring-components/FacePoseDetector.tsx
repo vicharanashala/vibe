@@ -1,16 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
-import { handleSaveSnapshot } from "../../lib/snapUtils";
 
-const PoseLandmarkerComponent = ({filesetResolver}) => {
+// take lookAwayCount and numPeople as props
+const PoseLandmarkerComponent = ({filesetResolver, lookAwayCount, setLookAwayCount, numPeople, setNumPeople}) => {
     const videoRef = useRef(null);
     const poseLandmarkerRef = useRef(null);
     const lookAwayCountRef = useRef(0);
     const [status, setStatus] = useState('User not detected');
     const [noseEyeDistance, setNoseEyeDistance] = useState(0);
-    const [lookAwayCount, setLookAwayCount] = useState(0);
-    const [numPeople, setNumPeople] = useState(0);
-
+    
     useEffect(() => {
         const initializePoseLandmarker = async () => {
 
@@ -83,9 +81,6 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
                  const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
                  if (eyeDiff < 0.070) {
                    lookAwayCountRef.current++;
-                   if(lookAwayCountRef.current % 1000 == 0 && lookAwayCount.current != 0){
-                    handleSaveSnapshot({anomalyType: "not focusing", video: videoRef.current})
-                   }
                    setLookAwayCount(lookAwayCountRef.current);
                    setStatus('Focus on the lecture!');
                  }
@@ -99,14 +94,6 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
 
         detectLandmarks();
     }, []);
-
-    useEffect(() => {
-        for(let i = 0; i<3; i++){
-            if(numPeople>1){
-                handleSaveSnapshot({anomalyType: "multiple people", video: videoRef.current});
-            }
-        }
-    }, [numPeople]);
 
     return (
         <div>

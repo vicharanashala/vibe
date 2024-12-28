@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
-import { handleSaveSnapshot } from "../../lib/snapUtils.js";
 
-const HandLandmarkerComponent = ({filesetResolver}) => {
+// take handCount as props
+const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => {
     const videoRef = useRef(null);
     const handLandmarkerRef = useRef(null);
-    const [handCount, setHandCount] = useState(0);
 
     useEffect(() => {
         const initializeHandLandmarker = async () => {
@@ -60,14 +59,6 @@ const HandLandmarkerComponent = ({filesetResolver}) => {
 
         detectHands();
     }, []);
-
-    useEffect(() => {
-        for(let i = 0; i<3; i++){
-            if(handCount>2){
-                handleSaveSnapshot({anomalyType: "more than 2 hands", video: videoRef.current});
-            }
-        }
-    }, [handCount]); // Triggered whenever handCount changes
     
 
     return (
