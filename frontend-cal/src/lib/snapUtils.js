@@ -1,4 +1,5 @@
 import { saveSnapshot, deleteSnapshot, getSnapshots } from "./dbUtils";
+import html2canvas from 'html2canvas';
 
 const memoryCapacity = 20; // number of images stored in the database at any given time.
 
@@ -31,12 +32,29 @@ const captureFrame = async (video) => {
   }
 };
 
+const captureScreenshot = async () => {
+  try {
+    const canvas = await html2canvas(document.body, {
+      scale: 1, // Adjust scale for resolution
+      useCORS: true, // Enable cross-origin resources
+      ignoreElements: (element) => element.tagName === 'VIDEO',
+    });
+
+    const base64Image = canvas.toDataURL('image/png');
+    return base64Image;
+  } catch (error) {
+    console.error('Error capturing screenshot:', error);
+  }
+};
+
 export const handleSaveSnapshot = async ({ anomalyType, video }) => {
   console.log("capturing for", anomalyType)
   const base64Img = await captureFrame(video); // Await the async function
-  if (base64Img) {
+  const base64Screenshot = await captureScreenshot()
+  if (base64Img && base64Screenshot) {
     const newSnapshot = {
       image: base64Img,
+      screenshot: base64Screenshot,
       anomalyType: anomalyType,
       timestamp: new Date().toISOString(),
     };
@@ -69,6 +87,7 @@ const deleteOldSnapshot = async (added_id) => {
   try {
     const snapshots = await getSnapshots(); // Fetch all snapshots
     const snapshotToDelete = snapshots.find((snapshot) => snapshot.id === target_id);
+    console.log(snapshots.length)
 
     if (!snapshotToDelete) {
       console.log(`No snapshot found with id: ${target_id}. Skipping deletion.`);

@@ -29,11 +29,12 @@ export const openDatabase = () => {
  * Saves a snapshot to the database.
  * @param {Object} snapshotData - The snapshot details.
  * @param {string} snapshotData.image - The Base64-encoded snapshot.
+ * @param {string} snapshotData.screenshot - Another Base64-encoded image.
  * @param {string} snapshotData.anomalyType - The type of anomaly.
  * @param {string} snapshotData.timestamp - The timestamp of the snapshot.
  * @returns {Promise<number>} The ID of the saved snapshot.
  */
-export const saveSnapshot = async ({ image, anomalyType, timestamp }) => {
+export const saveSnapshot = async ({ image, screenshot, anomalyType, timestamp }) => {
   const db = await openDatabase();
   const transaction = db.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
@@ -41,6 +42,7 @@ export const saveSnapshot = async ({ image, anomalyType, timestamp }) => {
   return new Promise((resolve, reject) => {
     const request = store.add({
       image,
+      screenshot,
       anomalyType,
       timestamp,
     });

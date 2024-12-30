@@ -14,7 +14,7 @@ const SnapshotRecorder = ({ anomalies }) => {
   // Helper function for computing anomalies
   const getActiveAnomalies = () => {
     let anomaliesList = [];
-    const {lookAwayCount, numPeople, handCount, isBlur} = currentAnomaliesRef.current;
+    const {lookAwayCount, numPeople, handCount, isBlur, status} = currentAnomaliesRef.current;
 
     if (lookAwayCount % 5000 === 0 && lookAwayCount > 0) {
       anomaliesList.push("looking away");
@@ -32,6 +32,10 @@ const SnapshotRecorder = ({ anomalies }) => {
       anomaliesList.push("blur video");
     }
 
+    if (status === "User not detected." || status === "User is not in box") {
+      anomaliesList.push(status);
+    }
+
     return anomaliesList.join(", ");
   };
 
@@ -45,7 +49,6 @@ const SnapshotRecorder = ({ anomalies }) => {
       }
     };
     startWebcam();
-    // clearSnapshots();
     return () => {
       const video = videoRef.current;
       if (video && video.srcObject) {

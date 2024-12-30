@@ -17,6 +17,7 @@ const ParentComponent = () => {
     const [lookAwayCount, setLookAwayCount] = useState(0); // for FacePoseDetector
     const [numPeople, setNumPeople] = useState(0); // for FacePoseDetector
     const [isBlur, setIsBlur] = useState("No"); // for BlurDetection
+    const [status, setStatus] = useState(''); // for FacePoseDetector
 
     useEffect(() => {
         const initializeFilesetResolver = async () => {
@@ -38,11 +39,11 @@ const ParentComponent = () => {
 
     return (
         <div>
-            <FacePoseDetector filesetResolver={filesetResolver} lookAwayCount = {lookAwayCount} setLookAwayCount={setLookAwayCount} numPeople = {numPeople} setNumPeople={setNumPeople}/>
+            <FacePoseDetector filesetResolver={filesetResolver} lookAwayCount = {lookAwayCount} setLookAwayCount={setLookAwayCount} numPeople = {numPeople} setNumPeople={setNumPeople} status = {status} setStatus = {setStatus}/>
             <HandsDetection filesetResolver={filesetResolver} handCount = {handCount} setHandCount={setHandCount}/>
             <VoiceActivityDetection filesetResolver={audioFilesetResolver} />
             <BlurDetection isBlur = {isBlur} setIsBlur={setIsBlur}/>
-            <SnapshotRecorder anomalies = {{lookAwayCount, numPeople, handCount, isBlur}}/>
+            <SnapshotRecorder anomalies = {{lookAwayCount, numPeople, handCount, isBlur, status}}/>
             {/* <VirtualBackgroundDetection /> */}
         </div>
     );

@@ -2,11 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
 // take lookAwayCount and numPeople as props
-const PoseLandmarkerComponent = ({filesetResolver, lookAwayCount, setLookAwayCount, numPeople, setNumPeople}) => {
+const PoseLandmarkerComponent = ({filesetResolver, lookAwayCount, setLookAwayCount, numPeople, setNumPeople, status, setStatus}) => {
     const videoRef = useRef(null);
     const poseLandmarkerRef = useRef(null);
     const lookAwayCountRef = useRef(0);
-    const [status, setStatus] = useState('User not detected');
     const [noseEyeDistance, setNoseEyeDistance] = useState(0);
     
     useEffect(() => {
