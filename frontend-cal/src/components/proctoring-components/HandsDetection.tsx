@@ -63,7 +63,7 @@ const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => 
 
     return (
         <div>
-            <h1>Number of Hands Detected: {handCount}</h1>
+            <h4>Number of Hands Detected: {handCount}</h4>
             <video ref={videoRef} style={{ display: "none" }} />
         </div>
     );

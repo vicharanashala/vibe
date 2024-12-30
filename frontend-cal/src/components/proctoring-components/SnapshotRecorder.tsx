@@ -49,6 +49,7 @@ const SnapshotRecorder = ({ anomalies }) => {
       }
     };
     startWebcam();
+    clearSnapshots();
     return () => {
       const video = videoRef.current;
       if (video && video.srcObject) {
@@ -78,7 +79,7 @@ const SnapshotRecorder = ({ anomalies }) => {
       } else {
         console.log("video not loaded");
       }
-    }, 2000); // Capture every 1 second
+    }, 2000); // Capture every 2 seconds
 
     return () => {
       clearInterval(intervalRef.current); // Clear the interval on component unmount
@@ -94,7 +95,6 @@ const SnapshotRecorder = ({ anomalies }) => {
   return (
     <div>
       <video ref={videoRef} style={{ display: "none" }} />
-      <p>Snapshots are being taken every 1 second and saved to the database.</p>
     </div>
   );
 };
