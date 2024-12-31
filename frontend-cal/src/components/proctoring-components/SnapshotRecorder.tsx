@@ -1,11 +1,19 @@
-import { handleSaveSnapshot, deleteOldSnapshotIfNone } from "../../lib/snapUtils.js";
+import { handleSaveSnapshot } from "../../lib/snapUtils.ts";
 import React, { useEffect, useRef } from "react";
-import { clearSnapshots } from "../../lib/dbUtils.js";
-import {upload} from "../../lib/cloudUtils.js"
+import { clearSnapshots } from "../../lib/dbUtils.ts";
+import {upload} from "../../lib/cloudUtils.ts"
 
-const SnapshotRecorder = ({ anomalies }) => {
-  const intervalRef = useRef(null);
-  const videoRef = useRef(null);
+interface Anomalies {
+  lookAwayCount: number;
+  numPeople: number;
+  handCount: number;
+  isBlur: string;
+  status: string;
+}
+
+const SnapshotRecorder: React.FC<{ anomalies: Anomalies }> = ({ anomalies }) => {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const currentAnomaliesRef = useRef(anomalies); // Initialize with default array values
   const counterRef = useRef(0);
 
@@ -44,8 +52,12 @@ const SnapshotRecorder = ({ anomalies }) => {
       const video = videoRef.current;
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        video.play();
+        if (video) {
+          video.srcObject = stream;
+        }
+        if (video) {
+          video.play();
+        }
       }
     };
     startWebcam();
@@ -53,7 +65,7 @@ const SnapshotRecorder = ({ anomalies }) => {
     return () => {
       const video = videoRef.current;
       if (video && video.srcObject) {
-        const tracks = video.srcObject.getTracks();
+        const tracks = (video.srcObject as MediaStream).getTracks();
         tracks.forEach((track) => track.stop());
       }
     };
@@ -66,14 +78,18 @@ const SnapshotRecorder = ({ anomalies }) => {
       const activeAnomalies = getActiveAnomalies();
       if (videoRef.current) {
         const id = await handleSaveSnapshot({ anomalyType: activeAnomalies, video: videoRef.current });
-        if(activeAnomalies != "" && counterRef.current == 0){
-          counterRef.current = counterLimit+1;
-        }
-        if(counterRef.current > 0){
-          if(counterRef.current == 1){
-            upload(id, 2*counterLimit);
+        if (id !== undefined) {
+          if(activeAnomalies != "" && counterRef.current == 0){
+            counterRef.current = counterLimit+1;
           }
-          counterRef.current --;
+          if(counterRef.current > 0){
+            if(counterRef.current == 1){
+              upload(id, 2*counterLimit);
+            }
+            counterRef.current --;
+          }
+        } else {
+          console.error("Snapshot ID is undefined");
         }
 
       } else {
@@ -82,7 +98,9 @@ const SnapshotRecorder = ({ anomalies }) => {
     }, 2000); // Capture every 2 seconds
 
     return () => {
-      clearInterval(intervalRef.current); // Clear the interval on component unmount
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current); // Clear the interval on component unmount
+      }
     };
   }, []);
 

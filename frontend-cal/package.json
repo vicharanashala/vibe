@@ -17,6 +17,7 @@
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/hands": "^0.4.1675469240",
     "@mediapipe/pose": "^0.5.1675469404",
+    "@mediapipe/tasks-audio": "^0.10.20",
     "@mediapipe/tasks-vision": "^0.10.19",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-collapsible": "^1.1.1",

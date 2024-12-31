@@ -1,10 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
 // take handCount as props
-const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => {
-    const videoRef = useRef(null);
-    const handLandmarkerRef = useRef(null);
+interface HandLandmarkerComponentProps {
+    filesetResolver: FilesetResolver;
+    handCount: number;
+    setHandCount: React.Dispatch<React.SetStateAction<number>>;
+}
+
+const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ filesetResolver, handCount, setHandCount }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const handLandmarkerRef = useRef<HandLandmarker | null>(null);
 
     useEffect(() => {
         const initializeHandLandmarker = async () => {
@@ -23,8 +29,10 @@ const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => 
             const video = videoRef.current;
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.play();
+                if (video) {
+                    video.srcObject = stream;
+                    video.play();
+                }
             }
         };
 
@@ -34,7 +42,7 @@ const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => 
         return () => {
             const video = videoRef.current;
             if (video && video.srcObject) {
-                const tracks = video.srcObject.getTracks();
+                const tracks = (video.srcObject as MediaStream).getTracks();
                 tracks.forEach(track => track.stop());
             }
         };
@@ -44,7 +52,7 @@ const HandLandmarkerComponent = ({filesetResolver, handCount, setHandCount}) => 
         const video = videoRef.current;
 
         const detectHands = async () => {
-            if (handLandmarkerRef.current && video.readyState === 4) {
+            if (handLandmarkerRef.current && video && video.readyState === 4) {
                 const results = await handLandmarkerRef.current.detectForVideo(video, performance.now());
 
                 if (results && results.landmarks) {

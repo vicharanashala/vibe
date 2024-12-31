@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+
+// Define the WasmFileset type
+type WasmFileset = any;
 import FacePoseDetector from "./FacePoseDetector";
 import VoiceActivityDetection from "./VoiceActivityDetection";
 import { FilesetResolver } from "@mediapipe/tasks-vision";
@@ -9,8 +12,8 @@ import SnapshotRecorder from "./SnapshotRecorder";
 
 
 const ParentComponent = () => {
-    const [filesetResolver, setFilesetResolver] = useState(null);
-    const [audioFilesetResolver, setAudioFilesetResolver] = useState(null);
+    const [filesetResolver, setFilesetResolver] = useState<WasmFileset | null>(null);
+    const [audioFilesetResolver, setAudioFilesetResolver] = useState<WasmFileset | null>(null);
 
     // anomaly state related variables
     const [handCount, setHandCount] = useState(0); // for HandsDetection

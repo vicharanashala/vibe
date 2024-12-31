@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import audio from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@0.10.0";
+import { AudioClassifier, FilesetResolver } from "@mediapipe/tasks-audio";
 
-const { AudioClassifier, FilesetResolver } = audio;
 
-const VoiceActivityDetection: React.FC = ({ filesetResolver }) => {
-  const [audioClassifier, setAudioClassifier] = useState<AudioClassifier | null>(null);
+interface VoiceActivityDetectionProps {
+  filesetResolver: typeof FilesetResolver;
+}
+
+const VoiceActivityDetection: React.FC<VoiceActivityDetectionProps> = ({ filesetResolver }) => {
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isSpeaking, setIsSpeaking] = useState("No");
-  const [initialized, setInitialized] = useState(false);
 
   const MODEL_URL = "src/models/yamnet.tflite";
   const CACHE_NAME = "tflite-model-cache";
@@ -25,9 +26,6 @@ const VoiceActivityDetection: React.FC = ({ filesetResolver }) => {
             modelAssetPath: modelUrl,
           },
         });
-
-        setAudioClassifier(classifier);
-        setInitialized(true);
 
         // Ensure AudioContext is ready
         const localAudioCtx = getOrCreateAudioContext();
