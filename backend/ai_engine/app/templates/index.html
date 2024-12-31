@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playlist Question Generator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+    button.inline {
+      width: auto;
+      margin-left: 10px;
+    }
+    .url-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    textarea {
+      height: 80px;
+      resize: vertical;
+    }
+    .segments-container, .output-segments-container, .output-questions-container {
+      margin-top: 20px;
+    }
+    .video-block, .segment-block, .question-block {
+      display: inline-block;
+      margin: 5px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      text-align: center;
+      background-color: #f9f9f9;
+      min-width: 100px;
+    }
+    .video-block:hover, .segment-block:hover, .question-block:hover {
+      background-color: #ddd;
+    }
+    .video-block.active, .segment-block.active, .question-block.active {
+      background-color: #007bff;
+      color: white;
+    }
+    #video-form, #details-form {
+      display: none;
+      margin-top: 20px;
+    }
+    #video-player-container {
+      margin: 20px 0;
+      position: relative;
+      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      height: 0;
+      overflow: hidden;
+    }
+    #player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .segment-details, .question-details {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #generating-sign {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+      font-size: 18px;
+      font-weight: bold;
+      color: #555;
+    }
+    .dots {
+      display: inline-block;
+      margin-left: 5px;
+    }
+    .dots span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-right: 3px;
+      background-color: #555;
+      border-radius: 50%;
+      animation: blink 1.5s infinite;
+    }
+    .dots span:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+    .dots span:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+    .default-settings {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+    }
+    #recalculate-timestamps {
+      width: auto;
+      margin-top: 10px;
+      margin-bottom: 15px;
+    }
+    .default-settings label {
+      margin-top: 0;
+    }
+    .default-settings input {
+      margin-bottom: 10px;
+    }
+    @keyframes blink {
+      0%, 100% {
+        opacity: 0.2;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Video Question Generator</h1>
+    
+    <div class="url-container">
+      <input type="url" id="playlist-url" placeholder="Enter YouTube playlist or video URL" required />      <button id="fetch-videos" class="inline">Submit</button>
+    </div>
+
+    <div class="default-settings">
+      <label for="default-segments">Default Number of Segments</label>
+      <input type="number" id="default-segments" min="1" placeholder="Enter default segments count" />
+      
+      <label for="default-questions">Default Questions per Segment</label>
+      <input type="number" id="default-questions" min="1" placeholder="Enter default questions count" />
+    </div>
+
+    <div id="videos-container"></div>
+
+    <form id="video-form">
+      <label for="user-api-key">Gemini API Key</label>
+      <input type="text" id="user-api-key" placeholder="Enter your Gemini API key" required />
+
+      <div id="num-segments-container" style="display: none;">
+        <label for="num-segments">Number of Segments (for this video)</label>
+        <input type="number" id="num-segments" min="1" placeholder="Enter number of segments" />
+      </div>      
+
+      <div id="video-player-container">
+        <div id="player"></div>
+      </div>
+
+      <div id="segments-container" class="segments-container"></div>
+
+      <div id="details-form">
+        <h3 id="form-title">Segment Details</h3>
+        <label for="timestamp">Start time of the segment</label>
+        <div style="display: flex; gap: 10px;">
+          <input type="number" id="timestamp-hr" min="0" placeholder="HH" style="width: 33%;" />
+          <input type="number" id="timestamp-min" min="0" max="59" placeholder="MM" style="width: 33%;" />
+          <input type="number" id="timestamp-sec" min="0" max="59" placeholder="SS" style="width: 33%;" />
+        </div>
+
+        <!-- Add after the timestamp div that contains hr/min/sec inputs -->
+        <button type="button" id="recalculate-timestamps" class="inline">Recalculate Timestamps</button>
+
+        <label for="questions">Number of Questions</label>
+        <input type="number" id="questions" placeholder="Enter number of questions" />
+
+        <label for="type">Type of Questions</label>
+        <select id="type">
+          <option value="">Select type</option>
+          <option value="analytical">Analytical</option>
+          <option value="case-study">Case Study</option>
+        </select>
+      </div>
+
+      <button type="submit">Upload</button>
+    </form>
+
+    <div id="generating-sign">Generating<span class="dots"><span></span><span></span><span></span></span></div>
+
+    <div id="output">
+      <h3>Generated Output:</h3>
+      <div id="output-videos-container"></div>
+      <div id="video-info"></div>
+      
+      <h4>Segments</h4>
+      <div id="output-segments-container" class="output-segments-container"></div>
+      <div id="segment-details-container"></div>
+      
+      <h4>Questions</h4>
+      <div id="output-questions-container" class="output-questions-container"></div>
+      <div id="question-details-container"></div>
+    </div>
+
+    <button id="confirm-btn" style="display:none;">Confirm & Download</button>
+  </div>
+
+  <script>
+    const videoData = {};
+    let currentVideo = null;
+    let currentSegment = null;
+    let responseData = {};
+    let videoUrls = [];
+    let pendingUploads = 0;
+    let defaultSegments = 0;
+    let defaultQuestions = 0;
+    let videoDurations = {};
+    let modifiedResponseData = {};
+
+    function secondsToHMS(seconds) {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      return { hrs, mins, secs };
+    }
+
+    function hmsToSeconds(hrs, mins, secs) {
+      return (hrs * 3600) + (mins * 60) + secs;
+    }
+
+    function updateSegmentTimestamps(videoIndex, numSegments) {
+      const videoDuration = videoDurations[videoIndex];
+      const segmentDuration = videoDuration / numSegments;
+      
+      for (let i = 1; i <= numSegments; i++) {
+        if (videoData[videoIndex].segments[i]) {
+          videoData[videoIndex].segments[i].timestamp = i === 1 ? 0 : (i - 1) * segmentDuration;
+        }
+      }
+    }
+
+    function isPlaylistUrl(url) {
+      return url.includes('playlist?list=') || url.includes('&list=');
+    }
+
+    // Load YouTube API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    let player;
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '360',
+        width: '640',
+        videoId: '',
+        playerVars: {
+          'playsinline': 1
+        }
+      });
+    }
+
+    async function getVideoDuration(videoId) {
+      return new Promise((resolve) => {
+        const tempPlayer = new YT.Player('temp-player', {
+          videoId: videoId,
+          events: {
+            onReady: (event) => {
+              const duration = event.target.getDuration();
+              event.target.destroy();
+              resolve(duration);
+            }
+          }
+        });
+      });
+    }
+
+function selectVideo(index) {
+  currentVideo = index;
+
+  // Extract video ID from URL and load it
+  const videoUrl = videoUrls[index];
+  const videoId = videoUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/);
+  if (videoId && videoId[1]) {
+    if (player && player.loadVideoById) {
+      player.loadVideoById(videoId[1]);
+    }
+  }
+  
+  const blocks = document.getElementsByClassName('video-block');
+  Array.from(blocks).forEach(block => block.classList.remove('active'));
+  blocks[index].classList.add('active');
+
+  const videoForm = document.getElementById('video-form');
+  videoForm.style.display = 'block';
+
+  document.getElementById('num-segments-container').style.display = 'block';
+
+  if (!videoData[index]) {
+    videoData[index] = {
+      segments: {}
+    };
+    document.getElementById('num-segments').value = '';
+    document.getElementById('segments-container').innerHTML = '';
+    document.getElementById('details-form').style.display = 'none';
+  } else {
+    const numSegments = Object.keys(videoData[index].segments).length;
+    document.getElementById('num-segments').value = numSegments;
+    
+    // Rebuild segments UI without recalculating timestamps
+    const segmentsContainer = document.getElementById('segments-container');
+    segmentsContainer.innerHTML = '';
+    
+    for (let i = 1; i <= numSegments; i++) {
+      const segmentBlock = document.createElement('div');
+      segmentBlock.className = 'segment-block';
+      segmentBlock.textContent = `Segment ${i}`;
+      segmentBlock.setAttribute('data-segment', i);
+      segmentBlock.addEventListener('click', () => openSegmentForm(i));
+      segmentsContainer.appendChild(segmentBlock);
+    }
+  }
+
+  if (Object.keys(videoData[currentVideo].segments).length > 0) {
+    openSegmentForm(1); // First segment is 1-based index
+    const segmentBlocks = document.getElementsByClassName('segment-block');
+    Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
+    if (segmentBlocks.length > 0) {
+      segmentBlocks[0].classList.add('active'); // Highlight first segment block
+    }
+  }
+}
+
+document.getElementById('fetch-videos').addEventListener('click', async () => {
+  const playlistUrl = document.getElementById('playlist-url').value;
+  defaultSegments = parseInt(document.getElementById('default-segments').value) || 0;
+  defaultQuestions = parseInt(document.getElementById('default-questions').value) || 0;
+  
+  if (!defaultSegments) {
+    alert('Please enter default number of segments');
+    return;
+  }
+  if (!defaultQuestions) {
+    alert('Please enter default number of questions');
+    return;
+  }
+  
+  try {
+    if (isPlaylistUrl(playlistUrl)) {
+      // Existing playlist handling
+      const response = await fetch('/questions/get_urls', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: playlistUrl }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      videoUrls = data.video_urls;
+    } else {
+      // Single video handling
+      videoUrls = [playlistUrl];
+    }
+    
+    // Get durations for all videos
+    for (let i = 0; i < videoUrls.length; i++) {
+      const videoId = videoUrls[i].match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/)[1];
+      videoDurations[i] = await getVideoDuration(videoId);
+    }
+    
+    displayVideoBlocks();
+    document.getElementById('video-form').style.display = 'block';
+    
+    // Auto-populate all videos with default segments
+    videoUrls.forEach((_, index) => {
+      videoData[index] = {
+        segments: {}
+      };
+      if (defaultSegments > 0) {
+        const numSegments = defaultSegments;
+        for (let i = 1; i <= numSegments; i++) {
+          const segmentDuration = videoDurations[index] / numSegments;
+          videoData[index].segments[i] = {
+            timestamp: (i - 1) * segmentDuration,
+            questions: defaultQuestions || null,
+            type: 'analytical'
+          };
+        }
+        document.getElementById('num-segments').value = numSegments;
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+});
+
+function displayVideoBlocks() {
+  const container = document.getElementById('videos-container');
+  container.innerHTML = '';
+  
+  videoUrls.forEach((_, index) => {
+    const videoBlock = document.createElement('div');
+    videoBlock.className = 'video-block';
+    videoBlock.textContent = `Video ${index + 1}`;
+    videoBlock.addEventListener('click', () => selectVideo(index));
+    container.appendChild(videoBlock);
+  });
+}
+
+const numSegmentsInput = document.getElementById('num-segments');
+numSegmentsInput.addEventListener('input', () => {
+  if (currentVideo === null) return;
+  
+  const numSegments = parseInt(numSegmentsInput.value) || 0;
+  const segmentsContainer = document.getElementById('segments-container');
+  const currentSegments = videoData[currentVideo].segments;
+  
+  // Clear container
+  segmentsContainer.innerHTML = '';
+  
+  // Calculate segment duration based on video duration
+  const videoDuration = videoDurations[currentVideo];
+  const segmentDuration = videoDuration / numSegments;
+  
+  // Create new segments object
+  const newSegments = {};
+  
+  for (let i = 1; i <= numSegments; i++) {
+    const segmentBlock = document.createElement('div');
+    segmentBlock.className = 'segment-block';
+    segmentBlock.textContent = `Segment ${i}`;
+    segmentBlock.setAttribute('data-segment', i);
+    segmentBlock.addEventListener('click', () => openSegmentForm(i));
+    segmentsContainer.appendChild(segmentBlock);
+
+    // Preserve existing segment data if available
+    if (currentSegments[i]) {
+      newSegments[i] = {
+        ...currentSegments[i]
+      };
+    } else {
+      // Only calculate new timestamp for new segments
+      newSegments[i] = { 
+        timestamp: i === 1 ? 0 : (i - 1) * segmentDuration,
+        questions: defaultQuestions || null,
+        type: 'analytical'
+      };
+    }
+  }
+  
+  // Replace old segments with new ones
+  videoData[currentVideo].segments = newSegments;
+});
+
+function openSegmentForm(segmentNumber) {
+  currentSegment = segmentNumber;
+  const data = videoData[currentVideo].segments[segmentNumber];
+  
+  const formTitle = document.getElementById('form-title');
+  const questionsInput = document.getElementById('questions');
+  const typeInput = document.getElementById('type');
+
+  const timestampFields = document.querySelectorAll('#timestamp-hr, #timestamp-min, #timestamp-sec');
+  if (segmentNumber === 1) {
+    timestampFields.forEach(field => {
+      field.value = '0';
+      field.disabled = true;
+    });
+  } else {
+    const timestamp = data.timestamp || 0;
+    const { hrs, mins, secs } = secondsToHMS(timestamp);
+    document.getElementById('timestamp-hr').value = hrs;
+    document.getElementById('timestamp-min').value = mins;
+    document.getElementById('timestamp-sec').value = secs;
+    timestampFields.forEach(field => field.disabled = false);
+  }
+  
+  formTitle.textContent = `Segment ${segmentNumber} Details`;
+  questionsInput.value = data.questions || '';
+  typeInput.value = data.type || '';
+  
+  document.getElementById('details-form').style.display = 'block';
+
+  const segmentBlocks = document.getElementsByClassName('segment-block');
+  Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
+  document.querySelector(`[data-segment="${segmentNumber}"]`)?.classList.add('active');
+}
+
+function saveSegmentData() {
+  if (currentVideo === null || currentSegment === null) return;
+  
+  const hrs = parseInt(document.getElementById('timestamp-hr').value) || 0;
+  const mins = parseInt(document.getElementById('timestamp-min').value) || 0;
+  const secs = parseInt(document.getElementById('timestamp-sec').value) || 0;
+  const questionsInput = document.getElementById('questions');
+  const typeInput = document.getElementById('type');
+
+  videoData[currentVideo].segments[currentSegment] = {
+    timestamp: currentSegment === 1 ? 0 : hmsToSeconds(hrs, mins, secs),
+    questions: parseInt(questionsInput.value) || null,
+    type: typeInput.value || ''
+  };
+}
+
+function validateTimestamps() {
+  for (let videoIndex in videoData) {
+    const segments = videoData[videoIndex].segments;
+    const segmentNumbers = Object.keys(segments).sort((a, b) => parseInt(a) - parseInt(b));
+    
+    let previousTimestamp = -1;
+    
+    for (let segNum of segmentNumbers) {
+      const currentTimestamp = segments[segNum].timestamp;
+      
+      // Check if timestamps are in order
+      if (currentTimestamp <= previousTimestamp && segNum !== '1') {
+        alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Timestamp (${currentTimestamp}s) must be greater than previous segment's timestamp (${previousTimestamp}s)`);
+        return false;
+      }
+      
+      // Check if last segment timestamp is less than video duration
+      if (segNum === segmentNumbers[segmentNumbers.length - 1]) {
+        if (currentTimestamp >= videoDurations[videoIndex]) {
+          alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Last segment timestamp (${currentTimestamp}s) must be less than video duration (${videoDurations[videoIndex]}s)`);
+          return false;
+        }
+      }
+      
+      previousTimestamp = currentTimestamp;
+    }
+  }
+  return true;
+}
+
+document.getElementById('questions').addEventListener('input', saveSegmentData);
+document.getElementById('type').addEventListener('change', saveSegmentData);
+
+['timestamp-hr', 'timestamp-min', 'timestamp-sec'].forEach(id => {
+  document.getElementById(id).addEventListener('input', saveSegmentData);
+});
+
+document.getElementById('video-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (!validateTimestamps()) {
+    return;
+  }
+  
+  const userApiKey = document.getElementById('user-api-key').value;
+  const generatingSign = document.getElementById('generating-sign');
+  const outputDiv = document.getElementById('output');
+  const confirmButton = document.getElementById('confirm-btn');
+
+  generatingSign.style.display = 'block';
+  outputDiv.style.display = 'none';
+  confirmButton.style.display = 'none';
+
+  // Process all videos that have segment data
+  const videoPromises = Object.keys(videoData).map(async (videoIndex) => {
+    const videoURL = videoUrls[videoIndex];
+    const segments = videoData[videoIndex].segments;
+
+    const timestamps = [];
+    const segmentWiseQNo = [];
+    const segmentWiseQModel = [];
+
+    Object.values(segments).forEach(data => {
+      if (data.timestamp !== null) timestamps.push(data.timestamp);
+      if (data.questions !== null) segmentWiseQNo.push(data.questions);
+      if (data.type !== null) segmentWiseQModel.push(data.type);
+    });
+
+    const payload = {
+      url: videoURL,
+      user_api_key: userApiKey,
+      timestamps,
+      segment_wise_q_no: segmentWiseQNo,
+      segment_wise_q_model: segmentWiseQModel,
+    };
+
+    // Add this right before the fetch call in the video-form submit handler
+    console.log('Payload being sent:', JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await fetch('/questions/process_video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await response.json();
+      responseData[videoIndex] = data;
+      return data;
+    } catch (error) {
+      console.error(`Error processing video ${parseInt(videoIndex) + 1}:`, error);
+      throw error;
+    }
+  });
+
+  try {
+    await Promise.all(videoPromises);
+    modifiedResponseData = JSON.parse(JSON.stringify(responseData)); // Deep copy
+    generatingSign.style.display = 'none';
+    outputDiv.style.display = 'block';
+    displayOutput(responseData[currentVideo]);
+    confirmButton.style.display = 'inline-block';
+  } catch (error) {
+    generatingSign.style.display = 'none';
+    outputDiv.textContent = `Error processing videos: ${error.message}`;
+  }
+});
+
+function displayOutput(data) {
+  // Display output video blocks
+  const outputVideosContainer = document.getElementById('output-videos-container');
+  if (!outputVideosContainer.hasChildNodes()) {
+    videoUrls.forEach((_, index) => {
+      const videoBlock = document.createElement('div');
+      videoBlock.className = 'video-block';
+      videoBlock.textContent = `Video ${index + 1}`;
+      videoBlock.addEventListener('click', () => showVideoOutput(index));
+      outputVideosContainer.appendChild(videoBlock);
+    });
+  }
+
+  showVideoOutput(currentVideo);
+}
+
+function saveCurrentVideoModifications() {
+  if (!modifiedResponseData[currentVideo]) return;
+  
+  const data = modifiedResponseData[currentVideo];
+  
+  // Save title and description
+  const titleEl = document.getElementById('title');
+  const descEl = document.getElementById('description');
+  if (titleEl) data.title = titleEl.value;
+  if (descEl) data.description = descEl.value;
+  
+  // Save segment modifications
+  data.segments.forEach((segment, i) => {
+    const textEl = document.getElementById(`segment-text-${i}`);
+    if (textEl) segment.text = textEl.value;
+  });
+  
+  // Save question modifications
+  data.questions.forEach((question, i) => {
+    const textEl = document.getElementById(`question-text-${i}`);
+    const correctAnswerEl = document.getElementById(`correct-answer-${i}`);
+    
+    if (textEl) question.question = textEl.value;
+    if (correctAnswerEl) question.correct_answer = parseInt(correctAnswerEl.value);
+    
+    question.options = question.options.map((_, j) => {
+      const optEl = document.getElementById(`option-${i}-${j}`);
+      return optEl ? optEl.value : '';
+    });
+  });
+}
+
+function showVideoOutput(index) {
+  if (!modifiedResponseData[index]) return;
+  
+  if (currentVideo !== null && currentVideo !== index) {
+    saveCurrentVideoModifications();
+  }
+
+  const data = modifiedResponseData[index];
+
+  // Store the current video index for the download
+  currentVideo = index;
+  
+  const blocks = document.getElementById('output-videos-container').getElementsByClassName('video-block');
+  Array.from(blocks).forEach(block => block.classList.remove('active'));
+  blocks[index].classList.add('active');
+
+  // Display video information
+  const videoInfo = document.getElementById('video-info');
+  videoInfo.innerHTML = `
+    <label for="video-id">Video ID</label>
+    <input type="text" id="video-id" value="${data.video_id}" disabled />
+
+    <label for="title">Title</label>
+    <input type="text" id="title" value="${data.title}" />
+
+    <label for="description">Description</label>
+    <textarea id="description">${data.description}</textarea>
+  `;
+
+  // Display segments
+  const segmentsContainer = document.getElementById('output-segments-container');
+  const segmentDetailsContainer = document.getElementById('segment-details-container');
+  
+  segmentsContainer.innerHTML = '';
+  segmentDetailsContainer.innerHTML = '';
+  
+  data.segments.forEach((segment, i) => {
+    const segmentBlock = document.createElement('div');
+    segmentBlock.className = 'segment-block';
+    segmentBlock.textContent = `Segment ${i + 1}`;
+    segmentBlock.dataset.segment = i;
+    segmentBlock.addEventListener('click', () => showSegmentDetails(i));
+    segmentsContainer.appendChild(segmentBlock);
+
+    const segmentDetails = document.createElement('div');
+    segmentDetails.className = 'segment-details';
+    segmentDetails.id = `segment-${i}`;
+    segmentDetails.innerHTML = `
+      <h5>Segment ${i + 1}</h5>
+      <label for="segment-text-${i}">Text</label>
+      <textarea id="segment-text-${i}">${segment.text}</textarea>
+
+      <label for="start-time-${i}">Start Time</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="number" id="start-time-hr-${i}" value="${Math.floor(i === 0 ? 0 : segment.start_time / 3600)}" disabled style="width: 33%;" />
+        <input type="number" id="start-time-min-${i}" value="${Math.floor((i === 0 ? 0 : segment.start_time % 3600) / 60)}" disabled style="width: 33%;" />
+        <input type="number" id="start-time-sec-${i}" value="${Math.floor((i === 0 ? 0 : segment.start_time) % 60)}" disabled style="width: 33%;" />
+      </div>
+
+      <label for="end-time-${i}">End Time</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="number" id="end-time-hr-${i}" value="${Math.floor(segment.end_time / 3600)}" disabled style="width: 33%;" />
+        <input type="number" id="end-time-min-${i}" value="${Math.floor((segment.end_time % 3600) / 60)}" disabled style="width: 33%;" />
+        <input type="number" id="end-time-sec-${i}" value="${Math.floor(segment.end_time % 60)}" disabled style="width: 33%;" />
+      </div>
+    `;
+    segmentDetailsContainer.appendChild(segmentDetails);
+  });
+
+  // Display questions
+  const questionsContainer = document.getElementById('output-questions-container');
+  const questionDetailsContainer = document.getElementById('question-details-container');
+  
+  questionsContainer.innerHTML = '';
+  questionDetailsContainer.innerHTML = '';
+  
+  data.questions.forEach((question, i) => {
+    const questionBlock = document.createElement('div');
+    questionBlock.className = 'question-block';
+    questionBlock.textContent = `Question ${i + 1}`;
+    questionBlock.dataset.question = i;
+    questionBlock.addEventListener('click', () => showQuestionDetails(i));
+    questionsContainer.appendChild(questionBlock);
+
+    const questionDetails = document.createElement('div');
+    questionDetails.className = 'question-details';
+    questionDetails.id = `question-${i}`;
+    questionDetails.innerHTML = `
+      <h5>Question ${i + 1}</h5>
+      <label for="question-text-${i}">Question Text</label>
+      <textarea id="question-text-${i}">${question.question}</textarea>
+      
+      <h6>Options</h6>
+      ${question.options.map((opt, j) => `
+        <label for="option-${i}-${j}">Option ${j + 1}</label>
+        <input type="text" id="option-${i}-${j}" value="${opt}" />
+      `).join('')}
+
+      <label for="correct-answer-${i}">Correct Answer</label>
+      <input type="number" id="correct-answer-${i}" value="${question.correct_answer}" />
+
+      <label for="segment-index-${i}">Segment</label>
+      <input type="number" id="segment-index-${i}" value="${question.segment}" disabled />
+    `;
+    questionDetailsContainer.appendChild(questionDetails);
+  });
+
+  // Show first segment and question by default
+  if (data.segments.length > 0) showSegmentDetails(0);
+  if (data.questions.length > 0) showQuestionDetails(0);
+}
+
+function showSegmentDetails(index) {
+      const allDetails = document.getElementsByClassName('segment-details');
+      Array.from(allDetails).forEach(detail => detail.style.display = 'none');
+      
+      const allBlocks = document.getElementsByClassName('segment-block');
+      Array.from(allBlocks).forEach(block => block.classList.remove('active'));
+      
+      document.getElementById(`segment-${index}`).style.display = 'block';
+      document.querySelector(`[data-segment="${index}"]`).classList.add('active');
+    }
+
+    function showQuestionDetails(index) {
+      const allDetails = document.getElementsByClassName('question-details');
+      Array.from(allDetails).forEach(detail => detail.style.display = 'none');
+      
+      const allBlocks = document.getElementsByClassName('question-block');
+      Array.from(allBlocks).forEach(block => block.classList.remove('active'));
+      
+      document.getElementById(`question-${index}`).style.display = 'block';
+      document.querySelector(`[data-question="${index}"]`).classList.add('active');
+    }
+
+    document.getElementById('recalculate-timestamps').addEventListener('click', () => {
+      if (currentVideo === null || !videoDurations[currentVideo]) return;
+      
+      const numSegments = Object.keys(videoData[currentVideo].segments).length;
+      const videoDuration = videoDurations[currentVideo];
+      const segmentDuration = videoDuration / numSegments;
+      
+      // Update all segments except the first one (which stays at 0)
+      for (let i = 2; i <= numSegments; i++) {
+        const newTimestamp = (i - 1) * segmentDuration;
+        videoData[currentVideo].segments[i].timestamp = newTimestamp;
+        
+        // If this segment is currently open in the form, update the form fields
+        if (currentSegment === i) {
+          const { hrs, mins, secs } = secondsToHMS(newTimestamp);
+          document.getElementById('timestamp-hr').value = hrs;
+          document.getElementById('timestamp-min').value = mins;
+          document.getElementById('timestamp-sec').value = secs;
+        }
+      }
+    });
+
+document.getElementById('confirm-btn').addEventListener('click', () => {
+  if (!modifiedResponseData[currentVideo]) return;
+
+  saveCurrentVideoModifications();
+
+  const data = modifiedResponseData[currentVideo];
+  
+  const modifiedData = {
+    video_id: data.video_id,
+    title: data.title,
+    description: data.description,
+    segments: [...data.segments],  // Create a fresh copy of segments
+    questions: [...data.questions]  // Create a fresh copy of questions
+  };
+
+  // Update any edited fields from the DOM
+  modifiedData.segments.forEach((segment, i) => {
+    const textElement = document.getElementById(`segment-text-${i}`);
+    if (textElement) {
+      segment.text = textElement.value;
+    }
+  });
+
+  modifiedData.questions.forEach((question, i) => {
+    const textElement = document.getElementById(`question-text-${i}`);
+    const correctAnswerElement = document.getElementById(`correct-answer-${i}`);
+    if (textElement) {
+      question.question = textElement.value;
+    }
+    if (correctAnswerElement) {
+      question.correct_answer = parseInt(correctAnswerElement.value);
+    }
+    question.options = question.options.map((_, j) => {
+      const optElement = document.getElementById(`option-${i}-${j}`);
+      return optElement ? optElement.value : '';
+    });
+  });
+
+  const videoTitle = modifiedData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const filename = `video_${currentVideo + 1}_${videoTitle}_data.json`;
+
+  const blob = new Blob([JSON.stringify(modifiedData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+  </script>
+  <div id="temp-player" style="display: none;"></div>
+</body>
+</html>

@@ -7,11 +7,11 @@ interface HandLandmarkerComponentProps {
     handCount: number;
     setHandCount: React.Dispatch<React.SetStateAction<number>>;
 }
-const [gesture, setGesture] = useState("None");
 
 const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ filesetResolver, handCount, setHandCount }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const handLandmarkerRef = useRef<HandLandmarker | null>(null);
+    const [gesture, setGesture] = useState("None");
 
     // function to check whether a particular finger is raised.
     interface Landmark {
@@ -89,7 +89,6 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
         let numRaised = 0;
         for(let i = 1; i<5;i++){
             if(isRaised(landmarks, i)){
-                console.log(i+" is raised")
                 numRaised ++;
             }
         }
@@ -115,7 +114,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
 
     const getGesture = (landmarks: GestureLandmarks[]): string => {
         const numRaised = getRaisedFingers(landmarks);
-        if (numRaised && parseInt(numRaised) !== 4) {
+        if (parseInt(numRaised) != 0 && parseInt(numRaised) !== 4) {
             return numRaised.toString();
         }
         const thumbStatus = checkThumb(landmarks);
@@ -183,6 +182,8 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
                     }
                     if(results.landmarks[0]){
                         setGesture(getGesture(results.landmarks[0]));
+                    } else {
+                        setGesture("None");
                     }
                 } else {
                     setHandCount(0);
