@@ -1,0 +1,13 @@
+Django>=4.2,<5.0
+psycopg2-binary>=2.9
+gunicorn>=20.1.0
+djangorestframework
+django-allauth
+django-oauth-toolkit
+django-cors-headers
+Pillow
+
+# dev_dependencies
+django-extensions
+pydotplus
+drf-spectacular

@@ -55,7 +55,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install -r requirements.txt
+          pip install -r lms_engine/requirements.txt
           pip install flake8 black
 
       - name: Run flake8

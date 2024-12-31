@@ -14,6 +14,8 @@ import AllCourses from "@/pages/Students/AllCourses";
 import Assignments from "@/pages/Students/Assignments";
 import Testing from "@/pages/Students/Testing";
 import SingleCourse from "@/pages/Students/SingleCourse";
+import VideoAssessment from "@/pages/Students/VideoAssessment";
+import LatestTest from "@/pages/Students/LatestTest";
 
 const router = createBrowserRouter([
     {
@@ -51,6 +53,14 @@ const router = createBrowserRouter([
                     {
                         path : "/singleCourse/:courseId",
                         element: React.createElement(SingleCourse)
+                    },
+                    {
+                        path : "/videoAssessment",
+                        element: React.createElement(VideoAssessment)
+                    },
+                    {
+                        path : "latestTest",
+                        element: React.createElement(LatestTest)
                     }
                 ]
             },
