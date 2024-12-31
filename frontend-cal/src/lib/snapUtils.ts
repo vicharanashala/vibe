@@ -104,7 +104,6 @@ const deleteOldSnapshot = async (added_id: number): Promise<void> => {
   try {
     const snapshots = await getSnapshots(); // Fetch all snapshots
     const snapshotToDelete: Snapshot | undefined = snapshots.find((snapshot: Snapshot) => snapshot.id === target_id);
-    console.log("Snapshot to delete:", snapshotToDelete);
 
     if (!snapshotToDelete) {
       return;
