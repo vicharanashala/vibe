@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Duration</title>
+    <script>
+        let player;
+
+        // Load the YouTube IFrame Player API asynchronously
+        function loadYouTubeAPI() {
+            const script = document.createElement('script');
+            script.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(script);
+        }
+
+        // This function is called when the IFrame Player API is ready
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                events: {
+                    'onReady': onPlayerReady
+                }
+            });
+        }
+
+        // Called when the player is ready
+        function onPlayerReady(event) {
+            const getDurationButton = document.getElementById('getDuration');
+            getDurationButton.addEventListener('click', () => {
+                const duration = player.getDuration(); // Fetch video duration in seconds
+                document.getElementById('duration').textContent = `Duration: ${duration} seconds`;
+            });
+        }
+
+        // Load the API when the page loads
+        window.onload = loadYouTubeAPI;
+    </script>
+</head>
+<body>
+    <div>
+        <iframe id="youtubePlayer" 
+                width="560" 
+                height="315" 
+                src="https://www.youtube.com/embed/acemrBKuDqw?enablejsapi=1" 
+                frameborder="0" 
+                allowfullscreen>
+        </iframe>
+    </div>
+    <button id="getDuration">Get Video Duration</button>
+    <p id="duration"></p>
+</body>
+</html>
