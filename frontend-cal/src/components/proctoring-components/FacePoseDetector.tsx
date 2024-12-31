@@ -1,15 +1,22 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
-const PoseLandmarkerComponent = ({filesetResolver}) => {
-    const videoRef = useRef(null);
-    const poseLandmarkerRef = useRef(null);
-    const lookAwayCountRef = useRef(0);
-    const [status, setStatus] = useState('User not detected');
-    const [noseEyeDistance, setNoseEyeDistance] = useState(0);
-    const [lookAwayCount, setLookAwayCount] = useState(0);
-    const [numPeople, setNumPeople] = useState(0);
+// take lookAwayCount and numPeople as props
+interface PoseLandmarkerProps {
+    filesetResolver: FilesetResolver;
+    lookAwayCount: number;
+    setLookAwayCount: React.Dispatch<React.SetStateAction<number>>;
+    numPeople: number;
+    setNumPeople: React.Dispatch<React.SetStateAction<number>>;
+    status: string;
+    setStatus: React.Dispatch<React.SetStateAction<string>>;
+}
 
+const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver, lookAwayCount, setLookAwayCount, numPeople, setNumPeople, status, setStatus}) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
+    const lookAwayCountRef = useRef(0);
+    
     useEffect(() => {
         const initializePoseLandmarker = async () => {
 
@@ -27,8 +34,10 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
             const video = videoRef.current;
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.play();
+                if (video) {
+                    video.srcObject = stream;
+                    video.play();
+                }
             }
         };
 
@@ -38,7 +47,7 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
         return () => {
             const video = videoRef.current;
             if (video && video.srcObject) {
-                const tracks = video.srcObject.getTracks();
+                const tracks = (video.srcObject as MediaStream).getTracks();
                 tracks.forEach(track => track.stop());
             }
         };
@@ -48,49 +57,49 @@ const PoseLandmarkerComponent = ({filesetResolver}) => {
         const video = videoRef.current;
 
         const detectLandmarks = async () => {
-            if (poseLandmarkerRef.current && video.readyState === 4) {
+            if (poseLandmarkerRef.current && video && video.readyState === 4) {
                 const landmarks = await poseLandmarkerRef.current.detectForVideo(video, performance.now());
-
-                if (landmarks && landmarks.landmarks[0]) {
-                    setNumPeople(landmarks.landmarks.length);
-                    if(numPeople>1){
-                        console.log(numPeople, " people are present in the feed.")
+                if(landmarks && landmarks.landmarks){
+                    if(!landmarks.landmarks[0]){
+                        setNumPeople(0);
                     }
-                  
-                  // checking if the person's face is in the middle of the fame
-                  const nose = landmarks.landmarks[0][0]
-                  if (nose) {
-                    const videoWidth = video.videoWidth;
-                    const videoHeight = video.videoHeight;
+                    if (landmarks.landmarks[0]) {
+                        setNumPeople(landmarks.landmarks.length);                 
+                    // checking if the person's face is in the middle of the fame
+                    const nose = landmarks.landmarks[0][0]
+                    if (nose) {
+                        const videoWidth = video.videoWidth;
+                        const videoHeight = video.videoHeight;
 
-                    const box = {
-                        left: videoWidth / 4,
-                        right: (videoWidth * 3) / 4,
-                        top: videoHeight / 4,
-                        bottom: (videoHeight * 3) / 4
-                    };
+                        const box = {
+                            left: videoWidth / 4,
+                            right: (videoWidth * 3) / 4,
+                            top: videoHeight / 4,
+                            bottom: (videoHeight * 3) / 4
+                        };
 
-                    const noseX = nose.x * videoWidth;
-                    const noseY = nose.y * videoHeight;
+                        const noseX = nose.x * videoWidth;
+                        const noseY = nose.y * videoHeight;
 
-                    const isInBox = 
-                        noseX >= box.left &&
-                        noseX <= box.right &&
-                        noseY >= box.top &&
-                        noseY <= box.bottom;
+                        const isInBox = 
+                            noseX >= box.left &&
+                            noseX <= box.right &&
+                            noseY >= box.top &&
+                            noseY <= box.bottom;
 
-                    isInBox ? setStatus("User is in box") : setStatus("User is not in box")
-                 }
-                 const leftEye = landmarks.landmarks[0][2];
-                 const rightEye = landmarks.landmarks[0][5];
-                 const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
-                 if (eyeDiff < 0.070) {
-                   lookAwayCountRef.current++;
-                   setLookAwayCount(lookAwayCountRef.current);
-                   setStatus('Focus on the lecture!');
-                 }
-                } else {
-                  setStatus("User not detected.")
+                        isInBox ? setStatus("User is in box") : setStatus("User is not in box")
+                    }
+                    const leftEye = landmarks.landmarks[0][2];
+                    const rightEye = landmarks.landmarks[0][5];
+                    const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
+                    if (eyeDiff < 0.070) {
+                    lookAwayCountRef.current++;
+                    setLookAwayCount(lookAwayCountRef.current);
+                    setStatus('Focus on the lecture!');
+                    }
+                    } else {
+                    setStatus("User not detected.")
+                    }
                 }
             }
 

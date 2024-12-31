@@ -1,18 +1,25 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const BlurDetection = () => {
+// take isBlur as props
+interface BlurDetectionProps {
+    isBlur: string;
+    setIsBlur: (value: string) => void;
+}
 
-    const videoRef = useRef(null);
-    const [image, setImage] = useState(null);
-    const [isBlur, setIsBlur] = useState("No");
+const BlurDetection: React.FC<BlurDetectionProps> = ({ isBlur, setIsBlur }) => {
+
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [image, setImage] = useState<ImageData | null>(null);
 
     useEffect(() => {
         const startWebcam = async () => {
             const video = videoRef.current;
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.play();
+                if (video) {
+                    video.srcObject = stream;
+                    video.play();
+                }
             }
         };
 
@@ -21,72 +28,73 @@ const BlurDetection = () => {
         return () => {
             const video = videoRef.current;
             if (video && video.srcObject) {
-                const tracks = video.srcObject.getTracks();
+                const tracks = (video.srcObject as MediaStream).getTracks();
                 tracks.forEach(track => track.stop());
             }
         };
     }, []);
 
     useEffect(() => {
-        const captureFrame = () => {
-            const video = videoRef.current;
-            if (video) {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                setImage(canvas.toDataURL("image/png"));
-
+      const captureFrame = () => {
+        const video = videoRef.current;
+        if (video) {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            if(ctx){
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              setImage(imageData)
             }
-        };
+      }
+    };
+    
 
         const interval = setInterval(captureFrame, 200);
         return () => clearInterval(interval);
     }, []);
 
-    function checkBlur(image) {
-        // Downscale the image for performance
-        const scale = 0.5; // Scale down to 50% of the original size
-        const width = Math.floor(image.width * scale);
-        const height = Math.floor(image.height * scale);
-  
-        // Create an offscreen canvas for processing
-        const offscreenCanvas = document.createElement("canvas");
-        offscreenCanvas.width = width;
-        offscreenCanvas.height = height;
-        const offscreenCtx = offscreenCanvas.getContext("2d");
-        offscreenCtx.drawImage(image, 0, 0, width, height);
-  
-        // Get image data
-        const imageData = offscreenCtx.getImageData(0, 0, width, height);
-  
-        // Convert to grayscale
-        const gray = rgbToGrayscale(imageData);
-  
-        // Compute the Laplacian
-        const laplacian = computeLaplacian(gray, width, height);
-  
-        // Compute the variance
-        const variance = computeVariance(laplacian);
-  
-        // Threshold for blurriness (adjust as needed)
-        const isBlurry = variance < 250;
-  
-        if(isBlurry){
-            setIsBlur("Yes")
-        } else {
-            setIsBlur("No")
-        }
+    useEffect(() => {
+      if(! image){
         return;
       }
+      checkBlur(image);
+    }, [image]);
+
+    function checkBlur(imageData: ImageData): void {
+      // Downscale the image for performance
+      const scale: number = 0.5; // Scale down to 50% of the original size
+      const width: number = Math.floor(imageData.width * scale);
+      const height: number = Math.floor(imageData.height * scale);
+
+      // Convert to grayscale
+      const gray: Uint8ClampedArray = rgbToGrayscale(imageData);
+
+      // Compute the Laplacian
+      const laplacian: Float32Array = computeLaplacian(gray, width, height);
+
+      // Compute the variance
+      const variance: number = computeVariance(laplacian);
+
+      // Threshold for blurriness (adjust as needed)
+      const isBlurry: boolean = variance < 250;
+
+      if (isBlurry) {
+        setIsBlur("Yes");
+      } else {
+        setIsBlur("No");
+      }
+      return;
+    }
   
       /**
        * Converts RGB image data to grayscale.
        * @param {ImageData} imageData - The image data to convert.
        * @returns {Uint8ClampedArray} - Grayscale pixel data.
        */
-      function rgbToGrayscale(imageData) {
+
+      function rgbToGrayscale(imageData: ImageData): Uint8ClampedArray {
         const gray = new Uint8ClampedArray(imageData.width * imageData.height);
         for (let i = 0; i < gray.length; i++) {
           const r = imageData.data[i * 4];
@@ -105,9 +113,13 @@ const BlurDetection = () => {
        * @param {number} height - Image height.
        * @returns {Float32Array} - Laplacian pixel data.
        */
-      function computeLaplacian(gray, width, height) {
+      interface LaplacianKernel {
+        [index: number]: number[];
+      }
+
+      function computeLaplacian(gray: Uint8ClampedArray, width: number, height: number): Float32Array {
         const laplacian = new Float32Array(gray.length);
-        const kernel = [
+        const kernel: LaplacianKernel = [
           [0, 1, 0],
           [1, -4, 1],
           [0, 1, 0],
@@ -133,19 +145,19 @@ const BlurDetection = () => {
        * @param {Float32Array} data - Pixel data.
        * @returns {number} - Variance of the data.
        */
-      function computeVariance(data) {
+      function computeVariance(data: Float32Array): number {
         let mean = 0;
         for (let i = 0; i < data.length; i++) {
           mean += data[i];
         }
         mean /= data.length;
-  
+
         let variance = 0;
         for (let i = 0; i < data.length; i++) {
           variance += Math.pow(data[i] - mean, 2);
         }
         variance /= data.length;
-  
+
         return variance;
       }
 
