@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { HandLandmarker } from "@mediapipe/tasks-vision";
 
+type WasmFileset = any;
 // take handCount as props
 interface HandLandmarkerComponentProps {
-    filesetResolver: FilesetResolver;
+    filesetResolver: WasmFileset;
     handCount: number;
     setHandCount: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -133,7 +134,10 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
         }
         return thumbStatus;
     }
+    
+    // useEffects are kept separate for readability and separation of concerns
 
+    // useEffect to initialize the HandLandmarker and start the webcam feed.
     useEffect(() => {
         const initializeHandLandmarker = async () => {
 
@@ -170,6 +174,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
         };
     }, []);
 
+    // useEffect to detect hands in the webcam feed and update the hand count and gesture.
     useEffect(() => {
         const video = videoRef.current;
 
