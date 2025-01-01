@@ -16,6 +16,7 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
     const videoRef = useRef<HTMLVideoElement>(null);
     const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
     const lookAwayCountRef = useRef(0);
+    const minEyeDiffForFocus = 0.070;
     
     useEffect(() => {
         const initializePoseLandmarker = async () => {
@@ -92,7 +93,7 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
                     const leftEye = landmarks.landmarks[0][2];
                     const rightEye = landmarks.landmarks[0][5];
                     const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
-                    if (eyeDiff < 0.070) {
+                    if (eyeDiff < minEyeDiffForFocus) {
                     lookAwayCountRef.current++;
                     setLookAwayCount(lookAwayCountRef.current);
                     setStatus('Focus on the lecture!');

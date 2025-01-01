@@ -12,6 +12,8 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
     const videoRef = useRef<HTMLVideoElement>(null);
     const handLandmarkerRef = useRef<HandLandmarker | null>(null);
     const [gesture, setGesture] = useState("None");
+    const minAngleTanForRaised = 2;
+    const minAngleTanForDown = 1;
 
     // function to check whether a particular finger is raised.
     interface Landmark {
@@ -31,7 +33,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
             y_coord = landmarks[index].y;
         }
         // we add the additional condition that the angle of the finger wrt horizontal is greater than arctan(2)
-        if (Math.abs(landmarks[index - 1].y - landmarks[index - 3].y) < 2 * Math.abs(landmarks[index - 1].x - landmarks[index - 3].x)) {
+        if (Math.abs(landmarks[index - 1].y - landmarks[index - 3].y) < minAngleTanForRaised * Math.abs(landmarks[index - 1].x - landmarks[index - 3].x)) {
             return false;
         }
         return true;
@@ -79,7 +81,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
             }
             y_coord = landmarks[index].y
         }
-        if(Math.abs(landmarks[index-1].y - landmarks[index-3].y) < Math.abs(landmarks[index-1].x - landmarks[index-3].x)){
+        if(Math.abs(landmarks[index-1].y - landmarks[index-3].y) < minAngleTanForDown * Math.abs(landmarks[index-1].x - landmarks[index-3].x)){
             return false;
         }
         return true;

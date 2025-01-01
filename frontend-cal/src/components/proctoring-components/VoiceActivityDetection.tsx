@@ -13,6 +13,8 @@ const VoiceActivityDetection: React.FC<VoiceActivityDetectionProps> = ({ fileset
   const MODEL_URL = "src/models/yamnet.tflite";
   const CACHE_NAME = "tflite-model-cache";
 
+  const confidenceThreshold = 0.5;
+
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -112,7 +114,7 @@ const VoiceActivityDetection: React.FC<VoiceActivityDetectionProps> = ({ fileset
             if (
               categories &&
               categories[0]?.categoryName === "Speech" &&
-              parseFloat(categories[0]?.score.toFixed(3)) > 0.5
+              parseFloat(categories[0]?.score.toFixed(3)) > confidenceThreshold
             ) {
               setIsSpeaking("Yes");
             } else {
