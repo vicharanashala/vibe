@@ -12,8 +12,8 @@ import SnapshotRecorder from "./SnapshotRecorder";
 
 
 const ParentComponent = () => {
-    const [filesetResolver, setFilesetResolver] = useState<WasmFileset | null>(null);
-    const [audioFilesetResolver, setAudioFilesetResolver] = useState<WasmFileset | null>(null);
+    const [filesetResolver, setFilesetResolver] = useState<WasmFileset>(null);
+    const [audioFilesetResolver, setAudioFilesetResolver] = useState<WasmFileset>(null);
 
     // anomaly state related variables
     const [handCount, setHandCount] = useState(0); // for HandsDetection

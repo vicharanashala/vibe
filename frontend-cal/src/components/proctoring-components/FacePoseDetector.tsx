@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { PoseLandmarker } from "@mediapipe/tasks-vision";
 
+type WasmFileset = any;
 // take lookAwayCount and numPeople as props
 interface PoseLandmarkerProps {
-    filesetResolver: FilesetResolver;
+    filesetResolver: WasmFileset;
     lookAwayCount: number;
     setLookAwayCount: React.Dispatch<React.SetStateAction<number>>;
     numPeople: number;
@@ -16,7 +17,9 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
     const videoRef = useRef<HTMLVideoElement>(null);
     const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
     const lookAwayCountRef = useRef(0);
+    const minEyeDiffForFocus = 0.070;
     
+    // useEffect to initialize the PoseLandmarker and start the webcam
     useEffect(() => {
         const initializePoseLandmarker = async () => {
 
@@ -53,6 +56,7 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
         };
     }, []);
 
+    // useEffect to detect poses in the webcam feed and update the number of people and status
     useEffect(() => {
         const video = videoRef.current;
 
@@ -72,6 +76,7 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
                         const videoHeight = video.videoHeight;
 
                         const box = {
+                            // height and width of the box is 1/2 of the video frame
                             left: videoWidth / 4,
                             right: (videoWidth * 3) / 4,
                             top: videoHeight / 4,
@@ -92,7 +97,7 @@ const PoseLandmarkerComponent: React.FC<PoseLandmarkerProps> = ({filesetResolver
                     const leftEye = landmarks.landmarks[0][2];
                     const rightEye = landmarks.landmarks[0][5];
                     const eyeDiff = Math.abs(leftEye.x - rightEye.x); // Difference in X positions of eyes
-                    if (eyeDiff < 0.070) {
+                    if (eyeDiff < minEyeDiffForFocus) {
                     lookAwayCountRef.current++;
                     setLookAwayCount(lookAwayCountRef.current);
                     setStatus('Focus on the lecture!');

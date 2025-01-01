@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { HandLandmarker } from "@mediapipe/tasks-vision";
 
+type WasmFileset = any;
 // take handCount as props
 interface HandLandmarkerComponentProps {
-    filesetResolver: FilesetResolver;
+    filesetResolver: WasmFileset;
     handCount: number;
     setHandCount: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -12,6 +13,8 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
     const videoRef = useRef<HTMLVideoElement>(null);
     const handLandmarkerRef = useRef<HandLandmarker | null>(null);
     const [gesture, setGesture] = useState("None");
+    const minAngleTanForRaised = 2;
+    const minAngleTanForDown = 1;
 
     // function to check whether a particular finger is raised.
     interface Landmark {
@@ -31,7 +34,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
             y_coord = landmarks[index].y;
         }
         // we add the additional condition that the angle of the finger wrt horizontal is greater than arctan(2)
-        if (Math.abs(landmarks[index - 1].y - landmarks[index - 3].y) < 2 * Math.abs(landmarks[index - 1].x - landmarks[index - 3].x)) {
+        if (Math.abs(landmarks[index - 1].y - landmarks[index - 3].y) < minAngleTanForRaised * Math.abs(landmarks[index - 1].x - landmarks[index - 3].x)) {
             return false;
         }
         return true;
@@ -79,7 +82,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
             }
             y_coord = landmarks[index].y
         }
-        if(Math.abs(landmarks[index-1].y - landmarks[index-3].y) < Math.abs(landmarks[index-1].x - landmarks[index-3].x)){
+        if(Math.abs(landmarks[index-1].y - landmarks[index-3].y) < minAngleTanForDown * Math.abs(landmarks[index-1].x - landmarks[index-3].x)){
             return false;
         }
         return true;
@@ -131,7 +134,10 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
         }
         return thumbStatus;
     }
+    
+    // useEffects are kept separate for readability and separation of concerns
 
+    // useEffect to initialize the HandLandmarker and start the webcam feed.
     useEffect(() => {
         const initializeHandLandmarker = async () => {
 
@@ -168,6 +174,7 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
         };
     }, []);
 
+    // useEffect to detect hands in the webcam feed and update the hand count and gesture.
     useEffect(() => {
         const video = videoRef.current;
 
