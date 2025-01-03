@@ -11,4 +11,5 @@ urlpatterns = [
     path("password_reset/", password_reset, name="password_reset"),
     path("change_password/", change_password, name="change_password"),
     path("refresh_token/", refresh_token, name="refresh_token"),
+    path('accounts/', include('allauth.account.urls')),
 ]

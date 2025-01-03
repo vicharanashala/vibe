@@ -33,12 +33,20 @@ class RoleBasedPermission(BasePermission):
     def has_permission(self, request, view):
         from ..user.models import Roles
 
+        print(request.user)
+        print(view)
+
+        
+        # Check if it's a logout action
+        is_logout_view = (
+            view.__class__.__name__ == 'logout'   # For function-based views        
+            )
+        
         if request.user.role == Roles.STUDENT:
-            return request.method in SAFE_METHODS
-
-        # Check access at the object level
+            return request.method in SAFE_METHODS or (request.method == "POST" and is_logout_view)
+            
         return True
-
+    
     def has_object_permission(self, request, view, obj: ModelPermissionsMixin):
         from ..user.models import Roles
 
