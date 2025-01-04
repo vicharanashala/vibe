@@ -21,6 +21,8 @@ class UserCoursesSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class StudentCourseSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source='course.name', read_only=True)
+
     class Meta:
         model = CourseInstance  # Use the actual model class instead of string
-        fields = ['id', 'course']  # Adjust these fields based on your CourseInstance model
+        fields = ['id', 'course', 'course_name']  # Adjust these fields

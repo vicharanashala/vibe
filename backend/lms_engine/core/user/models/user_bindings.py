@@ -28,3 +28,10 @@ class UserCourseInstance(models.Model):
 
     def __str__(self):
         return f"{self.user.first_name} - {self.course.name}"
+    
+    def admin_has_access(self, user):
+        """
+        Define access rules for admins.
+        """
+        # Allow admins to read, write, and delete modules.
+        return (True, True, False)

@@ -68,8 +68,10 @@ class UserViewSet(viewsets.ModelViewSet):
             usercourseinstance__user=user
         )
         
+        # Use the updated serializer
         serializer = StudentCourseSerializer(courses, many=True)
         return Response(serializer.data)
+
 
 class UserInstitutionViewSet(viewsets.ModelViewSet):
     queryset = UserInstitution.objects.all()
