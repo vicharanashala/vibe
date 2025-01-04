@@ -43,3 +43,9 @@ class Section(TimestampMixin, ModelPermissionsMixin, models.Model):
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
+    def admin_has_access(self, user):
+        """
+        Define access rules for admins.
+        """
+        # Allow admins to read, write, and delete modules.
+        return (True, True, False)
