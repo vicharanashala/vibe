@@ -31,7 +31,7 @@ import ffmpeg
 #     return "This is the answer based on the context provided."
 
 app = FastAPI()
-
+os.environ["PATH"] += os.pathsep + "C:\\ffmpeg\\bin"
 
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     model = genai.GenerativeModel("gemini-1.5-flash")

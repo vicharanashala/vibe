@@ -40,7 +40,7 @@ class Question(BaseModel):
 
 
 class VideoResponse(BaseModel):
-    video_id: str
+    video_url: str
     title: str
     description: str
     segments: List[Dict]

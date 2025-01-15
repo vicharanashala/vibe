@@ -739,6 +739,8 @@ async function processBatches(batches) {
       .then(response => response.json())
       .then(data => {
         responseData[videoIndex] = data;
+        alert(`Video ${responseData[videoIndex]} processed successfully`);
+        console.log("Response from backend:", data)
         return data;
       });
     });
@@ -773,7 +775,10 @@ document.getElementById('video-form').addEventListener('submit', async (event) =
   const batches = createBatches(videoIndices);
   await processBatches(batches);
   
+  console.log("Original response data:", responseData);
   modifiedResponseData = JSON.parse(JSON.stringify(responseData)); // Deep copy
+  console.log("After deep copy:", modifiedResponseData);
+
   generatingSign.style.display = 'none';
   outputDiv.style.display = 'block';
   displayOutput(responseData[currentVideo]);
@@ -921,8 +926,10 @@ function showVideoOutput(index) {
   
   questionsContainer.innerHTML = '';
   questionDetailsContainer.innerHTML = '';
+  console.log('Data',data);
   
   data.questions.forEach((question, i) => {
+    console.log('Question',question);
     const questionBlock = document.createElement('div');
     questionBlock.className = 'question-block';
     questionBlock.textContent = `Question ${i + 1}`;
@@ -933,6 +940,7 @@ function showVideoOutput(index) {
     const questionDetails = document.createElement('div');
     questionDetails.className = 'question-details';
     questionDetails.id = `question-${i}`;
+    console.log('Heloooooo',question.options);
     questionDetails.innerHTML = `
       <h5>Question ${i + 1}</h5>
       <label for="question-text-${i}">Question Text</label>
