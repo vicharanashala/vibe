@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from .schemas import VideoResponse
-from .rag import upload_text
+# from .rag import upload_text
 import re
 import json
 from fastapi.responses import JSONResponse
 import google.generativeai as genai
-import soundfile as sf
-import whisper
+# import soundfile as sf
+# import whisper
 import os
 import uuid
 import time
@@ -15,7 +15,7 @@ from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
-import ffmpeg
+# import ffmpeg
 
 
 # def generate_question(transcript: str) -> dict:
@@ -291,118 +291,119 @@ def process_video(
     transcript = get_raw_transcript(video_id)
 
     # Step 1: Fetch video title, description and transcript
-    yt = YouTube(url, on_progress_callback=on_progress)
+    yt = YouTube(url, on_progress_callback=on_progress, use_po_token=True)
     title = yt.title
     description = hide_urls(yt.description)
 
     if transcript == []:
         # Download audio if transcript is not available
-        unique_id = str(uuid.uuid4())[:8]  # Shorten UUID for brevity
-        m4a_file = f"{unique_id}"
-        wav_file = f"{unique_id}.wav"
-        print(f"Downloading audio from YouTube video: {yt.title}")
-        ys = yt.streams.get_audio_only()
-        ys.download(filename=m4a_file)
-        print(f"Downloaded audio file: {m4a_file}")
+        # unique_id = str(uuid.uuid4())[:8]  # Shorten UUID for brevity
+        # m4a_file = f"{unique_id}"
+        # wav_file = f"{unique_id}.wav"
+        # print(f"Downloading audio from YouTube video: {yt.title}")
+        # ys = yt.streams.get_audio_only()
+        # ys.download(filename=m4a_file)
+        # print(f"Downloaded audio file: {m4a_file}")
 
-        # Convert audio to WAV format
-        print(f"Converting audio file to WAV format: {wav_file}")
-        ffmpeg.input(m4a_file).output(wav_file).run(overwrite_output=True)
-        print(f"Converted audio file to WAV format: {wav_file}")
+        # # Convert audio to WAV format
+        # print(f"Converting audio file to WAV format: {wav_file}")
+        # # ffmpeg.input(m4a_file).output(wav_file).run(overwrite_output=True)
+        # print(f"Converted audio file to WAV format: {wav_file}")
 
-        print("Splitting audio into segments...")
-        audio_data, samplerate = sf.read(wav_file)
-        audio_duration = len(audio_data) / samplerate
+        # print("Splitting audio into segments...")
+        # audio_data, samplerate = sf.read(wav_file)
+        # audio_duration = len(audio_data) / samplerate
 
-        if timestamps == []:
-            timestamps = [i * (audio_duration // 4) for i in range(4)]
+        # if timestamps == []:
+        #     timestamps = [i * (audio_duration // 4) for i in range(4)]
 
-        timestamps = sorted(timestamps)
-        timestamps.append(
-            audio_duration + 1
-        )  # Ensure last timestamp is the duration of the audio
+        # timestamps = sorted(timestamps)
+        # timestamps.append(
+        #     audio_duration + 1
+        # )  # Ensure last timestamp is the duration of the audio
 
-        segments = []
-        model = whisper.load_model("base")
+        # segments = []
+        # model = whisper.load_model("base")
 
-        for i in range(len(timestamps) - 1):
-            start_time = timestamps[i]
-            end_time = timestamps[i + 1]
+        # for i in range(len(timestamps) - 1):
+        #     start_time = timestamps[i]
+        #     end_time = timestamps[i + 1]
 
-            # Get the segment data based on the timestamps
-            start_sample = int(start_time * samplerate)
-            end_sample = int(end_time * samplerate)
-            segment_data = audio_data[start_sample:end_sample]
+        #     # Get the segment data based on the timestamps
+        #     start_sample = int(start_time * samplerate)
+        #     end_sample = int(end_time * samplerate)
+        #     segment_data = audio_data[start_sample:end_sample]
 
-            segment_file = f"{wav_file}_{i}.wav"
+        #     segment_file = f"{wav_file}_{i}.wav"
 
-            # Save the segment to a file
-            sf.write(segment_file, segment_data, samplerate)
-            print(f"Segment {i + 1} saved: {segment_file}")
+        #     # Save the segment to a file
+        #     sf.write(segment_file, segment_data, samplerate)
+        #     print(f"Segment {i + 1} saved: {segment_file}")
 
-            # Transcribe the segment using Whisper
-            result = model.transcribe(segment_file)
-            segment_transcript = result["text"]
-            segments.append(
-                {
-                    "text": segment_transcript,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                }
-            )
-            os.remove(segment_file)
-        os.remove(wav_file)
-        os.remove(m4a_file)
-        print("Audio segments processed successfully.")
+        #     # Transcribe the segment using Whisper
+        #     result = model.transcribe(segment_file)
+        #     segment_transcript = result["text"]
+        #     segments.append(
+        #         {
+        #             "text": segment_transcript,
+        #             "start_time": start_time,
+        #             "end_time": end_time,
+        #         }
+        #     )
+        #     os.remove(segment_file)
+        # os.remove(wav_file)
+        # os.remove(m4a_file)
+        # print("Audio segments processed successfully.")
 
-        full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        # full_transcript = " ".join([segment["text"] for segment in segments])
+        # upload_text(full_transcript, title)
 
-        questions = []
-        for i, segment in enumerate(segments):
-            questions_response = generate_questions_from_prompt(
-                segment["text"],
-                user_api_key,
-                segment_wise_q_no[i],
-                segment_wise_q_model[i],
-            )
-            question_data = parse_llama_json(questions_response)
-            print(question_data)
+        # questions = []
+        # for i, segment in enumerate(segments):
+        #     questions_response = generate_questions_from_prompt(
+        #         segment["text"],
+        #         user_api_key,
+        #         segment_wise_q_no[i],
+        #         segment_wise_q_model[i],
+        #     )
+        #     question_data = parse_llama_json(questions_response)
+        #     print(question_data)
 
-            if "case_study" in question_data:
-                case_study_text = question_data.pop(
-                    "case_study"
-                )  # Remove "case_study" key and get its text
+        #     if "case_study" in question_data:
+        #         case_study_text = question_data.pop(
+        #             "case_study"
+        #         )  # Remove "case_study" key and get its text
 
-                for question in question_data["questions"]:
-                    # Append case study text to the question's "question" field
-                    question["question"] = (
-                        f"Case study:\n{case_study_text}\nQuestion:\n{question['question']}"
-                    )
-                    question["segment"] = i + 1  # Link the question to the segment
-                    questions.append(question)
-            else:
-                # Handle case where "case_study" is not present
-                for question in question_data["questions"]:
-                    question["segment"] = i + 1  # Link the question to the segment
-                    questions.append(question)
+        #         for question in question_data["questions"]:
+        #             # Append case study text to the question's "question" field
+        #             question["question"] = (
+        #                 f"Case study:\n{case_study_text}\nQuestion:\n{question['question']}"
+        #             )
+        #             question["segment"] = i + 1  # Link the question to the segment
+        #             questions.append(question)
+        #     else:
+        #         # Handle case where "case_study" is not present
+        #         for question in question_data["questions"]:
+        #             question["segment"] = i + 1  # Link the question to the segment
+        #             questions.append(question)
 
-        output = VideoResponse(
-            video_url=url,
-            title=title,
-            description=description,
-            segments=segments,
-            questions=questions,
-        ).dict()
+        # output = VideoResponse(
+        #     video_url=url,
+        #     title=title,
+        #     description=description,
+        #     segments=segments,
+        #     questions=questions,
+        # ).dict()
 
-        return JSONResponse(content=output)
+        # return JSONResponse(content=output)
+        pass
 
     else:
         # Step 2: Segment the transcript
         segments = generate_transcript_segments(transcript, timestamps)
 
-        full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        # full_transcript = " ".join([segment["text"] for segment in segments])
+        # upload_text(full_transcript, title)
 
         # Step 3: Generate questions for each segment
         questions = []
