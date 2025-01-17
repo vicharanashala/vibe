@@ -9,5 +9,8 @@
     "paths": {
       "@/*": ["./src/*"]
     }
-  }
+  },
+  "typeRoots": [
+      "node_modules/@types"
+    ],
 }

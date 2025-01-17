@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { HandLandmarker } from "@mediapipe/tasks-vision";
+import { toast } from "sonner";
 
 type WasmFileset = any;
 // take handCount as props
@@ -185,7 +186,13 @@ const HandLandmarkerComponent: React.FC<HandLandmarkerComponentProps> = ({ files
                 if (results && results.landmarks) {
                     setHandCount(results.landmarks.length);
                     if(handCount>2){
-                        console.log(handCount, " hands are present in the feed.")
+                        toast(`${handCount} hands are present in the frame. Flag Notted !`)
+                        console.log("number of hands", handCount)
+                    }
+                    if(results.landmarks[0]){
+                        setGesture(getGesture(results.landmarks[0]));
+                    } else {
+                        setGesture("None");
                     }
                     if(results.landmarks[0]){
                         setGesture(getGesture(results.landmarks[0]));
