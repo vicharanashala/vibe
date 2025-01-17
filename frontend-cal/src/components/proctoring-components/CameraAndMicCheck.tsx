@@ -1,31 +1,50 @@
+import Cookies from 'js-cookie';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const CameraAndMicCheck = () => {
-    const [cameraAvailable, setCameraAvailable] = useState(false);
-    const [micAvailable, setMicAvailable] = useState(false);
+    const [cameraPermission, setCameraPermission] = useState('Checking...');
+    const [micPermission, setMicPermission] = useState('Checking...');
+    const navigate = useNavigate();
 
     useEffect(() => {
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-            const videoInput = devices.some(device => device.kind === 'videoinput');
-            const audioInput = devices.some(device => device.kind === 'audioinput');
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                // If the promise resolves, access is granted
+                setCameraPermission('Granted');
+                setMicPermission('Granted');
 
-            setCameraAvailable(videoInput);
-            setMicAvailable(audioInput);
-
-            if (!videoInput) {
-                alert('Camera not found');
-            }
-            if (!audioInput) {
-                alert('Microphone not found');
-            }
-        });
+                // Cleanup: stop the stream to release the camera and mic
+                stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(error => {
+                // If the promise rejects, access is denied or not available
+                if (error.name === 'NotFoundError') {
+                    setCameraPermission('Not Available');
+                    setMicPermission('Not Available');
+                    toast('Camera and Micrphone not Found !')
+                    // Cookies.remove('access_token');
+                    // navigate('/login')
+                } else if (error.name === 'NotAllowedError') {
+                    setCameraPermission('Denied');
+                    setMicPermission('Denied');
+                    toast('Camera and Micrphone not Found !')
+                    // Cookies.remove('access_token');
+                    // navigate('/login')
+                } else {
+                    setCameraPermission('Error');
+                    setMicPermission('Error');
+                    toast('Camera and Micrphone not Found !')
+                    // Cookies.remove('access_token');
+                    // navigate('/login')
+                }
+            });
     }, []);
 
     return (
         <div>
-            <h1>Camera and Microphone Check</h1>
-            <p>Camera: {cameraAvailable ? 'Available' : 'Not Available'}</p>
-            <p>Microphone: {micAvailable ? 'Available' : 'Not Available'}</p>
+            <h1></h1>
         </div>
     );
 };

@@ -101,7 +101,7 @@ const VoiceActivityDetection: React.FC<VoiceActivityDetectionProps> = ({ fileset
   return (
     <div>
       {/* Display whether the user is speaking */}
-      <h4>Speaking: {isSpeaking}</h4>
+      <h4></h4>
     </div>
   );
 };

@@ -113,3 +113,11 @@
   scrollbar-width: none; /* Firefox */
 }
 
+.window {
+  position: absolute;
+  width: 50%; /* Set the width of the window to half of the container */
+  height: 100%;
+  background: black; /* Window color */
+  transition: left 0.5s ease-in-out;
+  z-index: 20;
+}

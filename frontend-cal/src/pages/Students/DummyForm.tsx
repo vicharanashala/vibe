@@ -1,27 +1,43 @@
-import React from 'react';
-import { useFetchCoursesWithAuthQuery } from '../../store/apiService';
+import React from 'react'
+import { useFetchCoursesWithAuthQuery } from '../../store/apiService'
+
+interface Module {
+  id: string
+  title: string
+  description: string
+  sequence: number
+}
 
 const DummyForm = () => {
   // Fetch courses using the custom hook
-  const { data, error, isLoading } = useFetchCoursesWithAuthQuery();
+  const { data, error, isLoading } = useFetchCoursesWithAuthQuery()
 
   if (isLoading) {
-    return <p>Loading courses...</p>;
+    return <p>Loading courses...</p>
   }
 
   if (error) {
-    return <p>Error loading courses: {error.message}</p>;
+    return (
+      <p>
+        Error loading courses:
+        {'status' in error ? error.status : error.message}
+      </p>
+    )
   }
 
   return (
     <div>
       <h1>Courses</h1>
       <ul>
-        {data?.map((course) => (
+        {data?.courses?.map((course) => (
           <li key={course.id}>
             <h3>{course.name}</h3>
-            <p><strong>Description:</strong> {course.description}</p>
-            <p><strong>Visibility:</strong> {course.visibility}</p>
+            <p>
+              <strong>Description:</strong> {course.description}
+            </p>
+            <p>
+              <strong>Visibility:</strong> {course.visibility}
+            </p>
             <p>
               <strong>Institution:</strong> {course.institution_details.name} -{' '}
               {course.institution_details.description}
@@ -38,11 +54,17 @@ const DummyForm = () => {
               <div>
                 <h4>Modules:</h4>
                 <ul>
-                  {course.modules.map((module) => (
+                  {course.modules.map((module: Module) => (
                     <li key={module.id}>
-                      <p><strong>Title:</strong> {module.title}</p>
-                      <p><strong>Description:</strong> {module.description}</p>
-                      <p><strong>Sequence:</strong> {module.sequence}</p>
+                      <p>
+                        <strong>Title:</strong> {module.title}
+                      </p>
+                      <p>
+                        <strong>Description:</strong> {module.description}
+                      </p>
+                      <p>
+                        <strong>Sequence:</strong> {module.sequence}
+                      </p>
                     </li>
                   ))}
                 </ul>
@@ -52,7 +74,7 @@ const DummyForm = () => {
         ))}
       </ul>
     </div>
-  );
-};
+  )
+}
 
-export default DummyForm;
+export default DummyForm
