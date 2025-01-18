@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.routers import question
-# from app.rag import app as rag_router
+from app.rag import app as rag_router
 
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -24,12 +24,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(question.router)
-# app.include_router(rag_router, prefix="/rag", tags=["RAG"])
+app.include_router(rag_router, prefix="/rag", tags=["RAG"])
 
 
 # Include routers
 app.include_router(question.router)
-# app.include_router(rag_router, prefix="/rag", tags=["RAG"])
+app.include_router(rag_router, prefix="/rag", tags=["RAG"])
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -3,19 +3,19 @@ uvicorn==0.23.1
 pydantic==1.*
 pytubefix
 google-generativeai
-#openai-whisper
+openai-whisper
 youtube-transcript-api
-# soundfile
-# moviepy
-# audioread
-# ffmpeg-python
-# langchain
-# FAISS-cpu
-# transformers
-# pdfplumber
-# langchain-experimental
-# langchain-community
-# sentence-transformers
+soundfile
+moviepy
+audioread
+ffmpeg-python
+langchain
+FAISS-cpu
+transformers
+pdfplumber
+langchain-experimental
+langchain-community
+sentence-transformers
 python-multipart
 black
 flake8

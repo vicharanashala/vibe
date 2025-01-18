@@ -755,15 +755,9 @@ async function processBatches(batches) {
       })
       .then(response => response.json())
       .then(data => {
-        responseData[videoIndex] = {
-          ...data,
-          questions: data.questions.map(q => ({
-            ...q,
-            options: Array.isArray(q.options) ? [...q.options] : [] // Ensure options is always an array
-          }))
-        };
-        console.log("Response from backend:", data)
-        return responseData[videoIndex];
+        responseData[videoIndex] = data;
+        console.log("Raw data from backend:", JSON.stringify(data));
+        return data;
       });
     });
     
@@ -797,30 +791,15 @@ document.getElementById('video-form').addEventListener('submit', async (event) =
   const batches = createBatches(videoIndices);
   await processBatches(batches);
     
-  console.log("Original response data:", responseData);
+  modifiedResponseData = deepCopy(responseData);
 
-  modifiedResponseData = {};
-    Object.keys(responseData).forEach(videoIndex => {
-      const videoData = responseData[videoIndex];
-      modifiedResponseData[videoIndex] = {
-        video_url: videoData.video_url,
-        title: videoData.title,
-        description: videoData.description,
-        segments: [...videoData.segments],
-        questions: videoData.questions.map(q => ({
-          question: q.question,
-          options: q.options ? [...q.options] : [],
-          correct_answer: q.correct_answer,
-          segment: q.segment
-        }))
-      };
-    });
+  console.log("Original responseData:", responseData);
+  console.log("Modified responseData:", modifiedResponseData);
 
-  console.log("After deep copy:", modifiedResponseData);
 
   generatingSign.style.display = 'none';
   outputDiv.style.display = 'block';
-  displayOutput(responseData[currentVideo]);
+  displayOutput(modifiedResponseData[currentVideo]);
   confirmButton.style.display = 'inline-block';
 } catch (error) {
   generatingSign.style.display = 'none';
@@ -830,6 +809,9 @@ document.getElementById('video-form').addEventListener('submit', async (event) =
 });
 
 function displayOutput(data) {
+  // Add logging to track data
+  console.log("Raw data entering displayOutput:", data);
+  
   // Display output video blocks
   const outputVideosContainer = document.getElementById('output-videos-container');
   if (!outputVideosContainer.hasChildNodes()) {
@@ -837,12 +819,20 @@ function displayOutput(data) {
       const videoBlock = document.createElement('div');
       videoBlock.className = 'video-block';
       videoBlock.textContent = `Video ${index + 1}`;
-      videoBlock.addEventListener('click', () => showVideoOutput(index));
+      videoBlock.addEventListener('click', () => {
+        // Add logging before calling showVideoOutput
+        console.log("Data before showing video output:", modifiedResponseData[index]);
+        showVideoOutput(index);
+      });
       outputVideosContainer.appendChild(videoBlock);
     });
   }
 
-  showVideoOutput(currentVideo);
+  // Ensure data is passed correctly to showVideoOutput
+  if (data) {
+    console.log("Data before initial showVideoOutput:", data);
+    showVideoOutput(currentVideo);
+  }
 }
 
 function saveVideoEdits(videoIndex) {
@@ -863,17 +853,10 @@ function saveVideoEdits(videoIndex) {
   });
   
   // Save question modifications
-  data.questions.forEach((question, i) => {
-    const textEl = document.getElementById(`question-text-${i}`);
-    const correctAnswerEl = document.getElementById(`correct-answer-${i}`);
-    
-    if (textEl) question.question = textEl.value;
-    if (correctAnswerEl) question.correct_answer = parseInt(correctAnswerEl.value);
-    
-    question.options = question.options.map((_, j) => {
-      const optEl = document.getElementById(`option-${i}-${j}`);
-      return optEl ? optEl.value : '';
-    });
+  data.questions = data.questions.map(question => {
+    const newQuestion = {...question};
+    delete newQuestion.options;
+    return newQuestion;
   });
 }
 
@@ -979,22 +962,20 @@ function showVideoOutput(index) {
     questionDetails.className = 'question-details';
     questionDetails.id = `question-${i}`;
     
-    // Ensure options exist and are properly formatted
-    const options = Array.isArray(question.options) ? question.options : [];
-    while (options.length < 4) {
-      options.push(''); // Ensure we always have 4 options
-    }
-    
     questionDetails.innerHTML = `
       <h5>Question ${i + 1}</h5>
       <label for="question-text-${i}">Question Text</label>
       <textarea id="question-text-${i}">${question.question}</textarea>
       
       <h6>Options</h6>
-      ${options.map((opt, j) => `
-        <label for="option-${i}-${j}">Option ${j + 1}</label>
-        <input type="text" id="option-${i}-${j}" value="${opt}" />
-      `).join('')}
+      <label for="option-${i}-0">Option 1</label>
+      <input type="text" id="option-${i}-0" value="${question.option_1 || ''}" />
+      <label for="option-${i}-1">Option 2</label>
+      <input type="text" id="option-${i}-1" value="${question.option_2 || ''}" />
+      <label for="option-${i}-2">Option 3</label>
+      <input type="text" id="option-${i}-2" value="${question.option_3 || ''}" />
+      <label for="option-${i}-3">Option 4</label>
+      <input type="text" id="option-${i}-3" value="${question.option_4 || ''}" />
 
       <label for="correct-answer-${i}">Correct Answer</label>
       <input type="number" id="correct-answer-${i}" value="${question.correct_answer}" />
