@@ -291,7 +291,7 @@ def process_video(
     transcript = get_raw_transcript(video_id)
 
     # Step 1: Fetch video title, description and transcript
-    yt = YouTube(url,'WEB', on_progress_callback=on_progress)
+    yt = YouTube(url, 'WEB', on_progress_callback=on_progress)
     title = yt.title
     description = hide_urls(yt.description)
 

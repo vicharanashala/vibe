@@ -73,7 +73,7 @@ else:
     metadata = {}
 
 
-genai.configure(api_key="AIzaSyA3lMgPrIAHmHzHuD6lqisGeJiwDxPVWss")
+genai.configure(api_key="your-gemini-api-key")
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 
