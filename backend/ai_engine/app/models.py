@@ -35,7 +35,7 @@ os.environ["PATH"] += os.pathsep # + "C:\\ffmpeg\\bin"
 
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     model = genai.GenerativeModel("gemini-1.5-flash")
-    genai.configure(api_key=user_api_key)
+    genai.configure(api_key="AIzaSyDJUVte4fFDDqL7d5l1L7JGpgdS9U_n7sE")
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text

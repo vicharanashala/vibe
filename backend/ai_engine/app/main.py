@@ -27,11 +27,6 @@ app.include_router(question.router)
 app.include_router(rag_router, prefix="/rag", tags=["RAG"])
 
 
-# Include routers
-app.include_router(question.router)
-app.include_router(rag_router, prefix="/rag", tags=["RAG"])
-
-
 @app.get("/", response_class=HTMLResponse)
 def serve_homepage():
     index_path = Path("app/templates/index.html")

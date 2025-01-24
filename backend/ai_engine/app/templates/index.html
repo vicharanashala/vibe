@@ -261,6 +261,78 @@
     let hierarchyData = null;
     let selectedSectionId = null;
 
+    // IndexedDB Storage Utility
+class QuestionIndexedDB {
+    constructor(dbName = 'VideoQuestionDB', version = 1) {
+        this.dbName = dbName;
+        this.version = version;
+        this.db = null;
+    }
+
+    async openDatabase() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.version);
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('videos')) {
+                    const videoStore = db.createObjectStore('videos', { 
+                        keyPath: 'video_url' 
+                    });
+                    videoStore.createIndex('section_id', 'section_id', { unique: false });
+                }
+            };
+
+            request.onsuccess = (event) => {
+                this.db = event.target.result;
+                resolve(this.db);
+            };
+
+            request.onerror = (event) => {
+                reject(`IndexedDB error: ${event.target.error}`);
+            };
+        });
+    }
+
+    async saveVideoData(videoData) {
+        await this.openDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const request = store.put(videoData);
+
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject('Failed to save video data');
+        });
+    }
+
+    async getVideoData(videoUrl) {
+        await this.openDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['videos'], 'readonly');
+            const store = transaction.objectStore('videos');
+            const request = store.get(videoUrl);
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            request.onerror = () => reject('Failed to retrieve video data');
+        });
+    }
+
+    async getAllVideos() {
+        await this.openDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['videos'], 'readonly');
+            const store = transaction.objectStore('videos');
+            const request = store.getAll();
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            request.onerror = () => reject('Failed to retrieve all videos');
+        });
+    }
+}
+
+const questionDB = new QuestionIndexedDB();
+
 // Fetch course hierarchy when page loads
 fetch('http://127.0.0.1:5000/api/courses/hierarchy', {
         method: 'GET',
@@ -724,7 +796,7 @@ async function processBatches(batches) {
     const batch = batches[i];
     
     // Process all videos in current batch concurrently
-    const batchPromises = batch.map(videoIndex => {
+    const batchPromises = batch.map(async (videoIndex) => {
       const videoURL = videoUrls[videoIndex];
       const segments = videoData[videoIndex].segments;
       
@@ -746,20 +818,24 @@ async function processBatches(batches) {
         segment_wise_q_model: segmentWiseQModel,
       };
       
-      return fetch('/questions/process_video', {
+      const response = await fetch('/questions/process_video', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       })
-      .then(response => response.json())
-      .then(data => {
-        responseData[videoIndex] = data;
-        console.log("Raw data from backend:", JSON.stringify(data));
-        return data;
-      });
-    });
+      const data = await response.json();
+            responseData[videoIndex] = data;
+
+            // Save to IndexedDB
+            await questionDB.saveVideoData({
+                ...data,
+                video_url: videoURL
+            });
+
+            return data;
+        });
     
     await Promise.all(batchPromises);
     
@@ -853,14 +929,38 @@ function saveVideoEdits(videoIndex) {
   });
   
   // Save question modifications
-  data.questions = data.questions.map(question => {
+  data.questions = data.questions.map((question, i) => {
     const newQuestion = {...question};
-    delete newQuestion.options;
+    const questionTextEl = document.getElementById(`question-text-${i}`);
+    const option1El = document.getElementById(`option-${i}-0`);
+    const option2El = document.getElementById(`option-${i}-1`);
+    const option3El = document.getElementById(`option-${i}-2`);
+    const option4El = document.getElementById(`option-${i}-3`);
+    const correctAnswerEl = document.getElementById(`correct-answer-${i}`);
+
+    if (questionTextEl) newQuestion.question = questionTextEl.value;
+    if (option1El) newQuestion.option_1 = option1El.value;
+    if (option2El) newQuestion.option_2 = option2El.value;
+    if (option3El) newQuestion.option_3 = option3El.value;
+    if (option4El) newQuestion.option_4 = option4El.value;
+    if (correctAnswerEl) newQuestion.correct_answer = parseInt(correctAnswerEl.value);
+    
     return newQuestion;
   });
+
+  questionDB.saveVideoData(data);
 }
 
-function showVideoOutput(index) {
+async function showVideoOutput(index) {
+
+  // First, try to get data from IndexedDB
+  const storedVideoData = await questionDB.getVideoData(videoUrls[index]);
+    
+    if (storedVideoData) {
+        // If data exists in IndexedDB, use it
+        modifiedResponseData[index] = storedVideoData;
+    }
+
   if (!modifiedResponseData[index]) return;
   
   if (currentVideo !== null) {
@@ -1000,6 +1100,8 @@ function showSegmentDetails(index) {
       
       document.getElementById(`segment-${index}`).style.display = 'block';
       document.querySelector(`[data-segment="${index}"]`).classList.add('active');
+
+      saveVideoEdits(currentVideo);
     }
 
     function showQuestionDetails(index) {
@@ -1011,6 +1113,8 @@ function showSegmentDetails(index) {
       
       document.getElementById(`question-${index}`).style.display = 'block';
       document.querySelector(`[data-question="${index}"]`).classList.add('active');
+
+      saveVideoEdits(currentVideo);
     }
 
     document.getElementById('recalculate-timestamps').addEventListener('click', () => {
@@ -1070,6 +1174,8 @@ function showSegmentDetails(index) {
             },
             body: JSON.stringify(modifiedData)
           });
+
+          await questionDB.saveVideoData(modifiedData);
 
           if (!response.ok) {
             throw new Error(`Video ${videoIndex + 1}: HTTP error! status: ${response.status}`);

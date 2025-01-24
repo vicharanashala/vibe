@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.vectorstores import FAISS
 from langchain.llms.base import BaseLLM
@@ -12,7 +12,7 @@ from langchain.prompts import PromptTemplate
 from typing import List, Optional, Any
 import google.generativeai as genai
 import faiss
-from langchain.docstore import InMemoryDocstore
+from langchain_community.docstore.in_memory import InMemoryDocstore
 import os
 import json
 import time
@@ -73,7 +73,7 @@ else:
     metadata = {}
 
 
-genai.configure(api_key="your-gemini-api-key")
+genai.configure(api_key="AIzaSyDJUVte4fFDDqL7d5l1L7JGpgdS9U_n7sE")
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 
@@ -114,18 +114,13 @@ wrapped_model = GenAIWrapper(model=model)
 
 # Create prompts and chains
 prompt = """
-1. Use the following pieces of context from the transcripts to provide
- a detailed explanation in response to the student's query.
-   If the relevant information is not available in the context,
-     you may use your own knowledge base to answer the question,
-       but only if you're confident in the accuracy of the answer.
-2. If you don't know the answer,
- say "I don't know" without making up an answer.
-3. Make sure to break down the explanation in a clear, student-friendly manner,
- using simple language. Aim to help the student understand the topic better.
+1. Act as a knowledgeable and approachable teacher who helps students understand their doubts with clarity and patience.
+2. Use the following pieces of context to explain and clarify the student's query thoroughly. If the exact answer is not available in the provided context but aligns with the topic, provide an accurate and well-informed response based on your own knowledge base.
+3. If the question is completely irrelevant to the topic, outside the provided context, or you’re unsure of the answer, politely state, "I don’t know the answer to that," without making up any information.
+4. Always prioritize accuracy. Break down your explanation into simple, easy-to-follow points and use relatable examples or analogies wherever possible to aid understanding. Aim to leave the student with a clear and solid grasp of the concept or query.
 Context: {context}
 Question: {question}
-Detailed Explanation: """
+Response: """
 
 QA_CHAIN_PROMPT = PromptTemplate.from_template(prompt)
 llm_chain = LLMChain(llm=wrapped_model, prompt=QA_CHAIN_PROMPT, verbose=True)
@@ -150,7 +145,7 @@ qa_chain = RetrievalQA(
 
 
 # Endpoint for uploading PDF files
-# @app.post("/upload/")
+@app.post("/upload/")
 def upload_text(text: str, title: Optional[str] = None):
     try:
         # Split the input text into chunks
