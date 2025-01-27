@@ -17,25 +17,12 @@ from pytubefix.cli import on_progress
 from typing import List, Dict
 import ffmpeg
 
-
-# def generate_question(transcript: str) -> dict:
-#     # Mock LLM logic
-#     return {
-#         "question": "What is the main topic of the transcript?",
-#         "options": ["Option A", "Option B", "Option C", "Option D"],
-#         "correct_answer": "Option A",
-#     }
-
-# def answer_question(question: str) -> str:
-#     # Mock LLM logic
-#     return "This is the answer based on the context provided."
-
 app = FastAPI()
 os.environ["PATH"] += os.pathsep # + "C:\\ffmpeg\\bin"
 
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    genai.configure(api_key="AIzaSyDJUVte4fFDDqL7d5l1L7JGpgdS9U_n7sE")
+    model = genai.GenerativeModel(model_name="gemini-2.0-flash-exp")
+    genai.configure(api_key="AIzaSyB5AF8R-5q6nj5CS2wYbHDtRrdGhYOPh-Y")
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
@@ -71,46 +58,6 @@ def generate_questions_from_prompt(
     text: str, user_api_key: str, n_questions: int, q_model: str
 ) -> str:
     n = n_questions  # Number of questions to generate
-    # task_description_simple = (
-    #     """
-    #     You are an AI tasked with generating multiple-choice questions (MCQs)
-    #     from a given transcript. Your goal is to:
-    #     1. Identify important concepts, events, or details in the transcript.
-    #     2. Frame questions in a simple and clear manner based on these
-    #        concepts.
-    #     3. Give 4 answer options for each question, ensuring one is correct
-    #        and the others are plausible but incorrect.
-    #     4. Specify the index (0-based) of the correct answer for each
-    #        question.
-    #     5. Format your response as a JSON list where each entry follows the
-    #        structure:
-    #     { "question": "<question_text>", "options":["<option1>", "<option2>",
-    #       "<option3>", "<option4>"],
-    #       "correct_answer": <index_of_correct_option> }
-
-    #     Example output:
-    #     {
-    #         "questions" : [
-    #             {
-    #                 "question": "What is the capital of France?",
-    #                 "options": ["Berlin", "Madrid", "Paris", "Rome"],
-    #                 "correct_answer": 2
-    #             },
-    #             {
-    #                 "question": "Which planet is known as the Red Planet?",
-    #                 "options": ["Earth", "Mars", "Jupiter", "Venus"],
-    #                 "correct_answer": 1
-    #             },
-    #             {
-    #                 "question": "What is the chemical symbol for water?",
-    #                 "options": ["H2O", "O2", "CO2", "NaCl"],
-    #                 "correct_answer": 0
-    #             }
-    #         ]
-    #     }"""
-    #     + f"\n Your input will be a transcript, and you will generate {n} "
-    #     + "questions based on its content in this exact format."
-    # )
 
     task_description_analytical = """
         You are an advanced AI designed to generate challenging multiple-choice questions (MCQs) for university-level exams.
@@ -205,9 +152,6 @@ def generate_questions_from_prompt(
 
 
 def extract_video_id(url: str) -> str:
-    # yt = YouTube(url, on_progress_callback=on_progress)
-    # title = yt.title
-    # description = hide_urls(yt.description)
 
     patterns = [
         r"(?:https?://)?(?:www\.)?youtu\.be/([^?&]+)",  # youtu.be short links

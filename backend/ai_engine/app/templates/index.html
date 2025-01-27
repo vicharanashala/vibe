@@ -797,45 +797,55 @@ async function processBatches(batches) {
     
     // Process all videos in current batch concurrently
     const batchPromises = batch.map(async (videoIndex) => {
-      const videoURL = videoUrls[videoIndex];
-      const segments = videoData[videoIndex].segments;
-      
-      const timestamps = [];
-      const segmentWiseQNo = [];
-      const segmentWiseQModel = [];
-      
-      Object.values(segments).forEach(data => {
-        if (data.timestamp !== null) timestamps.push(data.timestamp);
-        if (data.questions !== null) segmentWiseQNo.push(data.questions);
-        if (data.type !== null) segmentWiseQModel.push(data.type);
-      });
-      
-      const payload = {
-        url: videoURL,
-        user_api_key: document.getElementById('user-api-key').value,
-        timestamps,
-        segment_wise_q_no: segmentWiseQNo,
-        segment_wise_q_model: segmentWiseQModel,
-      };
-      
-      const response = await fetch('/questions/process_video', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-      const data = await response.json();
-            responseData[videoIndex] = data;
-
-            // Save to IndexedDB
-            await questionDB.saveVideoData({
-                ...data,
-                video_url: videoURL
-            });
-
-            return data;
+      try {
+        const videoURL = videoUrls[videoIndex];
+        const segments = videoData[videoIndex].segments;
+        
+        const timestamps = [];
+        const segmentWiseQNo = [];
+        const segmentWiseQModel = [];
+        
+        Object.values(segments).forEach(data => {
+          if (data.timestamp !== null) timestamps.push(data.timestamp);
+          if (data.questions !== null) segmentWiseQNo.push(data.questions);
+          if (data.type !== null) segmentWiseQModel.push(data.type);
         });
+        
+        const payload = {
+          url: videoURL,
+          user_api_key: document.getElementById('user-api-key').value,
+          timestamps,
+          segment_wise_q_no: segmentWiseQNo,
+          segment_wise_q_model: segmentWiseQModel,
+        };
+        
+        const response = await fetch('/questions/process_video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        responseData[videoIndex] = data;
+
+        // Save to IndexedDB
+        await questionDB.saveVideoData({
+          ...data,
+          video_url: videoURL
+        });
+
+        return data;
+      } catch (error) {
+        console.error(`Error processing video ${videoIndex}:`, error);
+        // You might want to add some UI feedback here
+      }
+    });
     
     await Promise.all(batchPromises);
     
@@ -845,6 +855,8 @@ async function processBatches(batches) {
     }
   }
 }
+
+
 
 document.getElementById('video-form').addEventListener('submit', async (event) => {
   event.preventDefault();
