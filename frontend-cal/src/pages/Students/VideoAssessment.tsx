@@ -1,3 +1,18 @@
+/**
+ * VideoAssessment Page
+ *
+ * This Page implements a video assessment system with interactive questions and proctoring features.
+ * It uses the YouTube IFrame API to play videos and display questions at specific timestamps.
+ *
+ * Key Features:
+ * - YouTube video playback with custom controls
+ * - Question popups at predefined timestamps
+ * - Proctoring features (keyboard lock and right-click disable)
+ * - Resizable panels for video and controls
+ * - Fullscreen support
+ * - Volume and playback speed controls
+ */
+
 import {
   ResizableHandle,
   ResizablePanel,
@@ -7,6 +22,7 @@ import { useSidebar } from '@/components/ui/sidebar'
 import { useEffect, useRef, useState } from 'react'
 import '../../frame.css'
 
+// Extend Window interface to include YouTube API properties
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void
@@ -19,6 +35,7 @@ import { Fullscreen, Pause, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { Slider } from '@/components/ui/slider'
 
+// Define Question interface for assessment data structure
 interface Question {
   question_id: number
   question: string
@@ -27,6 +44,7 @@ interface Question {
 }
 
 export default function VideoAssessment() {
+  // Sidebar control
   const { setOpen } = useSidebar() // Access setOpen to control the sidebar state
   const hasSetOpen = useRef(false) // Ref to track if setOpen has been called
 
@@ -37,6 +55,7 @@ export default function VideoAssessment() {
     }
   }, [setOpen])
 
+  // Video player states
   const [player] = useState<YT.Player | null>(null)
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null)
@@ -45,6 +64,8 @@ export default function VideoAssessment() {
   const [volume, setVolume] = useState<number>(50)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
   const triggeredTimestamps = useRef<Set<number>>(new Set())
+
+  // Assessment states
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string>('')
   const [timestamps, setTimestamps] = useState<number[]>([])
@@ -53,11 +74,13 @@ export default function VideoAssessment() {
   const [currentPart, setCurrentPart] = useState(0)
   const [showThumbnail, setShowThumbnail] = useState(true) // State to show/hide the thumbnail
   const thumbnailUrl =
-    'https://i.pinimg.com/originals/24/12/bc/2412bc5c012e7360f602c13a92901055.jpg'
+    'https://excellentia.org.in/images/courses.jpg'
 
   useEffect(() => {
     setCurrentPart(0)
   }, [currentFrame])
+
+  // Mock assessment data
   const [data] = useState<
     { video: string; timestamps: { [key: number]: Question[] } }[]
   >([
@@ -117,6 +140,7 @@ export default function VideoAssessment() {
     setTimestamps(ts)
   }, [data])
 
+  // Player cleanup function
   const cleanupPlayer = () => {
     if (window.player) {
       window.player.destroy()
@@ -167,6 +191,7 @@ export default function VideoAssessment() {
     }
   }, [currentFrame, videoId])
 
+  // Effect to monitor video progress and trigger questions
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined
     if (isPlaying) {
@@ -194,6 +219,7 @@ export default function VideoAssessment() {
     }
   }, [isPlaying, player, timestamps]) //H
 
+  // Player event handlers
   const onPlayerReady = (event: YT.PlayerEvent) => {
     const duration = event.target.getDuration()
     setTotalDuration(duration)
@@ -201,6 +227,7 @@ export default function VideoAssessment() {
     setPlaybackSpeed(player?.getPlaybackRate() ?? 1)
   }
 
+  // Function to pause video and show questions
   const pauseVideoAndShowPopup = (timestamp: number) => {
     if (window.player) {
       window.player.pauseVideo()
@@ -213,6 +240,7 @@ export default function VideoAssessment() {
     setCurrentPart((prevPart) => (prevPart < 1 ? prevPart + 1 : 0))
   }
 
+  // Handle incorrect answer submission
   const handleIncorrectAnswer: () => void = () => {
     if (currentTimestamp !== null) {
       const lastTimestamp = [...triggeredTimestamps.current]
@@ -230,6 +258,7 @@ export default function VideoAssessment() {
     handlePartScrollDown() // Scroll the part down when the answer is incorrect
   }
 
+  // Navigate to next question or close popup
   const goToNextQuestion = () => {
     const currentQuestion = questions[currentQuestionIndex]
     if (selectedAnswer !== currentQuestion.correctAnswer) {
@@ -247,12 +276,14 @@ export default function VideoAssessment() {
     }
   }
 
+  // Reset question state
   const closePopup = () => {
     setCurrentQuestionIndex(0) // Reset question index
     setSelectedAnswer('') // Clear selected answer
     setQuestions([]) // Clear the current questions
   }
 
+  // Handle player state changes
   const onPlayerStateChange = (event: YT.OnStateChangeEvent) => {
     if (event.data === window.YT.PlayerState.PLAYING) {
       setIsPlaying(true)
@@ -261,12 +292,14 @@ export default function VideoAssessment() {
     }
   }
 
+  // Handle answer selection
   const handleAnswerSelection = (answer: string) => {
     console.log('Answer : ', answer)
     setSelectedAnswer(answer)
     console.log('selected Answer', selectedAnswer)
   }
 
+  // Video control functions
   const togglePlayPause = () => {
     if (isPlaying) {
       window.player.pauseVideo()
@@ -298,6 +331,7 @@ export default function VideoAssessment() {
     setPlaybackSpeed(speed)
   }
 
+  // Fullscreen handling
   const toggleFullscreen = () => {
     const videoContainer = document.querySelector(
       '.video-container'
@@ -328,6 +362,7 @@ export default function VideoAssessment() {
     }
   }
 
+  // Frame navigation functions
   const handleFrameScrollUp = () => {
     setCurrentFrame((prevFrame) => {
       if (currentPart > 0) {
@@ -348,6 +383,7 @@ export default function VideoAssessment() {
     setShowThumbnail(true)
   }
 
+  // Generate frames for video and questions
   const frames = data
     .flatMap((frameData, frameIndex) => {
       return Object.keys(frameData.timestamps).map((timeKey, partIndex) => [

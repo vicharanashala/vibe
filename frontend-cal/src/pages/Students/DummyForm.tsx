@@ -1,6 +1,24 @@
+/**
+ * DummyForm
+ *
+ * This page displays a list of courses with their details including modules.
+ * It fetches course data from an API using RTK Query and handles loading/error states.
+ *
+ * Features:
+ * - Fetches and displays course data including:
+ *   - Course name, description, visibility
+ *   - Institution details
+ *   - Course thumbnail image
+ *   - Enrollment status
+ *   - Associated modules with their details
+ * - Handles loading and error states gracefully
+ * - Responsive layout with nested lists
+ */
+
 import React from 'react'
 import { useFetchCoursesWithAuthQuery } from '../../store/apiService'
 
+// Interface for module data structure
 interface Module {
   id: string
   title: string
@@ -9,13 +27,15 @@ interface Module {
 }
 
 const DummyForm = () => {
-  // Fetch courses using the custom hook
+  // Fetch courses using RTK Query hook
   const { data, error, isLoading } = useFetchCoursesWithAuthQuery()
 
+  // Show loading state while fetching data
   if (isLoading) {
     return <p>Loading courses...</p>
   }
 
+  // Show error message if fetch fails
   if (error) {
     return (
       <p>
@@ -29,6 +49,7 @@ const DummyForm = () => {
     <div>
       <h1>Courses</h1>
       <ul>
+        {/* Map through courses and render each course's details */}
         {data?.courses?.map((course) => (
           <li key={course.id}>
             <h3>{course.name}</h3>
@@ -42,6 +63,7 @@ const DummyForm = () => {
               <strong>Institution:</strong> {course.institution_details.name} -{' '}
               {course.institution_details.description}
             </p>
+            {/* Conditionally render course image or placeholder */}
             {course.image ? (
               <img src={course.image} alt={`${course.name} thumbnail`} />
             ) : (
@@ -50,10 +72,12 @@ const DummyForm = () => {
             <p>
               <strong>Enrolled:</strong> {course.enrolled ? 'Yes' : 'No'}
             </p>
+            {/* Render modules section if modules exist */}
             {course.modules && course.modules.length > 0 && (
               <div>
                 <h4>Modules:</h4>
                 <ul>
+                  {/* Map through modules and render each module's details */}
                   {course.modules.map((module: Module) => (
                     <li key={module.id}>
                       <p>

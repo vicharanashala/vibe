@@ -1,14 +1,34 @@
+/**
+ * AllSections
+ *
+ * This component displays a list of sections within a module for students to view and access.
+ * It includes section details like title, content, status and navigation capabilities.
+ *
+ * Features:
+ * - Displays sections in a responsive grid layout
+ * - Shows status badges (Pending, In Progress, Completed) 
+ * - Allows navigation to individual section views
+ * - Handles loading and error states
+ * - Custom scrollable container with hidden scrollbars
+ *
+ * Components:
+ * - StatusBadge: Displays colored status indicators
+ * - AssignmentRow: Individual section row with details and actions
+ */
+
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useFetchSectionsWithAuthQuery } from '@/store/apiService'
 
+// Status styles mapping for different section states
 const statusClasses = {
   Pending: 'bg-yellow-200 text-yellow-800',
   'In Progress': 'bg-blue-200 text-blue-800',
   Completed: 'bg-green-200 text-green-800',
 }
 
+// Component to render status indicator badge
 const StatusBadge = ({ status }: { status: keyof typeof statusClasses }) => (
   <span
     className={`rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status] || ''}`}
@@ -17,6 +37,7 @@ const StatusBadge = ({ status }: { status: keyof typeof statusClasses }) => (
   </span>
 )
 
+// Props interface for AssignmentRow component
 interface AssignmentRowProps {
   title: string
   module: string
@@ -24,6 +45,7 @@ interface AssignmentRowProps {
   status: keyof typeof statusClasses
 }
 
+// Component to render individual section rows
 const AssignmentRow: React.FC<AssignmentRowProps> = ({
   title,
   module,
@@ -56,13 +78,18 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
   )
 }
 
+// Main component to display all sections
 const AllSections = () => {
+  // Get route parameters
   const { courseId, moduleId } = useParams()
+
+  // Fetch sections data using RTK Query
   const { data, error, isLoading } = useFetchSectionsWithAuthQuery({
     courseId: Number(courseId),
     moduleId: Number(moduleId),
   })
 
+  // Handle loading and error states
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading sections</div>
 
@@ -72,6 +99,7 @@ const AllSections = () => {
         All Sections of Module {moduleId}
       </h1>
       <div className='mx-auto max-w-4xl'>
+        {/* Header row with column labels */}
         <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 font-semibold text-gray-800'>
           <div>Title / Module</div>
           <div className='flex justify-between'>
@@ -80,6 +108,7 @@ const AllSections = () => {
             <span>Action</span>
           </div>
         </div>
+        {/* Scrollable container for section rows */}
         <div
           className='max-h-96 space-y-4 overflow-y-auto'
           style={{
@@ -93,6 +122,7 @@ const AllSections = () => {
                             display: none;
                         }
                     `}</style>
+          {/* Map through sections data to render rows */}
           {data?.results?.map((section) => (
             <AssignmentRow
               key={section.id}

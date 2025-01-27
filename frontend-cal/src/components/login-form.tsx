@@ -1,3 +1,34 @@
+/**
+ * LoginForm Component
+ * 
+ * This component renders a login form that allows users to log into their account.
+ * It provides email and password input fields, a login button, and error handling.
+ * 
+ * Features:
+ * - Collects email and password inputs and manages their state.
+ * - Handles login submission via an API call using RTK Query's `useLoginMutation` hook.
+ * - Displays loading state on the login button to prevent multiple submissions.
+ * - Handles errors and displays an error message if the login attempt fails.
+ * - Includes a "Forgot your password?" button (logic for it can be added later).
+ * - A Google login button is available for users to log in via their Google account.
+ * - A "Sign up" link redirects users to a sign-up form if they don't have an account.
+ * - After successful login, user data is stored in Redux, and the user is redirected to the `/allCourses` page.
+ * 
+ * Props:
+ * - `className`: A string that can be passed to customize the form's CSS classes.
+ * - `toggleCover`: A function that toggles between the login and sign-up forms.
+ * 
+ * State:
+ * - `email`: Tracks the value of the email input field.
+ * - `password`: Tracks the value of the password input field.
+ * - `isLoading`: Indicates whether the login request is in progress (disables the login button).
+ * - `error`: Stores any error returned by the login request and displays it if the login fails.
+ * 
+ * This form also utilizes Tailwind CSS for styling, and includes responsive design for mobile compatibility.
+>>>>>>> 87567266f044fd6a81156946b496faf7eec9a668
+ */
+
+// Import required dependencies
 import React, { useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useLoginMutation } from '../store/apiService'
@@ -8,6 +39,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useNavigate } from 'react-router-dom'
 
+// Props interface for LoginForm component
 interface LoginFormProps extends React.ComponentPropsWithoutRef<'form'> {
   toggleCover: () => void
 }
@@ -17,19 +49,30 @@ export function LoginForm({
   toggleCover,
   ...props
 }: LoginFormProps) {
+  // State management for form inputs
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
+
+  // RTK Query hook for login mutation
   const [login, { isLoading, error }] = useLoginMutation()
-  const client_id = 'vgkais5eGt2s7QlNyxeL1z9NbPsnqCp81eXPlSMj'
+
+  // Client ID for API authentication
+  const client_id = 'zekmfjFilNrCOaS2dEUzjlBkGEX2IE9P9Dr49gJj'
+
+  // Redux dispatch and navigation hooks
   const dispatch = useDispatch()
   const navigate = useNavigate()
 
+  // Handle form submission
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      // Attempt login and unwrap response
       const response = await login({ email, password, client_id }).unwrap()
       console.log(email, password, client_id)
+      // Update Redux store with user data
       dispatch(setUser(response))
+      // Redirect to courses page on success
       navigate('/allCourses')
     } catch (err) {
       console.error('Login failed:', err)
@@ -42,13 +85,17 @@ export function LoginForm({
       onSubmit={handleLogin}
       {...props}
     >
+      {/* Header section */}
       <div className='flex flex-col items-center gap-2 text-center'>
         <h1 className='text-2xl font-bold'>Welcome Back !</h1>
         <p className='text-balance text-sm text-muted-foreground'>
           Enter your Username below to login to your account
         </p>
       </div>
+
+      {/* Form fields container */}
       <div className='grid gap-6'>
+        {/* Email input field */}
         <div className='grid gap-2'>
           <Label htmlFor='email'>Email</Label>
           <Input
@@ -59,6 +106,8 @@ export function LoginForm({
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
+
+        {/* Password input field */}
         <div className='grid gap-2'>
           <div className='flex items-center'>
             <Label htmlFor='password'>Password</Label>
@@ -79,19 +128,27 @@ export function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+
+        {/* Login button */}
         <Button type='submit' className='w-full' disabled={isLoading}>
           Login
         </Button>
+
+        {/* Error message display */}
         {error && (
           <p className='text-red-500'>
             Error: {'status' in error ? error.status : error.message}
           </p>
         )}
+
+        {/* Divider with text */}
         <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
           <span className='relative z-10 bg-background px-2 text-muted-foreground'>
             Or continue with
           </span>
         </div>
+
+        {/* Google login button */}
         <Button variant='outline' className='w-full'>
           <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -120,6 +177,8 @@ export function LoginForm({
           Login with Google
         </Button>
       </div>
+
+      {/* Sign up link */}
       <div className='text-center text-sm'>
         Don&apos;t have an account?{' '}
         <button

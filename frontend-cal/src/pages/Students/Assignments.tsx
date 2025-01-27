@@ -1,5 +1,14 @@
+/**
+ * Assignments Component
+ *
+ * This component displays a list of student assignments in a tabular format.
+ * It shows assignment details including title, course, due date, status and grade.
+ * The assignments are displayed in a scrollable container with custom styling.
+ */
+
 import React, { useState } from 'react'
 
+// Type definition for assignment data
 const assignmentsData: {
   id: number
   title: string
@@ -18,7 +27,7 @@ const assignmentsData: {
   },
   {
     id: 2,
-    title: 'Science Project',
+    title: 'Science Project', 
     course: 'Physics',
     dueDate: '2023-12-20',
     status: 'In Progress',
@@ -27,7 +36,7 @@ const assignmentsData: {
   {
     id: 3,
     title: 'History Essay',
-    course: 'World History',
+    course: 'World History', 
     dueDate: '2023-12-25',
     status: 'Completed',
     grade: 'A+',
@@ -36,7 +45,7 @@ const assignmentsData: {
     id: 4,
     title: 'English Literature',
     course: 'Literature',
-    dueDate: '2023-12-18',
+    dueDate: '2023-12-18', 
     status: 'Pending',
     grade: 'B+',
   },
@@ -74,12 +83,17 @@ const assignmentsData: {
   },
 ]
 
+// Tailwind classes for different status badges
 const statusClasses = {
   Pending: 'bg-yellow-200 text-yellow-800',
   'In Progress': 'bg-blue-200 text-blue-800',
   Completed: 'bg-green-200 text-green-800',
 }
 
+/**
+ * StatusBadge Component
+ * Displays a colored badge indicating assignment status
+ */
 const StatusBadge = ({ status }: { status: keyof typeof statusClasses }) => (
   <span
     className={`rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status] || ''}`}
@@ -88,6 +102,7 @@ const StatusBadge = ({ status }: { status: keyof typeof statusClasses }) => (
   </span>
 )
 
+// Props interface for AssignmentRow component
 interface AssignmentRowProps {
   title: string
   course: string
@@ -96,6 +111,10 @@ interface AssignmentRowProps {
   grade: string
 }
 
+/**
+ * AssignmentRow Component
+ * Displays a single assignment row with all relevant information
+ */
 const AssignmentRow: React.FC<AssignmentRowProps> = ({
   title,
   course,
@@ -116,7 +135,12 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
   </div>
 )
 
+/**
+ * Main Assignments Component
+ * Renders the complete assignments view with header and scrollable list
+ */
 const Assignments = () => {
+  // State to manage assignments data
   const [assignments] = useState(assignmentsData)
 
   return (
@@ -125,6 +149,7 @@ const Assignments = () => {
       <div className='mx-auto max-w-4xl'>
         {assignments.length > 0 ? (
           <div className='space-y-4'>
+            {/* Header row with column labels */}
             <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 font-semibold text-gray-800'>
               <div>Title / Course</div>
               <div className='flex justify-between'>
@@ -133,6 +158,7 @@ const Assignments = () => {
                 <span>Status</span>
               </div>
             </div>
+            {/* Scrollable container for assignment rows */}
             <div
               className='max-h-96 space-y-2 overflow-y-auto'
               style={{
@@ -148,6 +174,7 @@ const Assignments = () => {
                 }
                 `}
               </style>
+              {/* Map through assignments to render individual rows */}
               {assignments.map((assignment) => (
                 <AssignmentRow
                   key={assignment.id}
