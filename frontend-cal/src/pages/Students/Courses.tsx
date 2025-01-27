@@ -1,5 +1,25 @@
+/**
+ * Courses
+ *
+ * This page implements an interactive video player with embedded assessments.
+ * It uses the YouTube IFrame API to play videos and includes features like:
+ * - Custom video controls (play/pause, volume, playback speed, fullscreen)
+ * - Assessment popups at specific timestamps
+ * - Anti-cheating measures (keyboard lock, right-click disable)
+ * - Progress tracking and validation
+ *
+ * Key Features:
+ * - YouTube video integration with custom controls
+ * - Timed assessment questions
+ * - Progress validation (can't skip forward)
+ * - Multiple choice questions with immediate feedback
+ * - Fullscreen support
+ * - Volume and playback speed controls
+ */
+
 import React, { useEffect, useRef, useState } from 'react'
 
+// Define YouTube IFrame API type for TypeScript
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void
@@ -9,7 +29,9 @@ import KeyboardLock from '@/components/proctoring-components/KeyboardLock'
 import RightClickDisabler from '@/components/proctoring-components/RightClickDisable'
 import { Fullscreen, Pause, Play } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
+import { toast } from 'sonner'
 
+// Interface for assessment questions
 interface Question {
   question_id: number
   question: string
@@ -18,6 +40,7 @@ interface Question {
 }
 
 const Courses: React.FC = () => {
+  // Video player references and state
   const videoPlayerRef = useRef<HTMLDivElement>(null)
   const [player, setPlayer] = useState<YT.Player | null>(null)
   const [currentTime, setCurrentTime] = useState<number>(0)
@@ -27,11 +50,15 @@ const Courses: React.FC = () => {
   const [totalDuration, setTotalDuration] = useState<number>(0)
   const [volume, setVolume] = useState<number>(50)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+
+  // Assessment state management
   const triggeredTimestamps = useRef<Set<number>>(new Set())
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string>('')
   const [timestamps, setTimestamps] = useState<number[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
+
+  // Mock data for video and questions
   const [data] = useState<
     { video: string; timestamps: { [key: number]: Question[] } }[]
   >([
@@ -84,12 +111,14 @@ const Courses: React.FC = () => {
     },
   ])
 
+  // Initialize timestamps from data
   useEffect(() => {
     const videoData = data[0] // Assuming single video data
     const ts = Object.keys(videoData.timestamps).map(Number)
     setTimestamps(ts)
   }, [data])
 
+  // Load YouTube IFrame API
   useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement('script')
@@ -103,6 +132,7 @@ const Courses: React.FC = () => {
     }
   }, [])
 
+  // Monitor video progress and trigger assessments
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined
     if (isPlaying) {
@@ -129,6 +159,7 @@ const Courses: React.FC = () => {
     }
   }, [isPlaying, player, timestamps])
 
+  // Initialize YouTube player
   const initPlayer = () => {
     const playerInstance = new window.YT.Player(videoPlayerRef.current!, {
       videoId: '1z-E_KOC2L0',
@@ -146,6 +177,7 @@ const Courses: React.FC = () => {
     setPlayer(playerInstance)
   }
 
+  // Handle player ready event
   const onPlayerReady = (event: YT.PlayerEvent) => {
     const duration = event.target.getDuration()
     setTotalDuration(duration)
@@ -153,6 +185,7 @@ const Courses: React.FC = () => {
     setPlaybackSpeed(player?.getPlaybackRate() ?? 1)
   }
 
+  // Show assessment popup and pause video
   const pauseVideoAndShowPopup = (timestamp: number) => {
     if (player) {
       player.pauseVideo()
@@ -165,6 +198,7 @@ const Courses: React.FC = () => {
     setShowPopup(true)
   }
 
+  // Close assessment popup and resume video
   const closePopup = () => {
     setShowPopup(false)
     setCurrentQuestionIndex(0) // Reset question index
@@ -176,6 +210,7 @@ const Courses: React.FC = () => {
     }
   }
 
+  // Handle incorrect answer submission
   const handleIncorrectAnswer = () => {
     if (currentTimestamp !== null) {
       const lastTimestamp = [...triggeredTimestamps.current]
@@ -190,6 +225,7 @@ const Courses: React.FC = () => {
     alert('Wrong answer. Try again!')
   }
 
+  // Handle player state changes
   const onPlayerStateChange = (event: YT.OnStateChangeEvent) => {
     if (event.data === window.YT.PlayerState.PLAYING) {
       setIsPlaying(true)
@@ -198,10 +234,12 @@ const Courses: React.FC = () => {
     }
   }
 
+  // Handle answer selection in assessment
   const handleAnswerSelection = (answer: string) => {
     setSelectedAnswer(answer)
   }
 
+  // Process answer and move to next question
   const goToNextQuestion = () => {
     const currentQuestion = questions[currentQuestionIndex]
     if (selectedAnswer !== currentQuestion.correctAnswer) {
@@ -218,6 +256,7 @@ const Courses: React.FC = () => {
     }
   }
 
+  // Toggle video play/pause
   const togglePlayPause = () => {
     if (player && !showPopup) {
       if (isPlaying) {
@@ -231,25 +270,29 @@ const Courses: React.FC = () => {
     }
   }
 
+  // Handle video seeking (prevent forward seeking)
   const seekVideo = (newTime: number) => {
     if (player && newTime <= currentTime) {
       player.seekTo(newTime, true)
       setCurrentTime(newTime)
     } else {
-      alert('Skipping forward is not allowed.')
+      toast('Skipping forward is not allowed.')
     }
   }
 
+  // Update video volume
   const changeVolume = (newVolume: number) => {
     setVolume(newVolume)
     player?.setVolume(newVolume)
   }
 
+  // Change video playback speed
   const changePlaybackSpeed = (speed: number) => {
     player?.setPlaybackRate(speed)
     setPlaybackSpeed(speed)
   }
 
+  // Toggle fullscreen mode
   const toggleFullscreen = () => {
     const videoContainer = document.querySelector(
       '.video-container'
@@ -280,6 +323,7 @@ const Courses: React.FC = () => {
     }
   }
 
+  // Format time display (MM:SS)
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60)
     const seconds = Math.floor(time % 60)

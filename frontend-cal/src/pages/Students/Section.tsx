@@ -1,14 +1,40 @@
+/**
+ * Section Page
+ *
+ * This page displays the content items within a specific section of a course module.
+ * It shows a list of content items like videos and assessments with their details
+ * and allows students to access them.
+ *
+ * Features:
+ * - Fetches and displays section content items using RTK Query
+ * - Shows content type (video, assessment etc)
+ * - Displays status of each content item (Pending, In Progress, Completed)
+ * - Provides action buttons to start/continue content items
+ * - Handles loading and error states
+ * - Responsive layout with scrollable content list
+ *
+ * Key Components:
+ * - StatusBadge: Displays colored status indicator
+ * - AssignmentRow: Renders individual content item with details and actions
+ * - Section: Main component managing data fetching and layout
+ */
+
 import React from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useFetchItemsWithAuthQuery } from '@/store/apiService'
 import { Button } from '@/components/ui/button'
 
+// Tailwind classes for different status badges
 const statusClasses = {
   Pending: 'bg-yellow-200 text-yellow-800',
   'In Progress': 'bg-blue-200 text-blue-800',
   Completed: 'bg-green-200 text-green-800',
 }
 
+/**
+ * StatusBadge Component
+ * Displays a colored badge indicating content item status
+ */
 const StatusBadge = ({ status }) => (
   <span
     className={`rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status] || ''}`}
@@ -17,6 +43,10 @@ const StatusBadge = ({ status }) => (
   </span>
 )
 
+/**
+ * AssignmentRow Component
+ * Displays a single content item with its details and action button
+ */
 const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
   const navigate = useNavigate()
   console.log('courseId:', courseId, moduleId)
@@ -48,6 +78,10 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
   )
 }
 
+/**
+ * Main Section Component
+ * Manages fetching content items and rendering the complete section view
+ */
 const Section = () => {
   const { sectionId } = useParams()
   const location = useLocation()

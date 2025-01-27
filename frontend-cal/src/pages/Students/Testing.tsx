@@ -1,3 +1,33 @@
+/**
+ * Testing Page
+ * 
+ * This page implements a video learning platform with assessment capabilities.
+ * It provides an interactive interface for students to watch educational content
+ * and complete assessments with features like video controls, fullscreen mode,
+ * and question navigation.
+ *
+ * Key Features:
+ * - Video playback with standard controls (play/pause, volume, speed, fullscreen)
+ * - Assessment system with multiple choice questions
+ * - Progress tracking through content frames
+ * - Responsive resizable panels for content and controls
+ * - Proctoring features (keyboard lock and right-click disable)
+ *
+ * Components Structure:
+ * - Main content area (90% default height)
+ *   - Video/Article/Assessment content
+ * - Control panel (10% default height)
+ *   - Playback controls
+ *   - Volume slider
+ *   - Speed controls
+ *   - Fullscreen toggle
+ *
+ * State Management:
+ * - Tracks current frame, playback state, assessment progress
+ * - Manages video player settings (volume, speed, time)
+ * - Handles assessment responses and scoring
+ */
+
 import React, { useEffect, useState } from 'react'
 import { ScrollArea } from '@radix-ui/react-scroll-area'
 import { useSidebar } from '@/components/ui/sidebar'
@@ -17,10 +47,13 @@ import KeyboardLock from '@/components/proctoring-components/KeyboardLock'
 import RightClickDisabler from '@/components/proctoring-components/RightClickDisable'
 
 const Testing = () => {
+  // Router state management
   const location = useLocation() // Use useLocation to access the router state
   const assignment = location.state?.assignment // Access the assignment from state
   console.log('Assignment:', assignment)
   const { setOpen } = useSidebar()
+
+  // Content and playback state
   const [currentFrame, setCurrentFrame] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const AssessmentData = questions[0].results
@@ -34,6 +67,7 @@ const Testing = () => {
   const [volume, setVolume] = useState(50) // Default volume at 50%
   const [playbackSpeed, setPlaybackSpeed] = useState(1) // Default speed is 1x
 
+  // Initialize YouTube player and cleanup
   useEffect(() => {
     setOpen(false)
 

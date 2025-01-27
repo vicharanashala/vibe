@@ -1,7 +1,17 @@
+/**
+ * API Service Configuration
+ *
+ * This file sets up the API services using Redux Toolkit Query for handling API requests.
+ * It includes two main API services:
+ * 1. apiService - For main application API endpoints
+ * 2. anotherApiService - For assessment/activity related endpoints
+ */
+
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import API_URL, { ACTIVITY_URL } from '../../constant'
 import Cookies from 'js-cookie'
 
+// Response type for authentication endpoints
 export interface AuthResponse {
   refresh_token: string
   access_token: string
@@ -10,27 +20,31 @@ export interface AuthResponse {
   full_name: string
 }
 
+// Institute data type
 export interface Institute {
   id: number
   name: string
   // Add other properties as needed
 }
 
+// Main API service configuration
 export const apiService = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: API_URL, // Replace with your API base URL
   }),
   endpoints: (builder) => ({
+    // Authentication endpoints
     login: builder.mutation<
       AuthResponse,
-      { username: string; password: string; client_id: string }
+      { email: string; password: string; client_id: string }
     >({
       query: (credentials) => ({
         url: '/auth/login/',
         method: 'POST',
         body: credentials,
       }),
+      // Store authentication tokens in cookies after successful login
       onQueryStarted: async (arg, { queryFulfilled }) => {
         try {
           const { data } = await queryFulfilled
@@ -42,6 +56,7 @@ export const apiService = createApi({
       },
     }),
 
+    // User registration endpoint
     signup: builder.mutation<
       AuthResponse,
       {
@@ -62,15 +77,20 @@ export const apiService = createApi({
       }),
     }),
 
+    // Logout endpoint
     logout: builder.mutation<void, void>({
       query: () => ({
-        url: '/userLogout',
+        url: '/auth/logout/',
         method: 'POST',
+        body: {
+          "token" : Cookies.get('access_token')
+        },
         headers: {
           Authorization: `Bearer ${Cookies.get('access_token')}`,
           'Content-Type': 'application/json',
         },
       }),
+      // Remove authentication tokens from cookies after logout
       onQueryStarted: async (arg, { queryFulfilled }) => {
         try {
           await queryFulfilled
@@ -81,6 +101,7 @@ export const apiService = createApi({
       },
     }),
 
+    // Institute management endpoints
     fetchInstitutesWithAuth: builder.query<{ institutes: Institute[] }, void>({
       query: () => ({
         url: '/institutes/',
@@ -91,6 +112,7 @@ export const apiService = createApi({
       }),
     }),
 
+    // User management endpoints
     fetchUsersWithAuth: builder.query<
       { users: { id: number; name: string; email: string }[] },
       void
@@ -104,6 +126,7 @@ export const apiService = createApi({
       }),
     }),
 
+    // Video management endpoints
     fetchVideoDetailsWithAuth: builder.query<
       { videoDetails: { id: number; title: string; url: string }[] },
       void
@@ -128,6 +151,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Course management endpoints
     fetchCoursesWithAuth: builder.query<
       {
         courses: {
@@ -148,6 +173,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Module management endpoints
     fetchModulesWithAuth: builder.query<{ modules: {}[] }, number>({
       query: (courseId) => ({
         url: `/course/modules/?course_id=${courseId}`,
@@ -158,6 +185,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Assessment management endpoints
     fetchAssessmentWithAuth: builder.query<
       { assessment: { id: number; title: string; description: string } },
       number
@@ -170,6 +199,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Section management endpoints
     fetchSectionsWithAuth: builder.query<
       { sections: { id: number; title: string; content: string }[] },
       { courseId: number; moduleId: number }
@@ -182,6 +213,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Item management endpoints
     fetchItemsWithAuth: builder.query<
       { items: { id: number; name: string; description: string }[] },
       number
@@ -194,6 +227,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Question management endpoints
     fetchQuestionsWithAuth: builder.query<
       { items: { id: number; name: string; description: string }[] },
       number
@@ -206,6 +241,8 @@ export const apiService = createApi({
         },
       }),
     }),
+
+    // Progress tracking endpoints
     updateSectionItemProgress: builder.mutation<
       void,
       {
@@ -228,6 +265,7 @@ export const apiService = createApi({
   }),
 })
 
+// Export hooks for using the API endpoints
 export const {
   useFetchItemsWithAuthQuery,
   useLoginMutation,
@@ -253,12 +291,13 @@ export const anotherApiService = createApi({
     baseUrl: ANOTHER_API_URL,
   }),
   endpoints: (builder) => ({
+    // Start assessment endpoint
     startAssessment: builder.mutation<
       void,
       { courseInstanceId: string; assessmentId: string }
     >({
       query: (assessmentData) => ({
-        url: '/assessment/start',
+        url: '/startAssessment',
         method: 'POST',
         body: {
           ...assessmentData,
@@ -279,22 +318,20 @@ export const anotherApiService = createApi({
         }
       },
     }),
+
+    // Submit assessment endpoint
     submitAssessment: builder.mutation<
       void,
       {
-        courseInstanceId: string
-        assessmentId: string
-        attemptId: string
-        answers: {
-          natAnswers: { questionId: string; value: string }[]
-          mcqAnswers: { questionId: string; choiceId: string }[]
-          msqAnswers: { questionId: string; choiceIds: string[] }[]
-          descriptiveAnswers: { questionId: string; value: string }[]
-        }
+        assessmentId: number
+        courseId: number
+        attemptId: number
+        answers: string
+        questionId:number
       }
     >({
       query: (submissionData) => ({
-        url: '/assessment/submit',
+        url: '/submitAssessment',
         method: 'POST',
         body: {
           ...submissionData,
@@ -309,5 +346,6 @@ export const anotherApiService = createApi({
   }),
 })
 
+// Export hooks for assessment endpoints
 export const { useStartAssessmentMutation, useSubmitAssessmentMutation } =
   anotherApiService

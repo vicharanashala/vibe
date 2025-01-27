@@ -1,3 +1,26 @@
+/**
+ * AllCourses
+ *
+ * This component displays a grid of available courses for students with filtering capabilities.
+ * It fetches course data from an API and allows filtering between ongoing and completed courses.
+ *
+ * Features:
+ * - Responsive grid layout of course cards
+ * - Filter dropdown to show All/Ongoing/Completed courses
+ * - Course cards with images, titles and status badges
+ * - Loading and error states for API requests
+ * - Links to individual course pages
+ *
+ * Layout Structure:
+ * - Header with title and filter dropdown
+ * - Grid of course cards (1/2/3 columns based on screen size)
+ * - Each card shows:
+ *   - Course title
+ *   - Status badge (yellow for ongoing, gray for completed)
+ *   - Course image
+ *   - View button linking to course details
+ */
+
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -15,15 +38,18 @@ import { useFetchCoursesWithAuthQuery } from '../../store/apiService'
 import { Link } from 'react-router-dom'
 
 const AllCourses = () => {
-  const [filter, setFilter] = useState('Completed') // Default filter
+  // State for filtering courses (default to Completed)
+  const [filter, setFilter] = useState('Completed')
 
-  // Fetch courses from API
+  // Fetch courses data using RTK Query hook
   const { data, error, isLoading } = useFetchCoursesWithAuthQuery()
 
+  // Show loading state while fetching data
   if (isLoading) {
     return <p>Loading courses...</p>
   }
 
+  // Show error message if fetch fails
   if (error) {
     return (
       <p>
@@ -35,7 +61,7 @@ const AllCourses = () => {
 
   // Default image URL
   const defaultImage =
-    'https://i.pinimg.com/originals/24/12/bc/2412bc5c012e7360f602c13a92901055.jpg'
+    'https://excellentia.org.in/images/courses.jpg'
 
   // Map API response to match the expected structure
   interface Course {
@@ -52,6 +78,7 @@ const AllCourses = () => {
     status: string
   }
 
+  // Transform API data to match component needs
   const courseData: MappedCourse[] =
     data?.results.map((course: Course) => ({
       id: course.course_id,
@@ -60,7 +87,7 @@ const AllCourses = () => {
       status: course.enrolled ? 'On going' : 'Completed',
     })) || []
 
-  // Filtered courses based on selected filter
+  // Filter courses based on selected status
   const filteredCourses =
     filter === 'All'
       ? courseData
@@ -68,6 +95,7 @@ const AllCourses = () => {
 
   return (
     <div className='p-4'>
+      {/* Header with title and filter */}
       <div className='flex items-center justify-between'>
         <h1 className='mb-4 text-2xl font-bold uppercase'>All Courses</h1>
 
@@ -92,14 +120,14 @@ const AllCourses = () => {
         </div>
       </div>
 
-      {/* Courses Grid */}
+      {/* Responsive course grid */}
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
         {filteredCourses.map((course) => (
           <Card key={course.id} className='w-full'>
             <CardHeader>
               <div className='flex items-center justify-between'>
                 <CardTitle>{course.title}</CardTitle>
-                {/* Status Badge */}
+                {/* Status badge - yellow for ongoing, gray for completed */}
                 <div
                   className={`flex w-20 justify-center rounded-sm p-1 text-xs text-white ${
                     course.status === 'On going'

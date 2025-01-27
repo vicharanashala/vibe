@@ -1,3 +1,24 @@
+/**
+ * SingleCourse Page
+ *
+ * This page displays detailed information about a specific course and its modules.
+ * It provides a split-view layout with course details on the left and module list on the right.
+ *
+ * Features:
+ * - Fetches and displays course details using RTK Query
+ * - Shows course image, name and description
+ * - Lists all modules associated with the course in a table format
+ * - Provides navigation to individual module pages
+ * - Handles loading and error states gracefully
+ * - Responsive split-view layout
+ *
+ * Key Components:
+ * - Left section: Course banner with image background and course info
+ * - Right section: Interactive table listing all course modules
+ * - Table components from shadcn/ui library
+ * - RTK Query hooks for data fetching
+ */
+
 import React from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -14,6 +35,7 @@ import {
   useFetchModulesWithAuthQuery,
 } from '../../store/apiService'
 
+// Interface defining the structure of module data
 interface Module {
   id: number
   title: string
@@ -69,7 +91,7 @@ const SingleCourse = () => {
   }
 
   const defaultImage =
-    'https://i.pinimg.com/originals/24/12/bc/2412bc5c012e7360f602c13a92901055.jpg'
+    'https://excellentia.org.in/images/courses.jpg'
 
   // Modules data
   const modules = moduleData?.results || []

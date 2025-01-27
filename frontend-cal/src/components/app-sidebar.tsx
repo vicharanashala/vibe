@@ -1,3 +1,6 @@
+
+
+// Import React and Lucide icons
 import * as React from 'react'
 import {
   BookOpen,
@@ -12,6 +15,7 @@ import {
   SquareTerminal,
 } from 'lucide-react'
 
+// Import custom navigation and UI components
 import { NavMain } from '@/components/nav-main'
 import { NavProjects } from '@/components/nav-projects'
 import { NavSecondary } from '@/components/nav-secondary'
@@ -26,12 +30,15 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
+// Mock data for sidebar content including user info, navigation items and projects
 const data = {
+  // User profile information
   user: {
     name: 'shadcn',
     email: 'm@example.com',
     avatar: '/avatars/shadcn.jpg',
   },
+  // Main navigation items with nested subitems
   navMain: [
     {
       title: 'Playground',
@@ -119,6 +126,7 @@ const data = {
       ],
     },
   ],
+  // Secondary navigation items (bottom section)
   navSecondary: [
     {
       title: 'Support',
@@ -131,6 +139,7 @@ const data = {
       icon: Send,
     },
   ],
+  // Project list with icons
   projects: [
     {
       name: 'Design Engineering',
@@ -150,9 +159,11 @@ const data = {
   ],
 }
 
+// Main AppSidebar component that renders the entire sidebar structure
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant='inset' {...props}>
+      {/* Header section with company logo/name */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -170,11 +181,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+      {/* Main content section with navigation and projects */}
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavProjects projects={data.projects} />
         <NavSecondary items={data.navSecondary} className='mt-auto' />
       </SidebarContent>
+      {/* Footer section with user profile */}
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>

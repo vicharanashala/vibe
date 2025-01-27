@@ -1,3 +1,38 @@
+/**
+ * VideoPlaylistAssessment Page
+ * 
+ * This page implements a video playlist assessment system that combines video playback with interactive questions.
+ * Students watch videos and answer questions, progressing through multiple sections in a structured learning flow.
+ * 
+ * Key Features:
+ * - Multiple video sections with associated questions
+ * - YouTube video integration with custom video controls
+ * - Interactive question assessment after each video
+ * - Progress tracking through sections
+ * - Proctoring features (keyboard lock and right-click disable)
+ * - Resizable panels for video and controls
+ * - Fullscreen support
+ * - Volume and playback speed controls
+ * 
+ * Component Structure:
+ * - Main video player section (95% height)
+ * - Control panel section (5% height)
+ * - Question assessment panels that alternate with videos
+ * 
+ * Flow:
+ * 1. Student watches a video section
+ * 2. Questions appear after video completion
+ * 3. Correct answers advance to next question
+ * 4. Wrong answers return to video
+ * 5. Process repeats for each section
+ * 
+ * State Management:
+ * - Tracks current video frame and part
+ * - Manages video player state (play/pause, time, volume)
+ * - Handles question progression and answer validation
+ * - Controls UI transitions and animations
+ */
+
 import React, { useState, useEffect, useRef } from 'react'
 import {
   ResizableHandle,
@@ -12,6 +47,7 @@ import RightClickDisabler from '@/components/proctoring-components/RightClickDis
 import KeyboardLock from '@/components/proctoring-components/KeyboardLock'
 
 const VideoPlaylistAssessment = () => {
+  // Sidebar control
   const { setOpen } = useSidebar() // Access setOpen to control the sidebar state
   const hasSetOpen = useRef(false) // Ref to track if setOpen has been called
 
@@ -22,6 +58,7 @@ const VideoPlaylistAssessment = () => {
     }
   }, [setOpen])
 
+  // Mock assessment data structure with video sections and questions
   const [data] = useState([
     {
       sections: [
@@ -276,9 +313,12 @@ const VideoPlaylistAssessment = () => {
     setSelectedAnswer(answer)
   }
 
+  // Generate frames array by mapping over data sections
+  // Each section creates a video frame and assessment frame pair
   const frames = data
     .flatMap((frameData, partIndex) => {
       return frameData.sections.map((section, frameIndex) => [
+        // Video frame - displays YouTube video player
         <div
           key={`video-${frameIndex}`}
           className='flex h-screen items-center justify-center bg-blue-500 text-white'
@@ -294,11 +334,14 @@ const VideoPlaylistAssessment = () => {
             allowFullScreen
           ></iframe>
         </div>,
+
+        // Assessment frame - displays questions after video
         <div
           key={`assessment-${frameIndex}-${partIndex}`}
           className='flex h-screen flex-col items-center justify-center bg-gray-100 p-4 text-gray-800'
         >
           <h2 className='mb-4 text-3xl font-bold text-gray-900'>Questions</h2>
+          {/* Display current question if questions exist */}
           {section.questions.length > 0 && (
             <div
               key={`question-${currentQuestionIndex}`}
@@ -307,6 +350,7 @@ const VideoPlaylistAssessment = () => {
               <h3 className='mb-4 text-2xl font-semibold text-gray-800'>
                 {section.questions[currentQuestionIndex].question}
               </h3>
+              {/* Display answer options as radio buttons */}
               <ul
                 key={`question-set-${currentQuestionIndex}`}
                 className='space-y-4'
@@ -334,6 +378,7 @@ const VideoPlaylistAssessment = () => {
               </ul>
             </div>
           )}
+          {/* Submit button - validates answer and handles progression */}
           <button
             onClick={() => {
               const currentQuestion = section.questions[currentQuestionIndex]
@@ -362,10 +407,12 @@ const VideoPlaylistAssessment = () => {
     })
     .flat()
 
+  // Handle scrolling between video and assessment parts
   const handlePartScrollDown = () => {
     setCurrentPart((prevPart) => (prevPart < 1 ? prevPart + 1 : 0))
   }
 
+  // Seek video to specific timestamp
   function seekVideo(time: number): void {
     const player = playerRefs.current[currentFrame]
     if (player) {
@@ -374,6 +421,7 @@ const VideoPlaylistAssessment = () => {
     }
   }
 
+  // Change video playback speed
   function changePlaybackSpeed(speed: number): void {
     const player = playerRefs.current[currentFrame]
     if (player) {
@@ -381,6 +429,7 @@ const VideoPlaylistAssessment = () => {
     }
   }
 
+  // Toggle fullscreen mode for video
   function toggleFullscreen(): void {
     const player = playerRefs.current[currentFrame]
     if (player) {
@@ -397,10 +446,12 @@ const VideoPlaylistAssessment = () => {
     }
   }
 
+  // Main component render with resizable panels
   return (
     <ResizablePanelGroup direction='vertical' className='bg-gray-200 p-2'>
       <RightClickDisabler />
       <KeyboardLock />
+      {/* Main content panel - 95% height */}
       <ResizablePanel defaultSize={95}>
         <div className='flex h-full flex-col'>
           <div className='relative size-full overflow-hidden'>
@@ -428,11 +479,13 @@ const VideoPlaylistAssessment = () => {
         </div>
       </ResizablePanel>
       <ResizableHandle className='p-1' />
+      {/* Controls panel - 5% height */}
       <ResizablePanel defaultSize={5}>
         {currentPart == 0 ? (
           <div className='controls-container flex w-full justify-center'>
             <div className='w-full border border-white bg-white shadow'>
               <div className='flex items-center justify-between'>
+                {/* Left section: Play/Pause, time slider, volume */}
                 <div className='flex w-1/2 items-center justify-between'>
                   <button
                     onClick={togglePlayPause}
@@ -465,6 +518,7 @@ const VideoPlaylistAssessment = () => {
                     />
                   </div>
                 </div>
+                {/* Playback speed controls */}
                 <div className='flex items-center'>
                   {[0.5, 1, 1.5, 2].map((speed) => (
                     <button
@@ -481,6 +535,7 @@ const VideoPlaylistAssessment = () => {
                     </button>
                   ))}
                 </div>
+                {/* Fullscreen button */}
                 <div>
                   <button
                     onClick={toggleFullscreen}

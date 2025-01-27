@@ -1,3 +1,32 @@
+/**
+ * SignUpForm Component
+ *
+ * A form component that handles user registration with the following features:
+ * - Email and password registration
+ * - First name and last name collection
+ * - Google OAuth sign-in option
+ * - Form validation and error handling
+ * - Loading state management
+ * - Toggle between signup and login views
+ *
+ * The component uses Redux Toolkit's mutation hooks for API integration
+ * and includes proper form accessibility with labels and ARIA attributes.
+ *
+ * Layout Structure:
+ * - Header with title and description
+ * - Input fields for user details
+ * - Submit button with loading state
+ * - Error message display
+ * - OAuth divider
+ * - Google sign-in button
+ * - Login link for existing users
+ *
+ * Props:
+ * - className: Optional class names for styling
+ * - toggleCover: Function to switch between signup/login views
+ * - Additional form props spread to form element
+ */
+
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -14,6 +43,7 @@ export function SignUpForm({
   toggleCover,
   ...props
 }: SignUpFormProps) {
+  // State management for form fields
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [name, setName] = useState<string>('')
@@ -21,6 +51,7 @@ export function SignUpForm({
   const [signup, { isLoading, error }] = useSignupMutation()
   const role = 'student'
 
+  // Handle form submission
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     try {

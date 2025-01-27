@@ -42,8 +42,20 @@ const ParentComponent = () => {
 
   return (
     <div>
-      <FacePoseDetector filesetResolver={filesetResolver} lookAwayCount = {lookAwayCount} setLookAwayCount={setLookAwayCount} numPeople = {numPeople} setNumPeople={setNumPeople} status = {status} setStatus = {setStatus}/> 
-      <HandsDetection filesetResolver={filesetResolver} handCount = {handCount} setHandCount={setHandCount}/>
+      <FacePoseDetector
+        filesetResolver={filesetResolver}
+        lookAwayCount={lookAwayCount}
+        setLookAwayCount={setLookAwayCount}
+        numPeople={numPeople}
+        setNumPeople={setNumPeople}
+        status={status}
+        setStatus={setStatus}
+      />
+      <HandsDetection
+        filesetResolver={filesetResolver}
+        handCount={handCount}
+        setHandCount={setHandCount}
+      />
       <VoiceActivityDetection filesetResolver={audioFilesetResolver} />
       <BlurDetection isBlur={isBlur} setIsBlur={setIsBlur} />
       <SnapshotRecorder
