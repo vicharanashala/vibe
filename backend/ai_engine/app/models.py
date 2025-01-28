@@ -15,20 +15,39 @@ from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
-import ffmpeg
+import librosa
 
+# Initialize FastAPI application
 app = FastAPI()
-os.environ["PATH"] += os.pathsep # + "C:\\ffmpeg\\bin"
 
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
+    """
+    Generates a response from the Gemini AI model based on the provided prompt.
+
+    Args:
+        prompt (str): The input text prompt for the AI model.
+        user_api_key (str): The API key for accessing the Gemini model.
+
+    Returns:
+        str: The generated text response from the Gemini model.
+    """
     model = genai.GenerativeModel(model_name="gemini-2.0-flash-exp")
-    genai.configure(api_key="AIzaSyB5AF8R-5q6nj5CS2wYbHDtRrdGhYOPh-Y")
+    genai.configure(api_key=user_api_key)
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
 
 
 def hide_urls(text: str) -> str:
+    """
+    Hides URLs in the given text by replacing them with a placeholder.
+
+    Args:
+        text (str): The input text containing URLs.
+
+    Returns:
+        str: The text with URLs replaced by "<url-hidden>".
+    """
     url_pattern = (
         r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|"
         r"(?:%[0-9a-fA-F][0-9a-fA-F]))+"  # Regex to match URLs
@@ -37,6 +56,18 @@ def hide_urls(text: str) -> str:
 
 
 def parse_llama_json(text: str) -> List[Dict]:
+    """
+    Extracts and parses JSON data from a text string.
+
+    Args:
+        text (str): The input text containing JSON data.
+
+    Returns:
+        List[Dict]: The parsed JSON data as a list of dictionaries.
+
+    Raises:
+        ValueError: If no valid JSON is found or if JSON parsing fails.
+    """
     # Extract JSON part from the generated text
     start_idx = text.find("{")
     end_idx = text.rfind("}") + 1
@@ -57,6 +88,18 @@ def parse_llama_json(text: str) -> List[Dict]:
 def generate_questions_from_prompt(
     text: str, user_api_key: str, n_questions: int, q_model: str
 ) -> str:
+    """
+    Generates multiple-choice questions (MCQs) from a given text using the Gemini AI model.
+
+    Args:
+        text (str): The input text (e.g., transcript) to generate questions from.
+        user_api_key (str): The API key for accessing the Gemini model.
+        n_questions (int): The number of questions to generate.
+        q_model (str): The type of questions to generate ("case-study" or other).
+
+    Returns:
+        str: The generated questions in JSON format.
+    """
     n = n_questions  # Number of questions to generate
 
     task_description_analytical = """
@@ -152,9 +195,17 @@ def generate_questions_from_prompt(
 
 
 def extract_video_id(url: str) -> str:
+    """
+    Extracts the video ID from a YouTube URL.
 
+    Args:
+        url (str): The YouTube URL.
+
+    Returns:
+        str: The extracted video ID, or None if no valid ID is found.
+    """
     patterns = [
-        r"(?:https?://)?(?:www\.)?youtu\.be/([^?&]+)",  # youtu.be short links
+        r"(?:https?://)?(?:www\.)?youtu\.be/([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/embed/([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/shorts/([^?&]+)",
@@ -169,6 +220,15 @@ def extract_video_id(url: str) -> str:
 
 
 def get_urls_from_playlist(playlist_url: str):
+    """
+    Retrieves the URLs of all videos in a YouTube playlist.
+
+    Args:
+        playlist_url (str): The URL of the YouTube playlist.
+
+    Returns:
+        dict: A dictionary containing the list of video URLs or an error message.
+    """
     try:
         playlist = Playlist(playlist_url)
         video_urls = list(playlist.video_urls)
@@ -179,6 +239,15 @@ def get_urls_from_playlist(playlist_url: str):
 
 
 def get_raw_transcript(video_id: str) -> List[Dict]:
+    """
+    Fetches the raw transcript of a YouTube video using its video ID.
+
+    Args:
+        video_id (str): The YouTube video ID.
+
+    Returns:
+        List[Dict]: A list of transcript entries, each containing text, start time, and duration.
+    """
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         return transcript
@@ -189,6 +258,16 @@ def get_raw_transcript(video_id: str) -> List[Dict]:
 def generate_transcript_segments(
     transcript: List[Dict], timestamps: List[int]
 ) -> List[Dict]:
+    """
+    Segments a transcript into smaller parts based on provided timestamps.
+
+    Args:
+        transcript (List[Dict]): The raw transcript data.
+        timestamps (List[int]): The timestamps at which to segment the transcript.
+
+    Returns:
+        List[Dict]: A list of transcript segments, each containing text, start time, and end time.
+    """
     duration = max(item["start"] + item["duration"] for item in transcript)
     if timestamps == []:
         segment_count = 4
@@ -229,12 +308,28 @@ def generate_transcript_segments(
 def process_video(
     url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
 ):
+    """
+    Processes a single YouTube video to extract its transcript, segment it, and generate questions.
+
+    Args:
+        url (str): The YouTube video URL.
+        user_api_key (str): The API key for accessing the Gemini model.
+        timestamps (List[int]): The timestamps at which to segment the transcript.
+        segment_wise_q_no (List[int]): The number of questions to generate for each segment.
+        segment_wise_q_model (List[str]): The type of questions to generate for each segment.
+
+    Returns:
+        JSONResponse: A JSON response containing the video title, description, segments, and generated questions.
+
+    Raises:
+        HTTPException: If the YouTube URL is invalid or if an error occurs during processing.
+    """
     video_id = extract_video_id(url)
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     transcript = get_raw_transcript(video_id)
 
-    # Step 1: Fetch video title, description and transcript
+    # Fetch video title, description and transcript
     yt = YouTube(url, 'WEB', on_progress_callback=on_progress)
     title = yt.title
     description = hide_urls(yt.description)
@@ -251,7 +346,8 @@ def process_video(
 
         # Convert audio to WAV format
         print(f"Converting audio file to WAV format: {wav_file}")
-        ffmpeg.input(m4a_file).output(wav_file).run(overwrite_output=True)
+        y, sr = librosa.load(m4a_file)
+        sf.write(wav_file, y, sr)
         print(f"Converted audio file to WAV format: {wav_file}")
 
         print("Splitting audio into segments...")
@@ -302,6 +398,7 @@ def process_video(
         full_transcript = " ".join([segment["text"] for segment in segments])
         upload_text(full_transcript, title)
 
+        # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
             questions_response = generate_questions_from_prompt(
@@ -346,18 +443,18 @@ def process_video(
             description=description,
             segments=segments,
             questions=questions,
-        ).dict()
+        ).model_dump()
 
         return JSONResponse(content=output)
 
     else:
-        # Step 2: Segment the transcript
+        # Segment the transcript
         segments = generate_transcript_segments(transcript, timestamps)
 
         full_transcript = " ".join([segment["text"] for segment in segments])
         upload_text(full_transcript, title)
 
-        # Step 3: Generate questions for each segment
+        # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
             questions_response = generate_questions_from_prompt(
@@ -396,7 +493,7 @@ def process_video(
                     question["segment"] = i + 1  # Link the question to the segment
                     questions.append(question)
 
-        # Step 4: Return the processed data
+        # Return the processed data
         print("processing pending")
         output = VideoResponse(
             video_url=url,
@@ -404,7 +501,57 @@ def process_video(
             description=description,
             segments=segments,
             questions=questions,
-        ).dict()
+        ).model_dump()
         print("processing_complete")
 
         return JSONResponse(content=output)
+
+
+# def process_video(
+#     url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
+# ):
+#     """
+#     Processes a YouTube video or playlist to extract transcripts, segment them, and generate questions.
+
+#     Args:
+#         url (str): The YouTube video or playlist URL.
+#         user_api_key (str): The API key for accessing the Gemini model.
+#         timestamps (List[int]): The timestamps at which to segment the transcript.
+#         segment_wise_q_no (List[int]): The number of questions to generate for each segment.
+#         segment_wise_q_model (List[str]): The type of questions to generate for each segment.
+
+#     Returns:
+#         JSONResponse: A JSON response containing the video(s) title, description, segments, and generated questions.
+
+#     Raises:
+#         HTTPException: If the YouTube URL is invalid or if an error occurs during processing.
+#     """
+#     # Check if the URL is a playlist
+#     if "playlist" in url:
+#         playlist_info = get_urls_from_playlist(url)
+#         if "error" in playlist_info:
+#             raise HTTPException(status_code=400, detail=playlist_info["error"])
+
+#         video_urls = playlist_info["video_urls"]
+#         results = []
+
+#         # Process each video in the playlist
+#         for video_url in video_urls:
+#             try:
+#                 # Extract raw data instead of returning a JSONResponse
+#                 video_result = process_single_video(
+#                     video_url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
+#                 )
+#                 if isinstance(video_result, JSONResponse):
+#                     video_result = video_result.body  # Extract the raw content
+#                 results.append(video_result)
+#             except Exception as e:
+#                 print(f"Error processing video {video_url}: {e}")
+#                 continue
+
+#         return JSONResponse(content={"videos": results})
+#     else:
+#         # Process a single video
+#         return process_single_video(
+#             url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
+#         )

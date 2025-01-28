@@ -61,7 +61,7 @@ else:
     metadata = {}
 
 # Initialize Gemini model
-model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key="AIzaSyB5AF8R-5q6nj5CS2wYbHDtRrdGhYOPh-Y")
+model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key="YOUR-GEMINI-API-KEY")
 
 # Create prompt template for the model
 # This defines how the model should behave and format its responses
