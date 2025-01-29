@@ -805,7 +805,7 @@ async function processBatches(batches) {
       const segmentWiseQModel = [];
       
       Object.values(segments).forEach(data => {
-        if (data.timestamp !== null) timestamps.push(data.timestamp);
+        if (data.timestamp !== null) timestamps.push(parseInt(data.timestamp, 10));
         if (data.questions !== null) segmentWiseQNo.push(data.questions);
         if (data.type !== null) segmentWiseQModel.push(data.type);
       });
@@ -817,6 +817,8 @@ async function processBatches(batches) {
         segment_wise_q_no: segmentWiseQNo,
         segment_wise_q_model: segmentWiseQModel,
       };
+
+      console.log("SUMN SUS GOIN' ON HERE:", payload);
       
       const response = await fetch('/questions/process_video', {
         method: 'POST',

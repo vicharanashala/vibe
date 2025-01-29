@@ -33,3 +33,5 @@ SQLAlchemy==2.0.37
 transformers==4.48.0
 uvicorn==0.23.1
 youtube-transcript-api==0.6.3
+portalocker
+python-multipart

@@ -31,8 +31,8 @@ def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     Returns:
         str: The generated text response from the Gemini model.
     """
-    model = genai.GenerativeModel(model_name="gemini-2.0-flash-exp")
-    genai.configure(api_key=user_api_key)
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+    genai.configure(api_key="AIzaSyClDZIQJO5O8Y6_4TouuffhtdkuYACMkqs")
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
@@ -55,34 +55,59 @@ def hide_urls(text: str) -> str:
     return re.sub(url_pattern, "<url-hidden>", text)
 
 
-def parse_llama_json(text: str) -> List[Dict]:
+def parse_llama_json(text: str) -> Dict:
     """
     Extracts and parses JSON data from a text string.
+    Returns a properly structured JSON with empty values if parsing fails.
 
     Args:
         text (str): The input text containing JSON data.
 
     Returns:
-        List[Dict]: The parsed JSON data as a list of dictionaries.
-
-    Raises:
-        ValueError: If no valid JSON is found or if JSON parsing fails.
+        Dict: The parsed JSON data or a structured empty JSON if parsing fails.
     """
-    # Extract JSON part from the generated text
-    start_idx = text.find("{")
-    end_idx = text.rfind("}") + 1
-
-    if start_idx == -1 or end_idx == -1:
-        raise ValueError("No valid JSON found in the text")
-
-    json_part = text[start_idx:end_idx]
-
-    # Parse the extracted JSON
+    # Define the default empty structure
+    empty_response = {
+        "case_study": "",
+        "questions": [
+            {
+                "question": "",
+                "option_1": "",
+                "option_2": "",
+                "option_3": "",
+                "option_4": "",
+                "correct_answer": 0
+            }
+        ]
+    }
+    
     try:
+        # Extract JSON part from the generated text
+        start_idx = text.find("{")
+        end_idx = text.rfind("}") + 1
+
+        if start_idx == -1 or end_idx == -1:
+            print("No valid JSON found in the text, returning empty result")
+            return empty_response
+
+        json_part = text[start_idx:end_idx]
+
+        # Parse the extracted JSON
         parsed_data = json.loads(json_part)
+        
+        # If the parsed data doesn't have the expected structure,
+        # return the empty response
+        if not isinstance(parsed_data, dict):
+            return empty_response
+            
+        # Ensure the parsed data has all required keys
+        if "questions" not in parsed_data:
+            parsed_data["questions"] = empty_response["questions"]
+            
         return parsed_data
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON: {e}")
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Failed to parse JSON: {e}, returning empty structured result")
+        return empty_response
 
 
 def generate_questions_from_prompt(
@@ -505,53 +530,3 @@ def process_video(
         print("processing_complete")
 
         return JSONResponse(content=output)
-
-
-# def process_video(
-#     url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
-# ):
-#     """
-#     Processes a YouTube video or playlist to extract transcripts, segment them, and generate questions.
-
-#     Args:
-#         url (str): The YouTube video or playlist URL.
-#         user_api_key (str): The API key for accessing the Gemini model.
-#         timestamps (List[int]): The timestamps at which to segment the transcript.
-#         segment_wise_q_no (List[int]): The number of questions to generate for each segment.
-#         segment_wise_q_model (List[str]): The type of questions to generate for each segment.
-
-#     Returns:
-#         JSONResponse: A JSON response containing the video(s) title, description, segments, and generated questions.
-
-#     Raises:
-#         HTTPException: If the YouTube URL is invalid or if an error occurs during processing.
-#     """
-#     # Check if the URL is a playlist
-#     if "playlist" in url:
-#         playlist_info = get_urls_from_playlist(url)
-#         if "error" in playlist_info:
-#             raise HTTPException(status_code=400, detail=playlist_info["error"])
-
-#         video_urls = playlist_info["video_urls"]
-#         results = []
-
-#         # Process each video in the playlist
-#         for video_url in video_urls:
-#             try:
-#                 # Extract raw data instead of returning a JSONResponse
-#                 video_result = process_single_video(
-#                     video_url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
-#                 )
-#                 if isinstance(video_result, JSONResponse):
-#                     video_result = video_result.body  # Extract the raw content
-#                 results.append(video_result)
-#             except Exception as e:
-#                 print(f"Error processing video {video_url}: {e}")
-#                 continue
-
-#         return JSONResponse(content={"videos": results})
-#     else:
-#         # Process a single video
-#         return process_single_video(
-#             url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
-#         )
