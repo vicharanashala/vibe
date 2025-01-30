@@ -32,7 +32,7 @@ def generate_from_gemini(prompt: str, user_api_key: str) -> str:
         str: The generated text response from the Gemini model.
     """
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-    genai.configure(api_key="AIzaSyClDZIQJO5O8Y6_4TouuffhtdkuYACMkqs")
+    genai.configure(api_key="AIzaSyADJ_vp1XilyMX_yFrRfs9ipi9G93IVWUo")
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text

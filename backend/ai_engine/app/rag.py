@@ -12,7 +12,7 @@ from langchain_community.docstore.in_memory import InMemoryDocstore  # Text stor
 import os  # File system operations
 import time  # Time tracking
 import hashlib  # Creates unique fingerprints for text
-import portalocker  # Prevents simultaneous file access
+from filelock import FileLock  # Prevents simultaneous file access
 from langchain_core.prompts import ChatPromptTemplate  # Answering instructions
 from langchain.chains import create_retrieval_chain  # Question-answer workflow
 from langchain.chains.combine_documents import create_stuff_documents_chain  # Doc handling
@@ -29,46 +29,51 @@ app = APIRouter()
 embeddings = HuggingFaceEmbeddings()
 
 # Where we'll store/search all the number patterns
-VECTOR_STORE_PATH = "faiss_index"
-# Special file to prevent simultaneous access conflicts
-LOCK_FILE = f"{VECTOR_STORE_PATH}.lock"
+VECTOR_STORE_DIR = "faiss_index"  # Changed to directory name
+LOCK_FILE = os.path.join(VECTOR_STORE_DIR, ".lock")  # Separate lock file
+INDEX_NAME = "index"  # FAISS index files base name
+
+# Create directory if it doesn't exist
+os.makedirs(VECTOR_STORE_DIR, exist_ok=True)
+
+file_lock = FileLock(LOCK_FILE, timeout=60)
 
 # Smart text splitter that keeps related ideas together
 text_splitter = SemanticChunker(embeddings)
 
 def load_vector_store():
     """Load or create the knowledge database with safety locks"""
-    # Create lock file if it doesn't exist
-    if not os.path.exists(LOCK_FILE):
-        with open(LOCK_FILE, 'w') as f:
-            f.write('')
-            
-    # Use a "do not disturb" sign while working with files
-    with portalocker.Lock(LOCK_FILE, timeout=30):
-        # If we have existing knowledge...
-        if os.path.exists(VECTOR_STORE_PATH):
-            # Carefully load previous knowledge base
+    with file_lock:
+        index_path = os.path.join(VECTOR_STORE_DIR, f"{INDEX_NAME}.faiss")
+        
+        # Check for actual index file existence
+        if os.path.exists(index_path):
             return FAISS.load_local(
-                VECTOR_STORE_PATH, 
-                embeddings, 
+                VECTOR_STORE_DIR,
+                embeddings,
+                index_name=INDEX_NAME,
                 allow_dangerous_deserialization=True
             )
-        # If first time setup...
-        # Create empty knowledge base structure
-        sample_embedding = embeddings.embed_query("test input")
+        
+        # Create and save new index if doesn't exist
+        sample_embedding = embeddings.embed_query("test")
         index = faiss.IndexFlatL2(len(sample_embedding))
-        return FAISS(
-            index=index,
+        new_store = FAISS(
             embedding_function=embeddings,
+            index=index,
             docstore=InMemoryDocstore({}),
-            index_to_docstore_id={},
+            index_to_docstore_id={}
         )
+        # Save the empty index immediately
+        new_store.save_local(VECTOR_STORE_DIR, index_name=INDEX_NAME)
+        return new_store
+
 
 # Initialize our main knowledge base with safety checks
 vector_store = load_vector_store()
 
 # Set up the AI teacher's brain (Gemini model)
-model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key="AIzaSyClDZIQJO5O8Y6_4TouuffhtdkuYACMkqs")
+model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key="AIzaSyADJ_vp1XilyMX_yFrRfs9ipi9G93IVWUo")
 
 # Teaching instructions for the AI:
 # 1. Be helpful and clear
@@ -76,7 +81,10 @@ model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key="AIz
 # 3. Admit when unsure
 # 4. Focus on understanding
 prompt = ChatPromptTemplate.from_template("""
-1. Act as a knowledgeable and approachable teacher...
+1. Act as a knowledgeable and approachable teacher who helps students understand their doubts with clarity and patience.
+2. Use the following pieces of context to explain and clarify the student's query thoroughly. If the exact answer is not available in the provided context but aligns with the topic, provide an accurate and well-informed response based on your own knowledge base.
+3. If the question is completely irrelevant to the topic, outside the provided context, or you’re unsure of the answer, politely state, "I don’t know the answer to that," without making up any information.
+4. Always prioritize accuracy. Break down your explanation into simple, easy-to-follow points and use relatable examples or analogies wherever possible to aid understanding. Aim to leave the student with a clear and solid grasp of the concept or query.
 Context: {context}
 Question: {input}
 Response: """)
@@ -113,15 +121,22 @@ def upload_text(text: str, title: Optional[str] = None):
         documents = text_splitter.split_documents(docs)
 
         # Prevent conflicts with other users
-        with portalocker.Lock(LOCK_FILE, timeout=30):
+        with file_lock:
+            print("Lock acquired for upload")
             # Load current knowledge base
             current_store = load_vector_store()
             
             # Check existing content fingerprints
-            existing_hashes = set()
+            existing_main_hashes = set()
+            existing_chunk_hashes = set()
             for doc in current_store.docstore._dict.values():
-                if 'hash' in doc.metadata:
-                    existing_hashes.add(doc.metadata['hash'])
+                if 'main_hash' in doc.metadata:
+                    existing_main_hashes.add(doc.metadata['main_hash'])
+                if 'chunk_hash' in doc.metadata:
+                    existing_chunk_hashes.add(doc.metadata['chunk_hash'])
+            if main_hash in existing_main_hashes:
+                return JSONResponse({"message": "This exact content already exists in the system"})
+            
 
             # Filter out duplicates
             unique_docs = []
@@ -130,11 +145,13 @@ def upload_text(text: str, title: Optional[str] = None):
                 chunk_hash = get_content_hash(doc.page_content)
                 doc.metadata["chunk_hash"] = chunk_hash
                 # Only keep new content
-                if chunk_hash not in existing_hashes:
+                if chunk_hash not in existing_chunk_hashes:
                     unique_docs.append(doc)
+                    existing_chunk_hashes.add(chunk_hash)
 
             # Add new content if any exists
             if unique_docs:
+                unique_docs = [doc for doc in unique_docs if doc.page_content.strip()]
                 current_store.add_documents(unique_docs)
                 
                 # Safe save process (like writing to draft first)
@@ -143,7 +160,7 @@ def upload_text(text: str, title: Optional[str] = None):
                     # Replace old files atomically
                     for fname in os.listdir(tmp_dir):
                         src = os.path.join(tmp_dir, fname)
-                        dst = os.path.join(VECTOR_STORE_PATH, fname)
+                        dst = os.path.join(VECTOR_STORE_DIR, fname)
                         os.replace(src, dst)
                 
                 # Refresh global knowledge base
@@ -157,11 +174,11 @@ def upload_text(text: str, title: Optional[str] = None):
         print("UPLOAD FUNTION FROM RAG HEREEEEE: ", message)
         return JSONResponse({"message": message})
     
-    except portalocker.LockException:
-        print("UPLOAD FUNTION FROM RAG HEREEEEE THIS IS EXCEPTION 1")
+    except TimeoutError:
+        print("UPLOAD FUNTION FROM RAG HEREEEEE THIS IS TIMEOUTERROR")
         return JSONResponse({"error": "System busy, try again later"}, status_code=429)
     except Exception as e:
-        print("UPLOAD FUNTION FROM RAG HEREEEEE THIS IS EXCEPTION 2")
+        print(f"UPLOAD FUNTION FROM RAG HEREEEEE: {str(e)}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # --------------------------
@@ -204,7 +221,7 @@ async def get_content_index():
     """Show list of stored materials without revealing full content"""
     try:
         # Safe access to content list
-        with portalocker.Lock(LOCK_FILE, timeout=10):
+        with file_lock:
             current_store = load_vector_store()
             return {
                 # Show content previews and metadata
