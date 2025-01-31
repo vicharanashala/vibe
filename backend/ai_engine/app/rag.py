@@ -73,7 +73,7 @@ def load_vector_store():
 vector_store = load_vector_store()
 
 # Set up the AI teacher's brain (Gemini model)
-model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key="AIzaSyADJ_vp1XilyMX_yFrRfs9ipi9G93IVWUo")
+model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key="YOUR-GEMINI-API-KEY")
 
 # Teaching instructions for the AI:
 # 1. Be helpful and clear

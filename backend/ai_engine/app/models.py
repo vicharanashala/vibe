@@ -15,10 +15,13 @@ from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
-import librosa
+import ffmpeg
 
 # Initialize FastAPI application
 app = FastAPI()
+whisper_model = whisper.load_model("base")
+os.environ["PATH"] += os.pathsep + r"C:\\ffmpeg\\bin"
+
 
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     """
@@ -32,7 +35,7 @@ def generate_from_gemini(prompt: str, user_api_key: str) -> str:
         str: The generated text response from the Gemini model.
     """
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-    genai.configure(api_key="AIzaSyADJ_vp1XilyMX_yFrRfs9ipi9G93IVWUo")
+    genai.configure(api_key="YOUR-GEMINI-API-KEY")
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
@@ -68,14 +71,10 @@ def parse_llama_json(text: str) -> Dict:
     """
     # Define the default empty structure
     empty_response = {
-        "case_study": "",
         "questions": [
             {
                 "question": "",
-                "option_1": "",
-                "option_2": "",
-                "option_3": "",
-                "option_4": "",
+                "options": ["", "", "", ""],
                 "correct_answer": 0
             }
         ]
@@ -371,8 +370,7 @@ def process_video(
 
         # Convert audio to WAV format
         print(f"Converting audio file to WAV format: {wav_file}")
-        y, sr = librosa.load(m4a_file)
-        sf.write(wav_file, y, sr)
+        ffmpeg.input(m4a_file).output(wav_file).run()
         print(f"Converted audio file to WAV format: {wav_file}")
 
         print("Splitting audio into segments...")
@@ -388,7 +386,6 @@ def process_video(
         )  # Ensure last timestamp is the duration of the audio
 
         segments = []
-        model = whisper.load_model("base")
 
         for i in range(len(timestamps) - 1):
             start_time = timestamps[i]
@@ -406,7 +403,7 @@ def process_video(
             print(f"Segment {i + 1} saved: {segment_file}")
 
             # Transcribe the segment using Whisper
-            result = model.transcribe(segment_file)
+            result = whisper_model.transcribe(segment_file)
             segment_transcript = result["text"]
             segments.append(
                 {
