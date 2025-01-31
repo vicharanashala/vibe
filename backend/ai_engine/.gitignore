@@ -1,2 +1,7 @@
 # Ignore virtual environment folder
 venv/
+# Environment variables
+app/.env
+# Installed python packages
+app/__pycache__/
+

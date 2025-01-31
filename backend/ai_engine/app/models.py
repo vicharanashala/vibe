@@ -16,13 +16,17 @@ from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
 import ffmpeg
-
+from dotenv import load_dotenv
 app = FastAPI()
 os.environ["PATH"] += os.pathsep # + "C:\\ffmpeg\\bin"
 
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
+
 def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     model = genai.GenerativeModel(model_name="gemini-2.0-flash-exp")
-    genai.configure(api_key="AIzaSyB5AF8R-5q6nj5CS2wYbHDtRrdGhYOPh-Y")
+    genai.configure(api_key=API_KEY)
     response = model.generate_content(prompt)
     time.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
