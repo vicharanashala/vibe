@@ -9,21 +9,24 @@ import soundfile as sf
 import whisper
 import os
 import uuid
-import time
+# import time
 from youtube_transcript_api import YouTubeTranscriptApi
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
 import ffmpeg
+import asyncio
+import aiofiles
+import aiofiles.os
 
 # Initialize FastAPI application
 app = FastAPI()
 whisper_model = whisper.load_model("base")
-os.environ["PATH"] += os.pathsep + r"C:\\ffmpeg\\bin"
+os.environ["PATH"] += os.pathsep + r"C:\\ffmpeg\\bin" # Configure FFMPEG locally
 
 
-def generate_from_gemini(prompt: str, user_api_key: str) -> str:
+async def generate_from_gemini(prompt: str, user_api_key: str) -> str:
     """
     Generates a response from the Gemini AI model based on the provided prompt.
 
@@ -35,9 +38,9 @@ def generate_from_gemini(prompt: str, user_api_key: str) -> str:
         str: The generated text response from the Gemini model.
     """
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-    genai.configure(api_key="YOUR-GEMINI-API-KEY")
-    response = model.generate_content(prompt)
-    time.sleep(10)  # Delay to prevent hitting API rate limits
+    genai.configure(api_key="AIzaSyAjI4HOAixcI-fXpova-lXq0anCbhZi_Dc")
+    response = await asyncio.to_thread(model.generate_content, prompt)
+    await asyncio.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
 
 
@@ -109,7 +112,7 @@ def parse_llama_json(text: str) -> Dict:
         return empty_response
 
 
-def generate_questions_from_prompt(
+async def generate_questions_from_prompt(
     text: str, user_api_key: str, n_questions: int, q_model: str
 ) -> str:
     """
@@ -214,7 +217,7 @@ def generate_questions_from_prompt(
     prompt_2 = task_description_case_study + '\n Here is the transcript content: \n' + str(text) + f'\nGenerate {n} questions' + ' as a JSON object in the following format: \n{ \n    "case_study": "<case_study_text>", \n    "questions": [ \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        }, \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        }, \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        } \n    ] \n}.'
 
     prompt = prompt_2 if q_model == "case-study" else prompt_1
-    response = generate_from_gemini(prompt, user_api_key)
+    response = await generate_from_gemini(prompt, user_api_key)
     return response
 
 
@@ -243,7 +246,7 @@ def extract_video_id(url: str) -> str:
     return None
 
 
-def get_urls_from_playlist(playlist_url: str):
+async def get_urls_from_playlist(playlist_url: str):
     """
     Retrieves the URLs of all videos in a YouTube playlist.
 
@@ -254,15 +257,15 @@ def get_urls_from_playlist(playlist_url: str):
         dict: A dictionary containing the list of video URLs or an error message.
     """
     try:
-        playlist = Playlist(playlist_url)
-        video_urls = list(playlist.video_urls)
+        playlist = await asyncio.to_thread(Playlist, playlist_url)
+        video_urls = await asyncio.to_thread(lambda: list(playlist.video_urls))
         return {"video_urls": video_urls}
     except Exception as e:
         print(f"An error occurred: {e}")
         return {"error": str(e), "video_urls": []}
 
 
-def get_raw_transcript(video_id: str) -> List[Dict]:
+async def get_raw_transcript(video_id: str) -> List[Dict]:
     """
     Fetches the raw transcript of a YouTube video using its video ID.
 
@@ -273,7 +276,7 @@ def get_raw_transcript(video_id: str) -> List[Dict]:
         List[Dict]: A list of transcript entries, each containing text, start time, and duration.
     """
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = await asyncio.to_thread(YouTubeTranscriptApi.get_transcript, video_id)
         return transcript
     except Exception as e:
         return []
@@ -328,8 +331,26 @@ def generate_transcript_segments(
         for segment, (start, end) in zip(segments, time_ranges)
     ]
 
+async def process_audio(segment_file: str, start_time: float, end_time: float) -> Dict:
+    """
+    Processes a single audio segment: transcribes it and returns the result.
 
-def process_video(
+    Args:
+        segment_file (str): Path to the segment audio file.
+        start_time (float): Start time of the segment.
+        end_time (float): End time of the segment.
+
+    Returns:
+        Dict: A dictionary containing the transcribed text and timestamps.
+    """
+    result = await asyncio.to_thread(whisper_model.transcribe, segment_file)
+    return {
+        "text": result["text"],
+        "start_time": start_time,
+        "end_time": end_time,
+    }
+
+async def process_video(
     url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
 ):
     """
@@ -351,7 +372,7 @@ def process_video(
     video_id = extract_video_id(url)
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
-    transcript = get_raw_transcript(video_id)
+    transcript = await get_raw_transcript(video_id)
 
     # Fetch video title, description and transcript
     yt = YouTube(url, 'WEB', on_progress_callback=on_progress)
@@ -403,27 +424,23 @@ def process_video(
             print(f"Segment {i + 1} saved: {segment_file}")
 
             # Transcribe the segment using Whisper
-            result = whisper_model.transcribe(segment_file)
-            segment_transcript = result["text"]
-            segments.append(
-                {
-                    "text": segment_transcript,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                }
-            )
-            os.remove(segment_file)
-        os.remove(wav_file)
-        os.remove(m4a_file)
+            segment = await process_audio(segment_file, start_time, end_time)
+            segments.append(segment)
+            await aiofiles.os.remove(segment_file)
+
+        # Clean up temporary files
+        await aiofiles.os.remove(wav_file)
+        await aiofiles.os.remove(m4a_file)
         print("Audio segments processed successfully.")
 
         full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        upload_result = await upload_text(full_transcript, title)
+        print("Upload result:", upload_result)
 
         # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
-            questions_response = generate_questions_from_prompt(
+            questions_response = await generate_questions_from_prompt(
                 segment["text"],
                 user_api_key,
                 segment_wise_q_no[i],
@@ -474,12 +491,13 @@ def process_video(
         segments = generate_transcript_segments(transcript, timestamps)
 
         full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        upload_result = await upload_text(full_transcript, title)
+        print("Upload result:", upload_result)
 
         # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
-            questions_response = generate_questions_from_prompt(
+            questions_response = await generate_questions_from_prompt(
                 segment["text"],
                 user_api_key,
                 segment_wise_q_no[i],

@@ -9,8 +9,8 @@ router = APIRouter(prefix="/questions", tags=["Questions"])
 
 
 @router.post("/process_video")
-def generate_question(request: VideoRequest):
-    result = process_process_video(request.url, request.user_api_key,
+async def generate_question(request: VideoRequest):
+    result = await process_process_video(request.url, request.user_api_key,
                                    request.timestamps,
                                    request.segment_wise_q_no,
                                    request.segment_wise_q_model)
@@ -18,8 +18,8 @@ def generate_question(request: VideoRequest):
 
 
 @router.post("/get_urls")
-def get_list_of_links(request: URLRequest):
-    result = get_urls(request.url)
+async def get_list_of_links(request: URLRequest):
+    result = await get_urls(request.url)
     return result
 # @router.post("/answer", response_model=AnswerQuestionResponse)
 # def answer_question(request: AnswerQuestionRequest):

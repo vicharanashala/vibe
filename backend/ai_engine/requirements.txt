@@ -34,3 +34,4 @@ uvicorn==0.23.1
 youtube-transcript-api==0.6.3
 python-multipart
 filelock
+aiofiles
