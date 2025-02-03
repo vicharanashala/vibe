@@ -20,6 +20,27 @@ To install and run the project, follow these steps:
 - Node.js (latest version)
 - PostgreSQL database
 
+## Setup
+
+### Database Configuration
+
+To set up your database in this application, you need to create a `.env` file in the root directory of your project. In this file, define the `DATABASE_URL` with your PostgreSQL database URL:
+
+```
+DATABASE_URL="your_postgres_database_url"
+```
+
+### Google Authentication
+
+To implement Google authentication, follow these steps:
+
+1. Create a credentials file in JSON format (e.g., `file.json`) containing all your Google Auth Firebase Admin credentials.
+2. Add the path to your credentials file in the `.env` file:
+
+```
+FIREBASE_ADMIN_SDK_PATH=path_to_your_credentials_file.json
+```
+
 ## Updated Folder Structure
 
 ```
