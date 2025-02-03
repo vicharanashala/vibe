@@ -1,20 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql" // or any other database provider
-  url      = env("DATABASE_URL")
+model LoginSession {
+  id          Int    @id @default(autoincrement())
+  user_id      Int    @map("user_id")
+  access_token String
+  expires_in   Int    // Access token expiration time
+
+  @@index([user_id])
+  @@index([access_token])
 }
+
+model attemptSession {
+  id          Int    @id @default(autoincrement())
+  assessmentId      Int    @map("assessmentId")
+  courseInstanceId String
+  studentId   Int    // Access token expiration time
+
+  @@index([assessmentId])
+  @@index([studentId])
+}
+
+model submitSession {
+  id             Int      @id @default(autoincrement())
+  studentId      Int
+  courseId       Int
+  assessmentId   Int
+  attemptId      Int
+  questionId     Int
+  answers        String
+  isAnswerCorrect Boolean
+  createdAt      DateTime @default(now())
+
+  @@index([studentId])
+  @@index([assessmentId])
+}
+
+// Define the Prisma schema model for the progress of courses, modules, and items
 
 model StudentCourseProgress {
   studentId        String
   courseInstanceId String
-  progress         CourseProgressEnum
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@id([studentId, courseInstanceId])
+}
+
+model StudentModuleProgress {
+  studentId        String
+  moduleId         String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, moduleId, courseInstanceId])
+}
+
+model StudentSectionProgress {
+  studentId        String
+  sectionId        String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, sectionId, courseInstanceId])
+}
+
+model StudentSectionItemProgress {
+  studentId        String
+  sectionItemId    String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, sectionItemId, courseInstanceId])
+}
+
+model ModuleNext {
+  moduleId         String   @id
+  sectionId        String // First section of moduleId
+  nextModuleId     String?
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+}
+
+model SectionNext {
+  sectionId     String   @id
+  sectionItemId String // First section item of sectionId
+  nextSectionId String?
+  moduleId      String
+  createdAt     DateTime @default(now())
+}
+
+model SectionItemNext {
+  sectionItemId     String   @id
+  nextSectionItemId String?
+  sectionId         String
+  createdAt         DateTime @default(now())
 }
 
 model StudentAssessmentProgress {
@@ -25,114 +124,26 @@ model StudentAssessmentProgress {
   assessmentStatus AssessmentStatusEnum
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
-}
 
-model StudentAssessmentAttemptHistory {
-  attemptId           Int                        @id @default(autoincrement())
-  studentId          String
-  assessmentId       String
-  courseInstanceId   String
-  status             AssessmentAttemptStatusEnum                    @default(IN_PROGRESS)
-  attemptTime         DateTime
-  submissionTime     DateTime?
-  natAnswers         StudentNATAnswer[]
-  descriptiveAnswers StudentDescriptiveAnswer[]
-  mcqAnswers         StudentMCQAnswer[]
-  msqAnswers         StudentMSQAnswer[]
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
+  @@unique([studentId, assessmentId, courseInstanceId])
 }
 
 model StudentAssessmentAttemptSummary {
   studentId        String   @map("studentId")
   assessmentId     String   @map("assessmentId")
   courseInstanceId String   @map("courseInstanceId")
-  latestAttemptId   Int      @map("latestAttemptId")
-  attemptCount      Int      @map("attemptCount")
+  latestAttemptId  Int      @map("latestAttemptId")
+  attemptCount     Int      @map("attemptCount")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@id([studentId, assessmentId, courseInstanceId])
 }
 
-model StudentVideoMetrics {
-  courseInstanceId String   @map("courseInstanceId")
-  studentId        String   @map("studentId")
-  videoId          String   @map("videoId")
-  replays          Int
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@id([studentId, videoId, courseInstanceId])
-}
-
-model StudentViolationMetrics {
-  id            Int             @id @default(autoincrement())
-  studentId     String          @map("studentId")
-  contentType   ContentTypeEnum
-  contentTypeId String          @map("contentTypeId")
-  violationType String          @map("violationType")
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-model StudentNATAnswer {
-  id               Int      @id @default(autoincrement())
-  questionId       String   @map("questionId")
-  studentId        String   @map("studentId")
-  courseInstanceId String   @map("courseInstanceId")
-  value            String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  assessmentAttemptId             Int                            @map("assessmentAttemptId")
-  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
-}
-
-model StudentDescriptiveAnswer {
-  id               Int      @id @default(autoincrement())
-  questionId       String
-  studentId        String
-  courseInstanceId String
-  answerText       String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  assessmentAttemptId             Int
-  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
-}
-
-model StudentMCQAnswer {
-  id               Int      @id @default(autoincrement())
-  questionId       String
-  studentId        String
-  courseInstanceId String
-  choiceId         String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  assessmentAttemptId             Int
-  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
-}
-
-model StudentMSQAnswer {
-  id               Int      @id @default(autoincrement())
-  questionId       String
-  studentId        String
-  courseInstanceId String
-  choiceId         String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  assessmentAttemptId             Int
-  StudentAssessmentAttemptHistory StudentAssessmentAttemptHistory @relation(fields: [assessmentAttemptId], references: [attemptId])
-}
-
-// Enums
-enum CourseProgressEnum {
-  ENROLLED
-  DROPPED
-  COMPLETED
+enum ProgressEnum {
+  IN_PROGRESS
+  INCOMPLETE
+  COMPLETE
 }
 
 enum ContentTypeEnum {
@@ -160,5 +171,7 @@ enum AssessmentStatusEnum {
 
 enum AssessmentAttemptStatusEnum {
   IN_PROGRESS
-  SUBMITTED
+  SUCCESS
+  FAILED
 }
+

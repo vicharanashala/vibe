@@ -1,24 +1,33 @@
 {
-  "name": "content_engine",
-  "version": "0.0.1",
-  "main": "index.ts",
+  "name": "my-express-app",
+  "version": "1.0.0",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
-    "migrate": "prisma migrate dev"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx ts-node src/server.ts",
+    "dev": "npx nodemon src/server.ts",
+    "build": "tsc"
   },
+  "keywords": [],
   "author": "",
-  "license": "MIT",
+  "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.0.1",
-    "@scalar/express-api-reference": "^0.4.171",
-    "express": "^4.21.2"
+    "@prisma/client": "^6.2.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.10",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.2",
+    "google-auth-library": "^9.15.1",
+    "nodemon": "^3.1.9",
+    "pg": "^8.13.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.2",
-    "nodemon": "^3.1.7",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "@types/cors": "^2.8.17",
+    "prisma": "^6.2.1"
   }
 }
