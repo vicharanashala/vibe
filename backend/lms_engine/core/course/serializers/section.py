@@ -5,11 +5,11 @@ from ..models import Section
 from ...utils.helpers import truncate_text
 
 
-@dataclass
-class ItemCounts:
-    videos: int
-    articles: int
-    assessments: int
+# @dataclass
+# class ItemCounts:
+#     videos: int
+#     articles: int
+#     assessments: int
 
 
 class SectionListSerializer(serializers.ModelSerializer):
@@ -29,15 +29,16 @@ class SectionDetailSerializer(serializers.ModelSerializer):
     """
     Detailed serializer for the Section model.
     """
-    item_counts = serializers.SerializerMethodField()
+    # item_counts = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
         fields = '__all__'
 
-    def get_item_counts(self, obj):
-        return asdict(ItemCounts(
-            videos=obj.videos.count(),
-            articles=obj.articles.count(),
-            assessments=obj.assessments.count()
-        ))
+    # def get_item_counts(self, obj):
+    #     return asdict(ItemCounts(
+    #         videos=obj.videos.count(),
+    #         articles=obj.articles.count(),
+    #         assessments=obj.assessments.count()
+    #         items=
+    #     ))

@@ -1,17 +1,24 @@
+import uuid
+
 from django.db import models
 
-from ...auth.permissions import ModelPermissionsMixin
 from ...utils.models import TimestampMixin
 from . import Course
 from ..constants import MODULE_TITLE_MAX_LEN, MODULE_DESCRIPTION_MAX_LEN
 
 
-class ModuleManager(models.Manager):
-    def accessible_by(self, user):
-        return self.filter(course__in=Course.objects.accessible_by(user))
+# Module model
+class Module(TimestampMixin, models.Model):
+    """
+    Represents a module within a course.
 
-
-class Module(TimestampMixin, ModelPermissionsMixin, models.Model):
+    Attributes:
+        course (ForeignKey): The course this module belongs to.
+        title (str): The title of the module.
+        description (str): A detailed description of the module.
+        sequence (int): The order of the module within the course.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="modules")
     title = models.CharField(max_length=MODULE_TITLE_MAX_LEN)
     description = models.TextField(max_length=MODULE_DESCRIPTION_MAX_LEN)
@@ -19,31 +26,17 @@ class Module(TimestampMixin, ModelPermissionsMixin, models.Model):
         help_text="The order of this module in the course."
     )
 
-    objects: ModuleManager = ModuleManager()
-
     class Meta:
         constraints = [
+            # Ensure that each module within a course has a unique sequence number
             models.UniqueConstraint(
                 fields=["course", "sequence"], name="module_sequence_in_course"
             )
         ]
-        ordering = ["sequence"]
+        ordering = ["sequence"]  # Default ordering by sequence
 
     def __str__(self):
+        """
+        Returns a string representation of the module, including its sequence and title.
+        """
         return f"Module {self.sequence}: {self.title}"
-
-    def __getattr__(self, name):
-        """
-        Delegate permission checks to the related course object.
-        """
-        if name.endswith("_has_access"):
-            return getattr(self.course, name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-    def admin_has_access(self, user):
-        """
-        Define access rules for admins.
-        """
-        # Allow admins to read, write, and delete modules.
-        return (True, True, False)

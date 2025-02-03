@@ -1,67 +1,36 @@
+import uuid
+
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.db.models import Q
-
-from ...auth.permissions import ModelPermissionsMixin
 from ...utils.models import TimestampMixin
-from . import VisibilityChoices
-from ...user.models import User, Roles
+from ...users.models import User
 
 
-class CourseInstanceManager(models.Manager):
-    def accessible_by(self, user: User):
-        if user.role in [Roles.SUPERADMIN, Roles.ADMIN]:
-            return self.all()
+# CourseInstance model
+class CourseInstance(TimestampMixin, models.Model):
+    """
+    Represents a specific instance of a course, with start and end dates.
 
-        elif user.role == Roles.MODERATOR:
-            return self.filter(
-                course_institutions_id__in=user.institutions.values_list(
-                    "id", flat=True
-                )
-            )
+    Attributes:
+        course (ForeignKey): The course this instance is related to.
+        start_date (Date): The start date of the course instance.
+        end_date (Date): The end date of the course instance.
+        personnel (ManyToMany): Users assigned to this course instance as personnel.
+    """
 
-        elif user.role == Roles.INSTRUCTOR:
-            user_institutions = user.institutions.values_list("id", flat=True)
-
-            return self.filter(
-                Q(course_visibility=VisibilityChoices.PUBLIC)
-                | Q(
-                    course_institutions__id__in=user_institutions,
-                    course_visibility=VisibilityChoices.PRIVATE,
-                )
-                | Q(course_instructors__contains=user)
-            )
-
-        elif user.role == Roles.STAFF:
-            user_institutions = user.institutions.values_list("id", flat=True)
-
-            return self.filter(
-                Q(course_visibility=VisibilityChoices.PUBLIC)
-                | Q(
-                    course_institutions__id__in=user_institutions,
-                    course_visibility=VisibilityChoices.PRIVATE,
-                )
-                | Q(personnel=user)
-            )
-
-        elif user.role == Roles.STUDENT:
-            return user.courses.all()
-
-
-class CourseInstance(TimestampMixin, ModelPermissionsMixin, models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(
         "Course", on_delete=models.CASCADE, related_name="instances"
     )
     start_date = models.DateField()
     end_date = models.DateField()
     personnel = models.ManyToManyField(
-        "user.User", through="CoursePersonnel", related_name="personnel_courses"
+        "users.User", through="CoursePersonnel", related_name="personnel_courses"
     )
-
-    objects: CourseInstanceManager = CourseInstanceManager()
 
     class Meta:
         constraints = [
+            # Ensure unique course instances for the same course with the same start and end dates
             models.UniqueConstraint(
                 fields=["course", "start_date", "end_date"],
                 name="unique_course_instance",
@@ -69,33 +38,13 @@ class CourseInstance(TimestampMixin, ModelPermissionsMixin, models.Model):
         ]
 
     def __str__(self):
+        """
+        Returns a string representation of the course instance, including the course and its start and end dates.
+        """
         return f"{self.course} - {self.start_date} to {self.end_date}"
 
-    def __getattr__(self, name):
-        """
-        Dynamically delegate access methods to the related Course instance,
-        except for staff-specific access logic.
-        """
-        if name in {
-            "student_has_access",
-            "instructor_has_access",
-            "moderator_has_access",
-            "admin_has_access",
-            "superadmin_has_access",
-        }:
-            return getattr(self.course, name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
 
-    def staff_has_access(self, user: User):
-        course_access = self.course.staff_has_access(user)
-
-        is_instance_personnel = self.personnel.filter(pk=user.pk).exists()
-
-        return (course_access[0], is_instance_personnel, course_access[2])
-
-
+# Allowed roles for personnel
 class PersonnelAllowedRoles(models.TextChoices):
     MODERATOR = "moderator", "Moderator"
     STAFF = "staff", "Staff"
@@ -103,26 +52,49 @@ class PersonnelAllowedRoles(models.TextChoices):
 
     @classmethod
     def choices_to_string(cls):
+        """
+        Returns a comma-separated string of allowed role names.
+        """
         return ", ".join([choice[1] for choice in cls.choices])
 
 
+# Through table for personnel-course relationships
 class CoursePersonnel(models.Model):
+    """
+    Represents the relationship between a course instance and its personnel.
+
+    Attributes:
+        course (ForeignKey): The course instance the personnel is assigned to.
+        personnel (ForeignKey): The personnel assigned to the course instance.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(CourseInstance, on_delete=models.CASCADE)
-    personnel = models.ForeignKey("user.User", on_delete=models.CASCADE)
+    personnel = models.ForeignKey("users.User", on_delete=models.CASCADE)
 
     class Meta:
         constraints = [
+            # Ensure unique personnel assignments for each course instance
             models.UniqueConstraint(
                 fields=["course", "personnel"], name="unique_course_personnel"
             )
         ]
 
     def save(self, *args, **kwargs):
-        if self.personnel.role not in PersonnelAllowedRoles.choices:
+        """
+        Validates the personnel's role before saving.
+
+        Raises:
+            ValidationError: If the personnel's role is not in the allowed roles.
+        """
+        if self.personnel.role not in PersonnelAllowedRoles.values:
             raise ValidationError(
-                f"Only users with one of {PersonnelAllowedRoles.choices_to_string()} role can be added to the instructors."
+                f"Only users with one of {PersonnelAllowedRoles.choices_to_string()} roles can be added as personnel."
             )
         super().save(*args, **kwargs)
 
     def __str__(self):
+        """
+        Returns a string representation of the personnel assignment.
+        """
         return f"{self.personnel} - {self.course}"

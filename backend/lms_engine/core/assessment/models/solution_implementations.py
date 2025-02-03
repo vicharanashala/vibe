@@ -1,11 +1,13 @@
+# core/assessment/models/solution_implementations.py
+
 from django.db import models
 from django.forms import ValidationError
-
 from . import  Question, QuestionOption, Solution
 from ..constants import MODEL_DESCRIPTIVE_SOLUTION_MAX_LEN
-
+import uuid
 
 class NATSolution(Solution):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     value = models.FloatField()
     tolerance_max = models.FloatField()
     tolerance_min = models.FloatField()
@@ -34,6 +36,7 @@ class NATSolution(Solution):
         return super().clean()
 
 class DescriptiveSolution(Solution):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     model_solution = models.TextField(max_length=MODEL_DESCRIPTIVE_SOLUTION_MAX_LEN)
     max_word_limit = models.PositiveIntegerField(
         null=True,
@@ -55,12 +58,14 @@ class DescriptiveSolution(Solution):
         super().clean()
 
 class MCQSolution(Solution):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     choice = models.OneToOneField(QuestionOption, on_delete=models.CASCADE, related_name='mcq_solution')
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['question', 'choice'], name='unique_mcq_choice')]
 
 class MSQSolution(Solution):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     choice = models.OneToOneField(QuestionOption, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
 

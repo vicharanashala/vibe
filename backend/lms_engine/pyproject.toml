@@ -1,6 +1,26 @@
-[tool.black]
-extend-exclude = '''
-(
-  .*\/migrations\/.*\.py
-)
-'''
+[tool.poetry]
+name = "calm-lms"
+version = "0.1.0"
+description = ""
+authors = ["Aditya <adityaburgula123@gmail.com>"]
+readme = "README.md"
+packages = [{include = "core"}]  # Ensure Poetry recognizes your app package
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+djangorestframework = ">=3.15.2,<4.0.0"
+firebase-admin = ">=6.6.0,<7.0.0"
+python-decouple = ">=3.8,<4.0"
+django-cors-headers = ">=4.6.0,<5.0.0"
+django-guardian = ">=2.4.0,<3.0.0"
+djangorestframework-guardian2 = ">=0.7.0,<0.8.0"
+uuid = ">=1.30,<2.0"
+
+[tool.poetry.group.dev.dependencies]
+django-extensions = "^3.2.3"
+pydotplus = "^2.0.2"
+drf-spectacular = "^0.28.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

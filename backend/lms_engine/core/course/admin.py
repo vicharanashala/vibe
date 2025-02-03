@@ -5,7 +5,7 @@ from .models import *
 
 
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ("title", "module", "sequence", "created_at", "updated_at")
+    list_display = ("id","title", "module", "sequence", "created_at", "updated_at")
 
 
 class ModuleAdmin(admin.ModelAdmin):
@@ -43,15 +43,19 @@ class CourseAdmin(admin.ModelAdmin):
     get_institutions.short_description = "Institutions"
 
     def get_instructors(self, obj):
-        return ", ".join([instructor.name for instructor in obj.instructors.all()])
+        return ", ".join(
+            [f"{instructor.first_name} {instructor.last_name}" for instructor in obj.instructors.all()]
+        )
 
     get_instructors.short_description = "Instructors"
 
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ("source", "transcript", "section" ,"sequence")
 
 admin.site.register(Course, CourseAdmin)
 admin.site.register(CourseInstance)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Section, SectionAdmin)
-admin.site.register(Video)
+admin.site.register(Video, VideoAdmin)
 admin.site.register(Source)
 admin.site.register(Article)
