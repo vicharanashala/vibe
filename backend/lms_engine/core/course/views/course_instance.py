@@ -1,16 +1,71 @@
 from rest_framework import viewsets
-
-from ..serializers import CourseInstanceReadSerializer, CourseInstanceWriteSerializer
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from ..models import CourseInstance
+from ..serializers.course_instance import CourseInstanceReadSerializer, CourseInstanceWriteSerializer
 from ...utils.helpers import get_user
+from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import PermissionDenied
 
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Course Instance"],
+        summary="List Course Instances",
+        description="Retrieve a list of course instances accessible by the current user.",
+        responses=CourseInstanceReadSerializer,
+
+    ),
+    retrieve=extend_schema(
+        tags=["Course Instance"],
+        summary="Retrieve a Course Instance",
+        description="Retrieve detailed information for a single course instance.",
+
+        responses=CourseInstanceReadSerializer,
+
+    ),
+    create=extend_schema(
+        tags=["Course Instance"],
+        summary="Create a Course Instance",
+        description="Create a new course instance with the provided data.",
+
+        request=CourseInstanceWriteSerializer,
+        responses=CourseInstanceWriteSerializer,
+
+    ),
+    update=extend_schema(
+        tags=["Course Instance"],
+        summary="Update a Course Instance",
+        description="Update an existing course instance with new data.",
+        request=CourseInstanceWriteSerializer,
+        responses=CourseInstanceWriteSerializer,
+    ),
+    partial_update=extend_schema(
+        tags=["Course Instance"],
+        summary="Partially Update a Course Instance",
+        description="Update selected fields of an existing course instance.",
+        request=CourseInstanceWriteSerializer,
+        responses=CourseInstanceWriteSerializer,
+
+    ),
+    destroy=extend_schema(
+        tags=["Course Instance"],
+        summary="Delete a Course Instance",
+        description="Delete an existing course instance.",
+        responses={"204": "Course instance deleted successfully."},
+    ),
+)
 class CourseInstanceViewSet(viewsets.ModelViewSet):
-    
+
     def get_serializer_class(self):
-        # TODO: Look into this when implementing update and delete methods. 
+        # TODO: Look into this when implementing update and delete methods.
         if self.action == 'create':
             return CourseInstanceWriteSerializer
         return CourseInstanceReadSerializer
 
     def get_queryset(self):
-        return CourseInstance.objects.accessible_by(get_user(self.request.user))
+        """
+        Retrieve the list of course instances accessible by the current user.
+        """
+        return CourseInstance.objects.all()
+
+

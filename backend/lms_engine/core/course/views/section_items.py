@@ -1,40 +1,153 @@
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, serializers
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
+
+from ..models import Section, Video, Article, SectionItemInfo, SectionItemType
+
+from rest_framework.response import Response
 from rest_framework.exceptions import NotFound, MethodNotAllowed
-from ..models import Section, Video, Article
-from ..serializers import SectionItemSerializer, VideoSerializer, ArticleSerializer
+from ..models import SectionItemInfo
+from ..serializers import VideoSerializer, ArticleSerializer
+
+from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
+
+from ...assessment.models import Assessment
+from ...assessment.serializers import AssessmentSerializer
 
 
-class SectionItemListView(generics.ListAPIView):
-    serializer_class = SectionItemSerializer
+@extend_schema_view(
 
-    def get_queryset(self):
-        course_id = self.request.query_params.get('course_id')
-        module_id = self.request.query_params.get('module_id')
-        section_id = self.request.query_params.get('section_id')
+    get=extend_schema(
+        tags=['Item'],
+        summary="List all section items",
+        description="Retrieve all section items for a given section ID in ascending order of their sequence.",
+        parameters=[
+            OpenApiParameter(
+                name="section_id",
+                description="ID of the section whose items are to be fetched.",
+                required=True,
+                type=int,
+            )
+        ],
+        responses={200: "List of Section Items"},
+    )
+)
+class SectionItemViewSet(generics.ListAPIView):
+    """
+    API endpoint to list section items based on section ID in ascending order of sequence.
+    """
+    serializer_class = None  # Will dynamically set based on item type.
 
-        if course_id is not None:
-            return Section.objects.filter(module__course__id=course_id)
+    def get(self, request, *args, **kwargs):
+        section_id = request.query_params.get("section_id")
+        if not section_id:
+            return Response(
+                {"detail": "section_id query parameter is required."}, status=400
+            )
 
-        if module_id is not None:
-            return Section.objects.filter(module__id=module_id)
+        # Fetch the section items
+        section_items = SectionItemInfo.objects.filter(section_id=section_id).order_by(
+            "sequence"
+        )
 
-        if section_id is not None:
-            return Section.objects.filter(id=section_id)
+        if not section_items.exists():
+            raise NotFound(f"No items found for section_id={section_id}.")
 
-        raise NotFound("You must specify one of 'course_id', 'module_id', or 'section_id'.")
+        # Prepare the response data
+        data = []
+
+        for item in section_items:
+            if item.item_type == SectionItemType.VIDEO:
+                video = Video.objects.get(id=item.item_id)
+                serializer_data = VideoSerializer(video).data
+                serializer_data["item_type"] = SectionItemType.VIDEO
+            elif item.item_type == SectionItemType.ARTICLE:
+                print(item)
+                article = Article.objects.get(id=item.item_id)
+                serializer_data = ArticleSerializer(article).data
+                serializer_data["item_type"] = SectionItemType.ARTICLE
+            elif item.item_type == SectionItemType.ASSESSMENT:
+                assessment = Assessment.objects.get(id=item.item_id)
+                serializer_data = AssessmentSerializer(assessment).data
+                serializer_data["item_type"] = SectionItemType.ASSESSMENT
+            else:
+                serializer_data = {"detail": f"Unsupported item_type: {item.item_type}"}
+
+            data.append(serializer_data)
+
+        return Response(data, status=200)
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        tags=["Video"],
+        description="Retrieve a specific video by ID.",
+        responses={200: VideoSerializer},
+    ),
+    create=extend_schema(
+        tags=["Video"],
+        description="Create a new video item along with its section item information.",
+        request=VideoSerializer,
+        responses={201: VideoSerializer},
+    ),
+    update=extend_schema(
+        tags=["Video"],
+        description="Update an existing video item.",
+        request=VideoSerializer,
+        responses={200: VideoSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Video"],
+        description="Partially update an existing video item.",
+        request=VideoSerializer,
+        responses={200: VideoSerializer},
+    ),
+    destroy=extend_schema(
+        tags=["Video"],
+        description="Delete a specific video item.",
+        responses={204: None},
+    ),
+)
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
+    #
+    # def list(self, request, *args, **kwargs):
+    #     return MethodNotAllowed(detail="This method is not allowed")
+    #
 
-    def list(self, request, *args, **kwargs):
-        raise MethodNotAllowed("GET", detail="Listing is not allowed for this resource.")
-
-
+@extend_schema_view(
+    retrieve=extend_schema(
+        tags=["Article"],
+        description="Retrieve a specific article by ID.",
+        responses={200: ArticleSerializer},
+    ),
+    create=extend_schema(
+        tags=["Article"],
+        description="Create a new article item along with its section item information.",
+        request=ArticleSerializer,
+        responses={201: ArticleSerializer},
+    ),
+    update=extend_schema(
+        tags=["Article"],
+        description="Update an existing article item.",
+        request=ArticleSerializer,
+        responses={200: ArticleSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Article"],
+        description="Partially update an existing article item.",
+        request=ArticleSerializer,
+        responses={200: ArticleSerializer},
+    ),
+    destroy=extend_schema(
+        tags=["Article"],
+        description="Delete a specific article item.",
+        responses={204: None},
+    ),
+)
 class ArticleViewSet(viewsets.ModelViewSet):
     queryset = Article.objects.all()
     serializer_class = ArticleSerializer
 
-    def list(self, request, *args, **kwargs):
-        raise MethodNotAllowed("GET", detail="Listing is not allowed for this resource.")
+    # def list(self, request, *args, **kwargs):
+    #     return MethodNotAllowed(detail="This method is not allowed")

@@ -1,17 +1,24 @@
+import uuid
+
 from django.db import models
 
-from ...auth.permissions import ModelPermissionsMixin
 from ...utils.models import TimestampMixin
 from . import Module
 from .. import constants as ct
 
 
-class SectionManager(models.Manager):
-    def accessible_by(self, user):
-        return self.filter(module__in=Module.objects.accessible_by(user))
+# Section model
+class Section(TimestampMixin, models.Model):
+    """
+    Represents a section within a module.
 
-
-class Section(TimestampMixin, ModelPermissionsMixin, models.Model):
+    Attributes:
+        module (ForeignKey): The module this section belongs to.
+        title (str): The title of the section.
+        description (str): A detailed description of the section.
+        sequence (int): The order of the section within the module.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     module = models.ForeignKey(
         Module, on_delete=models.CASCADE, related_name="sections"
     )
@@ -21,31 +28,17 @@ class Section(TimestampMixin, ModelPermissionsMixin, models.Model):
         help_text="The order of this section within the module."
     )
 
-    objects: SectionManager = SectionManager()
-
     class Meta:
         constraints = [
+            # Ensure that each section within a module has a unique sequence number
             models.UniqueConstraint(
                 fields=["module", "sequence"], name="section_sequence_in_module"
             )
         ]
-        ordering = ["sequence"]  # Default order by sequence
+        ordering = ["sequence"]  # Default ordering by sequence
 
     def __str__(self):
+        """
+        Returns a string representation of the section, including its sequence and module.
+        """
         return f"Section {self.sequence}: {self.title} (Module {self.module.sequence})"
-
-    def __getattr__(self, name):
-        """
-        Delegate permission checks to the related module object.
-        """
-        if name.endswith("_has_access"):
-            return getattr(self.module, name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-    def admin_has_access(self, user):
-        """
-        Define access rules for admins.
-        """
-        # Allow admins to read, write, and delete modules.
-        return (True, True, False)

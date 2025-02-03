@@ -55,7 +55,7 @@ class QuestionAdmin(admin.ModelAdmin):
             
 
 class AssessmentAdmin(admin.ModelAdmin):
-    list_display = ('title', 'created_at', 'updated_at')
+    list_display = ('title', "section", "sequence" ,'created_at', 'updated_at')
     search_fields = ('title',)
     list_filter = ('created_at',)
     ordering = ('created_at',)
