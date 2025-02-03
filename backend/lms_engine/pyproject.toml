@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Aditya <adityaburgula123@gmail.com>"]
 readme = "README.md"
-packages = [{include = "core"}]  # Ensure Poetry recognizes your app package
+package-mode=false
 
 [tool.poetry.dependencies]
 python = ">=3.10"
@@ -15,6 +15,8 @@ django-cors-headers = ">=4.6.0,<5.0.0"
 django-guardian = ">=2.4.0,<3.0.0"
 djangorestframework-guardian2 = ">=0.7.0,<0.8.0"
 uuid = ">=1.30,<2.0"
+gunicorn = "^23.0.0"
+python-dotenv = "^1.0.1"
 
 [tool.poetry.group.dev.dependencies]
 django-extensions = "^3.2.3"

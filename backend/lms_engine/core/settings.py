@@ -10,8 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
+
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv('.env')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,14 +29,19 @@ if not os.path.exists(LOG_DIR):
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bx)!$s-b%g@l96_e)zbsce*@db8rlw%7mvj+(za%@5loa_e&ln'
+# SECRET_KEY = 'django-insecure-bx)!$s-b%g@l96_e)zbsce*@db8rlw%7mvj+(za%@5loa_e&ln'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = bool(os.getenv("DEBUG", default=0))
 
-ALLOWED_HOSTS = ['*']
-
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1").split(",")
+CSRF_TRUSTED_ORIGINS = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "https://127.0.0.1").split(",")
 CORS_ORIGIN_ALLOW_ALL = True
+
+
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Application definition
 
@@ -95,8 +104,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.{}'.format(os.getenv('DATABASE_ENGINE','sqlite3')),
+        'NAME': os.getenv('DATABSE_NAME','lms_db'),
+        'USER':  os.getenv('DATABASE_USER','lms_db_user'),
+        'PASSWORD':  os.getenv('DATABASE_PASSWORD','user1234'),
+        'HOST':  os.getenv('HOST','127.0.0.1'),
+        'PORT':  os.getenv('PORT','5432')
     }
 }
 

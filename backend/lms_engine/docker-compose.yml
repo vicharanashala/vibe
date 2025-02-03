@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  lms_engine:
+    build: .
+    container_name: lms_engine
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./static:/app/staticfiles  # Ensure static files persist
+
+  frontend-proxy:
+    image: nginx:latest
+    ports:
+      - "8001:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/static:ro
+    depends_on:
+      - lms_engine 
+
