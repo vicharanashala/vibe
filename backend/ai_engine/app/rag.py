@@ -8,20 +8,26 @@ from typing import Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 import faiss
 from langchain_community.docstore.in_memory import InMemoryDocstore
-import os
 import time
 import hashlib
 import asyncio
 import aiofiles
 from concurrent.futures import ThreadPoolExecutor
-import atexit
 from contextlib import asynccontextmanager
 from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from dotenv import load_dotenv
+import os
 
 app = APIRouter()
+
+# Load environment variables from .env
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
+print("API KEYYYY from rag:", API_KEY)
 
 # --------------------------
 # IMPROVED LOCK MECHANISM
@@ -235,7 +241,7 @@ async def startup_event():
     
     model = ChatGoogleGenerativeAI(
         model="gemini-1.5-flash",
-        google_api_key="AIzaSyAjI4HOAixcI-fXpova-lXq0anCbhZi_Dc"
+        google_api_key=API_KEY
     )
     
     vector_store_manager = VectorStoreManager("faiss_index", embeddings)

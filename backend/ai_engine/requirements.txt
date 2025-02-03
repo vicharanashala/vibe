@@ -35,3 +35,4 @@ youtube-transcript-api==0.6.3
 python-multipart
 filelock
 aiofiles
+python-dotenv

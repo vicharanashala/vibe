@@ -19,11 +19,19 @@ import ffmpeg
 import asyncio
 import aiofiles
 import aiofiles.os
+from dotenv import load_dotenv
 
 # Initialize FastAPI application
 app = FastAPI()
+
+# Load environment variables from .env
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
+
 whisper_model = whisper.load_model("base")
-os.environ["PATH"] += os.pathsep + r"C:\\ffmpeg\\bin" # Configure FFMPEG locally
+os.environ["PATH"] += os.pathsep + os.getenv("FFMPEG_PATH") # Configure FFMPEG locally
+
+print("API KEYYYY from models:", API_KEY)
 
 
 async def generate_from_gemini(prompt: str, user_api_key: str) -> str:
@@ -38,7 +46,7 @@ async def generate_from_gemini(prompt: str, user_api_key: str) -> str:
         str: The generated text response from the Gemini model.
     """
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-    genai.configure(api_key="AIzaSyAjI4HOAixcI-fXpova-lXq0anCbhZi_Dc")
+    genai.configure(api_key=API_KEY)
     response = await asyncio.to_thread(model.generate_content, prompt)
     await asyncio.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
