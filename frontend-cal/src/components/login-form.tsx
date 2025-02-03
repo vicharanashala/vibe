@@ -12,7 +12,7 @@
  * - Includes a "Forgot your password?" button (logic for it can be added later).
  * - A Google login button is available for users to log in via their Google account.
  * - A "Sign up" link redirects users to a sign-up form if they don't have an account.
- * - After successful login, user data is stored in Redux, and the user is redirected to the `/allCourses` page.
+ * - After successful login, user data is stored in Redux, and the user is redirected to the `/course-view` page.
  * 
  * Props:
  * - `className`: A string that can be passed to customize the form's CSS classes.
@@ -73,7 +73,7 @@ export function LoginForm({
       // Update Redux store with user data
       dispatch(setUser(response))
       // Redirect to courses page on success
-      navigate('/allCourses')
+      navigate('/course-view')
     } catch (err) {
       console.error('Login failed:', err)
     }

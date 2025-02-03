@@ -54,7 +54,7 @@ The Layout is further divided into **three parts**:
 This section contains the following items:  
 1. **Dashboard**  
    - Displays the progress of the student and course details.  
-   - **Location:** `frontend-cal\src\pages\Students\StudentHome.tsx`
+   - **Location:** `frontend-cal\src\pages\Students\StudentDashboard.tsx`
 2. **Courses**
 3. **Assignments**
 4. **Announcements**
@@ -103,12 +103,58 @@ The **Proctoring-components** directory contains all the files related to procto
 
 Below is a summary of the file locations for quick reference:
 
-| **Component**          | **Location**                                     |
+| **Resources**          | **Location**                                     |
 |-------------------------|-------------------------------------------------|
-| Sidebar Left            | `\frontend-cal\src\components\sidebar-left.tsx`|
-| Dashboard               | `\frontend-cal\src\pages\Students\StudentHome.tsx`|
-| Navbar (Mode Toggle)    | `\frontend-cal\src\components\mode-toggle.tsx`  |
-| Proctoring Components   | `\frontend-cal\src\components\proctoring-components`        |
+| components          | `\frontend-cal\src\components`|
+|                    | ├── login-form|
+|                    | ├── mode-toggle|
+|                    | ├── sidebar-left|
+|                    | ├── sidebar-right|
+|                    | ├── signup-form|
+|                    | ├── login-form|
+|                    | ├── logout|
+|                    | ├── mode-toggle|
+|                    | ├── proctoring-components|
+|                    | │   ├── BlurDetection.tsx|
+|                    | │   ├── ParentComponent.tsx|
+|                    | │   ├── FaceDetection.tsx|
+|                    | │   ├── FullScreenDetection.tsx|
+|                    | │   ├── KeyboardDetection.tsx|
+|                    | │   ├── MouseDetection.tsx|
+|                    | │   ├── TabSwitchDetection.tsx|
+|                    | │   └── WindowResizeDetection.tsx|
+|                    | └── ui|
+|                    |     ├── breadcrumb.tsx|
+|                    |     ├── button.tsx|
+|                    |     ├── card.tsx|
+|                    |     ├── dialog.tsx|
+|                    |     ├── dropdown-menu.tsx|
+|                    |     ├── form.tsx|
+|                    |     ├── input.tsx|
+|                    |     ├── label.tsx|
+|                    |     ├── separator.tsx|
+|                    |     ├── sidebar.tsx|
+|                    |     ├── sonner.tsx|
+|                    |     └── theme-provider.tsx|
+| pages              | `\frontend-cal\src\pages`|
+|                    | ├── Home.tsx|
+|                    | ├── LoginPage.tsx|
+|                    | └── Students|
+|                    |     ├── ContentScrollView.tsx|
+|                    |     ├── CourseView.tsx|
+|                    |     ├── ModuleView.tsx|
+|                    |     ├── SectionDetail.tsx|
+|                    |     ├── SectionView.tsx|
+|                    |     └── StudentDashboard.tsx|
+| routes             | `\frontend-cal\src\routes`|
+|                    | └── index.ts|
+| store              | `\frontend-cal\src\store`|
+|                    | ├── Slices|
+|                    | ├── apiService.ts|
+|                    | └── store.ts|
+| App.tsx            | `\frontend-cal\src\App.tsx`|
+| index.tsx          | `\frontend-cal\src\index.tsx`|
+| main.tsx           | `\frontend-cal\src\main.tsx`|
 
 ---
 

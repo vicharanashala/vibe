@@ -1,6 +1,6 @@
 /**
- * StudentHome Page
- * 
+ * Student Dashboard Page
+ *
  * This page serves as the main dashboard for students, displaying an overview of their courses
  * and learning progress. It shows key metrics and two main tables for course management.
  *
@@ -34,10 +34,15 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  useFetchCoursesWithAuthQuery,
+  useFetchModulesWithAuthQuery,
+} from '@/store/apiService'
 import { BookOpen, Clock, Award, TrendingUp } from 'lucide-react'
 import { useState } from 'react'
 
 // Mock data for available courses
+
 const courses = [
   { id: 1, name: 'Introduction to AI', duration: '6 weeks' },
   { id: 2, name: 'Data Science Basics', duration: '8 weeks' },
@@ -65,16 +70,18 @@ const ongoingCourses = [
   { id: 110, name: 'Agile Methodologies', progression: '55%' },
 ]
 
-const StudentHome = () => {
+const StudentDashboard = () => {
   // State for controlling table expansion
   const [showAllCourses, setShowAllCourses] = useState(false)
   const [showAllOngoing, setShowAllOngoing] = useState(false)
 
+  const {data : newCourses} = useFetchCoursesWithAuthQuery()
+  const CourseData = newCourses?.results
+  console.log(CourseData)
+
   // Limit displayed courses based on show all state
-  const displayedCourses = showAllCourses ? courses : courses.slice(0, 5)
-  const displayedOngoing = showAllOngoing
-    ? ongoingCourses
-    : ongoingCourses.slice(0, 5)
+  const displayedCourses = showAllCourses ? CourseData : CourseData?.slice(0, 5)
+  const displayedOngoing = showAllCourses ? CourseData : CourseData?.slice(0, 5)
 
   return (
     <div className='h-full'>
@@ -86,7 +93,7 @@ const StudentHome = () => {
             <BookOpen className='size-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{courses.length}</div>
+            <div className='text-2xl font-bold'>{CourseData.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -97,7 +104,7 @@ const StudentHome = () => {
             <Clock className='size-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{ongoingCourses.length}</div>
+            <div className='text-2xl font-bold'>{CourseData.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -156,16 +163,16 @@ const StudentHome = () => {
                 <TableRow>
                   <TableHead className='w-[100px]'>ID</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead className='text-right'>Duration</TableHead>
+                  <TableHead className='text-right'>Created At</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayedCourses.map((course) => (
-                  <TableRow key={course.id}>
-                    <TableCell className='font-medium'>{course.id}</TableCell>
+                {displayedCourses?.map((course) => (
+                  <TableRow key={course.course_id}>
+                    <TableCell className='font-medium'>{course.course_id}</TableCell>
                     <TableCell>{course.name}</TableCell>
                     <TableCell className='text-right'>
-                      {course.duration}
+                        {new Date(course.created_at).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -216,4 +223,4 @@ const StudentHome = () => {
   )
 }
 
-export default StudentHome
+export default StudentDashboard

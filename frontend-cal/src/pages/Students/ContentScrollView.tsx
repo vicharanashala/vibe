@@ -1,5 +1,5 @@
 /**
- * VideoMain Page
+ * Content Scroll View Page
  *
  * This page implements a video player interface with assessment capabilities for students.
  * It allows students to watch educational videos and take assessments in an integrated learning experience.
@@ -31,9 +31,6 @@ import {
 import { Cookie, Fullscreen, Pause, Play } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 
-//This the dummy Data used for testing the questions funtionality it provides all the questions according to the exact format
-import { questions } from '../DummyDatas/Questions'
-
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -44,12 +41,12 @@ import RightClickDisabler from '@/components/proctoring-components/RightClickDis
 //These are the imports comming from redux using RTK for fetching and posting the data to the backend
 import {
   useFetchItemsWithAuthQuery,
-  useFetchSolutionWithAuthQuery,
   useStartAssessmentMutation,
   useSubmitAssessmentMutation,
   useUpdateSectionItemProgressMutation,
 } from '@/store/apiService'
 import { useFetchQuestionsWithAuthQuery } from '@/store/apiService'
+import { Progress } from '@/components/ui/progress'
 
 import Cookies from 'js-cookie'
 
@@ -84,14 +81,14 @@ interface PlayerState {
   playbackSpeed: number
 }
 
-const VideoMain = () => {
+const ContentScrollView = () => {
   const location = useLocation()
   const [responseData, setResponseData] = useState<string | null>(null)
   const playerIntervalRef = useRef<number | null>(null)
   const playerRef = useRef<YT.Player | null>(null)
 
   // This is the data which is stored in the local State when the user goes from one page to another using routing
-  const assignment = location.state?.assignment
+  const assignment = location.state?.assignment || {}
   const sectionId = location.state?.sectionId
   const courseId = location.state?.courseId
   const moduleId = location.state?.moduleId
@@ -100,7 +97,10 @@ const VideoMain = () => {
   const { setOpen } = useSidebar()
   setOpen(false)
 
-  const [currentFrame, setCurrentFrame] = useState(assignment.sequence - 1)
+  // Initialize currentFrame with a default value if assignment.sequence is undefined
+  const [currentFrame, setCurrentFrame] = useState(
+    assignment?.sequence ? assignment.sequence - 1 : 0
+  )
   const [isPlaying, setIsPlaying] = useState(false)
 
   // Assessment State Management
@@ -115,6 +115,7 @@ const VideoMain = () => {
   const [assessmentId, setAssessmentId] = useState(1)
   const [startAssessment] = useStartAssessmentMutation()
   const [submitAssessment] = useSubmitAssessmentMutation()
+  const [updateSectionItemProgress] = useUpdateSectionItemProgressMutation()
   const [gradingData, setGradingData] = useState<boolean | null>(null)
   const [isPlayerReady, setIsPlayerReady] = useState(false)
   const [ytApiReady, setYtApiReady] = useState(false)
@@ -122,6 +123,7 @@ const VideoMain = () => {
   //Responsible for fetching Items using RTK Query
   const { data: assignmentsData } = useFetchItemsWithAuthQuery(sectionId)
   const content = assignmentsData || []
+  const contentLength = content.length
 
   //Responsible for fetching the questions using RTK Query
   const { data: assessmentData } = useFetchQuestionsWithAuthQuery(assessmentId)
@@ -376,6 +378,49 @@ const VideoMain = () => {
             setCurrentTime(0)
             setIsPlaying(false)
             fetchAssessment(currentFrame)
+            console.log(
+              'Hello',
+              content[currentFrame].id,
+              content[currentFrame - 1].id
+            )
+
+            console.log(
+              'Hello',
+              content[currentFrame].item_type,
+              content[currentFrame - 1].item_type
+            )
+
+            let alpha = 'v'
+            let beta = 'a'
+            if (content[currentFrame].item_type === 'video') {
+              alpha = 'v'
+            } else {
+              alpha = 'a'
+            }
+
+            if (content[currentFrame - 1].item_type === 'assessment') {
+              beta = 'a'
+            } else {
+              beta = 'v'
+            }
+            const sectionItemId1 = `${beta}${content[currentFrame - 1].id}`
+            const sectionItemId2 = `${alpha}${content[currentFrame].id}`
+
+            updateSectionItemProgress({
+              courseInstanceId: courseId,
+              sectionItemId: [sectionItemId1, sectionItemId2],
+              cascade: true,
+            })
+              .then((response) => {
+                if (response.data) {
+                  console.log('Progress updated successfully!')
+                } else {
+                  console.error('Failed to update progress.')
+                }
+              })
+              .catch((error) => {
+                console.error('Failed to update progress.', error)
+              })
           }
           toast('Assessment Submitted successfully!', { type: 'success' })
         }
@@ -585,104 +630,133 @@ const VideoMain = () => {
 
   return (
     //These are the resizable panels with can be resized by dragging the resizable handle
-    <ResizablePanelGroup direction='vertical' className='bg-gray-200 p-2'>
-      {/* Proctoring components */}
-      <KeyboardLock />
-      <RightClickDisabler />
+    <ResizablePanelGroup direction='horizontal'>
+      <ResizablePanel defaultSize={95} className='z-10'>
+        <ResizablePanelGroup direction='vertical' className='bg-gray-200 p-2'>
+          {/* Proctoring components */}
+          <KeyboardLock />
+          <RightClickDisabler />
 
-      {/* Main content panel - 90% height */}
-      <ResizablePanel defaultSize={90}>
-        <div className='flex h-full flex-col'>
-          <div className='relative h-full overflow-hidden'>
-            <div
-              className='absolute size-full transition-transform duration-300'
-              style={{ transform: `translateY(-${currentFrame * 100}%)` }}
-            >
-              {/* Map through content frames and render based on type */}
-              {content.map((frame, index) => (
+          {/* Main content panel - 90% height */}
+          <ResizablePanel defaultSize={90}>
+            <div className='flex h-full flex-col'>
+              <div className='relative h-full overflow-hidden'>
                 <div
-                  key={index}
-                  className='flex size-full h-full flex-col items-center justify-center'
+                  className='absolute size-full transition-transform duration-300'
+                  style={{ transform: `translateY(-${currentFrame * 100}%)` }}
                 >
-                  {renderdataByType(frame, index)}
+                  {/* Map through content frames and render based on type */}
+                  {content.map((frame, index) => (
+                    <div
+                      key={index}
+                      className='flex size-full h-full flex-col items-center justify-center'
+                    >
+                      {renderdataByType(frame, index)}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </div>
+          </ResizablePanel>
+
+          {/* Resizable handle between panels */}
+          <ResizableHandle className='p-1' />
+
+          {/* Controls panel - 10% height */}
+          <ResizablePanel defaultSize={10} className=''>
+            <div className='controls-container flex w-full justify-center'>
+              <div className='w-full border border-white bg-white shadow'>
+                <div className='flex items-center justify-between'>
+                  {/* Left section: Play/Pause, Next, Time slider, Volume */}
+                  <div className='flex w-1/2 items-center justify-between'>
+                    <button
+                      onClick={togglePlayPause}
+                      className='rounded-full p-2 text-2xl'
+                      disabled={!isPlayerReady}
+                    >
+                      {isPlaying ? <Pause /> : <Play />}
+                    </button>
+                    <Slider
+                      value={[currentTime]}
+                      onValueChange={(value) => {
+                        const newTime = value[0]
+                        if (newTime <= currentTime) {
+                          handleTimeChange(value)
+                        }
+                      }}
+                      min={content[currentFrame]?.start_time || 0}
+                      max={content[currentFrame]?.end_time || totalDuration}
+                      step={1}
+                      className='w-48'
+                      disabled={!isPlayerReady}
+                    />
+                    <div className='ml-6 flex items-center'>
+                      <label
+                        htmlFor='volume'
+                        className='mr-2 text-sm font-medium'
+                      >
+                        Volume:
+                      </label>
+                      <Slider
+                        value={[volume]}
+                        onValueChange={handleVolumeChange}
+                        min={0}
+                        max={100}
+                        step={1}
+                        className='w-24'
+                        disabled={!isPlayerReady}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Center section: Playback speed controls */}
+                  <div className='flex items-center'>
+                    {[0.5, 1, 1.5, 2].map((speed) => (
+                      <button
+                        key={speed}
+                        className={`mx-1 rounded-full px-3 py-1 text-sm ${
+                          playbackSpeed === speed ? 'bg-gray-500' : ''
+                        }`}
+                        onClick={() => {
+                          setPlaybackSpeed(speed)
+                          changePlaybackSpeed(speed)
+                        }}
+                        disabled={!isPlayerReady}
+                      >
+                        {speed}x
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Right section: Fullscreen toggle */}
+                  <div>
+                    <button
+                      onClick={toggleFullscreen}
+                      className='rounded-full p-2 text-xl'
+                    >
+                      <Fullscreen />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </ResizablePanel>
-
-      {/* Resizable handle between panels */}
       <ResizableHandle className='p-1' />
-
-      {/* Controls panel - 10% height */}
-      <ResizablePanel defaultSize={10} className=''>
-        <div className='controls-container flex w-full justify-center'>
-          <div className='w-full border border-white bg-white shadow'>
-            <div className='flex items-center justify-between'>
-              {/* Left section: Play/Pause, Next, Time slider, Volume */}
-              <div className='flex w-1/2 items-center justify-between'>
-                <button
-                  onClick={togglePlayPause}
-                  className='rounded-full p-2 text-2xl'
-                  disabled={!isPlayerReady}
-                >
-                  {isPlaying ? <Pause /> : <Play />}
-                </button>
-                <Slider
-                  value={[currentTime]}
-                  onValueChange={handleTimeChange}
-                  min={content[currentFrame]?.start_time || 0}
-                  max={content[currentFrame]?.end_time || totalDuration}
-                  step={1}
-                  className='w-48'
-                  disabled={!isPlayerReady}
-                />
-                <div className='ml-6 flex items-center'>
-                  <label htmlFor='volume' className='mr-2 text-sm font-medium'>
-                    Volume:
-                  </label>
-                  <Slider
-                    value={[volume]}
-                    onValueChange={handleVolumeChange}
-                    min={0}
-                    max={100}
-                    step={1}
-                    className='w-24'
-                    disabled={!isPlayerReady}
-                  />
-                </div>
-              </div>
-
-              {/* Center section: Playback speed controls */}
-              <div className='flex items-center'>
-                {[0.5, 1, 1.5, 2].map((speed) => (
-                  <button
-                    key={speed}
-                    className={`mx-1 rounded-full px-3 py-1 text-sm ${
-                      playbackSpeed === speed ? 'bg-gray-500' : ''
-                    }`}
-                    onClick={() => {
-                      setPlaybackSpeed(speed)
-                      changePlaybackSpeed(speed)
-                    }}
-                    disabled={!isPlayerReady}
-                  >
-                    {speed}x
-                  </button>
-                ))}
-              </div>
-
-              {/* Right section: Fullscreen toggle */}
-              <div>
-                <button
-                  onClick={toggleFullscreen}
-                  className='rounded-full p-2 text-xl'
-                >
-                  <Fullscreen />
-                </button>
-              </div>
-            </div>
+      <ResizablePanel defaultSize={5} className='z-20'>
+        <div className='h-full w-full flex flex-col items-center justify-center bg-gray-100 p-2'>
+        <h4 className='mb-4 text-center text-sm font-semibold'>Progress</h4>
+          <span className='text-sm mb-4'>
+            {Math.round(((currentFrame + 1) / content.length) * 100)}%
+          </span>
+          <div className='relative h-full w-4 rounded-xl bg-gray-300'>
+            <div
+              className='absolute left-0 w-full bg-black rounded-xl'
+              style={{
+                height: `${((currentFrame + 1) / content.length) * 100}%`,
+              }}
+            ></div>
           </div>
         </div>
       </ResizablePanel>
@@ -690,4 +764,4 @@ const VideoMain = () => {
   )
 }
 
-export default VideoMain
+export default ContentScrollView

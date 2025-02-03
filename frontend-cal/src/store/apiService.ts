@@ -83,7 +83,7 @@ export const apiService = createApi({
         url: '/auth/logout/',
         method: 'POST',
         body: {
-          "token" : Cookies.get('access_token')
+          token: Cookies.get('access_token'),
         },
         headers: {
           Authorization: `Bearer ${Cookies.get('access_token')}`,
@@ -241,27 +241,6 @@ export const apiService = createApi({
         },
       }),
     }),
-
-    // Progress tracking endpoints
-    updateSectionItemProgress: builder.mutation<
-      void,
-      {
-        courseInstanceId: string
-        studentId: string
-        sectionItemId: string
-        cascade: true
-      }
-    >({
-      query: (progressData) => ({
-        url: '/course-progress/update-section-item-progress',
-        method: 'POST',
-        body: progressData,
-        headers: {
-          Authorization: `Bearer ${Cookies.get('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-    }),
   }),
 })
 
@@ -280,7 +259,6 @@ export const {
   useFetchModulesWithAuthQuery,
   useFetchSectionsWithAuthQuery,
   useFetchQuestionsWithAuthQuery,
-  useUpdateSectionItemProgressMutation,
 } = apiService
 
 const ANOTHER_API_URL = ACTIVITY_URL // Replace with your new API base URL
@@ -327,7 +305,7 @@ export const anotherApiService = createApi({
         courseId: number
         attemptId: number
         answers: string
-        questionId:number
+        questionId: number
       }
     >({
       query: (submissionData) => ({
@@ -343,9 +321,110 @@ export const anotherApiService = createApi({
         },
       }),
     }),
+    // Progress tracking endpoints
+    updateSectionItemProgress: builder.mutation<
+      void,
+      {
+        courseInstanceId: string
+        sectionItemId: string[]
+        cascade: boolean
+      }
+    >({
+      query: (progressData) => ({
+        url: '/course-progress/update-section-item-progress',
+        method: 'POST',
+        body: {
+          ...progressData,
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+    }),
+
+    fetchCourseProgress: builder.query<
+      { progress: any },
+      { courseInstanceId: string }
+    >({
+      query: ({ courseInstanceId }) => ({
+        url: `/course-progress/course`,
+        method: 'GET',
+        params: {
+          courseInstanceId,
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+        },
+      }),
+    }),
+
+    fetchModuleProgress: builder.query<
+      { progress: any },
+      { courseInstanceId: string; moduleId: string }
+    >({
+      query: ({ courseInstanceId, moduleId }) => ({
+        url: `/course-progress/module`,
+        method: 'GET',
+        params: {
+          courseInstanceId,
+          moduleId,
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+        },
+      }),
+    }),
+
+    fetchSectionProgress: builder.query<
+      { progress: any },
+      { courseInstanceId: string; sectionId: string }
+    >({
+      query: ({ courseInstanceId, sectionId }) => ({
+        url: `/course-progress/section`,
+        method: 'GET',
+        params: {
+          courseInstanceId,
+          sectionId,
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+        },
+      }),
+    }),
+
+    fetchSectionItemsProgress: builder.query<
+      { progress: any },
+      { courseInstanceId: string; sectionItemId: string }
+    >({
+      query: ({ courseInstanceId, sectionItemId }) => ({
+        url: `/course-progress/section-item
+`,
+        method: 'GET',
+        params: {
+          courseInstanceId,
+          sectionItemId,
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+        },
+      }),
+    }),
   }),
 })
 
 // Export hooks for assessment endpoints
-export const { useStartAssessmentMutation, useSubmitAssessmentMutation } =
-  anotherApiService
+export const {
+  useStartAssessmentMutation,
+  useSubmitAssessmentMutation,
+  useUpdateSectionItemProgressMutation,
+  useFetchCourseProgressQuery,
+  useFetchModuleProgressQuery,
+  useFetchSectionProgressQuery,
+  useFetchSectionItemsProgressQuery,
+} = anotherApiService

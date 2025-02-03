@@ -1,5 +1,5 @@
 /**
- * Section Page
+ * Section Detail Page
  *
  * This page displays the content items within a specific section of a course module.
  * It shows a list of content items like videos and assessments with their details
@@ -21,8 +21,9 @@
 
 import React from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useFetchItemsWithAuthQuery } from '@/store/apiService'
+import { useFetchItemsWithAuthQuery, useFetchSectionItemsProgressQuery } from '@/store/apiService'
 import { Button } from '@/components/ui/button'
+import { Check, Lock } from 'lucide-react'
 
 // Tailwind classes for different status badges
 const statusClasses = {
@@ -50,6 +51,24 @@ const StatusBadge = ({ status }) => (
 const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
   const navigate = useNavigate()
   console.log('courseId:', courseId, moduleId)
+  let alpha = 'v'
+  if(assignment.item_type === 'video') {
+    alpha = 'v'
+  }else{
+    alpha = 'a'
+  }
+  const sectionItemId1 = `${alpha}${assignment.id}`
+
+  const { data: progressData, isLoading, isError } = useFetchSectionItemsProgressQuery({
+    courseInstanceId: courseId, // Ensure this is the correct ID needed for your API
+    sectionItemId: sectionItemId1
+  });
+
+  const displayStatus = () => {
+    if (isLoading) return "Loading...";
+    if (isError) return "Error";
+    return progressData?.progress || "Unknown";
+  };
 
   return (
     <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4'>
@@ -58,19 +77,23 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
         <div className='text-gray-600'>{assignment.course}</div>
       </div>
       <div className='flex items-center justify-between'>
-        <span>{assignment.item_type}</span>
-        <StatusBadge status={assignment.status} />
-        <span>
-          {assignment.item_type === 'video' && assignment.id === 1 && (
+        <span className='w-12 '>{assignment.item_type}</span>
+        <span className=''><StatusBadge status={displayStatus()}  /></span>
+        <span className='w-14 flex justify-center'>
+          {assignment.item_type === 'video' && progressData?.progress === 'IN_PROGRESS' ? (
             <Button
               onClick={() =>
-                navigate('/videoMain', {
+                navigate('/content-scroll-view', {
                   state: { assignment, sectionId, courseId, moduleId },
                 })
               }
             >
               Start
             </Button>
+          ) : progressData?.progress === 'COMPLETE' ? (
+            <Check />
+          ) : (
+            <Lock />
           )}
         </span>
       </div>
@@ -82,7 +105,7 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
  * Main Section Component
  * Manages fetching content items and rendering the complete section view
  */
-const Section = () => {
+const SectionDetails = () => {
   const { sectionId } = useParams()
   const location = useLocation()
   const courseId = location.state?.courseId // Access the sectionId from state
@@ -109,7 +132,7 @@ const Section = () => {
             <div className='flex justify-between'>
               <span>Type</span>
               <span>Status</span>
-              <span>Action</span>
+              <span className='mr-8'>Action</span>
             </div>
           </div>
           <div className='max-h-96 space-y-2 overflow-y-auto'>
@@ -129,4 +152,4 @@ const Section = () => {
   )
 }
 
-export default Section
+export default SectionDetails

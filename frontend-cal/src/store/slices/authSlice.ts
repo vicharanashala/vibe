@@ -17,22 +17,22 @@
  * - isAuthenticated: Boolean flag indicating auth status
  */
 
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { apiService, AuthResponse } from '../apiService'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { apiService, AuthResponse } from '../apiService';
 
 // Type definition for authentication state
 interface AuthState {
-  user: { role: string; email: string; name: string } | null
-  token: string | null
-  isAuthenticated: boolean
+  user: { role: string; email: string; name: string } | null;
+  token: string | null;
+  isLoggedIn: boolean;
 }
 
 // Initial state with no user authenticated
 const initialState: AuthState = {
   user: null,
   token: null,
-  isAuthenticated: false,
-}
+  isLoggedIn: false,  // Ensure this is synced with actual authentication status
+};
 
 const authSlice = createSlice({
   name: 'auth',
@@ -40,16 +40,16 @@ const authSlice = createSlice({
   reducers: {
     // Action to clear auth state on logout
     logoutState: (state) => {
-      state.user = null
-      state.token = null
-      state.isAuthenticated = false
+      state.user = null;
+      state.token = null;
+      state.isLoggedIn = false;
     },
     // Action to set user data on manual login
     setUser: (state, action: PayloadAction<AuthResponse>) => {
-      const { role, email, full_name, access_token } = action.payload
-      state.user = { role, email, name: full_name }
-      state.token = access_token
-      state.isAuthenticated = true
+      const { role, email, full_name, access_token } = action.payload;
+      state.user = { role, email, name: full_name };
+      state.token = access_token;
+      state.isLoggedIn = true; // Set to true on successful login
     },
   },
   // Handle automated state updates from API endpoints
@@ -63,9 +63,10 @@ const authSlice = createSlice({
             role: payload.role,
             email: payload.email,
             name: payload.full_name,
-          }
-          state.token = payload.access_token
-          state.isAuthenticated = true
+          };
+          state.token = payload.access_token;
+          state.isLoggedIn = true; // Ensure this is set to true
+          console.log("payload",state.isLoggedIn);
         }
       )
       // Update state on successful signup
@@ -76,19 +77,20 @@ const authSlice = createSlice({
             role: payload.role,
             email: payload.email,
             name: payload.full_name,
-          }
-          state.token = payload.access_token
-          state.isAuthenticated = true
+          };
+          state.token = payload.access_token;
+          state.isLoggedIn = true; // This was incorrect in your code snippet
         }
       )
       // Clear state on successful logout
       .addMatcher(apiService.endpoints.logout.matchFulfilled, (state) => {
-        state.user = null
-        state.token = null
-        state.isAuthenticated = false
-      })
+        state.user = null;
+        state.token = null;
+        state.isLoggedIn = false; // Ensure this is set to false
+        console.log("payload",state.isLoggedIn);
+      });
   },
-})
+});
 
-export const { setUser, logoutState } = authSlice.actions
-export default authSlice.reducer
+export const { setUser, logoutState } = authSlice.actions;
+export default authSlice.reducer;

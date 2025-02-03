@@ -2,24 +2,14 @@ import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import App from '../App'
 import Home from '../pages/Home'
-import About from '../pages/About'
 import LoginPage from '../pages/LoginPage'
-import AdminHome from '@/pages/Admins/AdminHome'
-import SuperHome from '@/pages/Admins/SuperHome'
-import Admins from '@/pages/Admins/Admins'
-import Courses from '@/pages/Students/Courses'
-import DummyForm from '@/pages/Students/DummyForm'
-import StudentHome from '@/pages/Students/StudentHome'
-import AllCourses from '@/pages/Students/AllCourses'
-import Assignments from '@/pages/Students/Assignments'
-import Testing from '@/pages/Students/Testing'
-import SingleCourse from '@/pages/Students/SingleCourse'
-import VideoAssessment from '@/pages/Students/VideoAssessment'
-import LatestTest from '@/pages/Students/LatestTest'
-import VideoPlaylistAssessment from '@/pages/Students/VideoPlaylistAssessment'
-import VideoMain from '@/pages/Students/VideoMain'
-import Section from '@/pages/Students/Section'
-import AllSections from '@/pages/Students/AllSections'
+import StudentDashboard from '@/pages/Students/StudentDashboard'
+import CourseView from '@/pages/Students/CourseView'
+import ModuleView from '@/pages/Students/ModuleView'
+import ContentScrollView from '@/pages/Students/ContentScrollView'
+import SectionDetails from '@/pages/Students/SectionDetail'
+import SectionView from '@/pages/Students/SectionView'
+import AuthWrapper from '@/components/proctoring-components/AuthWrapper';
 
 const router = createBrowserRouter([
   {
@@ -28,59 +18,33 @@ const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: React.createElement(Home),
+        element: React.createElement(AuthWrapper, {}, React.createElement(Home)),
         children: [
           {
             path: '',
-            element: React.createElement(StudentHome),
+            element: React.createElement(StudentDashboard),
           },
           {
-            path: '/courses',
-            element: React.createElement(Courses),
+            path: '/course-view',
+            element: React.createElement(CourseView),
+          },
+
+          {
+            path: '/module-view/:courseId',
+            element: React.createElement(ModuleView),
+          },
+
+          {
+            path: 'content-scroll-view',
+            element: React.createElement(ContentScrollView),
           },
           {
-            path: '/dummyform',
-            element: React.createElement(DummyForm),
+            path: 'section-details/:sectionId',
+            element: React.createElement(SectionDetails),
           },
           {
-            path: '/allCourses',
-            element: React.createElement(AllCourses),
-          },
-          {
-            path: '/assignments',
-            element: React.createElement(Assignments),
-          },
-          {
-            path: '/testing',
-            element: React.createElement(Testing),
-          },
-          {
-            path: '/singleCourse/:courseId',
-            element: React.createElement(SingleCourse),
-          },
-          {
-            path: '/videoAssessment',
-            element: React.createElement(VideoAssessment),
-          },
-          {
-            path: 'latestTest',
-            element: React.createElement(LatestTest),
-          },
-          {
-            path: 'videoPlaylistAssessment',
-            element: React.createElement(VideoPlaylistAssessment),
-          },
-          {
-            path: 'videoMain',
-            element: React.createElement(VideoMain),
-          },
-          {
-            path: 'section/:sectionId',
-            element: React.createElement(Section),
-          },
-          {
-            path: '/singleCourse/:courseId/:moduleId',
-            element: React.createElement(AllSections),
+            path: '/section-view/:courseId/:moduleId',
+            element: React.createElement(SectionView),
           },
         ],
       },
@@ -88,24 +52,7 @@ const router = createBrowserRouter([
         path: '/login',
         element: React.createElement(LoginPage),
       },
-      {
-        path: '/about',
-        element: React.createElement(About),
-      },
-      {
-        path: '/adminHome',
-        element: React.createElement(AdminHome),
-      },
-      {
-        path: '/superHome',
-        element: React.createElement(SuperHome),
-        children: [
-          {
-            path: 'admins',
-            element: React.createElement(Admins),
-          },
-        ],
-      },
+
     ],
   },
 ])

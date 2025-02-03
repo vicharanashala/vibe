@@ -1,5 +1,5 @@
 /**
- * SingleCourse Page
+ * Module View Page
  *
  * This page displays detailed information about a specific course and its modules.
  * It provides a split-view layout with course details on the left and module list on the right.
@@ -42,7 +42,7 @@ interface Module {
   sequence: number
 }
 
-const SingleCourse = () => {
+const ModuleView = () => {
   const { courseId } = useParams() // Get courseId from route params
 
   // Fetch all courses to get course details
@@ -145,7 +145,7 @@ const SingleCourse = () => {
                   </TableCell>
                   <TableCell className='text-right'>
                     <Link
-                      to={`/singleCourse/${courseId}/${module.module_id}`}
+                      to={`/section-view/${courseId}/${module.module_id}`}
                       className='inline-block w-full rounded bg-gray-800 px-4 py-2 text-center text-white'
                     >
                       View
@@ -161,4 +161,4 @@ const SingleCourse = () => {
   )
 }
 
-export default SingleCourse
+export default ModuleView
