@@ -40,9 +40,9 @@ class Question(BaseModel):
 
 
 class VideoResponse(BaseModel):
-    video_url: str
-    title: str
-    description: str
+    # video_url: str
+    # title: str
+    # description: str
     segments: List[Dict]
     questions: List[Dict]
 

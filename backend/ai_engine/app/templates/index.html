@@ -306,6 +306,7 @@
     let modifiedResponseData = {};
     let hierarchyData = null;
     let selectedSectionId = null;
+    const config = {};
 
     // IndexedDB Storage Utility
 
@@ -379,17 +380,24 @@
     }
 
     const questionDB = new QuestionIndexedDB();
-    fetch("/config")
-        .then(response => response.json())
-        .then(data => {
-            console.log("SECTION KA URLLLL: ", data.SECTION_DETAIL_URL);
-            console.log("LMS KA URLLLL: ", data.LMS_UPLOAD_URL)
-            // Now you can use data.api_key in JavaScript
-        })
-        .catch(error => console.error("Error fetching config:", error));
+    const configLoaded = fetch("/config")
+    .then(response => response.json())
+    .then(data => {
+        config.LMS_GET_URL = data.LMS_GET_URL;
+        config.LMS_UPLOAD_URL = data.LMS_UPLOAD_URL;
 
+        console.log("Config Loaded:", config); // Debugging log
+    })
+    .catch(error => console.error("Error fetching config:", error));
+
+configLoaded.then(() => {
+    console.log("2 GET KA URLLLL: ", config.LMS_GET_URL);
+    console.log("2 UPLOAD KA URLLLL: ", config.LMS_UPLOAD_URL);
+});
+   
+configLoaded.then(() => {
     // Fetch course hierarchy when page loads
-    fetch(SECTION_DETAIL_URL, {
+    fetch(`${config.LMS_GET_URL}courses`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -397,22 +405,22 @@
     })
       .then(response => response.json())
       .then(data => {
-        hierarchyData = data;
-        populateCourseDropdown();
+        populateCourseDropdown(data.results);
       })
-      .catch(error => console.error('Error fetching hierarchy:', error));
+      .catch(error => console.error('Error fetching courses:', error));
+    });
 
-    function populateCourseDropdown() {
-      const courseSelect = document.getElementById('course-select');
-      courseSelect.innerHTML = '<option value="">Select Course</option>';
+      function populateCourseDropdown(courses) {
+        const courseSelect = document.getElementById('course-select');
+        courseSelect.innerHTML = '<option value="">Select Course</option>';
 
-      hierarchyData.results.forEach(course => {
-        const option = document.createElement('option');
-        option.value = course.id;
-        option.textContent = course.name;
-        courseSelect.appendChild(option);
-      });
-    }
+        courses.forEach(course => {
+          const option = document.createElement('option');
+          option.value = course.id;
+          option.textContent = course.name;
+          courseSelect.appendChild(option);
+        });
+      }
 
     function deepCopy(obj) {
       if (obj === null || typeof obj !== 'object') {
@@ -432,21 +440,29 @@
 
 
     function updateModuleDropdown(courseId) {
+
       const moduleSelect = document.getElementById('module-select');
       moduleSelect.innerHTML = '<option value="">Select Module</option>';
       moduleSelect.disabled = !courseId;
 
       if (!courseId) return;
 
-      const course = hierarchyData.results.find(c => c.id === parseInt(courseId));
-      if (course) {
-        course.modules.forEach(module => {
-          const option = document.createElement('option');
-          option.value = module.id;
-          option.textContent = module.title;
-          moduleSelect.appendChild(option);
-        });
-      }
+      fetch(`${config.LMS_GET_URL}/modules/?course_id=${courseId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => response.json())
+        .then(data => {
+          data.modules.forEach(module => {
+            const option = document.createElement('option');
+            option.value = module.id;
+            option.textContent = module.title;
+            moduleSelect.appendChild(option);
+          });
+        })
+        .catch(error => console.error('Error fetching modules:', error));
     }
 
     function updateSectionDropdown(moduleId) {
@@ -456,20 +472,22 @@
 
       if (!moduleId) return;
 
-      const course = hierarchyData.results.find(c =>
-        c.modules.some(m => m.id === parseInt(moduleId))
-      );
-      if (course) {
-        const module = course.modules.find(m => m.id === parseInt(moduleId));
-        if (module) {
-          module.sections.forEach(section => {
+      fetch(`${config.LMS_GET_URL}/sections/?module_id=${moduleId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => response.json())
+        .then(data => {
+          data.sections.forEach(section => {
             const option = document.createElement('option');
             option.value = section.id;
             option.textContent = section.title;
             sectionSelect.appendChild(option);
           });
-        }
-      }
+        })
+        .catch(error => console.error('Error fetching sections:', error));
     }
 
     // Add event listeners for dropdowns

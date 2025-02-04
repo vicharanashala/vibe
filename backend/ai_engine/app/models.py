@@ -484,10 +484,11 @@ async def process_video(
                     question["segment"] = i + 1  # Link the question to the segment
                     questions.append(question)
 
+        for seg in segments:
+            seg["title"]=title
+            seg["video_url"]=url
+            seg["description"]=description
         output = VideoResponse(
-            video_url=url,
-            title=title,
-            description=description,
             segments=segments,
             questions=questions,
         ).model_dump()
@@ -540,13 +541,13 @@ async def process_video(
                         
                     question["segment"] = i + 1  # Link the question to the segment
                     questions.append(question)
-
+        for seg in segments:
+            seg["title"]=title
+            seg["video_url"]=url
+            seg["description"]=description
         # Return the processed data
         print("processing pending")
         output = VideoResponse(
-            video_url=url,
-            title=title,
-            description=description,
             segments=segments,
             questions=questions,
         ).model_dump()

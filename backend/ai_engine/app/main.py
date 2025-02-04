@@ -42,6 +42,6 @@ def serve_homepage():
 @app.get("/config")
 def get_config():
     return {
-        "SECTION_DETAIL_URL": os.getenv("SECTION_DETAIL_URL"),
+        "LMS_GET_URL": os.getenv("LMS_GET_URL"),
         "LMS_UPLOAD_URL": os.getenv("LMS_UPLOAD_URL")
     }
