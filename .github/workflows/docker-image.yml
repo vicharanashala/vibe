@@ -1,0 +1,29 @@
+name: LMS Engine Docker CI
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "backend/lms_engine/**"
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - "backend/lms_engine/**"
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx (optional for multi-platform builds)
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker images using Docker Compose
+      run: |
+        cd backend/lms_engine
+        docker-compose build
