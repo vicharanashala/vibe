@@ -43,5 +43,8 @@ def serve_homepage():
 def get_config():
     return {
         "LMS_GET_URL": os.getenv("LMS_GET_URL"),
-        "LMS_UPLOAD_URL": os.getenv("LMS_UPLOAD_URL")
+        "VIDEO_UPLOAD_URL": os.getenv("VIDEO_UPLOAD_URL"),
+        "ASSESSMENT_UPLOAD_URL": os.getenv("ASSESSMENT_UPLOAD_URL"),
+        "QUESTION_UPLOAD_URL": os.getenv("QUESTION_UPLOAD_URL"),
+        "Authorization": os.getenv("Authorization"),
     }

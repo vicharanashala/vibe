@@ -384,7 +384,10 @@
     .then(response => response.json())
     .then(data => {
         config.LMS_GET_URL = data.LMS_GET_URL;
-        config.LMS_UPLOAD_URL = data.LMS_UPLOAD_URL;
+        config.VIDEO_UPLOAD_URL = data.VIDEO_UPLOAD_URL;
+        config.ASSESSMENT_UPLOAD_URL= data.ASSESSMENT_UPLOAD_URL;
+        config.QUESTIONS_UPLOAD_URL= data.QUESTIONS_UPLOAD_URL;
+        config.Authorization=data.Authorization;
 
         console.log("Config Loaded:", config); // Debugging log
     })
@@ -393,34 +396,56 @@
 configLoaded.then(() => {
     console.log("2 GET KA URLLLL: ", config.LMS_GET_URL);
     console.log("2 UPLOAD KA URLLLL: ", config.LMS_UPLOAD_URL);
+    console.log("2 AUTHORIZATION",config.Authorization);
 });
    
 configLoaded.then(() => {
-    // Fetch course hierarchy when page loads
-    fetch(`${config.LMS_GET_URL}courses`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(response => response.json())
-      .then(data => {
-        populateCourseDropdown(data.results);
-      })
-      .catch(error => console.error('Error fetching courses:', error));
-    });
+  // Fetch course hierarchy when page loads
+  fetch(`${config.LMS_GET_URL}courses`, {  
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': config.Authorization,
+  },
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log("API Response:", data);  // ✅ Debugging
+    if (!Array.isArray(data.results)) {
+      throw new Error('Invalid data format received from server');
+    }
+    populateCourseDropdown(data.results);
+  })
+  .catch(error => console.error('Error fetching courses:', error));
 
-      function populateCourseDropdown(courses) {
-        const courseSelect = document.getElementById('course-select');
-        courseSelect.innerHTML = '<option value="">Select Course</option>';
+});
 
-        courses.forEach(course => {
-          const option = document.createElement('option');
-          option.value = course.id;
-          option.textContent = course.name;
-          courseSelect.appendChild(option);
-        });
-      }
+function populateCourseDropdown(courses) {
+  const courseSelect = document.getElementById('course-select');
+  courseSelect.innerHTML = '<option value="">Select Course</option>';
+
+  if (!Array.isArray(courses)) {
+    console.error('⚠️ Expected courses to be an array');
+    return;
+  }
+
+  courses.forEach(course => {
+    if (!course.course_id) {  // ✅ Fix: Using `course_id` instead of `id`
+      console.error("⚠️ Course missing ID:", course);
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = course.course_id;  // ✅ Fix: Use `course_id`
+    option.textContent = course.name || 'Unnamed Course';
+    courseSelect.appendChild(option);
+  });
+
+  console.log("📌 Course dropdown options:", [...courseSelect.options].map(opt => opt.value)); // ✅ Debugging
+}
+
+
+
 
     function deepCopy(obj) {
       if (obj === null || typeof obj !== 'object') {
@@ -440,70 +465,139 @@ configLoaded.then(() => {
 
 
     function updateModuleDropdown(courseId) {
+  const moduleSelect = document.getElementById('module-select');
+  moduleSelect.innerHTML = '<option value="">Select Module</option>';
+  moduleSelect.disabled = true;
 
-      const moduleSelect = document.getElementById('module-select');
-      moduleSelect.innerHTML = '<option value="">Select Module</option>';
-      moduleSelect.disabled = !courseId;
+  const numericCourseId = parseInt(courseId, 10);
+  if (isNaN(numericCourseId)) {
+    console.error("⚠️ Invalid Course ID:", courseId);
+    return;
+  }
 
-      if (!courseId) return;
+  moduleSelect.disabled = false;
 
-      fetch(`${config.LMS_GET_URL}/modules/?course_id=${courseId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then(response => response.json())
-        .then(data => {
-          data.modules.forEach(module => {
-            const option = document.createElement('option');
-            option.value = module.id;
-            option.textContent = module.title;
-            moduleSelect.appendChild(option);
-          });
-        })
-        .catch(error => console.error('Error fetching modules:', error));
+  fetch(`${config.LMS_GET_URL}modules?course_id=${numericCourseId}`, {  
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': config.Authorization,
+    },
+  })
+    .then(response => response.json())
+    .then(data => {
+  console.log("📌 Modules API Response:", data); // ✅ Debugging
+
+  if (!data || !Array.isArray(data.results)) { // ✅ Fix: Checking for `results` instead of `modules`
+    throw new Error('Invalid data format received from server');
+  }
+
+  data.results.forEach(module => {
+    if (!module.module_id) {  // ✅ Fix: Using `module_id` instead of `id`
+      console.error("⚠️ Module missing ID:", module);
+      return;
     }
 
-    function updateSectionDropdown(moduleId) {
-      const sectionSelect = document.getElementById('section-select');
-      sectionSelect.innerHTML = '<option value="">Select Section</option>';
-      sectionSelect.disabled = !moduleId;
+    const option = document.createElement('option');
+    option.value = module.module_id;  // ✅ Fix: Use `module_id`
+    option.textContent = module.title || 'Unnamed Module';
+    moduleSelect.appendChild(option);
+  });
+})
 
-      if (!moduleId) return;
+    .catch(error => {
+      console.error('Error fetching modules:', error);
+      moduleSelect.innerHTML = '<option value="">Error loading modules</option>';
+    });
+}
 
-      fetch(`${config.LMS_GET_URL}/sections/?module_id=${moduleId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then(response => response.json())
-        .then(data => {
-          data.sections.forEach(section => {
-            const option = document.createElement('option');
-            option.value = section.id;
-            option.textContent = section.title;
-            sectionSelect.appendChild(option);
-          });
-        })
-        .catch(error => console.error('Error fetching sections:', error));
+
+function updateSectionDropdown(moduleId) {
+  const sectionSelect = document.getElementById('section-select');
+  sectionSelect.innerHTML = '<option value="">Select Section</option>';
+  sectionSelect.disabled = true;
+
+  // Ensure moduleId is a valid number
+  const numericModuleId = parseInt(moduleId, 10);
+  if (isNaN(numericModuleId)) {
+    console.error("⚠️ Invalid module ID:", moduleId);
+    return;
+  }
+
+  sectionSelect.disabled = false;
+
+  fetch(`${config.LMS_GET_URL}sections?module_id=${numericModuleId}`, {  
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': config.Authorization,
+    },
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log("📌 SECTION YAHAN HAI:", data); // ✅ Debugging
+
+      if (!data || !Array.isArray(data.results)) {  // ✅ Fix: Checking for `results` instead of `sections`
+        throw new Error('Invalid data format received from server');
+      }
+
+      data.results.forEach(section => {
+        if (!section.id) {  // ✅ Fix: Using `id` (not `section_id`)
+          console.error("⚠️ Section missing ID:", section);
+          return;
+        }
+
+        const option = document.createElement('option');
+        option.value = section.id;  // ✅ Fix: Use `id`
+        option.textContent = section.title || 'Unnamed Section';
+        sectionSelect.appendChild(option);
+      });
+    })
+    .catch(error => {
+      console.error('Error fetching sections:', error);
+      sectionSelect.innerHTML = '<option value="">Error loading sections</option>';
+    });
+}
+
+
+// Event listeners
+document.addEventListener("DOMContentLoaded", function () {
+  const courseSelect = document.getElementById('course-select');
+
+  // ✅ Remove any existing listeners to prevent duplication
+  courseSelect.replaceWith(courseSelect.cloneNode(true));
+
+  // ✅ Add event listener correctly
+  document.getElementById('course-select').addEventListener('change', (e) => {
+    const courseId = e.target.value;
+    
+
+    // ✅ Debugging: Check if the selected course ID is captured
+    console.log("✅ Selected Course ID:", courseId);
+
+    if (courseId) {
+      console.log("Yahan dekho",courseId);
+      updateModuleDropdown(courseId);
     }
 
-    // Add event listeners for dropdowns
-    document.getElementById('course-select').addEventListener('change', (e) => {
-      updateModuleDropdown(e.target.value);
-      document.getElementById('section-select').disabled = true;
-      document.getElementById('section-select').innerHTML = '<option value="">Select Section</option>';
-    });
+    // ✅ Reset the section dropdown
+    const sectionSelect = document.getElementById('section-select');
+    sectionSelect.disabled = true;
+    sectionSelect.innerHTML = '<option value="">Select Section</option>';
+  });
+});
 
-    document.getElementById('module-select').addEventListener('change', (e) => {
-      updateSectionDropdown(e.target.value);
-    });
 
-    document.getElementById('section-select').addEventListener('change', (e) => {
-      selectedSectionId = e.target.value ? parseInt(e.target.value) : null;
-    });
+document.getElementById('module-select').addEventListener('change', (e) => {
+  const moduleId = e.target.value;
+  if (moduleId) {
+    updateSectionDropdown(moduleId);
+  }
+});
+
+document.getElementById('section-select').addEventListener('change', (e) => {
+  selectedSectionId = e.target.value ? parseInt(e.target.value, 10) : null;
+});
 
     function secondsToHMS(seconds) {
       const hrs = Math.floor(seconds / 3600);
@@ -1214,60 +1308,110 @@ configLoaded.then(() => {
         }
       }
     });
+    configLoaded.then(() => {
+
 
     document.getElementById('confirm-btn').addEventListener('click', async () => {
-      if (!selectedSectionId) {
+    if (!selectedSectionId) {
         alert('Please select a section before submitting');
         return;
-      }
+    }
 
-      // Save modifications for current video before proceeding
-      if (currentVideo !== null) {
+    // Save modifications before uploading
+    if (currentVideo !== null) {
         saveVideoEdits(currentVideo);
-      }
+    }
 
-      // Gather and send data for all videos
-      const videoIndices = Object.keys(modifiedResponseData).map(Number);
-      const errors = [];
+    const videoIndices = Object.keys(modifiedResponseData).map(Number);
+    const errors = [];
 
-      for (const videoIndex of videoIndices) {
+    for (const videoIndex of videoIndices) {
         const data = modifiedResponseData[videoIndex];
 
-        const modifiedData = {
-          video_url: data.video_url,
-          title: data.title,
-          description: data.description,
-          section_id: selectedSectionId,
-          segments: data.segments.map(segment => ({ ...segment })),
-          questions: data.questions.map(question => ({ ...question }))
-        };
-
+        // Step 1: Upload Video to LMS
         try {
-          const response = await fetch(LMS_UPLOAD_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(modifiedData)
-          });
+            const videoPayload = {
+                video_url: data.video_url,
+                title: data.title,
+                description: data.description,
+                section_id: selectedSectionId,
+                start_time: data.start_time,
+                end_time: data.end_time,
+                transcript: data.text,
+            };
 
-          await questionDB.saveVideoData(modifiedData);
+            const videoResponse = await fetch(config.VIDEO_UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization':config.Authorization},
+                body: JSON.stringify(videoPayload)
+            });
 
-          if (!response.ok) {
-            throw new Error(`Video ${videoIndex + 1}: HTTP error! status: ${response.status}`);
-          }
+            if (!videoResponse.ok) throw new Error(`Video Upload Failed: ${videoResponse.status}`);
+            const videoResult = await videoResponse.json();
+            const videoId = videoResult.video_id; // Assuming API returns video_id
+
+            // Step 2: Upload Assessment Data
+            const assessmentPayload = {
+                video_id: videoId, // Link assessment to the uploaded video
+                segments: data.segments.map(segment => ({
+                    video_url: data.video_url,
+                    title: data.title,
+                    description: data.description,
+                    ...segment
+                }))
+            };
+
+            const assessmentResponse = await fetch(config.ASSESSMENT_UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json','Authorization':config.Authorization },
+                body: JSON.stringify(assessmentPayload)
+            });
+
+            if (!assessmentResponse.ok) throw new Error(`Assessment Upload Failed: ${assessmentResponse.status}`);
+            const assessmentResult = await assessmentResponse.json();
+            const assessmentId = assessmentResult.assessment_id; // Assuming API returns assessment_id
+
+            // Step 3: Upload Questions
+            const questionsPayload = {
+                assessment_id: assessmentId, // Link questions to the assessment
+                questions: data.questions.map(question => ({
+                    video_url: data.video_url,
+                    title: data.title,
+                    description: data.description,
+                    ...question
+                }))
+            };
+
+            const questionsResponse = await fetch(config.QUESTIONS_UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json','Authorization':config.Authorization },
+                body: JSON.stringify(questionsPayload)
+            });
+
+            if (!questionsResponse.ok) throw new Error(`Questions Upload Failed: ${questionsResponse.status}`);
+            
+            // Save data to IndexedDB for backup
+            await questionDB.saveVideoData({
+                ...data,
+                video_id: videoId,
+                assessment_id: assessmentId
+            });
+
         } catch (error) {
-          console.error('Error:', error);
-          errors.push(error.message);
+            console.error('Error:', error);
+            errors.push(error.message);
         }
-      }
+    }
 
-      if (errors.length > 0) {
-        alert('Some videos failed to submit:\n' + errors.join('\n'));
-      } else {
-        alert('All videos submitted successfully!');
-      }
-    });
+    // Display errors or success message
+    if (errors.length > 0) {
+        alert('Some uploads failed:\n' + errors.join('\n'));
+    } else {
+        alert('All videos, assessments, and questions submitted successfully!');
+    }
+});
+});
+
   </script>
   <div id="temp-player" style="display: none;"></div>
 </body>
