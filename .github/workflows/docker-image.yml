@@ -2,13 +2,14 @@ name: LMS Engine Docker CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "lms_deployment" ]
     paths:
       - "backend/lms_engine/**"
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "lms_deployment" ]
     paths:
       - "backend/lms_engine/**"
+  workflow_dispatch:
 
 jobs:
 
