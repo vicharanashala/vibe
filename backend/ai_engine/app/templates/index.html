@@ -188,7 +188,7 @@
         opacity: 1;
       }
     }
-  </style>
+  </style> // CSS styling for the HTML page
 </head>
 
 <body>
@@ -291,7 +291,7 @@
     </div>
 
     <button id="confirm-btn" style="display:none;">Confirm & Download</button>
-  </div>
+  </div> // HTML content for the page. This includes the form, buttons, and other elements. These are used for the user interface.
 
   <script>
     const videoData = {};
@@ -307,21 +307,21 @@
     let hierarchyData = null;
     let selectedSectionId = null;
     const config = {};
-
+    // the above is the global variables that are used in the script
     // IndexedDB Storage Utility
 
-    class QuestionIndexedDB {
+    class QuestionIndexedDB { // Class for IndexedDB storage. This is used to store the video data.
       constructor(dbName = 'VideoQuestionDB', version = 1) {
         this.dbName = dbName;
         this.version = version;
         this.db = null;
       }
 
-      async openDatabase() {
+      async openDatabase() { // Function to open the database.
         return new Promise((resolve, reject) => {
           const request = indexedDB.open(this.dbName, this.version);
 
-          request.onupgradeneeded = (event) => {
+          request.onupgradeneeded = (event) => { // Event listener for when the database is upgraded.
             const db = event.target.result;
             if (!db.objectStoreNames.contains('videos')) {
               const videoStore = db.createObjectStore('videos', {
@@ -331,18 +331,18 @@
             }
           };
 
-          request.onsuccess = (event) => {
+          request.onsuccess = (event) => { // Event listener for when the database is successfully opened.
             this.db = event.target.result;
             resolve(this.db);
           };
 
-          request.onerror = (event) => {
+          request.onerror = (event) => { // Event listener for when there is an error opening the database.
             reject(`IndexedDB error: ${event.target.error}`);
           };
         });
       }
 
-      async saveVideoData(videoData) {
+      async saveVideoData(videoData) { // Function to save video data to the database.
         await this.openDatabase();
         return new Promise((resolve, reject) => {
           const transaction = this.db.transaction(['videos'], 'readwrite');
@@ -354,7 +354,7 @@
         });
       }
 
-      async getVideoData(videoUrl) {
+      async getVideoData(videoUrl) { // Function to get video data from the database. This is used to retrieve the video data on the uploading portal.
         await this.openDatabase();
         return new Promise((resolve, reject) => {
           const transaction = this.db.transaction(['videos'], 'readonly');
@@ -366,7 +366,7 @@
         });
       }
 
-      async getAllVideos() {
+      async getAllVideos() { 
         await this.openDatabase();
         return new Promise((resolve, reject) => {
           const transaction = this.db.transaction(['videos'], 'readonly');
@@ -393,13 +393,14 @@
     })
     .catch(error => console.error("Error fetching config:", error));
 
-configLoaded.then(() => {
+configLoaded.then(() => { // Function to fetch the course hierarchy when the page loads.
     console.log("2 GET KA URLLLL: ", config.LMS_GET_URL);
     console.log("2 UPLOAD KA URLLLL: ", config.LMS_UPLOAD_URL);
+    console.log("2 QUESTION KA URLLLL: ", config.QUESTIONS_UPLOAD_URL);
     console.log("2 AUTHORIZATION",config.Authorization);
 });
    
-configLoaded.then(() => {
+configLoaded.then(() => { 
   // Fetch course hierarchy when page loads
   fetch(`${config.LMS_GET_URL}courses`, {  
   method: 'GET',
@@ -420,7 +421,7 @@ configLoaded.then(() => {
 
 });
 
-function populateCourseDropdown(courses) {
+function populateCourseDropdown(courses) { // Function to populate the course dropdown with the courses fetched from the API.
   const courseSelect = document.getElementById('course-select');
   courseSelect.innerHTML = '<option value="">Select Course</option>';
 
@@ -447,7 +448,7 @@ function populateCourseDropdown(courses) {
 
 
 
-    function deepCopy(obj) {
+    function deepCopy(obj) { // Function to create a deep copy of an object.
       if (obj === null || typeof obj !== 'object') {
         return obj;
       }
@@ -464,7 +465,7 @@ function populateCourseDropdown(courses) {
     }
 
 
-    function updateModuleDropdown(courseId) {
+    function updateModuleDropdown(courseId) { // Function to update the module dropdown based on the selected course.
   const moduleSelect = document.getElementById('module-select');
   moduleSelect.innerHTML = '<option value="">Select Module</option>';
   moduleSelect.disabled = true;
@@ -512,7 +513,7 @@ function populateCourseDropdown(courses) {
 }
 
 
-function updateSectionDropdown(moduleId) {
+function updateSectionDropdown(moduleId) { // Function to update the section dropdown based on the selected module.
   const sectionSelect = document.getElementById('section-select');
   sectionSelect.innerHTML = '<option value="">Select Section</option>';
   sectionSelect.disabled = true;
@@ -561,7 +562,7 @@ function updateSectionDropdown(moduleId) {
 
 
 // Event listeners
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () { // Event listener to load the course dropdown when the page loads.
   const courseSelect = document.getElementById('course-select');
 
   // ✅ Remove any existing listeners to prevent duplication
@@ -588,29 +589,29 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-document.getElementById('module-select').addEventListener('change', (e) => {
+document.getElementById('module-select').addEventListener('change', (e) => { // Event listener to update the section dropdown when the module is selected.
   const moduleId = e.target.value;
   if (moduleId) {
     updateSectionDropdown(moduleId);
   }
 });
 
-document.getElementById('section-select').addEventListener('change', (e) => {
+document.getElementById('section-select').addEventListener('change', (e) => { // Event listener to update the selected section ID.
   selectedSectionId = e.target.value ? parseInt(e.target.value, 10) : null;
 });
 
-    function secondsToHMS(seconds) {
+    function secondsToHMS(seconds) { // Function to convert seconds to hours, minutes, and seconds.
       const hrs = Math.floor(seconds / 3600);
       const mins = Math.floor((seconds % 3600) / 60);
       const secs = Math.floor(seconds % 60);
       return { hrs, mins, secs };
     }
 
-    function hmsToSeconds(hrs, mins, secs) {
+    function hmsToSeconds(hrs, mins, secs) { // Function to convert hours, minutes, and seconds to seconds.
       return (hrs * 3600) + (mins * 60) + secs;
     }
 
-    function updateSegmentTimestamps(videoIndex, numSegments) {
+    function updateSegmentTimestamps(videoIndex, numSegments) { // Function to update the timestamps of the segments based on the number of segments.
       const videoDuration = videoDurations[videoIndex];
       const segmentDuration = videoDuration / numSegments;
 
@@ -621,7 +622,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       }
     }
 
-    function isPlaylistUrl(url) {
+    function isPlaylistUrl(url) { // Function to check if the URL is a YouTube playlist URL.
       return url.includes('playlist?list=') || url.includes('&list=');
     }
 
@@ -633,8 +634,8 @@ document.getElementById('section-select').addEventListener('change', (e) => {
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    let player;
-    function onYouTubeIframeAPIReady() {
+    let player; // YouTube player object
+    function onYouTubeIframeAPIReady() { // Function to initialize the YouTube player.
       player = new YT.Player('player', {
         height: '360',
         width: '640',
@@ -645,7 +646,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       });
     }
 
-    async function getVideoDuration(videoId) {
+    async function getVideoDuration(videoId) { // Function to get the duration of a YouTube video.
       return new Promise((resolve) => {
         const tempPlayer = new YT.Player('temp-player', {
           videoId: videoId,
@@ -660,7 +661,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       });
     }
 
-    function selectVideo(index) {
+    function selectVideo(index) { // Function to select a video from the list of videos.
       currentVideo = index;
 
       // Extract video ID from URL and load it
@@ -716,7 +717,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       }
     }
 
-    document.getElementById('fetch-videos').addEventListener('click', async () => {
+    document.getElementById('fetch-videos').addEventListener('click', async () => { // Event listener for when the user submits the playlist URL.
       const playlistUrl = document.getElementById('playlist-url').value;
       defaultSegments = parseInt(document.getElementById('default-segments').value) || 0;
       defaultQuestions = parseInt(document.getElementById('default-questions').value) || 0;
@@ -784,7 +785,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       }
     });
 
-    function displayVideoBlocks() {
+    function displayVideoBlocks() { // Function to display the video blocks on the page.
       const container = document.getElementById('videos-container');
       container.innerHTML = '';
 
@@ -1311,7 +1312,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
     configLoaded.then(() => {
 
 
-    document.getElementById('confirm-btn').addEventListener('click', async () => {
+      document.getElementById('confirm-btn').addEventListener('click', async () => {
     if (!selectedSectionId) {
         alert('Please select a section before submitting');
         return;
@@ -1325,81 +1326,97 @@ document.getElementById('section-select').addEventListener('change', (e) => {
     const videoIndices = Object.keys(modifiedResponseData).map(Number);
     const errors = [];
 
+    let sequenceCounter = 1;  // Initialize sequence number counter
+
     for (const videoIndex of videoIndices) {
         const data = modifiedResponseData[videoIndex];
+        console.log("keyboard smash", data.segments);
 
-        // Step 1: Upload Video to LMS
-        try {
-            const videoPayload = {
-                video_url: data.video_url,
-                title: data.title,
-                description: data.description,
-                section_id: selectedSectionId,
-                start_time: data.start_time,
-                end_time: data.end_time,
-                transcript: data.text,
-            };
+        // Step 1: Upload Video to LMS for each segment
+        for (let i = 0; i < data.segments.length; i++) {
+            const segment = data.segments[i];
+            try {
+                const videoPayload = {
+                    source: segment.video_url,
+                    title: segment.title,
+                    description: segment.description,
+                    section: selectedSectionId,  // Add section_id here for each segment
+                    start_time: parseInt(segment.start_time, 10),
+                    end_time: parseInt(segment.end_time, 10),
+                    transcript: segment.text,
+                    sequence: sequenceCounter  // Assign sequence number for the video
+                };
+                sequenceCounter = sequenceCounter + 1;
 
-            const videoResponse = await fetch(config.VIDEO_UPLOAD_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization':config.Authorization},
-                body: JSON.stringify(videoPayload)
-            });
+                const videoResponse = await fetch(config.VIDEO_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                    body: JSON.stringify(videoPayload),
+                });
 
-            if (!videoResponse.ok) throw new Error(`Video Upload Failed: ${videoResponse.status}`);
-            const videoResult = await videoResponse.json();
-            const videoId = videoResult.video_id; // Assuming API returns video_id
+                if (!videoResponse.ok) throw new Error(`Video Upload Failed: ${videoResponse.status}`);
+                const videoResult = await videoResponse.json();
+                const videoId = videoResult.video_id; 
 
-            // Step 2: Upload Assessment Data
-            const assessmentPayload = {
-                video_id: videoId, // Link assessment to the uploaded video
-                segments: data.segments.map(segment => ({
-                    video_url: data.video_url,
-                    title: data.title,
-                    description: data.description,
-                    ...segment
-                }))
-            };
+                // Step 2: Upload Assessment Data for the current video
+                const assessmentPayload = {
+                    title: `Assessment number ${i + 1}`,  // Title should be "Assessment number" = i (iteration number)
+                    question_visibility_limit: 9,  // Set default question visibility limit
+                    time_limit: 9,  // Set default time limit
+                    section: selectedSectionId,  // Section is the same as the video to which this assessment belongs
+                    sequence: sequenceCounter,  // Set sequence number for the assessment (next number after video)
+                };
+                sequenceCounter = sequenceCounter + 1;
 
-            const assessmentResponse = await fetch(config.ASSESSMENT_UPLOAD_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json','Authorization':config.Authorization },
-                body: JSON.stringify(assessmentPayload)
-            });
+                const assessmentResponse = await fetch(config.ASSESSMENT_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                    body: JSON.stringify(assessmentPayload),
+                });
 
-            if (!assessmentResponse.ok) throw new Error(`Assessment Upload Failed: ${assessmentResponse.status}`);
-            const assessmentResult = await assessmentResponse.json();
-            const assessmentId = assessmentResult.assessment_id; // Assuming API returns assessment_id
+                if (!assessmentResponse.ok) throw new Error(`Assessment Upload Failed: ${assessmentResponse.status}`);
+                const assessmentResult = await assessmentResponse.json();
+                const assessmentId = assessmentResult.id; // Assuming API returns assessment_id
 
-            // Step 3: Upload Questions
-            const questionsPayload = {
-                assessment_id: assessmentId, // Link questions to the assessment
-                questions: data.questions.map(question => ({
-                    video_url: data.video_url,
-                    title: data.title,
-                    description: data.description,
-                    ...question
-                }))
-            };
+                // Step 3: Upload Questions for the current assessment (Only if segment matches)
+                for (let j = 0; j < data.questions.length; j++) {
+                    const question = data.questions[j];
+                    if (question.segment === i + 1) {  // Check if the question's segment matches the current segment number
+                        const questionPayload = {
+                            text: question.question,
+                            type: "MCQ",  // Assuming it's an MCQ type
+                            marks: 1,  // Default marks
+                            assessment: assessmentId,  // Link question to the current assessment
+                            options: [
+                                { option_text: question.option_1 },
+                                { option_text: question.option_2 },
+                                { option_text: question.option_3 },
+                                { option_text: question.option_4 }
+                            ],
+                            solution_option_index: question.correct_answer  // Assuming correct_answer is the index of the correct option
+                        };
 
-            const questionsResponse = await fetch(config.QUESTIONS_UPLOAD_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json','Authorization':config.Authorization },
-                body: JSON.stringify(questionsPayload)
-            });
+                        const questionResponse = await fetch(config.QUESTIONS_UPLOAD_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                            body: JSON.stringify(questionPayload),
+                        });
 
-            if (!questionsResponse.ok) throw new Error(`Questions Upload Failed: ${questionsResponse.status}`);
-            
-            // Save data to IndexedDB for backup
-            await questionDB.saveVideoData({
-                ...data,
-                video_id: videoId,
-                assessment_id: assessmentId
-            });
+                        if (!questionResponse.ok) throw new Error(`Question Upload Failed: ${questionResponse.status}`);
+                    }
+                }
 
-        } catch (error) {
-            console.error('Error:', error);
-            errors.push(error.message);
+                // Save data to IndexedDB for backup
+                await questionDB.saveVideoData({
+                    ...data,
+                    video_id: videoId,
+                    assessment_id: assessmentId
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                errors.push(error.message);
+            }
         }
     }
 
@@ -1410,6 +1427,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
         alert('All videos, assessments, and questions submitted successfully!');
     }
 });
+
 });
 
   </script>

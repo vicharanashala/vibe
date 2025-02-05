@@ -45,6 +45,6 @@ def get_config():
         "LMS_GET_URL": os.getenv("LMS_GET_URL"),
         "VIDEO_UPLOAD_URL": os.getenv("VIDEO_UPLOAD_URL"),
         "ASSESSMENT_UPLOAD_URL": os.getenv("ASSESSMENT_UPLOAD_URL"),
-        "QUESTION_UPLOAD_URL": os.getenv("QUESTION_UPLOAD_URL"),
+        "QUESTIONS_UPLOAD_URL": os.getenv("QUESTIONS_UPLOAD_URL"),
         "Authorization": os.getenv("Authorization"),
     }
