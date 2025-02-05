@@ -12,19 +12,23 @@ def add_x_tag_groups(result, generator, request, public):
         dict: The modified schema.
     """
     result["x-tagGroups"] = [
-
+         {
+            "name": "Users",
+            "tags": ["User","UserInstitution","UserCourseInstance"] 
+        },
         {
             "name": "Authentication",
             "tags":["Auth"]
         },
         {
             "name": "Courses",
-            "tags": ["Course", "Course Instance", "Module", "Section", "Item"],
+            "tags": ["Course", "Course Instance", "Module", "Section", "Item","Video","Article"],
         },
         {
             "name": "Assessments",
             "tags": ["Assessment", "Question","Solution"],
         },
+       
 
 
 

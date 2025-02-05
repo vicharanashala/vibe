@@ -79,29 +79,34 @@ class SectionItemViewSet(generics.ListAPIView):
 
 @extend_schema_view(
     retrieve=extend_schema(
+        summary="Retrieve Video",
         tags=["Video"],
         description="Retrieve a specific video by ID.",
         responses={200: VideoSerializer},
     ),
     create=extend_schema(
+        summary="Create Video",
         tags=["Video"],
         description="Create a new video item along with its section item information.",
         request=VideoSerializer,
         responses={201: VideoSerializer},
     ),
     update=extend_schema(
+        summary="Update Video",
         tags=["Video"],
         description="Update an existing video item.",
         request=VideoSerializer,
         responses={200: VideoSerializer},
     ),
     partial_update=extend_schema(
+        summary="Partially Update Video",
         tags=["Video"],
         description="Partially update an existing video item.",
         request=VideoSerializer,
         responses={200: VideoSerializer},
     ),
     destroy=extend_schema(
+        summary="Delete Video",
         tags=["Video"],
         description="Delete a specific video item.",
         responses={204: None},
@@ -117,29 +122,34 @@ class VideoViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     retrieve=extend_schema(
+        summary="Retrieve Article",
         tags=["Article"],
         description="Retrieve a specific article by ID.",
         responses={200: ArticleSerializer},
     ),
     create=extend_schema(
+        summary="Create Article",
         tags=["Article"],
         description="Create a new article item along with its section item information.",
         request=ArticleSerializer,
         responses={201: ArticleSerializer},
     ),
     update=extend_schema(
+        summary="Update Article",
         tags=["Article"],
         description="Update an existing article item.",
         request=ArticleSerializer,
         responses={200: ArticleSerializer},
     ),
     partial_update=extend_schema(
+        summary="Partially Update Article",
         tags=["Article"],
         description="Partially update an existing article item.",
         request=ArticleSerializer,
         responses={200: ArticleSerializer},
     ),
     destroy=extend_schema(
+        summary="Delete Article",
         tags=["Article"],
         description="Delete a specific article item.",
         responses={204: None},

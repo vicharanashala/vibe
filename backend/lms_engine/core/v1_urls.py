@@ -8,6 +8,7 @@ urlpatterns = [
     path("course/", include("core.course.urls")),
     path("assessment/", include("core.assessment.urls")),
     path("auth/", include("core.authentication.urls")),
+    path("users/", include("core.users.urls")),
     # API Documentation
     path("docs/", include("core.docs.urls")),
 ]

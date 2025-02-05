@@ -248,6 +248,9 @@ SPECTACULAR_SETTINGS = {
         {"name": "StandAlone Assessment",
          "description": "Endpoints for stand alone assessments and related operations"},
         {"name": "Solution", "description": "Endpoints for solutions and related operations"},
+        {"name": "UserInstitution", "description": "Endpoints for user-institution relationships"},
+        {"name": "UserCourseInstance", "description": "Endpoints for user-course enrollments"},
+
 
     ],
 }
