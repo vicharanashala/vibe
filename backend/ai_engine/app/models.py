@@ -9,30 +9,63 @@ import soundfile as sf
 import whisper
 import os
 import uuid
-import time
+# import time
 from youtube_transcript_api import YouTubeTranscriptApi
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix.cli import on_progress
 from typing import List, Dict
 import ffmpeg
+
+import asyncio
+import aiofiles
+import aiofiles.os
 from dotenv import load_dotenv
+
+# Initialize FastAPI application
+
+
 app = FastAPI()
-os.environ["PATH"] += os.pathsep # + "C:\\ffmpeg\\bin"
 
+
+# Load environment variables from .env
 load_dotenv()
-
 API_KEY = os.getenv("API_KEY")
 
-def generate_from_gemini(prompt: str, user_api_key: str) -> str:
-    model = genai.GenerativeModel(model_name="gemini-2.0-flash-exp")
+whisper_model = whisper.load_model("base")
+os.environ["PATH"] += os.pathsep + os.getenv("FFMPEG_PATH") # Configure FFMPEG locally
+
+print("API KEYYYY from models:", API_KEY)
+
+
+async def generate_from_gemini(prompt: str, user_api_key: str) -> str:
+    """
+    Generates a response from the Gemini AI model based on the provided prompt.
+
+    Args:
+        prompt (str): The input text prompt for the AI model.
+        user_api_key (str): The API key for accessing the Gemini model.
+
+    Returns:
+        str: The generated text response from the Gemini model.
+    """
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     genai.configure(api_key=API_KEY)
-    response = model.generate_content(prompt)
-    time.sleep(10)  # Delay to prevent hitting API rate limits
+    response = await asyncio.to_thread(model.generate_content, prompt)
+    await asyncio.sleep(10)  # Delay to prevent hitting API rate limits
     return response.text
 
 
 def hide_urls(text: str) -> str:
+    """
+    Hides URLs in the given text by replacing them with a placeholder.
+
+    Args:
+        text (str): The input text containing URLs.
+
+    Returns:
+        str: The text with URLs replaced by "<url-hidden>".
+    """
     url_pattern = (
         r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|"
         r"(?:%[0-9a-fA-F][0-9a-fA-F]))+"  # Regex to match URLs
@@ -40,27 +73,72 @@ def hide_urls(text: str) -> str:
     return re.sub(url_pattern, "<url-hidden>", text)
 
 
-def parse_llama_json(text: str) -> List[Dict]:
-    # Extract JSON part from the generated text
-    start_idx = text.find("{")
-    end_idx = text.rfind("}") + 1
+def parse_llama_json(text: str) -> Dict:
+    """
+    Extracts and parses JSON data from a text string.
+    Returns a properly structured JSON with empty values if parsing fails.
 
-    if start_idx == -1 or end_idx == -1:
-        raise ValueError("No valid JSON found in the text")
+    Args:
+        text (str): The input text containing JSON data.
 
-    json_part = text[start_idx:end_idx]
-
-    # Parse the extracted JSON
+    Returns:
+        Dict: The parsed JSON data or a structured empty JSON if parsing fails.
+    """
+    # Define the default empty structure
+    empty_response = {
+        "questions": [
+            {
+                "question": "",
+                "options": ["", "", "", ""],
+                "correct_answer": 0
+            }
+        ]
+    }
+    
     try:
+        # Extract JSON part from the generated text
+        start_idx = text.find("{")
+        end_idx = text.rfind("}") + 1
+
+        if start_idx == -1 or end_idx == -1:
+            print("No valid JSON found in the text, returning empty result")
+            return empty_response
+
+        json_part = text[start_idx:end_idx]
+
+        # Parse the extracted JSON
         parsed_data = json.loads(json_part)
+        
+        # If the parsed data doesn't have the expected structure,
+        # return the empty response
+        if not isinstance(parsed_data, dict):
+            return empty_response
+            
+        # Ensure the parsed data has all required keys
+        if "questions" not in parsed_data:
+            parsed_data["questions"] = empty_response["questions"]
+            
         return parsed_data
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON: {e}")
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Failed to parse JSON: {e}, returning empty structured result")
+        return empty_response
 
 
-def generate_questions_from_prompt(
+async def generate_questions_from_prompt(
     text: str, user_api_key: str, n_questions: int, q_model: str
 ) -> str:
+    """
+    Generates multiple-choice questions (MCQs) from a given text using the Gemini AI model.
+
+    Args:
+        text (str): The input text (e.g., transcript) to generate questions from.
+        user_api_key (str): The API key for accessing the Gemini model.
+        n_questions (int): The number of questions to generate.
+        q_model (str): The type of questions to generate ("case-study" or other).
+
+    Returns:
+        str: The generated questions in JSON format.
+    """
     n = n_questions  # Number of questions to generate
 
     task_description_analytical = """
@@ -151,14 +229,22 @@ def generate_questions_from_prompt(
     prompt_2 = task_description_case_study + '\n Here is the transcript content: \n' + str(text) + f'\nGenerate {n} questions' + ' as a JSON object in the following format: \n{ \n    "case_study": "<case_study_text>", \n    "questions": [ \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        }, \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        }, \n        { \n            "question": "<question_text>", \n            "options": ["<option1>", "<option2>", "<option3>", "<option4>"], \n            "correct_answer": <index_of_correct_option> \n        } \n    ] \n}.'
 
     prompt = prompt_2 if q_model == "case-study" else prompt_1
-    response = generate_from_gemini(prompt, user_api_key)
+    response = await generate_from_gemini(prompt, user_api_key)
     return response
 
 
 def extract_video_id(url: str) -> str:
+    """
+    Extracts the video ID from a YouTube URL.
 
+    Args:
+        url (str): The YouTube URL.
+
+    Returns:
+        str: The extracted video ID, or None if no valid ID is found.
+    """
     patterns = [
-        r"(?:https?://)?(?:www\.)?youtu\.be/([^?&]+)",  # youtu.be short links
+        r"(?:https?://)?(?:www\.)?youtu\.be/([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/embed/([^?&]+)",
         r"(?:https?://)?(?:www\.)?youtube\.com/shorts/([^?&]+)",
@@ -172,19 +258,37 @@ def extract_video_id(url: str) -> str:
     return None
 
 
-def get_urls_from_playlist(playlist_url: str):
+async def get_urls_from_playlist(playlist_url: str):
+    """
+    Retrieves the URLs of all videos in a YouTube playlist.
+
+    Args:
+        playlist_url (str): The URL of the YouTube playlist.
+
+    Returns:
+        dict: A dictionary containing the list of video URLs or an error message.
+    """
     try:
-        playlist = Playlist(playlist_url)
-        video_urls = list(playlist.video_urls)
+        playlist = await asyncio.to_thread(Playlist, playlist_url)
+        video_urls = await asyncio.to_thread(lambda: list(playlist.video_urls))
         return {"video_urls": video_urls}
     except Exception as e:
         print(f"An error occurred: {e}")
         return {"error": str(e), "video_urls": []}
 
 
-def get_raw_transcript(video_id: str) -> List[Dict]:
+async def get_raw_transcript(video_id: str) -> List[Dict]:
+    """
+    Fetches the raw transcript of a YouTube video using its video ID.
+
+    Args:
+        video_id (str): The YouTube video ID.
+
+    Returns:
+        List[Dict]: A list of transcript entries, each containing text, start time, and duration.
+    """
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = await asyncio.to_thread(YouTubeTranscriptApi.get_transcript, video_id)
         return transcript
     except Exception as e:
         return []
@@ -193,6 +297,16 @@ def get_raw_transcript(video_id: str) -> List[Dict]:
 def generate_transcript_segments(
     transcript: List[Dict], timestamps: List[int]
 ) -> List[Dict]:
+    """
+    Segments a transcript into smaller parts based on provided timestamps.
+
+    Args:
+        transcript (List[Dict]): The raw transcript data.
+        timestamps (List[int]): The timestamps at which to segment the transcript.
+
+    Returns:
+        List[Dict]: A list of transcript segments, each containing text, start time, and end time.
+    """
     duration = max(item["start"] + item["duration"] for item in transcript)
     if timestamps == []:
         segment_count = 4
@@ -229,16 +343,50 @@ def generate_transcript_segments(
         for segment, (start, end) in zip(segments, time_ranges)
     ]
 
+async def process_audio(segment_file: str, start_time: float, end_time: float) -> Dict:
+    """
+    Processes a single audio segment: transcribes it and returns the result.
 
-def process_video(
+    Args:
+        segment_file (str): Path to the segment audio file.
+        start_time (float): Start time of the segment.
+        end_time (float): End time of the segment.
+
+    Returns:
+        Dict: A dictionary containing the transcribed text and timestamps.
+    """
+    result = await asyncio.to_thread(whisper_model.transcribe, segment_file)
+    return {
+        "text": result["text"],
+        "start_time": start_time,
+        "end_time": end_time,
+    }
+
+async def process_video(
     url, user_api_key, timestamps, segment_wise_q_no, segment_wise_q_model
 ):
+    """
+    Processes a single YouTube video to extract its transcript, segment it, and generate questions.
+
+    Args:
+        url (str): The YouTube video URL.
+        user_api_key (str): The API key for accessing the Gemini model.
+        timestamps (List[int]): The timestamps at which to segment the transcript.
+        segment_wise_q_no (List[int]): The number of questions to generate for each segment.
+        segment_wise_q_model (List[str]): The type of questions to generate for each segment.
+
+    Returns:
+        JSONResponse: A JSON response containing the video title, description, segments, and generated questions.
+
+    Raises:
+        HTTPException: If the YouTube URL is invalid or if an error occurs during processing.
+    """
     video_id = extract_video_id(url)
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
-    transcript = get_raw_transcript(video_id)
+    transcript = await get_raw_transcript(video_id)
 
-    # Step 1: Fetch video title, description and transcript
+    # Fetch video title, description and transcript
     yt = YouTube(url, 'WEB', on_progress_callback=on_progress)
     title = yt.title
     description = hide_urls(yt.description)
@@ -255,7 +403,7 @@ def process_video(
 
         # Convert audio to WAV format
         print(f"Converting audio file to WAV format: {wav_file}")
-        ffmpeg.input(m4a_file).output(wav_file).run(overwrite_output=True)
+        ffmpeg.input(m4a_file).output(wav_file).run()
         print(f"Converted audio file to WAV format: {wav_file}")
 
         print("Splitting audio into segments...")
@@ -271,7 +419,6 @@ def process_video(
         )  # Ensure last timestamp is the duration of the audio
 
         segments = []
-        model = whisper.load_model("base")
 
         for i in range(len(timestamps) - 1):
             start_time = timestamps[i]
@@ -289,26 +436,23 @@ def process_video(
             print(f"Segment {i + 1} saved: {segment_file}")
 
             # Transcribe the segment using Whisper
-            result = model.transcribe(segment_file)
-            segment_transcript = result["text"]
-            segments.append(
-                {
-                    "text": segment_transcript,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                }
-            )
-            os.remove(segment_file)
-        os.remove(wav_file)
-        os.remove(m4a_file)
+            segment = await process_audio(segment_file, start_time, end_time)
+            segments.append(segment)
+            await aiofiles.os.remove(segment_file)
+
+        # Clean up temporary files
+        await aiofiles.os.remove(wav_file)
+        await aiofiles.os.remove(m4a_file)
         print("Audio segments processed successfully.")
 
         full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        upload_result = await upload_text(full_transcript, title)
+        print("Upload result:", upload_result)
 
+        # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
-            questions_response = generate_questions_from_prompt(
+            questions_response = await generate_questions_from_prompt(
                 segment["text"],
                 user_api_key,
                 segment_wise_q_no[i],
@@ -344,27 +488,29 @@ def process_video(
                     question["segment"] = i + 1  # Link the question to the segment
                     questions.append(question)
 
+        for seg in segments:
+            seg["title"]=title
+            seg["video_url"]=url
+            seg["description"]=description
         output = VideoResponse(
-            video_url=url,
-            title=title,
-            description=description,
             segments=segments,
             questions=questions,
-        ).dict()
+        ).model_dump()
 
         return JSONResponse(content=output)
 
     else:
-        # Step 2: Segment the transcript
+        # Segment the transcript
         segments = generate_transcript_segments(transcript, timestamps)
 
         full_transcript = " ".join([segment["text"] for segment in segments])
-        upload_text(full_transcript, title)
+        upload_result = await upload_text(full_transcript, title)
+        print("Upload result:", upload_result)
 
-        # Step 3: Generate questions for each segment
+        # Generate questions for each segment
         questions = []
         for i, segment in enumerate(segments):
-            questions_response = generate_questions_from_prompt(
+            questions_response = await generate_questions_from_prompt(
                 segment["text"],
                 user_api_key,
                 segment_wise_q_no[i],
@@ -399,16 +545,16 @@ def process_video(
                         
                     question["segment"] = i + 1  # Link the question to the segment
                     questions.append(question)
-
-        # Step 4: Return the processed data
+        for seg in segments:
+            seg["title"]=title
+            seg["video_url"]=url
+            seg["description"]=description
+        # Return the processed data
         print("processing pending")
         output = VideoResponse(
-            video_url=url,
-            title=title,
-            description=description,
             segments=segments,
             questions=questions,
-        ).dict()
+        ).model_dump()
         print("processing_complete")
 
         return JSONResponse(content=output)

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,40 +9,56 @@
     * {
       box-sizing: border-box;
     }
+
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
     }
+
     .container {
       max-width: 800px;
       margin: auto;
     }
+
     label {
       display: block;
       margin: 10px 0 5px;
     }
-    input, select, button, textarea {
+
+    input,
+    select,
+    button,
+    textarea {
       width: 100%;
       padding: 10px;
       margin-bottom: 15px;
     }
+
     button.inline {
       width: auto;
       margin-left: 10px;
     }
+
     .url-container {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     textarea {
       height: 80px;
       resize: vertical;
     }
-    .segments-container, .output-segments-container, .output-questions-container {
+
+    .segments-container,
+    .output-segments-container,
+    .output-questions-container {
       margin-top: 20px;
     }
-    .video-block, .segment-block, .question-block {
+
+    .video-block,
+    .segment-block,
+    .question-block {
       display: inline-block;
       margin: 5px;
       padding: 10px;
@@ -51,24 +68,35 @@
       background-color: #f9f9f9;
       min-width: 100px;
     }
-    .video-block:hover, .segment-block:hover, .question-block:hover {
+
+    .video-block:hover,
+    .segment-block:hover,
+    .question-block:hover {
       background-color: #ddd;
     }
-    .video-block.active, .segment-block.active, .question-block.active {
+
+    .video-block.active,
+    .segment-block.active,
+    .question-block.active {
       background-color: #007bff;
       color: white;
     }
-    #video-form, #details-form {
+
+    #video-form,
+    #details-form {
       display: none;
       margin-top: 20px;
     }
+
     #video-player-container {
       margin: 20px 0;
       position: relative;
-      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      padding-bottom: 56.25%;
+      /* 16:9 aspect ratio */
       height: 0;
       overflow: hidden;
     }
+
     #player {
       position: absolute;
       top: 0;
@@ -76,13 +104,16 @@
       width: 100%;
       height: 100%;
     }
-    .segment-details, .question-details {
+
+    .segment-details,
+    .question-details {
       display: none;
       margin-top: 20px;
       padding: 15px;
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+
     .error-message {
       color: #dc2626;
       padding: 1rem;
@@ -91,6 +122,7 @@
       border-radius: 0.25rem;
       background-color: #fef2f2;
     }
+
     #generating-sign {
       display: none;
       text-align: center;
@@ -99,10 +131,12 @@
       font-weight: bold;
       color: #555;
     }
+
     .dots {
       display: inline-block;
       margin-left: 5px;
     }
+
     .dots span {
       display: inline-block;
       width: 6px;
@@ -112,12 +146,15 @@
       border-radius: 50%;
       animation: blink 1.5s infinite;
     }
+
     .dots span:nth-child(2) {
       animation-delay: 0.3s;
     }
+
     .dots span:nth-child(3) {
       animation-delay: 0.6s;
     }
+
     .default-settings {
       margin: 20px 0;
       padding: 15px;
@@ -125,33 +162,42 @@
       border-radius: 4px;
       background-color: #f9f9f9;
     }
+
     #recalculate-timestamps {
       width: auto;
       margin-top: 10px;
       margin-bottom: 15px;
     }
+
     .default-settings label {
       margin-top: 0;
     }
+
     .default-settings input {
       margin-bottom: 10px;
     }
+
     @keyframes blink {
-      0%, 100% {
+
+      0%,
+      100% {
         opacity: 0.2;
       }
+
       50% {
         opacity: 1;
       }
     }
-  </style>
+  </style> // CSS styling for the HTML page
 </head>
+
 <body>
   <div class="container">
     <h1>Video Question Generator</h1>
-    
+
     <div class="url-container">
-      <input type="url" id="playlist-url" placeholder="Enter YouTube playlist or video URL" required />      <button id="fetch-videos" class="inline">Submit</button>
+      <input type="url" id="playlist-url" placeholder="Enter YouTube playlist or video URL" required /> <button
+        id="fetch-videos" class="inline">Submit</button>
     </div>
 
     <div class="hierarchy-dropdowns">
@@ -161,14 +207,14 @@
           <option value="">Select Course</option>
         </select>
       </div>
-      
+
       <div>
         <label for="module-select">Module</label>
         <select id="module-select" disabled>
           <option value="">Select Module</option>
         </select>
       </div>
-      
+
       <div>
         <label for="section-select">Section</label>
         <select id="section-select" disabled>
@@ -180,7 +226,7 @@
     <div class="default-settings">
       <label for="default-segments">Default Number of Segments</label>
       <input type="number" id="default-segments" min="1" placeholder="Enter default segments count" />
-      
+
       <label for="default-questions">Default Questions per Segment</label>
       <input type="number" id="default-questions" min="1" placeholder="Enter default questions count" />
     </div>
@@ -194,7 +240,7 @@
       <div id="num-segments-container" style="display: none;">
         <label for="num-segments">Number of Segments (for this video)</label>
         <input type="number" id="num-segments" min="1" placeholder="Enter number of segments" />
-      </div>      
+      </div>
 
       <div id="video-player-container">
         <div id="player"></div>
@@ -234,18 +280,18 @@
       <h3>Generated Output:</h3>
       <div id="output-videos-container"></div>
       <div id="video-info"></div>
-      
+
       <h4>Segments</h4>
       <div id="output-segments-container" class="output-segments-container"></div>
       <div id="segment-details-container"></div>
-      
+
       <h4>Questions</h4>
       <div id="output-questions-container" class="output-questions-container"></div>
       <div id="question-details-container"></div>
     </div>
 
     <button id="confirm-btn" style="display:none;">Confirm & Download</button>
-  </div>
+  </div> // HTML content for the page. This includes the form, buttons, and other elements. These are used for the user interface.
 
   <script>
     const videoData = {};
@@ -260,193 +306,315 @@
     let modifiedResponseData = {};
     let hierarchyData = null;
     let selectedSectionId = null;
-
+    const config = {};
+    // the above is the global variables that are used in the script
     // IndexedDB Storage Utility
-class QuestionIndexedDB {
-    constructor(dbName = 'VideoQuestionDB', version = 1) {
+
+    class QuestionIndexedDB { // Class for IndexedDB storage. This is used to store the video data.
+      constructor(dbName = 'VideoQuestionDB', version = 1) {
         this.dbName = dbName;
         this.version = version;
         this.db = null;
-    }
+      }
 
-    async openDatabase() {
+      async openDatabase() { // Function to open the database.
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, this.version);
+          const request = indexedDB.open(this.dbName, this.version);
 
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('videos')) {
-                    const videoStore = db.createObjectStore('videos', { 
-                        keyPath: 'video_url' 
-                    });
-                    videoStore.createIndex('section_id', 'section_id', { unique: false });
-                }
-            };
+          request.onupgradeneeded = (event) => { // Event listener for when the database is upgraded.
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('videos')) {
+              const videoStore = db.createObjectStore('videos', {
+                keyPath: 'video_url'
+              });
+              videoStore.createIndex('section_id', 'section_id', { unique: false });
+            }
+          };
 
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                resolve(this.db);
-            };
+          request.onsuccess = (event) => { // Event listener for when the database is successfully opened.
+            this.db = event.target.result;
+            resolve(this.db);
+          };
 
-            request.onerror = (event) => {
-                reject(`IndexedDB error: ${event.target.error}`);
-            };
+          request.onerror = (event) => { // Event listener for when there is an error opening the database.
+            reject(`IndexedDB error: ${event.target.error}`);
+          };
         });
-    }
+      }
 
-    async saveVideoData(videoData) {
+      async saveVideoData(videoData) { // Function to save video data to the database.
         await this.openDatabase();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['videos'], 'readwrite');
-            const store = transaction.objectStore('videos');
-            const request = store.put(videoData);
+          const transaction = this.db.transaction(['videos'], 'readwrite');
+          const store = transaction.objectStore('videos');
+          const request = store.put(videoData);
 
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject('Failed to save video data');
+          request.onsuccess = () => resolve(true);
+          request.onerror = () => reject('Failed to save video data');
         });
-    }
+      }
 
-    async getVideoData(videoUrl) {
+      async getVideoData(videoUrl) { // Function to get video data from the database. This is used to retrieve the video data on the uploading portal.
         await this.openDatabase();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['videos'], 'readonly');
-            const store = transaction.objectStore('videos');
-            const request = store.get(videoUrl);
+          const transaction = this.db.transaction(['videos'], 'readonly');
+          const store = transaction.objectStore('videos');
+          const request = store.get(videoUrl);
 
-            request.onsuccess = (event) => resolve(event.target.result);
-            request.onerror = () => reject('Failed to retrieve video data');
+          request.onsuccess = (event) => resolve(event.target.result);
+          request.onerror = () => reject('Failed to retrieve video data');
         });
-    }
+      }
 
-    async getAllVideos() {
+      async getAllVideos() { 
         await this.openDatabase();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['videos'], 'readonly');
-            const store = transaction.objectStore('videos');
-            const request = store.getAll();
+          const transaction = this.db.transaction(['videos'], 'readonly');
+          const store = transaction.objectStore('videos');
+          const request = store.getAll();
 
-            request.onsuccess = (event) => resolve(event.target.result);
-            request.onerror = () => reject('Failed to retrieve all videos');
+          request.onsuccess = (event) => resolve(event.target.result);
+          request.onerror = () => reject('Failed to retrieve all videos');
         });
+      }
     }
-}
 
-const questionDB = new QuestionIndexedDB();
+    const questionDB = new QuestionIndexedDB();
+    const configLoaded = fetch("/config")
+    .then(response => response.json())
+    .then(data => {
+        config.LMS_GET_URL = data.LMS_GET_URL;
+        config.VIDEO_UPLOAD_URL = data.VIDEO_UPLOAD_URL;
+        config.ASSESSMENT_UPLOAD_URL= data.ASSESSMENT_UPLOAD_URL;
+        config.QUESTIONS_UPLOAD_URL= data.QUESTIONS_UPLOAD_URL;
+        config.Authorization=data.Authorization;
 
-// Fetch course hierarchy when page loads
-fetch('http://127.0.0.1:5000/api/courses/hierarchy', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+        console.log("Config Loaded:", config); // Debugging log
+    })
+    .catch(error => console.error("Error fetching config:", error));
+
+configLoaded.then(() => { // Function to fetch the course hierarchy when the page loads.
+    console.log("2 GET KA URLLLL: ", config.LMS_GET_URL);
+    console.log("2 UPLOAD KA URLLLL: ", config.LMS_UPLOAD_URL);
+    console.log("2 QUESTION KA URLLLL: ", config.QUESTIONS_UPLOAD_URL);
+    console.log("2 AUTHORIZATION",config.Authorization);
+});
+   
+configLoaded.then(() => { 
+  // Fetch course hierarchy when page loads
+  fetch(`${config.LMS_GET_URL}courses`, {  
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': config.Authorization,
+  },
+})
   .then(response => response.json())
   .then(data => {
-    hierarchyData = data;
-    populateCourseDropdown();
+    console.log("API Response:", data);  // ✅ Debugging
+    if (!Array.isArray(data.results)) {
+      throw new Error('Invalid data format received from server');
+    }
+    populateCourseDropdown(data.results);
   })
-  .catch(error => console.error('Error fetching hierarchy:', error));
+  .catch(error => console.error('Error fetching courses:', error));
 
-function populateCourseDropdown() {
+});
+
+function populateCourseDropdown(courses) { // Function to populate the course dropdown with the courses fetched from the API.
   const courseSelect = document.getElementById('course-select');
   courseSelect.innerHTML = '<option value="">Select Course</option>';
-  
-  hierarchyData.results.forEach(course => {
+
+  if (!Array.isArray(courses)) {
+    console.error('⚠️ Expected courses to be an array');
+    return;
+  }
+
+  courses.forEach(course => {
+    if (!course.course_id) {  // ✅ Fix: Using `course_id` instead of `id`
+      console.error("⚠️ Course missing ID:", course);
+      return;
+    }
+
     const option = document.createElement('option');
-    option.value = course.id;
-    option.textContent = course.name;
+    option.value = course.course_id;  // ✅ Fix: Use `course_id`
+    option.textContent = course.name || 'Unnamed Course';
     courseSelect.appendChild(option);
   });
-}
 
-function deepCopy(obj) {
-  if (obj === null || typeof obj !== 'object') {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(item => deepCopy(item));
-  }
-
-  const copy = {};
-  Object.keys(obj).forEach(key => {
-    copy[key] = deepCopy(obj[key]);
-  });
-  return copy;
+  console.log("📌 Course dropdown options:", [...courseSelect.options].map(opt => opt.value)); // ✅ Debugging
 }
 
 
-function updateModuleDropdown(courseId) {
+
+
+    function deepCopy(obj) { // Function to create a deep copy of an object.
+      if (obj === null || typeof obj !== 'object') {
+        return obj;
+      }
+
+      if (Array.isArray(obj)) {
+        return obj.map(item => deepCopy(item));
+      }
+
+      const copy = {};
+      Object.keys(obj).forEach(key => {
+        copy[key] = deepCopy(obj[key]);
+      });
+      return copy;
+    }
+
+
+    function updateModuleDropdown(courseId) { // Function to update the module dropdown based on the selected course.
   const moduleSelect = document.getElementById('module-select');
   moduleSelect.innerHTML = '<option value="">Select Module</option>';
-  moduleSelect.disabled = !courseId;
-  
-  if (!courseId) return;
-  
-  const course = hierarchyData.results.find(c => c.id === parseInt(courseId));
-  if (course) {
-    course.modules.forEach(module => {
-      const option = document.createElement('option');
-      option.value = module.id;
-      option.textContent = module.title;
-      moduleSelect.appendChild(option);
-    });
+  moduleSelect.disabled = true;
+
+  const numericCourseId = parseInt(courseId, 10);
+  if (isNaN(numericCourseId)) {
+    console.error("⚠️ Invalid Course ID:", courseId);
+    return;
   }
+
+  moduleSelect.disabled = false;
+
+  fetch(`${config.LMS_GET_URL}modules?course_id=${numericCourseId}`, {  
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': config.Authorization,
+    },
+  })
+    .then(response => response.json())
+    .then(data => {
+  console.log("📌 Modules API Response:", data); // ✅ Debugging
+
+  if (!data || !Array.isArray(data.results)) { // ✅ Fix: Checking for `results` instead of `modules`
+    throw new Error('Invalid data format received from server');
+  }
+
+  data.results.forEach(module => {
+    if (!module.module_id) {  // ✅ Fix: Using `module_id` instead of `id`
+      console.error("⚠️ Module missing ID:", module);
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = module.module_id;  // ✅ Fix: Use `module_id`
+    option.textContent = module.title || 'Unnamed Module';
+    moduleSelect.appendChild(option);
+  });
+})
+
+    .catch(error => {
+      console.error('Error fetching modules:', error);
+      moduleSelect.innerHTML = '<option value="">Error loading modules</option>';
+    });
 }
 
-function updateSectionDropdown(moduleId) {
+
+function updateSectionDropdown(moduleId) { // Function to update the section dropdown based on the selected module.
   const sectionSelect = document.getElementById('section-select');
   sectionSelect.innerHTML = '<option value="">Select Section</option>';
-  sectionSelect.disabled = !moduleId;
-  
-  if (!moduleId) return;
-  
-  const course = hierarchyData.results.find(c => 
-    c.modules.some(m => m.id === parseInt(moduleId))
-  );
-  if (course) {
-    const module = course.modules.find(m => m.id === parseInt(moduleId));
-    if (module) {
-      module.sections.forEach(section => {
+  sectionSelect.disabled = true;
+
+  // Ensure moduleId is a valid number
+  const numericModuleId = parseInt(moduleId, 10);
+  if (isNaN(numericModuleId)) {
+    console.error("⚠️ Invalid module ID:", moduleId);
+    return;
+  }
+
+  sectionSelect.disabled = false;
+
+  fetch(`${config.LMS_GET_URL}sections?module_id=${numericModuleId}`, {  
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': config.Authorization,
+    },
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log("📌 SECTION YAHAN HAI:", data); // ✅ Debugging
+
+      if (!data || !Array.isArray(data.results)) {  // ✅ Fix: Checking for `results` instead of `sections`
+        throw new Error('Invalid data format received from server');
+      }
+
+      data.results.forEach(section => {
+        if (!section.id) {  // ✅ Fix: Using `id` (not `section_id`)
+          console.error("⚠️ Section missing ID:", section);
+          return;
+        }
+
         const option = document.createElement('option');
-        option.value = section.id;
-        option.textContent = section.title;
+        option.value = section.id;  // ✅ Fix: Use `id`
+        option.textContent = section.title || 'Unnamed Section';
         sectionSelect.appendChild(option);
       });
-    }
-  }
+    })
+    .catch(error => {
+      console.error('Error fetching sections:', error);
+      sectionSelect.innerHTML = '<option value="">Error loading sections</option>';
+    });
 }
 
-// Add event listeners for dropdowns
-document.getElementById('course-select').addEventListener('change', (e) => {
-  updateModuleDropdown(e.target.value);
-  document.getElementById('section-select').disabled = true;
-  document.getElementById('section-select').innerHTML = '<option value="">Select Section</option>';
+
+// Event listeners
+document.addEventListener("DOMContentLoaded", function () { // Event listener to load the course dropdown when the page loads.
+  const courseSelect = document.getElementById('course-select');
+
+  // ✅ Remove any existing listeners to prevent duplication
+  courseSelect.replaceWith(courseSelect.cloneNode(true));
+
+  // ✅ Add event listener correctly
+  document.getElementById('course-select').addEventListener('change', (e) => {
+    const courseId = e.target.value;
+    
+
+    // ✅ Debugging: Check if the selected course ID is captured
+    console.log("✅ Selected Course ID:", courseId);
+
+    if (courseId) {
+      console.log("Yahan dekho",courseId);
+      updateModuleDropdown(courseId);
+    }
+
+    // ✅ Reset the section dropdown
+    const sectionSelect = document.getElementById('section-select');
+    sectionSelect.disabled = true;
+    sectionSelect.innerHTML = '<option value="">Select Section</option>';
+  });
 });
 
-document.getElementById('module-select').addEventListener('change', (e) => {
-  updateSectionDropdown(e.target.value);
+
+document.getElementById('module-select').addEventListener('change', (e) => { // Event listener to update the section dropdown when the module is selected.
+  const moduleId = e.target.value;
+  if (moduleId) {
+    updateSectionDropdown(moduleId);
+  }
 });
 
-document.getElementById('section-select').addEventListener('change', (e) => {
-  selectedSectionId = e.target.value ? parseInt(e.target.value) : null;
+document.getElementById('section-select').addEventListener('change', (e) => { // Event listener to update the selected section ID.
+  selectedSectionId = e.target.value ? parseInt(e.target.value, 10) : null;
 });
 
-    function secondsToHMS(seconds) {
+    function secondsToHMS(seconds) { // Function to convert seconds to hours, minutes, and seconds.
       const hrs = Math.floor(seconds / 3600);
       const mins = Math.floor((seconds % 3600) / 60);
       const secs = Math.floor(seconds % 60);
       return { hrs, mins, secs };
     }
 
-    function hmsToSeconds(hrs, mins, secs) {
+    function hmsToSeconds(hrs, mins, secs) { // Function to convert hours, minutes, and seconds to seconds.
       return (hrs * 3600) + (mins * 60) + secs;
     }
 
-    function updateSegmentTimestamps(videoIndex, numSegments) {
+    function updateSegmentTimestamps(videoIndex, numSegments) { // Function to update the timestamps of the segments based on the number of segments.
       const videoDuration = videoDurations[videoIndex];
       const segmentDuration = videoDuration / numSegments;
-      
+
       for (let i = 1; i <= numSegments; i++) {
         if (videoData[videoIndex].segments[i]) {
           videoData[videoIndex].segments[i].timestamp = i === 1 ? 0 : (i - 1) * segmentDuration;
@@ -454,9 +622,11 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       }
     }
 
-    function isPlaylistUrl(url) {
+    function isPlaylistUrl(url) { // Function to check if the URL is a YouTube playlist URL.
       return url.includes('playlist?list=') || url.includes('&list=');
     }
+
+
 
     // Load YouTube API
     const tag = document.createElement('script');
@@ -464,8 +634,8 @@ document.getElementById('section-select').addEventListener('change', (e) => {
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    let player;
-    function onYouTubeIframeAPIReady() {
+    let player; // YouTube player object
+    function onYouTubeIframeAPIReady() { // Function to initialize the YouTube player.
       player = new YT.Player('player', {
         height: '360',
         width: '640',
@@ -476,7 +646,7 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       });
     }
 
-    async function getVideoDuration(videoId) {
+    async function getVideoDuration(videoId) { // Function to get the duration of a YouTube video.
       return new Promise((resolve) => {
         const tempPlayer = new YT.Player('temp-player', {
           videoId: videoId,
@@ -491,506 +661,497 @@ document.getElementById('section-select').addEventListener('change', (e) => {
       });
     }
 
-function selectVideo(index) {
-  currentVideo = index;
+    function selectVideo(index) { // Function to select a video from the list of videos.
+      currentVideo = index;
 
-  // Extract video ID from URL and load it
-  const videoUrl = videoUrls[index];
-  const videoId = videoUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/);
-  if (videoId && videoId[1]) {
-    if (player && player.loadVideoById) {
-      player.loadVideoById(videoId[1]);
-    }
-  }
-  
-  const blocks = document.getElementsByClassName('video-block');
-  Array.from(blocks).forEach(block => block.classList.remove('active'));
-  blocks[index].classList.add('active');
-
-  const videoForm = document.getElementById('video-form');
-  videoForm.style.display = 'block';
-
-  document.getElementById('num-segments-container').style.display = 'block';
-
-  if (!videoData[index]) {
-    videoData[index] = {
-      segments: {}
-    };
-    document.getElementById('num-segments').value = '';
-    document.getElementById('segments-container').innerHTML = '';
-    document.getElementById('details-form').style.display = 'none';
-  } else {
-    const numSegments = Object.keys(videoData[index].segments).length;
-    document.getElementById('num-segments').value = numSegments;
-    
-    // Rebuild segments UI without recalculating timestamps
-    const segmentsContainer = document.getElementById('segments-container');
-    segmentsContainer.innerHTML = '';
-    
-    for (let i = 1; i <= numSegments; i++) {
-      const segmentBlock = document.createElement('div');
-      segmentBlock.className = 'segment-block';
-      segmentBlock.textContent = `Segment ${i}`;
-      segmentBlock.setAttribute('data-segment', i);
-      segmentBlock.addEventListener('click', () => openSegmentForm(i));
-      segmentsContainer.appendChild(segmentBlock);
-    }
-  }
-
-  if (Object.keys(videoData[currentVideo].segments).length > 0) {
-    openSegmentForm(1); // First segment is 1-based index
-    const segmentBlocks = document.getElementsByClassName('segment-block');
-    Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
-    if (segmentBlocks.length > 0) {
-      segmentBlocks[0].classList.add('active'); // Highlight first segment block
-    }
-  }
-}
-
-document.getElementById('fetch-videos').addEventListener('click', async () => {
-  const playlistUrl = document.getElementById('playlist-url').value;
-  defaultSegments = parseInt(document.getElementById('default-segments').value) || 0;
-  defaultQuestions = parseInt(document.getElementById('default-questions').value) || 0;
-  
-  if (!defaultSegments) {
-    alert('Please enter default number of segments');
-    return;
-  }
-  if (!defaultQuestions) {
-    alert('Please enter default number of questions');
-    return;
-  }
-  
-  try {
-    if (isPlaylistUrl(playlistUrl)) {
-      // Existing playlist handling
-      const response = await fetch('/questions/get_urls', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: playlistUrl }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Extract video ID from URL and load it
+      const videoUrl = videoUrls[index];
+      const videoId = videoUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/);
+      if (videoId && videoId[1]) {
+        if (player && player.loadVideoById) {
+          player.loadVideoById(videoId[1]);
+        }
       }
-      
-      const data = await response.json();
-      videoUrls = data.video_urls;
-    } else {
-      // Single video handling
-      videoUrls = [playlistUrl];
-    }
-    
-    // Get durations for all videos
-    for (let i = 0; i < videoUrls.length; i++) {
-      const videoId = videoUrls[i].match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/)[1];
-      videoDurations[i] = await getVideoDuration(videoId);
-    }
-    
-    displayVideoBlocks();
-    document.getElementById('video-form').style.display = 'block';
-    
-    // Auto-populate all videos with default segments
-    videoUrls.forEach((_, index) => {
-      videoData[index] = {
-        segments: {}
-      };
-      if (defaultSegments > 0) {
-        const numSegments = defaultSegments;
+
+      const blocks = document.getElementsByClassName('video-block');
+      Array.from(blocks).forEach(block => block.classList.remove('active'));
+      blocks[index].classList.add('active');
+
+      const videoForm = document.getElementById('video-form');
+      videoForm.style.display = 'block';
+
+      document.getElementById('num-segments-container').style.display = 'block';
+
+      if (!videoData[index]) {
+        videoData[index] = {
+          segments: {}
+        };
+        document.getElementById('num-segments').value = '';
+        document.getElementById('segments-container').innerHTML = '';
+        document.getElementById('details-form').style.display = 'none';
+      } else {
+        const numSegments = Object.keys(videoData[index].segments).length;
+        document.getElementById('num-segments').value = numSegments;
+
+        // Rebuild segments UI without recalculating timestamps
+        const segmentsContainer = document.getElementById('segments-container');
+        segmentsContainer.innerHTML = '';
+
         for (let i = 1; i <= numSegments; i++) {
-          const segmentDuration = videoDurations[index] / numSegments;
-          videoData[index].segments[i] = {
-            timestamp: (i - 1) * segmentDuration,
+          const segmentBlock = document.createElement('div');
+          segmentBlock.className = 'segment-block';
+          segmentBlock.textContent = `Segment ${i}`;
+          segmentBlock.setAttribute('data-segment', i);
+          segmentBlock.addEventListener('click', () => openSegmentForm(i));
+          segmentsContainer.appendChild(segmentBlock);
+        }
+      }
+
+      if (Object.keys(videoData[currentVideo].segments).length > 0) {
+        openSegmentForm(1); // First segment is 1-based index
+        const segmentBlocks = document.getElementsByClassName('segment-block');
+        Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
+        if (segmentBlocks.length > 0) {
+          segmentBlocks[0].classList.add('active'); // Highlight first segment block
+        }
+      }
+    }
+
+    document.getElementById('fetch-videos').addEventListener('click', async () => { // Event listener for when the user submits the playlist URL.
+      const playlistUrl = document.getElementById('playlist-url').value;
+      defaultSegments = parseInt(document.getElementById('default-segments').value) || 0;
+      defaultQuestions = parseInt(document.getElementById('default-questions').value) || 0;
+
+      if (!defaultSegments) {
+        alert('Please enter default number of segments');
+        return;
+      }
+      if (!defaultQuestions) {
+        alert('Please enter default number of questions');
+        return;
+      }
+
+      try {
+        if (isPlaylistUrl(playlistUrl)) {
+          // Existing playlist handling
+          const response = await fetch('/questions/get_urls', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: playlistUrl }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          videoUrls = data.video_urls;
+        } else {
+          // Single video handling
+          videoUrls = [playlistUrl];
+        }
+
+        // Get durations for all videos
+        for (let i = 0; i < videoUrls.length; i++) {
+          const videoId = videoUrls[i].match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts#\w\/\w\/.*\/))([^\/&\?]{10,12})/)[1];
+          videoDurations[i] = await getVideoDuration(videoId);
+        }
+
+        displayVideoBlocks();
+        document.getElementById('video-form').style.display = 'block';
+
+        // Auto-populate all videos with default segments
+        videoUrls.forEach((_, index) => {
+          videoData[index] = {
+            segments: {}
+          };
+          if (defaultSegments > 0) {
+            const numSegments = defaultSegments;
+            for (let i = 1; i <= numSegments; i++) {
+              const segmentDuration = videoDurations[index] / numSegments;
+              videoData[index].segments[i] = {
+                timestamp: (i - 1) * segmentDuration,
+                questions: defaultQuestions || null,
+                type: 'analytical'
+              };
+            }
+            document.getElementById('num-segments').value = numSegments;
+          }
+        });
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+
+    function displayVideoBlocks() { // Function to display the video blocks on the page.
+      const container = document.getElementById('videos-container');
+      container.innerHTML = '';
+
+      videoUrls.forEach((_, index) => {
+        const videoBlock = document.createElement('div');
+        videoBlock.className = 'video-block';
+        videoBlock.textContent = `Video ${index + 1}`;
+        videoBlock.addEventListener('click', () => selectVideo(index));
+        container.appendChild(videoBlock);
+      });
+    }
+
+    const numSegmentsInput = document.getElementById('num-segments');
+    numSegmentsInput.addEventListener('input', () => {
+      if (currentVideo === null) return;
+
+      const numSegments = parseInt(numSegmentsInput.value) || 0;
+      const segmentsContainer = document.getElementById('segments-container');
+      const currentSegments = videoData[currentVideo].segments;
+
+      // Clear container
+      segmentsContainer.innerHTML = '';
+
+      // Calculate segment duration based on video duration
+      const videoDuration = videoDurations[currentVideo];
+      const segmentDuration = videoDuration / numSegments;
+
+      // Create new segments object
+      const newSegments = {};
+
+      for (let i = 1; i <= numSegments; i++) {
+        const segmentBlock = document.createElement('div');
+        segmentBlock.className = 'segment-block';
+        segmentBlock.textContent = `Segment ${i}`;
+        segmentBlock.setAttribute('data-segment', i);
+        segmentBlock.addEventListener('click', () => openSegmentForm(i));
+        segmentsContainer.appendChild(segmentBlock);
+
+        // Preserve existing segment data if available
+        if (currentSegments[i]) {
+          newSegments[i] = {
+            ...currentSegments[i]
+          };
+        } else {
+          // Only calculate new timestamp for new segments
+          newSegments[i] = {
+            timestamp: i === 1 ? 0 : (i - 1) * segmentDuration,
             questions: defaultQuestions || null,
             type: 'analytical'
           };
         }
-        document.getElementById('num-segments').value = numSegments;
       }
+
+      // Replace old segments with new ones
+      videoData[currentVideo].segments = newSegments;
     });
-  } catch (error) {
-    console.error('Error:', error);
-  }
-});
 
-function displayVideoBlocks() {
-  const container = document.getElementById('videos-container');
-  container.innerHTML = '';
-  
-  videoUrls.forEach((_, index) => {
-    const videoBlock = document.createElement('div');
-    videoBlock.className = 'video-block';
-    videoBlock.textContent = `Video ${index + 1}`;
-    videoBlock.addEventListener('click', () => selectVideo(index));
-    container.appendChild(videoBlock);
-  });
-}
+    function openSegmentForm(segmentNumber) {
+      currentSegment = segmentNumber;
+      const data = videoData[currentVideo].segments[segmentNumber];
 
-const numSegmentsInput = document.getElementById('num-segments');
-numSegmentsInput.addEventListener('input', () => {
-  if (currentVideo === null) return;
-  
-  const numSegments = parseInt(numSegmentsInput.value) || 0;
-  const segmentsContainer = document.getElementById('segments-container');
-  const currentSegments = videoData[currentVideo].segments;
-  
-  // Clear container
-  segmentsContainer.innerHTML = '';
-  
-  // Calculate segment duration based on video duration
-  const videoDuration = videoDurations[currentVideo];
-  const segmentDuration = videoDuration / numSegments;
-  
-  // Create new segments object
-  const newSegments = {};
-  
-  for (let i = 1; i <= numSegments; i++) {
-    const segmentBlock = document.createElement('div');
-    segmentBlock.className = 'segment-block';
-    segmentBlock.textContent = `Segment ${i}`;
-    segmentBlock.setAttribute('data-segment', i);
-    segmentBlock.addEventListener('click', () => openSegmentForm(i));
-    segmentsContainer.appendChild(segmentBlock);
+      const formTitle = document.getElementById('form-title');
+      const questionsInput = document.getElementById('questions');
+      const typeInput = document.getElementById('type');
 
-    // Preserve existing segment data if available
-    if (currentSegments[i]) {
-      newSegments[i] = {
-        ...currentSegments[i]
-      };
-    } else {
-      // Only calculate new timestamp for new segments
-      newSegments[i] = { 
-        timestamp: i === 1 ? 0 : (i - 1) * segmentDuration,
-        questions: defaultQuestions || null,
-        type: 'analytical'
+      const timestampFields = document.querySelectorAll('#timestamp-hr, #timestamp-min, #timestamp-sec');
+      if (segmentNumber === 1) {
+        timestampFields.forEach(field => {
+          field.value = '0';
+          field.disabled = true;
+        });
+      } else {
+        const timestamp = data.timestamp || 0;
+        const { hrs, mins, secs } = secondsToHMS(timestamp);
+        document.getElementById('timestamp-hr').value = hrs;
+        document.getElementById('timestamp-min').value = mins;
+        document.getElementById('timestamp-sec').value = secs;
+        timestampFields.forEach(field => field.disabled = false);
+      }
+
+      formTitle.textContent = `Segment ${segmentNumber} Details`;
+      questionsInput.value = data.questions || '';
+      typeInput.value = data.type || '';
+
+      document.getElementById('details-form').style.display = 'block';
+
+      const segmentBlocks = document.getElementsByClassName('segment-block');
+      Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
+      document.querySelector(`[data-segment="${segmentNumber}"]`)?.classList.add('active');
+    }
+
+    function saveSegmentData() {
+      if (currentVideo === null || currentSegment === null) return;
+
+      const hrs = parseInt(document.getElementById('timestamp-hr').value) || 0;
+      const mins = parseInt(document.getElementById('timestamp-min').value) || 0;
+      const secs = parseInt(document.getElementById('timestamp-sec').value) || 0;
+      const questionsInput = document.getElementById('questions');
+      const typeInput = document.getElementById('type');
+
+      videoData[currentVideo].segments[currentSegment] = {
+        timestamp: currentSegment === 1 ? 0 : hmsToSeconds(hrs, mins, secs),
+        questions: parseInt(questionsInput.value) || null,
+        type: typeInput.value || ''
       };
     }
-  }
-  
-  // Replace old segments with new ones
-  videoData[currentVideo].segments = newSegments;
-});
 
-function openSegmentForm(segmentNumber) {
-  currentSegment = segmentNumber;
-  const data = videoData[currentVideo].segments[segmentNumber];
-  
-  const formTitle = document.getElementById('form-title');
-  const questionsInput = document.getElementById('questions');
-  const typeInput = document.getElementById('type');
+    function validateTimestamps() {
+      for (let videoIndex in videoData) {
+        const segments = videoData[videoIndex].segments;
+        const segmentNumbers = Object.keys(segments).sort((a, b) => parseInt(a) - parseInt(b));
 
-  const timestampFields = document.querySelectorAll('#timestamp-hr, #timestamp-min, #timestamp-sec');
-  if (segmentNumber === 1) {
-    timestampFields.forEach(field => {
-      field.value = '0';
-      field.disabled = true;
-    });
-  } else {
-    const timestamp = data.timestamp || 0;
-    const { hrs, mins, secs } = secondsToHMS(timestamp);
-    document.getElementById('timestamp-hr').value = hrs;
-    document.getElementById('timestamp-min').value = mins;
-    document.getElementById('timestamp-sec').value = secs;
-    timestampFields.forEach(field => field.disabled = false);
-  }
-  
-  formTitle.textContent = `Segment ${segmentNumber} Details`;
-  questionsInput.value = data.questions || '';
-  typeInput.value = data.type || '';
-  
-  document.getElementById('details-form').style.display = 'block';
+        let previousTimestamp = -1;
 
-  const segmentBlocks = document.getElementsByClassName('segment-block');
-  Array.from(segmentBlocks).forEach(block => block.classList.remove('active'));
-  document.querySelector(`[data-segment="${segmentNumber}"]`)?.classList.add('active');
-}
+        for (let segNum of segmentNumbers) {
+          const currentTimestamp = segments[segNum].timestamp;
 
-function saveSegmentData() {
-  if (currentVideo === null || currentSegment === null) return;
-  
-  const hrs = parseInt(document.getElementById('timestamp-hr').value) || 0;
-  const mins = parseInt(document.getElementById('timestamp-min').value) || 0;
-  const secs = parseInt(document.getElementById('timestamp-sec').value) || 0;
-  const questionsInput = document.getElementById('questions');
-  const typeInput = document.getElementById('type');
+          // Check if timestamps are in order
+          if (currentTimestamp <= previousTimestamp && segNum !== '1') {
+            alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Timestamp (${currentTimestamp}s) must be greater than previous segment's timestamp (${previousTimestamp}s)`);
+            return false;
+          }
 
-  videoData[currentVideo].segments[currentSegment] = {
-    timestamp: currentSegment === 1 ? 0 : hmsToSeconds(hrs, mins, secs),
-    questions: parseInt(questionsInput.value) || null,
-    type: typeInput.value || ''
-  };
-}
+          // Check if last segment timestamp is less than video duration
+          if (segNum === segmentNumbers[segmentNumbers.length - 1]) {
+            if (currentTimestamp >= videoDurations[videoIndex]) {
+              alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Last segment timestamp (${currentTimestamp}s) must be less than video duration (${videoDurations[videoIndex]}s)`);
+              return false;
+            }
+          }
 
-function validateTimestamps() {
-  for (let videoIndex in videoData) {
-    const segments = videoData[videoIndex].segments;
-    const segmentNumbers = Object.keys(segments).sort((a, b) => parseInt(a) - parseInt(b));
-    
-    let previousTimestamp = -1;
-    
-    for (let segNum of segmentNumbers) {
-      const currentTimestamp = segments[segNum].timestamp;
-      
-      // Check if timestamps are in order
-      if (currentTimestamp <= previousTimestamp && segNum !== '1') {
-        alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Timestamp (${currentTimestamp}s) must be greater than previous segment's timestamp (${previousTimestamp}s)`);
-        return false;
-      }
-      
-      // Check if last segment timestamp is less than video duration
-      if (segNum === segmentNumbers[segmentNumbers.length - 1]) {
-        if (currentTimestamp >= videoDurations[videoIndex]) {
-          alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Last segment timestamp (${currentTimestamp}s) must be less than video duration (${videoDurations[videoIndex]}s)`);
-          return false;
+          previousTimestamp = currentTimestamp;
         }
       }
-      
-      previousTimestamp = currentTimestamp;
+      return true;
     }
-  }
-  return true;
-}
 
-document.getElementById('questions').addEventListener('input', saveSegmentData);
-document.getElementById('type').addEventListener('change', saveSegmentData);
+    document.getElementById('questions').addEventListener('input', saveSegmentData);
+    document.getElementById('type').addEventListener('change', saveSegmentData);
 
-['timestamp-hr', 'timestamp-min', 'timestamp-sec'].forEach(id => {
-  document.getElementById(id).addEventListener('input', saveSegmentData);
-});
+    ['timestamp-hr', 'timestamp-min', 'timestamp-sec'].forEach(id => {
+      document.getElementById(id).addEventListener('input', saveSegmentData);
+    });
 
-function getTotalSegments(videoIndex) {
-  return Object.keys(videoData[videoIndex]?.segments || {}).length;
-}
+    function getTotalSegments(videoIndex) {
+      return Object.keys(videoData[videoIndex]?.segments || {}).length;
+    }
 
-function createBatches(videoIndices) {
-  const batches = [];
-  let currentBatch = [];
-  let currentBatchSegments = 0;
-  
-  for (const videoIndex of videoIndices) {
-    const videoSegments = getTotalSegments(videoIndex);
-    
-    if (currentBatchSegments + videoSegments > 15) {
+    function createBatches(videoIndices) {
+      const batches = [];
+      let currentBatch = [];
+      let currentBatchSegments = 0;
+
+      for (const videoIndex of videoIndices) {
+        const videoSegments = getTotalSegments(videoIndex);
+
+        if (currentBatchSegments + videoSegments > 15) {
+          if (currentBatch.length > 0) {
+            batches.push(currentBatch);
+          }
+          currentBatch = [videoIndex];
+          currentBatchSegments = videoSegments;
+        } else {
+          currentBatch.push(videoIndex);
+          currentBatchSegments += videoSegments;
+        }
+      }
+
       if (currentBatch.length > 0) {
         batches.push(currentBatch);
       }
-      currentBatch = [videoIndex];
-      currentBatchSegments = videoSegments;
-    } else {
-      currentBatch.push(videoIndex);
-      currentBatchSegments += videoSegments;
-    }
-  }
-  
-  if (currentBatch.length > 0) {
-    batches.push(currentBatch);
-  }
-  
-  return batches;
-}
 
-async function processBatches(batches) {
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    
-    // Process all videos in current batch concurrently
-    const batchPromises = batch.map(async (videoIndex) => {
-      try {
-        const videoURL = videoUrls[videoIndex];
-        const segments = videoData[videoIndex].segments;
-        
-        const timestamps = [];
-        const segmentWiseQNo = [];
-        const segmentWiseQModel = [];
-        
-        Object.values(segments).forEach(data => {
-          if (data.timestamp !== null) timestamps.push(data.timestamp);
-          if (data.questions !== null) segmentWiseQNo.push(data.questions);
-          if (data.type !== null) segmentWiseQModel.push(data.type);
+      return batches;
+    }
+
+
+    async function processBatches(batches) {
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+
+        // Process all videos in current batch concurrently
+        const batchPromises = batch.map(async (videoIndex) => {
+          const videoURL = videoUrls[videoIndex];
+          const segments = videoData[videoIndex].segments;
+
+          const timestamps = [];
+          const segmentWiseQNo = [];
+          const segmentWiseQModel = [];
+
+          Object.values(segments).forEach(data => {
+            if (data.timestamp !== null) timestamps.push(parseInt(data.timestamp, 10));
+            if (data.questions !== null) segmentWiseQNo.push(data.questions);
+            if (data.type !== null) segmentWiseQModel.push(data.type);
+          });
+
+          const payload = {
+            url: videoURL,
+            user_api_key: document.getElementById('user-api-key').value,
+            timestamps,
+            segment_wise_q_no: segmentWiseQNo,
+            segment_wise_q_model: segmentWiseQModel,
+          };
+
+          console.log("SUMN SUS GOIN' ON HERE:", payload);
+
+          const response = await fetch('/questions/process_video', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          })
+          const data = await response.json();
+          responseData[videoIndex] = data;
+
+          // Save to IndexedDB
+          await questionDB.saveVideoData({
+            ...data,
+            video_url: videoURL
+          });
+
+          return data;
         });
-        
-        const payload = {
-          url: videoURL,
-          user_api_key: document.getElementById('user-api-key').value,
-          timestamps: timestamps,
-          segment_wise_q_no: segmentWiseQNo,
-          segment_wise_q_model: segmentWiseQModel,
-        };
-        
-        const response = await fetch('/questions/process_video', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+
+        await Promise.all(batchPromises);
+
+        // Wait 90 seconds before processing next batch
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 90000));
         }
-        
-        const data = await response.json();
-        responseData[videoIndex] = data;
-
-        // Save to IndexedDB
-        await questionDB.saveVideoData({
-          ...data,
-          video_url: videoURL
-        });
-
-        return data;
-      } catch (error) {
-        console.error(`Error processing video ${videoIndex}:`, error);
-        // You might want to add some UI feedback here
       }
-    });
-    
-    await Promise.all(batchPromises);
-    
-    // Wait 90 seconds before processing next batch
-    if (i < batches.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 90000));
     }
-  }
-}
+
+    document.getElementById('video-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      if (!validateTimestamps()) {
+        return;
+      }
+
+      const userApiKey = document.getElementById('user-api-key').value;
+      const generatingSign = document.getElementById('generating-sign');
+      const outputDiv = document.getElementById('output');
+      const confirmButton = document.getElementById('confirm-btn');
+
+      generatingSign.style.display = 'block';
+      outputDiv.style.display = 'none';
+      confirmButton.style.display = 'none';
+
+      try {
+        const videoIndices = Object.keys(videoData).map(Number);
+        const batches = createBatches(videoIndices);
+        await processBatches(batches);
+
+        modifiedResponseData = deepCopy(responseData);
+
+        console.log("Original responseData:", responseData);
+        console.log("Modified responseData:", modifiedResponseData);
 
 
+        generatingSign.style.display = 'none';
+        outputDiv.style.display = 'block';
+        displayOutput(modifiedResponseData[currentVideo]);
+        confirmButton.style.display = 'inline-block';
+      } catch (error) {
+        generatingSign.style.display = 'none';
+        outputDiv.textContent = `Error processing videos: ${error.message}`;
+      }
 
-document.getElementById('video-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  if (!validateTimestamps()) {
-    return;
-  }
-  
-  const userApiKey = document.getElementById('user-api-key').value;
-  const generatingSign = document.getElementById('generating-sign');
-  const outputDiv = document.getElementById('output');
-  const confirmButton = document.getElementById('confirm-btn');
-
-  generatingSign.style.display = 'block';
-  outputDiv.style.display = 'none';
-  confirmButton.style.display = 'none';
-
-  try {
-  const videoIndices = Object.keys(videoData).map(Number);
-  const batches = createBatches(videoIndices);
-  await processBatches(batches);
-    
-  modifiedResponseData = deepCopy(responseData);
-
-  console.log("Original responseData:", responseData);
-  console.log("Modified responseData:", modifiedResponseData);
-
-
-  generatingSign.style.display = 'none';
-  outputDiv.style.display = 'block';
-  displayOutput(modifiedResponseData[currentVideo]);
-  confirmButton.style.display = 'inline-block';
-} catch (error) {
-  generatingSign.style.display = 'none';
-  outputDiv.textContent = `Error processing videos: ${error.message}`;
-}
-      
-});
-
-function displayOutput(data) {
-  // Add logging to track data
-  console.log("Raw data entering displayOutput:", data);
-  
-  // Display output video blocks
-  const outputVideosContainer = document.getElementById('output-videos-container');
-  if (!outputVideosContainer.hasChildNodes()) {
-    videoUrls.forEach((_, index) => {
-      const videoBlock = document.createElement('div');
-      videoBlock.className = 'video-block';
-      videoBlock.textContent = `Video ${index + 1}`;
-      videoBlock.addEventListener('click', () => {
-        // Add logging before calling showVideoOutput
-        console.log("Data before showing video output:", modifiedResponseData[index]);
-        showVideoOutput(index);
-      });
-      outputVideosContainer.appendChild(videoBlock);
     });
-  }
 
-  // Ensure data is passed correctly to showVideoOutput
-  if (data) {
-    console.log("Data before initial showVideoOutput:", data);
-    showVideoOutput(currentVideo);
-  }
-}
+    function displayOutput(data) {
+      // Add logging to track data
+      console.log("Raw data entering displayOutput:", data);
 
-function saveVideoEdits(videoIndex) {
-  if (!modifiedResponseData[videoIndex]) return;
-  
-  const data = modifiedResponseData[videoIndex];
-  
-  // Save title and description
-  const titleEl = document.getElementById('title');
-  const descEl = document.getElementById('description');
-  if (titleEl) data.title = titleEl.value;
-  if (descEl) data.description = descEl.value;
-  
-  // Save segment modifications
-  data.segments.forEach((segment, i) => {
-    const textEl = document.getElementById(`segment-text-${i}`);
-    if (textEl) segment.text = textEl.value;
-  });
-  
-  // Save question modifications
-  data.questions = data.questions.map((question, i) => {
-    const newQuestion = {...question};
-    const questionTextEl = document.getElementById(`question-text-${i}`);
-    const option1El = document.getElementById(`option-${i}-0`);
-    const option2El = document.getElementById(`option-${i}-1`);
-    const option3El = document.getElementById(`option-${i}-2`);
-    const option4El = document.getElementById(`option-${i}-3`);
-    const correctAnswerEl = document.getElementById(`correct-answer-${i}`);
+      // Display output video blocks
+      const outputVideosContainer = document.getElementById('output-videos-container');
+      if (!outputVideosContainer.hasChildNodes()) {
+        videoUrls.forEach((_, index) => {
+          const videoBlock = document.createElement('div');
+          videoBlock.className = 'video-block';
+          videoBlock.textContent = `Video ${index + 1}`;
+          videoBlock.addEventListener('click', () => {
+            // Add logging before calling showVideoOutput
+            console.log("Data before showing video output:", modifiedResponseData[index]);
+            showVideoOutput(index);
+          });
+          outputVideosContainer.appendChild(videoBlock);
+        });
+      }
 
-    if (questionTextEl) newQuestion.question = questionTextEl.value;
-    if (option1El) newQuestion.option_1 = option1El.value;
-    if (option2El) newQuestion.option_2 = option2El.value;
-    if (option3El) newQuestion.option_3 = option3El.value;
-    if (option4El) newQuestion.option_4 = option4El.value;
-    if (correctAnswerEl) newQuestion.correct_answer = parseInt(correctAnswerEl.value);
-    
-    return newQuestion;
-  });
+      // Ensure data is passed correctly to showVideoOutput
+      if (data) {
+        console.log("Data before initial showVideoOutput:", data);
+        showVideoOutput(currentVideo);
+      }
+    }
 
-  questionDB.saveVideoData(data);
-}
+    function saveVideoEdits(videoIndex) {
+      if (!modifiedResponseData[videoIndex]) return;
 
-async function showVideoOutput(index) {
+      const data = modifiedResponseData[videoIndex];
 
-  // First, try to get data from IndexedDB
-  const storedVideoData = await questionDB.getVideoData(videoUrls[index]);
-    
-    if (storedVideoData) {
+      // Save title and description
+      const titleEl = document.getElementById('title');
+      const descEl = document.getElementById('description');
+      if (titleEl) data.title = titleEl.value;
+      if (descEl) data.description = descEl.value;
+
+      // Save segment modifications
+      data.segments.forEach((segment, i) => {
+        const textEl = document.getElementById(`segment-text-${i}`);
+        if (textEl) segment.text = textEl.value;
+      });
+
+      // Save question modifications
+      data.questions = data.questions.map((question, i) => {
+        const newQuestion = { ...question };
+        const questionTextEl = document.getElementById(`question-text-${i}`);
+        const option1El = document.getElementById(`option-${i}-0`);
+        const option2El = document.getElementById(`option-${i}-1`);
+        const option3El = document.getElementById(`option-${i}-2`);
+        const option4El = document.getElementById(`option-${i}-3`);
+        const correctAnswerEl = document.getElementById(`correct-answer-${i}`);
+
+        if (questionTextEl) newQuestion.question = questionTextEl.value;
+        if (option1El) newQuestion.option_1 = option1El.value;
+        if (option2El) newQuestion.option_2 = option2El.value;
+        if (option3El) newQuestion.option_3 = option3El.value;
+        if (option4El) newQuestion.option_4 = option4El.value;
+        if (correctAnswerEl) newQuestion.correct_answer = parseInt(correctAnswerEl.value);
+
+        return newQuestion;
+      });
+
+      questionDB.saveVideoData(data);
+    }
+
+    async function showVideoOutput(index) {
+
+      // First, try to get data from IndexedDB
+      const storedVideoData = await questionDB.getVideoData(videoUrls[index]);
+
+      if (storedVideoData) {
         // If data exists in IndexedDB, use it
         modifiedResponseData[index] = storedVideoData;
-    }
+      }
 
-  if (!modifiedResponseData[index]) return;
-  
-  if (currentVideo !== null) {
-    saveVideoEdits(currentVideo);
-  }
+      if (!modifiedResponseData[index]) return;
 
-  const data = modifiedResponseData[index];
+      if (currentVideo !== null) {
+        saveVideoEdits(currentVideo);
+      }
 
-  // Store the current video index for the download
-  currentVideo = index;
-  
-  const blocks = document.getElementById('output-videos-container').getElementsByClassName('video-block');
-  Array.from(blocks).forEach(block => block.classList.remove('active'));
-  blocks[index].classList.add('active');
+      const data = modifiedResponseData[index];
 
-  // Display video information
-  const videoInfo = document.getElementById('video-info');
-  videoInfo.innerHTML = `
+      // Store the current video index for the download
+      currentVideo = index;
+
+      const blocks = document.getElementById('output-videos-container').getElementsByClassName('video-block');
+      Array.from(blocks).forEach(block => block.classList.remove('active'));
+      blocks[index].classList.add('active');
+
+      // Display video information
+      const videoInfo = document.getElementById('video-info');
+      videoInfo.innerHTML = `
     <label for="video-url">Video URL</label>
     <input type="text" id="video-url" value="${data.video_url}" disabled />
 
@@ -1001,38 +1162,37 @@ async function showVideoOutput(index) {
     <textarea id="description">${data.description}</textarea>
 
     <label for="section-info">Selected Section</label>
-    <input type="text" id="section-info" value="${
-      hierarchyData?.results
-        .find(course => course.modules.some(module => 
-          module.sections.some(section => section.id === selectedSectionId)
-        ))
-        ?.modules
-        .find(module => module.sections.some(section => section.id === selectedSectionId))
-        ?.sections
-        .find(section => section.id === selectedSectionId)
-        ?.title || 'No section selected'
-    }" disabled />
+    <input type="text" id="section-info" value="${hierarchyData?.results
+          .find(course => course.modules.some(module =>
+            module.sections.some(section => section.id === selectedSectionId)
+          ))
+          ?.modules
+          .find(module => module.sections.some(section => section.id === selectedSectionId))
+          ?.sections
+          .find(section => section.id === selectedSectionId)
+          ?.title || 'No section selected'
+        }" disabled />
   `;
 
-  // Display segments
-  const segmentsContainer = document.getElementById('output-segments-container');
-  const segmentDetailsContainer = document.getElementById('segment-details-container');
-  
-  segmentsContainer.innerHTML = '';
-  segmentDetailsContainer.innerHTML = '';
-  
-  data.segments.forEach((segment, i) => {
-    const segmentBlock = document.createElement('div');
-    segmentBlock.className = 'segment-block';
-    segmentBlock.textContent = `Segment ${i + 1}`;
-    segmentBlock.dataset.segment = i;
-    segmentBlock.addEventListener('click', () => showSegmentDetails(i));
-    segmentsContainer.appendChild(segmentBlock);
+      // Display segments
+      const segmentsContainer = document.getElementById('output-segments-container');
+      const segmentDetailsContainer = document.getElementById('segment-details-container');
 
-    const segmentDetails = document.createElement('div');
-    segmentDetails.className = 'segment-details';
-    segmentDetails.id = `segment-${i}`;
-    segmentDetails.innerHTML = `
+      segmentsContainer.innerHTML = '';
+      segmentDetailsContainer.innerHTML = '';
+
+      data.segments.forEach((segment, i) => {
+        const segmentBlock = document.createElement('div');
+        segmentBlock.className = 'segment-block';
+        segmentBlock.textContent = `Segment ${i + 1}`;
+        segmentBlock.dataset.segment = i;
+        segmentBlock.addEventListener('click', () => showSegmentDetails(i));
+        segmentsContainer.appendChild(segmentBlock);
+
+        const segmentDetails = document.createElement('div');
+        segmentDetails.className = 'segment-details';
+        segmentDetails.id = `segment-${i}`;
+        segmentDetails.innerHTML = `
       <h5>Segment ${i + 1}</h5>
       <label for="segment-text-${i}">Text</label>
       <textarea id="segment-text-${i}">${segment.text}</textarea>
@@ -1051,30 +1211,30 @@ async function showVideoOutput(index) {
         <input type="number" id="end-time-sec-${i}" value="${Math.floor(segment.end_time % 60)}" disabled style="width: 33%;" />
       </div>
     `;
-    segmentDetailsContainer.appendChild(segmentDetails);
-  });
+        segmentDetailsContainer.appendChild(segmentDetails);
+      });
 
-  // Display questions
-  const questionsContainer = document.getElementById('output-questions-container');
-  const questionDetailsContainer = document.getElementById('question-details-container');
-  
-  questionsContainer.innerHTML = '';
-  questionDetailsContainer.innerHTML = '';
-  console.log('Data',data);
-  
-  data.questions.forEach((question, i) => {
-    const questionBlock = document.createElement('div');
-    questionBlock.className = 'question-block';
-    questionBlock.textContent = `Question ${i + 1}`;
-    questionBlock.dataset.question = i;
-    questionBlock.addEventListener('click', () => showQuestionDetails(i));
-    questionsContainer.appendChild(questionBlock);
+      // Display questions
+      const questionsContainer = document.getElementById('output-questions-container');
+      const questionDetailsContainer = document.getElementById('question-details-container');
 
-    const questionDetails = document.createElement('div');
-    questionDetails.className = 'question-details';
-    questionDetails.id = `question-${i}`;
-    
-    questionDetails.innerHTML = `
+      questionsContainer.innerHTML = '';
+      questionDetailsContainer.innerHTML = '';
+      console.log('Data', data);
+
+      data.questions.forEach((question, i) => {
+        const questionBlock = document.createElement('div');
+        questionBlock.className = 'question-block';
+        questionBlock.textContent = `Question ${i + 1}`;
+        questionBlock.dataset.question = i;
+        questionBlock.addEventListener('click', () => showQuestionDetails(i));
+        questionsContainer.appendChild(questionBlock);
+
+        const questionDetails = document.createElement('div');
+        questionDetails.className = 'question-details';
+        questionDetails.id = `question-${i}`;
+
+        questionDetails.innerHTML = `
       <h5>Question ${i + 1}</h5>
       <label for="question-text-${i}">Question Text</label>
       <textarea id="question-text-${i}">${question.question}</textarea>
@@ -1095,21 +1255,21 @@ async function showVideoOutput(index) {
       <label for="segment-index-${i}">Segment</label>
       <input type="number" id="segment-index-${i}" value="${question.segment}" disabled />
     `;
-    questionDetailsContainer.appendChild(questionDetails);
-  });
+        questionDetailsContainer.appendChild(questionDetails);
+      });
 
-  // Show first segment and question by default
-  if (data.segments.length > 0) showSegmentDetails(0);
-  if (data.questions.length > 0) showQuestionDetails(0);
-}
+      // Show first segment and question by default
+      if (data.segments.length > 0) showSegmentDetails(0);
+      if (data.questions.length > 0) showQuestionDetails(0);
+    }
 
-function showSegmentDetails(index) {
+    function showSegmentDetails(index) {
       const allDetails = document.getElementsByClassName('segment-details');
       Array.from(allDetails).forEach(detail => detail.style.display = 'none');
-      
+
       const allBlocks = document.getElementsByClassName('segment-block');
       Array.from(allBlocks).forEach(block => block.classList.remove('active'));
-      
+
       document.getElementById(`segment-${index}`).style.display = 'block';
       document.querySelector(`[data-segment="${index}"]`).classList.add('active');
 
@@ -1119,10 +1279,10 @@ function showSegmentDetails(index) {
     function showQuestionDetails(index) {
       const allDetails = document.getElementsByClassName('question-details');
       Array.from(allDetails).forEach(detail => detail.style.display = 'none');
-      
+
       const allBlocks = document.getElementsByClassName('question-block');
       Array.from(allBlocks).forEach(block => block.classList.remove('active'));
-      
+
       document.getElementById(`question-${index}`).style.display = 'block';
       document.querySelector(`[data-question="${index}"]`).classList.add('active');
 
@@ -1131,16 +1291,16 @@ function showSegmentDetails(index) {
 
     document.getElementById('recalculate-timestamps').addEventListener('click', () => {
       if (currentVideo === null || !videoDurations[currentVideo]) return;
-      
+
       const numSegments = Object.keys(videoData[currentVideo].segments).length;
       const videoDuration = videoDurations[currentVideo];
       const segmentDuration = videoDuration / numSegments;
-      
+
       // Update all segments except the first one (which stays at 0)
       for (let i = 2; i <= numSegments; i++) {
         const newTimestamp = (i - 1) * segmentDuration;
         videoData[currentVideo].segments[i].timestamp = newTimestamp;
-        
+
         // If this segment is currently open in the form, update the form fields
         if (currentSegment === i) {
           const { hrs, mins, secs } = secondsToHMS(newTimestamp);
@@ -1150,61 +1310,129 @@ function showSegmentDetails(index) {
         }
       }
     });
+    configLoaded.then(() => {
 
-    document.getElementById('confirm-btn').addEventListener('click', async () => {
-      if (!selectedSectionId) {
+
+      document.getElementById('confirm-btn').addEventListener('click', async () => {
+    if (!selectedSectionId) {
         alert('Please select a section before submitting');
         return;
-      }
+    }
 
-      // Save modifications for current video before proceeding
-      if (currentVideo !== null) {
+    // Save modifications before uploading
+    if (currentVideo !== null) {
         saveVideoEdits(currentVideo);
-      }
+    }
 
-      // Gather and send data for all videos
-      const videoIndices = Object.keys(modifiedResponseData).map(Number);
-      const errors = [];
+    const videoIndices = Object.keys(modifiedResponseData).map(Number);
+    const errors = [];
 
-      for (const videoIndex of videoIndices) {
+    let sequenceCounter = 1;  // Initialize sequence number counter
+
+    for (const videoIndex of videoIndices) {
         const data = modifiedResponseData[videoIndex];
-        
-        const modifiedData = {
-          video_url: data.video_url,
-          title: data.title,
-          description: data.description,
-          section_id: selectedSectionId,
-          segments: data.segments.map(segment => ({...segment})),
-          questions: data.questions.map(question => ({...question}))
-        };
+        console.log("keyboard smash", data.segments);
 
-        try {
-          const response = await fetch('http://127.0.0.1:5000/output', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(modifiedData)
-          });
+        // Step 1: Upload Video to LMS for each segment
+        for (let i = 0; i < data.segments.length; i++) {
+            const segment = data.segments[i];
+            try {
+                const videoPayload = {
+                    source: segment.video_url,
+                    title: segment.title,
+                    description: segment.description,
+                    section: selectedSectionId,  // Add section_id here for each segment
+                    start_time: parseInt(segment.start_time, 10),
+                    end_time: parseInt(segment.end_time, 10),
+                    transcript: segment.text,
+                    sequence: sequenceCounter  // Assign sequence number for the video
+                };
+                sequenceCounter = sequenceCounter + 1;
 
-          await questionDB.saveVideoData(modifiedData);
+                const videoResponse = await fetch(config.VIDEO_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                    body: JSON.stringify(videoPayload),
+                });
 
-          if (!response.ok) {
-            throw new Error(`Video ${videoIndex + 1}: HTTP error! status: ${response.status}`);
-          }
-        } catch (error) {
-          console.error('Error:', error);
-          errors.push(error.message);
+                if (!videoResponse.ok) throw new Error(`Video Upload Failed: ${videoResponse.status}`);
+                const videoResult = await videoResponse.json();
+                const videoId = videoResult.video_id; 
+
+                // Step 2: Upload Assessment Data for the current video
+                const assessmentPayload = {
+                    title: `Assessment number ${i + 1}`,  // Title should be "Assessment number" = i (iteration number)
+                    question_visibility_limit: 9,  // Set default question visibility limit
+                    time_limit: 9,  // Set default time limit
+                    section: selectedSectionId,  // Section is the same as the video to which this assessment belongs
+                    sequence: sequenceCounter,  // Set sequence number for the assessment (next number after video)
+                };
+                sequenceCounter = sequenceCounter + 1;
+
+                const assessmentResponse = await fetch(config.ASSESSMENT_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                    body: JSON.stringify(assessmentPayload),
+                });
+
+                if (!assessmentResponse.ok) throw new Error(`Assessment Upload Failed: ${assessmentResponse.status}`);
+                const assessmentResult = await assessmentResponse.json();
+                const assessmentId = assessmentResult.id; // Assuming API returns assessment_id
+
+                // Step 3: Upload Questions for the current assessment (Only if segment matches)
+                for (let j = 0; j < data.questions.length; j++) {
+                    const question = data.questions[j];
+                    if (question.segment === i + 1) {  // Check if the question's segment matches the current segment number
+                        const questionPayload = {
+                            text: question.question,
+                            type: "MCQ",  // Assuming it's an MCQ type
+                            marks: 1,  // Default marks
+                            assessment: assessmentId,  // Link question to the current assessment
+                            options: [
+                                { option_text: question.option_1 },
+                                { option_text: question.option_2 },
+                                { option_text: question.option_3 },
+                                { option_text: question.option_4 }
+                            ],
+                            solution_option_index: question.correct_answer  // Assuming correct_answer is the index of the correct option
+                        };
+
+                        const questionResponse = await fetch(config.QUESTIONS_UPLOAD_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': config.Authorization },
+                            body: JSON.stringify(questionPayload),
+                        });
+
+                        if (!questionResponse.ok) throw new Error(`Question Upload Failed: ${questionResponse.status}`);
+                    }
+                }
+
+                // Save data to IndexedDB for backup
+                await questionDB.saveVideoData({
+                    ...data,
+                    video_id: videoId,
+                    assessment_id: assessmentId
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                errors.push(error.message);
+            }
         }
-      }
+    }
 
-      if (errors.length > 0) {
-        alert('Some videos failed to submit:\n' + errors.join('\n'));
-      } else {
-        alert('All videos submitted successfully!');
-      }
-    });
+    // Display errors or success message
+    if (errors.length > 0) {
+        alert('Some uploads failed:\n' + errors.join('\n'));
+    } else {
+        alert('All videos, assessments, and questions submitted successfully!');
+    }
+});
+
+});
+
   </script>
   <div id="temp-player" style="display: none;"></div>
 </body>
+
 </html>

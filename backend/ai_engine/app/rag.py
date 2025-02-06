@@ -1,164 +1,302 @@
-# Import necessary libraries for building the RAG system
-
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
-from langchain_huggingface import HuggingFaceEmbeddings # For converting text to embeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.vectorstores import FAISS # Vector database for storing embeddings
+from langchain_community.vectorstores import FAISS
 from langchain.schema import Document
 from typing import Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 import faiss
 from langchain_community.docstore.in_memory import InMemoryDocstore
-import os
-import json
 import time
+import hashlib
+import asyncio
+import aiofiles
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
+from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
+from dotenv import load_dotenv
+import os
+import logging
 
 app = APIRouter()
 
+# Load environment variables from .env
+load_dotenv()
 
-# Initialize core components
+API_KEY = os.getenv("API_KEY")
+print("API KEYYYY from rag:", API_KEY)
 
-# HuggingFace embeddings will convert text into numerical vectors
-embeddings = HuggingFaceEmbeddings()
+# --------------------------
+# IMPROVED LOCK MECHANISM
+# --------------------------
 
-VECTOR_STORE_PATH = "faiss_index" # Path to store the FAISS index
-METADATA_FILE = "metadata.json" # File to store document metadata
+class AsyncLockManager:
+    def __init__(self, lock_dir: str):
+        self.lock_dir = Path(lock_dir)
+        self.lock_file = self.lock_dir / ".lock"
+        self.lock = asyncio.Lock()
+        self._initialize_lock_dir()
+    
+    def _initialize_lock_dir(self):
+        self.lock_dir.mkdir(parents=True, exist_ok=True)
+        if self.lock_file.exists():
+            self.lock_file.unlink()
+    
+    @asynccontextmanager
+    async def acquire(self):
+        try:
+            await self.lock.acquire()
+            # Create lock file as a signal
+            async with aiofiles.open(self.lock_file, 'w') as f:
+                await f.write(str(time.time()))
+            yield
+        finally:
+            if self.lock_file.exists():
+                self.lock_file.unlink()
+            self.lock.release()
+    
+    def cleanup(self):
+        if self.lock_file.exists():
+            self.lock_file.unlink()
 
-# SemanticChunker splits text into meaningful chunks while preserving context
-text_splitter = SemanticChunker(embeddings)
+# --------------------------
+# IMPROVED VECTOR STORE MANAGEMENT
+# --------------------------
 
-# Initialize or load the vector store
-if os.path.exists(VECTOR_STORE_PATH):
-    # If a FAISS index exists, load it
-    vector_store = FAISS.load_local(
-        VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
-else:
-    # Create a new FAISS index if none exists
-    # First, get the embedding dimension by embedding a test input
-    sample_embedding = embeddings.embed_query("test input")
-    embedding_dimension = len(sample_embedding)
-    # Create an empty FAISS index with L2 (Euclidean) distance metric
-    index = faiss.IndexFlatL2(embedding_dimension)
-    docstore = InMemoryDocstore({}) # Store for document text
-    index_to_docstore_id = {} # Mapping between FAISS indices and document IDs
-    vector_store = FAISS(
-        index=index,
-        embedding_function=embeddings,
-        docstore=docstore,
-        index_to_docstore_id=index_to_docstore_id,
-    )
+class VectorStoreManager:
+    def __init__(self, base_dir: str, embeddings):
+        self.base_dir = Path(base_dir)
+        self.embeddings = embeddings
+        self.lock_manager = AsyncLockManager(base_dir)
+        self.index_name = "index"
+        self._initialize_dirs()
+    
+    def _initialize_dirs(self):
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+    
+    async def load_or_create(self):
+        async with self.lock_manager.acquire():
+            index_path = self.base_dir / f"{self.index_name}.faiss"
+            
+            if await aiofiles.os.path.exists(index_path):
+                return await asyncio.to_thread(
+                    FAISS.load_local,
+                    str(self.base_dir),
+                    self.embeddings,
+                    index_name=self.index_name,
+                    allow_dangerous_deserialization=True
+                )
+            
+            return await self._create_new_store()
+    
+    async def _create_new_store(self):
+        sample_embedding = await asyncio.to_thread(self.embeddings.embed_query, "test")
+        index = await asyncio.to_thread(faiss.IndexFlatL2, len(sample_embedding))
+        
+        store = await asyncio.to_thread(
+            FAISS,
+            embedding_function=self.embeddings,
+            index=index,
+            docstore=InMemoryDocstore({}),
+            index_to_docstore_id={}
+        )
+        
+        await asyncio.to_thread(
+            store.save_local,
+            str(self.base_dir),
+            index_name=self.index_name
+        )
+        
+        return store
+    
+    async def save_store(self, store):
+        async with self.lock_manager.acquire():
+            await asyncio.to_thread(
+                store.save_local,
+                str(self.base_dir),
+                index_name=self.index_name
+            )
 
-# Load or initialize metadata storage
-if os.path.exists(METADATA_FILE):
-    with open(METADATA_FILE, "r") as f:
-        metadata = json.load(f)
-else:
-    metadata = {}
+# --------------------------
+# QUERY MANAGER
+# --------------------------
 
-# Initialize Gemini model
-model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key="AIzaSyB5AF8R-5q6nj5CS2wYbHDtRrdGhYOPh-Y")
+class QueryManager:
+    def __init__(self, vector_store_manager: VectorStoreManager, model: ChatGoogleGenerativeAI):
+        self.vector_store_manager = vector_store_manager
+        self.model = model
+        self.prompt = ChatPromptTemplate.from_template("""
+            1. Act as a knowledgeable and approachable teacher who helps students understand their doubts with clarity and patience.
+            2. Use the following pieces of context to explain and clarify the student's query thoroughly. If the exact answer is not available in the provided context but aligns with the topic, provide an accurate and well-informed response based on your own knowledge base.
+            3. If the question is completely irrelevant to the topic, outside the provided context, or you're unsure of the answer, politely state, "I don't know the answer to that," without making up any information.
+            4. Always prioritize accuracy. Break down your explanation into simple, easy-to-follow points and use relatable examples or analogies wherever possible to aid understanding. Aim to leave the student with a clear and solid grasp of the concept or query.
+            Context: {context}
+            Question: {input}
+            Response: """)
+    
+    async def setup_chain(self, store):
+        """Set up the retrieval chain with the current store"""
+        retriever = store.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 2}
+        )
+        document_chain = create_stuff_documents_chain(self.model, self.prompt)
+        return create_retrieval_chain(retriever, document_chain)
+    
+    async def query(self, question: str):
+        """Process a query and return the response"""
+        start_time = time.time()
+        
+        try:
+            store = await self.vector_store_manager.load_or_create()
+            qa_chain = await self.setup_chain(store)
+            
+            # Process query in thread pool to avoid blocking
+            response = await asyncio.to_thread(
+                qa_chain.invoke,
+                {"input": question}
+            )
+            
+            result = response.get("answer", "No result generated.")
+            processing_time = time.time() - start_time
+            
+            return {
+                "response": result,
+                "processing_time": f"{processing_time:.2f} seconds"
+            }
+            
+        except Exception as e:
+            logging.error(f"Error processing query: {e}", exc_info=True)
+            return {
+                "error": "An internal error has occurred.",
+                "processing_time": f"{time.time() - start_time:.2f} seconds"
+            }
 
-# Create prompt template for the model
-# This defines how the model should behave and format its responses
-prompt = ChatPromptTemplate.from_template("""
-1. Act as a knowledgeable and approachable teacher who helps students understand their doubts with clarity and patience.
-2. Use the following pieces of context to explain and clarify the student's query thoroughly. If the exact answer is not available in the provided context but aligns with the topic, provide an accurate and well-informed response based on your own knowledge base.
-3. If the question is completely irrelevant to the topic, outside the provided context, or you’re unsure of the answer, politely state, "I don’t know the answer to that," without making up any information.
-4. Always prioritize accuracy. Break down your explanation into simple, easy-to-follow points and use relatable examples or analogies wherever possible to aid understanding. Aim to leave the student with a clear and solid grasp of the concept or query.
-Context: {context}
-Question: {input}
-Response: """)
+# --------------------------
+# CONTENT MANAGER
+# --------------------------
 
-# Create the chain that processes documents and generates responses
-document_chain = create_stuff_documents_chain(model, prompt)
-
-# Set up the retrieval chain
-# Configure to fetch 2 most similar documents for each query
-retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 2})
-qa_chain = create_retrieval_chain(retriever, document_chain)
-
-
-# @app.post("/upload/")
-def upload_text(text: str, title: Optional[str] = None):
-    """
-    Endpoint to upload and process lecture text
-    1. Splits text into semantic chunks
-    2. Converts chunks to embeddings
-    3. Stores in FAISS vector store
-    4. Updates metadata
-    """
-    try:
-        # Create document object and split into semantic chunks
-        docs = [Document(page_content=text, metadata={"source": title})]
-        documents = text_splitter.split_documents(docs)
-
-        # Load existing metadata if it exists
-        if os.path.exists(METADATA_FILE):
-            with open(METADATA_FILE, "r") as f:
-                metadata = json.load(f)
-        else:
-            metadata = {}
-
-        # Filter out documents that are already in the metadata
-        unique_documents = []
+class ContentManager:
+    def __init__(self, vector_store_manager: VectorStoreManager, text_splitter):
+        self.vector_store_manager = vector_store_manager
+        self.text_splitter = text_splitter
+        self.thread_pool = ThreadPoolExecutor()
+    
+    def get_content_hash(self, text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+    
+    async def upload_content(self, text: str, title: Optional[str] = None):
+        main_hash = self.get_content_hash(text)
+        docs = [Document(page_content=text, metadata={"source": title, "hash": main_hash})]
+        
+        try:
+            documents = await asyncio.to_thread(self.text_splitter.split_documents, docs)
+            store = await self.vector_store_manager.load_or_create()
+            
+            unique_docs = await self._filter_unique_documents(store, documents, main_hash)
+            
+            if unique_docs:
+                await asyncio.to_thread(store.add_documents, unique_docs)
+                await self.vector_store_manager.save_store(store)
+                return {"message": f"Added {len(unique_docs)} new sections."}
+            
+            return {"message": "No new content added."}
+            
+        except Exception as e:
+            logging.error("An error occurred while uploading content", exc_info=True)
+            return {"error": "An internal error has occurred. Please try again later."}
+    
+    async def _filter_unique_documents(self, store, documents, main_hash):
+        existing_hashes = {
+            doc.metadata.get('chunk_hash')
+            for doc in store.docstore._dict.values()
+        }
+        
+        unique_docs = []
         for doc in documents:
-            if title not in metadata or {"content": doc.page_content
-                                         } not in metadata.get(title, []):
-                unique_documents.append(doc)
+            chunk_hash = self.get_content_hash(doc.page_content)
+            if chunk_hash not in existing_hashes and doc.page_content.strip():
+                doc.metadata["chunk_hash"] = chunk_hash
+                doc.metadata["main_hash"] = main_hash
+                unique_docs.append(doc)
+                existing_hashes.add(chunk_hash)
+        
+        return unique_docs
 
-        # Add unique documents to FAISS vector store
-        global vector_store  # Ensure we're modifying the global variable
-        if unique_documents:
-            vector_store.add_documents(unique_documents)
+# --------------------------
+# APPLICATION SETUP
+# --------------------------
 
-        # Update metadata with new documents
-        if title not in metadata:
-            metadata[title] = []
-        for doc in unique_documents:
-            metadata[title].append({"content": doc.page_content})
+vector_store_manager = None
+content_manager = None
+query_manager = None
 
-        # Save metadata and vector store
-        with open(METADATA_FILE, "w") as f:
-            json.dump(metadata, f)
+@app.on_event("startup")
+async def startup_event():
+    global vector_store_manager, content_manager, query_manager
+    
+    embeddings = HuggingFaceEmbeddings()
+    text_splitter = SemanticChunker(embeddings)
+    
+    model = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        google_api_key=API_KEY
+    )
+    
+    vector_store_manager = VectorStoreManager("faiss_index", embeddings)
+    content_manager = ContentManager(vector_store_manager, text_splitter)
+    query_manager = QueryManager(vector_store_manager, model)
 
-        if unique_documents:
-            vector_store.save_local(VECTOR_STORE_PATH)
+@app.on_event("shutdown")
+async def shutdown_event():
+    if vector_store_manager:
+        vector_store_manager.lock_manager.cleanup()
+    if content_manager and content_manager.thread_pool:
+        content_manager.thread_pool.shutdown()
 
-        message = ("Text uploaded and processed successfully."
-                   if unique_documents
-                   else "No new unique entries were added.")
-        return JSONResponse({"message": message})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+# --------------------------
+# API ENDPOINTS
+# --------------------------
 
+@app.post("/upload/")
+async def upload_text(text: str = Form(...), title: Optional[str] = Form(None)):
+    if content_manager is None:
+        return JSONResponse({"error": "System not initialized"}, status_code=500)
+    return await content_manager.upload_content(text, title)
 
 @app.post("/query/")
-async def query_rag(question: str = Form(...)):
-    """
-    Endpoint to handle student questions
-    1. Takes question as input
-    2. Retrieves relevant documents from vector store
-    3. Generates response using Gemini model
-    """
+async def query_content(question: str = Form(...)):
+    if query_manager is None:
+        return JSONResponse({"error": "System not initialized"}, status_code=500)
+    
     try:
-        if vector_store is None:
-            return JSONResponse({
-                "error": "Vector store is not initialized."}, status_code=500)
-        start_time = time.time()
-        # Use the QA chain to process the question and generate response
-        response = qa_chain.invoke({"input": question})
-        end_time = time.time()
-        print(f"Generation time: {end_time - start_time} seconds")
-        result = response.get("answer", "No result generated.")
-        return JSONResponse({"response": result})
+        result = await query_manager.query(question)
+        return JSONResponse(result)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        logging.error(f"Error in query_content endpoint: {e}", exc_info=True)
+        return JSONResponse({"error": "An internal error has occurred."}, status_code=500)
 
-@app.get("/metadata/")
-async def get_metadata():
-    return metadata
+@app.get("/content-index/")
+async def get_content_index():
+    """Show list of stored materials without revealing full content"""
+    if vector_store_manager is None:
+        return JSONResponse({"error": "System not initialized"}, status_code=500)
+        
+    try:
+        store = await vector_store_manager.load_or_create()
+        contents = {
+            str(doc.metadata.get("chunk_hash", "unknown")): {
+                "source": doc.metadata.get("source", "unknown"),
+                "length": len(doc.page_content),
+                "preview": doc.page_content[:50] + "..."
+            }
+            for doc in store.docstore._dict.values()
+        }
+        return contents
+    except Exception as e:
+        logging.error(f"Error in get_content_index endpoint: {e}", exc_info=True)
+        return JSONResponse({"error": "An internal error has occurred."}, status_code=500)

@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  ai-engine:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - ENV=production
+    depends_on:
+      - database
+
+  database:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
