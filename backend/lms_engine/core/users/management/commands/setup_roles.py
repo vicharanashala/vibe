@@ -1,5 +1,6 @@
 # In core/users/management/commands/setup_roles.py
 from django.core.management.base import BaseCommand
+
 from core.users.models import Group
 from core.users.utils import ROLES
 

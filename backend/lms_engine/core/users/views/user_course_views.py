@@ -1,8 +1,10 @@
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema_view, extend_schema
+
 from ..models import UserCourseInstance
 from ..serializers import UserCoursesSerializer
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -35,6 +37,7 @@ class UserCourseInstanceViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing user-course enrollments.
     """
+
     permission_classes = [IsAuthenticated]
     queryset = UserCourseInstance.objects.all()
     serializer_class = UserCoursesSerializer

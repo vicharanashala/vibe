@@ -4,10 +4,11 @@ import logging
 
 from django.contrib.auth.models import Group
 
-from .firebase_service import FirebaseAuthService
 from ..models import User
+from .firebase_service import FirebaseAuthService
 
 logger = logging.getLogger(__name__)
+
 
 class UserService:
 
@@ -20,13 +21,14 @@ class UserService:
         :return: Firebase user object
         """
         try:
-            firebase_user = FirebaseAuthService.create_user(email=email, password=password)
+            firebase_user = FirebaseAuthService.create_user(
+                email=email, password=password
+            )
             logger.info(f"Firebase user created successfully: {firebase_user.uid}")
             return firebase_user
         except Exception as e:
             logger.error(f"Error creating Firebase user: {e}")
             raise
-
 
     @staticmethod
     def delete_user(user: User):
@@ -37,9 +39,13 @@ class UserService:
         if user.firebase_uid:
             try:
                 FirebaseAuthService.delete_user(user.firebase_uid)
-                logger.info(f"Firebase user with UID {user.firebase_uid} deleted for user {user.email}.")
+                logger.info(
+                    f"Firebase user with UID {user.firebase_uid} deleted for user {user.email}."
+                )
             except Exception as e:
-                logger.exception(f"Error while deleting Firebase user for {user.email}: {e}")
+                logger.exception(
+                    f"Error while deleting Firebase user for {user.email}: {e}"
+                )
         else:
             logger.info(f"User {user.email} does not have a Firebase UID.")
 

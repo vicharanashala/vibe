@@ -3,8 +3,8 @@ import uuid
 from django.db import models
 
 from ...utils.models import TimestampMixin
-from . import Module
 from .. import constants as ct
+from . import Module
 
 
 # Section model
@@ -18,6 +18,7 @@ class Section(TimestampMixin, models.Model):
         description (str): A detailed description of the section.
         sequence (int): The order of the section within the module.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     module = models.ForeignKey(
         Module, on_delete=models.CASCADE, related_name="sections"

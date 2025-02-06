@@ -5,6 +5,7 @@ from django.db.models.aggregates import Max
 
 from . import Section
 
+
 class SectionItemType(models.TextChoices):
     ARTICLE = "article", "Article"
     ASSESSMENT = "assessment", "Assessment"
@@ -77,12 +78,16 @@ class SectionItemInfo(models.Model):
         if previous is None:
             if current_sequence is None:
                 print("Sequence is None")
-                max_sequence = SectionItemInfo.objects.filter(section=self.section).aggregate(Max('sequence'))['sequence__max']
+                max_sequence = SectionItemInfo.objects.filter(
+                    section=self.section
+                ).aggregate(Max("sequence"))["sequence__max"]
                 self.sequence = max_sequence + 1 if max_sequence else 1
                 super.save(*args, **kwargs)
 
                 print("Sequence assigned is ", self.sequence)
-                SectionItemInfo.create_item(self.section, self.sequence, item_type, self)
+                SectionItemInfo.create_item(
+                    self.section, self.sequence, item_type, self
+                )
         if previous_sequence == current_sequence:
             super.save(*args, **kwargs)
             return
@@ -92,51 +97,76 @@ class SectionItemInfo(models.Model):
                 print("Previous Sequence :", previous_sequence)
 
                 if current_sequence and not previous_sequence:
-                    items = SectionItemInfo.objects.filter(sequence__gte=current_sequence, section=self.section).order_by(
-                        "-sequence").exclude(item_id=self.pk)
+                    items = (
+                        SectionItemInfo.objects.filter(
+                            sequence__gte=current_sequence, section=self.section
+                        )
+                        .order_by("-sequence")
+                        .exclude(item_id=self.pk)
+                    )
                     with transaction.atomic():
                         SectionItemInfo.objects.filter(item_id=self.pk).delete()
                         for item in items:
                             item.sequence += 1
                             item.save()
                     super.save(*args, **kwargs)
-                    SectionItemInfo.create_item(self.section, self.sequence, item_type, self)
+                    SectionItemInfo.create_item(
+                        self.section, self.sequence, item_type, self
+                    )
                     return
 
                 if current_sequence < previous_sequence:
-                    items = SectionItemInfo.objects.filter(sequence__gte=current_sequence,
-                                                           sequence__lte=previous_sequence,
-                                                           section=self.section).order_by("-sequence").exclude(
-                        item_id=self.pk)
+                    items = (
+                        SectionItemInfo.objects.filter(
+                            sequence__gte=current_sequence,
+                            sequence__lte=previous_sequence,
+                            section=self.section,
+                        )
+                        .order_by("-sequence")
+                        .exclude(item_id=self.pk)
+                    )
                     with transaction.atomic():
                         SectionItemInfo.objects.filter(item_id=self.pk).delete()
                         for item in items:
                             item.sequence += 1
                             item.save()
                     super.save(*args, **kwargs)
-                    SectionItemInfo.create_item(self.section, self.sequence, item_type, self)
+                    SectionItemInfo.create_item(
+                        self.section, self.sequence, item_type, self
+                    )
                 else:
-                    items = SectionItemInfo.objects.filter(sequence__gte=previous_sequence,
-                                                           sequence__lte=current_sequence,
-                                                           section=self.section).order_by("sequence").exclude(
-                        item_id=self.pk)
+                    items = (
+                        SectionItemInfo.objects.filter(
+                            sequence__gte=previous_sequence,
+                            sequence__lte=current_sequence,
+                            section=self.section,
+                        )
+                        .order_by("sequence")
+                        .exclude(item_id=self.pk)
+                    )
                     with transaction.atomic():
                         SectionItemInfo.objects.filter(item_id=self.pk).delete()
                         for item in items:
                             item.sequence -= 1
                             item.save()
                     super.save(*args, **kwargs)
-                    SectionItemInfo.create_item(self.section, self.sequence, SectionItemType.VIDEO, self)
+                    SectionItemInfo.create_item(
+                        self.section, self.sequence, SectionItemType.VIDEO, self
+                    )
+
     @staticmethod
     def section_item_delete_logic(self, super, args, kwargs):
-        max_sequence = SectionItemInfo.objects.filter(section=self.section).aggregate(Max('sequence'))['sequence__max']
+        max_sequence = SectionItemInfo.objects.filter(section=self.section).aggregate(
+            Max("sequence")
+        )["sequence__max"]
         if self.sequence == max_sequence:
             with transaction.atomic():
                 SectionItemInfo.objects.filter(item_id=self.pk).delete()
                 super.delete(*args, **kwargs)
         else:
-            items = SectionItemInfo.objects.filter(sequence__gt=self.sequence, section=self.section).order_by(
-                "sequence")
+            items = SectionItemInfo.objects.filter(
+                sequence__gt=self.sequence, section=self.section
+            ).order_by("sequence")
             with transaction.atomic():
                 SectionItemInfo.objects.filter(item_id=self.pk).delete()
                 for i in items:

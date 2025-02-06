@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import api_docs
 from drf_spectacular.views import SpectacularAPIView
+
+from .views import api_docs
 
 urlpatterns = [
     # OpenAPI schema endpoint

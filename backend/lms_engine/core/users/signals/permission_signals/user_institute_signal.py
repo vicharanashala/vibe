@@ -1,11 +1,15 @@
-from django.db.models.signals import post_save, post_delete, m2m_changed
-from django.dispatch import receiver
-from core.users.models import UserInstitution, User
-from core.users.permissions.user_institute_permission import InstitutionPermissionManager
 import logging
+
+from django.db.models.signals import m2m_changed, post_delete, post_save
+from django.dispatch import receiver
+
+from core.users.models import User, UserInstitution
+from core.users.permissions.user_institute_permission import \
+    InstitutionPermissionManager
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)
+
 
 @receiver(post_save, sender=UserInstitution)
 def assign_permissions_on_save(sender, instance, created, **kwargs):
@@ -29,7 +33,9 @@ def assign_permissions_on_save(sender, instance, created, **kwargs):
         )
 
     # Assign permissions
-    InstitutionPermissionManager.assign_permissions(instance.user, instance.institution, roles)
+    InstitutionPermissionManager.assign_permissions(
+        instance.user, instance.institution, roles
+    )
 
     logger.info(
         f"[Signal: post_save] Completed assigning permissions for user '{instance.user.email}' "
@@ -53,7 +59,9 @@ def remove_permissions_on_delete(sender, instance, **kwargs):
     )
 
     # Remove permissions
-    InstitutionPermissionManager.remove_permissions(instance.user, instance.institution, roles)
+    InstitutionPermissionManager.remove_permissions(
+        instance.user, instance.institution, roles
+    )
 
     logger.info(
         f"[Signal: post_delete] Completed removing permissions for user '{instance.user.email}' "
@@ -76,15 +84,21 @@ def update_permissions_on_group_change(sender, instance, action, pk_set, **kwarg
     if action == "post_add":
         # Roles being added
         new_roles = Group.objects.filter(pk__in=pk_set).values_list("name", flat=True)
-        logger.info(f"user_institute_signal [Group Change: post_add] Adding permissions for user '{instance.email}' [New Roles: {list(new_roles)}].")
+        logger.info(
+            f"user_institute_signal [Group Change: post_add] Adding permissions for user '{instance.email}' [New Roles: {list(new_roles)}]."
+        )
 
         # Assign permissions for all institutions related to the user
         for user_institution in instance.user_institution_links.all():
-            InstitutionPermissionManager.assign_permissions(instance, user_institution.institution, new_roles)
+            InstitutionPermissionManager.assign_permissions(
+                instance, user_institution.institution, new_roles
+            )
 
     elif action == "post_remove":
         # Roles being removed
-        removed_roles = Group.objects.filter(pk__in=pk_set).values_list("name", flat=True)
+        removed_roles = Group.objects.filter(pk__in=pk_set).values_list(
+            "name", flat=True
+        )
         remaining_roles = instance.groups.values_list("name", flat=True)
 
         logger.info(
@@ -93,16 +107,19 @@ def update_permissions_on_group_change(sender, instance, action, pk_set, **kwarg
 
         # Remove only permissions specific to the removed roles
         for user_institution in instance.user_institution_links.all():
-            InstitutionPermissionManager.remove_permissions(instance, user_institution.institution, removed_roles)
+            InstitutionPermissionManager.remove_permissions(
+                instance, user_institution.institution, removed_roles
+            )
 
     elif action == "post_clear":
         # All roles are being removed
-        logger.info(f"user_institute_signal [Group Change: post_clear] Clearing all permissions for user '{instance.email}'.")
+        logger.info(
+            f"user_institute_signal [Group Change: post_clear] Clearing all permissions for user '{instance.email}'."
+        )
         all_roles = InstitutionPermissionManager.ROLE_PERMISSIONS.keys()
 
         # Remove permissions for all institutions related to the user
         for user_institution in instance.user_institution_links.all():
-            InstitutionPermissionManager.remove_permissions(instance, user_institution.institution, all_roles)
-
-
-
+            InstitutionPermissionManager.remove_permissions(
+                instance, user_institution.institution, all_roles
+            )

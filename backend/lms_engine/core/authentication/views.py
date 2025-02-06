@@ -1,9 +1,9 @@
+from django.db import transaction
 from firebase_admin import auth
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db import transaction
 
 from core.users.models import User
 from core.users.serializers import UserSerializer
@@ -39,9 +39,10 @@ class SignupView(APIView):
 
         except Exception as e:
             # Rollback Firebase user creation if any failure occurs
-            if 'firebase_user' in locals():
+            if "firebase_user" in locals():
                 auth.delete_user(firebase_user.uid)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LoginView(APIView):
     def post(self, request):
@@ -51,7 +52,7 @@ class LoginView(APIView):
         if not id_token:
             return Response(
                 {"error": "ID token is required for login."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
@@ -62,7 +63,7 @@ class LoginView(APIView):
             if not firebase_uid:
                 return Response(
                     {"error": "Invalid Firebase ID token."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # Get or create the user in the local database

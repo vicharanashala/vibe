@@ -1,7 +1,8 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import status, viewsets
+from rest_framework.response import Response
+
 from .models import Institution
 from .serializers import InstitutionSerializer
 
@@ -17,8 +18,8 @@ from .serializers import InstitutionSerializer
         tags=["Institution"],
         summary="Create Institution",
         description=(
-                "Create a new institution with the provided data.\n\n"
-                "Required fields: name, description"
+            "Create a new institution with the provided data.\n\n"
+            "Required fields: name, description"
         ),
         request=InstitutionSerializer,
         responses=InstitutionSerializer,
@@ -33,8 +34,8 @@ from .serializers import InstitutionSerializer
         tags=["Institution"],
         summary="Update Institution",
         description=(
-                "Update all fields of an existing institution.\n\n"
-                "Required fields: name, description"
+            "Update all fields of an existing institution.\n\n"
+            "Required fields: name, description"
         ),
         request=InstitutionSerializer,
         responses=InstitutionSerializer,
@@ -50,8 +51,8 @@ from .serializers import InstitutionSerializer
         tags=["Institution"],
         summary="Deactivate Institution",
         description=(
-                "Deactivate an institution by setting is_active to False.\n\n"
-                "Note: This endpoint does not delete the institution from the database."
+            "Deactivate an institution by setting is_active to False.\n\n"
+            "Note: This endpoint does not delete the institution from the database."
         ),
         responses={
             200: {
@@ -59,11 +60,11 @@ from .serializers import InstitutionSerializer
                 "properties": {
                     "message": {
                         "type": "string",
-                        "example": "Institution 'Example University' has been deactivated."
+                        "example": "Institution 'Example University' has been deactivated.",
                     }
-                }
+                },
             }
-        }
+        },
     ),
 )
 class InstitutionViewSet(viewsets.ModelViewSet):
@@ -81,6 +82,7 @@ class InstitutionViewSet(viewsets.ModelViewSet):
         Response: A DRF Response object containing a success message and an
                     HTTP status code (200 OK) confirming the deactivation.
     """
+
     queryset = Institution.objects.all()
     serializer_class = InstitutionSerializer
 

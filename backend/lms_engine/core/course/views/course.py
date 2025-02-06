@@ -1,17 +1,13 @@
 # core/course/views/course.py
 
+from drf_spectacular.utils import (OpenApiParameter, extend_schema,
+                                   extend_schema_view)
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from ..serializers import CourseListSerializer, CourseDetailSerializer
-from ..models import Course
-from ...utils.helpers import get_user
 
-
-from rest_framework import viewsets
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from ..serializers import CourseListSerializer, CourseDetailSerializer
-from ..models import Course
 from ...utils.helpers import get_user
+from ..models import Course
+from ..serializers import CourseDetailSerializer, CourseListSerializer
 
 
 @extend_schema_view(
@@ -60,14 +56,18 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
 
     def get_queryset(self):
-        if self.action == 'retrieve':
-            course_id = self.kwargs.get('pk')
+        if self.action == "retrieve":
+            course_id = self.kwargs.get("pk")
             return Course.objects.filter(id=course_id)
-        
+
         # For list and other actions, use the existing method
         return Course.objects.all()
 
     def get_serializer_class(self):
         if self.action in ["list", "retrieve"]:
-            return CourseDetailSerializer if self.action == "retrieve" else CourseListSerializer
+            return (
+                CourseDetailSerializer
+                if self.action == "retrieve"
+                else CourseListSerializer
+            )
         return CourseDetailSerializer

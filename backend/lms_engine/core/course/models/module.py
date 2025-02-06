@@ -3,8 +3,8 @@ import uuid
 from django.db import models
 
 from ...utils.models import TimestampMixin
+from ..constants import MODULE_DESCRIPTION_MAX_LEN, MODULE_TITLE_MAX_LEN
 from . import Course
-from ..constants import MODULE_TITLE_MAX_LEN, MODULE_DESCRIPTION_MAX_LEN
 
 
 # Module model
@@ -18,6 +18,7 @@ class Module(TimestampMixin, models.Model):
         description (str): A detailed description of the module.
         sequence (int): The order of the module within the course.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="modules")
     title = models.CharField(max_length=MODULE_TITLE_MAX_LEN)

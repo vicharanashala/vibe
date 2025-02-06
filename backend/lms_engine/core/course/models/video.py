@@ -4,9 +4,9 @@ from django.db import models, transaction
 from django.db.models.aggregates import Max
 from django.utils.translation.trans_real import translation
 
-from . import Section, SectionItemInfo, SectionItemType
-from ..constants import VIDEO_TRANSCRIPT_MAX_LEN
 from ...utils.models import TimestampMixin
+from ..constants import VIDEO_TRANSCRIPT_MAX_LEN
+from . import Section, SectionItemInfo, SectionItemType
 
 
 class Video(TimestampMixin, models.Model):
@@ -15,13 +15,21 @@ class Video(TimestampMixin, models.Model):
         "Source", on_delete=models.CASCADE, related_name="videos"
     )
     transcript = models.TextField(
-        null=True, blank=True, max_length=VIDEO_TRANSCRIPT_MAX_LEN,
-        help_text="Transcript of the video."
+        null=True,
+        blank=True,
+        max_length=VIDEO_TRANSCRIPT_MAX_LEN,
+        help_text="Transcript of the video.",
     )
-    start_time = models.PositiveIntegerField(help_text="Start time of the video in seconds.")
-    end_time = models.PositiveIntegerField(help_text="End time of the video in seconds.")
+    start_time = models.PositiveIntegerField(
+        help_text="Start time of the video in seconds."
+    )
+    end_time = models.PositiveIntegerField(
+        help_text="End time of the video in seconds."
+    )
 
-    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True)
+    section = models.ForeignKey(
+        Section, on_delete=models.SET_NULL, null=True, blank=True
+    )
     sequence = models.PositiveIntegerField(null=True, blank=True)
 
     # def save(self, *args, **kwargs):
@@ -75,7 +83,9 @@ class Video(TimestampMixin, models.Model):
     #             super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
-        SectionItemInfo.section_item_save_logic(self, super(), SectionItemType.VIDEO, args, kwargs)
+        SectionItemInfo.section_item_save_logic(
+            self, super(), SectionItemType.VIDEO, args, kwargs
+        )
 
     def delete(self, *args, **kwargs):
         SectionItemInfo.section_item_delete_logic(self, super(), args, kwargs)
@@ -86,6 +96,7 @@ class Video(TimestampMixin, models.Model):
                 fields=["source", "start_time", "end_time"], name="unique_video_segment"
             )
         ]
+
 
 # def section_item_save_logic(self, super, item_type: SectionItemType, args, kwargs):
 #     previous = SectionItemInfo.objects.filter(item_id=self.pk).first()

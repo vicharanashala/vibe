@@ -1,23 +1,18 @@
-from rest_framework import generics, viewsets, serializers
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
-
-from ..models import Section, Video, Article, SectionItemInfo, SectionItemType
-
+from drf_spectacular.utils import (OpenApiExample, OpenApiParameter,
+                                   extend_schema, extend_schema_view)
+from rest_framework import generics, serializers, viewsets
+from rest_framework.exceptions import MethodNotAllowed, NotFound
 from rest_framework.response import Response
-from rest_framework.exceptions import NotFound, MethodNotAllowed
-from ..models import SectionItemInfo
-from ..serializers import VideoSerializer, ArticleSerializer
-
-from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
 
 from ...assessment.models import Assessment
 from ...assessment.serializers import AssessmentSerializer
+from ..models import Article, Section, SectionItemInfo, SectionItemType, Video
+from ..serializers import ArticleSerializer, VideoSerializer
 
 
 @extend_schema_view(
-
     get=extend_schema(
-        tags=['Item'],
+        tags=["Item"],
         summary="List all section items",
         description="Retrieve all section items for a given section ID in ascending order of their sequence.",
         parameters=[
@@ -35,6 +30,7 @@ class SectionItemViewSet(generics.ListAPIView):
     """
     API endpoint to list section items based on section ID in ascending order of sequence.
     """
+
     serializer_class = None  # Will dynamically set based on item type.
 
     def get(self, request, *args, **kwargs):
@@ -119,6 +115,7 @@ class VideoViewSet(viewsets.ModelViewSet):
     # def list(self, request, *args, **kwargs):
     #     return MethodNotAllowed(detail="This method is not allowed")
     #
+
 
 @extend_schema_view(
     retrieve=extend_schema(

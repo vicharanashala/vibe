@@ -216,6 +216,51 @@ docker system prune -a
 
 ---
 
+
+## 🚀 Linting and Formatting
+
+This project uses **Flake8** for linting and **Black** for code formatting to maintain code quality and consistency.
+
+### ✅ Running Linters and Formatters
+To check for linting and formatting issues, run:
+```sh
+flake8 .
+black --check .
+```
+
+### 🔹 Excluding `__init__.py` Files from Linting
+`__init__.py` files often contain imports that define module structure, which can lead to **circular imports** when running linters. To **exclude `__init__.py` from linting**, use:
+
+```sh
+autoflake --exclude=**/__init__.py -r .
+```
+
+### 🛠️ Best Practices to Avoid Linting Issues
+
+Following these best practices will help maintain clean, readable, and error-free code:
+
+### 🔹 General Code Formatting
+- ✅ **Keep lines under 88 characters** (avoid `E501` errors).
+- ✅ **Use consistent indentation (4 spaces per level)** to prevent `E101` and `E111`.
+- ✅ **Avoid trailing whitespace** (`W291` - whitespace at the end of a line).
+- ✅ **Use meaningful variable and function names** to prevent confusion.
+- ✅ **Break long expressions into multiple lines** using parentheses.
+
+### 🔹 Import Handling
+- ✅ **Avoid wildcard imports (`*`)**, always use explicit imports to prevent `F403/F405` errors.
+- ✅ **Group imports logically**:
+  - Standard library imports first.
+  - Third-party libraries next.
+  - Local application imports last.
+  - Example:
+    ```python
+    import os  # Standard library
+    import numpy as np  # Third-party library
+    from my_project.utils import helper_function  # Local module
+    ```
+- ✅ **Remove unused imports** to avoid `F401` errors:
+
+
 ## 9. Additional Notes
 
 - Ensure database migrations are applied before running the server.

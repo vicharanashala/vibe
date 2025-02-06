@@ -1,13 +1,16 @@
 # users/signals/user_signal.py
 
 import logging
-from django.db.models.signals import m2m_changed, pre_save
-from ..models import User, UserInstitution
-from django.db.models.signals import post_save, post_delete
+
+from django.db.models.signals import (m2m_changed, post_delete, post_save,
+                                      pre_save)
 from django.dispatch import receiver
+
+from ..models import User, UserInstitution
 from ..services.user_service import UserService
 
 logger = logging.getLogger(__name__)
+
 
 @receiver(post_delete, sender=User)
 def handle_user_deletion(sender, instance, **kwargs):
@@ -21,6 +24,7 @@ def handle_user_deletion(sender, instance, **kwargs):
             logger.info(f"User {instance.email} deletion handled successfully.")
         except Exception as e:
             logger.exception(f"Error handling user deletion for {instance.email}: {e}")
+
 
 # @receiver(pre_save, sender=User)
 # def handle_user_creation(sender, instance:User, **kwargs):
@@ -50,7 +54,10 @@ def handle_user_disable(sender, instance, **kwargs):
                 UserService.disable_user(instance)
         except User.DoesNotExist:
             # Handle the case where the user doesn't exist in the database
-            logger.warning(f"User {instance.email} does not exist for disable handling.")
+            logger.warning(
+                f"User {instance.email} does not exist for disable handling."
+            )
+
 
 @receiver(pre_save, sender=User)
 def handle_user_enable(sender, instance, **kwargs):
@@ -62,6 +69,8 @@ def handle_user_enable(sender, instance, **kwargs):
             existing_user = User.objects.get(pk=instance.pk)
             # Check if `is_active` has changed to True
             if instance.is_active and not existing_user.is_active:
-                UserService.enable_user(instance)  # Implement enable_user in UserService
+                UserService.enable_user(
+                    instance
+                )  # Implement enable_user in UserService
         except User.DoesNotExist:
             logger.warning(f"User {instance.email} does not exist for enable handling.")

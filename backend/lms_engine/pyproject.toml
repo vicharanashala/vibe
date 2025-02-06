@@ -22,7 +22,28 @@ python-dotenv = "^1.0.1"
 django-extensions = "^3.2.3"
 pydotplus = "^2.0.2"
 drf-spectacular = "^0.28.0"
+flake8 = "^7.1.1"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.py$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | venv
+)/
+'''

@@ -1,8 +1,9 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from ..assessment.models import Assessment
-from .models import CourseAssessmentCount, Course
+from .models import Course, CourseAssessmentCount
+
 
 @receiver(post_save, sender=Assessment)
 def update_assessment_count_on_save(sender, instance, created, **kwargs):
@@ -12,6 +13,7 @@ def update_assessment_count_on_save(sender, instance, created, **kwargs):
         count_obj.count += 1
         count_obj.save()
 
+
 @receiver(post_delete, sender=Assessment)
 def update_assessment_count_on_delete(sender, instance, **kwargs):
     course = instance.section.module.course
@@ -19,6 +21,7 @@ def update_assessment_count_on_delete(sender, instance, **kwargs):
     if count_obj.count > 0:
         count_obj.count -= 1
         count_obj.save()
+
 
 @receiver(post_save, sender=Course)
 def create_course_assessment_count(sender, instance, created, **kwargs):

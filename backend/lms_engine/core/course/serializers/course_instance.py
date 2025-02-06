@@ -1,13 +1,13 @@
-from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField
 from django.core.exceptions import ValidationError
-from ..models import CourseInstance, Course
+from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField
+
+from ..models import Course, CourseInstance
 
 
 class EnrolledCourseSerializer(ModelSerializer):
     class Meta:
         model = Course
         fields = ["id", "name", "description"]
-
 
 
 class CourseInstanceReadSerializer(ModelSerializer):
@@ -17,14 +17,13 @@ class CourseInstanceReadSerializer(ModelSerializer):
         model = CourseInstance
         fields = "__all__"
 
+
 class CourseInstanceWriteSerializer(ModelSerializer):
-    course_id = PrimaryKeyRelatedField(
-        queryset=Course.objects.all(), write_only=True
-    )
+    course_id = PrimaryKeyRelatedField(queryset=Course.objects.all(), write_only=True)
 
     class Meta:
         model = CourseInstance
-        fields = ["id","course_id", "start_date", "end_date"]
+        fields = ["id", "course_id", "start_date", "end_date"]
 
     def create(self, validated_data):
         # Extract data
@@ -34,10 +33,7 @@ class CourseInstanceWriteSerializer(ModelSerializer):
 
         # Create the CourseInstance object
         course_instance = CourseInstance.objects.create(
-            course=course_id,
-            start_date=start_date,
-            end_date=end_date,
-            **validated_data
+            course=course_id, start_date=start_date, end_date=end_date, **validated_data
         )
 
         # Return the created instance
@@ -47,5 +43,3 @@ class CourseInstanceWriteSerializer(ModelSerializer):
         if data["end_date"] <= data["start_date"]:
             raise ValidationError("End date must be after start date.")
         return data
-
-

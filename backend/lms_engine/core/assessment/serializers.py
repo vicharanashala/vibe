@@ -4,16 +4,9 @@ from django.db import transaction
 from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 
-from .models import (
-    Question,
-    NATSolution,
-    DescriptiveSolution,
-    MCQSolution,
-    MSQSolution,
-    Assessment,
-    QuestionOption, QuestionType,
-)
 from ..course.models import SectionItemInfo, SectionItemType
+from .models import (Assessment, DescriptiveSolution, MCQSolution, MSQSolution,
+                     NATSolution, Question, QuestionOption, QuestionType)
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
@@ -28,15 +21,14 @@ class QuestionOptionSerializer(serializers.ModelSerializer):
         exclude = ["question"]
 
 
-
 @extend_schema_serializer(
     examples=[
         {
-            "value":1,
+            "value": 1,
             "tolerance_max": 0.5,
             "tolerance_min": 0.5,
             "decimal_precision": 2,
-            "solution_explaination":1,
+            "solution_explaination": 1,
         }
     ]
 )
@@ -51,6 +43,7 @@ class NATSolutionSerializer(serializers.ModelSerializer):
             "solution_explanation",
         ]
 
+
 class DescriptiveSolutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DescriptiveSolution
@@ -61,12 +54,14 @@ class DescriptiveSolutionSerializer(serializers.ModelSerializer):
             "solution_explanation",
         ]
 
+
 class MCQSolutionSerializer(serializers.ModelSerializer):
     choice = serializers.StringRelatedField()
 
     class Meta:
         model = MCQSolution
         fields = ["choice", "solution_explanation"]
+
 
 class MSQSolutionSerializer(serializers.ModelSerializer):
     choice = serializers.StringRelatedField()
@@ -75,8 +70,11 @@ class MSQSolutionSerializer(serializers.ModelSerializer):
         model = MSQSolution
         fields = ["choice", "solution_explanation"]
 
+
 class SolutionResponseSerializer(serializers.Serializer):
-    question_type = serializers.ChoiceField(choices=[qt[0] for qt in QuestionType.choices])
+    question_type = serializers.ChoiceField(
+        choices=[qt[0] for qt in QuestionType.choices]
+    )
     solution = serializers.SerializerMethodField()
 
     @extend_schema_field(
@@ -90,21 +88,24 @@ class SolutionResponseSerializer(serializers.Serializer):
         }
     )
     def get_solution(self, obj):
-        question = obj.get('question')
+        question = obj.get("question")
         question_type = question.type
 
         if question_type == QuestionType.NAT:
-            if hasattr(question, 'natsolution'):
+            if hasattr(question, "natsolution"):
                 return NATSolutionSerializer(question.natsolution).data
         elif question_type == QuestionType.DESC:
-            if hasattr(question, 'descriptivesolution'):
+            if hasattr(question, "descriptivesolution"):
                 return DescriptiveSolutionSerializer(question.descriptivesolution).data
         elif question_type == QuestionType.MCQ:
-            if hasattr(question, 'mcqsolution'):
+            if hasattr(question, "mcqsolution"):
                 return MCQSolutionSerializer(question.mcqsolution).data
         elif question_type == QuestionType.MSQ:
-            return MSQSolutionSerializer(MSQSolution.objects.filter(question=question), many=True).data
+            return MSQSolutionSerializer(
+                MSQSolution.objects.filter(question=question), many=True
+            ).data
         return None
+
 
 class QuestionSerializer(serializers.ModelSerializer):
     options = QuestionOptionSerializer(many=True, required=False)
@@ -168,7 +169,9 @@ class QuestionSerializer(serializers.ModelSerializer):
                 created_option_id = []
 
                 for option in options:
-                    current_option = QuestionOption.objects.create(question=question, **option)
+                    current_option = QuestionOption.objects.create(
+                        question=question, **option
+                    )
                     created_option_id.append(current_option.id)
 
             if nat_solution is not None:
@@ -180,13 +183,16 @@ class QuestionSerializer(serializers.ModelSerializer):
                 )
 
             if solution_option_index is not None:
-                choice = QuestionOption.objects.get(id=created_option_id[solution_option_index])
+                choice = QuestionOption.objects.get(
+                    id=created_option_id[solution_option_index]
+                )
                 MCQSolution.objects.create(question=question, choice=choice)
 
             if solution_options_indices:
                 for solution_option_index in solution_options_indices:
-                    choice = QuestionOption.objects.get(id=created_option_id[solution_option_index])
+                    choice = QuestionOption.objects.get(
+                        id=created_option_id[solution_option_index]
+                    )
                     MSQSolution.objects.create(question=question, choice=choice)
 
         return question
-

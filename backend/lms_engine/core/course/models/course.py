@@ -1,13 +1,13 @@
 # core/course/models/course.py
 import uuid
-
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.db.models import Q
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import Q
+
 from ...utils.models import TimestampMixin
-from ..constants import COURSE_NAME_MAX_LEN, COURSE_DESCRIPTION_MAX_LEN
+from ..constants import COURSE_DESCRIPTION_MAX_LEN, COURSE_NAME_MAX_LEN
 
 if TYPE_CHECKING:
     from ...users.models import User
@@ -20,7 +20,7 @@ class VisibilityChoices(models.TextChoices):
     UNLISTED = "unlisted", "Unlisted"  # Hidden courses that require a direct link
 
 
-class Course(TimestampMixin,models.Model):
+class Course(TimestampMixin, models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=COURSE_NAME_MAX_LEN)
@@ -37,7 +37,6 @@ class Course(TimestampMixin,models.Model):
     instructors = models.ManyToManyField(
         "users.User", through="CourseInstructor", related_name="instructor_courses"
     )
-
 
     def __str__(self):
         return self.name

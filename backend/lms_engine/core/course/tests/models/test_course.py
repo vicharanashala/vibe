@@ -1,14 +1,16 @@
 # tests/models/test_course.py
 import pytest
 from django.test import TestCase
+
 from core.course.models import Course, VisibilityChoices
 from core.course.tests.factories import CourseFactory, UserFactory
+
 
 class TestCourse(TestCase):
     def setUp(self):
         self.course = CourseFactory()
-        self.student = UserFactory(role='student')
-        self.instructor = UserFactory(role='instructor')
+        self.student = UserFactory(role="student")
+        self.instructor = UserFactory(role="instructor")
 
     def test_course_creation(self):
         assert isinstance(self.course, Course)
@@ -26,7 +28,7 @@ class TestCourse(TestCase):
         visibilities = [
             VisibilityChoices.PUBLIC,
             VisibilityChoices.PRIVATE,
-            VisibilityChoices.UNLISTED
+            VisibilityChoices.UNLISTED,
         ]
 
         for visibility in visibilities:

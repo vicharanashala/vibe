@@ -1,11 +1,10 @@
 from django.contrib import admin
-from django.contrib import admin
 
-from .models import *
+from .models import Course, CourseInstance, CourseInstructor, Module, Section, Video, Source, Article
 
 
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ("id","title", "module", "sequence", "created_at", "updated_at")
+    list_display = ("id", "title", "module", "sequence", "created_at", "updated_at")
 
 
 class ModuleAdmin(admin.ModelAdmin):
@@ -44,13 +43,18 @@ class CourseAdmin(admin.ModelAdmin):
 
     def get_instructors(self, obj):
         return ", ".join(
-            [f"{instructor.first_name} {instructor.last_name}" for instructor in obj.instructors.all()]
+            [
+                f"{instructor.first_name} {instructor.last_name}"
+                for instructor in obj.instructors.all()
+            ]
         )
 
     get_instructors.short_description = "Instructors"
 
+
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("source", "transcript", "section" ,"sequence")
+    list_display = ("source", "transcript", "section", "sequence")
+
 
 admin.site.register(Course, CourseAdmin)
 admin.site.register(CourseInstance)

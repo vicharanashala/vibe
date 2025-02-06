@@ -1,11 +1,12 @@
 from django.core import serializers
+from django.forms import ValidationError
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.exceptions import MethodNotAllowed
-from drf_spectacular.utils import extend_schema, extend_schema_view
+
+from ...course.models import Section
 from ..models import Assessment
 from ..serializers import AssessmentSerializer
-from ...course.models import Section
-from django.forms import ValidationError
 
 
 @extend_schema_view(
@@ -53,5 +54,6 @@ class AssessmentViewSet(viewsets.ModelViewSet):
     """
     A ViewSet for managing Assessments.
     """
+
     queryset = Assessment.objects.all()
     serializer_class = AssessmentSerializer

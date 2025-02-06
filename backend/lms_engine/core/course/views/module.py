@@ -1,8 +1,10 @@
+from drf_spectacular.utils import (OpenApiParameter, extend_schema,
+                                   extend_schema_view)
 from rest_framework import viewsets
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from ..serializers import ModuleListSerializer, ModuleDetailSerializer
-from ..models import Module
+
 from ...utils.helpers import get_user
+from ..models import Module
+from ..serializers import ModuleDetailSerializer, ModuleListSerializer
 
 
 @extend_schema_view(
@@ -75,5 +77,9 @@ class ModuleViewSet(viewsets.ModelViewSet):
         Return the appropriate serializer class based on the action.
         """
         if self.action in ["list", "retrieve"]:
-            return ModuleDetailSerializer if self.action == "retrieve" else ModuleListSerializer
+            return (
+                ModuleDetailSerializer
+                if self.action == "retrieve"
+                else ModuleListSerializer
+            )
         return ModuleDetailSerializer

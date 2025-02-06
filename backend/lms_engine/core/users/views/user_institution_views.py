@@ -1,8 +1,10 @@
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema_view, extend_schema
+
 from ..models import UserInstitution
 from ..serializers import UserInstitutionSerializer
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -35,6 +37,7 @@ class UserInstitutionViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing user-institution relationships.
     """
+
     permission_classes = [IsAuthenticated]
     queryset = UserInstitution.objects.all()
     serializer_class = UserInstitutionSerializer

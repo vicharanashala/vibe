@@ -1,15 +1,17 @@
 import factory
 from factory.django import DjangoModelFactory
-from core.course.models import Section
 from faker import Faker
+
+from core.course.models import Section
 from core.course.tests.factories import ModuleFactory
 
 fake = Faker()
 
+
 class SectionFactory(DjangoModelFactory):
     class Meta:
         model = Section
-        django_get_or_create = ('module', 'sequence')
+        django_get_or_create = ("module", "sequence")
 
     module = factory.SubFactory(ModuleFactory)
     title = factory.LazyFunction(lambda: fake.sentence(nb_words=4))
@@ -23,9 +25,9 @@ class SectionFactory(DjangoModelFactory):
         If no sequence is provided, get the next available sequence number
         for the given module.
         """
-        if 'sequence' not in kwargs:
-            module = kwargs.get('module')
+        if "sequence" not in kwargs:
+            module = kwargs.get("module")
             if module:
-                last_section = module.sections.order_by('-sequence').first()
-                kwargs['sequence'] = (last_section.sequence + 1) if last_section else 1
+                last_section = module.sections.order_by("-sequence").first()
+                kwargs["sequence"] = (last_section.sequence + 1) if last_section else 1
         return super()._create(model_class, *args, **kwargs)

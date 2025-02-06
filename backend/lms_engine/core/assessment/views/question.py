@@ -1,15 +1,17 @@
 # core/assessment/views/question.py
 
+from drf_spectacular.utils import (OpenApiParameter, extend_schema,
+                                   extend_schema_view)
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
-from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
+
 from ..models import Question
 from ..serializers import QuestionSerializer
 
 
 @extend_schema_view(
     list=extend_schema(
-    tags=["Question"],
+        tags=["Question"],
         summary="List Questions",
         description="Retrieve a list of questions filtered by `assessment_id`.",
         parameters=[
@@ -59,11 +61,11 @@ from ..serializers import QuestionSerializer
         responses={"204": "Question deleted successfully."},
     ),
 )
-
 class QuestionViewSet(viewsets.ModelViewSet):
     """
     A ViewSet for managing Questions.
     """
+
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
 
@@ -71,7 +73,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
         """
         Retrieve a list of questions based on `assessment_id`.
         """
-        assessment_id = self.request.query_params.get('assessment_id')  # type: ignore
+        assessment_id = self.request.query_params.get("assessment_id")  # type: ignore
 
         if not assessment_id:
             raise NotFound("'assessment_id' is required")

@@ -1,6 +1,7 @@
 # users/services/firebase_service.py
 
 import logging
+
 from firebase_admin import auth as firebase_auth
 
 # Get a logger instance for this module
@@ -24,7 +25,9 @@ class FirebaseAuthService:
         except firebase_auth.UserNotFoundError:
             logger.warning(f"Firebase user with UID {firebase_uid} not found.")
         except Exception as e:
-            logger.exception(f"Unexpected error while deleting Firebase user with UID {firebase_uid}: {e}")
+            logger.exception(
+                f"Unexpected error while deleting Firebase user with UID {firebase_uid}: {e}"
+            )
 
     @staticmethod
     def create_user(email, password):
@@ -58,7 +61,9 @@ class FirebaseAuthService:
         except firebase_auth.UserNotFoundError:
             logger.warning(f"Firebase user with UID {firebase_uid} not found.")
         except Exception as e:
-            logger.exception(f"Unexpected error while disabling Firebase user with UID {firebase_uid}: {e}")
+            logger.exception(
+                f"Unexpected error while disabling Firebase user with UID {firebase_uid}: {e}"
+            )
             raise
 
     @staticmethod
@@ -77,5 +82,7 @@ class FirebaseAuthService:
         except firebase_auth.UserNotFoundError:
             logger.warning(f"Firebase user with UID {firebase_uid} not found.")
         except Exception as e:
-            logger.exception(f"Unexpected error while enabling Firebase user with UID {firebase_uid}: {e}")
+            logger.exception(
+                f"Unexpected error while enabling Firebase user with UID {firebase_uid}: {e}"
+            )
             raise

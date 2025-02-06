@@ -1,19 +1,23 @@
 # users/models.py
+import logging
 import uuid
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
+
 from core.institution.models import Institution
 from core.users.services.firebase_service import FirebaseAuthService
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 class CustomUserManager(BaseUserManager):
     """Custom manager for User model with Firebase integration."""
 
-    def _create_user(self, email, password, is_staff=False, is_superuser=False, firebase_uid=None):
+    def _create_user(
+        self, email, password, is_staff=False, is_superuser=False, firebase_uid=None
+    ):
         """
         Internal method to handle user creation.
         This is used by both `create_user` and `create_superuser`.
@@ -29,7 +33,6 @@ class CustomUserManager(BaseUserManager):
         except Exception as e:
             logger.error(f"Firebase user creation failed: {e}")
             raise
-
 
         # Create the Django user
         user: User = self.model(
@@ -62,9 +65,9 @@ class CustomUserManager(BaseUserManager):
         return self._create_user(email, password, is_staff=True, is_superuser=True)
 
 
-
 class User(AbstractUser):
     """Custom User model with email as the unique identifier."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = None  # Remove the default username field
     email = models.EmailField(unique=True)
@@ -81,16 +84,20 @@ class User(AbstractUser):
 
     objects = CustomUserManager()
 
-
     def __str__(self):
         return self.email
 
 
 class UserInstitution(models.Model):
     """Intermediate model for User-Institution relationship."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_institution_links")
-    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name="institution_user_links")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="user_institution_links"
+    )
+    institution = models.ForeignKey(
+        Institution, on_delete=models.CASCADE, related_name="institution_user_links"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -100,14 +107,17 @@ class UserInstitution(models.Model):
     def __str__(self):
         return f"{self.user.email} at {self.institution.name}"
 
+
 class UserCourseInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    course = models.ForeignKey('course.CourseInstance', on_delete=models.CASCADE)
+    course = models.ForeignKey("course.CourseInstance", on_delete=models.CASCADE)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user', 'course'], name='unique_user_course')
+            models.UniqueConstraint(
+                fields=["user", "course"], name="unique_user_course"
+            )
         ]
 
     def __str__(self):

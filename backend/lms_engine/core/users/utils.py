@@ -1,12 +1,9 @@
 # core/users/utils.py
 from django.contrib.auth.models import Group
 
-ROLES = [
-    "student", "instructor", "ta", "moderator", "admin", "superuser"
-]
+ROLES = ["student", "instructor", "ta", "moderator", "admin", "superuser"]
 
 # core/users/utils.py
-from django.contrib.auth.models import Group
 
 
 def assign_role_to_user(user, role_name):

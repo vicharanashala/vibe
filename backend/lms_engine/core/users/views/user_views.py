@@ -1,8 +1,10 @@
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema_view, extend_schema
+
 from ..models import User
 from ..serializers import UserSerializer
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -49,6 +51,7 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing users.
     """
+
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserSerializer

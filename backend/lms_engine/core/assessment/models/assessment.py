@@ -1,11 +1,13 @@
 # core/assessment/models/assessment.py
 
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
-from .. import constants as ct
+
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
 from ...course.models import Section, SectionItemInfo, SectionItemType
 from ...utils.models import TimestampMixin
+from .. import constants as ct
 
 
 class Assessment(TimestampMixin, models.Model):
@@ -24,15 +26,18 @@ class Assessment(TimestampMixin, models.Model):
         ],
         help_text="Time limit in seconds",
     )
-    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True)
+    section = models.ForeignKey(
+        Section, on_delete=models.SET_NULL, null=True, blank=True
+    )
     sequence = models.PositiveIntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        SectionItemInfo.section_item_save_logic(self, super(), SectionItemType.ASSESSMENT ,args, kwargs)
+        SectionItemInfo.section_item_save_logic(
+            self, super(), SectionItemType.ASSESSMENT, args, kwargs
+        )
 
     def delete(self, *args, **kwargs):
         SectionItemInfo.section_item_delete_logic(self, super(), args, kwargs)
-
 
     def __str__(self):
         return self.title

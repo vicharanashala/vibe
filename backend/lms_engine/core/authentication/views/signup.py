@@ -10,6 +10,7 @@ from core.authentication.serializers.signup_serializer import SignupSerializer
 from core.users.models import User
 from core.users.serializers import UserSerializer
 
+
 @extend_schema(
     tags=["Auth"],
     request=SignupSerializer,
@@ -24,15 +25,12 @@ class SignupView(APIView):
         if serializer.is_valid():
 
             user = User.objects.create_user(
-                email=serializer.validated_data['email'],
-                password=serializer.validated_data['password'],
-                first_name=serializer.validated_data['first_name'],
-                last_name=serializer.validated_data['last_name'],
+                email=serializer.validated_data["email"],
+                password=serializer.validated_data["password"],
+                first_name=serializer.validated_data["first_name"],
+                last_name=serializer.validated_data["last_name"],
             )
             user_serializer = UserSerializer(user)
             return Response(user_serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-

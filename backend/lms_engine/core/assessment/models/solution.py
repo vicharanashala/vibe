@@ -1,10 +1,11 @@
 # core/assessment/models/solution.py
 
+import uuid
+
 from django.db import models
 
-from . import Question
 from ..constants import SOLUTION_EXPLANATION_MAX_LEN
-import uuid
+from . import Question
 
 
 class Solution(models.Model):

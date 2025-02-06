@@ -1,10 +1,13 @@
-from rest_framework import viewsets
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from ..models import CourseInstance
-from ..serializers.course_instance import CourseInstanceReadSerializer, CourseInstanceWriteSerializer
-from ...utils.helpers import get_user
-from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import PermissionDenied
+from drf_spectacular.utils import (OpenApiParameter, extend_schema,
+                                   extend_schema_view)
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from ...utils.helpers import get_user
+from ..models import CourseInstance
+from ..serializers.course_instance import (CourseInstanceReadSerializer,
+                                           CourseInstanceWriteSerializer)
 
 
 @extend_schema_view(
@@ -13,24 +16,19 @@ from django.core.exceptions import PermissionDenied
         summary="List Course Instances",
         description="Retrieve a list of course instances accessible by the current user.",
         responses=CourseInstanceReadSerializer,
-
     ),
     retrieve=extend_schema(
         tags=["Course Instance"],
         summary="Retrieve a Course Instance",
         description="Retrieve detailed information for a single course instance.",
-
         responses=CourseInstanceReadSerializer,
-
     ),
     create=extend_schema(
         tags=["Course Instance"],
         summary="Create a Course Instance",
         description="Create a new course instance with the provided data.",
-
         request=CourseInstanceWriteSerializer,
         responses=CourseInstanceWriteSerializer,
-
     ),
     update=extend_schema(
         tags=["Course Instance"],
@@ -45,7 +43,6 @@ from django.core.exceptions import PermissionDenied
         description="Update selected fields of an existing course instance.",
         request=CourseInstanceWriteSerializer,
         responses=CourseInstanceWriteSerializer,
-
     ),
     destroy=extend_schema(
         tags=["Course Instance"],
@@ -58,7 +55,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         # TODO: Look into this when implementing update and delete methods.
-        if self.action == 'create':
+        if self.action == "create":
             return CourseInstanceWriteSerializer
         return CourseInstanceReadSerializer
 
@@ -67,5 +64,3 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         Retrieve the list of course instances accessible by the current user.
         """
         return CourseInstance.objects.all()
-
-

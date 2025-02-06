@@ -70,7 +70,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from core.assessment.models import Assessment
-from core.course.models import SectionItemInfo, Video, SectionItemType
+from core.course.models import SectionItemInfo, SectionItemType, Video
 
 
 @receiver(post_save, sender=SectionItemInfo)
@@ -95,4 +95,3 @@ def handle_sequence_update(sender, instance: SectionItemInfo, created, **kwargs)
         else:
             logging.error("Assessment with ID %s not found.", instance.item_id)
             return
-

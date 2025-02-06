@@ -1,8 +1,10 @@
+from drf_spectacular.utils import (OpenApiParameter, extend_schema,
+                                   extend_schema_view)
 from rest_framework import viewsets
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from ..serializers import SectionListSerializer, SectionDetailSerializer
-from ..models import Section
+
 from ...utils.helpers import get_user
+from ..models import Section
+from ..serializers import SectionDetailSerializer, SectionListSerializer
 
 
 @extend_schema_view(
@@ -75,11 +77,11 @@ class SectionViewSet(viewsets.ModelViewSet):
         """
         queryset = Section.objects.all()
 
-        course_id = self.request.query_params.get('course_id')
+        course_id = self.request.query_params.get("course_id")
         if course_id is not None:
             return queryset.filter(module__course_id=course_id)
 
-        module_id = self.request.query_params.get('module_id')
+        module_id = self.request.query_params.get("module_id")
         if module_id is not None:
             return queryset.filter(module_id=module_id)
 
@@ -89,6 +91,10 @@ class SectionViewSet(viewsets.ModelViewSet):
         """
         Return the appropriate serializer class based on the action.
         """
-        if self.action in ['list', 'retrieve']:
-            return SectionDetailSerializer if self.action == 'retrieve' else SectionListSerializer
+        if self.action in ["list", "retrieve"]:
+            return (
+                SectionDetailSerializer
+                if self.action == "retrieve"
+                else SectionListSerializer
+            )
         return SectionDetailSerializer

@@ -1,7 +1,6 @@
-#v1_urls.py
+# v1_urls.py
 
 from django.urls import include, path
-
 
 urlpatterns = [
     path("institution/", include("core.institution.urls")),

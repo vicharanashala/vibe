@@ -1,26 +1,20 @@
 # tests/serializers/test_course_serializers.py
-from django.test import TestCase
-from core.course.serializers import CourseDetailSerializer
-from django.utils import timezone
 from datetime import timedelta
-from core.course.serializers import (
-    CourseInstanceReadSerializer,
-    CourseInstanceWriteSerializer,
-    ModuleListSerializer,
-    ModuleDetailSerializer,
-    VideoSerializer,
-    ArticleSerializer,
-    SectionListSerializer,
-    SectionDetailSerializer
-)
+
+from django.test import TestCase
+from django.utils import timezone
+
 from core.course.models import SectionItemType
-from core.course.tests.factories import (
-    CourseFactory,
-    ModuleFactory,
-    SectionFactory,
-    SourceFactory,
-    CourseInstanceFactory
-)
+from core.course.serializers import (ArticleSerializer, CourseDetailSerializer,
+                                     CourseInstanceReadSerializer,
+                                     CourseInstanceWriteSerializer,
+                                     ModuleDetailSerializer,
+                                     ModuleListSerializer,
+                                     SectionDetailSerializer,
+                                     SectionListSerializer, VideoSerializer)
+from core.course.tests.factories import (CourseFactory, CourseInstanceFactory,
+                                         ModuleFactory, SectionFactory,
+                                         SourceFactory)
 
 
 class TestCourseSerializer(TestCase):
@@ -31,33 +25,39 @@ class TestCourseSerializer(TestCase):
     def test_contains_expected_fields(self):
         data = self.serializer.data
         expected_fields = {
-            'course_id', 'name', 'description',
-            'visibility', 'module_count'
+            "course_id",
+            "name",
+            "description",
+            "visibility",
+            "module_count",
         }
         assert set(data.keys()) >= expected_fields
 
     def test_module_count_value(self):
-        assert isinstance(self.serializer.data['module_count'], int)
+        assert isinstance(self.serializer.data["module_count"], int)
+
 
 class TestCourseInstanceSerializers(TestCase):
     def setUp(self):
         self.course = CourseFactory()
         self.course_instance = CourseInstanceFactory(course=self.course)
-        self.read_serializer = CourseInstanceReadSerializer(instance=self.course_instance)
+        self.read_serializer = CourseInstanceReadSerializer(
+            instance=self.course_instance
+        )
         self.valid_write_data = {
-            'course_id': self.course.id,
-            'start_date': timezone.now().date(),
-            'end_date': (timezone.now() + timedelta(days=30)).date()
+            "course_id": self.course.id,
+            "start_date": timezone.now().date(),
+            "end_date": (timezone.now() + timedelta(days=30)).date(),
         }
 
     def test_read_serializer_contains_expected_fields(self):
         data = self.read_serializer.data
-        expected_fields = {'id', 'course', 'start_date', 'end_date'}
+        expected_fields = {"id", "course", "start_date", "end_date"}
         self.assertEqual(set(data.keys()), expected_fields)
 
     def test_read_serializer_course_data(self):
-        data = self.read_serializer.data['course']
-        expected_course_fields = {'id', 'name', 'description'}
+        data = self.read_serializer.data["course"]
+        expected_course_fields = {"id", "name", "description"}
         self.assertEqual(set(data.keys()), expected_course_fields)
 
     def test_write_serializer_valid_data(self):
@@ -66,9 +66,10 @@ class TestCourseInstanceSerializers(TestCase):
 
     def test_write_serializer_invalid_dates(self):
         invalid_data = self.valid_write_data.copy()
-        invalid_data['end_date'] = invalid_data['start_date'] - timedelta(days=1)
+        invalid_data["end_date"] = invalid_data["start_date"] - timedelta(days=1)
         serializer = CourseInstanceWriteSerializer(data=invalid_data)
         self.assertFalse(serializer.is_valid())
+
 
 class TestModuleSerializers(TestCase):
     def setUp(self):
@@ -79,21 +80,25 @@ class TestModuleSerializers(TestCase):
     def test_list_serializer_fields(self):
         data = self.list_serializer.data
         expected_fields = {
-            'module_id', 'title', 'description',
-            'sequence', 'created_at'
+            "module_id",
+            "title",
+            "description",
+            "sequence",
+            "created_at",
         }
         self.assertEqual(set(data.keys()), expected_fields)
 
     def test_detail_serializer_fields(self):
         data = self.detail_serializer.data
-        self.assertIn('section_count', data)
-        self.assertIsInstance(data['section_count'], int)
+        self.assertIn("section_count", data)
+        self.assertIsInstance(data["section_count"], int)
 
     def test_truncated_description(self):
         long_description = "x" * 300
         module = ModuleFactory(description=long_description)
         serializer = ModuleListSerializer(instance=module)
-        self.assertLess(len(serializer.data['description']), len(long_description))
+        self.assertLess(len(serializer.data["description"]), len(long_description))
+
 
 # class TestSectionItemSerializers(TestCase):
 #     def setUp(self):
@@ -136,6 +141,7 @@ class TestModuleSerializers(TestCase):
 #             SectionItemType.ARTICLE
 #         )
 
+
 class TestSectionSerializers(TestCase):
     def setUp(self):
         self.section = SectionFactory()
@@ -144,10 +150,7 @@ class TestSectionSerializers(TestCase):
 
     def test_list_serializer_fields(self):
         data = self.list_serializer.data
-        expected_fields = {
-            'id', 'title', 'description',
-            'sequence', 'created_at'
-        }
+        expected_fields = {"id", "title", "description", "sequence", "created_at"}
         self.assertEqual(set(data.keys()), expected_fields)
 
     def test_detail_serializer_contains_all_fields(self):
