@@ -1,4 +1,5 @@
-from app.models import process_video, get_urls_from_playlist
+from app.question_gen.main import process_video
+from app.question_gen.services.url_service import get_urls_from_playlist
 from typing import List
 
 # def process_question_generation(transcript: str):
@@ -6,7 +7,6 @@ from typing import List
 
 # def process_answer_question(question: str):
 #     return answer_question(question)
-
 
 async def process_process_video(url: str, user_api_key: str, timestamps: List[int],
                           segment_wise_q_no: List[int],
