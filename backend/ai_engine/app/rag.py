@@ -259,7 +259,7 @@ async def shutdown_event():
 # API ENDPOINTS
 # --------------------------
 
-@app.post("/upload/")
+#@app.post("/upload/")
 async def upload_text(text: str = Form(...), title: Optional[str] = Form(None)):
     if content_manager is None:
         return JSONResponse({"error": "System not initialized"}, status_code=500)
