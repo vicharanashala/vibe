@@ -4,8 +4,11 @@ from rest_framework.routers import DefaultRouter
 from .models import NATSolution
 from .views import QuestionViewSet, get_solution_by_question
 from .views.assessment import AssessmentViewSet
-from .views.solution import (DescriptiveSolutionViewSet, NATSolutionViewSet,
-                             QuestionOptionViewSet)
+from .views.solution import (
+    DescriptiveSolutionViewSet,
+    NATSolutionViewSet,
+    QuestionOptionViewSet,
+)
 
 router = DefaultRouter()
 router.register(r"questions", QuestionViewSet)

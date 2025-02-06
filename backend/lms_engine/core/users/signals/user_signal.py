@@ -2,8 +2,7 @@
 
 import logging
 
-from django.db.models.signals import (m2m_changed, post_delete, post_save,
-                                      pre_save)
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from ..models import User, UserInstitution

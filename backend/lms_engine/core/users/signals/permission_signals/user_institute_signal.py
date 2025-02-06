@@ -4,8 +4,9 @@ from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from core.users.models import User, UserInstitution
-from core.users.permissions.user_institute_permission import \
-    InstitutionPermissionManager
+from core.users.permissions.user_institute_permission import (
+    InstitutionPermissionManager,
+)
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)

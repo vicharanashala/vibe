@@ -2,7 +2,14 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from ..assessment.views import AssessmentViewSet
-from .views import CourseInstanceViewSet, CourseViewSet, ModuleViewSet, SectionViewSet, VideoViewSet, ArticleViewSet
+from .views import (
+    CourseInstanceViewSet,
+    CourseViewSet,
+    ModuleViewSet,
+    SectionViewSet,
+    VideoViewSet,
+    ArticleViewSet,
+)
 from .views.section_items import SectionItemViewSet
 
 router = DefaultRouter()

@@ -5,8 +5,16 @@ from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 
 from ..course.models import SectionItemInfo, SectionItemType
-from .models import (Assessment, DescriptiveSolution, MCQSolution, MSQSolution,
-                     NATSolution, Question, QuestionOption, QuestionType)
+from .models import (
+    Assessment,
+    DescriptiveSolution,
+    MCQSolution,
+    MSQSolution,
+    NATSolution,
+    Question,
+    QuestionOption,
+    QuestionType,
+)
 
 
 class AssessmentSerializer(serializers.ModelSerializer):

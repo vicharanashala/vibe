@@ -5,16 +5,24 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.course.models import SectionItemType
-from core.course.serializers import (ArticleSerializer, CourseDetailSerializer,
-                                     CourseInstanceReadSerializer,
-                                     CourseInstanceWriteSerializer,
-                                     ModuleDetailSerializer,
-                                     ModuleListSerializer,
-                                     SectionDetailSerializer,
-                                     SectionListSerializer, VideoSerializer)
-from core.course.tests.factories import (CourseFactory, CourseInstanceFactory,
-                                         ModuleFactory, SectionFactory,
-                                         SourceFactory)
+from core.course.serializers import (
+    ArticleSerializer,
+    CourseDetailSerializer,
+    CourseInstanceReadSerializer,
+    CourseInstanceWriteSerializer,
+    ModuleDetailSerializer,
+    ModuleListSerializer,
+    SectionDetailSerializer,
+    SectionListSerializer,
+    VideoSerializer,
+)
+from core.course.tests.factories import (
+    CourseFactory,
+    CourseInstanceFactory,
+    ModuleFactory,
+    SectionFactory,
+    SourceFactory,
+)
 
 
 class TestCourseSerializer(TestCase):

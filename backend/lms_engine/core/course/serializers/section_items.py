@@ -2,8 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from ...assessment.models import Assessment
-from ..models import (Article, Section, SectionItemInfo, SectionItemType,
-                      Source, Video)
+from ..models import Article, Section, SectionItemInfo, SectionItemType, Source, Video
 
 
 class VideoSerializer(serializers.ModelSerializer):

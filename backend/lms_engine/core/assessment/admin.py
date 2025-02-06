@@ -1,7 +1,14 @@
 from django.contrib import admin
 
-from .models import (Assessment, DescriptiveSolution, MCQSolution, MSQSolution,
-                     NATSolution, Question, QuestionOption)
+from .models import (
+    Assessment,
+    DescriptiveSolution,
+    MCQSolution,
+    MSQSolution,
+    NATSolution,
+    Question,
+    QuestionOption,
+)
 
 
 class NATSolutionInline(admin.StackedInline):

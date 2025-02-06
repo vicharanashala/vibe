@@ -6,8 +6,11 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from core.course.models import CourseInstance, CoursePersonnel
-from core.course.tests.factories import (CourseFactory, CourseInstanceFactory,
-                                         UserFactory)
+from core.course.tests.factories import (
+    CourseFactory,
+    CourseInstanceFactory,
+    UserFactory,
+)
 
 
 class TestCourseInstance(TestCase):

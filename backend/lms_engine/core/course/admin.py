@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import Course, CourseInstance, CourseInstructor, Module, Section, Video, Source, Article
+from .models import (
+    Course,
+    CourseInstance,
+    CourseInstructor,
+    Module,
+    Section,
+    Video,
+    Source,
+    Article,
+)
 
 
 class SectionAdmin(admin.ModelAdmin):

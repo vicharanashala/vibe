@@ -1,13 +1,14 @@
 from django.core.exceptions import PermissionDenied
-from drf_spectacular.utils import (OpenApiParameter, extend_schema,
-                                   extend_schema_view)
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from ...utils.helpers import get_user
 from ..models import CourseInstance
-from ..serializers.course_instance import (CourseInstanceReadSerializer,
-                                           CourseInstanceWriteSerializer)
+from ..serializers.course_instance import (
+    CourseInstanceReadSerializer,
+    CourseInstanceWriteSerializer,
+)
 
 
 @extend_schema_view(

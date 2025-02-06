@@ -8,7 +8,8 @@ import subprocess
 # Remove in Production
 result = subprocess.run(
     ["flake8", "--exclude=myenv,**/__init__.py,venv,.venv,dist,build"],
-    capture_output=True, text=True
+    capture_output=True,
+    text=True,
 )
 
 if result.returncode != 0:
