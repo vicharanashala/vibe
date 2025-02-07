@@ -20,7 +20,6 @@ from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from dotenv import load_dotenv
 import os
-import logging
 
 app = APIRouter()
 
@@ -170,9 +169,8 @@ class QueryManager:
             }
             
         except Exception as e:
-            logging.error(f"Error processing query: {e}", exc_info=True)
             return {
-                "error": "An internal error has occurred.",
+                "error": str(e),
                 "processing_time": f"{time.time() - start_time:.2f} seconds"
             }
 
@@ -207,8 +205,7 @@ class ContentManager:
             return {"message": "No new content added."}
             
         except Exception as e:
-            logging.error("An error occurred while uploading content", exc_info=True)
-            return {"error": "An internal error has occurred. Please try again later."}
+            return {"error": str(e)}
     
     async def _filter_unique_documents(self, store, documents, main_hash):
         existing_hashes = {
@@ -262,7 +259,7 @@ async def shutdown_event():
 # API ENDPOINTS
 # --------------------------
 
-@app.post("/upload/")
+#@app.post("/upload/")
 async def upload_text(text: str = Form(...), title: Optional[str] = Form(None)):
     if content_manager is None:
         return JSONResponse({"error": "System not initialized"}, status_code=500)
@@ -298,5 +295,4 @@ async def get_content_index():
         }
         return contents
     except Exception as e:
-        logging.error(f"Error in get_content_index endpoint: {e}", exc_info=True)
-        return JSONResponse({"error": "An internal error has occurred."}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
