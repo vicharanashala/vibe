@@ -411,7 +411,7 @@ configLoaded.then(() => { // Function to fetch the course hierarchy when the pag
    
 configLoaded.then(() => { 
   // Fetch course hierarchy when page loads
-  fetch(`${config.LMS_GET_URL}courses`, {  
+  fetch(`${config.LMS_GET_URL}api/v1/course/courses/`, {  
   method: 'GET',
   headers: {
     'Content-Type': 'application/json',
@@ -479,15 +479,15 @@ function populateCourseDropdown(courses) { // Function to populate the course dr
   moduleSelect.innerHTML = '<option value="">Select Module</option>';
   moduleSelect.disabled = true;
 
-  const numericCourseId = parseInt(courseId, 10);
-  if (isNaN(numericCourseId)) {
-    console.error("⚠️ Invalid Course ID:", courseId);
-    return;
-  }
+  const numericCourseId = courseId;
+  // if (isNaN(numericCourseId)) {
+  //   console.error("⚠️ Invalid Course ID:", courseId);
+  //   return;
+  // }
 
   moduleSelect.disabled = false;
 
-  fetch(`${config.LMS_GET_URL}modules?course_id=${numericCourseId}`, {  
+  fetch(`${config.LMS_GET_URL}api/v1/course/modules/?course_id=${courseId}`, {  
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -528,15 +528,15 @@ function updateSectionDropdown(moduleId) { // Function to update the section dro
   sectionSelect.disabled = true;
 
   // Ensure moduleId is a valid number
-  const numericModuleId = parseInt(moduleId, 10);
-  if (isNaN(numericModuleId)) {
-    console.error("⚠️ Invalid module ID:", moduleId);
-    return;
-  }
+  const numericModuleId = moduleId;
+  // if (isNaN(numericModuleId)) {
+  //   console.error("⚠️ Invalid module ID:", moduleId);
+  //   return;
+  // }
 
   sectionSelect.disabled = false;
 
-  fetch(`${config.LMS_GET_URL}sections?module_id=${numericModuleId}`, {  
+  fetch(`${config.LMS_GET_URL}api/v1/course/sections/?module_id=${moduleId}`, {  
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -545,7 +545,8 @@ function updateSectionDropdown(moduleId) { // Function to update the section dro
   })
     .then(response => response.json())
     .then(data => {
-      console.log("📌 SECTION YAHAN HAI:", data); // ✅ Debugging
+      console.log("📌 SECTION YAHAN HAI:", data);
+      console.log(config.Authorization); // ✅ Debugging
 
       if (!data || !Array.isArray(data.results)) {  // ✅ Fix: Checking for `results` instead of `sections`
         throw new Error('Invalid data format received from server');
@@ -631,7 +632,7 @@ document.getElementById('module-select').addEventListener('change', (e) => { // 
 });
 
 document.getElementById('section-select').addEventListener('change', (e) => { // Event listener to update the selected section ID.
-  selectedSectionId = e.target.value ? parseInt(e.target.value, 10) : null;
+  selectedSectionId = e.target.value ? e.target.value : null;
 });
 
     function secondsToHMS(seconds) { // Function to convert seconds to hours, minutes, and seconds.
@@ -753,8 +754,8 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
 
     document.getElementById('fetch-videos').addEventListener('click', async () => { // Event listener for when the user submits the playlist URL.
       const playlistUrl = document.getElementById('playlist-url').value;
-      defaultSegments = parseInt(document.getElementById('default-segments').value) || 0;
-      defaultQuestions = parseInt(document.getElementById('default-questions').value) || 0;
+      defaultSegments = document.getElementById('default-segments').value || 0;
+      defaultQuestions = document.getElementById('default-questions').value || 0;
 
       if (!defaultSegments) {
         alert('Please enter default number of segments');
@@ -836,7 +837,7 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
     numSegmentsInput.addEventListener('input', () => {
       if (currentVideo === null) return;
 
-      const numSegments = parseInt(numSegmentsInput.value) || 0;
+      const numSegments = numSegmentsInput.value || 0;
       const segmentsContainer = document.getElementById('segments-container');
       const currentSegments = videoData[currentVideo].segments;
 
@@ -914,15 +915,15 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
     function saveSegmentData() {
       if (currentVideo === null || currentSegment === null) return;
 
-      const hrs = parseInt(document.getElementById('timestamp-hr').value) || 0;
-      const mins = parseInt(document.getElementById('timestamp-min').value) || 0;
-      const secs = parseInt(document.getElementById('timestamp-sec').value) || 0;
+      const hrs = document.getElementById('timestamp-hr').value || 0;
+      const mins = document.getElementById('timestamp-min').value || 0;
+      const secs = document.getElementById('timestamp-sec').value || 0;
       const questionsInput = document.getElementById('questions');
       const typeInput = document.getElementById('type');
 
       videoData[currentVideo].segments[currentSegment] = {
         timestamp: currentSegment === 1 ? 0 : hmsToSeconds(hrs, mins, secs),
-        questions: parseInt(questionsInput.value) || null,
+        questions: questionsInput.value || null,
         type: typeInput.value || ''
       };
     }
@@ -930,7 +931,7 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
     function validateTimestamps() {
       for (let videoIndex in videoData) {
         const segments = videoData[videoIndex].segments;
-        const segmentNumbers = Object.keys(segments).sort((a, b) => parseInt(a) - parseInt(b));
+        const segmentNumbers = Object.keys(segments).sort((a, b) => a - b);
 
         let previousTimestamp = -1;
 
@@ -939,14 +940,14 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
 
           // Check if timestamps are in order
           if (currentTimestamp <= previousTimestamp && segNum !== '1') {
-            alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Timestamp (${currentTimestamp}s) must be greater than previous segment's timestamp (${previousTimestamp}s)`);
+            alert(`Video ${videoIndex + 1}, Segment ${segNum}: Timestamp (${currentTimestamp}s) must be greater than previous segment's timestamp (${previousTimestamp}s)`);
             return false;
           }
 
           // Check if last segment timestamp is less than video duration
           if (segNum === segmentNumbers[segmentNumbers.length - 1]) {
             if (currentTimestamp >= videoDurations[videoIndex]) {
-              alert(`Video ${parseInt(videoIndex) + 1}, Segment ${segNum}: Last segment timestamp (${currentTimestamp}s) must be less than video duration (${videoDurations[videoIndex]}s)`);
+              alert(`Video ${videoIndex + 1}, Segment ${segNum}: Last segment timestamp (${currentTimestamp}s) must be less than video duration (${videoDurations[videoIndex]}s)`);
               return false;
             }
           }
@@ -1153,7 +1154,7 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
         if (option2El) newQuestion.option_2 = option2El.value;
         if (option3El) newQuestion.option_3 = option3El.value;
         if (option4El) newQuestion.option_4 = option4El.value;
-        if (correctAnswerEl) newQuestion.correct_answer = parseInt(correctAnswerEl.value);
+        if (correctAnswerEl) newQuestion.correct_answer = correctAnswerEl.value;
 
         return newQuestion;
       });
