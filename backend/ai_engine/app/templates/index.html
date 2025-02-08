@@ -234,45 +234,54 @@
     <div id="videos-container"></div>
 
     <form id="video-form">
-      <label for="user-api-key">Gemini API Key</label>
-      <input type="text" id="user-api-key" placeholder="Enter your Gemini API key" required />
-
+      <!-- Model Selection Dropdown -->
+      <label for="model-selection">Choose Model:</label>
+      <select id="model-selection" class="form-control">
+          <option value="gemini" selected>Gemini API</option>
+          <option value="ollama">Ollama API</option>
+      </select>
+  
+      <!-- Gemini API Key Input (Only visible if Gemini is selected) -->
+      <div id="api-key-container">
+          <label for="user-api-key">Gemini API Key</label>
+          <input type="text" id="user-api-key" placeholder="Enter your Gemini API key" required />
+      </div>
+  
       <div id="num-segments-container" style="display: none;">
-        <label for="num-segments">Number of Segments (for this video)</label>
-        <input type="number" id="num-segments" min="1" placeholder="Enter number of segments" />
+          <label for="num-segments">Number of Segments (for this video)</label>
+          <input type="number" id="num-segments" min="1" placeholder="Enter number of segments" />
       </div>
-
+  
       <div id="video-player-container">
-        <div id="player"></div>
+          <div id="player"></div>
       </div>
-
+  
       <div id="segments-container" class="segments-container"></div>
-
+  
       <div id="details-form">
-        <h3 id="form-title">Segment Details</h3>
-        <label for="timestamp">Start time of the segment</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="number" id="timestamp-hr" min="0" placeholder="HH" style="width: 33%;" />
-          <input type="number" id="timestamp-min" min="0" max="59" placeholder="MM" style="width: 33%;" />
-          <input type="number" id="timestamp-sec" min="0" max="59" placeholder="SS" style="width: 33%;" />
-        </div>
-
-        <!-- Add after the timestamp div that contains hr/min/sec inputs -->
-        <button type="button" id="recalculate-timestamps" class="inline">Recalculate Timestamps</button>
-
-        <label for="questions">Number of Questions</label>
-        <input type="number" id="questions" placeholder="Enter number of questions" />
-
-        <label for="type">Type of Questions</label>
-        <select id="type">
-          <option value="">Select type</option>
-          <option value="analytical">Analytical</option>
-          <option value="case-study">Case Study</option>
-        </select>
+          <h3 id="form-title">Segment Details</h3>
+          <label for="timestamp">Start time of the segment</label>
+          <div style="display: flex; gap: 10px;">
+              <input type="number" id="timestamp-hr" min="0" placeholder="HH" style="width: 33%;" />
+              <input type="number" id="timestamp-min" min="0" max="59" placeholder="MM" style="width: 33%;" />
+              <input type="number" id="timestamp-sec" min="0" max="59" placeholder="SS" style="width: 33%;" />
+          </div>
+  
+          <button type="button" id="recalculate-timestamps" class="inline">Recalculate Timestamps</button>
+  
+          <label for="questions">Number of Questions</label>
+          <input type="number" id="questions" placeholder="Enter number of questions" />
+  
+          <label for="type">Type of Questions</label>
+          <select id="type">
+              <option value="">Select type</option>
+              <option value="analytical">Analytical</option>
+              <option value="case-study">Case Study</option>
+          </select>
       </div>
-
+  
       <button type="submit">Upload</button>
-    </form>
+  </form>  
 
     <div id="generating-sign">Generating<span class="dots"><span></span><span></span><span></span></span></div>
 
@@ -562,31 +571,56 @@ function updateSectionDropdown(moduleId) { // Function to update the section dro
 
 
 // Event listeners
-document.addEventListener("DOMContentLoaded", function () { // Event listener to load the course dropdown when the page loads.
-  const courseSelect = document.getElementById('course-select');
+document.addEventListener("DOMContentLoaded", function () {
+    // ✅ Handle Course Selection
+    const courseSelect = document.getElementById('course-select');
 
-  // ✅ Remove any existing listeners to prevent duplication
-  courseSelect.replaceWith(courseSelect.cloneNode(true));
+    // ✅ Remove any existing listeners to prevent duplication
+    courseSelect.replaceWith(courseSelect.cloneNode(true));
 
-  // ✅ Add event listener correctly
-  document.getElementById('course-select').addEventListener('change', (e) => {
-    const courseId = e.target.value;
-    
+    // ✅ Add event listener correctly
+    document.getElementById('course-select').addEventListener('change', (e) => {
+        const courseId = e.target.value;
 
-    // ✅ Debugging: Check if the selected course ID is captured
-    console.log("✅ Selected Course ID:", courseId);
+        // ✅ Debugging: Check if the selected course ID is captured
+        console.log("✅ Selected Course ID:", courseId);
 
-    if (courseId) {
-      console.log("Yahan dekho",courseId);
-      updateModuleDropdown(courseId);
+        if (courseId) {
+            console.log("Yahan dekho", courseId);
+            updateModuleDropdown(courseId);
+        }
+
+        // ✅ Reset the section dropdown
+        const sectionSelect = document.getElementById('section-select');
+        sectionSelect.disabled = true;
+        sectionSelect.innerHTML = '<option value="">Select Section</option>';
+    });
+
+    // ✅ Handle Model Selection (Gemini/Ollama)
+    const modelSelection = document.getElementById("model-selection");
+    const apiKeyContainer = document.getElementById("api-key-container");
+    const apiKeyInput = document.getElementById("user-api-key");
+
+    modelSelection.addEventListener("change", function () {
+        if (modelSelection.value === "gemini") {
+            apiKeyContainer.style.display = "block";  // ✅ Show API Key input for Gemini
+            apiKeyInput.required = true;  // ✅ Make API Key required
+        } else {
+            apiKeyContainer.style.display = "none";  // ✅ Hide API Key input for Ollama
+            apiKeyInput.required = false;  // ✅ Remove required validation
+        }
+    });
+
+    // ✅ Ensure the correct initial state on page load
+    if (modelSelection.value === "gemini") {
+        apiKeyContainer.style.display = "block";
+        apiKeyInput.required = true;
+    } else {
+        apiKeyContainer.style.display = "none";
+        apiKeyInput.required = false;
     }
-
-    // ✅ Reset the section dropdown
-    const sectionSelect = document.getElementById('section-select');
-    sectionSelect.disabled = true;
-    sectionSelect.innerHTML = '<option value="">Select Section</option>';
-  });
 });
+
 
 
 document.getElementById('module-select').addEventListener('change', (e) => { // Event listener to update the section dropdown when the module is selected.
@@ -962,99 +996,103 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
     }
 
     async function processBatches(batches) {
-      for (let i = 0; i < batches.length; i++) {
+    for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
 
-        // Process all videos in current batch concurrently
+        // Process all videos in the current batch concurrently
         const batchPromises = batch.map(async (videoIndex) => {
-          const videoURL = videoUrls[videoIndex];
-          const segments = videoData[videoIndex].segments;
+            const videoURL = videoUrls[videoIndex];
+            const segments = videoData[videoIndex].segments;
 
-          const timestamps = [];
-          const segmentWiseQNo = [];
-          const segmentWiseQModel = [];
+            const timestamps = [];
+            const segmentWiseQNo = [];
+            const segmentWiseQModel = [];
 
-          Object.values(segments).forEach(data => {
-            if (data.timestamp !== null) timestamps.push(parseInt(data.timestamp, 10));
-            if (data.questions !== null) segmentWiseQNo.push(data.questions);
-            if (data.type !== null) segmentWiseQModel.push(data.type);
-          });
+            Object.values(segments).forEach(data => {
+                if (data.timestamp !== null) timestamps.push(parseInt(data.timestamp, 10));
+                if (data.questions !== null) segmentWiseQNo.push(data.questions);
+                if (data.type !== null) segmentWiseQModel.push(data.type);
+            });
 
-          const payload = {
-            url: videoURL,
-            user_api_key: document.getElementById('user-api-key').value,
-            timestamps,
-            segment_wise_q_no: segmentWiseQNo,
-            segment_wise_q_model: segmentWiseQModel,
-          };
+            // ✅ Get Selected Model (Gemini or Ollama)
+            const selectedModel = document.getElementById("model-selection").value;
+            const userApiKeyInput = document.getElementById('user-api-key');
 
-          console.log("SUMN SUS GOIN' ON HERE:", payload);
+            // ✅ Determine API Key to Send
+            const apiKey = (selectedModel === "gemini") ? userApiKeyInput.value : "ollama1064";
 
-          const response = await fetch('/questions/process_video', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          })
-          const data = await response.json();
-          responseData[videoIndex] = data;
+            // ✅ Include API Key in Payload
+            const payload = {
+                url: videoURL,
+                user_api_key: apiKey,  // ✅ Now sends the correct API key dynamically
+                timestamps,
+                segment_wise_q_no: segmentWiseQNo,
+                segment_wise_q_model: segmentWiseQModel,
+            };
 
-          // Save to IndexedDB
-          await questionDB.saveVideoData({
-            ...data,
-            video_url: videoURL
-          });
+            console.log("SUMN SUS GOIN' ON HERE:", payload);
 
-          return data;
+            const response = await fetch('/questions/process_video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            responseData[videoIndex] = data;
+
+            // Save to IndexedDB
+            await questionDB.saveVideoData({
+                ...data,
+                video_url: videoURL
+            });
+
+            return data;
         });
 
         await Promise.all(batchPromises);
-
-        // Wait 90 seconds before processing next batch
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 90000));
-        }
-      }
     }
+}
+
 
     document.getElementById('video-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
+    event.preventDefault();
 
-      if (!validateTimestamps()) {
+    if (!validateTimestamps()) {
         return;
-      }
+    }
 
-      const userApiKey = document.getElementById('user-api-key').value;
-      const generatingSign = document.getElementById('generating-sign');
-      const outputDiv = document.getElementById('output');
-      const confirmButton = document.getElementById('confirm-btn');
+    const generatingSign = document.getElementById('generating-sign');
+    const outputDiv = document.getElementById('output');
+    const confirmButton = document.getElementById('confirm-btn');
 
-      generatingSign.style.display = 'block';
-      outputDiv.style.display = 'none';
-      confirmButton.style.display = 'none';
+    generatingSign.style.display = 'block';
+    outputDiv.style.display = 'none';
+    confirmButton.style.display = 'none';
 
-      try {
+    try {
         const videoIndices = Object.keys(videoData).map(Number);
         const batches = createBatches(videoIndices);
-        await processBatches(batches);
+        await processBatches(batches);  // ✅ Calls processBatches (which now handles API key logic)
 
         modifiedResponseData = deepCopy(responseData);
 
         console.log("Original responseData:", responseData);
         console.log("Modified responseData:", modifiedResponseData);
 
-
         generatingSign.style.display = 'none';
         outputDiv.style.display = 'block';
         displayOutput(modifiedResponseData[currentVideo]);
         confirmButton.style.display = 'inline-block';
-      } catch (error) {
+
+    } catch (error) {
         generatingSign.style.display = 'none';
         outputDiv.textContent = `Error processing videos: ${error.message}`;
-      }
+    }
+});
 
-    });
 
     function displayOutput(data) {
       // Add logging to track data

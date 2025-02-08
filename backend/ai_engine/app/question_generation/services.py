@@ -18,13 +18,15 @@ from app.rag import upload_text
 import os
 from dotenv import load_dotenv
 from .prompts import *
+import requests
 
 load_dotenv()
 os.environ["PATH"] += os.pathsep + os.getenv("FFMPEG_PATH") # Configure FFMPEG locally
 
 print("FFMPEG PATH:", os.getenv("FFMPEG_PATH"))
+OLLAMA_API_URL = os.getenv("OLLAMA_API_URL")
 
-class AIService:
+class GeminiService:
     def __init__(self):
         self.model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
@@ -36,9 +38,26 @@ class AIService:
         response = await asyncio.to_thread(self.model.generate_content, prompt)
         await asyncio.sleep(10)  # Maintain rate limiting
         return response.text
+    
+class OllamaService:
+    def __init__(self):
+        self.model = "deepseek-r1:14b"
+
+    async def generate_content(self, prompt: str) -> str:
+        """Generate content from Ollama AI with rate limiting"""
+        response = requests.post(OLLAMA_API_URL, json={"model": self.model,
+                                                        "prompt": prompt,
+                                                        "raw":True,
+                                                        "stream": False
+                                                        })
+        print(response)
+        if response.status_code == 200:
+            return response.json().get("response", "Error: No response from Ollama.")
+        else:
+            return f"Error: Ollama API request failed - {response.text}"
 
 class VideoProcessor:
-    def __init__(self, ai_service: AIService):
+    def __init__(self, ai_service: GeminiService):
         self.whisper_model = whisper.load_model("base")
         self.ai_service = ai_service
 
@@ -197,9 +216,9 @@ class VideoProcessor:
     async def generate_questions_from_prompt(self, text: str, user_api_key: str, n_questions: int, q_model: str) -> str:
         """Generate questions using AI service"""
         prompt = self._get_prompt(text, n_questions, q_model)
-        print("PROMPTTT:\n", prompt)
         print("APIIIKEYYYYYYCHECKKKKKKKK: ", user_api_key)
-        self.ai_service.set_api_key(os.getenv("API_KEY"))
+        
+        # self.ai_service.set_api_key(os.getenv("API_KEY"))
         return await self.ai_service.generate_content(prompt)
 
     def _get_prompt(self, text:str, n: int, q_model: str) -> str:

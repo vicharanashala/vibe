@@ -50,6 +50,6 @@ def parse_llama_json(text: str) -> Dict:
             parsed_data["questions"] = empty_response["questions"]
 
         return parsed_data
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"Failed to parse JSON: {e}, returning empty structured result")
+    except:
+        print(f"Failed to parse JSON, returning empty structured result")
         return empty_response
