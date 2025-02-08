@@ -6,7 +6,7 @@
  *
  * Features:
  * - Displays sections in a responsive grid layout
- * - Shows status badges (Pending, In Progress, Completed) 
+ * - Shows status badges (Pending, In Progress, Completed)
  * - Allows navigation to individual section views
  * - Handles loading and error states
  * - Custom scrollable container with hidden scrollbars
@@ -16,18 +16,22 @@
  * - AssignmentRow: Individual section row with details and actions
  */
 
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useFetchSectionsWithAuthQuery, useFetchSectionItemsProgressQuery } from '@/store/apiService';
-import Cookies from 'js-cookie';
+import React, { useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { useFetchSectionsWithAuthQuery } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
+import Cookies from 'js-cookie'
+import { useFetchSectionProgressQuery } from '@/store/apiService'
+import { fetchSectionProgress } from '@/store/slices/sectionProgressSlice'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchSectionsWithAuth } from '@/store/slices/fetchSections'
 
 // Status styles mapping for different section states
 const statusClasses = {
   Pending: 'bg-yellow-200 text-yellow-800',
   'In Progress': 'bg-blue-200 text-blue-800',
   Completed: 'bg-green-200 text-green-800',
-};
+}
 
 // Component to render status indicator badge
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
@@ -36,37 +40,53 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
   >
     {status}
   </span>
-);
+)
 
 // Props interface for AssignmentRow component
 interface AssignmentRowProps {
-  title: string;
-  module: string;
-  sectionId: number;
-  courseInstanceId: string;
+  title: string
+  moduleId: string
+  sectionId: number
+  courseInstanceId: string
 }
 
 // Component to render individual section rows
 const AssignmentRow: React.FC<AssignmentRowProps> = ({
   title,
-  module,
+  moduleId,
   sectionId,
   courseInstanceId,
 }) => {
-  const navigate = useNavigate();
-  const { moduleId } = useParams();
-  const { data, isLoading, error } = useFetchSectionItemsProgressQuery({
-    courseInstanceId,
-    sectionItemId: String(sectionId),
-  });
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const progressKey = `${courseInstanceId}-${sectionId}`
 
-  const status = isLoading ? 'Loading' : error ? 'Error' : data?.progress || 'Pending';
+  // Retrieve section progress from Redux state
+  const sectionProgress = useSelector(
+    (state) => state.sectionProgress[progressKey]
+  )
+  console.log(
+    'section items',
+    useSelector((state) => state.sections.sections)
+  )
+
+  // Fetch section progress when component mounts or ids change
+  useEffect(() => {
+    if (!sectionProgress) {
+      // Check if progress is not already fetched
+      dispatch(
+        fetchSectionProgress({ courseInstanceId, sectionId: String(sectionId) })
+      )
+    }
+  }, [dispatch, courseInstanceId, sectionId, sectionProgress])
+
+  const status = sectionProgress ? sectionProgress : 'Pending' // Default to 'Pending' if not loaded
 
   return (
     <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4'>
       <div>
         <div className='text-xl font-semibold'>{title}</div>
-        <div className='text-gray-600'>{module}</div>
+        <div className='text-gray-600'>{moduleId}</div>
       </div>
       <div className='flex items-center justify-between'>
         <span>{sectionId}</span>
@@ -82,29 +102,48 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
         </Button>
       </div>
     </div>
-  );
-};
+  )
+}
 
 // Main component to display all sections
 const SectionView = () => {
   // Get route parameters
-  const { courseId, moduleId } = useParams();
+  const { courseId, moduleId } = useParams()
 
-  // Fetch sections data using RTK Query
-  const { data, error, isLoading } = useFetchSectionsWithAuthQuery({
-    courseId: Number(courseId),
-    moduleId: Number(moduleId),
-  });
+  const dispatch = useDispatch()
 
-  // Handle loading and error states
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error loading sections</div>;
+  const sectionData = useSelector(
+    (state) => state.sections?.sections[moduleId] ?? null
+  )
+  const isLoading = useSelector((state) => state.sections?.isLoading ?? false)
+  const error = useSelector((state) => state.sections?.error ?? null)
+  console.log(
+    'section items',
+    useSelector((state) => state.sections.sections[moduleId])
+  )
+  console.log('I am the section items', sectionData)
 
-  const courseInstanceId = courseId; // Assuming courseId is same as courseInstanceId
+  useEffect(() => {
+    if (!sectionData) {
+      // Only fetch if sectionData is empty
+      dispatch(
+        fetchSectionsWithAuth({
+          courseId: courseId,
+          moduleId: moduleId,
+        })
+      )
+    }
+  }, [courseId, moduleId, dispatch])
+
+  if (isLoading) return <div>Loading...</div>
+
+  const courseInstanceId = courseId // Assuming courseId is same as courseInstanceId
 
   return (
     <div className='p-4'>
-      <h1 className='mb-6 text-center text-3xl font-bold'>All Sections of Module {moduleId}</h1>
+      <h1 className='mb-6 text-center text-3xl font-bold'>
+        All Sections of Module {moduleId}
+      </h1>
       <div className='mx-auto max-w-4xl'>
         {/* Header row with column labels */}
         <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 font-semibold text-gray-800'>
@@ -130,7 +169,7 @@ const SectionView = () => {
             }
           `}</style>
           {/* Map through sections data to render rows */}
-          {data?.results?.map((section) => (
+          {sectionData?.map((section) => (
             <AssignmentRow
               key={section.id}
               title={section.title}
@@ -142,7 +181,7 @@ const SectionView = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SectionView;
+export default SectionView

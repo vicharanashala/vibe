@@ -1,19 +1,19 @@
 /**
  * Logout Component
- * 
+ *
  * This component provides user logout functionality with a simple button interface.
  * It handles the logout process by making an API call and updating the Redux store.
- * 
+ *
  * Features:
  * - Single button interface for logout action
  * - API integration using RTK Query for logout request
  * - Loading state management during logout
  * - Redux integration for clearing user state
  * - Error handling for failed logout attempts
- * 
+ *
  * State:
  * - isLoading: Indicates if logout request is in progress
- * 
+ *
  * The component disables the logout button while processing to prevent multiple
  * logout attempts and shows a loading message to provide user feedback.
  */

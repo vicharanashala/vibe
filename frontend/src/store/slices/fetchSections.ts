@@ -1,97 +1,50 @@
-/**
- * Sections Fetch Slice
- *
- * This slice manages the state of sections fetching in the application using Redux Toolkit.
- * It handles authenticated API requests to fetch sections for a specific course and module.
- *
- * Features:
- * - Manages array of section objects with their details
- * - Handles authenticated API requests using access token
- * - Tracks loading state during fetch requests
- * - Provides error handling for failed requests
- * - Uses createAsyncThunk for async operations
- *
- * State Structure:
- * - sections: Array of section objects containing:
- *   - id: Unique identifier for the section
- *   - title: Section title
- *   - content: Section content/description
- * - loading: Boolean flag for loading state
- * - error: String containing error message if any
- */
+// src/store/slices/sectionsSlice.js
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { apiService } from '../ApiServices/LmsEngine/DataFetchApiServices'
 
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import axios from 'axios'
-import Cookies from 'js-cookie'
-
-// Type definition for section object
-interface Section {
-  id: number
-  title: string
-  content: string
-}
-
-// Type definition for fetch sections payload
-interface FetchSectionsPayload {
-  course_id: number
-  module_id: number
-}
-
-// Type definition for sections state
-interface FetchSectionsState {
-  sections: Section[]
-  loading: boolean
-  error: string | null
-}
-
-// Initial state with empty sections array
-const initialState: FetchSectionsState = {
-  sections: [],
-  loading: false,
-  error: null,
-}
-
-// Async thunk for fetching sections with authentication
+// Define async thunk using RTK Query endpoint initiation
 export const fetchSectionsWithAuth = createAsyncThunk(
   'sections/fetchSectionsWithAuth',
-  async (
-    { course_id, module_id }: FetchSectionsPayload,
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await axios.get(
-        `/api/sections/?course_id=${course_id}&module_id=${module_id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${Cookies.get('access_token')}`,
-          },
-        }
-      )
-      return response.data.sections
-    } catch (error) {
-      return rejectWithValue(error.response.data)
+  async ({ courseId, moduleId }, { dispatch, rejectWithValue }) => {
+    const response = await dispatch(
+      apiService.endpoints.fetchSectionsWithAuth.initiate({
+        courseId,
+        moduleId,
+      })
+    )
+    if (response.error) {
+      console.error('Error fetching sections:', response.error) // Log the error for better debugging
+      return rejectWithValue('Failed to fetch sections')
     }
+    const responseWithModuleId = {
+      ...response.data,
+      moduleId: moduleId,
+    }
+
+    return responseWithModuleId // This should match the expected structure in your state
   }
 )
 
-// Create slice with reducers for handling async states
 const sectionsSlice = createSlice({
   name: 'sections',
-  initialState,
+  initialState: {
+    sections: {},
+    isLoading: false,
+    error: null,
+  },
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchSectionsWithAuth.pending, (state) => {
-        state.loading = true
-        state.error = null
+        state.isLoading = true
       })
       .addCase(fetchSectionsWithAuth.fulfilled, (state, action) => {
-        state.loading = false
-        state.sections = action.payload
+        state.isLoading = false
+        state.sections[action.payload.moduleId] = action.payload.results // Adjust based on your API response structure
       })
       .addCase(fetchSectionsWithAuth.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload as string
+        state.isLoading = false
+        state.error = action.payload || 'Failed to fetch sections'
       })
   },
 })

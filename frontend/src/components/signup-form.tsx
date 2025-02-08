@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useSignupMutation } from '../store/apiService'
+import { useSignupMutation } from '../store/ApiServices/LmsEngine/AuthApiServices'
 
 interface SignUpFormProps extends React.ComponentPropsWithoutRef<'form'> {
   toggleCover: () => void

@@ -94,62 +94,17 @@ export const apiService = createApi({
       onQueryStarted: async (arg, { queryFulfilled }) => {
         try {
           await queryFulfilled
-          Cookies.remove('access_token') // Remove the token after logout
         } catch (error) {
-          console.error('Failed to remove access token from cookies', error)
+          // Log the error, but don't throw it
+          console.error('Logout request failed:', error)
+        } finally {
+          // Always remove the token, regardless of the request outcome
+          Cookies.remove('access_token')
+          // Remove any other auth-related cookies if they exist
+          Cookies.remove('refresh_token')
+          // Add any other cookies that need to be removed
         }
       },
-    }),
-
-    // Institute management endpoints
-    fetchInstitutesWithAuth: builder.query<{ institutes: Institute[] }, void>({
-      query: () => ({
-        url: '/institutes/',
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${Cookies.get('access_token')}`,
-        },
-      }),
-    }),
-
-    // User management endpoints
-    fetchUsersWithAuth: builder.query<
-      { users: { id: number; name: string; email: string }[] },
-      void
-    >({
-      query: () => ({
-        url: '/users/',
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${Cookies.get('access_token')}`,
-        },
-      }),
-    }),
-
-    // Video management endpoints
-    fetchVideoDetailsWithAuth: builder.query<
-      { videoDetails: { id: number; title: string; url: string }[] },
-      void
-    >({
-      query: () => ({
-        url: '/videos/',
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${Cookies.get('access_token')}`,
-        },
-      }),
-    }),
-
-    createVideoDetails: builder.mutation({
-      query: (videoData) => ({
-        url: '/videos',
-        method: 'POST',
-        body: videoData,
-        headers: {
-          Authorization: `Bearer ${Cookies.get('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-      }),
     }),
 
     // Course management endpoints
@@ -251,10 +206,6 @@ export const {
   useFetchAssessmentWithAuthQuery,
   useSignupMutation,
   useLogoutMutation,
-  useFetchInstitutesWithAuthQuery,
-  useFetchUsersWithAuthQuery,
-  useFetchVideoDetailsWithAuthQuery,
-  useCreateVideoDetailsMutation,
   useFetchCoursesWithAuthQuery,
   useFetchModulesWithAuthQuery,
   useFetchSectionsWithAuthQuery,

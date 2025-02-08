@@ -39,16 +39,20 @@ import KeyboardLock from '@/components/proctoring-components/KeyboardLock'
 import RightClickDisabler from '@/components/proctoring-components/RightClickDisable'
 
 //These are the imports comming from redux using RTK for fetching and posting the data to the backend
+import { useFetchItemsWithAuthQuery } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
 import {
-  useFetchItemsWithAuthQuery,
   useStartAssessmentMutation,
   useSubmitAssessmentMutation,
-  useUpdateSectionItemProgressMutation,
-} from '@/store/apiService'
-import { useFetchQuestionsWithAuthQuery } from '@/store/apiService'
+} from '@/store/ApiServices/ActivityEngine/GradingApiServices'
+import { useUpdateSectionItemProgressMutation } from '@/store/ApiServices/ActivityEngine/UpdatingApiServices'
+import { useFetchQuestionsWithAuthQuery } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
 import { Progress } from '@/components/ui/progress'
 
 import Cookies from 'js-cookie'
+import { useDispatch } from 'react-redux'
+import { clearProgress } from '@/store/slices/fetchStatusSlice'
+import { clearModuleProgress } from '@/store/slices/moduleProgressSlice'
+import { clearSectionProgress } from '@/store/slices/sectionProgressSlice'
 
 // Define interfaces for state and props
 interface AssessmentOption {
@@ -92,6 +96,8 @@ const ContentScrollView = () => {
   const sectionId = location.state?.sectionId
   const courseId = location.state?.courseId
   const moduleId = location.state?.moduleId
+
+  const dispatch = useDispatch()
 
   // This ensures that the sidebar is open or not
   const { setOpen } = useSidebar()
@@ -413,7 +419,33 @@ const ContentScrollView = () => {
             })
               .then((response) => {
                 if (response.data) {
-                  console.log('Progress updated successfully!')
+                  response.data.forEach((item) => {
+                    item.sectionItems.forEach((sectionItemId) => {
+                      const newCourseInstanceId = courseId
+                      const newSectionItemId = sectionItemId
+                      dispatch(
+                        clearProgress({
+                          courseInstanceId: newCourseInstanceId,
+                          sectionItemId: newSectionItemId,
+                        })
+                      )
+                    })
+                    if (item.modules !== null) {
+                      dispatch(
+                        clearModuleProgress({
+                          courseInstanceId: courseId,
+                          moduleId: item.modules,
+                        })
+                      )
+                    } else if (item.sections !== null) {
+                      dispatch(
+                        clearSectionProgress({
+                          courseInstanceId: courseId,
+                          sectionId: item.sections,
+                        })
+                      )
+                    }
+                  })
                 } else {
                   console.error('Failed to update progress.')
                 }
@@ -601,7 +633,7 @@ const ContentScrollView = () => {
             frameBorder='0'
             allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
             allowFullScreen
-            className='size-full pointer-events-none cursor-none'
+            className='pointer-events-none size-full cursor-none'
           ></iframe>
         )
       case 'article':
@@ -745,14 +777,14 @@ const ContentScrollView = () => {
       </ResizablePanel>
       <ResizableHandle className='p-1' />
       <ResizablePanel defaultSize={5} className='z-20'>
-        <div className='h-full w-full flex flex-col items-center justify-center bg-gray-100 p-2'>
-        <h4 className='mb-4 text-center text-sm font-semibold'>Progress</h4>
-          <span className='text-sm mb-4'>
+        <div className='flex size-full flex-col items-center justify-center bg-gray-100 p-2'>
+          <h4 className='mb-4 text-center text-sm font-semibold'>Progress</h4>
+          <span className='mb-4 text-sm'>
             {Math.round(((currentFrame + 1) / content.length) * 100)}%
           </span>
           <div className='relative h-full w-4 rounded-xl bg-gray-300'>
             <div
-              className='absolute left-0 w-full bg-black rounded-xl'
+              className='absolute left-0 w-full rounded-xl bg-black'
               style={{
                 height: `${((currentFrame + 1) / content.length) * 100}%`,
               }}

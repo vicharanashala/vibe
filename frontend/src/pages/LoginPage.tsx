@@ -1,17 +1,17 @@
 /**
  * LoginPage Component
- * 
+ *
  * A responsive login/signup page with an animated sliding cover effect.
  * The page is split into two sections - login and signup forms, with a sliding
  * cover that transitions between them.
- * 
+ *
  * Features:
  * - Split screen layout with login and signup forms
  * - Responsive design that adapts to different screen sizes
  * - Animated sliding cover effect when switching between forms
  * - Consistent branding with CAL logo on both sides
  * - Mobile-friendly layout adjustments
- * 
+ *
  * Layout Structure:
  * - Two column grid layout on large screens
  * - Each column contains:
@@ -20,7 +20,7 @@
  *   - Login form on left side
  *   - Signup form on right side
  * - Sliding cover overlay that moves between sections
- * 
+ *
  * State:
  * - coverLeft: Boolean to control the position of sliding cover
  */

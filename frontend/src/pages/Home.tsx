@@ -2,14 +2,14 @@
  * Home
  * The main layout component for the authenticated user experience.
  * This component provides a comprehensive layout structure with the following features:
- * 
+ *
  * Key Features:
  * - Left sidebar navigation
  * - Right sidebar for additional tools/information
  * - Top header with breadcrumbs and controls
  * - Dark/Light mode toggle
  * - Dynamic content rendering via React Router's Outlet
- * 
+ *
  * Layout Structure:
  * - SidebarProvider wraps the entire layout for sidebar state management
  * - Left Sidebar: Main navigation

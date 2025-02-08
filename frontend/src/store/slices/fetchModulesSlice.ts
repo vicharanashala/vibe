@@ -1,73 +1,52 @@
-/**
- * Modules Fetch Slice
- *
- * This slice manages the state of modules fetching in the application using Redux Toolkit.
- * It handles authenticated API requests to fetch modules and manages their state.
- *
- * Features:
- * - Manages array of module objects with their details
- * - Tracks loading state during fetch requests
- * - Provides error handling for failed requests
- * - Integrates with RTK Query endpoints for module fetching
- *
- * State Structure:
- * - modules: Array of module objects containing:
- *   - id: Unique identifier for the module
- *   - title: Module title
- *   - content: Module content/description
- * - loading: Boolean flag for loading state
- * - error: String containing error message if any
- */
+// src/store/slices/modulesSlice.js
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { apiService } from '../ApiServices/LmsEngine/DataFetchApiServices'
 
-import { createSlice } from '@reduxjs/toolkit'
-import { apiService } from '../apiService'
+// Define async thunk using RTK Query endpoint initiation
+export const fetchModulesWithAuth = createAsyncThunk(
+  'modules/fetchModulesWithAuth',
+  async (courseId, { dispatch, rejectWithValue }) => {
+    const response = await dispatch(
+      apiService.endpoints.fetchModulesWithAuth.initiate(courseId)
+    )
+    if (response.error) {
+      console.error('Error fetching modules:', response.error) // Log the error for better debugging
+      return rejectWithValue('Failed to fetch modules')
+    }
+    const responseWithCourseId = {
+      ...response.data,
+      courseId: courseId,
+    }
 
-// Type definition for module state
-interface ModuleState {
-  modules: { id: number; title: string; content: string }[]
-  loading: boolean
-  error: string | null
-}
+    return responseWithCourseId // This should match the expected structure in your state
+  }
+)
 
-// Initial state with empty modules array
-const initialState: ModuleState = {
-  modules: [],
-  loading: false,
+const initialState = {
+  modules: {},
+  isLoading: false,
   error: null,
 }
 
-const moduleSlice = createSlice({
-  name: 'module',
+const modulesSlice = createSlice({
+  name: 'modules',
   initialState,
   reducers: {},
-  // Handle automated state updates from API endpoints
   extraReducers: (builder) => {
     builder
-      // Set loading state when fetch request starts
-      .addMatcher(
-        apiService.endpoints.fetchModulesWithAuth.matchPending,
-        (state) => {
-          state.loading = true
-          state.error = null
-        }
-      )
-      // Update modules when fetch succeeds
-      .addMatcher(
-        apiService.endpoints.fetchModulesWithAuth.matchFulfilled,
-        (state, { payload }) => {
-          state.modules = payload.modules
-          state.loading = false
-        }
-      )
-      // Handle errors when fetch fails
-      .addMatcher(
-        apiService.endpoints.fetchModulesWithAuth.matchRejected,
-        (state, { error }) => {
-          state.loading = false
-          state.error = error.message || 'Failed to fetch modules'
-        }
-      )
+      .addCase(fetchModulesWithAuth.pending, (state) => {
+        state.isLoading = true
+      })
+      .addCase(fetchModulesWithAuth.fulfilled, (state, action) => {
+        state.isLoading = false
+        console.log('action.payload', action.payload)
+        state.modules[action.payload.courseId] = action.payload.results // Adjust based on your API response structure
+      })
+      .addCase(fetchModulesWithAuth.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload || 'Failed to fetch modules'
+      })
   },
 })
 
-export default moduleSlice.reducer
+export default modulesSlice.reducer

@@ -1,26 +1,6 @@
-/**
- * Module View Page
- *
- * This page displays detailed information about a specific course and its modules.
- * It provides a split-view layout with course details on the left and module list on the right.
- *
- * Features:
- * - Fetches and displays course details using RTK Query
- * - Shows course image, name and description
- * - Lists all modules associated with the course in a table format
- * - Provides navigation to individual module pages
- * - Handles loading and error states gracefully
- * - Responsive split-view layout
- *
- * Key Components:
- * - Left section: Course banner with image background and course info
- * - Right section: Interactive table listing all course modules
- * - Table components from shadcn/ui library
- * - RTK Query hooks for data fetching
- */
-
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   Table,
   TableBody,
@@ -30,73 +10,59 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  useFetchCoursesWithAuthQuery,
-  useFetchModulesWithAuthQuery,
-} from '../../store/apiService'
-
-// Interface defining the structure of module data
-interface Module {
-  id: number
-  title: string
-  sequence: number
-}
+import { fetchCoursesWithAuth } from '@/store/slices/courseSlice'
+import { fetchModulesWithAuth } from '@/store/slices/fetchModulesSlice'
 
 const ModuleView = () => {
-  const { courseId } = useParams() // Get courseId from route params
+  const { courseId } = useParams()
+  const dispatch = useDispatch()
+  console.log('courseId', courseId)
+  const courseData = useSelector((state) => state.courses.courses)
+  const courseLoading = useSelector((state) => state.courses.isLoading)
+  const courseError = useSelector((state) => state.courses.error)
+  console.log('courseData', courseData)
+  console.log('courseId', courseId)
+  console.log('courseLoading', courseLoading)
+  const moduleData = useSelector(
+    (state) => state.modules?.modules?.[courseId] ?? null
+  )
+  const moduleLoading = useSelector(
+    (state) => state.modules?.isLoading ?? false
+  )
+  const moduleError = useSelector((state) => state.modules?.error ?? null)
 
-  // Fetch all courses to get course details
-  const {
-    data: courseData,
-    isLoading: courseLoading,
-    error: courseError,
-  } = useFetchCoursesWithAuthQuery()
+  useEffect(() => {
+    if (!courseData || courseData.length === 0) {
+      dispatch(fetchCoursesWithAuth())
+    }
+  }, [dispatch, courseData.length])
 
-  // Fetch modules for the specific course
-  const {
-    data: moduleData,
-    isLoading: moduleLoading,
-    error: moduleError,
-  } = useFetchModulesWithAuthQuery(courseId ? parseInt(courseId, 10) : 0)
+  useEffect(() => {
+    if (!moduleData) {
+      dispatch(fetchModulesWithAuth(courseId?.toString()))
+    }
+  }, [dispatch, courseId, moduleData])
 
   if (courseLoading || moduleLoading) {
     return <p>Loading course and modules...</p>
   }
 
   if (courseError) {
-    return (
-      <p>
-        Error fetching course:{' '}
-        {courseError instanceof Error ? courseError.message : 'Unknown error'}
-      </p>
-    )
+    return <p>Error fetching course: {courseError}</p>
   }
 
   if (moduleError) {
-    return (
-      <p>
-        Error fetching modules:{' '}
-        {moduleError instanceof Error ? moduleError.message : 'Unknown error'}
-      </p>
-    )
+    return <p>Error fetching modules: {moduleError}</p>
   }
 
-  // Find the specific course details
-  const course = courseData?.results?.find(
-    (c) => c.course_id === (courseId ? parseInt(courseId, 10) : 0)
-  )
+  const course = courseData
 
-  if (!course) {
-    return <p>Course not found!</p>
+  if (!moduleData) {
+    return <p>Module not found!</p>
   }
-
-  const defaultImage =
-    'https://excellentia.org.in/images/courses.jpg'
-
-  // Modules data
-  const modules = moduleData?.results || []
-  console.log('modules', modules)
-  console.log("courseID",courseId)
+  console.log('moduleData', moduleData)
+  const defaultImage = 'https://excellentia.org.in/images/courses.jpg'
+  const modules = moduleData || []
 
   return (
     <div className='flex h-full justify-between'>
@@ -131,7 +97,7 @@ const ModuleView = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {modules.map((module: Module) => (
+              {modules.map((module) => (
                 <TableRow key={module.id}>
                   <TableCell className='font-medium'>
                     {module.module_id}

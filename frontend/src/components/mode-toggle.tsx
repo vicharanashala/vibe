@@ -1,21 +1,21 @@
 /**
  * ModeToggle Component
- * 
+ *
  * This component provides a button interface for toggling between light and dark themes.
  * It uses the useTheme hook from a theme provider to manage theme state and transitions.
- * 
+ *
  * Features:
  * - Toggles between light and dark themes with a single button click
  * - Animated icon transitions between sun and moon based on current theme
  * - Accessible design with screen reader support
  * - Styled with Tailwind CSS for smooth animations and transitions
  * - Responsive icon sizing and positioning
- * 
+ *
  * Visual Elements:
  * - Sun icon: Visible and rotated in light theme, hidden in dark theme
  * - Moon icon: Visible and rotated in dark theme, hidden in light theme
  * - Button: Outlined style with icon sizing
- * 
+ *
  * Accessibility:
  * - Includes sr-only text for screen readers
  * - Maintains keyboard navigation support through button element

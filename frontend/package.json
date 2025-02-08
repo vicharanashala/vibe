@@ -42,6 +42,8 @@
     "cookie-js": "^0.0.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.5.1",
+    "firebase": "^11.3.0",
+    "gh-pages": "^6.3.0",
     "html2canvas": "^1.4.1",
     "js-cookie": "^3.0.5",
     "katex": "^0.16.11",

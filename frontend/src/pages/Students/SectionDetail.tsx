@@ -19,11 +19,13 @@
  * - Section: Main component managing data fetching and layout
  */
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useFetchItemsWithAuthQuery, useFetchSectionItemsProgressQuery } from '@/store/apiService'
+import { useDispatch, useSelector } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { Check, Lock } from 'lucide-react'
+import { fetchSectionItemsWithAuth } from '@/store/slices/fetchItems'
+import { fetchProgress } from '@/store/slices/fetchStatusSlice'
 
 // Tailwind classes for different status badges
 const statusClasses = {
@@ -50,25 +52,48 @@ const StatusBadge = ({ status }) => (
  */
 const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
   const navigate = useNavigate()
-  console.log('courseId:', courseId, moduleId)
-  let alpha = 'v'
-  if(assignment.item_type === 'video') {
-    alpha = 'v'
-  }else{
-    alpha = 'a'
-  }
+  const dispatch = useDispatch()
+  const alpha = assignment.item_type === 'video' ? 'v' : 'a'
   const sectionItemId1 = `${alpha}${assignment.id}`
+  const progressKey = `${courseId}-${sectionItemId1}`
+  console.log('progressKey:', progressKey)
 
-  const { data: progressData, isLoading, isError } = useFetchSectionItemsProgressQuery({
-    courseInstanceId: courseId, // Ensure this is the correct ID needed for your API
-    sectionItemId: sectionItemId1
-  });
+  // Retrieve progress from Redux state
+  const progress = useSelector((state) => state.progress[progressKey])
+  console.log(
+    'state mai ye store hai - ',
+    useSelector((state) => state.progress[progressKey])
+  )
 
+  console.log('progress:', progress)
+  console.log(
+    'i am items............',
+    useSelector((state) => state.items)
+  )
+
+  // Dispatch fetchProgress on component mount or when ids change
+  useEffect(() => {
+    console.log('this is progress', progress)
+
+    if (!progress) {
+      dispatch(
+        fetchProgress({
+          courseInstanceId: courseId,
+          sectionItemId: sectionItemId1,
+        })
+      ).then(() => {
+        if (!progress) {
+          window.location.reload()
+        }
+      })
+    }
+  }, [dispatch, courseId, sectionItemId1, progress])
+
+  // Determine what status to display
   const displayStatus = () => {
-    if (isLoading) return "Loading...";
-    if (isError) return "Error";
-    return progressData?.progress || "Unknown";
-  };
+    if (!progress) return 'Loading...'
+    return progress || 'Unknown'
+  }
 
   return (
     <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4'>
@@ -78,9 +103,11 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
       </div>
       <div className='flex items-center justify-between'>
         <span className='w-12 '>{assignment.item_type}</span>
-        <span className=''><StatusBadge status={displayStatus()}  /></span>
-        <span className='w-14 flex justify-center'>
-          {assignment.item_type === 'video' && progressData?.progress === 'IN_PROGRESS' ? (
+        <span>
+          <StatusBadge status={displayStatus()} />
+        </span>
+        <span className='flex w-14 justify-center'>
+          {assignment.item_type === 'video' && progress === 'IN_PROGRESS' ? (
             <Button
               onClick={() =>
                 navigate('/content-scroll-view', {
@@ -90,7 +117,7 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
             >
               Start
             </Button>
-          ) : progressData?.progress === 'COMPLETE' ? (
+          ) : progress === 'COMPLETE' ? (
             <Check />
           ) : (
             <Lock />
@@ -108,17 +135,29 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
 const SectionDetails = () => {
   const { sectionId } = useParams()
   const location = useLocation()
-  const courseId = location.state?.courseId // Access the sectionId from state
-  const moduleId = location.state?.moduleId // Access the sectionId from state
-  console.log('courseId:', courseId, moduleId)
-  const {
-    data: assignmentsData,
-    isLoading,
-    isError,
-  } = useFetchItemsWithAuthQuery(sectionId)
+  const courseId = location.state?.courseId
+  const moduleId = location.state?.moduleId
+  const dispatch = useDispatch()
+
+  const sectionItems = useSelector(
+    (state) => state.items?.items[sectionId] ?? null
+  )
+  const isLoading = useSelector(
+    (state) => state.items?.items.isLoading ?? false
+  )
+  const error = useSelector((state) => state.items?.items.error ?? null)
+
+  useEffect(() => {
+    if (!sectionItems && !isLoading) {
+      console.log('Dispatching fetchSectionItemsWithAuth')
+      dispatch(fetchSectionItemsWithAuth(sectionId))
+    }
+  }, [dispatch, sectionId, sectionItems])
 
   if (isLoading) return <p>Loading...</p>
-  if (isError) return <p>Error loading assignments.</p>
+  if (error) return <p>Error: {error}</p>
+  console.log(sectionItems)
+  if (!sectionItems) return <p>No items found for this section.</p>
 
   return (
     <div className='p-4'>
@@ -136,15 +175,16 @@ const SectionDetails = () => {
             </div>
           </div>
           <div className='max-h-96 space-y-2 overflow-y-auto'>
-            {assignmentsData.map((assignment) => (
-              <AssignmentRow
-                key={assignment.sequence}
-                assignment={assignment}
-                sectionId={sectionId}
-                courseId={courseId}
-                moduleId={moduleId}
-              />
-            ))}
+            {sectionItems &&
+              sectionItems.map((item) => (
+                <AssignmentRow
+                  key={item.sequence}
+                  assignment={item}
+                  sectionId={sectionId}
+                  courseId={courseId}
+                  moduleId={moduleId}
+                />
+              ))}
           </div>
         </div>
       </div>
