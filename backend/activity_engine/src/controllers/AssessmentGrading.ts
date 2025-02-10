@@ -8,8 +8,8 @@ export async function createAttempt(req: Request, res: Response): Promise<void> 
   const { assessmentId, courseInstanceId, studentId } = req.body;
   let attemptId = 1;
 
-  const parsedAssessmentId = parseInt(assessmentId, 10);
-  const parsedStudentId = parseInt(studentId, 10);
+  const parsedAssessmentId = assessmentId;
+  const parsedStudentId = studentId;
 
   try {
     const session2 = await prisma.submitSession.findFirst({

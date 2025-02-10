@@ -1,116 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="../static/style.css">
-  <!-- <script src="https://www.youtube.com/iframe_api"></script> -->
-  <title>Playlist Question Generator</title>
-  <!-- <style>
-  </style> // CSS styling for the HTML page -->
-</head>
-<body>
-  <div class="container">
-    <h1>Video Question Generator</h1>
-    <div class="url-container">
-      <input type="url" id="playlist-url" placeholder="Enter YouTube playlist or video URL" required /> <button
-        id="fetch-videos" class="inline">Submit</button>
-    </div>
-    <div class="hierarchy-dropdowns">
-      <div>
-        <label for="course-select">Course</label>
-        <select id="course-select">
-          <option value="">Select Course</option>
-        </select>
-      </div>
-      <div>
-        <label for="module-select">Module</label>
-        <select id="module-select" disabled>
-          <option value="">Select Module</option>
-        </select>
-      </div>
-      <div>
-        <label for="section-select">Section</label>
-        <select id="section-select" disabled>
-          <option value="">Select Section</option>
-        </select>
-      </div>
-    </div>
-    <div class="default-settings">
-      <label for="default-segments">Default Number of Segments</label>
-      <input type="number" id="default-segments" min="1" placeholder="Enter default segments count" />
-      <label for="default-questions">Default Questions per Segment</label>
-      <input type="number" id="default-questions" min="1" placeholder="Enter default questions count" />
-    </div>
-    <div id="videos-container"></div>
-    <form id="video-form">
-      <!-- Model Selection Dropdown -->
-      <label for="model-selection">Choose Model:</label>
-      <select id="model-selection" class="form-control">
-          <option value="gemini" selected>Gemini API</option>
-          <option value="ollama">Ollama API</option>
-      </select>
-
-      <!-- Gemini API Key Input (Only visible if Gemini is selected) -->
-      <div id="api-key-container">
-          <label for="user-api-key">Gemini API Key</label>
-          <input type="text" id="user-api-key" placeholder="Enter your Gemini API key" required />
-      </div>
-
-      <div id="num-segments-container" style="display: none;">
-          <label for="num-segments">Number of Segments (for this video)</label>
-          <input type="number" id="num-segments" min="1" placeholder="Enter number of segments" />
-      </div>
-
-      <div id="video-player-container">
-          <div id="player"></div>
-      </div>
-      <div id="segments-container" class="segments-container"></div>
-
-      <div id="details-form">
-          <h3 id="form-title">Segment Details</h3>
-          <label for="timestamp">Start time of the segment</label>
-          <div style="display: flex; gap: 10px;">
-              <input type="number" id="timestamp-hr" min="0" placeholder="HH" style="width: 33%;" />
-              <input type="number" id="timestamp-min" min="0" max="59" placeholder="MM" style="width: 33%;" />
-              <input type="number" id="timestamp-sec" min="0" max="59" placeholder="SS" style="width: 33%;" />
-          </div>
-
-          <button type="button" id="recalculate-timestamps" class="inline">Recalculate Timestamps</button>
-          <label for="questions">Number of Questions</label>
-          <input type="number" id="questions" placeholder="Enter number of questions" />
-
-          <label for="type">Type of Questions</label>
-          <select id="type">
-              <option value="">Select type</option>
-              <option value="analytical">Analytical</option>
-              <option value="case-study">Case Study</option>
-          </select>
-      </div>
-
-      <button type="submit">Upload</button>
-  </form>  
-
-    <div id="generating-sign">Generating<span class="dots"><span></span><span></span><span></span></span></div>
-    <div id="output">
-      <h3>Generated Output:</h3>
-      <div id="output-videos-container"></div>
-      <div id="video-info"></div>
-      <h4>Segments</h4>
-      <div id="output-segments-container" class="output-segments-container"></div>
-      <div id="segment-details-container"></div>
-      <h4>Questions</h4>
-      <div id="output-questions-container" class="output-questions-container"></div>
-      <div id="question-details-container"></div>
-    </div>
-    <button id="confirm-btn" style="display:none;">Confirm & Download</button>
-  </div> // HTML content for the page. This includes the form, buttons, and other elements. These are used for the user interface.
-
-  <script src="../static/script.js"></script>
-
-
-  <script>
-    const videoData = {};
+const videoData = {};
     let currentVideo = null;
     let currentSegment = null;
     let responseData = {};
@@ -352,7 +240,7 @@ function updateSectionDropdown(moduleId) { // Function to update the section dro
   })
     .then(response => response.json())
     .then(data => {
-      console.log("📌 SECTION YAHAN HAI:", data);
+      console.log(" SECTION YAHAN HAI:", data);
       console.log(config.Authorization); // ✅ Debugging
 
       if (!data || !Array.isArray(data.results)) {  // ✅ Fix: Checking for `results` instead of `sections`
@@ -1275,9 +1163,3 @@ document.getElementById('section-select').addEventListener('change', (e) => { //
 });
 
 });
-
-  </script>
-
-  <div id="temp-player" style="display: none;"></div>
-</body>
-</html>

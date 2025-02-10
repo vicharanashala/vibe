@@ -20,11 +20,11 @@ export async function submitAssessment(
 
   const idToken = authorization.split("Bearer ")[1];
 
-  const parsedAssessmentId = parseInt(assessmentId, 10);
-  const parsedCourseId = parseInt(courseId, 10);
-  const parsedStudentId = parseInt(studentId, 10);
-  const parsedAttemptId = parseInt(attemptId, 10);
-  const parsedQuestionId = parseInt(questionId, 10);
+  const parsedAssessmentId = assessmentId;
+  const parsedCourseId = courseId;
+  const parsedStudentId = studentId;
+  const parsedAttemptId = attemptId;
+  const parsedQuestionId = questionId;
   let isCorrect = false;
 
   try {

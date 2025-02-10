@@ -37,6 +37,7 @@ const ModuleView = () => {
     }
   }, [dispatch, courseData.length])
 
+
   useEffect(() => {
     if (!moduleData) {
       dispatch(fetchModulesWithAuth(courseId?.toString()))

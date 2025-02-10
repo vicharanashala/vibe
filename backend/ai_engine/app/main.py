@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.routers import question
+from fastapi.staticfiles import StaticFiles 
 from app.rag import app as rag_router
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +33,8 @@ load_dotenv()
 # Include routers
 app.include_router(question.router)
 app.include_router(rag_router, prefix="/rag", tags=["RAG"])
+
+app.mount("/static", StaticFiles(directory="app/static"),name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
