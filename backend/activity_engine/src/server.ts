@@ -1,4 +1,5 @@
 import express from 'express';
+import {https} from 'firebase-functions';
 import { PrismaClient } from '@prisma/client';
 import AssessmentGrading from './routes/AssessmentGrading';
 import ProgressTracking from './routes/ProgressTracking';
@@ -8,14 +9,8 @@ import admin from 'firebase-admin';
 
 const app = express();
 
-// Initialize Firebase Admin with environment variable
-if (!process.env.FIREBASE_ADMIN_SDK_PATH) {
-  throw new Error('FIREBASE_ADMIN_SDK_PATH environment variable is not defined');
-}
-const serviceAccount = require(process.env.FIREBASE_ADMIN_SDK_PATH);
-
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.applicationDefault(),
 });
 
 const prisma = new PrismaClient();
@@ -40,6 +35,4 @@ app.use(AssessmentGrading);
 app.use(ProgressTracking);
 app.use(GoogleAuthhVerification);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+exports.activityEngine = https.onRequest(app);
