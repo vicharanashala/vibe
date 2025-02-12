@@ -4,7 +4,6 @@
       "source": ".",
       "codebase": "default",
       "runtime": "nodejs20",
-      "region": "asia-south2",
       "ignore": [
         "node_modules",
         ".git",
@@ -16,5 +15,18 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }
-  ]
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9000
+    },
+    "functions": {
+      "port": 9001
+    },
+    "ui": {
+      "enabled": true,
+      "port": 9002
+    },
+    "singleProjectMode": true
+  }
 }

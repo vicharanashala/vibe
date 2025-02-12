@@ -6,7 +6,7 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("AE_DATABASE_STRING")
 }
 
 generator client {
@@ -25,9 +25,9 @@ model LoginSession {
 
 model attemptSession {
   id          Int    @id @default(autoincrement())
-  assessmentId      Int    @map("assessmentId")
+  assessmentId      String    @map("assessmentId")
   courseInstanceId String
-  studentId   Int    // Access token expiration time
+  studentId   String    // Access token expiration time
 
   @@index([assessmentId])
   @@index([studentId])
@@ -35,11 +35,11 @@ model attemptSession {
 
 model submitSession {
   id             Int      @id @default(autoincrement())
-  studentId      Int
-  courseId       Int
-  assessmentId   Int
+  studentId      String
+  courseId       String 
+  assessmentId   String
   attemptId      Int
-  questionId     Int
+  questionId     String
   answers        String
   isAnswerCorrect Boolean
   createdAt      DateTime @default(now())

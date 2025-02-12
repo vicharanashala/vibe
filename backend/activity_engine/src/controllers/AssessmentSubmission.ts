@@ -20,17 +20,12 @@ export async function submitAssessment(
 
   const idToken = authorization.split("Bearer ")[1];
 
-  const parsedAssessmentId = assessmentId;
-  const parsedCourseId = courseId;
-  const parsedStudentId = studentId;
-  const parsedAttemptId = attemptId;
-  const parsedQuestionId = questionId;
   let isCorrect = false;
 
   try {
-    console.log(`${LMS_URL}/api/v1/assessment/solutions/${parsedQuestionId}`);
+    console.log(`${LMS_URL}/api/v1/assessment/solutions/${questionId}`);
     const response = await axios.get(
-      `${LMS_URL}/api/v1/assessment/solutions/${parsedQuestionId}`,
+      `${LMS_URL}/api/v1/assessment/solutions/${questionId}`,
       {
         headers: {
           Authorization: `Bearer ${idToken}`,
@@ -46,8 +41,8 @@ export async function submitAssessment(
 
     const existingSubmit = await prisma.submitSession.findFirst({
       where: {
-        studentId: parsedStudentId,
-        assessmentId: parsedAssessmentId,
+        studentId: studentId,
+        assessmentId: assessmentId,
       },
     });
 
@@ -58,9 +53,9 @@ export async function submitAssessment(
           id: existingSubmit.id,
         },
         data: {
-          courseId: parsedCourseId,
-          attemptId: parsedAttemptId,
-          questionId: parsedQuestionId,
+          courseId: courseId,
+          attemptId: attemptId,
+          questionId: questionId,
           answers,
           isAnswerCorrect: isCorrect,
         },
@@ -68,11 +63,11 @@ export async function submitAssessment(
     } else {
       newSubmit = await prisma.submitSession.create({
         data: {
-          studentId: parsedStudentId,
-          courseId: parsedCourseId,
-          assessmentId: parsedAssessmentId,
-          attemptId: parsedAttemptId,
-          questionId: parsedQuestionId,
+          studentId: studentId,
+          courseId: courseId,
+          assessmentId: assessmentId,
+          attemptId: attemptId,
+          questionId: questionId,
           answers,
           isAnswerCorrect: isCorrect,
         },

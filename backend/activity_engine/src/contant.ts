@@ -1,2 +1,6 @@
-const LMS_URL="http://192.168.1.46:8000"
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+const LMS_URL=process.env.LMSE_URL;
 export default LMS_URL;
+

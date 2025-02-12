@@ -6,7 +6,14 @@ import ProgressTracking from './routes/ProgressTracking';
 import GoogleAuthhVerification from './routes/GoogleAuthhVerification';
 import cors from 'cors';
 import admin from 'firebase-admin';
+import * as dotenv from 'dotenv';
 
+dotenv.config();
+// Read and parse the CORS environment variable
+const allowedOrigins = process.env.AE_CORS_ALLOWED_ORIGINS
+  ? process.env.AE_CORS_ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
+  : [];
+console.log("Allowed CORS Origins:", allowedOrigins); // Debugging
 const app = express();
 
 admin.initializeApp({
@@ -14,25 +21,25 @@ admin.initializeApp({
 });
 
 const prisma = new PrismaClient();
-const PORT = 3001;
+const PORT = 3000;
 
-// Use CORS middleware first
+// Use CORS middleware first with dynamic origins
 app.use(cors({
-    origin: [
-        'http://localhost:4000',
-        'http://192.168.1.46:4000',
-        'http://157.20.214.128:8000',
-        'vicharanashala.in'
-    ],
+    origin: allowedOrigins,
     credentials: true
 }));
 
 // Then, use JSON parser
 app.use(express.json());
-
+app.get('/', (req, res) => {
+    res.status(200).send('CALM Activity Engine');
+    });
 // After setting up CORS, add your routes
 app.use(AssessmentGrading);
 app.use(ProgressTracking);
 app.use(GoogleAuthhVerification);
 
 exports.activityEngine = https.onRequest(app);
+// app.listen(PORT, () => {
+//     console.log(`Server is running on http://localhost:${PORT}`);
+// });
