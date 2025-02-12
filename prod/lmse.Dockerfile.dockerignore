@@ -1,0 +1,7 @@
+.devcontainer/
+.vscode/
+
+.flake8
+README.md
+
+core/docs/

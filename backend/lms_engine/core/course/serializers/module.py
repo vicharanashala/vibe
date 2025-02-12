@@ -10,11 +10,21 @@ class ModuleListSerializer(serializers.ModelSerializer):
     """
 
     description = serializers.SerializerMethodField()
-    module_id = serializers.IntegerField(source="id", read_only=True)
+    module_id = serializers.UUIDField(
+        source="id",
+        read_only=True,
+        format="hex_verbose",
+    )
 
     class Meta:
         model = Module
-        fields = ["module_id", "title", "description", "sequence", "created_at"]
+        fields = [
+            "module_id",
+            "title",
+            "description",
+            "sequence",
+            "created_at",
+        ]
 
     def get_description(self, obj):
         return truncate_text(obj.description)

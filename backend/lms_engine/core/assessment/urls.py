@@ -18,7 +18,7 @@ router.register(r"solutions/options", QuestionOptionViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path(
-        "solutions/<int:question_id>/",
+        "solutions/<uuid:question_id>/",
         get_solution_by_question,
         name="get_solution_by_question",
     ),

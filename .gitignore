@@ -5,8 +5,6 @@ Thumbs.db
 # Ignore database files anywhere in the project
 **/lms_db/
 
-# Ignore Poetry lock file anywhere
-**/poetry.lock
 
 # Ignore credentials folder anywhere
 **/credentials/

@@ -92,13 +92,13 @@ poetry run python3 manage.py makemigrations users institution course assessment
 Then, apply the migrations:
 
 ```sh
-python manage.py migrate
+poetry run python3 manage.py migrate
 ```
 
 ### Create a Superuser
 
 ```sh
-python manage.py createsuperuser
+poetry run python3 manage.py createsuperuser
 ```
 
 Follow the prompts to set up an admin user.
@@ -106,7 +106,7 @@ Follow the prompts to set up an admin user.
 ### Run Development Server
 
 ```sh
-python manage.py runserver
+poetry run python3 manage.py runserver
 ```
 
 The LMS API should now be available at **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**.
@@ -114,6 +114,10 @@ The LMS API should now be available at **[http://127.0.0.1:8000/](http://127.0.0
 ---
 
 ## 4. Setup with Docker (Production/Containerized Environment)
+
+0. Install infisical, guide https://infisical.com/docs/cli/overview
+1.  infisical init
+2.   infisical run --env=prod --path=/LMS_ENGINE/ poetry run python3 manage.py runserver
 
 This method is primarily suited for **deployment** but can also be used for local development.
 

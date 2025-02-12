@@ -1,8 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-
-from .models import User, UserInstitution
+from .models import User, UserInstitution, UserCourseInstance
 
 
 class UserInstitutionInline(admin.TabularInline):
@@ -21,6 +20,26 @@ class UserInstitutionAdmin(admin.ModelAdmin):
     search_fields = ("user__email", "institution__name")
     list_filter = ("institution",)
     ordering = ("user", "institution")
+
+
+class UserCourseInstanceAdmin(admin.ModelAdmin):
+    """Admin configuration for UserCourseInstance to enable structured CRUD."""
+
+    list_display = ("user", "course")
+    list_filter = ("course",)
+    search_fields = ("user__email", )
+    ordering = ("user", "course")
+
+    fieldsets = (
+        (None, {"fields": ("user", "course")}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        """Override save to handle course enrollment creation properly."""
+        if not change:
+            obj.save()  # New enrollment
+        else:
+            super().save_model(request, obj, form, change)
 
 
 class UserAdmin(BaseUserAdmin):
@@ -87,3 +106,4 @@ class UserAdmin(BaseUserAdmin):
 # Register the custom User model and the custom UserAdmin
 admin.site.register(User, UserAdmin)
 admin.site.register(UserInstitution, UserInstitutionAdmin)
+admin.site.register(UserCourseInstance, UserCourseInstanceAdmin)

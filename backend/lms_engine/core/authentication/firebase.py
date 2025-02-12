@@ -1,5 +1,5 @@
 from decouple import config
-from firebase_admin import auth, credentials, initialize_app
+from firebase_admin import auth, initialize_app
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -28,12 +28,7 @@ class FirebaseAuthentication(BaseAuthentication):
             raise AuthenticationFailed(f"Invalid Firebase ID token: {str(e)}")
 
 
-cred_path = config("FIREBASE_ADMIN_SDK_CREDENTIALS_PATH")
-if not cred_path:
-    raise Exception("Firebase Admin SDK credentials not configured.")
-
-cred = credentials.Certificate(cred_path)
-firebase_app = initialize_app(cred)
+firebase_app = initialize_app()
 
 
 def test_firebase():

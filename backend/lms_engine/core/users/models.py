@@ -121,4 +121,5 @@ class UserCourseInstance(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.first_name} - {self.course.name}"
+        course_name = getattr(self.course.course.name, "name", "Unnamed Course")  # ✅ Access course name safely
+        return f"{self.user.first_name} - {course_name}"

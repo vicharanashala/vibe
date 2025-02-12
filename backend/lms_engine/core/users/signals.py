@@ -1,11 +1,4 @@
-from django.contrib.auth.models import Group
-from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
-from django.dispatch import receiver
-from firebase_admin import auth as firebase_auth
-from guardian.shortcuts import assign_perm, remove_perm
 
-from .models import User, UserInstitution
-from .services.user_service import UserService
 
 #
 # @receiver(post_save, sender=UserInstitution)

@@ -9,3 +9,4 @@ class UsersConfig(AppConfig):
 
     def ready(self):
         from core.users.signals import user_signal
+        from core.users.signals import user_course_instance_signal
