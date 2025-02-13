@@ -35,6 +35,21 @@ Follow these steps to set up and run the project:
     ```bash
     npm run dev
     ```
+For local development, 
+Initialize gcloud CLI and run - 
+`gcloud auth application-default login`
+
+Deploy-
+Navigate to activity_engine folder and run the below command-
+```
+gcloud functions deploy activityEngine \
+  --runtime=nodejs20 \
+  --trigger-http \
+  --allow-unauthenticated \
+  --region=asia-south2 \
+  --source=.
+```
+
 
 ### Database Configuration
 
