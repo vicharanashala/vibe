@@ -77,11 +77,9 @@ class SectionViewSet(viewsets.ModelViewSet):
         queryset = Section.objects.all()
 
         course_id = self.request.query_params.get("course_id")
-        if course_id is not None:
-            return queryset.filter(module__course_id=course_id)
-
         module_id = self.request.query_params.get("module_id")
-        if module_id is not None:
+        
+        if course_id is not None and module_id is not None:
             return queryset.filter(module_id=module_id)
 
         return queryset

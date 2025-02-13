@@ -49,7 +49,7 @@ class SectionItemInfo(models.Model):
             SectionItemType.ARTICLE: "ar",
         }
         prefix = prefix_map.get(self.item_type, "")
-        return f"{prefix}{self.item_id}"
+        return f"{self.item_id}"
 
     @staticmethod
     def create_item(section, sequence, item_type, item_instance):

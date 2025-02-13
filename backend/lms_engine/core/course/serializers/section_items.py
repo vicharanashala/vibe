@@ -15,7 +15,6 @@ class VideoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):   
         source_data = validated_data.pop("source")
         source_obj, created = Source.objects.get_or_create(url=source_data)
-        validated_data["source"] = source_obj
         video = Video.objects.create(source=source_obj, **validated_data)
         return video
 
