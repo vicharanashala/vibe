@@ -37,7 +37,6 @@ const ModuleView = () => {
     }
   }, [dispatch, courseData.length])
 
-
   useEffect(() => {
     if (!moduleData) {
       dispatch(fetchModulesWithAuth(courseId?.toString()))
@@ -101,7 +100,7 @@ const ModuleView = () => {
               {modules.map((module) => (
                 <TableRow key={module.id}>
                   <TableCell className='font-medium'>
-                    {module.module_id}
+                    {modules.indexOf(module) + 1}
                   </TableCell>
                   <TableCell>{module.title}</TableCell>
                   <TableCell className='text-right'>

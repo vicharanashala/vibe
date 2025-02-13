@@ -89,7 +89,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
         <div className='text-gray-600'>{moduleId}</div>
       </div>
       <div className='flex items-center justify-between'>
-        <span>{sectionId}</span>
+        <span></span>
         <StatusBadge status={status} />
         <Button
           onClick={() =>
@@ -142,14 +142,14 @@ const SectionView = () => {
   return (
     <div className='p-4'>
       <h1 className='mb-6 text-center text-3xl font-bold'>
-        All Sections of Module {moduleId}
+        All Sections of Module
       </h1>
       <div className='mx-auto max-w-4xl'>
         {/* Header row with column labels */}
         <div className='grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 font-semibold text-gray-800'>
           <div>Title / Module</div>
           <div className='flex justify-between'>
-            <span>Section ID</span>
+            <span></span>
             <span>Status</span>
             <span>Action</span>
           </div>

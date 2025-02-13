@@ -1,393 +1,242 @@
-/**
- * SidebarLeft Component
- *
- * This component provides a left sidebar interface with the following features:
- * - Team switching functionality
- * - Multi-level navigation menu (main items, subparts, sub-subparts)
- * - Secondary navigation items
- * - Responsive design with collapsible sidebar
- * - Floating panels for deeper navigation levels
- * - Integrated tooltips for better UX
- * - Logout functionality
- *
- * Layout Structure:
- * - Header: Contains team switcher
- * - Content:
- *   - Main navigation with expandable items
- *   - Secondary navigation at bottom
- * - Floating Panel: Shows additional navigation levels
- *
- * Navigation Features:
- * - Hierarchical menu structure (up to 3 levels deep)
- * - Visual indicators for selected items
- * - Smooth transitions and animations
- * - Tooltip support for collapsed state
- *
- * State Management:
- * - Tracks selected navigation items at each level
- * - Manages floating panel positioning
- * - Handles sidebar collapse state
- * - Integrates with Redux for auth state
- *
- * Props:
- * - Extends React.ComponentProps<typeof Sidebar>
- * - Allows passing through additional sidebar properties
- *
- * Dependencies:
- * - React for component architecture
- * - Lucide icons for UI elements
- * - Redux for state management
- * - React Router for navigation
- * - Custom UI components (Sidebar, Tooltip, etc.)
- */
-
-// Indicates this is a client-side component
-'use client'
-
-// Import React and necessary icons from lucide-react library
 import * as React from 'react'
+import { Lock, Minus, Plus } from 'lucide-react'
 import {
-  AudioWaveform,
-  BookMarked,
-  Calendar,
-  Command,
-  FilePen,
-  Home,
-  Inbox,
-  LogOut,
-  MessageCircleQuestion,
-  Settings2,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react'
-
-// Import custom UI components and hooks
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import {
   Sidebar,
   SidebarContent,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
   SidebarMenuButton,
-  useSidebar,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
 } from '@/components/ui/sidebar'
-import { TeamSwitcher } from '@/components/team-switcher'
-import { CardContent, CardHeader, CardTitle } from './ui/card'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-
-// Import Redux and routing related hooks
-import { useLogoutMutation } from '@/store/apiService'
-import { useDispatch } from 'react-redux'
-import { logoutState } from '@/store/slices/authSlice'
+import { CourseSwitcher } from './course-switcher'
+import { ModuleSwitcher } from './module-switcher'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchSectionsWithAuth } from '@/store/slices/fetchSections'
+import { fetchSectionItemsWithAuth } from '@/store/slices/fetchItems'
+import { fetchSectionProgress } from '@/store/slices/sectionProgressSlice'
+import { fetchProgress } from '@/store/slices/fetchStatusSlice'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
-// Mock data structure for sidebar navigation
-// Contains teams, main navigation items and secondary navigation items
-const data = {
-  // Team switcher data
-  teams: [
-    { name: 'CAL', logo: Command, plan: 'Enterprise' },
-    { name: 'CAL', logo: AudioWaveform, plan: 'Startup' },
-    { name: 'CAL', logo: Command, plan: 'Free' },
-  ],
-  // Main navigation items with nested subparts
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '#',
-      icon: Home,
-      subparts: [],
-    },
-    {
-      title: 'Courses',
-      url: '#',
-      icon: BookMarked,
-      subparts: [
-        {
-          title: 'Math 101',
-          url: '#math',
-          subsubparts: [
-            { title: 'Algebra', url: '#algebra' },
-            { title: 'Geometry', url: '#geometry' },
-          ],
-        },
-        {
-          title: 'Physics 202',
-          url: '#physics',
-          subsubparts: [
-            { title: 'Kinematics', url: '#kinematics' },
-            { title: 'Dynamics', url: '#dynamics' },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Assignments',
-      url: '#',
-      icon: FilePen,
-      subparts: [
-        {
-          title: 'Assignment 1',
-          url: '#assign1',
-          subsubparts: [
-            { title: 'Part A', url: '#parta' },
-            { title: 'Part B', url: '#partb' },
-          ],
-        },
-      ],
-    },
-
-    {
-      title: 'Announcements',
-      url: '#',
-      icon: Inbox,
-      badge: '10',
-      subparts: [
-        {
-          title: 'General Updates',
-          url: '#updates',
-          subsubparts: [
-            { title: 'System Maintenance', url: '#maintenance' },
-            { title: 'New Features', url: '#features' },
-            { title: 'Important Dates', url: '#dates' },
-          ],
-        },
-        {
-          title: 'New Policies',
-          url: '#policies',
-          subsubparts: [
-            { title: 'Attendance Policy', url: '#attendance' },
-            { title: 'Grading System', url: '#grading' },
-            { title: 'Code of Conduct', url: '#conduct' },
-          ],
-        },
-      ],
-    },
-  ],
-  // Secondary navigation items (bottom of sidebar)
-  navSecondary: [
-    { title: 'Calendar', url: '#', icon: Calendar },
-    { title: 'Settings', url: '#', icon: Settings2 },
-    {
-      title: 'Logout',
-      url: '#',
-      icon: LogOut,
-      onclick: () => {
-        handleLogout()
-      },
-    },
-    { title: 'Trash', url: '#', icon: Trash2 },
-    { title: 'Help', url: '#', icon: MessageCircleQuestion },
-  ],
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'INCOMPLETE':
+      return 'bg-red-500'
+    case 'IN_PROGRESS':
+      return 'bg-yellow-500'
+    case 'COMPLETE':
+      return 'bg-green-500'
+    default:
+      return 'bg-gray-400'
+  }
 }
 
-// Main SidebarLeft component
 export function SidebarLeft({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
-  // State management for navigation selections and positioning
-  const [selectedNav, setSelectedNav] = React.useState<NavItem | null>(null)
-  const [selectedSubpart, setSelectedSubpart] = React.useState<Subpart | null>(
-    null
-  )
-  const [selectedSubsubpart, setSelectedSubsubpart] =
-    React.useState<Subsubpart | null>(null)
-  const [subpartPosition, setSubpartPosition] = React.useState({
-    top: 0,
-    left: 0,
-  })
-
-  // Hooks for sidebar, navigation and Redux state management
-  const { setOpen } = useSidebar()
-  const dispatch = useDispatch()
-  const [logout] = useLogoutMutation()
+  const [selectedCourseId, setSelectedCourseId] = React.useState<string>('')
+  const [selectedModuleId, setSelectedModuleId] = React.useState<string>('')
+  const [selectedSectionId, setSelectedSectionId] = React.useState<string>('')
   const navigate = useNavigate()
 
-  const handleLogout = async () => {
-    try {
-      await logout().unwrap()
-    } catch (err) {
-      console.error('Logout failed:', err)
-    } finally {
-      dispatch(logoutState())
-      navigate('/login')
+  const dispatch = useDispatch()
+  const sections = useSelector(
+    (state) => state.sections.sections[selectedModuleId] ?? null
+  )
+  const sectionItems = useSelector(
+    (state) => state.items?.items[selectedSectionId] ?? null
+  )
+
+  React.useEffect(() => {
+    if (selectedModuleId && !sections) {
+      dispatch(
+        fetchSectionsWithAuth({
+          courseId: selectedCourseId,
+          moduleId: selectedModuleId,
+        })
+      )
     }
-  }
+  }, [selectedCourseId, selectedModuleId, dispatch])
 
-  // Handle user logout
-
-  // TypeScript interfaces for navigation items
-  interface NavItem {
-    title: string
-    url: string
-    icon: React.ComponentType
-    subparts: Subpart[]
-    badge?: string
-  }
-
-  interface Subpart {
-    title: string
-    url: string
-    subsubparts: Subsubpart[]
-  }
-
-  interface Subsubpart {
-    title: string
-    url: string
-  }
-
-  // Handle main navigation item click
-  const handleNavClick = (item: NavItem) => {
-    if (selectedNav?.title === item.title) {
-      setSelectedNav(null)
-    } else {
-      setSelectedNav(item)
-      setOpen(true)
+  React.useEffect(() => {
+    if (selectedSectionId && !sectionItems) {
+      dispatch(fetchSectionItemsWithAuth(selectedSectionId))
     }
-    setSelectedSubpart(null)
-    setSelectedSubsubpart(null)
-  }
+  }, [selectedSectionId, dispatch])
 
-  // Handle subpart item click and position floating panel
-  const handleSubpartClick = (subpart: Subpart, event: React.MouseEvent) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    setSubpartPosition({
-      top: rect.top,
-      left: rect.right + 8, // 8px offset from the button
-    })
-    setSelectedSubpart(subpart)
-    setSelectedSubsubpart(null)
-  }
+  const progressKey = `${selectedCourseId}-${selectedSectionId}`
 
-  // Handle sub-subpart item click
-  const handleSubsubpartClick = (subsubpart: Subsubpart) => {
-    setSelectedSubsubpart(subsubpart)
-  }
+  // Retrieve section progress from Redux state
+  const sectionProgress = useSelector((state) => state.sectionProgress)
+  console.log(
+    'section items',
+    useSelector((state) => state.sections.sections)
+  )
+
+  // Fetch section progress when component mounts or ids change
+  React.useEffect(() => {
+    if (selectedCourseId !== '' && selectedModuleId !== '') {
+      ;(sections || []).forEach((section) => {
+        const progressKey = `${selectedCourseId}-${section.id}`
+        if (!sectionProgress[progressKey]) {
+          dispatch(
+            fetchSectionProgress({
+              courseInstanceId: selectedCourseId,
+              sectionId: section.id,
+            })
+          )
+        }
+      })
+    }
+  }, [dispatch, selectedCourseId, sections, sectionProgress])
+
+  // Retrieve progress from Redux state
+  const sectionItemProgress = useSelector((state) => state.progress)
+
+  // Dispatch fetchProgress on component mount or when ids change
+  React.useEffect(() => {
+    if (
+      selectedSectionId !== '' &&
+      selectedCourseId !== '' &&
+      selectedModuleId !== '' &&
+      sections
+    ) {
+      ;(sectionItems || []).forEach((item) => {
+        const progressKey = `${selectedCourseId}-${item.id}`
+        if (!sectionItemProgress[progressKey]) {
+          dispatch(
+            fetchProgress({
+              courseInstanceId: selectedCourseId,
+              sectionItemId: item.id,
+            })
+          )
+        }
+      })
+    }
+  }, [dispatch, selectedCourseId, sectionItems, sectionItemProgress])
 
   return (
-    <div className='flex h-screen'>
-      {/* Left Sidebar */}
-      <Sidebar className='w-60 border-r' {...props} collapsible='icon'>
-        <SidebarHeader className='py-3 pl-2 pr-4'>
-          <TeamSwitcher teams={data.teams} />
-        </SidebarHeader>
-        <SidebarContent className='flex-col justify-between px-2'>
-          {/* Main navigation section */}
-          <nav className='space-y-1'>
-            {data.navMain.map((item) => (
-              <div key={item.title}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <SidebarMenuButton
-                        className={`flex w-56 items-center justify-between rounded-md py-2 pl-2 pr-4 text-left text-sm ${
-                          selectedNav?.title === item.title ? 'bg-accent' : ''
-                        }`}
-                        onClick={() => handleNavClick(item)}
-                      >
-                        <div className='flex items-center'>
-                          <item.icon className='mr-3 size-5' />
-                          <span className='flex-1'>{item.title}</span>
-                        </div>
-                        {item.subparts.length > 0 && (
-                          <span className='ml-2'>
-                            {selectedNav?.title === item.title ? (
-                              <ChevronDown className='size-4' />
-                            ) : (
-                              <ChevronRight className='size-4' />
-                            )}
-                          </span>
-                        )}
-                      </SidebarMenuButton>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{item.title}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                {/* Render subparts when main item is selected */}
-                {selectedNav?.title === item.title &&
-                  item.subparts.length > 0 && (
-                    <div className='space-y-1 pl-8'>
-                      {item.subparts.map((subpart) => (
-                        <SidebarMenuButton
-                          key={subpart.title}
-                          className={`w-full text-left text-sm ${
-                            selectedSubpart?.title === subpart.title
-                              ? 'bg-accent'
-                              : ''
-                          } hover:bg-accent`}
-                          onClick={(e) => handleSubpartClick(subpart, e)}
-                        >
-                          {subpart.title}
-                        </SidebarMenuButton>
-                      ))}
-                    </div>
-                  )}
-              </div>
-            ))}
-          </nav>
-          {/* Secondary navigation section */}
-          <nav className='space-y-1'>
-            {data.navSecondary.map((item) => (
-              <SidebarMenuButton
-                key={item.title}
-                onClick={() => {
-                  if (item.title === 'Logout') {
-                    // Use Logout component here
-                    handleLogout()
-                  } else {
-                    window.location.href = item.url
-                  }
-                }}
-                className='flex items-center rounded-md py-2 pl-2 pr-4 text-sm'
-              >
-                <item.icon className='mr-3 flex size-5' />
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            ))}
-          </nav>
-        </SidebarContent>
-      </Sidebar>
-
-      {/* Floating Panel for Subparts - Shows when a subpart is selected */}
-      {selectedSubpart && (
-        <div
-          className='fixed z-50 w-64 rounded-md border bg-background shadow-lg'
-          style={{
-            top: `${subpartPosition.top}px`,
-            left: `${subpartPosition.left}px`,
-            maxHeight: '300px',
-            overflow: 'auto',
+    <Sidebar {...props}>
+      <SidebarHeader>
+        <CourseSwitcher
+          onCourseSelect={(courseId) => {
+            setSelectedCourseId(courseId)
           }}
-        >
-          <CardHeader className='p-4'>
-            <CardTitle className='text-lg'>{selectedSubpart.title}</CardTitle>
-          </CardHeader>
-          <CardContent className='p-4'>
-            <ul className='space-y-2'>
-              {selectedSubpart.subsubparts.map((subsubpart) => (
-                <li key={subsubpart.title}>
-                  <SidebarMenuButton
-                    className={`w-full ${
-                      selectedSubsubpart?.title === subsubpart.title
-                        ? 'bg-accent'
-                        : ''
-                    }`}
-                    onClick={() => handleSubsubpartClick(subsubpart)}
-                  >
-                    {subsubpart.title}
-                  </SidebarMenuButton>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </div>
-      )}
-    </div>
+        />
+        {selectedCourseId && (
+          <ModuleSwitcher
+            selectedCourseId={selectedCourseId}
+            onModuleSelect={(moduleId) => {
+              setSelectedModuleId(moduleId)
+            }}
+          />
+        )}
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {sections?.map((section) => {
+              const progressKey = `${selectedCourseId}-${section.id}`
+              const progressStatus = sectionProgress[progressKey] || 'Pending'
+              const sectionDotColor = getStatusColor(progressStatus) // Get color for section status
+
+              return (
+                <Collapsible
+                  key={section.id}
+                  defaultOpen={false}
+                  className='group/collapsible'
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        onClick={() => setSelectedSectionId(section.id)}
+                      >
+                        <span
+                          className={`size-2 rounded-full ${sectionDotColor}`}
+                        />{' '}
+                        {/* Section status dot */}
+                        <span className='ml-2'>{section.title}</span>{' '}
+                        {/* Section Title */}
+                        <Plus className='ml-auto group-data-[state=open]/collapsible:hidden' />
+                        <Minus className='ml-auto group-data-[state=closed]/collapsible:hidden' />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+
+                    {sectionItems && (
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {sectionItems.map((item) => {
+                            const itemProgressKey = `${selectedCourseId}-${item.id}`
+                            const itemProgress =
+                              sectionItemProgress[itemProgressKey] || 'Pending'
+                            const itemDotColor = getStatusColor(itemProgress)
+                            const courseId = selectedCourseId
+                            const moduleId = selectedModuleId
+                            const sectionId = selectedSectionId
+                            const assignment = item
+
+                            return (
+                              <SidebarMenuSubItem key={item.id}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={item.isActive}
+                                >
+                                    <div
+                                    className='flex items-center gap-2'
+                                    onClick={() => {
+                                      if (itemProgress !== 'INCOMPLETE') {
+                                      if (item.item_type === 'video') {
+                                        navigate('/content-scroll-view', {
+                                        state: {
+                                          assignment,
+                                          sectionId,
+                                          courseId,
+                                          moduleId,
+                                        },
+                                        })
+                                      } else if (
+                                        item.item_type === 'assessment'
+                                      ) {
+                                        toast('Watch video first')
+                                      }
+                                      }
+                                    }}
+                                    >
+                                    <span
+                                      className={`size-2 rounded-full ${itemDotColor}`}
+                                    />{' '}
+                                    {/* Item status dot */}
+                                    {item.item_type}
+                                    {(item.item_type === 'assessment' ||
+                                      itemProgress === 'INCOMPLETE') && (
+                                      <Lock className='ml-auto' />
+                                    )}
+                                    </div>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            )
+                          })}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    )}
+                  </SidebarMenuItem>
+                </Collapsible>
+              )
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarRail />
+    </Sidebar>
   )
 }

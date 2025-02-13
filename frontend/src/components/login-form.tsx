@@ -40,6 +40,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth'
 import Cookies from 'js-cookie'
+import axios from 'axios'
 
 // Props interface for LoginForm component
 interface LoginFormProps extends React.ComponentPropsWithoutRef<'form'> {
@@ -82,8 +83,18 @@ export function LoginForm({
       console.log('User credential:', userCredential)
       const user = userCredential.user
       console.log('User:', user)
+      console.log('user_id', user.uid)
       console.log('User email:', user.accessToken)
+      Cookies.set('user_id', user.uid)
       Cookies.set('access_token', user.accessToken)
+      // try {
+      //   await axios.post('http://192.168.1.15:8000/token', {
+      //     access_token: user.accessToken,
+      //   })
+      //   console.log('Token sent successfully')
+      // } catch (err) {
+      //   console.error('Failed to send token:', err)
+      // }
 
       if (!user.email) {
         throw new Error('No email found')
@@ -99,7 +110,7 @@ export function LoginForm({
       )
 
       // Redirect to courses page on success
-      navigate('/course-view')
+      navigate('/')
     } catch (err: any) {
       setError('Invalid email or password. Please try again.')
       console.error('Login failed:', err)
@@ -132,7 +143,7 @@ export function LoginForm({
         })
       )
 
-      navigate('/course-view')
+      navigate('/')
     } catch (err: any) {
       setError('Failed to login with Google. Please try again.')
       console.error('Google login failed:', err)

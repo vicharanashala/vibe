@@ -39,22 +39,25 @@ import {
   useFetchModulesWithAuthQuery,
 } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
 import { BookOpen, Clock, Award, TrendingUp } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Chart } from '@/components/ChartDashboard'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchCoursesWithAuth } from '@/store/slices/courseSlice'
 
 // Mock data for available courses
 
-const courses = [
-  { id: 1, name: 'Introduction to AI', duration: '6 weeks' },
-  { id: 2, name: 'Data Science Basics', duration: '8 weeks' },
-  { id: 3, name: 'Web Development', duration: '10 weeks' },
-  { id: 4, name: 'Machine Learning', duration: '12 weeks' },
-  { id: 5, name: 'Deep Learning', duration: '14 weeks' },
-  { id: 6, name: 'Cloud Computing', duration: '5 weeks' },
-  { id: 7, name: 'Cyber Security', duration: '7 weeks' },
-  { id: 8, name: 'Blockchain Basics', duration: '9 weeks' },
-  { id: 9, name: 'Internet of Things', duration: '11 weeks' },
-  { id: 10, name: 'Big Data Analytics', duration: '13 weeks' },
-]
+// const CourseData = [
+//   { id: 1, name: 'Introduction to AI', duration: '6 weeks' },
+//   { id: 2, name: 'Data Science Basics', duration: '8 weeks' },
+//   { id: 3, name: 'Web Development', duration: '10 weeks' },
+//   { id: 4, name: 'Machine Learning', duration: '12 weeks' },
+//   { id: 5, name: 'Deep Learning', duration: '14 weeks' },
+//   { id: 6, name: 'Cloud Computing', duration: '5 weeks' },
+//   { id: 7, name: 'Cyber Security', duration: '7 weeks' },
+//   { id: 8, name: 'Blockchain Basics', duration: '9 weeks' },
+//   { id: 9, name: 'Internet of Things', duration: '11 weeks' },
+//   { id: 10, name: 'Big Data Analytics', duration: '13 weeks' },
+// ]
 
 // Mock data for student's ongoing courses
 const ongoingCourses = [
@@ -74,10 +77,21 @@ const StudentDashboard = () => {
   // State for controlling table expansion
   const [showAllCourses, setShowAllCourses] = useState(false)
   const [showAllOngoing, setShowAllOngoing] = useState(false)
+  const dispatch = useDispatch()
 
-  const { data: newCourses } = useFetchCoursesWithAuthQuery()
-  const CourseData = newCourses?.results
-  console.log(CourseData)
+  const CourseData = useSelector((state) => state.courses.courses ?? null)
+
+  useEffect(() => {
+      console.log('Courses:', CourseData)
+      if (!CourseData || CourseData.length === 0) {
+        console.log('Dispatching fetchCoursesWithAuth')
+        dispatch(fetchCoursesWithAuth())
+      }
+    }, [dispatch, CourseData])
+
+  // const { data: newCourses } = useFetchCoursesWithAuthQuery()
+  // const CourseData = newCourses?.results
+  // console.log(CourseData)
 
   // Limit displayed courses based on show all state
   const displayedCourses = showAllCourses ? CourseData : CourseData?.slice(0, 5)
@@ -146,42 +160,7 @@ const StudentDashboard = () => {
       {/* Course tables section */}
       <div className='grid h-[calc(100%-140px)] grid-cols-2 gap-4 p-4'>
         {/* All Courses table */}
-        <div className='flex h-full flex-col rounded-lg border'>
-          <div className='flex items-center justify-between border-b border-gray-200 px-6 py-4'>
-            <h1 className='text-xl font-semibold'>All Courses</h1>
-            <Button
-              variant='outline'
-              onClick={() => setShowAllCourses(!showAllCourses)}
-            >
-              {showAllCourses ? 'Show Less' : 'View All'}
-            </Button>
-          </div>
-          <div className='flex-1 px-6 py-4'>
-            <Table>
-              <TableCaption>All available courses.</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className='w-[100px]'>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className='text-right'>Created At</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedCourses?.map((course) => (
-                  <TableRow key={course.course_id}>
-                    <TableCell className='font-medium'>
-                      {course.course_id}
-                    </TableCell>
-                    <TableCell>{course.name}</TableCell>
-                    <TableCell className='text-right'>
-                      {new Date(course.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <Chart />
 
         {/* Ongoing Courses table */}
         <div className='flex h-full flex-col rounded-lg border'>

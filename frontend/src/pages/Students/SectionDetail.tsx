@@ -53,8 +53,7 @@ const StatusBadge = ({ status }) => (
 const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const alpha = assignment.item_type === 'video' ? 'v' : 'a'
-  const sectionItemId1 = `${alpha}${assignment.id}`
+  const sectionItemId1 = `${assignment.id}`
   const progressKey = `${courseId}-${sectionItemId1}`
   console.log('progressKey:', progressKey)
 
@@ -107,7 +106,7 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
           <StatusBadge status={displayStatus()} />
         </span>
         <span className='flex w-14 justify-center'>
-          {assignment.item_type === 'video' && progress === 'IN_PROGRESS' ? (
+          {assignment.item_type === 'video' ? (
             <Button
               onClick={() =>
                 navigate('/content-scroll-view', {
@@ -117,10 +116,8 @@ const AssignmentRow = ({ assignment, sectionId, courseId, moduleId }) => {
             >
               Start
             </Button>
-          ) : progress === 'COMPLETE' ? (
-            <Check />
           ) : (
-            <Lock />
+            <Check />
           )}
         </span>
       </div>
@@ -162,7 +159,7 @@ const SectionDetails = () => {
   return (
     <div className='p-4'>
       <h1 className='mb-6 text-center text-3xl font-bold'>
-        Content of Section {sectionId}
+        Content of Section
       </h1>
       <div className='mx-auto max-w-4xl'>
         <div className='space-y-4'>

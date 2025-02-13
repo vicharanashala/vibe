@@ -330,6 +330,16 @@ export const anotherApiService = createApi({
       }),
     }),
 
+    initailizeCourseProgress: builder.mutation<void>({
+      query: (progressData) => ({
+        url: '/course-progress/initialize-progress',
+        method: 'POST',
+        body: {
+          ...progressData,
+        },
+      }),
+    }),
+
     fetchSectionProgress: builder.query<
       { progress: any },
       { courseInstanceId: string; sectionId: string }
@@ -378,4 +388,5 @@ export const {
   useFetchModuleProgressQuery,
   useFetchSectionProgressQuery,
   useFetchSectionItemsProgressQuery,
+  useInitailizeCourseProgressMutation,
 } = anotherApiService

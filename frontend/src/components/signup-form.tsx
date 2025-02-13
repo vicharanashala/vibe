@@ -1,41 +1,35 @@
-/**
- * SignUpForm Component
- *
- * A form component that handles user registration with the following features:
- * - Email and password registration
- * - First name and last name collection
- * - Google OAuth sign-in option
- * - Form validation and error handling
- * - Loading state management
- * - Toggle between signup and login views
- *
- * The component uses Redux Toolkit's mutation hooks for API integration
- * and includes proper form accessibility with labels and ARIA attributes.
- *
- * Layout Structure:
- * - Header with title and description
- * - Input fields for user details
- * - Submit button with loading state
- * - Error message display
- * - OAuth divider
- * - Google sign-in button
- * - Login link for existing users
- *
- * Props:
- * - className: Optional class names for styling
- * - toggleCover: Function to switch between signup/login views
- * - Additional form props spread to form element
- */
-
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSignupMutation } from '../store/ApiServices/LmsEngine/AuthApiServices'
+import axios from 'axios'
+import { toast } from 'sonner'
 
 interface SignUpFormProps extends React.ComponentPropsWithoutRef<'form'> {
   toggleCover: () => void
+}
+
+const validateEmail = (email: string): boolean => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return regex.test(email)
+}
+
+const validatePassword = (password: string): string | null => {
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters long.'
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must contain at least one uppercase letter.'
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Password must contain at least one number.'
+  }
+  if (!/[^a-zA-Z0-9\s]/.test(password)) {
+    return 'Password must contain at least one special character.'
+  }
+  return null // Password is valid
 }
 
 export function SignUpForm({
@@ -49,27 +43,70 @@ export function SignUpForm({
   const [name, setName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
   const [signup, { isLoading, error }] = useSignupMutation()
-  const role = 'student'
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [lastNameError, setLastNameError] = useState<string | null>(null)
 
-  // Handle form submission
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    setEmailError(null)
+    setPasswordError(null)
+    setNameError(null)
+    setLastNameError(null)
+
+    let isValid = true
+
+    if (!name) {
+      setNameError('First Name is required')
+      isValid = false
+    }
+
+    if (!lastName) {
+      setLastNameError('Last Name is required')
+      isValid = false
+    }
+
+    if (!email) {
+      setEmailError('Email is required')
+      isValid = false
+    } else if (!validateEmail(email)) {
+      setEmailError('Invalid email format')
+      isValid = false
+    }
+
+    if (!password) {
+      setPasswordError('Password is required')
+      isValid = false
+    } else {
+      const passwordValidationResult = validatePassword(password)
+      if (passwordValidationResult) {
+        setPasswordError(passwordValidationResult)
+        isValid = false
+      }
+    }
+
+    if (!isValid) {
+      return
+    }
+
     try {
-      await signup({
+      const signupResponse = await signup({
         email,
         password,
         first_name: name,
         last_name: lastName,
-        role: role,
+        role: 'student',
       }).unwrap()
-      // handle successful signup
-      toggleCover()
+
+      toast('Signup and data submission successful!', { type: 'success' })
+      toggleCover() // Toggle view ONLY after successful signup and axios post
     } catch (err) {
-      console.error('Signup error:', err)
-      // handle error
+      console.error('Signup or Axios POST error:', err)
+      toast('Failed to complete the registration process.', { type: 'error' })
+      // Do NOT toggle cover here - keep the signup form visible to show the error
     }
   }
-
   return (
     <form
       className={cn('flex flex-col gap-6', className)}
@@ -92,6 +129,7 @@ export function SignUpForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+          {nameError && <p className='text-red-500'>{nameError}</p>}
         </div>
         <div className='grid gap-2'>
           <Label htmlFor='lastname'>Last Name</Label>
@@ -102,6 +140,7 @@ export function SignUpForm({
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />
+          {lastNameError && <p className='text-red-500'>{lastNameError}</p>}
         </div>
         <div className='grid gap-2'>
           <Label htmlFor='email'>Email</Label>
@@ -112,6 +151,7 @@ export function SignUpForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          {emailError && <p className='text-red-500'>{emailError}</p>}
         </div>
         <div className='grid gap-2'>
           <Label htmlFor='password'>Password</Label>
@@ -121,6 +161,7 @@ export function SignUpForm({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {passwordError && <p className='text-red-500'>{passwordError}</p>}
         </div>
         <Button type='submit' className='w-full' disabled={isLoading}>
           Sign Up
@@ -164,7 +205,7 @@ export function SignUpForm({
         </Button>
       </div>
       <div className='text-center text-sm'>
-        Already have an account?{' '}
+        Already have an account?
         <button
           onClick={(e) => {
             e.preventDefault()

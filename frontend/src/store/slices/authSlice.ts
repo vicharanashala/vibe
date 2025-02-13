@@ -6,11 +6,13 @@ interface AuthState {
   user: { role: string; email: string; name: string } | null
   token: string | null
   isLoggedIn: boolean
+  firebase_uid: string | null
 }
 
 const initialState: AuthState = {
   user: null,
   token: null,
+  firebase_uid: null,
   isLoggedIn: false,
 }
 
@@ -50,7 +52,7 @@ const authSlice = createSlice({
           state.user = {
             role: payload.role,
             email: payload.email,
-            name: full_name,
+            name: payload.firebase_uid,
           }
           state.token = payload.access_token
           state.isLoggedIn = true

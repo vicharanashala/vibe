@@ -1,5 +1,10 @@
 // store.ts
-import { configureStore, combineReducers, Action } from '@reduxjs/toolkit'
+import {
+  configureStore,
+  combineReducers,
+  Action,
+  createListenerMiddleware,
+} from '@reduxjs/toolkit'
 import { persistStore, persistReducer } from 'redux-persist'
 import storage from 'redux-persist/lib/storage' // defaults to localStorage for web
 import { apiService, anotherApiService } from './apiService'
@@ -11,24 +16,28 @@ import progressReducer from './slices/fetchStatusSlice'
 import sectionProgressReducer from './slices/sectionProgressSlice'
 import moduleProgressReducer from './slices/moduleProgressSlice'
 import progressUpdateReducer from './slices/updateProgressSlice'
+import sidebarStateReducer from './slices/sidebarSlice'
 import itemsReducer from './slices/fetchItems'
+import storageSession from 'redux-persist/lib/storage/session' // Importing sessionStorage
 
 const persistConfig = {
   key: 'root',
-  storage,
+  storage: storageSession,
   whitelist: [
     'auth',
     'courses',
     'modules',
-    'sections',
     'progress',
+    'sections',
     'sectionProgress',
     'moduleProgress',
     'items',
+    'sidebarState',
   ],
 }
 
 const rootReducer = combineReducers({
+  sidebarState: sidebarStateReducer,
   items: itemsReducer,
   auth: authReducer,
   courses: coursesReducer,

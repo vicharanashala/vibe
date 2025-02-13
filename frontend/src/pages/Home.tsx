@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button'
 import { PanelRight } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Toaster } from '@/components/ui/sonner'
+import { ProfileDropdown } from '@/components/Profile-Dropdown'
 
 const Home = () => {
   // State to control right sidebar visibility
@@ -75,7 +76,7 @@ const Home = () => {
             </Breadcrumb>
             {/* Header controls */}
             <div className='ml-auto'>
-              <ModeToggle />
+              <ProfileDropdown />
               <Button variant='ghost' size='icon' onClick={toggleRightSidebar}>
                 <PanelRight />
               </Button>
