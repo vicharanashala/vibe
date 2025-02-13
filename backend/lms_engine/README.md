@@ -276,6 +276,41 @@ For any issues, check logs and confirm dependencies are correctly installed.
 
 ---
 
+## 10. Local Development, Build and Deploy
+
+For local development, 
+Initialize gcloud CLI and run - 
+`gcloud auth application-default login`
+
+Build- `sudo docker build -t vicharanashala/calm:v0.0.17 -f prod/lmse.Dockerfile backend/lms_engine/`
+Push- `sudo docker push vicharanashala/calm:v0.0.17`
+Deploy-
+```
+gcloud run deploy calm-lmse \
+--image=docker.io/vicharanashala/calm:v0.0.17 \
+--set-env-vars=LMSE_DJANGO_ENVIRONMENT=production \
+--set-env-vars='LMSE_DJANGO_SECRET_KEY=__SECRET__' \
+--set-env-vars=LMSE_DB_HOST=__SECRET__ \
+--set-env-vars=LMSE_DB_NAME=__SECRET__ \
+--set-env-vars=LMSE_DB_PASSWORD=__SECRET__ \
+--set-env-vars=LMSE_DB_PORT=__SECRET__ \
+--set-env-vars=LMSE_DB_USER=__SECRET__ \
+--set-env-vars='^#^LMSE_ALLOWED_HOSTS=__CSV_ENV__' \
+--set-env-vars='^#^LMSE_CORS_ALLOWED_ORIGINS=__CSV_ENV__' \
+--set-env-vars=LMSE_SECURE_SSL_REDIRECT=0 \
+--set-env-vars='LMSE_SENTRY_DSN=__SECRET__' \
+--set-env-vars=LMSE_GCP_BUCKET_NAME=__SECRET__ \
+--set-env-vars='LMSE_STATIC_URL=__SECRET__' \
+--set-env-vars='^#^LMSE_CSRF_TRUSTED_ORIGINS=__CSV_ENV__' \
+--set-env-vars='ACTIVITY_ENGINE_URL=__SECRET__' \
+--region=asia-south2 \
+--project=vicharanashala-calm \
+ && gcloud run services update-traffic calm-lmse --to-latest
+```
+
+
+---
+
 ## Contributing
 
 Feel free to contribute to the CAL LMS Engine. Fork the repo, create a feature branch, and submit a PR.
