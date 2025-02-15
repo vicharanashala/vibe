@@ -43,6 +43,6 @@ node_modules/
 
 
 # Ignore all .py files in migrations folders
-**/migrations/*.py
+# **/migrations/*.py
 # Except __init__.py
-!**/migrations/__init__.py
+# !**/migrations/__init__.py

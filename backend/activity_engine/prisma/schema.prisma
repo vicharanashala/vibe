@@ -140,6 +140,23 @@ model StudentAssessmentAttemptSummary {
   @@id([studentId, assessmentId, courseInstanceId])
 }
 
+model TotalProgress {
+  id               Int                  @id @default(autoincrement())
+  studentId        String
+  progress         Int
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+  
+}
+
+model AverageProgress {
+  id               Int                  @id @default(autoincrement())
+  progress         Int
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+
+}
+
 enum ProgressEnum {
   IN_PROGRESS
   INCOMPLETE

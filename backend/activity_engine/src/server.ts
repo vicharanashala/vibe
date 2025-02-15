@@ -3,7 +3,9 @@ import {https} from 'firebase-functions';
 import { PrismaClient } from '@prisma/client';
 import AssessmentGrading from './routes/AssessmentGrading';
 import ProgressTracking from './routes/ProgressTracking';
+import FetchProgress from './routes/FetchProgress';
 import GoogleAuthhVerification from './routes/GoogleAuthhVerification';
+import BulkProcess from './routes/BulkProgress';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import * as dotenv from 'dotenv';
@@ -21,7 +23,7 @@ admin.initializeApp({
 });
 
 const prisma = new PrismaClient();
-const PORT = 3000;
+const PORT = 8080;
 
 // Use CORS middleware first with dynamic origins
 app.use(cors({
@@ -38,6 +40,8 @@ app.get('/', (req, res) => {
 app.use(AssessmentGrading);
 app.use(ProgressTracking);
 app.use(GoogleAuthhVerification);
+app.use(BulkProcess);
+app.use(FetchProgress);
 
 exports.activityEngine = https.onRequest(app);
 // app.listen(PORT, () => {

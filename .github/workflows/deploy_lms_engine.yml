@@ -1,0 +1,200 @@
+name: Deploy LMS Engine to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Allows the workflow to push new tags
+  packages: write  # Allows pushing Docker images (if needed)
+
+
+jobs:
+  versioning:
+    name: Versioning
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.versioning.outputs.new_version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full git history is available
+
+      - name: Determine Version Bump
+        id: versioning
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: "v"
+          default_bump: "patch"
+          fetch_all_tags: true
+          release_branches: "master,staging"
+          create_annotated_tag: true  # Ensure tags are annotated
+          dry_run: false  # Ensure the action applies the tag
+
+  build:
+    name: Build
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker Login
+        # You may pin to the exact commit or the version.
+        # uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
+        uses: docker/login-action@v3.3.0
+        with:
+          # Username used to log against the Docker registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          # Password or personal access token used to log against the Docker registry
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+
+      - name: Build Docker Image
+        run: |
+          docker build -t vicharanashala/calm:v${{ needs.versioning.outputs.new_version }} -f prod/lmse.Dockerfile backend/lms_engine/
+      
+      - name: Push Docker Image
+        run: |
+          docker push vicharanashala/calm:v${{ needs.versioning.outputs.new_version }}
+          
+  deploy_activity_engine_staging:
+    name: Deploy to Staging(Activity Engine)
+    needs: versioning
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+    
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy Activity Engine to Cloud Functions
+        run: |
+          cd backend/activity_engine
+          gcloud functions deploy calm-ae-staging \
+            --runtime=nodejs20 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --region=asia-south2 \
+            --source=. \
+            --entry-point activityEngine \
+            --set-env-vars=NODE_ENV=${{ secrets.NODE_ENV }} \
+            --set-env-vars=AE_DATABASE_STRING=${{ secrets.AE_DATABASE_STRING }} \
+            --set-env-vars=LMSE_URL=${{ secrets.LMSE_URL }} \
+            --set-env-vars='^#^AE_CORS_ALLOWED_ORIGINS=${{ secrets.AE_CORS_ALLOWED_ORIGINS }}'
+            
+  deploy_activity_engine_production:
+    name: Deploy to Production(Activity Engine)
+    needs: [versioning, deploy_activity_engine_staging]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+    
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+  
+      - name: Deploy Activity Engine to Cloud Functions
+        run: |
+          cd backend/activity_engine
+          gcloud functions deploy calm-ae-production \
+            --runtime=nodejs20 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --region=asia-south2 \
+            --source=. \
+            --entry-point activityEngine \
+            --set-env-vars=NODE_ENV=${{ secrets.NODE_ENV }} \
+            --set-env-vars=AE_DATABASE_STRING=${{ secrets.AE_DATABASE_STRING }} \
+            --set-env-vars=LMSE_URL=${{ secrets.LMSE_URL }} \
+            --set-env-vars='^#^AE_CORS_ALLOWED_ORIGINS=${{ secrets.AE_CORS_ALLOWED_ORIGINS }}'
+  
+            
+  deploy_lms_engine_staging:
+    name: Deploy to Staging(LMS Engine)
+    needs: [versioning, build]
+    runs-on: ubuntu-latest
+    environment: staging  # Associate with the GitHub Environment "staging"
+    steps:
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy LMS Engine to Staging
+        run: |
+          IMAGE_VERSION=${{ needs.versioning.outputs.new_version }}
+          
+          gcloud run deploy calm-lmse-staging \
+            --image=docker.io/vicharanashala/calm:v$IMAGE_VERSION \
+            --port=8000 \
+            --set-env-vars=LMSE_DJANGO_ENVIRONMENT=production \
+            --set-env-vars=LMSE_DJANGO_SECRET_KEY=${{ secrets.LMSE_DJANGO_SECRET_KEY }} \
+            --set-env-vars=LMSE_DB_HOST=${{ secrets.LMSE_DB_HOST }} \
+            --set-env-vars=LMSE_DB_NAME=${{ secrets.LMSE_DB_NAME }} \
+            --set-env-vars=LMSE_DB_PASSWORD=${{ secrets.LMSE_DB_PASSWORD }} \
+            --set-env-vars=LMSE_DB_PORT=${{ secrets.LMSE_DB_PORT }} \
+            --set-env-vars=LMSE_DB_USER=${{ secrets.LMSE_DB_USER }} \
+            --set-env-vars='^#^LMSE_ALLOWED_HOSTS=${{ secrets.LMSE_ALLOWED_HOSTS }}' \
+            --set-env-vars='^#^LMSE_CORS_ALLOWED_ORIGINS=${{ secrets.LMSE_CORS_ALLOWED_ORIGINS }}' \
+            --set-env-vars=LMSE_SECURE_SSL_REDIRECT=${{ secrets.LMSE_SECURE_SSL_REDIRECT }} \
+            --set-env-vars=LMSE_SENTRY_DSN=${{ secrets.LMSE_SENTRY_DSN }} \
+            --set-env-vars=LMSE_GCP_BUCKET_NAME=${{ secrets.LMSE_GCP_BUCKET_NAME }} \
+            --set-env-vars=LMSE_STATIC_URL=${{ secrets.LMSE_STATIC_URL }} \
+            --set-env-vars='^#^LMSE_CSRF_TRUSTED_ORIGINS=${{ secrets.LMSE_CSRF_TRUSTED_ORIGINS }}' \
+            --set-env-vars=ACTIVITY_ENGINE_URL=${{ secrets.ACTIVITY_ENGINE_URL }} \
+            --region=asia-south2 \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            
+          gcloud run services update-traffic calm-lmse-staging --to-latest --region=asia-south2
+
+  deploy_lms_engine_production:
+    name: Deploy to Production
+    needs: [versioning, build, deploy_lms_engine_staging]  # Ensure staging is deployed first
+    runs-on: ubuntu-latest
+    environment: production  # Associate with GitHub Environment "production"
+    steps:
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy LMS Engine to Production
+        run: |
+          IMAGE_VERSION=${{ needs.versioning.outputs.new_version }}
+          
+          gcloud run deploy calm-lmse-production \
+            --image=docker.io/vicharanashala/calm:v$IMAGE_VERSION \
+            --port=8000 \
+            --set-env-vars=LMSE_DJANGO_ENVIRONMENT=production \
+            --set-env-vars=LMSE_DJANGO_SECRET_KEY=${{ secrets.LMSE_DJANGO_SECRET_KEY }} \
+            --set-env-vars=LMSE_DB_HOST=${{ secrets.LMSE_DB_HOST }} \
+            --set-env-vars=LMSE_DB_NAME=${{ secrets.LMSE_DB_NAME }} \
+            --set-env-vars=LMSE_DB_PASSWORD=${{ secrets.LMSE_DB_PASSWORD }} \
+            --set-env-vars=LMSE_DB_PORT=${{ secrets.LMSE_DB_PORT }} \
+            --set-env-vars=LMSE_DB_USER=${{ secrets.LMSE_DB_USER }} \
+            --set-env-vars='^#^LMSE_ALLOWED_HOSTS=${{ secrets.LMSE_ALLOWED_HOSTS }}' \
+            --set-env-vars='^#^LMSE_CORS_ALLOWED_ORIGINS=${{ secrets.LMSE_CORS_ALLOWED_ORIGINS }}' \
+            --set-env-vars=LMSE_SECURE_SSL_REDIRECT=${{ secrets.LMSE_SECURE_SSL_REDIRECT }} \
+            --set-env-vars=LMSE_SENTRY_DSN=${{ secrets.LMSE_SENTRY_DSN }} \
+            --set-env-vars=LMSE_GCP_BUCKET_NAME=${{ secrets.LMSE_GCP_BUCKET_NAME }} \
+            --set-env-vars=LMSE_STATIC_URL=${{ secrets.LMSE_STATIC_URL }} \
+            --set-env-vars='^#^LMSE_CSRF_TRUSTED_ORIGINS=${{ secrets.LMSE_CSRF_TRUSTED_ORIGINS }}' \
+            --set-env-vars=ACTIVITY_ENGINE_URL=${{ secrets.ACTIVITY_ENGINE_URL }} \
+            --region=asia-south2 \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+
+          
+          gcloud run services update-traffic calm-lmse-production --to-latest --region=asia-south2
