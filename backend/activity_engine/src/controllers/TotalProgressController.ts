@@ -143,9 +143,9 @@ async function calculateAverageProgress() {
   
 
 // Schedule the function to run every night at 12:00 AM
-cron.schedule("0 0 * * *", calculateTotalProgressForAllStudents, {
-  timezone: "Asia/Kolkata",
-  scheduled: true,
-});
+// cron.schedule("0 0 * * *", calculateTotalProgressForAllStudents, {
+//   timezone: "Asia/Kolkata",
+//   scheduled: true,
+// });
 
-console.log("Scheduled job set to run every night at midnight.");
+// console.log("Scheduled job set to run every night at midnight.");
