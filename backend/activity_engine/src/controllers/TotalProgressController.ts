@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import cron from "node-cron";
+
 
 const prisma = new PrismaClient();
 
@@ -24,7 +24,7 @@ export async function calculateTotalProgressForAllStudents() {
     // Mapping progress states to numerical values
     const progressMapping: Record<string, number> = {
       NOT_STARTED: 0,
-      IN_PROGRESS: 50,
+      IN_PROGRESS: 0,
       COMPLETE: 100,
     };
 
@@ -57,17 +57,49 @@ export async function calculateTotalProgressForAllStudents() {
 
       // Store or update progress in the `TotalProgress` table (keep only last 7 days)
       for (const progress of courseTotalProgress) {
-        await prisma.totalProgress.create({
-          data: {
+        // Get the start and end time of the current day
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Check if an entry already exists for this student, course, and today
+        const existingProgress = await prisma.totalProgress.findFirst({
+          where: {
             studentId: progress.studentId,
             courseInstanceId: progress.courseInstanceId,
-            progress: progress.progress,
-            createdAt: new Date(),
+            createdAt: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
           },
         });
-      }
 
-      console.log(`Updated total progress for student ${studentId}`);
+        if (existingProgress) {
+          // Update the existing record for today
+          await prisma.totalProgress.update({
+            where: { id: existingProgress.id },
+            data: {
+              progress: progress.progress,
+              createdAt: new Date(), // Optional: Update the timestamp
+            },
+          });
+
+          console.log(`Updated today's total progress for student ${progress.studentId} in course ${progress.courseInstanceId}`);
+        } else {
+          // Create a new record if none exists for today
+          await prisma.totalProgress.create({
+            data: {
+              studentId: progress.studentId,
+              courseInstanceId: progress.courseInstanceId,
+              progress: progress.progress,
+              createdAt: new Date(),
+            },
+          });
+
+          console.log(`Created new total progress for student ${progress.studentId} in course ${progress.courseInstanceId}`);
+        }
+      }
     }
 
     console.log("Successfully calculated and stored total course progress for all students.");
@@ -95,57 +127,64 @@ export async function calculateTotalProgressForAllStudents() {
  * Function: Calculate and Store Average Course Progress
  */
 async function calculateAverageProgress() {
-    console.log("Calculating and storing average progress for courses...");
-  
-    try {
-      // Get all course instances and their student progress
-      const courseProgress = await prisma.totalProgress.groupBy({
-        by: ["courseInstanceId"],
-        _avg: {
-          progress: true,
-        },
-      });
-  
-      for (const { courseInstanceId, _avg } of courseProgress) {
-        if (_avg.progress !== null) {
-          // Check if an entry already exists
-          const existingEntry = await prisma.averageProgress.findFirst({
-            where: { courseInstanceId },
+  console.log("Calculating and storing average progress for courses...");
+
+  try {
+    // Get all course instances and their student progress
+    const courseProgress = await prisma.totalProgress.groupBy({
+      by: ["courseInstanceId"],
+      _avg: {
+        progress: true,
+      },
+    });
+
+    for (const { courseInstanceId, _avg } of courseProgress) {
+      if (_avg.progress !== null) {
+        // Get the start and end time of the current day
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Check if an entry already exists for this course and today
+        const existingEntry = await prisma.averageProgress.findFirst({
+          where: {
+            courseInstanceId,
+            createdAt: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
+
+        if (existingEntry) {
+          // Update existing record for today
+          await prisma.averageProgress.update({
+            where: { id: existingEntry.id },
+            data: {
+              progress: Math.round(_avg.progress),
+              createdAt: new Date(), // Optional: Update the timestamp
+            },
           });
-  
-          if (existingEntry) {
-            // Update existing record
-            await prisma.averageProgress.update({
-              where: { id: existingEntry.id }, // Using `id` as primary key
-              data: {
-                progress: Math.round(_avg.progress),
-                createdAt: new Date(),
-              },
-            });
-          } else {
-            // Create new record
-            await prisma.averageProgress.create({
-              data: {
-                courseInstanceId,
-                progress: Math.round(_avg.progress),
-                createdAt: new Date(),
-              },
-            });
-          }
+
+          console.log(`Updated today's average progress for course ${courseInstanceId}`);
+        } else {
+          // Create new record if none exists for today
+          await prisma.averageProgress.create({
+            data: {
+              courseInstanceId,
+              progress: Math.round(_avg.progress),
+              createdAt: new Date(),
+            },
+          });
+
+          console.log(`Created new average progress for course ${courseInstanceId}`);
         }
       }
-  
-      console.log("Successfully updated average progress for all courses.");
-    } catch (error) {
-      console.error("Error calculating average progress:", error);
     }
+
+    console.log("Successfully updated average progress for all courses.");
+  } catch (error) {
+    console.error("Error calculating average progress:", error);
   }
-  
-
-// Schedule the function to run every night at 12:00 AM
-// cron.schedule("0 0 * * *", calculateTotalProgressForAllStudents, {
-//   timezone: "Asia/Kolkata",
-//   scheduled: true,
-// });
-
-// console.log("Scheduled job set to run every night at midnight.");
+}
