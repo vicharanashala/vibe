@@ -43,6 +43,8 @@ import { useEffect, useState } from 'react'
 import { Chart } from '@/components/ChartDashboard'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchCoursesWithAuth } from '@/store/slices/courseSlice'
+import { fetchWeeklyProgress } from '@/store/slices/FetchWeeklyProgress'
+import { DataTableDemo } from '@/components/dashboardProgressTable'
 
 // Mock data for available courses
 
@@ -77,17 +79,65 @@ const StudentDashboard = () => {
   // State for controlling table expansion
   const [showAllCourses, setShowAllCourses] = useState(false)
   const [showAllOngoing, setShowAllOngoing] = useState(false)
+  const [completedCourses, setcompletedCourses] = useState(0)
   const dispatch = useDispatch()
 
   const CourseData = useSelector((state) => state.courses.courses ?? null)
 
   useEffect(() => {
-      console.log('Courses:', CourseData)
-      if (!CourseData || CourseData.length === 0) {
-        console.log('Dispatching fetchCoursesWithAuth')
-        dispatch(fetchCoursesWithAuth())
-      }
-    }, [dispatch, CourseData])
+    console.log('Courses:', CourseData)
+    if (!CourseData || CourseData.length === 0) {
+      console.log('Dispatching fetchCoursesWithAuth')
+      dispatch(fetchCoursesWithAuth())
+    }
+  }, [dispatch, CourseData])
+
+  const courseProgressData = useSelector(
+    (state) => state.weeklyProgress?.weeklyProgress?.courseData
+  )
+
+  console.log('courseData', courseProgressData)
+
+  useEffect(() => {
+    if (!courseProgressData || Object.keys(courseProgressData).length === 0) {
+      console.log('Dispatching fetchWeeklyProgress')
+      dispatch(fetchWeeklyProgress())
+    }
+  }, [dispatch, courseProgressData])
+
+  const calculateLatestAverageProgress = (data) => {
+    let completed = 0
+    const latestEntries = Object.keys(data).map((courseKey) => {
+      const entries = data[courseKey]
+      // Create a copy of the entries array to avoid mutating the original state
+      const sortedEntries = [...entries].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      )
+      const latestProgress = sortedEntries[0].User // Latest progress
+      if (latestProgress === 100) completed += 1 // Increment if latest progress is 100%
+      console.log('Hellossdfncdhbvjsbvjsjdvbjhsdvj', completed)
+      return latestProgress
+    })
+    setcompletedCourses(completed)
+    console.log('Latest Entries:', completed)
+
+    // Calculate the average of latest entries across all courses
+    if (latestEntries.length === 0) return 0 // Avoid division by zero if no entries exist
+    return (
+      latestEntries.reduce((acc, curr) => acc + curr, 0) / latestEntries.length
+    )
+  }
+
+  // State for average progress
+  const [averageProgress, setAverageProgress] = useState(0)
+
+  useEffect(() => {
+    if (Object.keys(courseProgressData || {}).length > 0) {
+      setAverageProgress(calculateLatestAverageProgress(courseProgressData))
+    }
+  }, [courseProgressData])
+
+  console.log('Average Progress', averageProgress)
 
   // const { data: newCourses } = useFetchCoursesWithAuthQuery()
   // const CourseData = newCourses?.results
@@ -124,7 +174,7 @@ const StudentDashboard = () => {
         <Card>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium'>
-              Average Progress
+              All Courses Average Progress
             </CardTitle>
             <TrendingUp className='size-4 text-muted-foreground' />
           </CardHeader>
@@ -132,7 +182,7 @@ const StudentDashboard = () => {
             <div className='text-2xl font-bold'>
               {Math.round(
                 ongoingCourses.reduce(
-                  (acc, course) => acc + parseInt(course.progression),
+                  (acc) => acc + parseInt(averageProgress),
                   0
                 ) / ongoingCourses.length
               )}
@@ -146,13 +196,7 @@ const StudentDashboard = () => {
             <Award className='size-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>
-              {
-                ongoingCourses.filter(
-                  (course) => parseInt(course.progression) === 100
-                ).length
-              }
-            </div>
+            <div className='text-2xl font-bold'>{completedCourses}</div>
           </CardContent>
         </Card>
       </div>
@@ -164,39 +208,8 @@ const StudentDashboard = () => {
 
         {/* Ongoing Courses table */}
         <div className='flex h-full flex-col rounded-lg border'>
-          <div className='flex items-center justify-between border-b px-6 py-4'>
-            <h1 className='text-xl font-semibold'>On-Going Courses</h1>
-            <Button
-              variant='outline'
-              onClick={() => setShowAllOngoing(!showAllOngoing)}
-            >
-              {showAllOngoing ? 'Show Less' : 'View All'}
-            </Button>
-          </div>
           <div className='flex-1 px-6 py-4'>
-            <Table>
-              <TableCaption>
-                Your ongoing courses and their progress.
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className='w-[100px]'>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className='text-right'>Progress</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedOngoing.map((course) => (
-                  <TableRow key={course.id}>
-                    <TableCell className='font-medium'>{course.id}</TableCell>
-                    <TableCell>{course.name}</TableCell>
-                    <TableCell className='text-right'>
-                      {course.progression}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTableDemo />
           </div>
         </div>
       </div>

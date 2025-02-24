@@ -58,9 +58,9 @@ const ParentComponent = () => {
       />
       <VoiceActivityDetection filesetResolver={audioFilesetResolver} />
       <BlurDetection isBlur={isBlur} setIsBlur={setIsBlur} />
-      <SnapshotRecorder
+      {/* <SnapshotRecorder
         anomalies={{ lookAwayCount, numPeople, handCount, isBlur, status }}
-      />
+      /> */}
       {/* <VirtualBackgroundDetection /> */}
     </div>
   )

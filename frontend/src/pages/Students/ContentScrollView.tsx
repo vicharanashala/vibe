@@ -60,6 +60,14 @@ import {
   clearSectionProgress,
 } from '@/store/slices/sectionProgressSlice'
 import { useRefresh } from '@/contextApi/refreshContext'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { AddQuestion } from '@/components/AddQuestion'
 
 // Define interfaces for state and props
 interface AssessmentOption {
@@ -108,8 +116,15 @@ const ContentScrollView = () => {
   const dispatch = useDispatch()
 
   // This ensures that the sidebar is open or not
-  const { setOpen } = useSidebar()
-  setOpen(true)
+  const { setOpen } = useSidebar() // Access setOpen to control the sidebar state
+  const hasSetOpen = useRef(false) // Ref to track if setOpen has been called
+
+  useEffect(() => {
+    if (!hasSetOpen.current) {
+      setOpen(true) // Set the sidebar to closed by default
+      hasSetOpen.current = true // Mark as called
+    }
+  }, [setOpen])
 
   // Initialize currentFrame with a default value if assignment.sequence is undefined
   const [currentFrame, setCurrentFrame] = useState(
@@ -134,10 +149,49 @@ const ContentScrollView = () => {
   const [gradingData, setGradingData] = useState<boolean | null>(null)
   const [isPlayerReady, setIsPlayerReady] = useState(false)
   const [ytApiReady, setYtApiReady] = useState(false)
+  const [videoQuality, setVideoQuality] = useState('large')
 
   //Responsible for fetching Items using RTK Query
   const { data: assignmentsData } = useFetchItemsWithAuthQuery(sectionId)
   const content = assignmentsData || []
+
+  const [countdown, setCountdown] = useState(30) // 30 seconds countdown
+
+  useEffect(() => {
+    let timer
+    const currentContent = content[currentFrame]
+
+    if (currentContent && currentContent.item_type === 'assessment') {
+      setCountdown(30) // Reset countdown to 30 seconds whenever the frame is an assessment
+      timer = setInterval(() => {
+        setCountdown((prevCountdown) => {
+          if (prevCountdown <= 1) {
+            // Change frame when countdown finishes
+            clearInterval(timer)
+            const nextFrameIndex = (currentFrame - 1) % content.length
+            setCurrentFrame(nextFrameIndex)
+            return 30 // reset countdown if looping
+          }
+          return prevCountdown - 1
+        })
+      }, 1000) // Update countdown every second
+    }
+
+    // Cleanup function to clear the interval when component unmounts or dependencies change
+    return () => {
+      if (timer) {
+        clearInterval(timer)
+      }
+    }
+  }, [currentFrame, content, setCurrentFrame])
+
+  const qualityLabels = {
+    small: '360p',
+    medium: '480p',
+    large: '720p',
+    hd1080: 'HD 1080p',
+    default: 'Auto',
+  }
 
   // UseEffect to create player for each frame and to close the sidebar
   useEffect(() => {
@@ -172,9 +226,7 @@ const ContentScrollView = () => {
     if (!ytApiReady) return
 
     const initPlayer = () => {
-      console.log('hello ji',window.YT?.Player)
       if (!window.YT?.Player) {
-        console.log('YT Player not ready. Retrying in 100ms...')
         setTimeout(initPlayer, 100)
         return
       }
@@ -184,14 +236,11 @@ const ContentScrollView = () => {
       }
 
       const currentContent = content[currentFrame]
-      console.log(currentContent,"i am video loader",currentFrame, 'i am content type',currentContent?.item_type)
       if (currentContent?.item_type !== 'video') return
 
       const videoId = getYouTubeVideoId(currentContent.source)
-      console.log('i am video id',videoId,getYouTubeVideoId(currentContent.source))
       if (!videoId) return
 
-      
       renderdataByType(currentFrame, currentFrame)
 
       playerRef.current = new window.YT.Player(`player-${currentFrame}`, {
@@ -199,6 +248,7 @@ const ContentScrollView = () => {
         events: {
           onReady: (event) => {
             setIsPlayerReady(true)
+            setCaptionsEnabled(true)
             onPlayerReady(event)
           },
           onStateChange: onPlayerStateChange,
@@ -213,6 +263,7 @@ const ContentScrollView = () => {
     }
 
     initPlayer()
+    setPlaybackSpeed(1) // Reset the playback speed to 1x when changing frames
   }, [ytApiReady, currentFrame, content])
 
   const [assessmentId, setAssessmentId] = useState(
@@ -255,6 +306,8 @@ const ContentScrollView = () => {
     setTotalDuration(duration)
     event.target.setVolume(volume)
 
+    event.target.setPlaybackQuality(videoQuality)
+
     if (content[currentFrame].item_type === 'video') {
       const startTime = content[currentFrame].start_time
       const endTime = content[currentFrame].end_time
@@ -293,6 +346,41 @@ const ContentScrollView = () => {
     playerRef.current.setVolume(value[0])
   }
 
+  const handleQualityChange = (quality) => {
+    setVideoQuality(quality)
+    if (playerRef.current) {
+      playerRef.current.setPlaybackQuality(quality)
+    }
+  }
+
+  const [captionsEnabled, setCaptionsEnabled] = useState(false)
+
+  // Function to toggle captions
+  const toggleCaptions = () => {
+    if (!captionsEnabled) {
+      setCaptionsEnabled(true)
+      if (playerRef.current) {
+        playerRef.current.loadModule('captions') // Load the caption module
+        playerRef.current.setOption('captions', 'track', { languageCode: 'en' }) // English captions
+      }
+    } else {
+      setCaptionsEnabled(false)
+      if (playerRef.current) {
+        playerRef.current.unloadModule('captions') // Unload the caption module
+      }
+    }
+  }
+
+  // Effect to handle changes in captions state
+  useEffect(() => {
+    if (captionsEnabled && playerRef.current) {
+      playerRef.current.loadModule('captions') // Load captions if enabled
+      playerRef.current.setOption('captions', 'track', { languageCode: 'en' })
+    } else if (playerRef.current) {
+      playerRef.current.unloadModule('captions') // Unload captions if disabled
+    }
+  }, [captionsEnabled])
+
   // Whenever the state of video changed like pause , play , ended this funtion is called
   const onPlayerStateChange = (event) => {
     if (event.data === window.YT.PlayerState.PLAYING) {
@@ -306,8 +394,14 @@ const ContentScrollView = () => {
         if (!playerRef.current) return
         const currentPlayerTime = playerRef.current.getCurrentTime()
         const endTime = content[currentFrame].end_time
+        console.log(
+          'current Time : ',
+          currentPlayerTime,
+          'end Time : ',
+          endTime
+        )
 
-        if (currentPlayerTime > endTime) {
+        if (currentPlayerTime >= endTime) {
           playerRef.current.pauseVideo() // Pause at end time
           clearInterval(playerIntervalRef.current) // Clear interval
           setCurrentFrame((prevFrame) => (prevFrame + 1) % content.length)
@@ -396,8 +490,10 @@ const ContentScrollView = () => {
             // setTimeout(() => {
             //   window.location.reload()
             // }, 2000)
+            toast('Incorrect Answer! The segment will now run again.')
             setCurrentFrame((prevFrame) => (prevFrame - 1) % content.length)
           } else {
+            toast('Correct Answer! Moving to the next segment !')
             const sectionItemId1 = `${content[currentFrame - 1].id}`
             const sectionItemId2 = `${content[currentFrame].id}`
 
@@ -408,10 +504,6 @@ const ContentScrollView = () => {
             })
               .then((response) => {
                 if (response.data) {
-                  console.log(
-                    'Progress updated successfully.cdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
-                    response.data
-                  )
                   response.data.forEach((item) => {
                     if (Array.isArray(item.sectionItems)) {
                       item.sectionItems.forEach((sectionItemId) => {
@@ -563,7 +655,12 @@ const ContentScrollView = () => {
     const isLastQuestion = currentQuestionIndex === AssessmentData.length - 1
 
     return (
-      <div className='flex h-screen w-full flex-col justify-center bg-gray-50 p-8 text-gray-800 shadow-lg'>
+      <div className='justify-top flex h-screen w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
+        <div className='mb-16 ml-auto flex items-center gap-4'>
+          <AddQuestion />
+          Time Remaining:{' '}
+          <span className='font-bold text-red-500'>{countdown} seconds</span>
+        </div>
         <h3 className='mb-6 w-full text-3xl font-bold text-gray-900'>
           {question.text}
         </h3>
@@ -634,8 +731,6 @@ const ContentScrollView = () => {
     // }
     videoId = getYouTubeVideoId(content[currentFrame].source)
 
-    console.log(frame,"i am frame",content[currentFrame].source)
-
     switch (content[currentFrame].item_type) {
       case 'video':
         return (
@@ -643,11 +738,12 @@ const ContentScrollView = () => {
             key={`player-${index}`}
             id={`player-${index}`}
             title={content[currentFrame].title}
-            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&controls=0&modestbranding=1&showinfo=0&fs=1&iv_load_policy=3&cc_load_policy=1&autohide=1`}
+            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&controls=0&modestbranding=1&showinfo=0&fs=1&iv_load_policy=3&cc_load_policy=0&autohide=1`}
             frameBorder='0'
             allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
             allowFullScreen
             className='pointer-events-none size-full cursor-none'
+            loading='lazy'
           ></iframe>
         )
       case 'article':
@@ -761,7 +857,9 @@ const ContentScrollView = () => {
                       <button
                         key={speed}
                         className={`mx-1 rounded-full px-3 py-1 text-sm ${
-                          playbackSpeed === speed ? 'bg-gray-500' : ''
+                          playbackSpeed === speed
+                            ? 'bg-gray-500'
+                            : 'bg-gray-200'
                         }`}
                         onClick={() => {
                           setPlaybackSpeed(speed)
@@ -772,6 +870,54 @@ const ContentScrollView = () => {
                         {speed}x
                       </button>
                     ))}
+                  </div>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button disabled={!isPlayerReady}>
+                        {qualityLabels[videoQuality] || 'Quality'}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onSelect={() => handleQualityChange('small')}
+                      >
+                        360p
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => handleQualityChange('medium')}
+                      >
+                        480p
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => handleQualityChange('large')}
+                      >
+                        720p
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => handleQualityChange('hd1080')}
+                      >
+                        HD 1080p
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => handleQualityChange('default')}
+                      >
+                        Auto
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <div className='flex items-center'>
+                    {/* Existing buttons for play/pause, etc. */}
+                    <button
+                      onClick={toggleCaptions}
+                      className={`ml-4 rounded-full px-3 py-1 text-sm ${
+                        captionsEnabled ? 'bg-black text-white' : 'bg-gray-200'
+                      }`}
+                      title='Toggle Captions'
+                    >
+                      {captionsEnabled ? 'Hide Captions' : 'Show Captions'}
+                    </button>
                   </div>
 
                   {/* Right section: Fullscreen toggle */}

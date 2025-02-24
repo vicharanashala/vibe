@@ -25,7 +25,7 @@ export function ModuleSwitcher({
   onModuleSelect: (moduleId: string) => void
 }) {
   const [selectedModule, setSelectedModule] = React.useState('Select')
-  const [ selectedModuleName, setSelectedModuleName ] = React.useState('Select')
+  const [selectedModuleName, setSelectedModuleName] = React.useState('Select')
 
   const handleModuleSelect = (moduleId: string) => {
     setSelectedModule(moduleId)

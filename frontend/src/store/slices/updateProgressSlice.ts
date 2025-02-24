@@ -1,7 +1,6 @@
 // slices/progressUpdateSlice.js
 import { createSlice } from '@reduxjs/toolkit'
 import { anotherApiService } from '../ApiServices/ActivityEngine/UpdatingApiServices'
-import { clearProgress } from './fetchStatusSlice'
 
 export const progressUpdateSlice = createSlice({
   name: 'progressUpdate',

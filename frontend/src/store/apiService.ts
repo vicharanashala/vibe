@@ -376,6 +376,24 @@ export const anotherApiService = createApi({
         },
       }),
     }),
+    fetchWeeklyProgress: builder.query<void, void>({
+      query: () => ({
+        url: '/all-progress',
+        method: 'GET',
+        params: {
+          studentId: Cookies.get('user_id'), // Get studentId from cookies
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+        },
+      }),
+    }),
+    fetchAllStudentsProgress: builder.query<void, void>({
+      query: () => ({
+        url: '/all-students-progress',
+        method: 'GET',
+      }),
+    }),
   }),
 })
 
@@ -389,4 +407,6 @@ export const {
   useFetchSectionProgressQuery,
   useFetchSectionItemsProgressQuery,
   useInitailizeCourseProgressMutation,
+  useFetchWeeklyProgressQuery,
+  useFetchAllStudentsProgressQuery,
 } = anotherApiService

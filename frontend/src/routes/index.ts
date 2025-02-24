@@ -11,6 +11,8 @@ import SectionDetails from '@/pages/Students/SectionDetail'
 import SectionView from '@/pages/Students/SectionView'
 import AuthWrapper from '@/components/proctoring-components/AuthWrapper'
 import testing from '@/pages/Students/testing'
+import AiEngine from '@/pages/Admin/AiEngine'
+import Analytics from '@/pages/Students/Analytics'
 
 const router = createBrowserRouter([
   {
@@ -19,7 +21,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: React.createElement(AuthWrapper, {}, React.createElement(Home)),
+        element: React.createElement(
+          AuthWrapper,
+          {},
+          React.createElement(Home)
+        ),
         children: [
           {
             path: '',
@@ -28,6 +34,10 @@ const router = createBrowserRouter([
           {
             path: '/testing',
             element: React.createElement(testing),
+          },
+          {
+            path: '/analytics',
+            element: React.createElement(Analytics),
           },
           {
             path: '/course-view',
@@ -56,6 +66,10 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: React.createElement(LoginPage),
+      },
+      {
+        path: '/admin',
+        element: React.createElement(AiEngine),
       },
     ],
   },

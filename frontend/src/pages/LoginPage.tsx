@@ -57,7 +57,7 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className='flex flex-col gap-4 p-6 md:p-10'>
+          {/* <div className='flex flex-col gap-4 p-6 md:p-10'>
             <div className='flex justify-center gap-2 md:justify-start'>
               <button className='flex items-center gap-2 font-medium'>
                 <div className='flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground'>
@@ -71,7 +71,7 @@ const LoginPage: React.FC = () => {
                 <SignUpForm toggleCover={toggleCover} />
               </div>
             </div>
-          </div>
+          </div> */}
           <div
             className='window'
             style={{ left: coverLeft ? '0%' : '50%' }}

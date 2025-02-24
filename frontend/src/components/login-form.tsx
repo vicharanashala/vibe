@@ -213,14 +213,14 @@ export function LoginForm({
         {error && <p className='text-sm text-red-500'>{error}</p>}
 
         {/* Divider with text */}
-        <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
+        {/* <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
           <span className='relative z-10 bg-background px-2 text-muted-foreground'>
             Or continue with
           </span>
-        </div>
+        </div> */}
 
         {/* Google login button */}
-        <Button
+        {/* <Button
           type='button'
           variant='outline'
           className='w-full'
@@ -252,11 +252,11 @@ export function LoginForm({
             <path fill='none' d='M0 0h48v48H0z' />
           </svg>
           Login with Google
-        </Button>
+        </Button> */}
       </div>
 
       {/* Sign up link */}
-      <div className='text-center text-sm'>
+      {/* <div className='text-center text-sm'>
         Don&apos;t have an account?{' '}
         <button
           onClick={(e) => {
@@ -267,7 +267,7 @@ export function LoginForm({
         >
           Sign up
         </button>
-      </div>
+      </div> */}
     </form>
   )
 }

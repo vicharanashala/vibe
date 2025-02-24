@@ -33,12 +33,16 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { PanelRight } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Toaster } from '@/components/ui/sonner'
 import { ProfileDropdown } from '@/components/Profile-Dropdown'
+import { useDispatch } from 'react-redux'
+import { logoutState } from '@/store/slices/authSlice'
+import { useLogoutMutation } from '@/store/apiService'
+import { DashboardDropdown } from '@/components/ui/DashboardDropdown'
 
 const Home = () => {
   // State to control right sidebar visibility
@@ -47,6 +51,20 @@ const Home = () => {
   // Toggle handler for right sidebar
   const toggleRightSidebar = () => {
     setIsRightSidebarVisible(!isRightSidebarVisible)
+  }
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const [logout] = useLogoutMutation()
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap()
+    } catch (err) {
+      console.error('Logout failed:', err)
+    } finally {
+      dispatch(logoutState())
+      navigate('/login')
+    }
   }
 
   return (
@@ -75,11 +93,14 @@ const Home = () => {
               </BreadcrumbList>
             </Breadcrumb>
             {/* Header controls */}
-            <div className='ml-auto'>
-              <ProfileDropdown />
-              <Button variant='ghost' size='icon' onClick={toggleRightSidebar}>
+            <div className='ml-auto mr-4 flex gap-4'>
+              <DashboardDropdown />
+              {/* <Button onClick={() => navigate('/')}>Dashboard</Button>
+              <Button onClick={() => navigate('/analytics')}>Analytics</Button>
+              <Button onClick={handleLogout}>Logout</Button> */}
+              {/* <Button variant='ghost' size='icon' onClick={toggleRightSidebar}>
                 <PanelRight />
-              </Button>
+              </Button> */}
             </div>
           </div>
         </header>
