@@ -1,0 +1,34 @@
+.hytPlayerWrap {
+    display: inline-block;
+    position: relative;
+}
+
+.hytPlayerWrap.ended::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    cursor: pointer;
+    background-color: black;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 64px 64px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 510 510"><path d="M255 102V0L127.5 127.5 255 255V153c84.15 0 153 68.85 153 153s-68.85 153-153 153-153-68.85-153-153H51c0 112.2 91.8 204 204 204s204-91.8 204-204-91.8-204-204-204z" fill="#FFF"/></svg>');
+}
+
+.hytPlayerWrap.paused::after {
+    content: "";
+    position: absolute;
+    top: 70px;
+    left: 0;
+    bottom: 50px;
+    right: 0;
+    cursor: pointer;
+    background-color: black;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 40px 40px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" version="1" width="1706.667" height="1706.667" viewBox="0 0 1280 1280"><path d="M157.635 2.984L1260.979 640 157.635 1277.016z" fill="#fff"/></svg>');
+}
