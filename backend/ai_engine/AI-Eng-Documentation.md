@@ -1,10 +1,10 @@
 # LLM Backend API Documentation
 
-This document provides a comprehensive overview of the LLM Backend API, designed for generating questions from YouTube videos and playlists, and providing AI-powered student support. It covers the entire workflow, from user input on the frontend to data processing on the backend, including question generation and Retrieval-Augmented Generation (RAG) for student doubt answering, and eventual data upload to the LMS (Learning Management System). This documentation aims to equip developers with the necessary knowledge to maintain, troubleshoot, and extend the functionality of the application.
+This document provides a comprehensive overview of the LLM Backend API, designed for generating questions from YouTube videos and playlists, and providing AI-powered support for student doubts. It covers the entire workflow, from user input on the frontend to data processing on the backend, including question generation and knowledge retrieval for RAG, and eventual data upload to the LMS (Learning Management System). This documentation aims to equip developers with the necessary knowledge to maintain, troubleshoot, and extend the functionality of the application.
 
 ## 1. Basic Workflow/Overview
 
-The application allows users to submit YouTube videos or playlists, automatically generate questions based on the content, and enable an AI-powered system to answer student doubts. The workflow can be summarized as follows:
+The application enables two primary functionalities: automatic question generation from YouTube videos and playlists, and AI-powered assistance for students to answer doubts related to the video content. The combined workflow can be summarized as follows:
 
 1.  **User Input (Frontend):**
     *   The user accesses the frontend web interface (served from `app/templates/index.html`).
@@ -18,15 +18,15 @@ The application allows users to submit YouTube videos or playlists, automaticall
 2.  **Playlist URL Processing (Frontend & Backend):**
     *   **If a playlist URL is submitted:**
         *   The frontend makes an asynchronous POST request to the backend endpoint `/questions/get_urls` (defined in `app/routers/question.py`). The request body contains a JSON object with the `url` field set to the playlist URL.
-        *   The backend processes the request using the `get_urls` function in `app/services.py`.  This function utilizes the `PlaylistProcessor` class from `app/question_generation/services.py`.  The `get_urls_from_playlist` method of `PlaylistProcessor` uses the `pytubefix` library to extract all video URLs from the playlist. This operation is executed in a separate thread using `asyncio.to_thread` to prevent blocking the main event loop.
+        *   The backend processes the request using the `get_urls` function in `app/services.py`. This function utilizes the `PlaylistProcessor` class from `app/question_generation/services.py`. The `get_urls_from_playlist` method of `PlaylistProcessor` uses the `pytubefix` library to extract all video URLs from the playlist. This operation is executed in a separate thread using `asyncio.to_thread` to prevent blocking the main event loop.
         *   The backend returns a JSON response containing a list of video URLs (`{"video_urls": [...]}`).
     *   **If a single video URL is submitted:**
         *   The frontend treats the single URL as a playlist containing only one video. The `videoUrls` array is initialized with just this single URL.
 
 3.  **Video Display and Customization (Frontend):**
-    *   The frontend displays the video(s) in boxes within the `<div id="videos-container"></div>` element.  Each video is represented by a `div` with the class `video-block`.
+    *   The frontend displays the video(s) in boxes within the `<div id="videos-container"></div>` element. Each video is represented by a `div` with the class `video-block`.
     *   For each video, the user can customize the following details:
-        *   **Number of Segments:**  The user can specify the number of segments to divide the video into using the `<input type="number" id="num-segments">` field within the `<form id="video-form">` element.
+        *   **Number of Segments:** The user can specify the number of segments to divide the video into using the `<input type="number" id="num-segments">` field within the `<form id="video-form">` element.
         *   **Segment Details:** For each segment, the user can customize:
             *   **Timestamp:** The start time of the segment (in HH:MM:SS format).
             *   **Number of Questions:** The number of questions to generate for the segment.
@@ -35,24 +35,25 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
 4.  **AI Model Selection and API Key (Frontend):**
     *   The user selects the AI model to use for question generation from the `<select id="model-selection">` dropdown. Options are Gemini API and Ollama API.
-    *   If Gemini API is selected, the user must provide a valid Gemini API key in the `<input type="text" id="user-api-key">` field. This field is displayed conditionally using JavaScript based on the selected model.  The API key is validated as `required` only when Gemini is selected.
+    *   If Gemini API is selected, the user must provide a valid Gemini API key in the `<input type="text" id="user-api-key">` field. This field is displayed conditionally using JavaScript based on the selected model. The API key is validated as `required` only when Gemini is selected.
     *   If Ollama API is selected, the API key field is hidden, and a default API key ("ollama1064") is used as a placeholder.
 
 5.  **Data Processing and Batching (Frontend):**
     *   Before sending the data to the backend, the frontend divides the videos into batches to avoid hitting the rate limits of the Gemini 1.5 Flash API.
     *   The `createBatches` function in the Javascript code calculates the batches such that each batch contains a maximum of 15 segments. This helps prevent rate limiting issues when using the Gemini API.
 
-6.  **Question Generation (Frontend & Backend):**
+6.  **Question Generation and Transcript Upload (Frontend & Backend):**
     *   The frontend makes an asynchronous POST request to the backend endpoint `/questions/process_video` (defined in `app/routers/question.py`) for each batch of videos.
     *   The request body contains a JSON object with the following fields:
         *   `url`: The URL of the YouTube video.
-        *   `user_api_key`: The user's Gemini API key (or "ollama1064" if Ollama is selected).
+        *   `user_api_key`: The user's API key (or "ollama1064" if Ollama is selected).
         *   `timestamps`: A list of timestamps (in seconds) defining the start times of each segment.
         *   `segment_wise_q_no`: A list of the number of questions to generate for each segment.
         *   `segment_wise_q_model`: A list of the question types (Analytical or Case Study) for each segment.
+    *   The backend processes the video to generate questions. The full video transcript is also extracted and uploaded to the vector database for RAG (Retrieval Augmented Generation).
 
-7.  **Backend Processing (app/services.py & app/question\_generation/services.py):**
-    *   The backend processes the request using the `process_process_video` function in `app/services.py`. This function orchestrates the question generation process.
+7.  **Backend Processing for Question Generation and RAG (app/services.py & app/question\_generation/services.py & app/rag.py):**
+    *   The backend processes the request using the `process_process_video` function in `app/services.py`. This function orchestrates both the question generation process and the transcript upload for RAG.
     *   **AI Service Initialization:**
         *   Based on the `user_api_key`, either the `GeminiService` or `OllamaService` is instantiated.
         *   If the `user_api_key` is "ollama1064", the `OllamaService` is used. Otherwise, the `GeminiService` is used.
@@ -62,20 +63,20 @@ The application allows users to submit YouTube videos or playlists, automaticall
         *   The `process_video` method of the `VideoProcessor` class in `app/question_generation/services.py` is called. This method performs the following steps:
             *   **Extract Video ID:** The `extract_video_id` function from `app/question_generation/utils.py` extracts the video ID from the YouTube URL using regular expressions.
             *   **Get Transcript:** The `get_raw_transcript` method attempts to retrieve the video transcript from the YouTube Transcript API. If a transcript is available, it's returned as a list of dictionaries. If not, an empty list is returned.
-            *   **Create YouTube Object:**  A `YouTube` object is created from the `pytubefix` library, using the video URL and the `'WEB'` parameter to bypass bot detection measures.
+            *   **Create YouTube Object:** A `YouTube` object is created from the `pytubefix` library, using the video URL and the `'WEB'` parameter to bypass bot detection measures.
             *   **Get Video Metadata:** The video title and description are retrieved from the `YouTube` object. The `hide_urls` function from `app/question_generation/utils.py` is used to remove URLs from the description, replacing them with `<url_hidden>`.
             *   **Segment Generation:**
                 *   **If a transcript is available (transcript list is not empty):** The `generate_transcript_segments` method is called to divide the video into segments based on the provided timestamps and the transcript.
-                *   **If a transcript is NOT available (transcript list is empty):** The `process_audio_only` method is called to download the audio from the video and transcribe it using the Whisper model.  This method transcribes the audio by first downloading the audio, converting it to the correct format, and then using whisper.
-            *   **Full Transcript Generation and RAG Upload:**  The transcript from the video is aggregated and uploaded to the vector database for use with RAG (Retrieval Augmented Generation) for student doubt answering using the `upload_text` function from `app/rag.py`.  This function is crucial for providing context to the RAG system. The title of the video is passed as the document name, and the full_transcript is the content.
+                *   **If a transcript is NOT available (transcript list is empty):** The `process_audio_only` method is called to download the audio from the video and transcribe it using the Whisper model. This method transcribes the audio by first downloading the audio, converting it to the correct format, and then using whisper.
+            *   **Full Transcript Generation and RAG Upload:** The transcript from the video is aggregated and uploaded to the vector database for use with RAG for student doubt answering using the `upload_text` function from `app/rag.py`. This function is crucial for providing context to the RAG system. The title of the video is passed as the document name, and the full_transcript is the content.
             *   **Question Generation:** The `generate_questions_for_segments` method is called to generate questions for each segment using the AI service.
-            *   **Response Construction:** A `VideoResponse` object (defined in `app/question_generation/models.py`) is created, containing the list of `VideoSegment` objects and the list of `Question` objects.  The `VideoResponse` object is returned to the frontend.
+            *   **Response Construction:** A `VideoResponse` object (defined in `app/question_generation/models.py`) is created, containing the list of `VideoSegment` objects and the list of `Question` objects. The `VideoResponse` object is returned to the frontend.
 
 8.  **Transcript-based Segment Generation (`generate_transcript_segments`):**
     *   This function is called when a transcript is successfully retrieved from the YouTube Transcript API. It takes the raw transcript (a list of dictionaries with `text`, `start`, and `duration` keys) and a list of timestamps as input.
     *   The function determines the video duration by finding the maximum timestamp from the transcript data. If no timestamps are provided by the user, it defaults to dividing the video into 4 equal segments.
     *   The timestamps are sorted and the video's final end time is appended (duration + 1).
-    *   The core logic iterates through the raw transcript entries.  For each entry, it checks if the entry's start time exceeds the next defined timestamp boundary. If it does, it signifies the end of a segment:
+    *   The core logic iterates through the raw transcript entries. For each entry, it checks if the entry's start time exceeds the next defined timestamp boundary. If it does, it signifies the end of a segment:
         *   The accumulated text for the current segment is joined into a single string.
         *   The start and end times of the segment are recorded.
         *   A new `VideoSegment` object is created and added to the list of segments.
@@ -87,7 +88,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
     *   This function is called when a transcript is not available. It downloads the audio, divides the audio into segments based on the user-provided timestamps, and transcribes each segment using the Whisper model.
     *   A unique filename is generated using UUID.
     *   The function retrieves the audio stream from the `YouTube` object.
-    *   `ffmpeg` is used to convert the downloaded audio to the correct format (`.wav`).  The path to `ffmpeg` is configured using the `FFMPEG_PATH` environment variable.
+    *   `ffmpeg` is used to convert the downloaded audio to the correct format (`.wav`). The path to `ffmpeg` is configured using the `FFMPEG_PATH` environment variable.
     *   The `soundfile` library is used to read the audio data and sample rate from the `.wav` file.
     *   The timestamps are sorted, and segments are created by splitting the audio data based on the timestamps.
     *   Each segment is transcribed using the `whisper` model.
@@ -111,7 +112,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
     *   **`OllamaService`:**
         *   Sends requests to a local Ollama API endpoint for content generation.
         *   Uses the "deepseek-r1:14b" model.
-        *   The `generate_content` method makes a POST request to the `OLLAMA_API_URL` with the prompt, model details, and configuration for raw, non-streamed responses. Error handling checks the HTTP status code and manages unsuccessful API requests.
+        *   The `generate_content` method makes a POST request to the `OLLAMA_API_URL` with the prompt, model details, and configurations for the raw, non-streamed responses. Error handling checks the HTTP status code and manages unsuccessful API requests.
 
 12. **JSON Parsing (`parse_llama_json`):**
     *   This utility function is crucial for extracting structured data from the AI-generated text. Since the AI model may not always produce perfectly formatted JSON, this function provides robust error handling.
@@ -139,22 +140,21 @@ The application allows users to submit YouTube videos or playlists, automaticall
     *   A sequence counter maintains the correct order of videos and assessments.
     *   IndexedDB is used to store the video, assessment, and question data locally, providing a backup in case of upload failures.
 
-15. **Student AI Support for Doubts (Backend):**
-    * After the video content is uploaded and indexed using the RAG system described in Section 3.3, students can ask questions related to the content.  The RAG system then retrieves relevant video segments and answers the student's question.
+15. **Student Doubt Support (RAG):** Students can ask questions related to the video content, and the system leverages the uploaded transcripts in the vector database to provide relevant answers using RAG. This allows students to get answers quickly.
 
 ## 2. Code Structure
 
-*   **`app/main.py`:**  The main FastAPI application file. It defines the API endpoints, includes routers, configures CORS middleware, loads environment variables, and serves the homepage.
-*   **`app/routers/question.py`:** Defines the API routers for question generation and related functionality. It handles incoming requests for processing videos and retrieving playlist URLs, delegating the actual processing to the services layer.
-*   **`app/services.py`:** Contains service functions that orchestrate the question generation process. It acts as an intermediary between the routers and the question generation logic. It handles the selection of AI services (Gemini or Ollama).
-*   **`app/question_generation/`:**  A directory containing the core question generation logic.
-    *   **`models.py`:** Defines the data models (Pydantic models) used throughout the application, such as `VideoSegment`, `Question`, and `VideoResponse`.
-    *   **`services.py`:** Contains the `VideoProcessor` and `PlaylistProcessor` classes.  The `VideoProcessor` class handles the core video processing logic, including transcript retrieval, segment generation, and question generation.  The `PlaylistProcessor` class handles the retrieval of video URLs from YouTube playlists. Contains the implementations of `GeminiService` and `OllamaService`.
-    *   **`utils.py`:** Contains utility functions, such as `extract_video_id`, `hide_urls`, and `parse_llama_json`.
-    *   **`prompts.py`:** Defines the prompt templates used for generating questions with the AI models.  This file contains the `TASK_DESCRIPTION_ANALYTICAL`, `PROMPT_ANALYTICAL`, `TASK_DESCRIPTION_CASE_STUDY`, and `PROMPT_CASE_STUDY` variables, which are string templates used to construct the prompts sent to the AI models.
-*   **`app/templates/index.html`:** The frontend HTML file, containing the user interface for submitting URLs, customizing segments, and viewing the generated questions.
-*   **`app/rag.py`:** Implements the Retrieval-Augmented Generation (RAG) functionality. This is used for student AI support for doubts.
-*   **`.env`:** Contains environment variables, such as API keys and LMS URLs.
+*   `app/main.py`: The main FastAPI application file. It defines the API endpoints, includes routers, configures CORS middleware, loads environment variables, and serves the homepage.
+*   `app/routers/question.py`: Defines the API routers for question generation. It handles incoming requests for processing videos and retrieving playlist URLs, delegating the actual processing to the services layer.
+*   `app/services.py`: Contains service functions that orchestrate the question generation process and initiates the RAG pipeline. It acts as an intermediary between the routers and the question generation/RAG logic. It handles the selection of AI services (Gemini or Ollama).
+*   `app/question_generation/`: A directory containing the core question generation logic.
+    *   `models.py`: Defines the data models (Pydantic models) used throughout the application, such as `VideoSegment`, `Question`, and `VideoResponse`.
+    *   `services.py`: Contains the `VideoProcessor` and `PlaylistProcessor` classes. The `VideoProcessor` class handles the core video processing logic, including transcript retrieval, segment generation, and question generation. The `PlaylistProcessor` class handles the retrieval of video URLs from YouTube playlists. Contains the implementations of `GeminiService` and `OllamaService`.
+    *   `utils.py`: Contains utility functions, such as `extract_video_id`, `hide_urls`, and `parse_llama_json`.
+    *   `prompts.py`: Defines the prompt templates used for generating questions with the AI models. This file contains the `TASK_DESCRIPTION_ANALYTICAL`, `PROMPT_ANALYTICAL`, `TASK_DESCRIPTION_CASE_STUDY`, and `PROMPT_CASE_STUDY` variables, which are string templates used to construct the prompts sent to the AI models.
+*   `app/templates/index.html`: The frontend HTML file, containing the user interface for submitting URLs, customizing segments, and viewing the generated questions, along with the mechanisms to upload the data.
+*   `app/rag.py`: Contains the RAG related functions and files, such as functions to upload text to the vector database (FAISS) and query it.
+*   `.env`: Contains environment variables, such as API keys and LMS URLs.
 
 ## 3. Key Components and Functionality
 
@@ -188,7 +188,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
 *   **API Routers (app/routers/question.py):** This file defines the API endpoints for the application using FastAPI's `APIRouter`.
 
-    *   **`/questions/process_video` (POST):** This endpoint receives the video URL, API key, timestamps, and question parameters from the frontend and calls the `process_process_video` function in `app/services.py` to generate questions.
+    *   **`/questions/process_video` (POST):** This endpoint receives the video URL, API key, timestamps, and question parameters from the frontend and calls the `process_process_video` function in `app/services.py` to generate questions and upload transcripts for RAG.
 
     *   **`/questions/get_urls` (POST):** This endpoint receives a playlist URL from the frontend and calls the `get_urls` function in `app/services.py` to extract the video URLs from the playlist.
 
@@ -210,7 +210,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
             *   `segment_wise_q_model` (List[str]): A list of the question types ("analytical" or "case-study") for each segment.
 
-        *   This function is the main entry point for question generation. It receives the video URL, API key, timestamps, and question parameters from the router.
+        *   This function is the main entry point for question generation. It receives the video URL, API key, timestamps, and question parameters from the router. It also initiates the upload of video transcripts for the RAG functionality.
 
         *   It selects the AI service (Gemini or Ollama) based on the API key.
 
@@ -258,7 +258,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
                     *   `segment_wise_q_model` (List[str]): A list of the question types ("analytical" or "case-study") for each segment.
 
-                *   This method performs the core video processing steps, including transcript retrieval, segment generation, and question generation.
+                *   This method performs the core video processing steps, including transcript retrieval, segment generation, question generation and full transcript upload for RAG.
 
                 *   **Output:** `VideoResponse`: Object containing processed video segments and generated questions.
 
@@ -292,9 +292,9 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
                     *   `timestamps` (List[int]): A list of timestamps (in seconds) defining the start times of each segment.
 
-                *   This method downloads the audio from the video, segments the audio based on timestamps, calls process_audio_segment for each segment to transcribe it.
+                *   This method downloads the audio from the video, segments the audio based on timestamps, calls `process_audio_segment` for each segment to transcribe it.
 
-                *   **Output:** `List[VideoSegment]`: A list of VideoSegment objects, representing the transcribed audio segments.
+                *   **Output:** `List[VideoSegment]`: A list of `VideoSegment` objects, representing the transcribed audio segments.
 
             *   **`process_audio_segment(segment_file: str, start_time: float, end_time: float) -> VideoSegment`:**
 
@@ -308,13 +308,13 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
                 *   This method transcribes a single audio segment using the Whisper model.
 
-                *   **Output:** `VideoSegment`: A VideoSegment object representing the transcribed audio segment.
+                *   **Output:** `VideoSegment`: A `VideoSegment` object representing the transcribed audio segment.
 
             *   **`generate_questions_for_segments(segments: List[VideoSegment], user_api_key: str, segment_wise_q_no: List[int], segment_wise_q_model: List[str]) -> List[Question]`:**
 
                 *   **Inputs:**
 
-                    *   `segments` (List[VideoSegment]): A list of VideoSegment objects.
+                    *   `segments` (List[VideoSegment]): A list of `VideoSegment` objects.
 
                     *   `user_api_key` (str): The user's API key (Gemini or "ollama1064").
 
@@ -324,7 +324,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
                 *   This method generates questions for each segment using the AI service.
 
-                *   **Output:** `List[Question]`: A list of Question objects, representing the generated questions.
+                *   **Output:** `List[Question]`: A list of `Question` objects, representing the generated questions.
 
             *   **`generate_questions_from_prompt(text: str, user_api_key: str, n_questions: int, q_model: str) -> str`:**
 
@@ -435,7 +435,7 @@ The application allows users to submit YouTube videos or playlists, automaticall
             *   **Inputs:**
                 *   `vector_store_manager` (VectorStoreManager): The vector store manager used to access the FAISS index.
                 *   `model` (ChatGoogleGenerativeAI): The Large Language Model (LLM) used for generating responses (currently ChatGoogleGenerativeAI).
-            *   **`setup_chain(store: FAISS)`:** Sets up the Langchain retrieval chain using the provided vector store. Configures the retriever with similarity search, using k=2 (the number of documents to retrieve). Sets up `stuff_documents_chain` using the LLM and Prompt.
+        *   **`setup_chain(store: FAISS)`:** Sets up the Langchain retrieval chain using the provided vector store. Configures the retriever with similarity search, using k=2 (the number of documents to retrieve). Sets up `stuff_documents_chain` using the LLM and Prompt.
             *   **Input:** `store` (FAISS) - Vector store to be used.
             *   **Output:** Retrieval chain.
         *   **`query(question: str) -> Dict`:** Processes a user query, retrieves relevant documents from the vector store, and generates a response using the LLM.
@@ -499,74 +499,95 @@ The application allows users to submit YouTube videos or playlists, automaticall
 
 The application relies on the following environment variables, which should be defined in the `.env` file:
 
-*   **`LMS_GET_URL`:** The URL of the LMS API endpoint for retrieving course, module, and section data. This is used by the frontend to populate the dropdown menus.
-*   **`VIDEO_UPLOAD_URL`:** The URL of the LMS API endpoint for uploading video segments.
-*   **`ASSESSMENT_UPLOAD_URL`:** The URL of the LMS API endpoint for uploading assessment data.
-*   **`QUESTIONS_UPLOAD_URL`:** The URL of the LMS API endpoint for uploading questions.
-*   **`API_KEY`:** The Gemini API key used by the backend to authenticate with the Gemini AI service *and* to initialize the `ChatGoogleGenerativeAI` model used for answering student doubts in the RAG system.
-*   **`OLLAMA_API_URL`:** The URL of the Ollama API endpoint.
-*   **`FFMPEG_PATH`:** The path to the `ffmpeg` executable. This is required for converting audio files.
-*   **`Authorization`:** Authorization token to authenticate the requests sent to the LMS.
+*   `LMS_GET_URL`: The URL of the LMS API endpoint for retrieving course, module, and section data. This is used by the frontend to populate the dropdown menus.
+*   `VIDEO_UPLOAD_URL`: The URL of the LMS API endpoint for uploading video segments.
+*   `ASSESSMENT_UPLOAD_URL`: The URL of the LMS API endpoint for uploading assessment data.
+*   `QUESTIONS_UPLOAD_URL`: The URL of the LMS API endpoint for uploading questions.
+*   `API_KEY`: The Gemini API key used by the backend to authenticate with the Gemini AI service (used both for question generation and RAG model).
+*   `OLLAMA_API_URL`: The URL of the Ollama API endpoint.
+*   `FFMPEG_PATH`: The path to the `ffmpeg` executable. This is required for converting audio files.
+*   `Authorization`: Authorization token to authenticate the requests sent to the LMS.
 
 ## 5. Data Flow
 
-1.  User provides the input video URL, the course->module->section hierarchy from LMS engine and the default configurations in the frontend.
+1.  User provides the input video URL, the course->module->section hierarchy from LMS engine and the default configurations.
 2.  Frontend makes a POST request to `/questions/get_urls` if the user inputs a playlist URL, to get a list of video URLs to process.
 3.  Frontend receives a list of video URLs.
 4.  For each video URL, the video information (especially the number of segments, questions per segment and segment-wise question type requirements) is customized in the frontend and saved in a dictionary.
-5.  The Frontend makes batches of the list of video URLs (total segments <=15 in each).
+5.  The Frontend makes batches of the list of video URLs (total segments <=15 in each)
 6.  For each batch, make a POST request to `/questions/process_video` endpoint to process the video information, and sends the video URL, user API key, timestamps, segment_wise_q_no, segment_wise_q_model.
 7.  The `process_process_video` function in `app/services.py` receives the request.
 8.  The `process_process_video` function chooses the service to use (GeminiService or OllamaService) based on the api key received.
 9.  A `VideoProcessor` is created using that service.
-10. `VideoProcessor.process_video` is called and the LLM magic starts for Question Generation.
-11. The `VideoProcessor` extracts the transcript, splits it into segments, generates questions, and also uploads the full transcript to the RAG system (described in Section 3.3).
-12. The backend processes the video, and creates a list of segments, questions, video details, and the `VideoResponse` is returned.
-13. The frontend receives the `VideoResponse`, shows the video boxes, and on each video box click, the video details, segment boxes, segment details form, and question boxes are rendered.
-14. All data is now displayed in editable format to the user.
-15. The `saveVideoEdits` function saves these modifications to a new array called `modifiedResponseData`, which is a deep copy of `responseData`.
-16. A `showVideoOutput` function retrieves existing data from IndexedDB and shows it, otherwise it shows `modifiedResponseData`.
-17. The modified data is uploaded to the LMS via POST requests.
-18. The RAG system (described in Section 3.3) is now ready to answer student doubts related to the uploaded video content. Students can submit queries, and the RAG system will retrieve relevant documents and generate responses using the LLM.
+10. `VideoProcessor.process_video` is called and the LLM magic starts; video processing, segment generation, question generation, and finally RAG full text upload for the current video.
+11. The backend processes the video, and creates a list of segments, question, video details, and the `VideoResponse` is returned.
+12. The frontend receives the `VideoResponse`, shows the video boxes, and on each video box click, the video details, segment boxes, segment details form, and question boxes are rendered.
+13. All data is now displayed in editable format to the user.
+14. The `saveVideoEdits` function saves these modifications to a new array called `modifiedResponseData`, which is a deep copy of `responseData`.
+15. A `showVideoOutput` function retrieves existing data from IndexedDB and shows it, otherwise it shows `modifiedResponseData`.
+16. The modified data is uploaded to the LMS via POST requests.
 
 ## 6. Error Handling
 
 *   **Frontend:**
-
     *   Displays error messages to the user using the `<div class="error-message">` element.
     *   Handles network errors and API errors.
     *   IndexedDB is used to store video, assessment, and question data locally, providing a backup in case of upload failures.
 *   **Backend:**
-
     *   Uses FastAPI's exception handling mechanisms to return appropriate HTTP error codes and error messages to the frontend.
-    *   Catches exceptions during video processing, question generation, and API calls.
+    *   Catches exceptions during video processing, question generation, RAG and API calls.
     *   Logs errors to the console.
     *   The `parse_llama_json` function handles potential errors during JSON parsing.
 
-## 7. Deployment
+## 7. Important Points To Note:
 
-*   The application can be deployed to any platform that supports Python and FastAPI.
-*   Ensure that the environment variables are configured correctly.
-*   Install the required dependencies using `pip install -r requirements.txt`.
-*   Run the application using `uvicorn app.main:app --reload`.
+*   The Gemini model being used as of now, Gemini 1.5 Flash, allows 15 API requests per minute. Therefore each batch of videos contains 15 segments; with a 90 second sleep time (to be sure there's no crash) between batches. This can be modified accordingly, especially because when using local Ollama models the sleep time will not be required.
+*   Gemini's latest model Gemini 2.0 Flash allows 10 API requests per minute; so if that is used, modify the number of segments per batch.
+*   Timestamps: The start time of each segment is taken as input from the front end, in hr,min,sec format. First segment's timestamp is by default 0 hr, 0 min, 0 sec (non-editable).
+*   When youtube transcripts are unavailable (due to no subtitles/wrong language subtitles), the audio processing for transcription requires FFMPEG, which needs local configuration. To match the current code, the ffmpeg root folder (that contains the bin folder which has the ffmpeg executable) needs to named "ffmpeg" and placed directly in the C drive (for windows).
+*   Keep an eye on the env variables (Gemini API Key, FFMPEG Path, URLs, Access Token).
 
-## 8. Maintenance and Troubleshooting
+## 8. Installing and running the application
 
-*   **Logging:** Implement detailed logging throughout the application to track the flow of execution and identify potential issues.
-*   **Monitoring:** Monitor the application's performance and resource usage.
-*   **Error Handling:** Implement robust error handling and reporting to catch and address issues quickly.
-*   **Testing:** Write unit tests and integration tests to ensure the application's functionality and stability.
-*   **Dependency Management:** Keep the application's dependencies up-to-date.
+1. Clone the repository and switch to the directory "ai_engine":
+   ```bash
+   git clone https://github.com/sudarshansudarshan/cal.git
+   cd cal/backend/ai_engine
+   ```
+2. Create a virtual environment and activate it.
+   ```bash
+   python -m venv venv
+   .\venv\Scripts\activate
+   ```
 
-## 9. Potential Improvements and Future Enhancements
+3. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-*   **Improved Error Handling:** Implement more granular error handling and provide more informative error messages to the user.
-*   **Enhanced AI Model Selection:** Allow the user to configure more AI model parameters, such as temperature and top-p.
-*   **Real-Time Progress Updates:** Provide real-time progress updates to the user during video processing and question generation.
-*   **Question Difficulty Levels:** Implement a mechanism for generating questions with varying difficulty levels.
-*   **User Authentication and Authorization:** Add user authentication and authorization to protect the API endpoints.
-*   **Database Integration:** Integrate with a database to store video, segment, and question data.
-*   **GUI Library for Prompt Engineering:** Allow for quick modification of prompt templates in the `app/question_generation/prompts.py` file from the frontend.
-*   **Improve RAG performance:** Experiment with different chunking strategies, embedding models, and retrieval algorithms to improve the accuracy and speed of the RAG system. Consider adding filters to the RAG query to provide only the information for particular segments.
+4. Start the application:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+   ```
 
-This documentation provides a comprehensive overview of the LLM Backend API, encompassing both question generation and AI-powered student support using RAG. By understanding the architecture, code structure, data flow, and key components, developers can effectively maintain, troubleshoot, and enhance the application's functionality.
+5. The application can be accessed at "127.0.0.1:8000/".
+
+Note for developers:
+Use the following commands before restarting the application after changes:
+   ```bash
+   Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+   Get-Process | Where-Object { $_.Name -like "*python*" } | Stop-Process -Force
+   ```
+
+## 10. Potential Improvements and Future Enhancements
+
+*   **Question Generation Backend:**
+    * If the no. of requests made to Gemini could be reduced in some way (for example, 1 request per video instead of 1 request per segment), it would be way more efficient.
+    * Allow instructors to provide customized prompts, and append it with our own pre-written prompt.
+    * More variations of question types.
+*   **Question Generation Frontend:**
+    *   When the video information is fetched after giving the url, automatically set the current video (selected box) to video 1.
+*   **RAG:**
+    *   Store history and allow follow up questions (one possible implementation: Store the chat history on the client's side with a window of last 7-10 prompts and responses, and send it to the LLM in the next prompt.)
+
+This documentation provides a comprehensive overview of the LLM Backend API, encompassing both question generation and AI-powered doubt support using RAG. By understanding the architecture, code structure, data flow, and key components, developers can effectively maintain, troubleshoot, and enhance the application's functionality. This should enable the smooth transfer of the application to its new maintainer and set the stage for future improvements.
