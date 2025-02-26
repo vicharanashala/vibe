@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import * as faceDetection from "@tensorflow-models/face-detection";
 
 const MAX_IMAGES = 5; // Limit the number of stored images
 
@@ -7,6 +8,7 @@ const FaceDetectors: React.FC = () => {
   const [imageSrcs, setImageSrcs] = useState<string[]>([]); // Store Blob URLs
   const [imageBitmaps, setImageBitmaps] = useState<ImageBitmap[]>([]); // Store ImageBitmap for ML
   const [modelReady, setModelReady] = useState(false);
+  const [faces, setFaces] = useState<faceDetection.Face[]>([]);
   const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
@@ -20,6 +22,7 @@ const FaceDetectors: React.FC = () => {
           setModelReady(true);
         } else if (event.data.type === "DETECTION_RESULT") {
           console.log("Face Detection Result:", event.data.faces);
+          setFaces(event.data.faces);
         } else if (event.data.type === "ERROR") {
           console.error("Worker Error:", event.data.message);
         }
@@ -111,7 +114,10 @@ const FaceDetectors: React.FC = () => {
             Face Detector with Worker
           </h1>
           {modelReady ? (
-            <p className="text-green-600 text-center">Model is ready!</p>
+            <>
+              <p className="text-green-600 text-center">Model is ready!</p>
+              <p className="text-center">Number of faces detected: {faces.length}</p>
+            </>
           ) : (
             <p className="text-red-600 text-center">Loading model...</p>
           )}

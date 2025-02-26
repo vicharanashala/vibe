@@ -29,7 +29,7 @@ async function detectFaces(imageBitmap: ImageBitmap) {
   }
 
   ctx.drawImage(imageBitmap, 0, 0);
-  const faces = await detector.estimateFaces(canvas as unknown as HTMLCanvasElement);
+  const faces: faceDetection.Face[] = await detector.estimateFaces(canvas as unknown as HTMLCanvasElement);
 
   self.postMessage({ type: "DETECTION_RESULT", faces });
 }
