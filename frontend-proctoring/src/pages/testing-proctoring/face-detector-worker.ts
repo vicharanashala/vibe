@@ -9,7 +9,7 @@ async function initializeModel() {
   await tf.setBackend("webgl"); 
   await tf.ready();
   const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
-  const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = { runtime: "tfjs" }; // TensorFlow.js backend
+  const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = { runtime: "tfjs", maxFaces: 10 }; // TensorFlow.js backend
   detector = await faceDetection.createDetector(model, detectorConfig);
   self.postMessage({ type: "MODEL_READY" });
 }
