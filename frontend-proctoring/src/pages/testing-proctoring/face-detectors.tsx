@@ -6,13 +6,36 @@ const FaceDetectors: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [imageSrcs, setImageSrcs] = useState<string[]>([]); // Store Blob URLs
   const [imageBitmaps, setImageBitmaps] = useState<ImageBitmap[]>([]); // Store ImageBitmap for ML
+  const [modelReady, setModelReady] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
+
+    const initWorker = async () => {
+      if (workerRef.current == null){
+        workerRef.current = new Worker(new URL("./face-detector-worker.ts", import.meta.url), {type: "module"});
+        // Listen for messages from the worker
+        workerRef.current.onmessage = (event) => {
+        if (event.data.type === "MODEL_READY") {
+          setModelReady(true);
+        } else if (event.data.type === "DETECTION_RESULT") {
+          console.log("Face Detection Result:", event.data.faces);
+        } else if (event.data.type === "ERROR") {
+          console.error("Worker Error:", event.data.message);
+        }
+      };
+      };
+      // Send initialization message to worker
+      workerRef.current.postMessage({ type: "INIT" });
+    };
+
+    initWorker();
+
     const enableWebcam = async () => {
       if (!navigator.mediaDevices?.getUserMedia || !videoRef.current) return;
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { frameRate: { ideal: 3 } }, // Set frame rate to 3 FPS
+        video: { frameRate: { max: 30 } }, // Set frame rate to 3 FPS
       });
 
       videoRef.current.srcObject = stream;
@@ -36,7 +59,7 @@ const FaceDetectors: React.FC = () => {
       // ✅ 1. Convert to ImageBitmap (for ML processing)
       const imageBitmap = await createImageBitmap(canvas);
       setImageBitmaps((prev) => [imageBitmap, ...prev.slice(0, MAX_IMAGES - 1)]);
-      
+
       // ✅ 2. Convert to Blob (for displaying in <img>)
       canvas.toBlob((blob) => {
         if (!blob) return;
@@ -48,16 +71,25 @@ const FaceDetectors: React.FC = () => {
       processMLAnalysis(imageBitmap);
     };
 
-    const intervalId = setInterval(captureFrame, 1000 / 3); // Capture at 3 FPS
+    const intervalId = setInterval(captureFrame, 1000); // Capture at 3 FPS
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    }
   }, []);
 
   // Placeholder ML analysis function
-  const processMLAnalysis = (image: ImageBitmap) => {
-    console.log("Processing image for ML analysis:", image);
-    // Your ML model can now use ImageBitmap efficiently
-  };
+  const processMLAnalysis = async (image: ImageBitmap) => {
+    if (!workerRef.current) return;
+    
+    try {
+      // ✅ Send image to worker for face detection
+      workerRef.current.postMessage({ type: "DETECT", image }, [image]);
+    } catch (error) {
+      console.error("Error processing image:", error);
+    }
+
+    };
 
   return (
     <div className="container mx-auto p-4">
@@ -73,6 +105,16 @@ const FaceDetectors: React.FC = () => {
               className="w-32 h-32 object-cover rounded-lg shadow-md border"
             />
           ))}
+        </div>
+        <div className="container mx-auto p-4">
+          <h1 className="text-xl font-bold text-center mb-4">
+            Face Detector with Worker
+          </h1>
+          {modelReady ? (
+            <p className="text-green-600 text-center">Model is ready!</p>
+          ) : (
+            <p className="text-red-600 text-center">Loading model...</p>
+          )}
         </div>
       </div>
     </div>
