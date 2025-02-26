@@ -38,7 +38,7 @@ async function detectFaces(imageBitmap: ImageBitmap) {
 self.onmessage = async (event) => {
   if (event.data.type === "INIT") {
     await initializeModel();
-  } else if (event.data.type === "DETECT" && event.data.image) {
+  } else if (event.data.type === "DETECT_FACES" && event.data.image) {
     await detectFaces(event.data.image);
   }
 };
