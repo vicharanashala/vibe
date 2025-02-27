@@ -38,7 +38,7 @@ const useCameraProcessor = (frameRate = 3) => {
         if (event.data.type === "MODEL_READY") {
           setModelReady(true);
         } else if (event.data.type === "DETECTION_RESULT") {
-          console.log("Face Detection Result:", event.data.faces);
+        //   console.log("Face Detection Result:", event.data.faces);
           setFaces(event.data.faces);
         } else if (event.data.type === "ERROR") {
           console.error("Worker Error:", event.data.message);
