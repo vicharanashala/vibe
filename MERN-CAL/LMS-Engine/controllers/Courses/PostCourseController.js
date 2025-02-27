@@ -1,9 +1,14 @@
 const Course = require('../../models/Course/CourseSchema');
+const User = require('../../models/User/UserSchema');
 
 exports.postCourseController = async (req, res) => {
   try {
+    const { firebase_id } = req.user;
+    const user = await User.findOne({ firebaseUid: firebase_id });
     // Destructure the expected fields from the request body
-    const { title, description, institute, instructor, startDate, endDate, modules } = req.body;
+    const institute = user.institute;
+    const instructor = user._id;
+    const { title, description, startDate, endDate, modules } = req.body;
 
     // Create a new Course instance with the provided data
     const course = new Course({

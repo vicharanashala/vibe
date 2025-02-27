@@ -1,22 +1,8 @@
-// Import React and Lucide icons
 import * as React from 'react'
-import {
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  LifeBuoy,
-  Map,
-  PieChart,
-  Send,
-  Settings2,
-  SquareTerminal,
-} from 'lucide-react'
+import { BookOpen, Bot, Command, SquareTerminal } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-// Import custom navigation and UI components
 import { NavMain } from '@/components/nav-main'
-import { NavProjects } from '@/components/nav-projects'
-import { NavSecondary } from '@/components/nav-secondary'
 import { NavUser } from '@/components/nav-user'
 import {
   Sidebar,
@@ -27,165 +13,107 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { url } from 'inspector'
 
-// Mock data for sidebar content including user info, navigation items and projects
-const data = {
-  // User profile information
-  user: {
-    name: 'shadcn',
-    email: 'm@example.com',
-    avatar: '/avatars/shadcn.jpg',
-  },
-  // Main navigation items with nested subitems
-  navMain: [
-    {
-      title: 'Playground',
-      url: '#',
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        {
-          title: 'History',
-          url: '#',
-        },
-        {
-          title: 'Starred',
-          url: '#',
-        },
-        {
-          title: 'Settings',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Models',
-      url: '#',
-      icon: Bot,
-      items: [
-        {
-          title: 'Genesis',
-          url: '#',
-        },
-        {
-          title: 'Explorer',
-          url: '#',
-        },
-        {
-          title: 'Quantum',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Documentation',
-      url: '#',
-      icon: BookOpen,
-      items: [
-        {
-          title: 'Introduction',
-          url: '#',
-        },
-        {
-          title: 'Get Started',
-          url: '#',
-        },
-        {
-          title: 'Tutorials',
-          url: '#',
-        },
-        {
-          title: 'Changelog',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Settings',
-      url: '#',
-      icon: Settings2,
-      items: [
-        {
-          title: 'General',
-          url: '#',
-        },
-        {
-          title: 'Team',
-          url: '#',
-        },
-        {
-          title: 'Billing',
-          url: '#',
-        },
-        {
-          title: 'Limits',
-          url: '#',
-        },
-      ],
-    },
-  ],
-  // Secondary navigation items (bottom section)
-  navSecondary: [
-    {
-      title: 'Support',
-      url: '#',
-      icon: LifeBuoy,
-    },
-    {
-      title: 'Feedback',
-      url: '#',
-      icon: Send,
-    },
-  ],
-  // Project list with icons
-  projects: [
-    {
-      name: 'Design Engineering',
-      url: '#',
-      icon: Frame,
-    },
-    {
-      name: 'Sales & Marketing',
-      url: '#',
-      icon: PieChart,
-    },
-    {
-      name: 'Travel',
-      url: '#',
-      icon: Map,
-    },
-  ],
-}
+export function AppSidebar({ ...props }) {
+  const navigate = useNavigate()
 
-// Main AppSidebar component that renders the entire sidebar structure
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const handleNavigate = (path) => {
+    console.log('Attempting to navigate to:', path)
+    navigate(path)
+  }
+
+  const data = {
+    user: {
+      name: 'Admin',
+      email: 'm@example.com',
+      avatar: '/avatars/shadcn.jpg',
+    },
+    navMain: [
+      {
+        title: 'Create Content',
+        icon: SquareTerminal,
+        isActive: true,
+        items: [
+          {
+            title: 'Create Course',
+            url: '/admin/create-course',
+            onClick: () => handleNavigate('/admin/create-course'),
+          },
+          {
+            title: 'Create Module',
+            url: '/admin/create-module',
+            onClick: () => handleNavigate('/admin/create-module'),
+          },
+          {
+            title: 'Create Section',
+            url: '/admin/create-section',
+            onClick: () => handleNavigate('/admin/create-section'),
+          },
+          {
+            title: 'Upload Bulk Items',
+            url: '/admin/bulkQuestionUpload',
+            onClick: () => handleNavigate('/admin/bulk-question-upload'),
+          },
+        ],
+      },
+      {
+        title: 'Enroll Students',
+        icon: Bot,
+        items: [
+          {
+            title: 'By Email',
+            onClick: () => handleNavigate('/admin/enroll-by-email'),
+          },
+          {
+            title: 'By Department',
+            onClick: () => handleNavigate('/admin/enroll-by-department'),
+          },
+          {
+            title: 'By Program',
+            onClick: () => handleNavigate('/admin/enroll-by-program'),
+          },
+        ],
+      },
+      {
+        title: 'Bulk Signup Students',
+        icon: BookOpen,
+        items: [
+          {
+            title: 'One by One',
+            onClick: () => handleNavigate('/admin/signup-one-by-one'),
+          },
+          {
+            title: 'By Json File',
+            onClick: () => handleNavigate('/admin/signup-by-json'),
+          },
+        ],
+      },
+    ],
+  }
+
   return (
     <Sidebar variant='inset' {...props}>
-      {/* Header section with company logo/name */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size='lg' asChild>
-              <button className='flex flex-col items-start text-left'>
+              <a href='#' onClick={() => handleNavigate('/admin')}>
                 <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
                   <Command className='size-4' />
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-semibold'>Acme Inc</span>
+                  <span className='truncate font-semibold'>Admin Panel</span>
                   <span className='truncate text-xs'>Enterprise</span>
                 </div>
-              </button>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      {/* Main content section with navigation and projects */}
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
-        <NavSecondary items={data.navSecondary} className='mt-auto' />
       </SidebarContent>
-      {/* Footer section with user profile */}
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>

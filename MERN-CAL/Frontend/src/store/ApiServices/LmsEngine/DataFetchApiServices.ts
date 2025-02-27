@@ -85,7 +85,7 @@ export const apiService = createApi({
     // Section management endpoints
     fetchSectionsWithAuth: builder.query<
       { sections: { id: number; title: string; content: string }[] },
-      { courseId: number; moduleId: number }
+      { moduleId: string }
     >({
       query: ({ moduleId }) => ({
         url: `/sections/section/?module_id=${moduleId}`,

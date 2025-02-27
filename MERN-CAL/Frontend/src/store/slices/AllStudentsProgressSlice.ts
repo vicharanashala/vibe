@@ -2,6 +2,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { anotherApiService } from '../apiService' // Adjust the path as necessary
 import axios from 'axios'
+import { ACTIVITY_URL } from '../../../constant'
 
 // Asynchronous thunk for fetching all students' progress
 export const fetchAllStudentsProgress = createAsyncThunk(
@@ -9,7 +10,7 @@ export const fetchAllStudentsProgress = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'https://asia-south2-vicharanashala-calm.cloudfunctions.net/calm-ae-production/all-students-progress'
+        `${ACTIVITY_URL}/all-students-progress`
       )
       console.log('API response:', response.data)
       return response.data

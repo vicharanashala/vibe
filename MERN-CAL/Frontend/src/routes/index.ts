@@ -11,6 +11,12 @@ import AiEngine from '@/pages/Admin/AiEngine'
 import Analytics from '@/pages/Students/Analytics'
 import ContentScrollView2 from '@/pages/Students/ContentScrollView2'
 import QuestionCreationDashboard from '@/pages/QuestionsCreation/QuestionCreationDashboard'
+import BlukQuestionUpload from '@/pages/Admin/BlukQuestionUpload'
+import AdminDashboard from '@/pages/Admin/AdminDashboard'
+import Dashboard from '@/pages/Admin/Dashboard'
+import CreateCourse from '@/pages/Admin/ContentCreation/CreateCourse'
+import CreateModule from '@/pages/Admin/ContentCreation/CreateModule'
+import CreateSection from '@/pages/Admin/ContentCreation/CreateSection'
 
 const router = createBrowserRouter([
   {
@@ -58,8 +64,34 @@ const router = createBrowserRouter([
       },
       {
         path: '/admin',
-        element: React.createElement(AiEngine),
-      },
+        element: React.createElement(AdminDashboard),
+        children: [
+          {
+            path: '',
+            element: React.createElement(Dashboard),
+          },
+          {
+            path: 'aiEngine',
+            element: React.createElement(AiEngine),
+          },
+          {
+            path: 'bulkQuestionUpload',
+            element: React.createElement(BlukQuestionUpload),
+          },
+          {
+            path: 'create-course',
+            element: React.createElement(CreateCourse),
+          },
+          {
+            path: 'create-module',
+            element: React.createElement(CreateModule),
+          },
+          {
+            path: 'create-section',
+            element: React.createElement(CreateSection),
+          },
+        ]
+      }
     ],
   },
 ])

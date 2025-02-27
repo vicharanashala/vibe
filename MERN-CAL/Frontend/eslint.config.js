@@ -21,7 +21,11 @@ export default [
         ...globals.browser,
         YT: 'readonly'  // Adding YT as a global variable
       },
-
+    },
+    env: {
+      browser: true, // or false if it's a Node-only project
+      node: true,   // This line tells ESLint to include Node.js global variables
+      es2021: true,
     },
     plugins: {
       react,

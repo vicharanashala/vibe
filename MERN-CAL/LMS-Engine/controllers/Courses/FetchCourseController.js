@@ -3,10 +3,9 @@ const Course = require('../../models/Course/CourseSchema');
 
 exports.fetchCourseController = async (req, res) => {
     try {
-        // const firebaseId = req.headers.firebaseid;
-        const firebaseId = "91470c73-4e1e-4dfe-b4ec-d6123cd1892f";
-        // Find the user by firebase UID
-        const user = await User.findOne({ firebaseUid: firebaseId });
+        
+        const { firebase_id } = req.user;
+        const user = await User.findOne({ firebaseUid: firebase_id });
         if (!user) {
             return res.status(404).json({ message: "User not found." });
         }
@@ -15,9 +14,16 @@ exports.fetchCourseController = async (req, res) => {
         const { coursesEnrolled } = user;
 
         // Fetch all the courses in which the user is enrolled
-        const courses = await Course.find({
-            '_id': { $in: coursesEnrolled }
-        });
+        let courses;
+
+        if (user.role === 'instructor') {
+            courses = await Course.find(); // Fetch all courses for instructors
+        } else {
+            courses = await Course.find({
+                '_id': { $in: coursesEnrolled }
+            });
+        }
+        
 
         // If courses array is empty, return a message indicating no courses found
         if (!courses.length) {

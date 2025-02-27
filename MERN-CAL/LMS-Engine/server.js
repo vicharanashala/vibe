@@ -28,8 +28,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Apply Firebase authentication middleware to all API routes
-// app.use('/api', authenticateFirebaseUser, router);
-app.use('/api', router);
+app.use('/api', authenticateFirebaseUser, router);
+// app.use('/api', router);
 
 // Database connection
 mongoose.connect(process.env.MONGO_URI, {

@@ -1,32 +1,109 @@
 /**
- * Content Scroll View Page
+ * @file ContentScrollView2.tsx
+ * @description This component handles the rendering and control of various content types (Video, Article, Assessment) within a scrollable view. It integrates YouTube video player functionalities, assessment handling, and state management for user interactions.
  *
- * This page implements a video player interface with assessment capabilities for students.
- * It allows students to watch educational videos and take assessments in an integrated learning experience.
+ * @component
+ * @example
+ * <ContentScrollView2 />
  *
- * Key Features:
- * - Video playback with custom controls (play/pause, volume, speed, fullscreen)
- * - Assessment integration with multiple choice questions
- * - Progress tracking and navigation between content frames
- * - Proctoring features like keyboard lock and right-click disable
- * - Responsive layout with resizable panels
+ * @returns {JSX.Element} The rendered component.
  *
- * The page handles:
- * - YouTube video embedding and control
- * - Assessment state management and submission
- * - Navigation between different content types (video, article, assessment)
- * - User interaction tracking and validation
+ * @remarks
+ * This component uses several hooks and state variables to manage the content display and user interactions. It includes functionalities for:
+ * - Initializing and controlling a YouTube video player.
+ * - Handling assessments with questions and options.
+ * - Managing playback controls such as play/pause, volume, playback speed, and fullscreen mode.
+ * - Displaying progress and handling navigation between different content frames.
+ *
+ * @requires useRefresh
+ * @requires useLocation
+ * @requires useState
+ * @requires useRef
+ * @requires useSidebar
+ * @requires useEffect
+ * @requires useNavigate
+ * @requires useStartAssessmentMutation
+ * @requires useSubmitAssessmentMutation
+ * @requires useUpdateSectionItemProgressMutation
+ * @requires useFetchItemsWithAuthQuery
+ * @requires useFetchQuestionsWithAuthQuery
+ *
+ * @todo
+ * - Implement additional error handling and user feedback mechanisms.
+ * - Optimize performance for large content sets.
+ * - Add more customization options for video player controls.
+ *
+ * @see {@link https://developers.google.com/youtube/iframe_api_reference} for YouTube IFrame API reference.
+ *
+ * @typedef {Object} Frame
+ * @property {string} item_type - The type of content (Video, Article, Assessment).
+ * @property {string} source - The source URL of the content.
+ * @property {number} start_time - The start time for video content.
+ * @property {number} end_time - The end time for video content.
+ * @property {string} title - The title of the content.
+ * @property {string} content - The content text (for articles).
+ * @property {number} id - The unique identifier for the content item.
+ *
+ * @typedef {Object} Question
+ * @property {number} id - The unique identifier for the question.
+ * @property {string} text - The question text.
+ * @property {string[]} options - The list of answer options.
+ * @property {string} hint - A hint for the question.
+ *
+ * @typedef {Object} PlayerReadyEvent
+ * @property {YT.Player} target - The YouTube player instance.
+ *
+ * @typedef {Object} PlayerStateChangeEvent
+ * @property {number} data - The state change data.
+ * @property {YT.Player} target - The YouTube player instance.
+ *
+ * @typedef {Object} HandleTimeChangeProps
+ * @property {number[]} value - The new time value.
+ *
+ * @typedef {Object} HandleQualityChangeProps
+ * @property {'small' | 'medium' | 'large' | 'hd1080' | 'default'} quality - The selected video quality.
+ *
+ * @typedef {Object} ChangePlaybackSpeedProps
+ * @property {number} speed - The new playback speed.
+ *
+ * @typedef {Object} RenderAssessmentProps
+ * @property {Question} question - The question to render.
+ *
+ * @typedef {Object} GetYouTubeVideoIdProps
+ * @property {string} url - The YouTube video URL.
+ *
+ * @typedef {Object} CustomHTMLElement
+ * @property {() => Promise<void>} [webkitRequestFullscreen] - Vendor-prefixed method for fullscreen.
+ * @property {() => Promise<void>} [mozRequestFullScreen] - Vendor-prefixed method for fullscreen.
+ * @property {() => Promise<void>} [msRequestFullscreen] - Vendor-prefixed method for fullscreen.
+ *
+ * @typedef {Object} CustomDocument
+ * @property {() => Promise<void>} [webkitExitFullscreen] - Vendor-prefixed method to exit fullscreen.
+ * @property {() => Promise<void>} [mozCancelFullScreen] - Vendor-prefixed method to exit fullscreen.
+ * @property {() => Promise<void>} [msExitFullscreen] - Vendor-prefixed method to exit fullscreen.
+ *
+ * @BIG COMMENT HERE: VIDEO PLAYER CONTROLLERS FUNCTIONS
  */
 
-import { useEffect, useState, useRef, useMemo } from 'react'
-
-// Extend the Window interface to include onYouTubeIframeAPIReady
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void
   }
 }
 
+/**
+ *
+ *
+ *
+ * -------------------------------------------------------------------------------------------------------
+ * Required Imports
+ * -------------------------------------------------------------------------------------------------------
+ *
+ *
+ *
+ */
+
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { ScrollArea } from '@radix-ui/react-scroll-area'
 import { useSidebar } from '@/components/ui/sidebar'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -37,15 +114,10 @@ import {
 } from '@/components/ui/resizable'
 import { Fullscreen, Pause, Play } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
-
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-
-// These are the proctoring components comming form proctoring components folder which ensures the keyboard is disabled for this page as well as right rightclick is also disabled
 import KeyboardLock from '@/components/proctoring-components/KeyboardLock'
 import RightClickDisabler from '@/components/proctoring-components/RightClickDisable'
-
-//These are the imports comming from redux using RTK for fetching and posting the data to the backend
 import { useFetchItemsWithAuthQuery } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
 import {
   useStartAssessmentMutation,
@@ -53,7 +125,6 @@ import {
 } from '@/store/ApiServices/ActivityEngine/GradingApiServices'
 import { useUpdateSectionItemProgressMutation } from '@/store/ApiServices/ActivityEngine/UpdatingApiServices'
 import { useFetchQuestionsWithAuthQuery } from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
-
 import Cookies from 'js-cookie'
 // import { useDispatch } from 'react-redux'
 // import {
@@ -74,39 +145,33 @@ import {
 import { AddQuestion } from '@/components/AddQuestion'
 
 const ContentScrollView2 = () => {
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Required Hooks and Variables
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
+
   const { triggerRefresh } = useRefresh()
   const location = useLocation()
   const [responseData, setResponseData] = useState<string | null>(null)
   const playerIntervalRef = useRef<number | null>(null)
   const playerRef = useRef<YT.Player | null>(null)
-
-  // This is the data which is stored in the local State when the user goes from one page to another using routing
   const assignment = location.state?.assignment || {}
   const sectionId = location.state?.sectionId
   const courseId = location.state?.courseId
-
-  //   const dispatch = useDispatch()
-
-  // This ensures that the sidebar is open or not
-  const { setOpen } = useSidebar() // Access setOpen to control the sidebar state
-  const hasSetOpen = useRef(false) // Ref to track if setOpen has been called
-
-  useEffect(() => {
-    if (!hasSetOpen.current) {
-      setOpen(true) // Set the sidebar to closed by default
-      hasSetOpen.current = true // Mark as called
-    }
-  }, [setOpen])
-
-  // Initialize currentFrame with a default value if assignment.sequence is undefined
+  const { setOpen } = useSidebar()
+  const hasSetOpen = useRef(false)
   const [currentFrame, setCurrentFrame] = useState(
     assignment?.sequence ? assignment.sequence - 1 : 0
   )
   const [isPlaying, setIsPlaying] = useState(false)
-
   const navigate = useNavigate()
-
-  // Assessment State Management
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   //   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [selectedOption, setSelectedOption] = useState<string[]>([])
@@ -122,8 +187,6 @@ const ContentScrollView2 = () => {
   const [ytApiReady, setYtApiReady] = useState(false)
   const [videoQuality, setVideoQuality] =
     useState<keyof typeof qualityLabels>('large')
-
-  //Responsible for fetching Items using RTK Query
   const { data: assignmentsData } = useFetchItemsWithAuthQuery(sectionId)
   const content = useMemo(() => {
     return (assignmentsData || []) as {
@@ -136,6 +199,25 @@ const ContentScrollView2 = () => {
       id: number
     }[]
   }, [assignmentsData])
+
+  useEffect(() => {
+    if (!hasSetOpen.current) {
+      setOpen(true)
+      hasSetOpen.current = true
+    }
+  }, [setOpen])
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Assessment Countdown Funtionality
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   const [countdown, setCountdown] = useState(30000) // 30 seconds countdown
 
@@ -175,6 +257,18 @@ const ContentScrollView2 = () => {
     hd1080: 'HD 1080p',
     default: 'Auto',
   }
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Player Initialization
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   // UseEffect to create player for each frame and to close the sidebar
   useEffect(() => {
@@ -249,6 +343,18 @@ const ContentScrollView2 = () => {
     setPlaybackSpeed(1) // Reset the playback speed to 1x when changing frames
   }, [ytApiReady, currentFrame, content])
 
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Initializing assessment functions
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
+
   const [assessmentId, setAssessmentId] = useState(
     content[currentFrame + 1]?.id
   )
@@ -288,6 +394,18 @@ const ContentScrollView2 = () => {
     }
   }
 
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Initializing video player functions
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
+
   // When player Get ready this fucntion is called to make things happen in player
   interface PlayerReadyEvent {
     target: YT.Player
@@ -320,74 +438,6 @@ const ContentScrollView2 = () => {
       }
     }, 1000)
   }
-
-  // This funtion is used to change the current time using slider of youtube video progress bar
-  interface HandleTimeChangeProps {
-    value: number[]
-  }
-
-  const handleTimeChange = ({ value }: HandleTimeChangeProps) => {
-    if (!isPlayerReady) return
-    const newTime = value[0]
-    setCurrentTime(newTime)
-    if (playerRef.current) {
-      playerRef.current.seekTo(newTime, true)
-    }
-  }
-
-  // Funtion responsible in changing the volume of the video
-  const handleVolumeChange = (value: number[]) => {
-    if (!isPlayerReady) return
-    setVolume(value[0])
-    playerRef.current?.setVolume(value[0])
-  }
-
-  interface HandleQualityChangeProps {
-    quality: 'small' | 'medium' | 'large' | 'hd1080' | 'default'
-  }
-
-  const handleQualityChange = ({ quality }: HandleQualityChangeProps) => {
-    setVideoQuality(quality)
-    if (playerRef.current) {
-      playerRef.current.setPlaybackQuality(quality as YT.SuggestedVideoQuality)
-    }
-  }
-
-  const [captionsEnabled, setCaptionsEnabled] = useState(false)
-
-  interface ExtendedPlayer extends YT.Player {
-    loadModule(moduleName: string): void
-    unloadModule(moduleName: string): void
-    setOption(module: string, option: string, value: unknown): void
-  }
-
-  // Function to toggle captions
-  const toggleCaptions = () => {
-    const player = playerRef.current as ExtendedPlayer | null
-    if (!captionsEnabled) {
-      setCaptionsEnabled(true)
-      if (player) {
-        player.loadModule('captions') // Load the caption module
-        player.setOption('captions', 'track', { languageCode: 'en' }) // English captions
-      }
-    } else {
-      setCaptionsEnabled(false)
-      if (player) {
-        player.unloadModule('captions') // Unload the caption module
-      }
-    }
-  }
-
-  // Effect to handle changes in captions state
-  useEffect(() => {
-    const player = playerRef.current as ExtendedPlayer | null
-    if (captionsEnabled && player) {
-      player.loadModule('captions') // Load captions if enabled
-      player.setOption('captions', 'track', { languageCode: 'en' })
-    } else if (player) {
-      player.unloadModule('captions') // Unload captions if disabled
-    }
-  }, [captionsEnabled])
 
   // Whenever the state of video changed like pause , play , ended this funtion is called
   interface PlayerStateChangeEvent {
@@ -440,15 +490,18 @@ const ContentScrollView2 = () => {
       }
     }
   }
-  // This funtion is responsible in for working of play/pause toggle button
-  const togglePlayPause = () => {
-    if (!isPlayerReady || !playerRef.current) return
-    if (isPlaying) {
-      playerRef.current.pauseVideo()
-    } else {
-      playerRef.current.playVideo()
-    }
-  }
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Navigation functions
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   // This funtion is to go forward to the next frame
   const handleNextFrame = async () => {
@@ -460,6 +513,26 @@ const ContentScrollView2 = () => {
     setIsPlaying(false)
     fetchAssessment(currentFrame)
   }
+
+  // This funtion is responsible to go backward to the last frame
+  //   const handlePrevFrame = () => {
+  //     const nextFrameIndex = (currentFrame - 1 + content.length) % content.length
+  //     localStorage.setItem('nextFrame', nextFrameIndex.toString())
+
+  //     window.location.reload()
+  //   }
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Assessment answer handling functions
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   // This funtion is to move to the next question
   // const handleNextQuestion = () => {
@@ -617,13 +690,95 @@ const ContentScrollView2 = () => {
     })
   }
 
-  // This funtion is responsible to go backward to the last frame
-  //   const handlePrevFrame = () => {
-  //     const nextFrameIndex = (currentFrame - 1 + content.length) % content.length
-  //     localStorage.setItem('nextFrame', nextFrameIndex.toString())
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * VIDEO PLAYER CONTROLLERS FUNCTIONS
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
-  //     window.location.reload()
-  //   }
+  // This funtion is used to change the current time using slider of youtube video progress bar
+  interface HandleTimeChangeProps {
+    value: number[]
+  }
+
+  const handleTimeChange = ({ value }: HandleTimeChangeProps) => {
+    if (!isPlayerReady) return
+    const newTime = value[0]
+    setCurrentTime(newTime)
+    if (playerRef.current) {
+      playerRef.current.seekTo(newTime, true)
+    }
+  }
+
+  // Funtion responsible in changing the volume of the video
+  const handleVolumeChange = (value: number[]) => {
+    if (!isPlayerReady) return
+    setVolume(value[0])
+    playerRef.current?.setVolume(value[0])
+  }
+
+  interface HandleQualityChangeProps {
+    quality: 'small' | 'medium' | 'large' | 'hd1080' | 'default'
+  }
+
+  const handleQualityChange = ({ quality }: HandleQualityChangeProps) => {
+    setVideoQuality(quality)
+    if (playerRef.current) {
+      playerRef.current.setPlaybackQuality(quality as YT.SuggestedVideoQuality)
+    }
+  }
+
+  const [captionsEnabled, setCaptionsEnabled] = useState(false)
+
+  interface ExtendedPlayer extends YT.Player {
+    loadModule(moduleName: string): void
+    unloadModule(moduleName: string): void
+    setOption(module: string, option: string, value: unknown): void
+  }
+
+  // Function to toggle captions
+  const toggleCaptions = () => {
+    const player = playerRef.current as ExtendedPlayer | null
+    if (!captionsEnabled) {
+      setCaptionsEnabled(true)
+      if (player) {
+        player.loadModule('captions') // Load the caption module
+        player.setOption('captions', 'track', { languageCode: 'en' }) // English captions
+      }
+    } else {
+      setCaptionsEnabled(false)
+      if (player) {
+        player.unloadModule('captions') // Unload the caption module
+      }
+    }
+  }
+
+  // Effect to handle changes in captions state
+  useEffect(() => {
+    const player = playerRef.current as ExtendedPlayer | null
+    if (captionsEnabled && player) {
+      player.loadModule('captions') // Load captions if enabled
+      player.setOption('captions', 'track', { languageCode: 'en' })
+    } else if (player) {
+      player.unloadModule('captions') // Unload captions if disabled
+    }
+  }, [captionsEnabled])
+
+  // This funtion is responsible in for working of play/pause toggle button
+  const togglePlayPause = () => {
+    if (!isPlayerReady || !playerRef.current) return
+    if (isPlaying) {
+      playerRef.current.pauseVideo()
+    } else {
+      playerRef.current.playVideo()
+    }
+  }
 
   // This funtion is for changing the speed of Video
   interface ChangePlaybackSpeedProps {
@@ -687,6 +842,18 @@ const ContentScrollView2 = () => {
       localStorage.removeItem('nextFrame')
     }
   }, [])
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * ASSESSMENT RENDERING FUNCTIONS
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   // This funtion create the interface of assessment that exactly how the assessment will look like
   interface Question {
@@ -797,6 +964,18 @@ const ContentScrollView2 = () => {
     content: string
     id: number
   }
+
+  /**
+   *
+   *
+   *
+   * -------------------------------------------------------------------------------------------------------
+   * Switch case for rendering content by type
+   * -------------------------------------------------------------------------------------------------------
+   *
+   *
+   *
+   */
 
   const renderdataByType = (frame: Frame, index: number) => {
     let videoId: string | null = null

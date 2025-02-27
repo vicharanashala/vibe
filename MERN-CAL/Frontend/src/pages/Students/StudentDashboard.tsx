@@ -23,21 +23,7 @@
  * - Icons from lucide-react library
  */
 
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  useFetchCoursesWithAuthQuery,
-  useFetchModulesWithAuthQuery,
-} from '@/store/ApiServices/LmsEngine/DataFetchApiServices'
 import { BookOpen, Clock, Award, TrendingUp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Chart } from '@/components/ChartDashboard'
@@ -77,12 +63,14 @@ const ongoingCourses = [
 
 const StudentDashboard = () => {
   // State for controlling table expansion
-  const [showAllCourses, setShowAllCourses] = useState(false)
-  const [showAllOngoing, setShowAllOngoing] = useState(false)
   const [completedCourses, setcompletedCourses] = useState(0)
   const dispatch = useDispatch()
 
-  const CourseData = useSelector((state) => state.courses.courses ?? null)
+  const CourseData = useSelector(
+    (state: {
+      courses: { courses: { id: number; name: string; duration: string }[] }
+    }) => state.courses.courses ?? null
+  )
 
   useEffect(() => {
     console.log('Courses:', CourseData)
@@ -93,7 +81,13 @@ const StudentDashboard = () => {
   }, [dispatch, CourseData])
 
   const courseProgressData = useSelector(
-    (state) => state.weeklyProgress?.weeklyProgress?.courseData
+    (state: {
+      weeklyProgress: {
+        weeklyProgress: {
+          courseData: Record<string, { User: number; date: string }[]>
+        }
+      }
+    }) => state.weeklyProgress?.weeklyProgress?.courseData
   )
 
   console.log('courseData', courseProgressData)
@@ -105,13 +99,22 @@ const StudentDashboard = () => {
     }
   }, [dispatch, courseProgressData])
 
-  const calculateLatestAverageProgress = (data) => {
+  interface CourseProgressEntry {
+    User: number
+    date: string
+  }
+
+  interface CourseProgressData {
+    [courseKey: string]: CourseProgressEntry[]
+  }
+
+  const calculateLatestAverageProgress = (data: CourseProgressData): number => {
     let completed = 0
     const latestEntries = Object.keys(data).map((courseKey) => {
       const entries = data[courseKey]
       // Create a copy of the entries array to avoid mutating the original state
       const sortedEntries = [...entries].sort(
-        (a, b) => new Date(b.date) - new Date(a.date)
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       )
       const latestProgress = sortedEntries[0].User // Latest progress
       if (latestProgress === 100) completed += 1 // Increment if latest progress is 100%
@@ -144,8 +147,6 @@ const StudentDashboard = () => {
   // console.log(CourseData)
 
   // Limit displayed courses based on show all state
-  const displayedCourses = showAllCourses ? CourseData : CourseData?.slice(0, 5)
-  const displayedOngoing = showAllCourses ? CourseData : CourseData?.slice(0, 5)
 
   return (
     <div className='h-full'>
@@ -157,7 +158,7 @@ const StudentDashboard = () => {
             <BookOpen className='size-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{CourseData.length}</div>
+            <div className='text-2xl font-bold'>{CourseData?.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -168,7 +169,7 @@ const StudentDashboard = () => {
             <Clock className='size-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{CourseData.length}</div>
+            <div className='text-2xl font-bold'>{CourseData?.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -181,10 +182,8 @@ const StudentDashboard = () => {
           <CardContent>
             <div className='text-2xl font-bold'>
               {Math.round(
-                ongoingCourses.reduce(
-                  (acc) => acc + parseInt(averageProgress),
-                  0
-                ) / ongoingCourses.length
+                ongoingCourses.reduce((acc) => acc + averageProgress, 0) /
+                  ongoingCourses.length
               )}
               %
             </div>
