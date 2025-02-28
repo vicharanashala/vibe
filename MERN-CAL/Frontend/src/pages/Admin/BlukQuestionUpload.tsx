@@ -76,8 +76,8 @@ const BlukQuestionUpload = () => {
 
   return (
     <div className='flex items-center justify-center h-full bg-gray-100'>
-      <Card className='w-full max-w-md p-6 bg-white rounded-lg shadow-md'>
-        <h1 className='mb-4 text-2xl font-bold text-center'>
+      <Card className='w-full max-w-md p-6 bg-white rounded-lg shadow-md flex flex-col gap-4'>
+        <h1 className='text-2xl font-bold text-center'>
           Bulk Question Upload
         </h1>
         <CourseDropdown onCourseSelected={handleCourseSelected} />

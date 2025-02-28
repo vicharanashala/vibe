@@ -199,7 +199,7 @@ export const apiService = createApi({
       }),
     }),
     createQuestion: builder.mutation<void, void>({
-      query: ( questionData ) => ({
+      query: (questionData) => ({
         url: `/questions/createQuestion`,
         method: 'POST',
         body: questionData,
@@ -209,7 +209,10 @@ export const apiService = createApi({
         },
       }),
     }),
-    createCourse: builder.mutation<void, { title: string; description: string; startData: String, endDate: String; }>({
+    createCourse: builder.mutation<
+      void,
+      { title: string; description: string; startData: String; endDate: String }
+    >({
       query: (courseData) => ({
         url: '/courses/course',
         method: 'POST',
@@ -220,7 +223,7 @@ export const apiService = createApi({
         },
       }),
     }),
-    createModule: builder.mutation<void, { courseId: number; title: string; }>({
+    createModule: builder.mutation<void, { courseId: number; title: string }>({
       query: (moduleData) => ({
         url: 'modules/module',
         method: 'POST',
@@ -231,7 +234,10 @@ export const apiService = createApi({
         },
       }),
     }),
-    createSection: builder.mutation<void, { courseId: number; moduleId: number; title: string; content: string }>({
+    createSection: builder.mutation<
+      void,
+      { courseId: number; moduleId: number; title: string; content: string }
+    >({
       query: (sectionData) => ({
         url: 'sections/section',
         method: 'POST',
@@ -244,13 +250,25 @@ export const apiService = createApi({
     }),
     bulkContentUpload: builder.mutation<void, { content: any[] }>({
       query: (uploadData) => ({
-      url: '/sectionitems/bulkUpload',
-      method: 'POST',
-      body: uploadData,
-      headers: {
-        Authorization: `Bearer ${Cookies.get('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+        url: '/sectionitems/bulkUpload',
+        method: 'POST',
+        body: uploadData,
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+    }),
+    fetchUsers: builder.query<
+      { users: { id: number; name: string; email: string }[] },
+      void
+    >({
+      query: () => ({
+        url: '/users/getusers', // Make sure this endpoint is correct
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`, // Ensure the token is being retrieved correctly
+        },
       }),
     }),
   }),
@@ -259,6 +277,7 @@ export const apiService = createApi({
 // Export hooks for using the API endpoints
 export const {
   useFetchItemsWithAuthQuery,
+  useFetchUsersQuery,
   useCreateCourseMutation,
   useCreateModuleMutation,
   useCreateSectionMutation,

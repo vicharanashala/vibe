@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { url } from 'inspector'
+import { on } from 'events'
 
 export function AppSidebar({ ...props }) {
   const navigate = useNavigate()
@@ -59,21 +60,9 @@ export function AppSidebar({ ...props }) {
       },
       {
         title: 'Enroll Students',
+        url: '/admin/enroll-students',
+        onClick: () => handleNavigate('/admin/enroll-students'),
         icon: Bot,
-        items: [
-          {
-            title: 'By Email',
-            onClick: () => handleNavigate('/admin/enroll-by-email'),
-          },
-          {
-            title: 'By Department',
-            onClick: () => handleNavigate('/admin/enroll-by-department'),
-          },
-          {
-            title: 'By Program',
-            onClick: () => handleNavigate('/admin/enroll-by-program'),
-          },
-        ],
       },
       {
         title: 'Bulk Signup Students',

@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "attemptSession" ALTER COLUMN "assessmentId" SET DATA TYPE TEXT,
+ALTER COLUMN "studentId" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "submitSession" ALTER COLUMN "studentId" SET DATA TYPE TEXT,
+ALTER COLUMN "courseId" SET DATA TYPE TEXT,
+ALTER COLUMN "assessmentId" SET DATA TYPE TEXT,
+ALTER COLUMN "questionId" SET DATA TYPE TEXT;

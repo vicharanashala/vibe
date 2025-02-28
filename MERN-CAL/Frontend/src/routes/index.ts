@@ -17,6 +17,7 @@ import Dashboard from '@/pages/Admin/Dashboard'
 import CreateCourse from '@/pages/Admin/ContentCreation/CreateCourse'
 import CreateModule from '@/pages/Admin/ContentCreation/CreateModule'
 import CreateSection from '@/pages/Admin/ContentCreation/CreateSection'
+import EnrollStudents from '@/pages/Admin/EnrollStudents/EnrollStudents'
 
 const router = createBrowserRouter([
   {
@@ -90,6 +91,10 @@ const router = createBrowserRouter([
             path: 'create-section',
             element: React.createElement(CreateSection),
           },
+          {
+            path: 'enroll-students',
+            element: React.createElement(EnrollStudents),
+          }
         ]
       }
     ],

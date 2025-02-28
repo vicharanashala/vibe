@@ -15,6 +15,7 @@ import studentsProgressReducer from './slices/AllStudentsProgressSlice'
 import itemsReducer from './slices/fetchItems'
 import weeklyProgressReducer from './slices/FetchWeeklyProgress'
 import storageSession from 'redux-persist/lib/storage/session' // Importing sessionStorage
+import usersSlicereducer from './slices/GetUsersSlice'
 
 const persistConfig = {
   key: 'root',
@@ -31,6 +32,7 @@ const persistConfig = {
     'sidebarState',
     'weeklyProgress',
     'studentsProgress',
+    'users',
   ],
 }
 
@@ -47,6 +49,7 @@ const rootReducer = combineReducers({
   progressUpdate: progressUpdateReducer,
   weeklyProgress: weeklyProgressReducer,
   studentsProgress: studentsProgressReducer,
+  users: usersSlicereducer,
   [apiService.reducerPath]: apiService.reducer,
   [anotherApiService.reducerPath]: anotherApiService.reducer,
 })
