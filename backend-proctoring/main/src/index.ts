@@ -7,6 +7,8 @@ import { expressMiddleware } from '@apollo/server/express4';
 import { ApolloServerPluginLandingPageProductionDefault, ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { appConfig } from '@config/app';
 import { resolvers } from 'api/resolvers';
+import { Container } from "typedi";
+
 import cors from 'cors';
 
 
@@ -17,6 +19,7 @@ async function main() {
   const schema = await buildSchema({
     resolvers,
     // authChecker (if needed)
+    container: Container,
   });
 
   app.use(cookieParser());
