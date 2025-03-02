@@ -1,11 +1,11 @@
-import { UserInterface } from "api/interfaces/UserInterface";
-import User, { UserModel } from "api/schemas/UserSchema";
+import { IUserService } from "api/interfaces/UserInterface";
+import User, { CreateUserInput, UpdateUserInput, UserModel } from "api/schemas/UserSchema";
 import { Service, Inject } from "typedi";
 
 
 @Service()
-export class UserService implements UserInterface {
-    async createUser(user: User): Promise<User> {
+export class MongoUserService implements IUserService {
+    async createUser(user: CreateUserInput): Promise<User> {
         return UserModel.create(user);
     }
 
@@ -13,7 +13,7 @@ export class UserService implements UserInterface {
         return UserModel.findById(id).exec();
     }
 
-    async updateUser(id: string, user: Partial<User>): Promise<User | null> {
+    async updateUser(id: string, user: UpdateUserInput): Promise<User | null> {
         return UserModel.findByIdAndUpdate(id, user, { new: true }).exec();
     }
 

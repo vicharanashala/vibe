@@ -1,13 +1,13 @@
-import User from "api/schemas/UserSchema";
+import User, { CreateUserInput, UpdateUserInput } from "api/schemas/UserSchema";
 
 // The UserInterface defines the required methods for interacting with.
-export interface UserInterface {
+export interface IUserService {
     /**
      * Create a new user document in the database.
      * @param user - The user data to insert.
      * @returns A promise that resolves to the created user.
      */
-    createUser(user: User): Promise<User>;
+    createUser(user: CreateUserInput): Promise<User>;
 
     /**
      * Retrieve a user document by its ID.
@@ -22,7 +22,7 @@ export interface UserInterface {
      * @param user - A partial user object with fields to update.
      * @returns A promise that resolves to the updated user or null if not found.
      */
-    updateUser(id: string, user: Partial<User>): Promise<User | null>;
+    updateUser(id: string, user: UpdateUserInput): Promise<User | null>;
 
     /**
      * Delete a user document from the database.

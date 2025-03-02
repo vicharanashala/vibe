@@ -10,12 +10,14 @@ import { resolvers } from 'api/resolvers';
 import { Container } from "typedi";
 
 import cors from 'cors';
+import { connect } from 'mongoose';
+import { connectToMongo } from '@utils/db-connection';
 
 
 async function main() {
   const app = Express();
   const port = appConfig.port;
-  
+
   const schema = await buildSchema({
     resolvers,
     // authChecker (if needed)
@@ -23,7 +25,7 @@ async function main() {
   });
 
   app.use(cookieParser());
-  
+
   // Example home route
   app.get('/', (req, res) => {
     res.send('Hello World');
@@ -32,8 +34,8 @@ async function main() {
   const server = new ApolloServer({
     schema,
     plugins: [
-      appConfig.isProduction 
-        ? ApolloServerPluginLandingPageProductionDefault() 
+      appConfig.isProduction
+        ? ApolloServerPluginLandingPageProductionDefault()
         : ApolloServerPluginLandingPageLocalDefault({ footer: false }),
     ],
   });
@@ -41,14 +43,14 @@ async function main() {
   await server.start();
 
   app.use(
-  '/graphql',
-  cors<cors.CorsRequest>(),
-  Express.json(),
-  expressMiddleware(server),
-);
+    '/graphql',
+    cors<cors.CorsRequest>(),
+    Express.json(),
+    expressMiddleware(server),
+  );
 
   // Register the Apollo Server middleware for Express
-
+  connectToMongo();
   app.listen(port, () => {
     console.log(`Server running on port ${port}\nURL: http://localhost:${port}/graphql`);
   });

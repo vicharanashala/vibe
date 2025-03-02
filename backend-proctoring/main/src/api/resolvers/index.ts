@@ -1,4 +1,3 @@
-import { UserService } from "api/services/UserService";
 import UserResolver from "./UserResolver";
 
 
