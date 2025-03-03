@@ -27,7 +27,7 @@ exports.fetchCourseController = async (req, res) => {
 
         // If courses array is empty, return a message indicating no courses found
         if (!courses.length) {
-            return res.status(404).json({ message: "No enrolled courses found." });
+            courses = [];
         }
 
         // Prepare the response data by mapping over the courses array

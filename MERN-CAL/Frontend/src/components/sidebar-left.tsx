@@ -195,7 +195,7 @@ export function SidebarLeft({
                                     className='flex items-center gap-2'
                                     onClick={() => {
                                       if (item.item_type === 'Video') {
-                                        navigate('/content-scroll-view2', {
+                                        navigate('/content-scroll-view', {
                                           state: {
                                             assignment,
                                             sectionId,

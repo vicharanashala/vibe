@@ -44,6 +44,7 @@ export class CourseProgressController {
     try {
       // Extract and validate the request body
       const courseData: CourseProgressData = req.body;
+      const newCourseData = JSON.stringify(courseData, null, 2)
 
       // Validate required fields
       if (

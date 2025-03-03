@@ -271,12 +271,27 @@ export const apiService = createApi({
         },
       }),
     }),
+    courseEnroll: builder.mutation<
+      void,
+      { courseId: string; studentIds: string[] }
+    >({
+      query: (enrollmentData) => ({
+        url: '/progress/initialize-progress',
+        method: 'POST',
+        body: enrollmentData,
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+    }),
   }),
 })
 
 // Export hooks for using the API endpoints
 export const {
   useFetchItemsWithAuthQuery,
+  useCourseEnrollMutation,
   useFetchUsersQuery,
   useCreateCourseMutation,
   useCreateModuleMutation,

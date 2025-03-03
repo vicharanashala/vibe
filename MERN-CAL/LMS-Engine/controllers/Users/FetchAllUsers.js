@@ -28,12 +28,15 @@ exports.fetchAllUsersController = async (req, res) => {
             return res.status(404).json({ success: false, message: "No users found for this institute." });
         }
 
+        console.log("Fetched users:", users);
+
         // Format response data
         const formattedUsers = users.map(user => ({
             id: user._id,
             name: user.name,
             email: user.email,
             role: user.role, // Assuming there's a role field
+            firebase_id: user.firebaseUid,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt
         }));

@@ -42,28 +42,28 @@ const BlukQuestionUpload = () => {
         try {
           const originalJson = JSON.parse(e.target?.result as string);
           console.log(originalJson); // Log to see the parsed JSON
-
+  
           // Transform the data structure
           const transformedJson = {
             sectionId: selectedSectionId,
             data: {}
           };
-
+  
           // Here assuming we only need to transform the first key "0"
           const key = "0";
           if (originalJson[key]) {
             transformedJson.data[key] = {
               segments: originalJson[key].segments.map((segment, index) => ({
                 ...segment,
-                sequence: index + 1 // assuming sequence should be the index + 1
+                sequence: 2 * index + 1 // Sequence for videos: 1, 3, 5, ...
               })),
               questions: originalJson[key].questions.map((question, index) => ({
                 ...question,
-                sequence: index + 1 // assuming sequence should be the index + 1
+                sequence: 2 * index + 2 // Sequence for assessments: 2, 4, 6, ...
               }))
             };
           }
-
+  
           console.log(transformedJson); // Log the new JSON structure to verify
           await bulkContentUpload({ content: transformedJson }); // Trigger the mutation to upload
         } catch (error) {

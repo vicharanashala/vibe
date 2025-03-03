@@ -365,7 +365,6 @@ const ContentScrollView2 = () => {
   const AssessmentData = assessmentData as
     | { id: number; text: string; options: string[]; hint: string }[]
     | undefined
-  console.log('assessmentData i am question ..................', assessmentData)
 
   useEffect(() => {
     refetch()
@@ -457,12 +456,6 @@ const ContentScrollView2 = () => {
         if (!playerRef.current) return
         const currentPlayerTime = playerRef.current.getCurrentTime()
         const endTime = content[currentFrame].end_time
-        console.log(
-          'current Time : ',
-          currentPlayerTime,
-          'end Time : ',
-          endTime
-        )
 
         if (currentPlayerTime >= endTime) {
           playerRef.current.pauseVideo() // Pause at end time
@@ -557,6 +550,7 @@ const ContentScrollView2 = () => {
   // This funtion called when user submits the assessment
 
   const handleSubmit = () => {
+    console.log('i am selected Option', selectedOption.join(','))
     const question =
       AssessmentData && AssessmentData[currentQuestionIndex]
         ? AssessmentData[currentQuestionIndex]
@@ -566,7 +560,7 @@ const ContentScrollView2 = () => {
       courseId: courseId,
       attemptId: responseData ? parseInt(responseData, 10) : 0,
       questionId: question ? question.id : 0,
-      answers: selectedOption.map(Number).join(','),
+      answers: selectedOption.join(','),
     })
       .then((response) => {
         if (response.data) {
