@@ -18,6 +18,7 @@ import CreateCourse from '@/pages/Admin/ContentCreation/CreateCourse'
 import CreateModule from '@/pages/Admin/ContentCreation/CreateModule'
 import CreateSection from '@/pages/Admin/ContentCreation/CreateSection'
 import EnrollStudents from '@/pages/Admin/EnrollStudents/EnrollStudents'
+import BulkSignup from '@/pages/Admin/SignupStudents/BulkSignup'
 
 const router = createBrowserRouter([
   {
@@ -94,6 +95,10 @@ const router = createBrowserRouter([
           {
             path: 'enroll-students',
             element: React.createElement(EnrollStudents),
+          },
+          {
+            path: 'bulk-signup',
+            element: React.createElement(BulkSignup),
           }
         ]
       }

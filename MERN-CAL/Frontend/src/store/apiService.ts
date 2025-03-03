@@ -285,12 +285,24 @@ export const apiService = createApi({
         },
       }),
     }),
+    bulkSignup: builder.mutation<void, { users: { firstName: string; lastName: string; email: string }[] }>({
+      query: (bulkSignupData) => ({
+        url: '/users/bulkSignup',
+        method: 'POST',
+        body: bulkSignupData,
+        headers: {
+          Authorization: `Bearer ${Cookies.get('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+    }),
   }),
 })
 
 // Export hooks for using the API endpoints
 export const {
   useFetchItemsWithAuthQuery,
+  useBulkSignupMutation,
   useCourseEnrollMutation,
   useFetchUsersQuery,
   useCreateCourseMutation,

@@ -126,60 +126,83 @@ export async function calculateTotalProgressForAllStudents() {
 /**
  * Function: Calculate and Store Average Course Progress
  */
+
 async function calculateAverageProgress() {
   console.log("Calculating and storing average progress for courses...");
 
   try {
-    // Get all course instances and their student progress
-    const courseProgress = await prisma.totalProgress.groupBy({
-      by: ["courseInstanceId"],
-      _avg: {
+    // Get the start and end time of the current day
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Fetch today's total progress records
+    const todayProgress = await prisma.totalProgress.findMany({
+      where: {
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: {
+        courseInstanceId: true,
         progress: true,
       },
     });
 
-    for (const { courseInstanceId, _avg } of courseProgress) {
-      if (_avg.progress !== null) {
-        // Get the start and end time of the current day
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
+    if (!todayProgress.length) {
+      console.log("No progress records found for today.");
+      return;
+    }
 
-        // Check if an entry already exists for this course and today
-        const existingEntry = await prisma.averageProgress.findFirst({
-          where: {
-            courseInstanceId,
-            createdAt: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
+    // Aggregate progress for each course instance
+    const courseProgressMap: Record<string, number[]> = {};
+
+    todayProgress.forEach(({ courseInstanceId, progress }) => {
+      if (!courseProgressMap[courseInstanceId]) {
+        courseProgressMap[courseInstanceId] = [];
+      }
+      courseProgressMap[courseInstanceId].push(progress);
+    });
+
+    // Compute and store average progress for each course
+    for (const [courseInstanceId, progressList] of Object.entries(courseProgressMap)) {
+      const avgProgress = Math.round(progressList.reduce((sum, val) => sum + val, 0) / progressList.length);
+
+      // Check if an entry already exists for today
+      const existingEntry = await prisma.averageProgress.findFirst({
+        where: {
+          courseInstanceId,
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      });
+
+      if (existingEntry) {
+        // Update the existing record
+        await prisma.averageProgress.update({
+          where: { id: existingEntry.id },
+          data: {
+            progress: avgProgress,
+            createdAt: new Date(), // Optional: Update the timestamp
           },
         });
 
-        if (existingEntry) {
-          // Update existing record for today
-          await prisma.averageProgress.update({
-            where: { id: existingEntry.id },
-            data: {
-              progress: Math.round(_avg.progress),
-              createdAt: new Date(), // Optional: Update the timestamp
-            },
-          });
+        console.log(`Updated today's average progress for course ${courseInstanceId}`);
+      } else {
+        // Create a new record if none exists for today
+        await prisma.averageProgress.create({
+          data: {
+            courseInstanceId,
+            progress: avgProgress,
+            createdAt: new Date(),
+          },
+        });
 
-          console.log(`Updated today's average progress for course ${courseInstanceId}`);
-        } else {
-          // Create new record if none exists for today
-          await prisma.averageProgress.create({
-            data: {
-              courseInstanceId,
-              progress: Math.round(_avg.progress),
-              createdAt: new Date(),
-            },
-          });
-
-          console.log(`Created new average progress for course ${courseInstanceId}`);
-        }
+        console.log(`Created new average progress for course ${courseInstanceId}`);
       }
     }
 

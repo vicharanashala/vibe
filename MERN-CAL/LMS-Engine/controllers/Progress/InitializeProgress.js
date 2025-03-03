@@ -29,6 +29,14 @@ exports.enrollStudents = async (req, res) => {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
 
+    await Promise.all(studentIds.map(async (studentId) => {
+      await User.findOneAndUpdate(
+        { firebaseUid: studentId },
+        { $addToSet: { coursesEnrolled: courseId } }, // Using $addToSet to avoid duplicates
+        { new: true, upsert: true } // Option upsert set to true to create a user if not found
+      );
+    }));
+
     // Constructing the payload for the external API
     const postData = {
       courseInstanceId: courseId,

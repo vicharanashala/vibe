@@ -5,7 +5,7 @@ import { authenticateFirebaseUser } from "../Middleware/googleAuth";
 
 const router = Router();
 
-router.get("/all-progress", authenticateFirebaseUser, getAllProgress); // Fetch both student & average progress
+router.get("/all-progress", getAllProgress); // Fetch both student & average progress
 router.get("/all-students-progress", async (req, res) => {
     try {
         const studentProgress = await fetchAllStudentsAverageProgressWithDetails();

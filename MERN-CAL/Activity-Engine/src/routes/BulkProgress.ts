@@ -4,6 +4,6 @@ import {calculateTotalProgressForAllStudents} from '../controllers/TotalProgress
 
 const router = Router();
 
-router.get('/average-progress', authenticateFirebaseUser,calculateTotalProgressForAllStudents);
+router.get('/average-progress',calculateTotalProgressForAllStudents);
 
 export default router;

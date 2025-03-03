@@ -73,8 +73,9 @@ export function AppSidebar({ ...props }) {
             onClick: () => handleNavigate('/admin/signup-one-by-one'),
           },
           {
-            title: 'By Json File',
-            onClick: () => handleNavigate('/admin/signup-by-json'),
+            title: 'By CSV File',
+            url: '/admin/bulk-signup',
+            onClick: () => handleNavigate('/admin/bulk-signup'),
           },
         ],
       },

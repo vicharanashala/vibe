@@ -625,7 +625,6 @@ export class CourseProgressService {
           progress: moduleProgress,
         });
 
-        // Determine the progress for the first section and section item if the module is 'IN_PROGRESS'
         let firstSectionInitialized = false;
         for (const section of module.sections) {
           const sectionProgress =
@@ -703,88 +702,36 @@ export class CourseProgressService {
       const { moduleNextData, sectionNextData, sectionItemNextData } =
         getNextData(courseData);
 
-      // Add meta data to the transaction
-      for (const nextData of moduleNextData) {
-        const existingNextModule = await prisma.moduleNext.findFirst({
-          where: {
-            moduleId: nextData.moduleId,
-            courseInstanceId: courseInstanceId,
-          },
-          select: { nextModuleId: true },
-        });
-
-        if (!existingNextModule) {
-          // If the module doesn't exist, create it
-          progressRecords.push(prisma.moduleNext.create({ data: nextData }));
-        } else if (existingNextModule.nextModuleId === null) {
-          // Only update if nextModuleId is NULL
-          progressRecords.push(
-            prisma.moduleNext.update({
-              where: {
-                moduleId: nextData.moduleId,
-                courseInstanceId: courseInstanceId,
-              },
-              data: { nextModuleId: nextData.nextModuleId },
-            })
-          );
-        }
-      }
-
-      // Add meta data for sections to the transaction
-      for (const nextData of sectionNextData) {
-        const existingNextSection = await prisma.sectionNext.findFirst({
-          where: {
-            sectionId: nextData.sectionId,
-            moduleId: nextData.moduleId, // Ensuring the unique combination of section and module
-          },
-          select: { nextSectionId: true },
-        });
-
-        if (!existingNextSection) {
-          // If the section doesn't exist, create it
-          progressRecords.push(prisma.sectionNext.create({ data: nextData }));
-        } else if (existingNextSection.nextSectionId === null) {
-          // Only update if nextSectionId is NULL
-          progressRecords.push(
-            prisma.sectionNext.update({
-              where: {
-                sectionId: nextData.sectionId,
-                moduleId: nextData.moduleId,
-              },
-              data: { nextSectionId: nextData.nextSectionId },
-            })
-          );
-        }
-      }
-
-      // Add meta data for section items to the transaction
-      for (const nextData of sectionItemNextData) {
-        const existingNextSectionItem = await prisma.sectionItemNext.findFirst({
-          where: {
-            sectionItemId: nextData.sectionItemId,
-            sectionId: nextData.sectionId, // Ensuring the unique combination of section item and section
-          },
-          select: { nextSectionItemId: true },
-        });
-
-        if (!existingNextSectionItem) {
-          // If the section item doesn't exist, create it
-          progressRecords.push(
-            prisma.sectionItemNext.create({ data: nextData })
-          );
-        } else if (existingNextSectionItem.nextSectionItemId === null) {
-          // Only update if nextSectionItemId is NULL
-          progressRecords.push(
-            prisma.sectionItemNext.update({
-              where: {
-                sectionItemId: nextData.sectionItemId,
-                sectionId: nextData.sectionId,
-              },
-              data: { nextSectionItemId: nextData.nextSectionItemId },
-            })
-          );
-        }
-      }
+      // Use upserts for module, section, and section item meta data
+      progressRecords.push(
+        ...moduleNextData.map((nextData) =>
+          prisma.moduleNext.upsert({
+            where: {
+              moduleId: nextData.moduleId,
+            },
+            update: { nextModuleId: nextData.nextModuleId },
+            create: nextData,
+          })
+        ),
+        ...sectionNextData.map((nextData) =>
+          prisma.sectionNext.upsert({
+            where: {
+              sectionId: nextData.sectionId,
+            },
+            update: { nextSectionId: nextData.nextSectionId },
+            create: nextData,
+          })
+        ),
+        ...sectionItemNextData.map((nextData) =>
+          prisma.sectionItemNext.upsert({
+            where: {
+              sectionItemId: nextData.sectionItemId,
+            },
+            update: { nextSectionItemId: nextData.nextSectionItemId },
+            create: nextData,
+          })
+        )
+      );
 
       // Increment total records count
       totalRecords +=

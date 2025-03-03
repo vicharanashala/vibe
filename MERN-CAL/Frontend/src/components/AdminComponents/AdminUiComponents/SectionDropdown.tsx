@@ -38,7 +38,7 @@ export function SectionDropdown({ moduleId, courseId, onSectionSelected }) {
   return (
     <Select onValueChange={handleChange} value={selectedSectionId}>
       <SelectTrigger>
-        <SelectValue placeholder='Select a course' />
+        <SelectValue placeholder='Select a Section' />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
