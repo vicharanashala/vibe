@@ -443,42 +443,141 @@ export class CourseProgressRepository {
         studentId: string,
         sectionItemIds: string[]
     ): Promise<any[]> {
-        const transactions = sectionItemIds.map(async (sectionItemId) => {
-            const existingProgress = await prisma.studentSectionItemProgress.findUnique({
+        return prisma.$transaction(async (tx) => {
+            // Step 1: Update progress (IN_PROGRESS -> COMPLETE)
+            await tx.studentSectionItemProgress.updateMany({
                 where: {
-                    studentId_sectionItemId_courseInstanceId: {
-                        studentId,
-                        sectionItemId,
-                        courseInstanceId,
-                    },
+                    studentId,
+                    sectionItemId: { in: sectionItemIds },
+                    courseInstanceId,
+                    progress: ProgressEnum.IN_PROGRESS
                 },
+                data: { progress: ProgressEnum.COMPLETE }
             });
-
-            if (!existingProgress) {
-                throw new Error(`No progress record found for section item ID ${sectionItemId}`);
+    
+            // Step 2: Update progress (INCOMPLETE -> IN_PROGRESS)
+            await tx.studentSectionItemProgress.updateMany({
+                where: {
+                    studentId,
+                    sectionItemId: { in: sectionItemIds },
+                    courseInstanceId,
+                    progress: ProgressEnum.INCOMPLETE
+                },
+                data: { progress: ProgressEnum.IN_PROGRESS }
+            });
+    
+            // Step 3: Fetch updated section item progress
+            const updatedProgressRecords = await Promise.all(
+                sectionItemIds.map(async (sectionItemId) => {
+                    const progressRecord = await tx.studentSectionItemProgress.findUnique({
+                        where: {
+                            studentId_sectionItemId_courseInstanceId: {
+                                studentId,
+                                sectionItemId,
+                                courseInstanceId,
+                            },
+                        },
+                        select: {
+                            studentId: true,
+                            sectionItemId: true,
+                            courseInstanceId: true,
+                            progress: true,
+                        },
+                    });
+    
+                    if (!progressRecord) {
+                        throw new Error(`No progress record found for section item ID ${sectionItemId}`);
+                    }
+    
+                    return progressRecord;
+                })
+            );
+    
+            // Step 4: Compute the new student progress
+            const sectionItems = await tx.studentSectionItemProgress.findMany({
+                where: { studentId, courseInstanceId },
+                select: { progress: true }
+            });
+    
+            const totalSectionItems = sectionItems.length;
+            const completedSectionItems = sectionItems.filter(
+                (item) => item.progress === ProgressEnum.COMPLETE
+            ).length;
+    
+            const newStudentProgress = totalSectionItems > 0
+                ? Math.round((completedSectionItems / totalSectionItems) * 100)
+                : 0;
+    
+            // Step 5: Compute and update the total progress of students in the course
+            const totalStudents = await tx.totalProgress.count({ where: { courseInstanceId } });
+    
+            const totalProgressRecords = await tx.totalProgress.findMany({
+                where: { courseInstanceId },
+                select: { progress: true }
+            });
+    
+            const oldTotalProgressSum = totalProgressRecords.reduce(
+                (sum, record) => sum + record.progress, 0
+            );
+    
+            const oldStudentProgressRecord = await tx.totalProgress.findFirst({
+                where: { studentId, courseInstanceId },
+                select: { id: true, progress: true }
+            });
+    
+            const oldStudentProgress = oldStudentProgressRecord?.progress || 0;
+            const totalProgressId = oldStudentProgressRecord?.id || null;
+    
+            // Compute new total progress sum and average progress
+            const newTotalProgressSum = oldTotalProgressSum - oldStudentProgress + newStudentProgress;
+    
+            const newAverageProgress = totalStudents > 0
+                ? Math.round(newTotalProgressSum / totalStudents)
+                : 0;
+    
+            // Step 6: Update or insert student's total progress
+            if (totalProgressId) {
+                await tx.totalProgress.update({
+                    where: { id: totalProgressId },
+                    data: { progress: newStudentProgress }
+                });
+            } else {
+                await tx.totalProgress.create({
+                    data: {
+                        studentId,
+                        courseInstanceId,
+                        progress: newStudentProgress,
+                        createdAt: new Date()
+                    }
+                });
             }
-
-            const newProgress =
-                existingProgress.progress === ProgressEnum.INCOMPLETE
-                    ? ProgressEnum.IN_PROGRESS
-                    : ProgressEnum.COMPLETE;
-
-            return prisma.studentSectionItemProgress.update({
-                where: {
-                    studentId_sectionItemId_courseInstanceId: {
-                        studentId,
-                        sectionItemId,
-                        courseInstanceId,
-                    },
-                },
-                data: {
-                    progress: newProgress,
-                },
+    
+            // Step 7: Update or create course-level average progress
+            const averageProgressRecord = await tx.averageProgress.findFirst({
+                where: { courseInstanceId },
+                select: { id: true }
             });
+    
+            if (averageProgressRecord?.id) {
+                await tx.averageProgress.update({
+                    where: { id: averageProgressRecord.id },
+                    data: { progress: newAverageProgress }
+                });
+            } else {
+                await tx.averageProgress.create({
+                    data: {
+                        courseInstanceId,
+                        progress: newAverageProgress,
+                        createdAt: new Date()
+                    }
+                });
+            }
+    
+            // Step 8: Return updated progress records (SAME FORMAT AS ORIGINAL FUNCTION)
+            return updatedProgressRecords;
         });
-
-        return Promise.all(transactions);
     }
+    
 
 
 }

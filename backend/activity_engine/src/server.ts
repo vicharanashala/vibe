@@ -44,6 +44,6 @@ app.use(BulkProcess);
 app.use(FetchProgress);
 
 exports.activityEngine = https.onRequest(app);
-// app.listen(PORT, () => {
-//     console.log(`Server is running on http://localhost:${PORT}`);
-// });
+app.listen(PORT, () => {
+     console.log(`Server is running on http://localhost:${PORT}`);
+});

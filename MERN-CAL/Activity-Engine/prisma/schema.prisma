@@ -1,54 +1,46 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
   url      = env("AE_DATABASE_STRING")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model LoginSession {
-  id          Int    @id @default(autoincrement())
+  id           Int    @id @default(autoincrement())
   user_id      Int    @map("user_id")
   access_token String
-  expires_in   Int    // Access token expiration time
+  expires_in   Int
 
   @@index([user_id])
   @@index([access_token])
 }
 
 model attemptSession {
-  id          Int    @id @default(autoincrement())
-  assessmentId      String    @map("assessmentId")
+  id               Int    @id @default(autoincrement())
+  assessmentId     String @map("assessmentId")
   courseInstanceId String
-  studentId   String    // Access token expiration time
+  studentId        String
 
   @@index([assessmentId])
   @@index([studentId])
 }
 
 model submitSession {
-  id             Int      @id @default(autoincrement())
-  studentId      String
-  courseId       String 
-  assessmentId   String
-  attemptId      Int
-  questionId     String
-  answers        String[]
+  id              Int      @id @default(autoincrement())
+  studentId       String
+  courseId        String
+  assessmentId    String
+  attemptId       Int
+  questionId      String
   isAnswerCorrect Boolean
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  answers         String[]
 
   @@index([studentId])
   @@index([assessmentId])
 }
-
-// Define the Prisma schema model for the progress of courses, modules, and items
 
 model StudentCourseProgress {
   studentId        String
@@ -95,7 +87,7 @@ model StudentSectionItemProgress {
 
 model ModuleNext {
   moduleId         String   @id
-  sectionId        String // First section of moduleId
+  sectionId        String
   nextModuleId     String?
   courseInstanceId String
   createdAt        DateTime @default(now())
@@ -103,7 +95,7 @@ model ModuleNext {
 
 model SectionNext {
   sectionId     String   @id
-  sectionItemId String // First section item of sectionId
+  sectionItemId String
   nextSectionId String?
   moduleId      String
   createdAt     DateTime @default(now())
@@ -141,20 +133,18 @@ model StudentAssessmentAttemptSummary {
 }
 
 model TotalProgress {
-  id               Int                  @id @default(autoincrement())
+  id               Int      @id @default(autoincrement())
   studentId        String
   progress         Int
   courseInstanceId String
   createdAt        DateTime @default(now())
-  
 }
 
 model AverageProgress {
-  id               Int                  @id @default(autoincrement())
+  id               Int      @id @default(autoincrement())
   progress         Int
   courseInstanceId String
   createdAt        DateTime @default(now())
-
 }
 
 enum ProgressEnum {
@@ -191,4 +181,3 @@ enum AssessmentAttemptStatusEnum {
   SUCCESS
   FAILED
 }
-
