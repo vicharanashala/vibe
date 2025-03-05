@@ -1,59 +1,60 @@
-import 'reflect-metadata';
-import { buildSchema } from 'type-graphql';
+import './instrument';
+
+import HTTP from 'http';
 import Express from 'express';
-import cookieParser from 'cookie-parser';
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import { ApolloServerPluginLandingPageProductionDefault, ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import Sentry from '@sentry/node';
+import { loggingHandler } from 'middleware/loggingHandler';
+import { corsHandler } from 'middleware/corsHandler';
 import { appConfig } from '@config/app';
-import { resolvers } from 'api/resolvers';
-import { Container } from "typedi";
+import { routeNotFound } from 'middleware/routeNotFound';
 
-import cors from 'cors';
-import { connect } from 'mongoose';
-import { connectToMongo } from '@utils/db-connection';
+export const application = Express();
+export let server: ReturnType<typeof HTTP.createServer>;
 
+export const Main = () => {
+  console.log('--------------------------------------------------------');
+  console.log('Initializing server');
+  console.log('--------------------------------------------------------');
 
-async function main() {
-  const app = Express();
-  const port = appConfig.port;
+  application.use(Express.urlencoded({ extended: true }));
+  application.use(Express.json());
 
-  const schema = await buildSchema({
-    resolvers,
-    // authChecker (if needed)
-    container: Container,
-  });
+  console.log('--------------------------------------------------------');
+  console.log('Logging and Configuration Setup');
+  console.log('--------------------------------------------------------');
 
-  app.use(cookieParser());
+  application.use(loggingHandler);
+  application.use(corsHandler);
 
-  // Example home route
-  app.get('/', (req, res) => {
+  console.log('--------------------------------------------------------');
+  console.log('Define Routing');
+  console.log('--------------------------------------------------------');
+  application.get('/', (req, res) => {
     res.send('Hello World');
+  }
+  );
+  application.get("/debug-sentry", (req, res) => {
+    throw new Error("My first Sentry error!");
   });
 
-  const server = new ApolloServer({
-    schema,
-    plugins: [
-      appConfig.isProduction
-        ? ApolloServerPluginLandingPageProductionDefault()
-        : ApolloServerPluginLandingPageLocalDefault({ footer: false }),
-    ],
-  });
+  console.log('--------------------------------------------------------');
+  console.log('Routes Handler');
+  console.log('--------------------------------------------------------');
+    //After Adding Routes
+  Sentry.setupExpressErrorHandler(application);
+  application.use(routeNotFound)
 
-  await server.start();
-
-  app.use(
-    '/graphql',
-    cors<cors.CorsRequest>(),
-    Express.json(),
-    expressMiddleware(server),
+  console.log('--------------------------------------------------------');
+  console.log('Starting Server');
+  console.log('--------------------------------------------------------');
+  server = HTTP.createServer(application);
+  server.listen(appConfig.port, () => {
+    console.log(`Server is running on port ${appConfig.port}`);
+  }
   );
 
-  // Register the Apollo Server middleware for Express
-  connectToMongo();
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}\nURL: http://localhost:${port}/graphql`);
-  });
+
+
 }
 
-main();
+Main();
