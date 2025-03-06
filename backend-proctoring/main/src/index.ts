@@ -3,37 +3,37 @@ import './instrument';
 import HTTP from 'http';
 import Express from 'express';
 import Sentry from '@sentry/node';
-import { loggingHandler } from 'middleware/loggingHandler';
-import { corsHandler } from 'middleware/corsHandler';
+import { loggingHandler } from 'shared/middleware/loggingHandler';
 import { appConfig } from '@config/app';
-import { routeNotFound } from 'middleware/routeNotFound';
+import { RoutingControllersOptions, useExpressServer } from 'routing-controllers';
+import { applicationDefault, initializeApp } from 'firebase-admin/app';
+import { serviceOptions } from 'modules/auth';
+
 
 export const application = Express();
-export let server: ReturnType<typeof HTTP.createServer>;
 
-export const Main = () => {
+export const ServiceFactory = (service: typeof application, options: RoutingControllersOptions, port: Number) => {
   console.log('--------------------------------------------------------');
-  console.log('Initializing server');
+  console.log('Initializing service server');
   console.log('--------------------------------------------------------');
 
-  application.use(Express.urlencoded({ extended: true }));
-  application.use(Express.json());
+  service.use(Express.urlencoded({ extended: true }));
+  service.use(Express.json());
 
   console.log('--------------------------------------------------------');
   console.log('Logging and Configuration Setup');
   console.log('--------------------------------------------------------');
 
-  application.use(loggingHandler);
-  application.use(corsHandler);
+  service.use(loggingHandler);
 
   console.log('--------------------------------------------------------');
   console.log('Define Routing');
   console.log('--------------------------------------------------------');
-  application.get('/', (req, res) => {
+  service.get('/main/healthcheck', (req, res) => {
     res.send('Hello World');
   }
   );
-  application.get("/debug-sentry", (req, res) => {
+  service.get("/debug-sentry", (req, res) => {
     throw new Error("My first Sentry error!");
   });
 
@@ -41,20 +41,25 @@ export const Main = () => {
   console.log('Routes Handler');
   console.log('--------------------------------------------------------');
     //After Adding Routes
-  Sentry.setupExpressErrorHandler(application);
-  application.use(routeNotFound)
+  Sentry.setupExpressErrorHandler(service);
 
   console.log('--------------------------------------------------------');
   console.log('Starting Server');
   console.log('--------------------------------------------------------');
-  server = HTTP.createServer(application);
-  server.listen(appConfig.port, () => {
-    console.log(`Server is running on port ${appConfig.port}`);
-  }
-  );
 
+  useExpressServer(service, options);
 
+  service.listen(port, () => {
+      console.log('--------------------------------------------------------');
+      console.log('Started Server at http://localhost:' + port);
+      console.log('--------------------------------------------------------');
+  });
 
 }
 
-Main();
+// Create a main function where multiple services are created
+export const main = () => {
+  ServiceFactory(application, serviceOptions, appConfig.port);
+}
+
+main();
