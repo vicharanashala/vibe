@@ -20,6 +20,7 @@ import admin from "firebase-admin";
 import { UserRecord } from "firebase-admin/lib/auth/user-record";
 import { applicationDefault } from "firebase-admin/app";
 import { Service } from "typedi";
+import { IUser } from "shared/interfaces/IUser";
 
 
 export class ChangePasswordError extends Error {
@@ -38,12 +39,12 @@ export class FirebaseAuthService implements IAuthService {
     });
     this.auth = admin.auth();
   }
-  async verifyToken(token: string): Promise<User> {
+  async verifyToken(token: string): Promise<IUser> {
     try {
       const decodedToken = await this.auth.verifyIdToken(token);
       const userRecord = await this.auth.getUser(decodedToken.uid);
 
-      const user: User = {
+      const user: IUser = {
         _id: userRecord.uid,
         email: userRecord.email || "",
         firstName: userRecord.displayName?.split(" ")[0] || "",
@@ -66,7 +67,7 @@ export class FirebaseAuthService implements IAuthService {
       disabled: false,
     });
 
-    const user: User = {
+    const user: IUser = {
       _id: userRecord.uid,
       email: payload.email,
       firstName: payload.firstName,
@@ -79,7 +80,7 @@ export class FirebaseAuthService implements IAuthService {
 
   async changePassword(
     payload: ChangePasswordPayload,
-    requestUser: User
+    requestUser: IUser
   ): Promise<{ success: boolean; message: string }> {
     // Verify user
     const firebaseUser = await this.auth.getUser(requestUser._id);

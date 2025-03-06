@@ -11,6 +11,7 @@
 
 import "reflect-metadata";
 import { Request } from "express";
+import { IUser } from "shared/interfaces/IUser";
 
 /**
  * Payload for the sign-up process.
@@ -62,7 +63,7 @@ export interface IAuthService {
    * @param payload - The payload containing the sign-up information.
    * @returns A promise that resolves to the created user.
    */
-  signup(payload: SignUpPayload): Promise<User>;
+  signup(payload: SignUpPayload): Promise<IUser>;
 
   /**
    * Verifies a given token.
@@ -70,7 +71,7 @@ export interface IAuthService {
    * @param token - The token to verify.
    * @returns A promise that resolves to the user associated with the token.
    */
-  verifyToken(token: string): Promise<User>;
+  verifyToken(token: string): Promise<IUser>;
 
   /**
    * Changes the password of a user.
@@ -81,7 +82,7 @@ export interface IAuthService {
    */
   changePassword(
     payload: ChangePasswordPayload,
-    requestUser: User
+    requestUser: IUser
   ): Promise<{ success: boolean; message: string }>;
 }
 
@@ -100,5 +101,5 @@ export interface AuthenticatedRequest extends Request {
   /**
    * The authenticated user making the request.
    */
-  user: User;
+  user: IUser;
 }

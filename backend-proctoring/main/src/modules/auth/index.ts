@@ -27,28 +27,26 @@ Container.set<IAuthService>("AuthService", new FirebaseAuthService());
 
 export const serviceOptions: RoutingControllersOptions = {
   controllers: [AuthController],
-  authorizationChecker: async (action: Action, roles: string[]) => {
-    // Use the auth service to check if the user is authorized
-    const authService = Container.get<IAuthService>("AuthService");
-    const token = action.request.headers["authorization"]?.split(" ")[1];
-    if (!token) {
-      return false;
-    }
-    try {
-      const user = await authService.verifyToken(token);
-      action.request.user = user;
+  authorizationChecker: async function (action: Action, roles: string[]) {
+		// Use the auth service to check if the user is authorized
+		const authService = Container.get<IAuthService>("AuthService");
+		const token = action.request.headers["authorization"]?.split(" ")[1];
+		if (!token) {
+			return false;
+		}
+		try {
+			const user = await authService.verifyToken(token);
+			action.request.user = user;
 
-      // Check if the user's roles match the required roles
-      if (
-        roles.length > 0 &&
-        !roles.some((role) => user.roles.includes(role))
-      ) {
-        return false;
-      }
+			// Check if the user's roles match the required roles
+			if (roles.length > 0 &&
+				!roles.some((role) => user.roles.includes(role))) {
+				return false;
+			}
 
-      return true;
-    } catch (error) {
-      return false;
-    }
-  },
+			return true;
+		} catch (error) {
+			return false;
+		}
+	},
 };
