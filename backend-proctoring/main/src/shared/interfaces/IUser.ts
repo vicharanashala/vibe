@@ -1,34 +1,35 @@
 export interface IUser {
-    _id: String;
-    email: String;
-    firstName: String;
-    lastName: String;
-    roles: String[];
+    id?: string
+    firebaseUID: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    roles: string[];
 }
 
 export interface ICourse {
-    _id: String;
-    name: String;
-    description: String;
-    instructors: String[];
+    _id: string;
+    name: string;
+    description: string;
+    instructors: string[];
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface ICourseVersion {
-    _id: String;
-    courseId: String;
-    version: String;
-    description: String;
+    _id: string;
+    courseId: string;
+    version: string;
+    description: string;
     modules: IModule[]
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface IModule {
-    _id: String;
-    name: String;
-    description: String;
+    _id: string;
+    name: string;
+    description: string;
     sections: ISection[];
     isLast: boolean;
     createdAt: Date;
@@ -36,55 +37,55 @@ export interface IModule {
 }
 
 export interface ISection {
-    _id: String;
-    name: String;
-    description: String;
-    itemIds: String[];
+    _id: string;
+    name: string;
+    description: string;
+    itemIds: string[];
     isLast: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface IItem {
-    _id: String;
-    name: String;
-    description: String;
+    _id: string;
+    name: string;
+    description: string;
     isLast: boolean;
     createdAt: Date;
     type: 'VIDEO' | 'QUIZ' | 'BLOG';
-    itemId: String;
+    itemId: string;
 }
 
 export interface IVideoItem{
-    _id: String;
-    url: String;
-    name: String;
-    description: String;
+    _id: string;
+    url: string;
+    name: string;
+    description: string;
     startTime: Number;
     endTime: Number;
     points: Number;
 }
 
 export interface IQuizItem {
-    _id: String;
+    _id: string;
     questionVisibilityLimit: Number;
-    questionIds: String[];
+    questionIds: string[];
 }
 
 export interface IBlogItem {
-    _id: String;
-    title: String;
-    content: String;
+    _id: string;
+    title: string;
+    content: string;
     points: Number;
 }
 
 interface IQuestion{
-    _id: String;
-    questionText: String;
+    _id: string;
+    questionText: string;
     questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
     parameterized: boolean;
     parameters?: IQuestionParameter[];
-    hintText: String;
+    hintText: string;
     timeLimit: Number;
     points: Number;
     metaDetails: IQuestionMetaDetails;
@@ -93,33 +94,33 @@ interface IQuestion{
 }
 
 export interface IQuestionParameter {
-    name: String;
-    value: String[] | Number[];
+    name: string;
+    value: string[] | Number[];
 }   
 
 export interface IQuestionMetaDetails {
-    _id: String;
-    creatorId: String;
+    _id: string;
+    creatorId: string;
     isStudentGenerated: boolean; 
     isAIGenerated: boolean;
 }
 
 export interface IQuestionOptionsLot {
-    _id: String;
+    _id: string;
     lotItems: IQuesionOptionsLotItem[];
 }
 
 export interface IQuesionOptionsLotItem {
-    _id: String;
-    itemText: String;
+    _id: string;
+    itemText: string;
 }
 
 export interface ISOLQuestionSolution {
-    lotItemId: String;
+    lotItemId: string;
 }
 
 export interface ISMLQuesionSolution {
-    lotItemIds: String[];
+    lotItemIds: string[];
 }
 
 export interface IMTLQuestionSolution {
@@ -127,8 +128,8 @@ export interface IMTLQuestionSolution {
 }
 
 export interface IMTLQuestionMatching {
-    lotItemId: String[];
-    explaination: String;
+    lotItemId: string[];
+    explaination: string;
 }
 
 export interface IOTLQuestionSolution {
@@ -136,7 +137,7 @@ export interface IOTLQuestionSolution {
 }
 
 export interface IOTLQuestionOrdering {
-    lotItemId: String;
+    lotItemId: string;
     order: Number;
 }
 
@@ -148,7 +149,7 @@ export interface INATQuestionSolution {
 }
 
 export interface IDESQuestionSolution {
-    solutionText: String;
+    solutionText: string;
 }
 
 export interface ISOLQuestion extends IQuestion {
@@ -184,9 +185,9 @@ export interface IDESQuestion extends IQuestion {
 }
 
 export interface IQuizResponse{
-    _id: String;
-    quizItemId: String;
-    studentId: String;
+    _id: string;
+    quizItemId: string;
+    studentId: string;
     questionsLength: Number;
     graadingStatus: 'PENDING' | 'GRADED';
     submitted: boolean;
@@ -196,18 +197,18 @@ export interface IQuizResponse{
 }
 
 interface IQuizResponseItem {
-    questionId: String;
+    questionId: string;
     parameters: IQuestionParameter[];
     points: Number;
     timeTaken: Number;
 }
 
 export interface IQuizSOLQuestionResponse extends IQuizResponseItem {
-    itemId: String;
+    itemId: string;
 }
 
 export interface IQuizSMLQuestionResponse extends IQuizResponseItem {
-    itemIds: String;
+    itemIds: string;
 }
 
 export interface IQuizMTLQuestionResponse extends IQuizResponseItem {
@@ -223,6 +224,6 @@ export interface IQuizNATQuestionResponse extends IQuizResponseItem {
 }
 
 export interface IQuizDESQuestionResponse extends IQuizResponseItem {
-    responseText: String;
+    responseText: string;
 }
 

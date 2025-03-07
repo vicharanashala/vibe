@@ -20,10 +20,15 @@ import { Container } from "typedi";
 import { useContainer } from "routing-controllers";
 import { IAuthService } from "./interfaces/IAuthService";
 import { FirebaseAuthService } from "./services/FirebaseAuthService";
+import { IDatabase, IUserRepository, MongoDatabase, UserRepository } from "shared/database/interfaces/IDatabase";
+import { appConfig } from "@config/app";
+import { dbConfig } from "@config/db";
 
 useContainer(Container);
 
-Container.set<IAuthService>("AuthService", new FirebaseAuthService());
+Container.set<IDatabase>("Database", new MongoDatabase(dbConfig.url, "vibe"));
+Container.set<IUserRepository>("UserRepository", new UserRepository(Container.get<MongoDatabase>("Database")));
+Container.set<IAuthService>("AuthService", new FirebaseAuthService(Container.get<IUserRepository>("UserRepository")));
 
 export const serviceOptions: RoutingControllersOptions = {
   controllers: [AuthController],

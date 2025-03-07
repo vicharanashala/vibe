@@ -19,8 +19,9 @@ import {
 import admin from "firebase-admin";
 import { UserRecord } from "firebase-admin/lib/auth/user-record";
 import { applicationDefault } from "firebase-admin/app";
-import { Service } from "typedi";
+import { Inject, Service } from "typedi";
 import { IUser } from "shared/interfaces/IUser";
+import { IUserRepository } from "shared/database/interfaces/IDatabase";
 
 
 export class ChangePasswordError extends Error {
@@ -33,7 +34,7 @@ export class ChangePasswordError extends Error {
 @Service()
 export class FirebaseAuthService implements IAuthService {
   private auth: Auth;
-  constructor() {
+  constructor(@Inject("UserRepository") private userRepository: IUserRepository) {
     admin.initializeApp({
       credential: applicationDefault(),
     });
@@ -45,7 +46,7 @@ export class FirebaseAuthService implements IAuthService {
       const userRecord = await this.auth.getUser(decodedToken.uid);
 
       const user: IUser = {
-        _id: userRecord.uid,
+        firebaseUID: userRecord.uid,
         email: userRecord.email || "",
         firstName: userRecord.displayName?.split(" ")[0] || "",
         lastName: userRecord.displayName?.split(" ")[1] || "",
@@ -59,23 +60,36 @@ export class FirebaseAuthService implements IAuthService {
   }
 
   async signup(payload: SignUpPayload): Promise<any> {
-    const userRecord: UserRecord = await this.auth.createUser({
+    let userRecord: UserRecord;
+    try {
+      userRecord = await this.auth.createUser({
       email: payload.email,
       emailVerified: false,
       password: payload.password,
       displayName: `${payload.firstName} ${payload.lastName}`,
       disabled: false,
-    });
+      });
+    } catch (error) {
+      throw new Error("Failed to create user in Firebase");
+    }
 
     const user: IUser = {
-      _id: userRecord.uid,
+      firebaseUID: userRecord.uid,
       email: payload.email,
       firstName: payload.firstName,
       lastName: payload.lastName,
       roles: ["student"],
     };
 
-    return user;
+    let createdUser: IUser;
+    
+    try {
+      createdUser  = await this.userRepository.create(user);
+    } catch (error) {
+      throw new Error("Failed to create user in the repository");
+    }
+
+    return createdUser;
   }
 
   async changePassword(
@@ -83,7 +97,7 @@ export class FirebaseAuthService implements IAuthService {
     requestUser: IUser
   ): Promise<{ success: boolean; message: string }> {
     // Verify user
-    const firebaseUser = await this.auth.getUser(requestUser._id);
+    const firebaseUser = await this.auth.getUser(requestUser.firebaseUID);
     if (!firebaseUser) {
       throw new ChangePasswordError("User not found");
     }
