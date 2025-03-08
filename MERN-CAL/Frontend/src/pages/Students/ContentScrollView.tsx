@@ -130,6 +130,7 @@ const ContentScrollView = () => {
   const [currentFrame, setCurrentFrame] = useState(
     assignment?.sequence ? assignment.sequence - 1 : 0
   )
+  console.log('i am the frame : ',currentFrame)
   const [isPlaying, setIsPlaying] = useState(false)
 
   const navigate = useNavigate()
@@ -155,14 +156,14 @@ const ContentScrollView = () => {
   const { data: assignmentsData } = useFetchItemsWithAuthQuery(sectionId)
   const content = assignmentsData || []
 
-  const [countdown, setCountdown] = useState(30000) // 30 seconds countdown
+  const [countdown, setCountdown] = useState(30) // 30 seconds countdown
 
   useEffect(() => {
     let timer
     const currentContent = content[currentFrame]
 
     if (currentContent && currentContent.item_type === 'Assessment') {
-      setCountdown(30000) // Reset countdown to 30 seconds whenever the frame is an assessment
+      setCountdown(30) // Reset countdown to 30 seconds whenever the frame is an assessment
       timer = setInterval(() => {
         setCountdown((prevCountdown) => {
           if (prevCountdown <= 1) {
@@ -170,7 +171,7 @@ const ContentScrollView = () => {
             clearInterval(timer)
             const nextFrameIndex = (currentFrame - 1) % content.length
             setCurrentFrame(nextFrameIndex)
-            return 30000 // reset countdown if looping
+            return 30 // reset countdown if looping
           }
           return prevCountdown - 1
         })
@@ -269,6 +270,7 @@ const ContentScrollView = () => {
   const [assessmentId, setAssessmentId] = useState(
     content[currentFrame + 1]?.id
   )
+  console.log(' i am assessmentId : ',assessmentId, ' for frame : ',currentFrame + 1)
 
   //Responsible for fetching the questions using RTK Query
   const { data: assessmentData, refetch } =
@@ -411,7 +413,6 @@ const ContentScrollView = () => {
           playerRef.current.pauseVideo() // Pause at end time
           clearInterval(playerIntervalRef.current) // Clear interval
           setCurrentFrame((prevFrame) => (prevFrame + 1) % content.length)
-          setSelectedOption([])
           setSelectedOption([])
           setCurrentQuestionIndex(0)
           setIsPlaying(false)
@@ -609,10 +610,7 @@ const ContentScrollView = () => {
 
   // This funtion is responsible to go backward to the last frame
   const handlePrevFrame = () => {
-    const nextFrameIndex = (currentFrame - 1 + content.length) % content.length
-    localStorage.setItem('nextFrame', nextFrameIndex)
-
-    window.location.reload()
+    setCurrentFrame((prevFrame) => (prevFrame - 1) % content.length)
   }
 
   // This funtion is for changing the speed of Video
@@ -674,7 +672,8 @@ const ContentScrollView = () => {
     return (
       <div className='justify-top flex h-screen w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
         <div className='mb-16 ml-auto flex items-center gap-4'>
-          <AddQuestion />
+          {/* <AddQuestion /> */}
+          <Button onClick={handlePrevFrame}>Back to Video</Button>
           Time Remaining:{' '}
           <span className='font-bold text-red-500'>{countdown} seconds</span>
         </div>

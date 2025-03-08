@@ -20,16 +20,27 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(helmet());
 app.use(compression());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('dev'));
 
 // Apply Firebase authentication middleware to all API routes
 app.use('/api', authenticateFirebaseUser, router);
 // app.use('/api', router);
+
+// Dummy route
+app.post('/api/items/videos/', (req, res) => {
+  res.json({ message: 'This is a dummy route' });
+});
+app.post('/api/items/assessments/', (req, res) => {
+  res.json({ message: 'This is a dummy route' });
+});
+app.post('/api/v1/assessment/questions/', (req, res) => {
+  res.json({ message: 'This is a dummy route' });
+});
 
 // Database connection
 mongoose.connect(process.env.MONGO_URI, {
