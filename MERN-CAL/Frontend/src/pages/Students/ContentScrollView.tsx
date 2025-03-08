@@ -130,7 +130,7 @@ const ContentScrollView = () => {
   const [currentFrame, setCurrentFrame] = useState(
     assignment?.sequence ? assignment.sequence - 1 : 0
   )
-  console.log('i am the frame : ',currentFrame)
+  console.log('i am the frame : ', currentFrame)
   const [isPlaying, setIsPlaying] = useState(false)
 
   const navigate = useNavigate()
@@ -270,7 +270,12 @@ const ContentScrollView = () => {
   const [assessmentId, setAssessmentId] = useState(
     content[currentFrame + 1]?.id
   )
-  console.log(' i am assessmentId : ',assessmentId, ' for frame : ',currentFrame + 1)
+  console.log(
+    ' i am assessmentId : ',
+    assessmentId,
+    ' for frame : ',
+    currentFrame + 1
+  )
 
   //Responsible for fetching the questions using RTK Query
   const { data: assessmentData, refetch } =
@@ -670,7 +675,7 @@ const ContentScrollView = () => {
     const isLastQuestion = currentQuestionIndex === AssessmentData.length - 1
 
     return (
-      <div className='justify-top flex h-screen w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
+      <div className='justify-top flex h-full w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
         <div className='mb-16 ml-auto flex items-center gap-4'>
           {/* <AddQuestion /> */}
           <Button onClick={handlePrevFrame}>Back to Video</Button>
@@ -821,134 +826,138 @@ const ContentScrollView = () => {
           <ResizableHandle className='p-1' />
 
           {/* Controls panel - 10% height */}
-          <ResizablePanel defaultSize={10} className=''>
-            <div className='controls-container flex w-full justify-center'>
-              <div className='w-full border border-white bg-white shadow'>
-                <div className='flex items-center justify-between'>
-                  {/* Left section: Play/Pause, Next, Time slider, Volume */}
-                  <div className='flex w-1/2 items-center justify-between'>
-                    <button
-                      onClick={togglePlayPause}
-                      className='rounded-full p-2 text-2xl'
-                      disabled={!isPlayerReady}
-                    >
-                      {isPlaying ? <Pause /> : <Play />}
-                    </button>
-                    <Slider
-                      value={[currentTime]}
-                      onValueChange={(value) => {
-                        const newTime = value[0]
-                        if (newTime <= currentTime) {
-                          handleTimeChange(value)
-                        }
-                      }}
-                      min={content[currentFrame]?.start_time || 0}
-                      max={content[currentFrame]?.end_time || totalDuration}
-                      step={1}
-                      className='w-48'
-                      disabled={!isPlayerReady}
-                    />
-                    <div className='ml-6 flex items-center'>
-                      <label
-                        htmlFor='volume'
-                        className='mr-2 text-sm font-medium'
+          {content[currentFrame].item_type === 'Video' && (
+            <ResizablePanel defaultSize={10} className=''>
+              <div className='controls-container flex w-full justify-center'>
+                <div className='w-full border border-white bg-white shadow'>
+                  <div className='flex items-center justify-between'>
+                    {/* Left section: Play/Pause, Next, Time slider, Volume */}
+                    <div className='flex w-1/2 items-center justify-between'>
+                      <button
+                        onClick={togglePlayPause}
+                        className='rounded-full p-2 text-2xl'
+                        disabled={!isPlayerReady}
                       >
-                        Volume:
-                      </label>
+                        {isPlaying ? <Pause /> : <Play />}
+                      </button>
                       <Slider
-                        value={[volume]}
-                        onValueChange={handleVolumeChange}
-                        min={0}
-                        max={100}
+                        value={[currentTime]}
+                        onValueChange={(value) => {
+                          const newTime = value[0]
+                          if (newTime <= currentTime) {
+                            handleTimeChange(value)
+                          }
+                        }}
+                        min={content[currentFrame]?.start_time || 0}
+                        max={content[currentFrame]?.end_time || totalDuration}
                         step={1}
-                        className='w-24'
+                        className='w-48'
                         disabled={!isPlayerReady}
                       />
+                      <div className='ml-6 flex items-center'>
+                        <label
+                          htmlFor='volume'
+                          className='mr-2 text-sm font-medium'
+                        >
+                          Volume:
+                        </label>
+                        <Slider
+                          value={[volume]}
+                          onValueChange={handleVolumeChange}
+                          min={0}
+                          max={100}
+                          step={1}
+                          className='w-24'
+                          disabled={!isPlayerReady}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Center section: Playback speed controls */}
-                  <div className='flex items-center'>
-                    {[0.5, 1, 1.5, 2].map((speed) => (
+                    {/* Center section: Playback speed controls */}
+                    <div className='flex items-center'>
+                      {[0.5, 1, 1.5, 2].map((speed) => (
+                        <button
+                          key={speed}
+                          className={`mx-1 rounded-full px-3 py-1 text-sm ${
+                            playbackSpeed === speed
+                              ? 'bg-gray-500'
+                              : 'bg-gray-200'
+                          }`}
+                          onClick={() => {
+                            setPlaybackSpeed(speed)
+                            changePlaybackSpeed(speed)
+                          }}
+                          disabled={!isPlayerReady}
+                        >
+                          {speed}x
+                        </button>
+                      ))}
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button disabled={!isPlayerReady}>
+                          {qualityLabels[videoQuality] || 'Quality'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('small')}
+                        >
+                          360p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('medium')}
+                        >
+                          480p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('large')}
+                        >
+                          720p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('hd1080')}
+                        >
+                          HD 1080p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('default')}
+                        >
+                          Auto
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className='flex items-center'>
+                      {/* Existing buttons for play/pause, etc. */}
                       <button
-                        key={speed}
-                        className={`mx-1 rounded-full px-3 py-1 text-sm ${
-                          playbackSpeed === speed
-                            ? 'bg-gray-500'
+                        onClick={toggleCaptions}
+                        className={`ml-4 rounded-full px-3 py-1 text-sm ${
+                          captionsEnabled
+                            ? 'bg-black text-white'
                             : 'bg-gray-200'
                         }`}
-                        onClick={() => {
-                          setPlaybackSpeed(speed)
-                          changePlaybackSpeed(speed)
-                        }}
-                        disabled={!isPlayerReady}
+                        title='Toggle Captions'
                       >
-                        {speed}x
+                        {captionsEnabled ? 'Hide Captions' : 'Show Captions'}
                       </button>
-                    ))}
-                  </div>
+                    </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button disabled={!isPlayerReady}>
-                        {qualityLabels[videoQuality] || 'Quality'}
+                    {/* Right section: Fullscreen toggle */}
+                    <div>
+                      <button
+                        onClick={toggleFullscreen}
+                        className='rounded-full p-2 text-xl'
+                      >
+                        <Fullscreen />
                       </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('small')}
-                      >
-                        360p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('medium')}
-                      >
-                        480p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('large')}
-                      >
-                        720p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('hd1080')}
-                      >
-                        HD 1080p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('default')}
-                      >
-                        Auto
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <div className='flex items-center'>
-                    {/* Existing buttons for play/pause, etc. */}
-                    <button
-                      onClick={toggleCaptions}
-                      className={`ml-4 rounded-full px-3 py-1 text-sm ${
-                        captionsEnabled ? 'bg-black text-white' : 'bg-gray-200'
-                      }`}
-                      title='Toggle Captions'
-                    >
-                      {captionsEnabled ? 'Hide Captions' : 'Show Captions'}
-                    </button>
-                  </div>
-
-                  {/* Right section: Fullscreen toggle */}
-                  <div>
-                    <button
-                      onClick={toggleFullscreen}
-                      className='rounded-full p-2 text-xl'
-                    >
-                      <Fullscreen />
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </ResizablePanel>
+            </ResizablePanel>
+          )}
         </ResizablePanelGroup>
       </ResizablePanel>
       <ResizableHandle className='p-1' />
