@@ -21,7 +21,8 @@ import { UserRecord } from "firebase-admin/lib/auth/user-record";
 import { applicationDefault } from "firebase-admin/app";
 import { Inject, Service } from "typedi";
 import { IUser } from "shared/interfaces/IUser";
-import { IUserRepository } from "shared/database/interfaces/IDatabase";
+import { IUserRepository } from "shared/database";
+
 
 
 export class ChangePasswordError extends Error {

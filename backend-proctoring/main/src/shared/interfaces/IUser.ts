@@ -8,9 +8,10 @@ export interface IUser {
 }
 
 export interface ICourse {
-    _id: string;
+    id?: string;
     name: string;
     description: string;
+    versions: string[];
     instructors: string[];
     createdAt: Date;
     updatedAt: Date;

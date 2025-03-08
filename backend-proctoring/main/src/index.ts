@@ -5,9 +5,17 @@ import Express from 'express';
 import Sentry from '@sentry/node';
 import { loggingHandler } from 'shared/middleware/loggingHandler';
 import { appConfig } from '@config/app';
-import { RoutingControllersOptions, useExpressServer } from 'routing-controllers';
+import { RoutingControllersOptions, useContainer, useExpressServer } from 'routing-controllers';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
-import { serviceOptions } from 'modules/auth';
+import { authModuleOptions } from 'modules/auth';
+import { coursesModuleOptions } from 'modules/courses';
+import Container from 'typedi';
+import { ICourseRepository, IDatabase } from 'shared/database';
+import { ICourseService } from 'modules/courses/ICourseService';
+import { MongoDatabase } from 'shared/database/providers/MongoDatabaseProvider';
+import { CourseRepository } from 'shared/database/providers/mongo/repositories/CourseRepository';
+import { CourseService } from 'modules/courses/CourseService';
+import { dbConfig } from '@config/db';
 
 
 export const application = Express();
@@ -58,8 +66,20 @@ export const ServiceFactory = (service: typeof application, options: RoutingCont
 }
 
 // Create a main function where multiple services are created
+
+
+useContainer(Container);
+
+if (!Container.has("Database")) {
+    Container.set<IDatabase>("Database", new MongoDatabase(dbConfig.url, "vibe"));
+}
+
+Container.set<ICourseRepository>("ICourseRepository", new CourseRepository(Container.get<MongoDatabase>("Database")));
+Container.set<ICourseService>("ICourseService", new CourseService(Container.get<ICourseRepository>("ICourseRepository")));
+
+
 export const main = () => {
-  ServiceFactory(application, serviceOptions, appConfig.port);
+  ServiceFactory(application, coursesModuleOptions, 4001);
 }
 
 main();
