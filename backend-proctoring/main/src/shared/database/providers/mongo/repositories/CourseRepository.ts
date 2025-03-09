@@ -7,7 +7,8 @@ import { ICourse } from "shared/interfaces/IUser";
 
 @Service()
 export class CourseRepository implements ICourseRepository {
-    private coursesCollection!: Collection<ICourse>;
+    private coursesCollection!: Collection<MongoCourse>;
+    private courseVersionCollection!: Collection<MongoCourseVersion>;
 
     constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
 
@@ -15,8 +16,11 @@ export class CourseRepository implements ICourseRepository {
      * Ensures that `coursesCollection` is initialized before usage.
      */
     private async init(): Promise<void> {
-        if (!this.coursesCollection) {
-            this.coursesCollection = await this.db.getCollection<ICourse>("courses");
+        if (!this.coursesCollection ) {
+            this.coursesCollection = await this.db.getCollection<MongoCourse>("courses");
+        }
+        if (!this.courseVersionCollection) {
+            this.courseVersionCollection = await this.db.getCollection<MongoCourseVersion>("courseVersions");
         }
     }
 
@@ -45,8 +49,19 @@ export class CourseRepository implements ICourseRepository {
      */
     async create(course: ICourse): Promise<ICourse> {
         await this.init();
-        const result = await this.coursesCollection.insertOne(course);
-        return this.transformCourse({ ...course, _id: result.insertedId })!;
+        const instructors: ObjectId[] = course.instructors.map(id => new ObjectId(id));
+        const mongoCourse: MongoCourse = {
+            ...course,
+            instructors,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            id: undefined,  
+        };
+        const result = await this.coursesCollection.insertOne(mongoCourse);
+        return {
+            ...course,
+            id: result.insertedId.toString(),
+        } as ICourse;
     }
 
     /**
