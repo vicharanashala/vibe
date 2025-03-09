@@ -1,32 +1,36 @@
 import json
 import os
 from groq import Groq
+from tqdm import tqdm
 
 # Set GROQ_API_KEY in your environment variables
-# For Colab, you can set it like this:
-os.environ["GROQ_API_KEY"] = "api_key_groq"
+os.environ["GROQ_API_KEY"] = "api_key"
 
 # Create the Groq client
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# Define the prompt
+# Define the prompt templates (same as before)
 prompt = {
     "role": "system",
-    "content": """
-    Determine the type of question (true/false, multiple-choice, multiple-select) that best fits the transcript: {transcript}
-    Warning: only these 3 types should be the answer true/false, multiple-choice, multiple-select
-    Format:
-    {{
-        "question_type": "<type_of_question>"
-    }}
-    """,
+    "content":"""
+Determine the type of question (true/false, multiple-choice, multiple-select) that best fits the transcript: {transcript}
+Examples:
+- "The sky is blue" -> true/false
+- "What color is the sky?" -> multiple-choice
+- "Which colors appear in the sky?" -> multiple-select
+Warning: only these 3 types should be the answer: true/false, multiple-choice, multiple-select
+Format:
+{{
+    "question_type": "<type_of_question>"
+}}
+""",
 }
 
-# Define the question generation templates
 true_false_template = {
     "role": "system",
     "content": """
     Generate a true/false question in JSON format based on the transcript: {transcript}
+    {additional_suggestions}
     warning: Only return the json format and nothing more
     Format:
     {{
@@ -41,6 +45,7 @@ mcq_template = {
     "role": "system",
     "content": """
     Generate a multiple-choice question in JSON format based on the transcript: {transcript}
+    {additional_suggestions}
     warning: Only return the json format and nothing more
     Format:
     {{
@@ -55,6 +60,7 @@ msq_template = {
     "role": "system",
     "content": """
     Generate a multiple-select question in JSON format based on the transcript: {transcript}
+    {additional_suggestions}
     warning: Only return the json format and nothing more
     Format:
     {{
@@ -65,55 +71,51 @@ msq_template = {
     """,
 }
 
-# Reviewer Template
 review_template = {
     "role": "system",
-    "content": "Review the question: {question}. Provide feedback if necessary.",
+    "content": """
+    Review the question against the transcript: 
+    Transcript: {transcript}
+    Question: {question}
+    Check:
+    1. Does the question accurately reflect the transcript content?
+    2. Is the correct answer consistent with the transcript?
+    3. Are the options appropriate and relevant?
+    4. Correct_answer is the index starting from 0
+    Warning: Only return the json format and nothing more
+    Return JSON format:
+    {{
+        "is_valid": <true/false>,
+        "feedback": "<detailed feedback if not valid, empty string if valid>"
+    }}
+    """,
 }
 
 # Function to generate response using Groq
-def generate_response(template, transcript):
+def generate_response(template, transcript, additional_suggestions=""):
     try:
-        # Correctly format the prompt content
-        formatted_content = template["content"].format(transcript=transcript)
-        
-        # Update chat_history with the formatted content
+        formatted_content = template["content"].format(transcript=transcript, additional_suggestions=additional_suggestions)
         chat_history = [{"role": template["role"], "content": formatted_content}]
-        
         response = client.chat.completions.create(model="llama3-70b-8192",
-                                                  messages=chat_history,
-                                                  max_tokens=100,
-                                                  temperature=1.2)
+                                                 messages=chat_history,
+                                                 max_tokens=100,
+                                                 temperature=0.7)
         return response.choices[0].message.content
     except KeyError as e:
         return f"KeyError: {str(e)}"
 
-# Function to generate questions using Groq
-def generate_question(template, transcript):
+# Function to review questions
+def review_question(transcript, question):
     try:
-        # Correctly format the prompt content
-        formatted_content = template["content"].format(transcript=transcript)
-        
-        # Update chat_history with the formatted content
-        chat_history = [{"role": template["role"], "content": formatted_content}]
-        
+        formatted_content = review_template["content"].format(transcript=transcript, question=question)
+        chat_history = [{"role": "system", "content": formatted_content}]
         response = client.chat.completions.create(model="llama3-70b-8192",
-                                                  messages=chat_history,
-                                                  max_tokens=100,
-                                                  temperature=1.2)
-        return response.choices[0].message.content
-    except KeyError as e:
-        return f"KeyError: {str(e)}"
-
-# Function to review questions using Groq
-def review_question(question):
-    chat_history = [review_template]
-    chat_history[0]["content"] = chat_history[0]["content"].format(question=question)
-    response = client.chat.completions.create(model="llama3-70b-8192",
-                                              messages=chat_history,
-                                              max_tokens=100,
-                                              temperature=1.2)
-    return response.choices[0].message.content
+                                                 messages=chat_history,
+                                                 max_tokens=200,
+                                                 temperature=1.0)
+        return json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError:
+        return {"is_valid": False, "feedback": "Invalid review response format"}
 
 # Function to check if the output is valid JSON
 def is_valid_json(output):
@@ -130,63 +132,52 @@ class SupervisorAgent:
             "multiple-choice": mcq_template,
             "multiple-select": msq_template,
         }
-        self.attempts = 0
-        self.max_attempts = 2
+        self.max_attempts = 3
 
     def decide_agent(self, transcript):
-        # Use LLM to determine question type
         response = generate_response(prompt, transcript)
         try:
             response_json = json.loads(response)
             question_type = response_json["question_type"]
-            if question_type in self.agents:
-                return self.agents[question_type]
-            else:
-                # Default to MSQ if question_type is not recognized
-                return self.agents["multiple-select"]
+            return self.agents.get(question_type, self.agents["multiple-select"])
         except json.JSONDecodeError:
-            # Default to MSQ if LLM fails
             return self.agents["multiple-select"]
 
-    def generate_question(self, transcript):
+    def generate_and_review(self, transcript):
         agent = self.decide_agent(transcript)
-        question = generate_question(agent, transcript)
-        
-        # Check if the output is valid JSON
-        if is_valid_json(question):
-            return question
-        else:
-            # If not valid JSON, try again or switch agents
-            self.attempts += 1
-            if self.attempts < self.max_attempts:
-                # Try again with the same agent
-                return self.generate_question(transcript)
+        attempts = 0
+        additional_suggestions = ""
+
+        while attempts < self.max_attempts:
+            question = generate_response(agent, transcript, additional_suggestions)
+            
+            if not is_valid_json(question):
+                additional_suggestions = "Previous attempt failed to produce valid JSON. Ensure the response is valid JSON."
+                attempts += 1
+                continue
+
+            review = review_question(transcript, question)
+            print('transcript',transcript)
+            print(question)
+            print(f"Review: {review}")
+            
+            if review["is_valid"]:
+                return question
             else:
-                # Switch to another agent if all attempts fail
-                self.attempts = 0
-                if agent == self.agents["multiple-select"]:
-                    agent = self.agents["multiple-choice"]
-                elif agent == self.agents["multiple-choice"]:
-                    agent = self.agents["true/false"]
-                else:
-                    agent = self.agents["multiple-select"]
-                return generate_question(agent, transcript)
+                additional_suggestions = f"Previous question was invalid. Feedback: {review['feedback']}. Please generate a new question addressing this feedback."
+                attempts += 1
+
+        # If max attempts reached, return last question or a default
+        return question if is_valid_json(question) else '{"error": "Failed to generate valid question after maximum attempts"}'
 
 # Initialize the Supervisor Agent
 supervisor = SupervisorAgent()
 
+
 # Define the transcripts
-transcripts = [
-    """
-    The GDP of New York was approximately $1.6 trillion in 2022. The GDP of California was about $3.6 trillion in the same year. It is true that New York's GDP was higher than California's in 2022.
-    """,
-    """
-    The GDP of New York was approximately $1.6 trillion in 2022. The GDP of California was about $3.6 trillion in the same year. What was the main factor contributing to California's higher GDP?
-    """,
-    """
-    The GDP of New York was approximately $1.6 trillion in 2022. The GDP of California was about $3.6 trillion in the same year. Which of the following factors could influence future business investments in both states?
-    """,
-]
+
+transcripts = []
+
 
 # Create a JSON structure to store questions
 questions_json = {
@@ -194,33 +185,29 @@ questions_json = {
 }
 
 # Process each transcript
-for i, transcript in enumerate(transcripts):
-    # Use LLM to determine question type
+for i, transcript in tqdm(enumerate(transcripts), total=len(transcripts), desc="Processing Transcripts"):
     response = generate_response(prompt, transcript)
     try:
         response_json = json.loads(response)
         question_type = response_json["question_type"]
     except json.JSONDecodeError:
-        # Default to MSQ if LLM fails
         question_type = "multiple-select"
+
+    # Generate and review question
+    question = supervisor.generate_and_review(transcript)
     
-    # Generate the question
-    agent = supervisor.agents.get(question_type, supervisor.agents["multiple-select"])
-    question = generate_question(agent, transcript)
-    
-    # Check if the output is valid JSON
     if is_valid_json(question):
         question_json = json.loads(question)
-        # Append the question to the JSON structure
-        questions_json["questions"].append({
-            "order": i + 1,
-            "type": question_type,
-            "question": question_json["question"],
-            "options": question_json["options"],
-            "correct_answer": question_json["correct_answer"]
-        })
+        if "error" not in question_json:
+            questions_json["questions"].append({
+                "order": i + 1,
+                "type": question_type,
+                "question": question_json["question"],
+                "options": question_json["options"],
+                "correct_answer": question_json["correct_answer"]
+            })
     else:
-        print(f"Failed to generate a valid question for transcript {i + 1}.")
+        print(f"Failed to generate a valid question for transcript {i + 1} after review.")
 
 # Print the JSON structure
 print(json.dumps(questions_json, indent=4))
