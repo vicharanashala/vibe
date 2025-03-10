@@ -1,4 +1,4 @@
-import { ICourse } from "shared/interfaces/IUser";
+import { ICourse, ICourseVersion } from "shared/interfaces/IUser";
 
 export interface ICourseRepository {
     create(course: ICourse): Promise<ICourse>;
@@ -6,4 +6,5 @@ export interface ICourseRepository {
     update(id: string, course: ICourse): Promise<ICourse | null>;
     delete(id: string): Promise<boolean>;
     getAll(): Promise<ICourse[]>;
+    createVersion(courseVersion: ICourseVersion): Promise<ICourseVersion | null>;
 }

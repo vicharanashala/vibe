@@ -46,7 +46,7 @@ export interface ICourseService {
    * @param payload - The payload containing the course information.
    * @returns A promise that resolves to the created course.
    */
-  create(payload: CoursePayload): Promise<ICourse>;
+  createCourse(payload: CoursePayload): Promise<ICourse>;
 
   /**
    * Retrieves a course by ID.

@@ -22,6 +22,7 @@ import {
 import { Inject, Service } from "typedi";
 import { instanceToPlain } from "class-transformer";
 import { CoursePayload, ICourseService } from "./ICourseService";
+import { DTOCoursePayload } from "./DTOCoursePayload";
 
 @JsonController("/courses")
 @Service()
@@ -41,8 +42,8 @@ export class CourseController {
    */
   @Authorized(["admin", "instructor"])
   @Post("/")
-  async create(@Body({ validate: true }) payload: CoursePayload) {
-    const course = await this.courseService.create(payload);
+  async createCourse(@Body({ validate: true }) payload: DTOCoursePayload) {
+    const course = await this.courseService.createCourse(payload);
     return instanceToPlain(course);
   }
 

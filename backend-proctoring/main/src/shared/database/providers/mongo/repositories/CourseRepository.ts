@@ -3,7 +3,14 @@ import { ICourseRepository } from "shared/database/interfaces/ICourseRepository"
 import { Collection, WithId, ObjectId } from "mongodb";
 import { Inject, Service } from "typedi";
 import { MongoDatabase } from "../MongoDatabase";
-import { ICourse } from "shared/interfaces/IUser";
+import { ICourse, ICourseVersion } from "shared/interfaces/IUser";
+
+
+type MongoCourse = Omit<ICourse, "id" | "instructors"> & { id?: ObjectId; instructors: ObjectId[] };
+
+type MongoCourseVersion = ICourseVersion & { id: ObjectId };
+
+
 
 @Service()
 export class CourseRepository implements ICourseRepository {
@@ -43,6 +50,7 @@ export class CourseRepository implements ICourseRepository {
 
         return transformedCourse;
     }
+    
 
     /**
      * Creates a new course in the database.
@@ -70,20 +78,48 @@ export class CourseRepository implements ICourseRepository {
     async read(id: string): Promise<ICourse | null> {
         await this.init();
         const course = await this.coursesCollection.findOne({ _id: new ObjectId(id) });
-        return this.transformCourse(course);
+        
+        if (course){
+            const {_id, ...rest} = course;
+            return {
+                ...rest,
+                id: _id.toString(),
+                instructors: course.instructors.map((id: ObjectId) => id.toString()),
+            } as ICourse;
+        }
+        return null;
     }
 
     /**
      * Updates a course by ID.
      */
-    async update(id: string, course: ICourse): Promise<ICourse | null> {
+    async update(id: string, course: Partial<ICourse>): Promise<ICourse | null> {
         await this.init();
+
+        let mongoCourse: Partial<MongoCourse> = {
+            ...course,
+            id: course.id ? new ObjectId(course.id) : undefined,
+            instructors: course.instructors ? course.instructors.map(id => new ObjectId(id)) : [],
+            updatedAt: new Date(),
+        };
+
         const result = await this.coursesCollection.findOneAndUpdate(
             { _id: new ObjectId(id) },
-            { $set: course },
+            { $set: mongoCourse },
             { returnDocument: "after" }
         );
-        return this.transformCourse(result);
+
+        if (result){
+            const {_id, ...rest} = result;
+
+            return {
+                ...rest,
+                id: result._id.toString(),
+                instructors: result.instructors.map((id: ObjectId) => id.toString()),
+            } as ICourse;
+        }
+
+        return null;
     }
 
     /**
@@ -102,5 +138,14 @@ export class CourseRepository implements ICourseRepository {
         await this.init();
         const courses = await this.coursesCollection.find().toArray();
         return courses.map(this.transformCourse) as ICourse[];
+    }
+
+    async createVersion(courseVersion: ICourseVersion): Promise<ICourseVersion | null>{
+        await this.init();
+        const result = await this.courseVersionCollection.insertOne(courseVersion);
+        return {
+            ...courseVersion,
+            id: result.insertedId.toString(),
+        } as ICourseVersion;
     }
 }

@@ -11,7 +11,11 @@ import { Service, Inject } from "typedi";
 
 import { ICourseRepository } from "shared/database/interfaces/ICourseRepository";
 import { CoursePayload, ICourseService } from "./ICourseService";
-import { ICourse } from "shared/interfaces/IUser";
+import { ICourse, ICourseVersion } from "shared/interfaces/IUser";
+
+
+
+
 
 @Service()
 export class CourseService implements ICourseService {
@@ -20,9 +24,10 @@ export class CourseService implements ICourseService {
   /**
    * Creates a new course.
    */
-  async create(payload: CoursePayload): Promise<ICourse> {
+  async createCourse(payload: CoursePayload): Promise<ICourse> {
     const course: ICourse = {
       ...payload,
+      versions: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -45,6 +50,16 @@ export class CourseService implements ICourseService {
       updatedAt: new Date(),
     };
     return await this.courseRepository.update(id, updatedCourse as ICourse);
+  }
+
+  async addVersion(courseId: string, version: ICourseVersion): Promise<ICourse | null> {
+    const course = await this.courseRepository.read(courseId);
+    if (!course) return null;
+
+    const createdVersion = await this.courseRepository.createVersion(version);
+
+    course.versions.push(createdVersion?.id as string);
+    return await this.courseRepository.update(courseId, course);
   }
 
   /**

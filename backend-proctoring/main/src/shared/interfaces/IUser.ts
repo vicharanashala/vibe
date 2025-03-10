@@ -18,7 +18,7 @@ export interface ICourse {
 }
 
 export interface ICourseVersion {
-    _id: string;
+    id?: string;
     courseId: string;
     version: string;
     description: string;
@@ -28,7 +28,7 @@ export interface ICourseVersion {
 }
 
 export interface IModule {
-    _id: string;
+    id?: string;
     name: string;
     description: string;
     sections: ISection[];
@@ -38,7 +38,7 @@ export interface IModule {
 }
 
 export interface ISection {
-    _id: string;
+    id?: string;
     name: string;
     description: string;
     itemIds: string[];
@@ -48,7 +48,7 @@ export interface ISection {
 }
 
 export interface IItem {
-    _id: string;
+    id?: string;
     name: string;
     description: string;
     isLast: boolean;

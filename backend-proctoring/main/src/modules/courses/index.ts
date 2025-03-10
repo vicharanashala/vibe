@@ -1,4 +1,4 @@
-import { useContainer } from "class-validator";
+import { useContainer } from "routing-controllers";
 import { RoutingControllersOptions } from "routing-controllers";
 import { ICourseRepository, IDatabase } from "shared/database";
 import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
