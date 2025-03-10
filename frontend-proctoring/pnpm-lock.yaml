@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@mediapipe/hands':
+        specifier: ^0.4.1675469240
+        version: 0.4.1675469240
+      '@mediapipe/tasks-audio':
+        specifier: 0.10.22-rc.20250304
+        version: 0.10.22-rc.20250304
       '@mediapipe/tasks-vision':
         specifier: ^0.10.21
         version: 0.10.21
@@ -923,6 +929,12 @@ packages:
 
   '@mediapipe/face_detection@0.4.1646425229':
     resolution: {integrity: sha512-aeCN+fRAojv9ch3NXorP6r5tcGVLR3/gC1HmtqB0WEZBRXrdP6/3W/sGR0dHr1iT6ueiK95G9PVjbzFosf/hrg==}
+
+  '@mediapipe/hands@0.4.1675469240':
+    resolution: {integrity: sha512-GxoZvL1mmhJxFxjuyj7vnC++JIuInGznHBin5c7ZSq/RbcnGyfEcJrkM/bMu5K1Mz/2Ko+vEX6/+wewmEHPrHg==}
+
+  '@mediapipe/tasks-audio@0.10.22-rc.20250304':
+    resolution: {integrity: sha512-3rUl/8/+/J7kkoGU2a6mLQnBpw5KktsKmBKtL50GopzBUE0vd8D0dXwGPHAL2tIRYiQ1TMv1UDJSPrRrHTbnPA==}
 
   '@mediapipe/tasks-vision@0.10.21':
     resolution: {integrity: sha512-TuhKH+credq4zLksGbYrnvJ1aLIWMc5r0UHwzxzql4BHECJwIAoBR61ZrqwGOW6ZmSBIzU1t4VtKj8hbxFaKeA==}
@@ -4206,6 +4218,10 @@ snapshots:
   '@marijn/find-cluster-break@1.0.2': {}
 
   '@mediapipe/face_detection@0.4.1646425229': {}
+
+  '@mediapipe/hands@0.4.1675469240': {}
+
+  '@mediapipe/tasks-audio@0.10.22-rc.20250304': {}
 
   '@mediapipe/tasks-vision@0.10.21': {}
 
