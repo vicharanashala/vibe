@@ -4,6 +4,6 @@ const { enrollStudents } = require('../../controllers/Progress/InitializeProgres
 const initializeProgressRouter = express.Router();
 
 // Define the signup route
-initializeProgressRouter.post('/initialize-progress', enrollStudents);
+initializeProgressRouter.post('/initialize-progress/:batchName', enrollStudents);
 
 module.exports = initializeProgressRouter;

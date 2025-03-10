@@ -23,7 +23,7 @@ exports.bulkSignup = async (req, res) => {
       try {
         // Create user in Firebase
         const userRecord = await admin.auth().createUser({
-          email: user.email,
+          email: user.email.lowerCase(),
           emailVerified: false,
           password: password,
           displayName: `${user.firstName} ${user.lastName}`,
@@ -34,7 +34,7 @@ exports.bulkSignup = async (req, res) => {
         const newUser = new User({
           firstName: user.firstName,
           lastName: user.lastName,
-          email: user.email,
+          email: user.email.lowerCase(),
           password: password, // Ideally, you should hash the password before storing
           role: user.role,
           institute: user.institute,
