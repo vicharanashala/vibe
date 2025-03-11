@@ -28,9 +28,10 @@ export interface ICourseVersion {
 }
 
 export interface IModule {
-    id?: string;
+    moduleId?: string;
     name: string;
     description: string;
+    order: number;
     sections: ISection[];
     isLast: boolean;
     createdAt: Date;
@@ -38,9 +39,10 @@ export interface IModule {
 }
 
 export interface ISection {
-    id?: string;
+    sectionId?: string;
     name: string;
     description: string;
+    order: number;
     itemIds: string[];
     isLast: boolean;
     createdAt: Date;
