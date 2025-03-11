@@ -82,4 +82,6 @@ export interface ICourseService {
   getAll(): Promise<ICourse[]>;
 
   addVersion(courseId: string, versionDetails: DTOCourseVersionPayload): Promise<unknown>;
+
+  updateVersion(courseId: string, versionId: string, payload: Partial<DTOCourseVersionPayload>): Promise<unknown>;
 }

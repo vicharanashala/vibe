@@ -157,6 +157,67 @@ export class CourseService implements ICourseService {
     return null;
   }
 
+  async updateVersion(
+    courseId: string,
+    versionId: string,
+    payload: Partial<DTOCourseVersionPayload>
+): Promise<ICourseVersion | null> {
+    const course = await this.courseRepository.read(courseId);
+    if (!course) {
+        throw new FetchCourseError(`Course with ID ${courseId} not found.`);
+    }
+
+    const existingVersion = await this.courseRepository.readVersion(versionId);
+    if (!existingVersion) {
+        throw new FetchCourseError(`Course version with ID ${versionId} not found.`);
+    }
+
+    try {
+        // Process modules and sections, ensuring correct order and timestamps
+        const updatedModules = processModulesAndSections(
+            payload.modules || existingVersion.modules
+        );
+
+        // Update timestamps for modified modules and sections
+        updatedModules.forEach(module => {
+            if (payload.modules?.some(m => m.moduleId === module.moduleId)) {
+                module.updatedAt = new Date();
+            }
+
+            module.sections.forEach(section => {
+                if (
+                    payload.modules?.some(m =>
+                        m.sections.some(s => s.sectionId === section.sectionId)
+                    )
+                ) {
+                    section.updatedAt = new Date();
+                }
+            });
+        });
+
+        const updatedVersion = {
+            ...existingVersion,
+            ...payload,
+            modules: updatedModules,
+            updatedAt: new Date(),
+        };
+
+        // Update the version in the repository
+        const savedVersion = await this.courseRepository.updateVersion(versionId, updatedVersion);
+        if (!savedVersion) {
+            throw new UpdateCourseError("Failed to update course version in the database.");
+        }
+
+        return savedVersion;
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Course version update failed: ${error.message}`);
+        }
+    }
+    return null;
+}
+
+
   /**
    * Deletes a course by ID.
    */

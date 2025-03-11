@@ -7,4 +7,6 @@ export interface ICourseRepository {
     delete(id: string): Promise<boolean>;
     getAll(): Promise<ICourse[]>;
     createVersion(courseVersion: ICourseVersion): Promise<ICourseVersion | null>;
+    readVersion(versionId: string): Promise<ICourseVersion | null>;
+    updateVersion(versionId: string, courseVersion: ICourseVersion): Promise<ICourseVersion | null>;
 }
