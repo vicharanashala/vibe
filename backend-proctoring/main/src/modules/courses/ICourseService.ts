@@ -9,6 +9,7 @@
 
 import "reflect-metadata";
 import { ICourse } from "shared/interfaces/IUser";
+import { DTOCourseVersionPayload } from "./DTOCoursePayload";
 
 /**
  * Payload for creating or updating a course.
@@ -79,4 +80,6 @@ export interface ICourseService {
    * @returns A promise that resolves to an array of all courses.
    */
   getAll(): Promise<ICourse[]>;
+
+  addVersion(courseId: string, versionDetails: DTOCourseVersionPayload): Promise<unknown>;
 }

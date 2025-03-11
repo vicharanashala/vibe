@@ -8,7 +8,7 @@ import { ICourse, ICourseVersion } from "shared/interfaces/IUser";
 
 type MongoCourse = Omit<ICourse, "id" | "instructors"> & { id?: ObjectId; instructors: ObjectId[] };
 
-type MongoCourseVersion = ICourseVersion & { id: ObjectId };
+type MongoCourseVersion = Omit<ICourseVersion, "id"> & { id?: ObjectId };
 
 
 
@@ -34,7 +34,7 @@ export class CourseRepository implements ICourseRepository {
     /**
      * Converts `_id: ObjectId` to `id: string` in course objects.
      */
-    private transformCourse(course: WithId<ICourse> | null): ICourse | null {
+    private transformCourse(course: WithId<MongoCourse> | null): ICourse | null {
         if (!course) return null;
         
         const transformedCourse: ICourse = {
@@ -55,7 +55,7 @@ export class CourseRepository implements ICourseRepository {
     /**
      * Creates a new course in the database.
      */
-    async create(course: ICourse): Promise<ICourse> {
+    async create(course: ICourse): Promise<ICourse| null> {
         await this.init();
         const instructors: ObjectId[] = course.instructors.map(id => new ObjectId(id));
         const mongoCourse: MongoCourse = {
@@ -66,10 +66,15 @@ export class CourseRepository implements ICourseRepository {
             id: undefined,  
         };
         const result = await this.coursesCollection.insertOne(mongoCourse);
-        return {
-            ...course,
-            id: result.insertedId.toString(),
-        } as ICourse;
+
+        if(result){
+            return {
+                ...course,
+                id: result.insertedId.toString(),
+            } as ICourse;
+        }
+
+        return null;
     }
 
     /**
@@ -137,15 +142,64 @@ export class CourseRepository implements ICourseRepository {
     async getAll(): Promise<ICourse[]> {
         await this.init();
         const courses = await this.coursesCollection.find().toArray();
-        return courses.map(this.transformCourse) as ICourse[];
+        return courses.map(course => this.transformCourse(course)) as ICourse[];
     }
 
-    async createVersion(courseVersion: ICourseVersion): Promise<ICourseVersion | null>{
-        await this.init();
-        const result = await this.courseVersionCollection.insertOne(courseVersion);
+    /**
+     * Creates a new course version in the database.
+     */
+async createVersion(courseVersion: ICourseVersion): Promise<ICourseVersion | null> {
+    await this.init();
+
+    // Convert `courseId` to ObjectId
+    const courseObjectId = new ObjectId(courseVersion.courseId);
+
+    // Process modules and sections
+    const processedModules = courseVersion.modules.map(module => {
+        const moduleObjectId = new ObjectId(); // Generate a unique ObjectId for each module
+        const processedSections = module.sections.map(section => ({
+            ...section,
+            sectionId: new ObjectId(), // Assign a unique ObjectId for each section
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }));
+
         return {
-            ...courseVersion,
-            id: result.insertedId.toString(),
-        } as ICourseVersion;
+            ...module,
+            moduleId: moduleObjectId,
+            sections: processedSections,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    });
+
+    // Construct version document
+    const mongoCourseVersion: MongoCourseVersion = {
+        ...courseVersion,
+        id: undefined,
+        modules: processedModules,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    };
+
+    // Insert into MongoDB
+    const result = await this.courseVersionCollection.insertOne(mongoCourseVersion);
+    if (!result.insertedId) {
+        return null;
     }
+
+    return {
+        ...mongoCourseVersion,
+        id: result.insertedId.toString(),
+        modules: processedModules.map(module => ({
+            ...module,
+            id: module.moduleId.toString(),
+            sections: module.sections.map(section => ({
+                ...section,
+                id: section.sectionId.toString(),
+            })),
+        })),
+    } as ICourseVersion;
+}
+
 }

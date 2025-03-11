@@ -22,7 +22,9 @@ import {
 import { Inject, Service } from "typedi";
 import { instanceToPlain } from "class-transformer";
 import { CoursePayload, ICourseService } from "./ICourseService";
-import { DTOCoursePayload } from "./DTOCoursePayload";
+import { DTOCoursePayload, DTOCourseVersionPayload } from "./DTOCoursePayload";
+import { isInstance } from "class-validator";
+import { CreateCourseError, FetchCourseError, UpdateCourseError } from "./CourseService";
 
 @JsonController("/courses")
 @Service()
@@ -43,8 +45,16 @@ export class CourseController {
   @Authorized(["admin", "instructor"])
   @Post("/")
   async createCourse(@Body({ validate: true }) payload: DTOCoursePayload) {
-    const course = await this.courseService.createCourse(payload);
-    return instanceToPlain(course);
+    try {
+      const course = await this.courseService.createCourse(payload);
+      return instanceToPlain(course);
+    } catch (error) {
+      if(error instanceof CreateCourseError){
+        throw new HttpError(500, error.message);
+      } else {
+        throw new HttpError(500, "Failed to create course");
+      }
+    }
   }
 
   /**
@@ -55,9 +65,17 @@ export class CourseController {
    */
   @Get("/:id")
   async read(@Param("id") id: string) {
-    const course = await this.courseService.read(id);
-    if (!course) throw new HttpError(404, "Course not found");
-    return instanceToPlain(course);
+    try {
+      const course = await this.courseService.read(id);
+      if (!course) throw new HttpError(404, "Course not found");
+      return instanceToPlain(course);
+    } catch (error) {
+      if(error instanceof FetchCourseError){
+        throw new HttpError(500, error.message);
+      } else {
+        throw new HttpError(500, "Failed to retrieve course");
+      }
+    }
   }
 
   /**
@@ -70,9 +88,16 @@ export class CourseController {
   @Authorized(["admin", "instructor"])
   @Put("/:id")
   async update(@Param("id") id: string, @Body({ validate: true }) payload: CoursePayload) {
-    const updatedCourse = await this.courseService.update(id, payload);
-    if (!updatedCourse) throw new HttpError(404, "Course not found");
-    return instanceToPlain(updatedCourse);
+    try {
+      const updatedCourse = await this.courseService.update(id, payload);
+      if (!updatedCourse) throw new HttpError(404, "Course not found");
+      return instanceToPlain(updatedCourse);
+    } catch (error) {
+      if(error instanceof UpdateCourseError){
+        throw new HttpError(500, error.message);
+      }
+      throw new HttpError(500, "Failed to update course");
+    }
   }
 
   /**
@@ -99,4 +124,11 @@ export class CourseController {
     const courses = await this.courseService.getAll();
     return instanceToPlain(courses);
   }
+
+  @Authorized(['admin'])
+  @Post('/:courseId/versions')
+  async createVersion(@Param('courseId') courseId: string, @Body({validate: true}) payload:DTOCourseVersionPayload){
+    return await this.courseService.addVersion(courseId, payload);
+  }
+
 }
