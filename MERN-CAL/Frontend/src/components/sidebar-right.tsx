@@ -35,8 +35,6 @@ import * as React from 'react'
 import { Plus } from 'lucide-react'
 
 // Import custom components
-import { Calendars } from '@/components/calendars'
-import { DatePicker } from '@/components/date-picker'
 import { NavUser } from '@/components/nav-user'
 import {
   Sidebar,
@@ -94,11 +92,6 @@ export function SidebarRight({
       <SidebarHeader className='h-16 border-b border-sidebar-border'>
         <NavUser user={data.user} />
       </SidebarHeader>
-
-      {/* Main content section with calendars */}
-      <SidebarContent>
-        <Calendars calendars={data.calendars} />
-      </SidebarContent>
 
       {/* Footer section with proctoring tools and new schedule button */}
       <SidebarFooter>

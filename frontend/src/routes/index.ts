@@ -13,6 +13,7 @@ import AuthWrapper from '@/components/proctoring-components/AuthWrapper'
 import testing from '@/pages/Students/testing'
 import AiEngine from '@/pages/Admin/AiEngine'
 import Analytics from '@/pages/Students/Analytics'
+import BulkQuestionUpload from '@/pages/Admin/BulkQuestionUpload'
 
 const router = createBrowserRouter([
   {

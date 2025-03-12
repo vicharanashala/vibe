@@ -1,25 +1,29 @@
-// src/middleware/firebaseAuth.js
 const admin = require('firebase-admin');
 
-const authenticateFirebaseUser = (req, res, next) => {
-    const authorization = req.headers.authorization;
+const authenticateFirebaseUser = async (req, res, next) => {
+    try {
+        const authorization = req.headers.authorization;
 
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-        res.status(401).send({ message: 'Unauthorized' });
-        return; // stop further execution in this callback
+        if (!authorization || !authorization.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+        }
+
+        const idToken = authorization.split('Bearer ')[1];
+
+        // Verify Firebase Token
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+        // Attach Firebase UID and email to request
+        req.user = {
+            firebase_id: decodedToken.uid, // Firebase unique user ID
+            email: decodedToken.email || null // Email if available
+        };
+
+        next(); // Move control to the next middleware or route
+    } catch (error) {
+        console.error('Error verifying Firebase ID token:', error);
+        return res.status(403).json({ success: false, message: 'Unauthorized: Invalid or expired token' });
     }
-
-    const idToken = authorization.split('Bearer ')[1];
-
-    admin.auth().verifyIdToken(idToken)
-        .then(decodedToken => {
-            req.user = decodedToken; // Here you can cast to any to avoid type issues or extend Request type
-            next(); // move control to the next middleware
-        })
-        .catch(error => {
-            console.error('Error while verifying Firebase ID token:', error);
-            res.status(403).send({ message: 'Unauthorized' });
-        });
 };
 
 module.exports = { authenticateFirebaseUser };

@@ -31,6 +31,8 @@ exports.fetchSectionItemsController = async (req, res) => {
             end_time: item.itemType === 'Video' ? item.itemId.endTime : undefined,
         }));
 
+        responseData.sort((a, b) => a.sequence - b.sequence);
+
         res.json(responseData);
     } catch (error) {
         console.error("Error fetching section items:", error);

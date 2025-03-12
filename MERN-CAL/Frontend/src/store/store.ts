@@ -15,6 +15,7 @@ import studentsProgressReducer from './slices/AllStudentsProgressSlice'
 import itemsReducer from './slices/fetchItems'
 import weeklyProgressReducer from './slices/FetchWeeklyProgress'
 import storageSession from 'redux-persist/lib/storage/session' // Importing sessionStorage
+import usersSlicereducer from './slices/GetUsersSlice'
 
 const persistConfig = {
   key: 'root',
@@ -31,6 +32,7 @@ const persistConfig = {
     'sidebarState',
     'weeklyProgress',
     'studentsProgress',
+    'users',
   ],
 }
 
@@ -47,11 +49,32 @@ const rootReducer = combineReducers({
   progressUpdate: progressUpdateReducer,
   weeklyProgress: weeklyProgressReducer,
   studentsProgress: studentsProgressReducer,
+  users: usersSlicereducer,
   [apiService.reducerPath]: apiService.reducer,
   [anotherApiService.reducerPath]: anotherApiService.reducer,
 })
 
-const appReducer = (state, action) => {
+interface AppState {
+  sidebarState: ReturnType<typeof sidebarStateReducer>
+  items: ReturnType<typeof itemsReducer>
+  auth: ReturnType<typeof authReducer>
+  courses: ReturnType<typeof coursesReducer>
+  modules: ReturnType<typeof modulesReducer>
+  sections: ReturnType<typeof sectionsReducer>
+  progress: ReturnType<typeof progressReducer>
+  sectionProgress: ReturnType<typeof sectionProgressReducer>
+  moduleProgress: ReturnType<typeof moduleProgressReducer>
+  progressUpdate: ReturnType<typeof progressUpdateReducer>
+  weeklyProgress: ReturnType<typeof weeklyProgressReducer>
+  studentsProgress: ReturnType<typeof studentsProgressReducer>
+  [apiService.reducerPath]: ReturnType<typeof apiService.reducer>
+  [anotherApiService.reducerPath]: ReturnType<typeof anotherApiService.reducer>
+}
+
+const appReducer = (
+  state: AppState | undefined,
+  action: { type: string }
+): AppState => {
   if (action.type === 'auth/logoutState') {
     state = undefined // Resets state to undefined, triggering reinitialization to initialState
   }

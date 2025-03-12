@@ -13,10 +13,49 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from './textarea'
 import { useState } from 'react'
 import { QuestionWritingQuery } from './QuestionWritingQuery'
+import { useCreateQuestionMutation } from '@/store/apiService'
 
 export function QuestionTabSwitcher() {
+  const [createQuestion] = useCreateQuestionMutation()
   const [blanks, setBlanks] = useState([{ placeholder: '', answer: '' }])
   const [selectedOption, setSelectedOption] = useState('')
+  const [questionText, setQuestionText] = useState('')
+  const [options, setOptions] = useState(Array(4).fill('')) // Initializes four options with empty strings
+
+  // For question text
+  const handleQuestionTextChange = (event) => {
+    setQuestionText(event.target.value) 
+  }
+
+  // For options
+  const handleOptionChange = (index, value) => {
+    const newOptions = [...options]
+    newOptions[index] = value
+    setOptions(newOptions)
+  }
+
+  const handleSubmitMCQ = async () => {
+    // Assuming you have some method to extract the user and assessment IDs
+    const createdBy = '67bc372c945fb310412310ba' // This should come from the user's session or context
+    const assessmentId = '67bc372e945fb310412310cb' // This should be determined by the current assessment context
+    const questionData = {
+      questionText: questionText,
+      options: options,
+      answer: [options[selectedOption]],
+      createdBy: createdBy,
+      assessmentId: assessmentId,
+      type: "multiple-choice"
+    };
+
+    try {
+      await createQuestion(questionData).unwrap();
+      console.log('Question created successfully:', data);
+      // Additional logic upon success
+    } catch (err) {
+      console.error('Failed to create question:', error);
+      // Handle errors
+    }
+  }
 
   const handleAddBlank = () => {
     setBlanks([...blanks, { placeholder: '', answer: '' }])
@@ -65,6 +104,8 @@ export function QuestionTabSwitcher() {
               <Textarea
                 id='question'
                 placeholder='Write your question here ...'
+                value={questionText}
+                onChange={handleQuestionTextChange}
               />
             </div>
             {['option1', 'option2', 'option3', 'option4'].map(
@@ -72,14 +113,17 @@ export function QuestionTabSwitcher() {
                 <div key={index} className='flex items-center space-x-2'>
                   <Label htmlFor={option}>{`Option ${index + 1}`}</Label>
                   <Input
-                    id={option}
+                    id={`option${index}`}
                     placeholder='Option Text'
+                    value={options[index]}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
                     className='flex-1'
                   />
                   <input
                     type='radio'
                     name='mcqOption'
-                    id={`radio-${option}`}
+                    checked={selectedOption === index}
+                    onChange={() => setSelectedOption(index)}
                     className='size-4'
                     style={{ accentColor: 'black' }}
                   />
@@ -88,7 +132,7 @@ export function QuestionTabSwitcher() {
             )}
           </CardContent>
           <CardFooter>
-            <Button>Publish</Button>
+            <Button onClick={handleSubmitMCQ}>Publish</Button>
           </CardFooter>
         </Card>
       </TabsContent>

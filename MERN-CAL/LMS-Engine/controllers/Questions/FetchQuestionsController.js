@@ -3,8 +3,9 @@ const Question = require('../../models/Course/SectionItems/QuestionSchema'); // 
 // Fetch all questions with a specific assessment ID
 exports.getQuestionsByAssessmentId = async (req, res) => {
     try {
-        const { assessmentId } = req.query.assessment_id;
-        const questions = await Question.find({ assessmentId });
+        const assessmentId = req.query.assessment_id;
+        const questions = await Question.find({ assessment: assessmentId });
+        console.log(questions, 'assessment Id : ', assessmentId)
 
         if (!questions) {
             return res.status(404).json({ message: 'No questions found for this assessment ID' });

@@ -5,15 +5,14 @@ import { apiService } from '../ApiServices/LmsEngine/DataFetchApiServices'
 // Define async thunk using RTK Query endpoint initiation
 export const fetchSectionsWithAuth = createAsyncThunk(
   'sections/fetchSectionsWithAuth',
-  async ({ courseId, moduleId }, { dispatch, rejectWithValue }) => {
+  async ({ moduleId }, { dispatch, rejectWithValue }) => {
     const response = await dispatch(
       apiService.endpoints.fetchSectionsWithAuth.initiate({
-        courseId,
         moduleId,
       })
     )
     if (response.error) {
-      console.error('Error fetching sections:', response.error) // Log the error for better debugging
+      console.error('new Error fetching sections:', response.error) // Log the error for better debugging
       return rejectWithValue('Failed to fetch sections')
     }
     const responseWithModuleId = {

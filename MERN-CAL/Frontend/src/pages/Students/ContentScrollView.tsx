@@ -130,6 +130,7 @@ const ContentScrollView = () => {
   const [currentFrame, setCurrentFrame] = useState(
     assignment?.sequence ? assignment.sequence - 1 : 0
   )
+  console.log('i am the frame : ', currentFrame)
   const [isPlaying, setIsPlaying] = useState(false)
 
   const navigate = useNavigate()
@@ -155,14 +156,14 @@ const ContentScrollView = () => {
   const { data: assignmentsData } = useFetchItemsWithAuthQuery(sectionId)
   const content = assignmentsData || []
 
-  const [countdown, setCountdown] = useState(30000) // 30 seconds countdown
+  const [countdown, setCountdown] = useState(300000) // 300000 seconds countdown
 
   useEffect(() => {
     let timer
     const currentContent = content[currentFrame]
 
     if (currentContent && currentContent.item_type === 'Assessment') {
-      setCountdown(30000) // Reset countdown to 30 seconds whenever the frame is an assessment
+      setCountdown(300000) // Reset countdown to 300000 seconds whenever the frame is an assessment
       timer = setInterval(() => {
         setCountdown((prevCountdown) => {
           if (prevCountdown <= 1) {
@@ -170,7 +171,7 @@ const ContentScrollView = () => {
             clearInterval(timer)
             const nextFrameIndex = (currentFrame - 1) % content.length
             setCurrentFrame(nextFrameIndex)
-            return 30000 // reset countdown if looping
+            return 300000 // reset countdown if looping
           }
           return prevCountdown - 1
         })
@@ -268,6 +269,12 @@ const ContentScrollView = () => {
 
   const [assessmentId, setAssessmentId] = useState(
     content[currentFrame + 1]?.id
+  )
+  console.log(
+    ' i am assessmentId : ',
+    assessmentId,
+    ' for frame : ',
+    currentFrame + 1
   )
 
   //Responsible for fetching the questions using RTK Query
@@ -411,7 +418,6 @@ const ContentScrollView = () => {
           playerRef.current.pauseVideo() // Pause at end time
           clearInterval(playerIntervalRef.current) // Clear interval
           setCurrentFrame((prevFrame) => (prevFrame + 1) % content.length)
-          setSelectedOption([])
           setSelectedOption([])
           setCurrentQuestionIndex(0)
           setIsPlaying(false)
@@ -609,10 +615,7 @@ const ContentScrollView = () => {
 
   // This funtion is responsible to go backward to the last frame
   const handlePrevFrame = () => {
-    const nextFrameIndex = (currentFrame - 1 + content.length) % content.length
-    localStorage.setItem('nextFrame', nextFrameIndex)
-
-    window.location.reload()
+    setCurrentFrame((prevFrame) => (prevFrame - 1) % content.length)
   }
 
   // This funtion is for changing the speed of Video
@@ -672,9 +675,10 @@ const ContentScrollView = () => {
     const isLastQuestion = currentQuestionIndex === AssessmentData.length - 1
 
     return (
-      <div className='justify-top flex h-screen w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
+      <div className='justify-top flex overflow-auto h-full w-full flex-col bg-gray-50 px-8 pb-8 pt-4 text-gray-800 shadow-lg'>
         <div className='mb-16 ml-auto flex items-center gap-4'>
-          <AddQuestion />
+          {/* <AddQuestion /> */}
+          <Button onClick={handlePrevFrame}>Back to Video</Button>
           Time Remaining:{' '}
           <span className='font-bold text-red-500'>{countdown} seconds</span>
         </div>
@@ -686,7 +690,7 @@ const ContentScrollView = () => {
             <li key={option} className='mb-2'>
               <button
                 onClick={() => handleOptionClick(option)}
-                className={`w-full rounded-lg border border-gray-300 px-4 py-2 text-left ${
+                className={`w-full rounded-lg border border-gray-3000000 px-4 py-2 text-left ${
                   selectedOption?.includes(option)
                     ? 'bg-green-500 text-white'
                     : 'bg-white hover:bg-gray-100'
@@ -704,7 +708,7 @@ const ContentScrollView = () => {
               setCurrentQuestionIndex((prevIndex) => Math.max(prevIndex - 1, 0))
             }
             disabled={currentQuestionIndex === 0}
-            className='rounded-lg bg-blue-500 px-6 py-2 text-white shadow disabled:bg-gray-300'
+            className='rounded-lg bg-blue-500 px-6 py-2 text-white shadow disabled:bg-gray-3000000'
           >
             Previous
           </button>
@@ -801,7 +805,7 @@ const ContentScrollView = () => {
             <div className='flex h-full flex-col'>
               <div className='relative h-full overflow-hidden'>
                 <div
-                  className='absolute size-full transition-transform duration-300'
+                  className='absolute size-full transition-transform duration-3000000'
                   style={{ transform: `translateY(-${currentFrame * 100}%)` }}
                 >
                   {/* Map through content frames and render based on type */}
@@ -822,134 +826,138 @@ const ContentScrollView = () => {
           <ResizableHandle className='p-1' />
 
           {/* Controls panel - 10% height */}
-          <ResizablePanel defaultSize={10} className=''>
-            <div className='controls-container flex w-full justify-center'>
-              <div className='w-full border border-white bg-white shadow'>
-                <div className='flex items-center justify-between'>
-                  {/* Left section: Play/Pause, Next, Time slider, Volume */}
-                  <div className='flex w-1/2 items-center justify-between'>
-                    <button
-                      onClick={togglePlayPause}
-                      className='rounded-full p-2 text-2xl'
-                      disabled={!isPlayerReady}
-                    >
-                      {isPlaying ? <Pause /> : <Play />}
-                    </button>
-                    <Slider
-                      value={[currentTime]}
-                      onValueChange={(value) => {
-                        const newTime = value[0]
-                        if (newTime <= currentTime) {
-                          handleTimeChange(value)
-                        }
-                      }}
-                      min={content[currentFrame]?.start_time || 0}
-                      max={content[currentFrame]?.end_time || totalDuration}
-                      step={1}
-                      className='w-48'
-                      disabled={!isPlayerReady}
-                    />
-                    <div className='ml-6 flex items-center'>
-                      <label
-                        htmlFor='volume'
-                        className='mr-2 text-sm font-medium'
+          {content[currentFrame]?.item_type === 'Video' && (
+            <ResizablePanel defaultSize={10} className=''>
+              <div className='controls-container flex w-full justify-center'>
+                <div className='w-full border border-white bg-white shadow'>
+                  <div className='flex items-center justify-between'>
+                    {/* Left section: Play/Pause, Next, Time slider, Volume */}
+                    <div className='flex w-1/2 items-center justify-between'>
+                      <button
+                        onClick={togglePlayPause}
+                        className='rounded-full p-2 text-2xl'
+                        disabled={!isPlayerReady}
                       >
-                        Volume:
-                      </label>
+                        {isPlaying ? <Pause /> : <Play />}
+                      </button>
                       <Slider
-                        value={[volume]}
-                        onValueChange={handleVolumeChange}
-                        min={0}
-                        max={100}
+                        value={[currentTime]}
+                        onValueChange={(value) => {
+                          const newTime = value[0]
+                          if (newTime <= currentTime) {
+                            handleTimeChange(value)
+                          }
+                        }}
+                        min={content[currentFrame]?.start_time || 0}
+                        max={content[currentFrame]?.end_time || totalDuration}
                         step={1}
-                        className='w-24'
+                        className='w-48'
                         disabled={!isPlayerReady}
                       />
+                      <div className='ml-6 flex items-center'>
+                        <label
+                          htmlFor='volume'
+                          className='mr-2 text-sm font-medium'
+                        >
+                          Volume:
+                        </label>
+                        <Slider
+                          value={[volume]}
+                          onValueChange={handleVolumeChange}
+                          min={0}
+                          max={100}
+                          step={1}
+                          className='w-24'
+                          disabled={!isPlayerReady}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Center section: Playback speed controls */}
-                  <div className='flex items-center'>
-                    {[0.5, 1, 1.5, 2].map((speed) => (
+                    {/* Center section: Playback speed controls */}
+                    <div className='flex items-center'>
+                      {[0.5, 1, 1.5, 2].map((speed) => (
+                        <button
+                          key={speed}
+                          className={`mx-1 rounded-full px-3 py-1 text-sm ${
+                            playbackSpeed === speed
+                              ? 'bg-gray-500'
+                              : 'bg-gray-200'
+                          }`}
+                          onClick={() => {
+                            setPlaybackSpeed(speed)
+                            changePlaybackSpeed(speed)
+                          }}
+                          disabled={!isPlayerReady}
+                        >
+                          {speed}x
+                        </button>
+                      ))}
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button disabled={!isPlayerReady}>
+                          {qualityLabels[videoQuality] || 'Quality'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('small')}
+                        >
+                          360p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('medium')}
+                        >
+                          480p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('large')}
+                        >
+                          720p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('hd1080')}
+                        >
+                          HD 1080p
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleQualityChange('default')}
+                        >
+                          Auto
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className='flex items-center'>
+                      {/* Existing buttons for play/pause, etc. */}
                       <button
-                        key={speed}
-                        className={`mx-1 rounded-full px-3 py-1 text-sm ${
-                          playbackSpeed === speed
-                            ? 'bg-gray-500'
+                        onClick={toggleCaptions}
+                        className={`ml-4 rounded-full px-3 py-1 text-sm ${
+                          captionsEnabled
+                            ? 'bg-black text-white'
                             : 'bg-gray-200'
                         }`}
-                        onClick={() => {
-                          setPlaybackSpeed(speed)
-                          changePlaybackSpeed(speed)
-                        }}
-                        disabled={!isPlayerReady}
+                        title='Toggle Captions'
                       >
-                        {speed}x
+                        {captionsEnabled ? 'Hide Captions' : 'Show Captions'}
                       </button>
-                    ))}
-                  </div>
+                    </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button disabled={!isPlayerReady}>
-                        {qualityLabels[videoQuality] || 'Quality'}
+                    {/* Right section: Fullscreen toggle */}
+                    <div>
+                      <button
+                        onClick={toggleFullscreen}
+                        className='rounded-full p-2 text-xl'
+                      >
+                        <Fullscreen />
                       </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('small')}
-                      >
-                        360p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('medium')}
-                      >
-                        480p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('large')}
-                      >
-                        720p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('hd1080')}
-                      >
-                        HD 1080p
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => handleQualityChange('default')}
-                      >
-                        Auto
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <div className='flex items-center'>
-                    {/* Existing buttons for play/pause, etc. */}
-                    <button
-                      onClick={toggleCaptions}
-                      className={`ml-4 rounded-full px-3 py-1 text-sm ${
-                        captionsEnabled ? 'bg-black text-white' : 'bg-gray-200'
-                      }`}
-                      title='Toggle Captions'
-                    >
-                      {captionsEnabled ? 'Hide Captions' : 'Show Captions'}
-                    </button>
-                  </div>
-
-                  {/* Right section: Fullscreen toggle */}
-                  <div>
-                    <button
-                      onClick={toggleFullscreen}
-                      className='rounded-full p-2 text-xl'
-                    >
-                      <Fullscreen />
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </ResizablePanel>
+            </ResizablePanel>
+          )}
         </ResizablePanelGroup>
       </ResizablePanel>
       <ResizableHandle className='p-1' />
@@ -959,7 +967,7 @@ const ContentScrollView = () => {
           <span className='mb-4 text-sm'>
             {Math.round(((currentFrame + 1) / content.length) * 100)}%
           </span>
-          <div className='relative h-full w-4 rounded-xl bg-gray-300'>
+          <div className='relative h-full w-4 rounded-xl bg-gray-3000000'>
             <div
               className='absolute left-0 w-full rounded-xl bg-black'
               style={{

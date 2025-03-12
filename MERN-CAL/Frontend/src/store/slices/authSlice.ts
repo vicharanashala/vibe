@@ -2,7 +2,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { apiService, AuthResponse } from '../apiService'
 
-interface AuthState {
+export interface AuthState {
   user: { role: string; email: string; name: string } | null
   token: string | null
   isLoggedIn: boolean
@@ -26,8 +26,8 @@ const authSlice = createSlice({
       state.isLoggedIn = false
     },
     setUser: (state, action: PayloadAction<AuthResponse>) => {
-      const { role, email, full_name, access_token } = action.payload
-      state.user = { role, email, name: full_name }
+      const { role, email, firebase_uid, access_token } = action.payload
+      state.user = { role, email, name: firebase_uid }
       state.token = access_token
       state.isLoggedIn = true
     },
@@ -40,7 +40,7 @@ const authSlice = createSlice({
           state.user = {
             role: payload.role,
             email: payload.email,
-            name: payload.full_name,
+            name: payload.firebase_uid,
           }
           state.token = payload.access_token
           state.isLoggedIn = true

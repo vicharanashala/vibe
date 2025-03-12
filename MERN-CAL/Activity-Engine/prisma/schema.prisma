@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("AE_DATABASE_STRING")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model LoginSession {
+  id          Int    @id @default(autoincrement())
+  user_id      Int    @map("user_id")
+  access_token String
+  expires_in   Int    // Access token expiration time
+
+  @@index([user_id])
+  @@index([access_token])
+}
+
+model attemptSession {
+  id          Int    @id @default(autoincrement())
+  assessmentId      String    @map("assessmentId")
+  courseInstanceId String
+  studentId   String    // Access token expiration time
+
+  @@index([assessmentId])
+  @@index([studentId])
+}
+
+model submitSession {
+  id             Int      @id @default(autoincrement())
+  studentId      String
+  courseId       String 
+  assessmentId   String
+  attemptId      Int
+  questionId     String
+  answers        String[]
+  isAnswerCorrect Boolean
+  createdAt      DateTime @default(now())
+
+  @@index([studentId])
+  @@index([assessmentId])
+}
+
+// Define the Prisma schema model for the progress of courses, modules, and items
+
+model StudentCourseProgress {
+  studentId        String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, courseInstanceId])
+}
+
+model StudentModuleProgress {
+  studentId        String
+  moduleId         String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, moduleId, courseInstanceId])
+}
+
+model StudentSectionProgress {
+  studentId        String
+  sectionId        String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, sectionId, courseInstanceId])
+}
+
+model StudentSectionItemProgress {
+  studentId        String
+  sectionItemId    String
+  courseInstanceId String
+  progress         ProgressEnum
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@id([studentId, sectionItemId, courseInstanceId])
+}
+
+model ModuleNext {
+  moduleId         String   @id
+  sectionId        String // First section of moduleId
+  nextModuleId     String?
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+}
+
+model SectionNext {
+  sectionId     String   @id
+  sectionItemId String // First section item of sectionId
+  nextSectionId String?
+  moduleId      String
+  createdAt     DateTime @default(now())
+}
+
+model SectionItemNext {
+  sectionItemId     String   @id
+  nextSectionItemId String?
+  sectionId         String
+  createdAt         DateTime @default(now())
+}
+
+model StudentAssessmentProgress {
+  id               Int                  @id @default(autoincrement())
+  studentId        String
+  assessmentId     String
+  courseInstanceId String
+  assessmentStatus AssessmentStatusEnum
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([studentId, assessmentId, courseInstanceId])
+}
+
+model StudentAssessmentAttemptSummary {
+  studentId        String   @map("studentId")
+  assessmentId     String   @map("assessmentId")
+  courseInstanceId String   @map("courseInstanceId")
+  latestAttemptId  Int      @map("latestAttemptId")
+  attemptCount     Int      @map("attemptCount")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@id([studentId, assessmentId, courseInstanceId])
+}
+
+model TotalProgress {
+  id               Int                  @id @default(autoincrement())
+  studentId        String
+  progress         Int
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+  
+}
+
+model AverageProgress {
+  id               Int                  @id @default(autoincrement())
+  progress         Int
+  courseInstanceId String
+  createdAt        DateTime @default(now())
+
+}
+
+enum ProgressEnum {
+  IN_PROGRESS
+  INCOMPLETE
+  COMPLETE
+}
+
+enum ContentTypeEnum {
+  VIDEO
+  ARTICLE
+  ASSESSMENT
+}
+
+enum ViolationTypeEnum {
+  MULTIPLE_PEOPLE_DETECTED
+  BLURRY_IMAGE
+  SPEAKING_DETECTED
+  INACTIVE_USER
+  INVALID_FACE_DETECTED
+  OUT_OF_FRAME
+  NOT_FOCUSED
+}
+
+enum AssessmentStatusEnum {
+  PENDING
+  GRADED
+  FAILED
+  PASSED
+}
+
+enum AssessmentAttemptStatusEnum {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+

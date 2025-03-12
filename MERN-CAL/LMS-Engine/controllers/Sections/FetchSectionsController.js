@@ -3,9 +3,7 @@ const Section = require('../../models/Course/SectionSchema');
 
 exports.fetchSectionsController = async (req, res) => {
     try {
-        console.log("Fetching sections...",req.query.module_id); // Log the fetch operation
         const moduleId = req.query.module_id;  // Get moduleId from query parameters
-        console.log("Module ID:", moduleId); // Log the fetched Module ID
         // Validate the moduleId
         if (!moduleId) {
             return res.status(400).json({ message: "Module ID must be provided." });

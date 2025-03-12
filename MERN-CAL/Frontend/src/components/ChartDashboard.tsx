@@ -161,7 +161,7 @@ export function Chart() {
               <SelectContent>
                 {Object.keys(courseData || {}).map((courseKey) => {
                   // Find the corresponding course info from the courses state using courseKey
-                  const courseInfo = courses.find(
+                  const courseInfo = courses?.find(
                     (course) => course.course_id === courseKey
                   )
 
