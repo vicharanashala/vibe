@@ -295,7 +295,6 @@ export class CourseRepository implements ICourseRepository {
         if (!existingVersion) {
             return null;
         }
-
     
         // Convert `courseId` to ObjectId
         const updatedModules: MongoModule[] = (updatePayload.modules ?? existingVersion.modules).map(
@@ -321,10 +320,8 @@ export class CourseRepository implements ICourseRepository {
                             section.sectionId && ObjectId.isValid(section.sectionId)
                                 ? new ObjectId(section.sectionId)
                                 : existingSection?.sectionId || new ObjectId(),
-                        itemIds: section.itemIds.map(itemId =>
-                            ObjectId.isValid(itemId) ? new ObjectId(itemId) : new ObjectId()
-                        ),
-                        updatedAt: new Date(),
+                        itemIds: existingSection?.itemIds ?? [], // Preserve itemIds
+                        updatedAt: section.updatedAt,
                     };
                 });
     
@@ -333,7 +330,7 @@ export class CourseRepository implements ICourseRepository {
                     ...module,
                     moduleId: moduleObjectId,
                     sections: updatedSections,
-                    updatedAt: new Date(),
+                    updatedAt: module.updatedAt,
                 };
             }
         );
@@ -344,7 +341,7 @@ export class CourseRepository implements ICourseRepository {
             id: versionObjectId,
             courseId: new ObjectId(existingVersion.courseId),
             modules: updatedModules,
-            updatedAt: new Date(),
+            updatedAt: updatePayload.updatedAt, // Preserve `updatedAt`
         };
     
         // Update the version in MongoDB
@@ -371,10 +368,11 @@ export class CourseRepository implements ICourseRepository {
                 sections: module.sections.map(section => ({
                     ...section,
                     sectionId: section.sectionId?.toString(),
-                    itemIds: section.itemIds.map(itemId => itemId.toString()),
+                    itemIds: section.itemIds.map(itemId => itemId.toString()), // Preserve itemIds
                 })),
             })),
         } as ICourseVersion;
     }
+    
     
 }

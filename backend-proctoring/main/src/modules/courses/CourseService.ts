@@ -173,36 +173,57 @@ export class CourseService implements ICourseService {
     }
 
     try {
-        // Process modules and sections, ensuring correct order and timestamps
+        // Validate and process modules and sections, ensuring order integrity
         const updatedModules = processModulesAndSections(
             payload.modules || existingVersion.modules
         );
 
-        // Update timestamps for modified modules and sections
+        // Ensure `updatedAt` is updated only for changed modules/sections
         updatedModules.forEach(module => {
-            if (payload.modules?.some(m => m.moduleId === module.moduleId)) {
+            const existingModule = existingVersion.modules.find(m => m.moduleId === module.moduleId);
+            let moduleUpdated = false;
+
+            const updatedSections = module.sections.map(section => {
+                const existingSection = existingModule?.sections.find(s => s.sectionId === section.sectionId);
+                
+                if (!existingSection) {
+                    moduleUpdated = true; // A new section was added
+                    return {
+                        ...section,
+                        updatedAt: new Date(),
+                    };
+                }
+
+                const sectionUpdated = Object.keys(section).some(key => 
+                    key !== "itemIds" && section[key as keyof IModule] !== existingSection[key as keyof IModule]
+                );
+
+                return {
+                    ...existingSection,
+                    ...section,
+                    itemIds: existingSection.itemIds, // Preserve itemIds
+                    updatedAt: sectionUpdated ? new Date() : existingSection.updatedAt,
+                };
+            });
+
+            if (moduleUpdated || updatedSections.some((s, idx) => s !== module.sections[idx])) {
                 module.updatedAt = new Date();
             }
 
-            module.sections.forEach(section => {
-                if (
-                    payload.modules?.some(m =>
-                        m.sections.some(s => s.sectionId === section.sectionId)
-                    )
-                ) {
-                    section.updatedAt = new Date();
-                }
-            });
+            module.sections = updatedSections;
         });
+
+        // Update course version `updatedAt` only if modules changed
+        const versionUpdated = updatedModules.some((m, idx) => m !== existingVersion.modules[idx]);
 
         const updatedVersion = {
             ...existingVersion,
             ...payload,
             modules: updatedModules,
-            updatedAt: new Date(),
+            updatedAt: versionUpdated ? new Date() : existingVersion.updatedAt, // Update `updatedAt` only if changed
         };
 
-        // Update the version in the repository
+        // Save the updated version
         const savedVersion = await this.courseRepository.updateVersion(versionId, updatedVersion);
         if (!savedVersion) {
             throw new UpdateCourseError("Failed to update course version in the database.");
@@ -216,6 +237,8 @@ export class CourseService implements ICourseService {
     }
     return null;
 }
+
+
 
 
   /**
