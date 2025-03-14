@@ -1,7 +1,10 @@
 import { ICourseRepository } from "shared/database";
-import { ICourseVersion, IModule } from "shared/interfaces/IUser";
+import { ICourseVersion, IModule, ISection } from "shared/interfaces/IUser";
 import { Inject, Service } from "typedi";
-import { DTOCourseVersionPayload } from "../dtos/DTOCoursePayload";
+import {
+  DTOCourseVersionPayload,
+  DTOModulePayload,
+} from "../dtos/DTOCoursePayload";
 import {
   CreateVersionError,
   FetchVersionError,
@@ -9,15 +12,257 @@ import {
 } from "../errors/VersionErros";
 import { processModulesAndSections } from "../utils/processModulesAndSections";
 import { IVersionService } from "../interfaces/IVersionService";
+import c from "config";
+
+import { LexoRank } from "lexorank";
 
 @Service()
-export class VersionService implements IVersionService{
+export class VersionService implements IVersionService {
   constructor(
     @Inject("ICourseRepository")
     private readonly courseRepository: ICourseRepository
   ) {
     console.log("VersionService instantiated"); // ✅ Debugging line
   }
+
+  async createModule(
+    courseId: string,
+    versionId: string,
+    module: DTOModulePayload
+  ): Promise<ICourseVersion | null> {
+    let mod: IModule = {
+      name: module.name,
+      description: module.description,
+      order: "",
+      isLast: false,
+      sections: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const sortedModules = version.modules.sort((a, b) =>
+      a.order.localeCompare(b.order)
+    );
+  
+    mod.order = calculateNewOrder(sortedModules, "moduleId", module.afterModuleId, module.beforeModuleId);
+    sortedModules.push(mod);
+    version.modules = updateLastEntityStatus(sortedModules, "moduleId", mod, module.afterModuleId);
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+  
+  async updateModule(
+    courseId: string,
+    versionId: string,
+    moduleId: string,
+    module: Partial<DTOModulePayload>
+  ): Promise<ICourseVersion | null> {
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const existingModule = version.modules.find((m) => m.moduleId === moduleId);
+    if (!existingModule) {
+      throw new FetchVersionError(`Module with ID ${moduleId} not found.`);
+    }
+  
+    // Only update name and description, order will be changed via another endpoint
+    if (module.name) existingModule.name = module.name;
+    if (module.description) existingModule.description = module.description;
+  
+    existingModule.updatedAt = new Date();
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+
+  async moveModule(
+    courseId: string,
+    versionId: string,
+    moduleId: string,
+    afterModuleId?: string,
+    beforeModuleId?: string
+  ): Promise<ICourseVersion | null> {
+    if (!afterModuleId && !beforeModuleId) {
+      throw new Error("Either afterModuleId or beforeModuleId must be provided.");
+    }
+  
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const sortedModules = version.modules.sort((a, b) =>
+      a.order.localeCompare(b.order)
+    );
+  
+    const movingModule = sortedModules.find((m) => m.moduleId === moduleId);
+    if (!movingModule) {
+      throw new FetchVersionError(`Module with ID ${moduleId} not found.`);
+    }
+  
+    // Recalculate the new order
+    movingModule.order = calculateNewOrder(sortedModules, "moduleId", afterModuleId, beforeModuleId);
+    
+    // Sort modules and update `isLast` flag
+    version.modules = updateLastEntityStatus(sortedModules, "moduleId", movingModule, afterModuleId);
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+
+  async createSection(
+    courseId: string,
+    versionId: string,
+    moduleId: string,
+    section: DTOModulePayload
+  ): Promise<ICourseVersion | null> {
+    let sec: ISection = {
+      name: section.name,
+      description: section.description,
+      order: "",
+      itemIds: [],
+      isLast: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const module = version.modules.find((m) => m.moduleId === moduleId);
+    if (!module) {
+      throw new FetchVersionError("Module not found.");
+    }
+  
+    const sortedSections = module.sections.sort((a, b) => a.order.localeCompare(b.order));
+    sec.order = calculateNewOrder(sortedSections, "sectionId", section.afterModuleId, section.beforeModuleId);
+  
+    sortedSections.push(sec);
+    module.sections = updateLastEntityStatus(sortedSections, "sectionId", sec, section.afterModuleId);
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+  
+  async updateSection(
+    courseId: string,
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    section: Partial<DTOModulePayload>
+  ): Promise<ICourseVersion | null> {
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const module = version.modules.find((m) => m.moduleId === moduleId);
+    if (!module) {
+      throw new FetchVersionError("Module not found.");
+    }
+  
+    const existingSection = module.sections.find((s) => s.sectionId === sectionId);
+    if (!existingSection) {
+      throw new FetchVersionError(`Section with ID ${sectionId} not found.`);
+    }
+  
+    if (section.name) existingSection.name = section.name;
+    if (section.description) existingSection.description = section.description;
+  
+    existingSection.updatedAt = new Date();
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+  
+  async moveSection(
+    courseId: string,
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    afterSectionId?: string,
+    beforeSectionId?: string
+  ): Promise<ICourseVersion | null> {
+    if (!afterSectionId && !beforeSectionId) {
+      throw new Error("Either afterSectionId or beforeSectionId must be provided.");
+    }
+  
+    const course = await this.courseRepository.read(courseId);
+    const version = await this.courseRepository.readVersion(versionId);
+  
+    if (!course || !version) {
+      throw new FetchVersionError("Course or version not found.");
+    }
+  
+    const module = version.modules.find((m) => m.moduleId === moduleId);
+    if (!module) {
+      throw new FetchVersionError("Module not found.");
+    }
+  
+    const sortedSections = module.sections.sort((a, b) => a.order.localeCompare(b.order));
+    const movingSection = sortedSections.find((s) => s.sectionId === sectionId);
+    if (!movingSection) {
+      throw new FetchVersionError(`Section with ID ${sectionId} not found.`);
+    }
+  
+    movingSection.order = calculateNewOrder(sortedSections, "sectionId", afterSectionId, beforeSectionId);
+    module.sections = updateLastEntityStatus(sortedSections, "sectionId", movingSection, afterSectionId);
+    version.updatedAt = new Date();
+  
+    const savedVersion = await this.courseRepository.updateVersion(versionId, version);
+    if (!savedVersion) {
+      throw new UpdateVersionError("Failed to update course version in the database.");
+    }
+  
+    return savedVersion;
+  }
+  
+  
 
   async create(
     courseId: string,
@@ -30,24 +275,14 @@ export class VersionService implements IVersionService{
 
     try {
       // Process and validate module/section order, set `isLast`
-      const processedModules: IModule[] = processModulesAndSections(
-        payload.modules
-      );
+      // const processedModules: IModule[] = processModulesAndSections(
+      //   payload.modules
+      // );
 
       // Prepare version details
       const versionDetails = {
         ...payload,
-        modules: processedModules.map((module) => ({
-          ...module,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          sections: module.sections.map((section) => ({
-            ...section,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            itemIds: [], // Ensure `itemIds` is initialized as an empty array
-          })),
-        })),
+        modules: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -101,66 +336,12 @@ export class VersionService implements IVersionService{
     }
 
     try {
-      // Validate and process modules and sections, ensuring order integrity
-      const updatedModules = processModulesAndSections(
-        payload.modules || existingVersion.modules
-      );
-
-      // Ensure `updatedAt` is updated only for changed modules/sections
-      updatedModules.forEach((module) => {
-        const existingModule = existingVersion.modules.find(
-          (m) => m.moduleId === module.moduleId
-        );
-        let moduleUpdated = false;
-
-        const updatedSections = module.sections.map((section) => {
-          const existingSection = existingModule?.sections.find(
-            (s) => s.sectionId === section.sectionId
-          );
-
-          if (!existingSection) {
-            moduleUpdated = true; // A new section was added
-            return {
-              ...section,
-              updatedAt: new Date(),
-            };
-          }
-
-          const sectionUpdated = Object.keys(section).some(
-            (key) =>
-              key !== "itemIds" &&
-              section[key as keyof IModule] !==
-                existingSection[key as keyof IModule]
-          );
-
-          return {
-            ...existingSection,
-            ...section,
-            itemIds: existingSection.itemIds, // Preserve itemIds
-            updatedAt: sectionUpdated ? new Date() : existingSection.updatedAt,
-          };
-        });
-
-        if (
-          moduleUpdated ||
-          updatedSections.some((s, idx) => s !== module.sections[idx])
-        ) {
-          module.updatedAt = new Date();
-        }
-
-        module.sections = updatedSections;
-      });
-
-      // Update course version `updatedAt` only if modules changed
-      const versionUpdated = updatedModules.some(
-        (m, idx) => m !== existingVersion.modules[idx]
-      );
-
       const updatedVersion = {
         ...existingVersion,
         ...payload,
-        modules: updatedModules,
-        updatedAt: versionUpdated ? new Date() : existingVersion.updatedAt, // Update `updatedAt` only if changed
+        // createdAt: existingVersion.createdAt, // Preserve `createdAt`
+        createdAt: existingVersion.createdAt, // Preserve `createdAt`
+        updatedAt: new Date(), // Update `updatedAt` only if changed
       };
 
       // Save the updated version
@@ -182,7 +363,71 @@ export class VersionService implements IVersionService{
     }
     return null;
   }
-
-  
-
 }
+
+  /**
+   * Calculates the order for a new entity (Module, Section, or Item)
+   */
+  function calculateNewOrder<T extends Record<string, any>>(
+    sortedEntities: T[],
+    idField: keyof T,
+    afterId?: string,
+    beforeId?: string
+  ): string {
+    if (sortedEntities.length === 0) {
+      return LexoRank.middle().toString();
+    }
+  
+    if (!afterId && !beforeId) {
+      return LexoRank.parse(sortedEntities[sortedEntities.length - 1].order).genNext().toString();
+    }
+  
+    if (afterId) {
+      const afterIndex = sortedEntities.findIndex((m) => m[idField] === afterId);
+      if (afterIndex === sortedEntities.length - 1) {
+        return LexoRank.parse(sortedEntities[afterIndex].order).genNext().toString();
+      }
+      return LexoRank.parse(sortedEntities[afterIndex].order)
+        .between(LexoRank.parse(sortedEntities[afterIndex + 1].order))
+        .toString();
+    }
+  
+    if (beforeId) {
+      const beforeIndex = sortedEntities.findIndex((m) => m[idField] === beforeId);
+      if (beforeIndex === 0) {
+        return LexoRank.parse(sortedEntities[beforeIndex].order).genPrev().toString();
+      }
+      return LexoRank.parse(sortedEntities[beforeIndex - 1].order)
+        .between(LexoRank.parse(sortedEntities[beforeIndex].order))
+        .toString();
+    }
+  
+    return LexoRank.middle().toString();
+  }
+  
+  /**
+   * Updates the `isLast` status of entities to maintain proper ordering.
+   */
+  function updateLastEntityStatus<T extends { isLast: boolean, order:string }>(
+    sortedEntities: T[],
+    idField: keyof T,
+    newEntity: T,
+    afterId?: string
+  ): T[] {
+    // Sort items based on order
+    let finalSorted = sortedEntities.sort((a, b) => a.order.localeCompare(b.order));
+
+    // for all items except last set isLast = false
+    finalSorted.forEach((item, index, items) => {
+      if (index != items.length-1){
+        item.isLast = false;
+      }
+      else {
+        item.isLast = true;
+      }
+    });
+
+    return finalSorted;
+  }
+
+
