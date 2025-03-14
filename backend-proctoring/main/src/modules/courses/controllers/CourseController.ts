@@ -18,17 +18,14 @@ import {
   Param,
   Authorized,
   HttpError,
+  Patch,
 } from "routing-controllers";
 import { Inject, Service } from "typedi";
 import { instanceToPlain } from "class-transformer";
-import { CoursePayload, ICourseService } from "./ICourseService";
-import { DTOCoursePayload, DTOCourseVersionPayload } from "./DTOCoursePayload";
-import { isInstance } from "class-validator";
-import {
-  CreateCourseError,
-  FetchCourseError,
-  UpdateCourseError,
-} from "./CourseService";
+import { CoursePayload, ICourseService } from "../interfaces/ICourseService";
+import { DTOCoursePayload, DTOCourseVersionPayload } from "../dtos/DTOCoursePayload";
+import { CreateCourseError, FetchCourseError, UpdateCourseError } from "../errors/CourseErrors";
+
 
 @JsonController("/courses")
 @Service()
@@ -50,9 +47,9 @@ export class CourseController {
    */
   @Authorized(["admin", "instructor"])
   @Post("/")
-  async createCourse(@Body({ validate: true }) payload: DTOCoursePayload) {
+  async create(@Body({ validate: true }) payload: DTOCoursePayload) {
     try {
-      const course = await this.courseService.createCourse(payload);
+      const course = await this.courseService.create(payload);
       return instanceToPlain(course);
     } catch (error) {
       if (error instanceof CreateCourseError) {
@@ -92,10 +89,10 @@ export class CourseController {
    * @returns The updated course.
    */
   @Authorized(["admin", "instructor"])
-  @Put("/:id")
+  @Patch("/:id")
   async update(
     @Param("id") id: string,
-    @Body({ validate: true }) payload: CoursePayload
+    @Body({ validate: true }) payload: DTOCoursePayload
   ) {
     try {
       const updatedCourse = await this.courseService.update(id, payload);
@@ -109,63 +106,7 @@ export class CourseController {
     }
   }
 
-  /**
-   * Deletes a course by ID.
-   *
-   * @param id - The ID of the course to delete.
-   * @returns Success confirmation.
-   */
-  @Authorized(["admin"])
-  @Delete("/:id")
-  async delete(@Param("id") id: string) {
-    const success = await this.courseService.delete(id);
-    if (!success) throw new HttpError(404, "Course not found");
-    return { success: true, message: "Course deleted successfully" };
-  }
-
-  /**
-   * Retrieves all courses.
-   *
-   * @returns List of all courses.
-   */
-  @Get("/")
-  async getAll() {
-    const courses = await this.courseService.getAll();
-    return instanceToPlain(courses);
-  }
-
-  @Authorized(["admin"])
-  @Post("/:courseId/versions")
-  async createVersion(
-    @Param("courseId") courseId: string,
-    @Body({ validate: true }) payload: DTOCourseVersionPayload
-  ) {
-    return await this.courseService.addVersion(courseId, payload);
-  }
 
 
-  @Authorized(["admin"])
-  @Put("/:courseId/versions/:versionId")
-  async updateVersion(
-    @Param("courseId") courseId: string,
-    @Param("versionId") versionId: string,
-    @Body({ validate: true }) payload: Partial<DTOCourseVersionPayload>
-  ) {
-    try {
-      const updatedVersion = await this.courseService.updateVersion(
-        courseId,
-        versionId,
-        payload
-      );
-      if (!updatedVersion) throw new HttpError(404, "Course version not found");
-      return instanceToPlain(updatedVersion);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new HttpError(
-          500,
-          error.message || "Failed to update course version"
-        );
-      }
-    }
-  }
+
 }

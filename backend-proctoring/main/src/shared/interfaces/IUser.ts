@@ -31,7 +31,7 @@ export interface IModule {
     moduleId?: string;
     name: string;
     description: string;
-    order: number;
+    order: string;
     sections: ISection[];
     isLast: boolean;
     createdAt: Date;
@@ -42,7 +42,7 @@ export interface ISection {
     sectionId?: string;
     name: string;
     description: string;
-    order: number;
+    order: string;
     itemIds: string[];
     isLast: boolean;
     createdAt: Date;

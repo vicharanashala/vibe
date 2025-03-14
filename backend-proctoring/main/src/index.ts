@@ -11,10 +11,10 @@ import { authModuleOptions } from 'modules/auth';
 import { coursesModuleOptions } from 'modules/courses';
 import Container from 'typedi';
 import { ICourseRepository, IDatabase } from 'shared/database';
-import { ICourseService } from 'modules/courses/ICourseService';
+import { ICourseService } from 'modules/courses/interfaces/ICourseService';
 import { MongoDatabase } from 'shared/database/providers/MongoDatabaseProvider';
 import { CourseRepository } from 'shared/database/providers/mongo/repositories/CourseRepository';
-import { CourseService } from 'modules/courses/CourseService';
+import { CourseService } from 'modules/courses/services/CourseService';
 import { dbConfig } from '@config/db';
 
 

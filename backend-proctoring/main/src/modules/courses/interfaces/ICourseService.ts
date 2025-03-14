@@ -9,7 +9,7 @@
 
 import "reflect-metadata";
 import { ICourse } from "shared/interfaces/IUser";
-import { DTOCourseVersionPayload } from "./DTOCoursePayload";
+import { DTOCourseVersionPayload } from "../dtos/DTOCoursePayload";
 
 /**
  * Payload for creating or updating a course.
@@ -47,7 +47,7 @@ export interface ICourseService {
    * @param payload - The payload containing the course information.
    * @returns A promise that resolves to the created course.
    */
-  createCourse(payload: CoursePayload): Promise<ICourse>;
+  create(payload: CoursePayload): Promise<ICourse>;
 
   /**
    * Retrieves a course by ID.
@@ -66,22 +66,20 @@ export interface ICourseService {
    */
   update(id: string, payload: CoursePayload): Promise<ICourse | null>;
 
-  /**
-   * Deletes a course by ID.
-   *
-   * @param id - The ID of the course to delete.
-   * @returns A promise that resolves to a boolean indicating whether the course was successfully deleted.
-   */
-  delete(id: string): Promise<boolean>;
+  // /**
+  //  * Deletes a course by ID.
+  //  *
+  //  * @param id - The ID of the course to delete.
+  //  * @returns A promise that resolves to a boolean indicating whether the course was successfully deleted.
+  //  */
+  // delete(id: string): Promise<boolean>;
 
-  /**
-   * Retrieves all courses.
-   *
-   * @returns A promise that resolves to an array of all courses.
-   */
-  getAll(): Promise<ICourse[]>;
+  // /**
+  //  * Retrieves all courses.
+  //  *
+  //  * @returns A promise that resolves to an array of all courses.
+  //  */
+  // getAll(): Promise<ICourse[]>;
 
-  addVersion(courseId: string, versionDetails: DTOCourseVersionPayload): Promise<unknown>;
 
-  updateVersion(courseId: string, versionId: string, payload: Partial<DTOCourseVersionPayload>): Promise<unknown>;
 }
