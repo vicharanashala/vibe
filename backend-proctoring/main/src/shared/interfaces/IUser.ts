@@ -43,17 +43,22 @@ export interface ISection {
     name: string;
     description: string;
     order: string;
-    itemIds: string[];
+    itemIds: IItemId[];
     isLast: boolean;
     createdAt: Date;
     updatedAt: Date;
+}
+
+export interface IItemId{
+    itemId: string;
+    order: string;
+    isLast: boolean;
 }
 
 export interface IItem {
     id?: string;
     name: string;
     description: string;
-    isLast: boolean;
     createdAt: Date;
     type: 'VIDEO' | 'QUIZ' | 'BLOG';
     itemId: string;
@@ -230,3 +235,38 @@ export interface IQuizDESQuestionResponse extends IQuizResponseItem {
     responseText: string;
 }
 
+
+export enum ItemType {
+    VIDEO = "VIDEO",
+    QUIZ = "QUIZ",
+    BLOG = "BLOG",
+  }
+  
+  export interface IBaseItem {
+    id?: string;
+    name: string;
+    description: string;
+    type: ItemType;
+    sectionId: string;
+    order: string;
+    isLast: boolean;
+    itemDetailsId: string;
+  }
+  
+  export interface IVideoDetails {
+    URL: string;
+    startTime: string;
+    endTime: string;
+    points: number;
+  }
+  
+  export interface IQuizDetails {
+    questionVisibility: number;
+  }
+  
+  export interface IBlogDetails {
+    tags: string[];
+    content: string;
+    points: number;
+  }
+  

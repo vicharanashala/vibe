@@ -127,3 +127,37 @@ export class DTOSectionPayload implements ISection {
     updatedAt: Date;
 }
 
+
+export enum ItemType {
+    VIDEO = "VIDEO",
+    QUIZ = "QUIZ",
+    BLOG = "BLOG",
+  }
+  
+  export interface IBaseItem {
+    name: string;
+    description: string;
+    type: ItemType;
+    sectionId: string;
+    order: string;
+    isLast: boolean;
+    itemDetailsId: string;
+  }
+  
+  export interface IVideoDetails {
+    URL: string;
+    startTime: string;
+    endTime: string;
+    points: number;
+  }
+  
+  export interface IQuizDetails {
+    questionVisibility: number;
+  }
+  
+  export interface IBlogDetails {
+    tags: string[];
+    content: string;
+    points: number;
+  }
+  

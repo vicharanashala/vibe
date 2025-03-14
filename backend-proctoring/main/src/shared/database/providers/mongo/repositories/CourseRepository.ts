@@ -6,9 +6,11 @@ import { MongoDatabase } from "../MongoDatabase";
 import {
   ICourse,
   ICourseVersion,
+  IItem,
   IModule,
   ISection,
 } from "shared/interfaces/IUser";
+import { th } from "@faker-js/faker/.";
 
 type MongoCourse = Omit<ICourse, "id" | "instructors" | "versions"> & {
   id?: ObjectId;
@@ -28,8 +30,10 @@ type MongoModule = Omit<IModule, "moduleId" | "sections"> & {
 
 type MongoSection = Omit<ISection, "sectionId" | "itemIds"> & {
   sectionId?: ObjectId;
-  itemIds: ObjectId[];
+  itemIds: MongoItem[];
 };
+
+type MongoItem = Omit<IItem, "itemId"> & { itemId?: ObjectId, order: string, isLast: boolean };
 
 @Service()
 export class CourseRepository implements ICourseRepository {
@@ -268,7 +272,10 @@ export class CourseRepository implements ICourseRepository {
         sections: module.sections.map((section) => ({
           ...section,
           sectionId: section.sectionId?.toString(),
-          itemIds: section.itemIds.map((itemId) => itemId.toString()),
+          itemIds: section.itemIds.map((item) => ({
+            itemId: item.itemId?.toString() || "",
+            order: item.order,
+          })), 
         })),
       })),
     } as ICourseVersion;
@@ -365,9 +372,74 @@ export class CourseRepository implements ICourseRepository {
         sections: module.sections.map((section) => ({
           ...section,
           sectionId: section.sectionId?.toString(),
-          itemIds: section.itemIds.map((itemId) => itemId.toString()), // Preserve itemIds
+          itemIds: section.itemIds.map((item) => ({
+            itemId: item.itemId?.toString() || "",
+            order: item.order,
+          })), // Preserve itemIds
         })),
       })),
     } as ICourseVersion;
   }
+
+
+
+  async readSection(sectionId: string): Promise<ISection | null> {
+    await this.init();
+  
+    // Find the course version that contains this section
+    const version = await this.courseVersionCollection.findOne({
+      "modules.sections.sectionId": new ObjectId(sectionId).toString(),
+    });
+  
+    if (!version) return null;
+  
+    // Extract the section
+    for (const module of version.modules) {
+      console.log(module.sections)
+      const section = module.sections.find((s) => s.sectionId?.toString() === sectionId);
+      if (section) {
+        console.log("DEBUG: Found section")
+        if (!section.sectionId) {
+          throw new Error("Section ID is undefined");
+        }
+
+        return {
+          ...section,
+          sectionId: section.sectionId.toString(),
+          itemIds: section.itemIds.map((itemId) => ({ itemId: itemId.toString() })),
+        } as unknown as ISection;
+      }
+    }
+  
+    return null;
+  }
+  
+  async updateSection(sectionId: string, sectionData: Partial<ISection>): Promise<ISection | null> {
+    await this.init();
+  
+    const result = await this.courseVersionCollection.findOneAndUpdate(
+      { "modules.sections.sectionId": sectionId },
+      { $set: { "modules.$[].sections.$[s]": sectionData } },
+      { arrayFilters: [{ "s.sectionId": new ObjectId(sectionId) }], returnDocument: "after" }
+    );
+  
+    if (!result) throw new Error("Section not found from reppo");
+  
+    const updatedSection = result.modules
+      .flatMap((module) => module.sections)
+      .find((s) => s.sectionId.toString() === sectionId);
+  
+    return updatedSection
+      ? {
+          ...updatedSection,
+          sectionId: updatedSection.sectionId.toString(),
+          itemIds: updatedSection.itemIds.map((item) => ({
+            itemId: item.itemId?.toString() || "",
+            order: item.order,
+            isLast: item.isLast,
+          })),
+        }
+      : null;
+  }
+  
 }
