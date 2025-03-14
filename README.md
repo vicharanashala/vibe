@@ -150,4 +150,4 @@ This project is licensed under the **MIT License**. See `LICENSE` for more infor
 For any inquiries, feedback, or suggestions, feel free to:
 
 - Open an issue on the repository.
-- Reach out to the maintainers at staff.aditya.bmv@iitrpr.ac.in or at sidrao2006@gmail.com.
+- Reach out to the maintainers at dled@iitrpr.ac.in.
