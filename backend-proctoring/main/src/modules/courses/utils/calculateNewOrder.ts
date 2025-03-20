@@ -1,3 +1,4 @@
+import c from "config";
 import { LexoRank } from "lexorank";
 
   /**
@@ -19,10 +20,12 @@ export  function calculateNewOrder<T extends Record<string, any>>(
     
   
     if (!afterId && !beforeId) {
+      console.log("Adding in the end");
       return LexoRank.parse(sortedEntities[sortedEntities.length - 1].order).genNext().toString();
     }
   
     if (afterId) {
+      console.log("Adding after", afterId);
       const afterIndex = sortedEntities.findIndex((m) => m[idField] === afterId);
       if (afterIndex === sortedEntities.length - 1) {
         return LexoRank.parse(sortedEntities[afterIndex].order).genNext().toString();
@@ -33,10 +36,16 @@ export  function calculateNewOrder<T extends Record<string, any>>(
     }
   
     if (beforeId) {
+      console.log("Adding before", beforeId);
       const beforeIndex = sortedEntities.findIndex((m) => m[idField] === beforeId);
       if (beforeIndex === 0) {
         return LexoRank.parse(sortedEntities[beforeIndex].order).genPrev().toString();
       }
+
+      console.log("Before -1 order", sortedEntities[beforeIndex - 1].order);
+      console.log("Before order", sortedEntities[beforeIndex].order);
+      
+
       return LexoRank.parse(sortedEntities[beforeIndex - 1].order)
         .between(LexoRank.parse(sortedEntities[beforeIndex].order))
         .toString();

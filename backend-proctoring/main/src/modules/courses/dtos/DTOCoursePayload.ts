@@ -1,6 +1,6 @@
 import { IsBoolean, IsEmpty, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from "class-validator";
 import { CoursePayload } from "../interfaces/ICourseService";
-import { ICourseVersion, IItem, IModule, ISection } from '../../../shared/interfaces/IUser'
+import { ICourseVersion, IItem, IItemId, IModule, ISection } from '../../../shared/interfaces/IUser'
 
 export class DTOCoursePayload implements CoursePayload {
     @IsNotEmpty()
@@ -25,7 +25,7 @@ export class DTOCoursePayload implements CoursePayload {
 
 export class DTOCourseVersionPayload implements ICourseVersion {
     @IsEmpty()
-    id?: string | undefined;
+    _id?: string | undefined;
 
     @IsEmpty()
     courseId: string;
@@ -83,9 +83,6 @@ export class DTOModulePayload implements IModule {
     sections: ISection[];
 
     @IsEmpty()
-    isLast: boolean;
-
-    @IsEmpty()
     createdAt: Date;
 
     @IsEmpty()
@@ -108,17 +105,21 @@ export class DTOSectionPayload implements ISection {
     @MaxLength(1000)
     description: string;
 
-    @IsNotEmpty()
-    @IsNumber()
-    @Min(1)
-    @Max(20)
+    @IsEmpty()
     order:string;
 
-    @IsEmpty()
-    itemIds: string[];
+    @IsOptional()
+    @IsMongoId()
+    @IsString()
+    afterSectionId?: string;
 
-    @IsBoolean()
-    isLast: boolean;
+    @IsOptional()
+    @IsMongoId()
+    @IsString()
+    beforeSectionId?: string;
+
+    @IsEmpty()
+    itemIds: IItemId[];
 
     @IsEmpty()
     createdAt: Date;

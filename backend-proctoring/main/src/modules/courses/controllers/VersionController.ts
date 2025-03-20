@@ -72,7 +72,7 @@ export class VersionController {
       }
     }
   }
-
+  
   @Authorized(["admin"])
   @Post("/:courseId/versions/:versionId/modules")
   async createModule(

@@ -298,7 +298,7 @@ export class VersionService implements IVersionService {
       }
 
       // Update course to include the new version
-      course.versions.push(createdVersion.id as string);
+      course.versions.push(createdVersion._id as string);
       const updatedCourse = await this.courseRepository.update(
         courseId,
         course

@@ -2,7 +2,7 @@ import { Inject, Service } from "typedi";
 import { IBaseItem, ItemType } from "../dtos/DTOCoursePayload";
 import { calculateNewOrder } from "../utils/calculateNewOrder";
 import { ICourseRepository } from "shared/database";
-import { ISection } from "shared/interfaces/IUser";
+import { ICourseVersion, ISection } from "shared/interfaces/IUser";
 import { updateLastEntityStatus } from "../utils/updateLastEntityStatus";
 import { IItemRepository } from "shared/database/interfaces/IItemRepository";
 
@@ -27,7 +27,7 @@ export class ItemService {
       afterItemId?: string;
       beforeItemId?: string;
     }
-  ): Promise<ISection | null> {
+  ): Promise<ICourseVersion | null> {
     const { type, itemDetails, afterItemId, beforeItemId, ...itemData } =
       itemPayload;
 
@@ -89,12 +89,26 @@ export class ItemService {
 
     const latestSection = {...section, updatedAt: new Date(), itemIds: section.itemIds};
 
-    // Step 9: Update the section
-    console.log("Updated Section", section);
-    const updatedSection = await this.courseRepository.updateSection(sectionId, latestSection);
-    if (!updatedSection) throw new Error("Failed to update section");
+    // Step 9: Update the module
+    const updatedModule = {
+      ...module,
+      sections: module.sections.map((s) =>
+        s.sectionId === sectionId ? latestSection : s
+      ),
+    };
+    console.log("ITEMSERVICE UPDATED MODULE", updatedModule.sections[0].itemIds);
 
-    return updatedSection;
+    // Step 10: Update the version
+    const updatedVersion = {
+      ...version,
+      modules: version.modules.map((m) =>
+        m.moduleId === moduleId ? updatedModule : m
+      ),
+    };
+    console.log("ITEMSERVICE UPDATED VERSION", updatedVersion);
+
+    // Step 11: Update the version
+    return await this.courseRepository.updateVersion(versionId, updatedVersion);
 
 
 

@@ -15,7 +15,8 @@ import { ItemService } from "./services/ItemService";
 import { IItemRepository } from "shared/database/interfaces/IItemRepository";
 import { ItemRepository } from "shared/database/providers/mongo/repositories/ItemRepository";
 import { ItemController } from "./controllers/ItemController";
-
+import { NewCourseRepository } from "shared/database/providers/mongo/repositories/NewCourseRepository";
+import { HttpErrorHandler } from "shared/middleware/ErrorHandler";
 
 
 useContainer(Container);
@@ -29,9 +30,13 @@ Container.set<IItemRepository>("IItemRepository", new ItemRepository(Container.g
 Container.set<ICourseService>("ICourseService", new CourseService(Container.get<ICourseRepository>("ICourseRepository")));
 Container.set<IVersionService>("IVersionService", new VersionService(Container.get<ICourseRepository>("ICourseRepository")));
 Container.set<ItemService>("ItemService", new ItemService(Container.get<ICourseRepository>("ICourseRepository"), Container.get<IItemRepository>("IItemRepository")));
+Container.set("NewCourseRepo", new NewCourseRepository(Container.get<MongoDatabase>("Database")));
+
 
 export const coursesModuleOptions: RoutingControllersOptions = {
-    controllers: [CourseController, VersionController, ItemController],
+    controllers: [CourseController, ItemController],
+    defaultErrorHandler: false,
+    middlewares: [HttpErrorHandler],
     authorizationChecker: async function (action, roles) {
         return true;
     },

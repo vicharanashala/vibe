@@ -1,3 +1,7 @@
+
+import { Expose, Transform, Exclude, Type } from "class-transformer";
+import { ObjectId } from "mongodb";
+
 export interface IUser {
     id?: string
     firebaseUID: string;
@@ -7,19 +11,29 @@ export interface IUser {
     roles: string[];
 }
 
+export type Versions = {
+    version: string;
+    id: ID
+}
+
 export interface ICourse {
-    id?: string;
+    _id?: string | ObjectId | null;
     name: string;
     description: string;
-    versions: string[];
-    instructors: string[];
-    createdAt: Date;
-    updatedAt: Date;
+    versions: ID[];
+    instructors: ID[];
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+type ID = string | ObjectId | null;
+export class Course {
+
 }
 
 export interface ICourseVersion {
-    id?: string;
-    courseId: string;
+    _id?: ID;
+    courseId: ID;
     version: string;
     description: string;
     modules: IModule[]
@@ -28,23 +42,21 @@ export interface ICourseVersion {
 }
 
 export interface IModule {
-    moduleId?: string;
+    moduleId?: ID;
     name: string;
     description: string;
     order: string;
     sections: ISection[];
-    isLast: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface ISection {
-    sectionId?: string;
+    sectionId?: ID;
     name: string;
     description: string;
     order: string;
     itemIds: IItemId[];
-    isLast: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -269,4 +281,4 @@ export enum ItemType {
     content: string;
     points: number;
   }
-  
+ 

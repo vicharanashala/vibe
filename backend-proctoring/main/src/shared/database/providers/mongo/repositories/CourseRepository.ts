@@ -33,7 +33,11 @@ type MongoSection = Omit<ISection, "sectionId" | "itemIds"> & {
   itemIds: MongoItem[];
 };
 
-type MongoItem = Omit<IItem, "itemId"> & { itemId?: ObjectId, order: string, isLast: boolean };
+type MongoItem = Omit<IItem, "itemId"> & {
+  itemId?: ObjectId;
+  order: string;
+  isLast: boolean;
+};
 
 @Service()
 export class CourseRepository implements ICourseRepository {
@@ -88,7 +92,7 @@ export class CourseRepository implements ICourseRepository {
     if (result) {
       return {
         ...course,
-        id: result.insertedId.toString(),
+        _id: result.insertedId.toString(),
       } as ICourse;
     }
 
@@ -108,7 +112,7 @@ export class CourseRepository implements ICourseRepository {
       const { _id, ...rest } = course;
       return {
         ...rest,
-        id: _id.toString(),
+        _id: _id.toString(),
         instructors: course.instructors.map((id: ObjectId) => id.toString()),
         versions: course.versions.map((id: ObjectId) => id.toString()),
       } as ICourse;
@@ -124,7 +128,7 @@ export class CourseRepository implements ICourseRepository {
 
     let mongoCourse: Partial<MongoCourse> = {
       ...course,
-      id: course.id ? new ObjectId(course.id) : undefined,
+      id: course._id ? new ObjectId(course._id) : undefined,
       instructors: course.instructors
         ? course.instructors.map((id) => new ObjectId(id))
         : [],
@@ -145,7 +149,7 @@ export class CourseRepository implements ICourseRepository {
 
       return {
         ...rest,
-        id: result._id.toString(),
+        _id: result._id.toString(),
         instructors: result.instructors.map((id: ObjectId) => id.toString()),
         versions: result.versions.map((id: ObjectId) => id.toString()),
       } as ICourse;
@@ -219,7 +223,7 @@ export class CourseRepository implements ICourseRepository {
 
     return {
       ...courseVersion,
-      id: result.insertedId.toString(),
+      _id: result.insertedId.toString(),
       courseId: courseVersion.courseId, // Keep it as a string
       modules: processedModules.map((module) => ({
         moduleId: module.moduleId.toString(),
@@ -260,7 +264,7 @@ export class CourseRepository implements ICourseRepository {
     }
 
     return {
-      id: version._id.toString(),
+      _id: version._id.toString(),
       courseId: version.courseId.toString(),
       version: version.version,
       description: version.description,
@@ -275,15 +279,15 @@ export class CourseRepository implements ICourseRepository {
           itemIds: section.itemIds.map((item) => ({
             itemId: item.itemId?.toString() || "",
             order: item.order,
-          })), 
+          })),
         })),
       })),
     } as ICourseVersion;
   }
 
-  /**
-   * Updates a course version by ID.
-   */
+  // /**
+  //  * Updates a course version by ID.
+  //  */
   async updateVersion(
     versionId: string,
     updatePayload: Partial<ICourseVersion>
@@ -296,62 +300,24 @@ export class CourseRepository implements ICourseRepository {
     const existingVersion = await this.courseVersionCollection.findOne({
       _id: versionObjectId,
     });
+
+
     if (!existingVersion) {
       return null;
     }
 
-    // Convert `courseId` to ObjectId
-    const updatedModules: MongoModule[] = (
-      updatePayload.modules ?? existingVersion.modules
-    ).map((module) => {
-      const existingModule = existingVersion.modules.find(
-        (m) => m.moduleId?.toString() === module.moduleId
-      );
-
-      const moduleObjectId =
-        module.moduleId && ObjectId.isValid(module.moduleId)
-          ? new ObjectId(module.moduleId)
-          : existingModule?.moduleId || new ObjectId();
-
-      const updatedSections: MongoSection[] = module.sections.map((section) => {
-        const existingSection = existingModule?.sections.find(
-          (s) => s.sectionId?.toString() === section.sectionId
-        );
-
-        return {
-          ...existingSection,
-          ...section,
-          sectionId:
-            section.sectionId && ObjectId.isValid(section.sectionId)
-              ? new ObjectId(section.sectionId)
-              : existingSection?.sectionId || new ObjectId(),
-          itemIds: existingSection?.itemIds ?? [], // Preserve itemIds
-          updatedAt: section.updatedAt,
-        };
-      });
-
-      return {
-        ...existingModule,
-        ...module,
-        moduleId: moduleObjectId,
-        sections: updatedSections,
-        updatedAt: module.updatedAt,
-      };
-    });
-
-    const updatedVersion: Partial<MongoCourseVersion> = {
-      ...existingVersion,
-      ...updatePayload,
-      id: versionObjectId,
-      courseId: new ObjectId(existingVersion.courseId),
-      modules: updatedModules,
-      updatedAt: updatePayload.updatedAt, // Preserve `updatedAt`
-    };
+    // Convert all relevant IDs in `updatePayload`
+    const convertedPayload = convertIdsToObjectId(updatePayload, [
+      "courseId",
+      "moduleId",
+      "sectionId",
+      "itemId",
+    ]) as Partial<MongoCourseVersion>;
 
     // Update the version in MongoDB
     const result = await this.courseVersionCollection.findOneAndUpdate(
       { _id: versionObjectId },
-      { $set: updatedVersion },
+      { $set: convertedPayload },
       { returnDocument: "after" }
     );
 
@@ -359,8 +325,10 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
 
+    console.log("DEBUG: Updated version", convertedPayload.modules[0].sections[0].itemIds);
+
     return {
-      id: result._id.toString(),
+      _id: result._id.toString(),
       courseId: result.courseId.toString(),
       version: result.version,
       description: result.description,
@@ -373,32 +341,128 @@ export class CourseRepository implements ICourseRepository {
           ...section,
           sectionId: section.sectionId?.toString(),
           itemIds: section.itemIds.map((item) => ({
-            itemId: item.itemId?.toString() || "",
-            order: item.order,
+            ...item,
+            itemId: item.itemId?.toString() || ""
           })), // Preserve itemIds
         })),
       })),
     } as ICourseVersion;
   }
 
+  // async updateVersion(
+  //   versionId: string,
+  //   updatePayload: Partial<ICourseVersion>
+  // ): Promise<ICourseVersion | null> {
+  //   await this.init();
 
+  //   const versionObjectId = new ObjectId(versionId);
+
+  //   // Fetch the existing version from the database
+  //   const existingVersion = await this.courseVersionCollection.findOne({
+  //     _id: versionObjectId,
+  //   });
+  //   if (!existingVersion) {
+  //     return null;
+  //   }
+
+  //   // Convert all relevant IDs in `updatePayload`
+  //   const convertedPayload = convertIdsToObjectId(updatePayload, [
+  //     "courseId",
+  //     "moduleId",
+  //     "sectionId",
+  //     "itemId",
+  //   ]);
+
+  //   // Merge with existing data
+  //   const updatedModules: MongoModule[] = (
+  //     convertedPayload.modules ?? existingVersion.modules
+  //   ).map((module) => {
+  //     const existingModule = existingVersion.modules.find(
+  //       (m) => m.moduleId?.toString() === module.moduleId?.toString()
+  //     );
+
+  //     return {
+  //       ...existingModule,
+  //       ...module,
+  //       sections: module.sections.map((section) => {
+  //         const existingSection = existingModule?.sections.find(
+  //           (s) => s.sectionId?.toString() === section.sectionId?.toString()
+  //         );
+
+  //         return {
+  //           ...existingSection,
+  //           ...section,
+  //           itemIds: existingSection?.itemIds ?? [],
+  //         };
+  //       }),
+  //     };
+  //   });
+
+  //   const updatedVersion: Partial<MongoCourseVersion> = {
+  //     ...existingVersion,
+  //     ...convertedPayload,
+  //     id: versionObjectId,
+  //     courseId: new ObjectId(existingVersion.courseId),
+  //     modules: updatedModules,
+  //   };
+
+  //   // Update the version in MongoDB
+  //   const result = await this.courseVersionCollection.findOneAndUpdate(
+  //     { _id: versionObjectId },
+  //     { $set: updatedVersion },
+  //     { returnDocument: "after" }
+  //   );
+
+  //   if (!result) {
+  //     return null;
+  //   }
+
+  //   console.log(
+  //     "DEBUG: Updated version",
+  //     updatedVersion.modules[0].sections[0].itemIds
+  //   );
+
+  //   return {
+  //     id: result._id.toString(),
+  //     courseId: result.courseId.toString(),
+  //     version: result.version,
+  //     description: result.description,
+  //     createdAt: result.createdAt,
+  //     updatedAt: result.updatedAt,
+  //     modules: result.modules.map((module) => ({
+  //       ...module,
+  //       moduleId: module.moduleId?.toString(),
+  //       sections: module.sections.map((section) => ({
+  //         ...section,
+  //         sectionId: section.sectionId?.toString(),
+  //         itemIds: section.itemIds.map((item) => ({
+  //           itemId: item.itemId?.toString() || "",
+  //           order: item.order,
+  //           isLast: item.isLast,
+  //         })),
+  //       })),
+  //     })),
+  //   } as ICourseVersion;
+  // }
 
   async readSection(sectionId: string): Promise<ISection | null> {
     await this.init();
-  
+
     // Find the course version that contains this section
     const version = await this.courseVersionCollection.findOne({
       "modules.sections.sectionId": new ObjectId(sectionId).toString(),
     });
-  
+
     if (!version) return null;
-  
+
     // Extract the section
     for (const module of version.modules) {
-      console.log(module.sections)
-      const section = module.sections.find((s) => s.sectionId?.toString() === sectionId);
+      console.log(module.sections);
+      const section = module.sections.find(
+        (s) => s.sectionId?.toString() === sectionId
+      );
       if (section) {
-        console.log("DEBUG: Found section")
+        console.log("DEBUG: Found section");
         if (!section.sectionId) {
           throw new Error("Section ID is undefined");
         }
@@ -406,29 +470,37 @@ export class CourseRepository implements ICourseRepository {
         return {
           ...section,
           sectionId: section.sectionId.toString(),
-          itemIds: section.itemIds.map((itemId) => ({ itemId: itemId.toString() })),
+          itemIds: section.itemIds.map((itemId) => ({
+            itemId: itemId.toString(),
+          })),
         } as unknown as ISection;
       }
     }
-  
+
     return null;
   }
-  
-  async updateSection(sectionId: string, sectionData: Partial<ISection>): Promise<ISection | null> {
+
+  async updateSection(
+    sectionId: string,
+    sectionData: Partial<ISection>
+  ): Promise<ISection | null> {
     await this.init();
-  
+
     const result = await this.courseVersionCollection.findOneAndUpdate(
       { "modules.sections.sectionId": sectionId },
       { $set: { "modules.$[].sections.$[s]": sectionData } },
-      { arrayFilters: [{ "s.sectionId": new ObjectId(sectionId) }], returnDocument: "after" }
+      {
+        arrayFilters: [{ "s.sectionId": new ObjectId(sectionId) }],
+        returnDocument: "after",
+      }
     );
-  
+
     if (!result) throw new Error("Section not found from reppo");
-  
+
     const updatedSection = result.modules
       .flatMap((module) => module.sections)
       .find((s) => s.sectionId.toString() === sectionId);
-  
+
     return updatedSection
       ? {
           ...updatedSection,
@@ -441,5 +513,27 @@ export class CourseRepository implements ICourseRepository {
         }
       : null;
   }
-  
+}
+
+function convertIdsToObjectId(obj: any, idFields: string[]): any {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => convertIdsToObjectId(item, idFields));
+  } else if (typeof obj === "object" && obj !== null) {
+    return Object.keys(obj).reduce((acc, key) => {
+      const value = obj[key];
+
+      // Convert if key is in the idFields array and value is a valid string ID
+      if (
+        idFields.includes(key) &&
+        typeof value === "string" &&
+        ObjectId.isValid(value)
+      ) {
+        acc[key] = new ObjectId(value);
+      } else {
+        acc[key] = convertIdsToObjectId(value, idFields);
+      }
+      return acc;
+    }, {} as Record<string, any>);
+  }
+  return obj;
 }
