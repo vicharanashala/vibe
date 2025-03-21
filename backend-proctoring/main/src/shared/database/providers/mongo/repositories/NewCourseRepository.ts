@@ -22,7 +22,16 @@ import {
 } from "class-transformer";
 import { Collection, ObjectId } from "mongodb";
 import { calculateNewOrder } from "modules/courses/utils/calculateNewOrder";
-import { DTOModulePayload, DTOSectionPayload } from "modules/courses/dtos/DTOCoursePayload";
+import {
+  DTOModulePayload,
+  DTOSectionPayload,
+} from "modules/courses/dtos/DTOCoursePayload";
+import {
+  UpdateError,
+  CreateError,
+  DeleteError,
+  ReadError,
+} from "shared/errors/errors";
 
 type ID = string | ObjectId | null;
 
@@ -112,7 +121,7 @@ export class CourseVersion implements ICourseVersion {
   description: string;
 
   @Expose()
-	@Type(() => Module)
+  @Type(() => Module)
   modules: Module[];
 
   @Expose()
@@ -136,117 +145,98 @@ export class CourseVersion implements ICourseVersion {
 }
 
 export class Module implements IModule {
-	@Expose()
-	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-	@Transform(StringToObjectId.transformer, { toClassOnly: true })
-	moduleId?: ID;
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  moduleId?: ID;
 
-	@Expose()
-	name: string;
+  @Expose()
+  name: string;
 
-	@Expose()
-	description: string;
+  @Expose()
+  description: string;
 
-	@Expose()
-	order: string;
+  @Expose()
+  order: string;
 
-	@Expose()
-	@Type(() => Section)
-	sections: Section[];
+  @Expose()
+  @Type(() => Section)
+  sections: Section[];
 
-	@Expose()
-	@Type(() => Date)
-	createdAt: Date;
+  @Expose()
+  @Type(() => Date)
+  createdAt: Date;
 
-	@Expose()
-	@Type(() => Date)
-	updatedAt: Date;
+  @Expose()
+  @Type(() => Date)
+  updatedAt: Date;
 
-	constructor(modulePayload: DTOModulePayload, existingModules: IModule[]) {
-		if (modulePayload) {
-			this.name = modulePayload.name;
-			this.description = modulePayload.description;
-		}
-		const sortedModules = existingModules.sort((a, b) =>
+  constructor(modulePayload: DTOModulePayload, existingModules: IModule[]) {
+    if (modulePayload) {
+      this.name = modulePayload.name;
+      this.description = modulePayload.description;
+    }
+    const sortedModules = existingModules.sort((a, b) =>
       a.order.localeCompare(b.order)
     );
-		this.moduleId = new ObjectId();
-		this.order = calculateNewOrder(sortedModules, "moduleId", modulePayload.afterModuleId, modulePayload.beforeModuleId);
-		this.sections = [];
-		this.createdAt = new Date();
-		this.updatedAt = new Date();
-	}
+    this.moduleId = new ObjectId();
+    this.order = calculateNewOrder(
+      sortedModules,
+      "moduleId",
+      modulePayload.afterModuleId,
+      modulePayload.beforeModuleId
+    );
+    this.sections = [];
+    this.createdAt = new Date();
+    this.updatedAt = new Date();
+  }
 }
 
 export class Section implements ISection {
-	@Expose()
-	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-	@Transform(StringToObjectId.transformer, { toClassOnly: true })
-	sectionId?: ID;
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  sectionId?: ID;
 
-	@Expose()
-	name: string;
+  @Expose()
+  name: string;
 
-	@Expose()
-	description: string;
+  @Expose()
+  description: string;
 
-	@Expose()
-	order: string;
+  @Expose()
+  order: string;
 
-	@Expose()
-	itemIds: IItemId[];
+  @Expose()
+  itemIds: IItemId[];
 
-	@Expose()
-	isLast: boolean;
+  @Expose()
+  isLast: boolean;
 
-	@Expose()
-	@Type(() => Date)
-	createdAt: Date;
+  @Expose()
+  @Type(() => Date)
+  createdAt: Date;
 
-	@Expose()
-	@Type(() => Date)
-	updatedAt: Date;
-	
+  @Expose()
+  @Type(() => Date)
+  updatedAt: Date;
 
-	constructor(sectionPayload: DTOSectionPayload, existingSections: ISection[]) {
-		if (sectionPayload) {
-			this.name = sectionPayload.name;
-			this.description = sectionPayload.description;
-		}
-		this.sectionId = new ObjectId();
-		this.order = calculateNewOrder(existingSections, "sectionId", sectionPayload.afterSectionId, sectionPayload.beforeSectionId);
-		this.itemIds = [];
-		this.isLast = false;
-		this.createdAt = new Date();
-		this.updatedAt = new Date();
-	}
-}
-
-export class CreateError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CreateError";
-  }
-}
-
-export class ReadError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ReadError";
-  }
-}
-
-export class UpdateError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UpdateError";
-  }
-}
-
-export class DeleteError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DeleteError";
+  constructor(sectionPayload: DTOSectionPayload, existingSections: ISection[]) {
+    if (sectionPayload) {
+      this.name = sectionPayload.name;
+      this.description = sectionPayload.description;
+    }
+    this.sectionId = new ObjectId();
+    this.order = calculateNewOrder(
+      existingSections,
+      "sectionId",
+      sectionPayload.afterSectionId,
+      sectionPayload.beforeSectionId
+    );
+    this.itemIds = [];
+    this.isLast = false;
+    this.createdAt = new Date();
+    this.updatedAt = new Date();
   }
 }
 
@@ -263,7 +253,6 @@ export class NewCourseRepository implements ICourseRepository {
       "newCourseVersion"
     );
   }
-
   async create(course: Course): Promise<Course | null> {
     await this.init();
     try {
@@ -284,7 +273,6 @@ export class NewCourseRepository implements ICourseRepository {
       );
     }
   }
-
   async read(id: string): Promise<ICourse | null> {
     await this.init();
     try {
@@ -296,11 +284,10 @@ export class NewCourseRepository implements ICourseRepository {
       throw new ReadError("Failed to read course.\n More Details: " + error);
     }
   }
-
   async update(id: string, course: Partial<ICourse>): Promise<ICourse | null> {
     await this.init();
     try {
-			const {_id, ...fields} = course
+      const { _id, ...fields } = course;
       const result = await this.courseCollection.updateOne(
         { _id: new ObjectId(id) },
         { $set: fields }
@@ -328,7 +315,7 @@ export class NewCourseRepository implements ICourseRepository {
     throw new Error("Method not implemented.");
   }
   async createVersion(
-    courseVersion: ICourseVersion
+    courseVersion: CourseVersion
   ): Promise<ICourseVersion | null> {
     await this.init();
     try {
@@ -354,54 +341,52 @@ export class NewCourseRepository implements ICourseRepository {
   }
   async readVersion(versionId: string): Promise<ICourseVersion | null> {
     await this.init();
-		try {
-			const courseVersion = await this.courseVersionCollection.findOne({
-				_id: new ObjectId(versionId),
-			});
-			return instanceToPlain(
-				Object.assign(new CourseVersion(), courseVersion)
-			) as CourseVersion;
-		} catch (error) {
-			throw new ReadError("Failed to read course version.\n More Details: " + error);
-		}
+    try {
+      const courseVersion = await this.courseVersionCollection.findOne({
+        _id: new ObjectId(versionId),
+      });
+      return instanceToPlain(
+        Object.assign(new CourseVersion(), courseVersion)
+      ) as CourseVersion;
+    } catch (error) {
+      throw new ReadError(
+        "Failed to read course version.\n More Details: " + error
+      );
+    }
   }
   async updateVersion(
     versionId: string,
-    courseVersion: ICourseVersion
+    courseVersion: CourseVersion
   ): Promise<ICourseVersion | null> {
     await this.init();
-		try {
-			const {_id, ...fields} = courseVersion
-			const result = await this.courseVersionCollection.updateOne(
-				{ _id: new ObjectId(versionId) },
-				{ $set: fields }
-			);
-			if (result.modifiedCount === 1) {
-				const updatedCourseVersion = await this.courseVersionCollection.findOne({
-					_id: new ObjectId(versionId),
-				});
-				return instanceToPlain(
-					Object.assign(new CourseVersion(), updatedCourseVersion)
-				) as CourseVersion;
-			} else {
-				throw new UpdateError("Failed to update course version");
-			}
-		}
-		catch (error) {
-			throw new UpdateError("Failed to update course version.\n More Details: " + error);
-		}
+    try {
+      const { _id, ...fields } = courseVersion;
+      const result = await this.courseVersionCollection.updateOne(
+        { _id: new ObjectId(versionId) },
+        { $set: fields }
+      );
+      if (result.modifiedCount === 1) {
+        const updatedCourseVersion = await this.courseVersionCollection.findOne(
+          {
+            _id: new ObjectId(versionId),
+          }
+        );
+        return instanceToPlain(
+          Object.assign(new CourseVersion(), updatedCourseVersion)
+        ) as CourseVersion;
+      } else {
+        throw new UpdateError("Failed to update course version");
+      }
+    } catch (error) {
+      throw new UpdateError(
+        "Failed to update course version.\n More Details: " + error
+      );
+    }
   }
-	async createModule(
-		versionId: string,
-		module: IModule
-	): Promise<IModule | null> {
-		throw new Error("Method not implemented.");
-	}
-
-  readSection(sectionId: string): Promise<ISection | null> {
+  async readSection(sectionId: string): Promise<ISection | null> {
     throw new Error("Method not implemented.");
   }
-  updateSection(
+  async updateSection(
     sectionId: string,
     section: Partial<ISection>
   ): Promise<ISection | null> {

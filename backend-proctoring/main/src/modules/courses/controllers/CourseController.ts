@@ -45,35 +45,46 @@ import {
 } from "../errors/CourseErrors";
 import { ObjectId } from "mongodb";
 import {
+  IBaseItem,
+  IBlogDetails,
   ICourse,
   ICourseVersion,
   IModule,
+  IQuizDetails,
   ISection,
+  ItemType,
+  IVideoDetails,
 } from "shared/interfaces/IUser";
 import {
   IsArray,
+  IsDate,
+  IsDateString,
+  IsDecimal,
   IsEmpty,
+  IsEnum,
   IsNotEmpty,
   IsString,
+  IsUrl,
+  isURL,
+  Matches,
   MaxLength,
   MinLength,
   validate,
+  ValidateIf,
+  ValidateNested,
 } from "class-validator";
 import {
   Course,
   CourseVersion,
-  CreateError,
-  DeleteError,
   Module,
   NewCourseRepository,
-  ReadError,
   Section,
-  UpdateError,
 } from "shared/database/providers/mongo/repositories/NewCourseRepository";
 import { HTTPError } from "shared/middleware/ErrorHandler";
 import { Version } from "firebase-admin/lib/remote-config/remote-config-api";
 import { VersionService } from "../services/VersionService";
 import { calculateNewOrder } from "../utils/calculateNewOrder";
+import { ReadError, UpdateError, CreateError } from "shared/errors/errors";
 
 class CoursePayloadNew implements ICourse {
   @IsNotEmpty()
@@ -149,6 +160,117 @@ class ModulePayloadNew implements IModule {
   @IsEmpty()
   updatedAt: Date;
 }
+
+class VideoDetailsPayload implements IVideoDetails{
+  @IsEmpty()
+  _id?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @IsUrl()
+  URL: string;
+
+  @IsNotEmpty()
+  @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/)
+  startTime: string;
+
+  @IsNotEmpty()
+  @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/)
+  endTime: string;
+
+  @IsNotEmpty()
+  @IsDecimal()
+  points: number;
+
+}
+
+class QuizDetailsPayload implements IQuizDetails {
+  @IsEmpty()
+  _id?: string;
+
+  @IsNotEmpty()
+  @IsDecimal()
+  questionVisibility: number;
+
+  @IsNotEmpty()
+  @IsDateString()
+  releaseTime: Date;
+
+  @IsNotEmpty()
+  @IsDateString()
+  deadline: Date;
+}
+
+class BlogDetailsPayload implements IBlogDetails {
+  @IsEmpty()
+  _id?: string;
+
+  @IsEmpty()
+  tags: string[];
+
+  @IsNotEmpty()
+  @IsString()
+  content: string;
+
+  @IsNotEmpty()
+  @IsDecimal()
+  points: number;
+}
+
+class ItemPayload implements IBaseItem {
+  @IsEmpty()
+  _id?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  description: string;
+
+  @IsEmpty()
+  sectionId: string;
+
+  @IsEmpty()
+  order: string;
+
+  @IsEmpty()
+  itemDetailsId: string;
+
+  @IsEmpty()
+  createdAt: Date;
+
+  @IsEmpty()
+  updatedAt: Date;
+
+  @IsNotEmpty()
+  @IsEnum(ItemType)
+  type: ItemType;
+
+  // Conditional validation based on type
+  @ValidateIf((o) => o.type === ItemType.VIDEO)
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => VideoDetailsPayload)
+  videoDetails?: VideoDetailsPayload;
+
+  @ValidateIf((o) => o.type === ItemType.BLOG)
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => BlogDetailsPayload)
+  blogDetails?: BlogDetailsPayload;
+
+  @ValidateIf((o) => o.type === ItemType.QUIZ)
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => QuizDetailsPayload)
+  quizDetails?: QuizDetailsPayload;
+
+}
+
+
+
 
 @JsonController("/courses")
 @Service()
@@ -526,12 +648,24 @@ export class CourseController {
 
       return {
         version: instanceToPlain(updatedVersion),
-      }
-
+      };
     } catch (error) {
       if (error instanceof Error) {
         throw new HTTPError(500, error);
       }
+    }
+  }
+
+  @Authorized(["admin"])
+  @Post("/versions/:versionId/modules/:moduleId/sections/:sectionId/items")
+  async createItem(
+    @Param("sectionId") sectionId: string,
+    @Param("moduleId") moduleId: string,
+    @Param("versionId") versionId: string,
+    @Body({validate: true}) item: ItemPayload
+  ) {
+    return {
+      item
     }
   }
 }

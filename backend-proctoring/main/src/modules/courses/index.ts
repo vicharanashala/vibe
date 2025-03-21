@@ -35,8 +35,8 @@ Container.set("NewCourseRepo", new NewCourseRepository(Container.get<MongoDataba
 
 export const coursesModuleOptions: RoutingControllersOptions = {
     controllers: [CourseController, ItemController],
-    defaultErrorHandler: false,
-    middlewares: [HttpErrorHandler],
+    // defaultErrorHandler: false,
+    // middlewares: [HttpErrorHandler],
     authorizationChecker: async function (action, roles) {
         return true;
     },

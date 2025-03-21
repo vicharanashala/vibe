@@ -255,13 +255,12 @@ export enum ItemType {
   }
   
   export interface IBaseItem {
-    id?: string;
+    id?: ID;
     name: string;
     description: string;
     type: ItemType;
     sectionId: string;
     order: string;
-    isLast: boolean;
     itemDetailsId: string;
   }
   
@@ -274,6 +273,9 @@ export enum ItemType {
   
   export interface IQuizDetails {
     questionVisibility: number;
+    releaseTime: Date; // quiz start time
+    deadline: Date; // quiz deadline
+    questions: string[]; // question ids
   }
   
   export interface IBlogDetails {
