@@ -56,7 +56,7 @@ export interface ISection {
     name: string;
     description: string;
     order: string;
-    itemIds: IItemId[];
+    itemsGroupId?: ID;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -255,13 +255,12 @@ export enum ItemType {
   }
   
   export interface IBaseItem {
-    id?: ID;
+    itemId?: ID,
     name: string;
     description: string;
     type: ItemType;
-    sectionId: string;
     order: string;
-    itemDetailsId: string;
+    itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
   }
   
   export interface IVideoDetails {

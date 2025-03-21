@@ -30,6 +30,9 @@ export  function calculateNewOrder<T extends Record<string, any>>(
       if (afterIndex === sortedEntities.length - 1) {
         return LexoRank.parse(sortedEntities[afterIndex].order).genNext().toString();
       }
+      console.log(sortedEntities)
+      console.log("After order", sortedEntities[afterIndex].order);
+      console.log("After +1 order", sortedEntities[afterIndex + 1].order);
       return LexoRank.parse(sortedEntities[afterIndex].order)
         .between(LexoRank.parse(sortedEntities[afterIndex + 1].order))
         .toString();
@@ -44,7 +47,7 @@ export  function calculateNewOrder<T extends Record<string, any>>(
 
       console.log("Before -1 order", sortedEntities[beforeIndex - 1].order);
       console.log("Before order", sortedEntities[beforeIndex].order);
-      
+
 
       return LexoRank.parse(sortedEntities[beforeIndex - 1].order)
         .between(LexoRank.parse(sortedEntities[beforeIndex].order))

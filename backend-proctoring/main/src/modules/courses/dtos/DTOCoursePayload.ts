@@ -1,6 +1,7 @@
 import { IsBoolean, IsEmpty, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from "class-validator";
 import { CoursePayload } from "../interfaces/ICourseService";
 import { ICourseVersion, IItem, IItemId, IModule, ISection } from '../../../shared/interfaces/IUser'
+import { ID } from "shared/database/providers/mongo/repositories/NewCourseRepository";
 
 export class DTOCoursePayload implements CoursePayload {
     @IsNotEmpty()
@@ -119,7 +120,7 @@ export class DTOSectionPayload implements ISection {
     beforeSectionId?: string;
 
     @IsEmpty()
-    itemIds: IItemId[];
+    itemsGroupId?: ID;
 
     @IsEmpty()
     createdAt: Date;

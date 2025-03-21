@@ -1,11 +1,17 @@
 import { ICourseRepository } from "shared/database/interfaces/ICourseRepository";
 import { CourseRepository } from "./CourseRepository";
 import {
+	IBaseItem,
+  IBlogDetails,
   ICourse,
   ICourseVersion,
+  IItem,
   IItemId,
   IModule,
+  IQuizDetails,
   ISection,
+	ItemType,
+	IVideoDetails,
 } from "shared/interfaces/IUser";
 import { Inject, Service } from "typedi";
 import { IDatabase } from "shared/database/interfaces/IDatabase";
@@ -32,8 +38,9 @@ import {
   DeleteError,
   ReadError,
 } from "shared/errors/errors";
+import { ItemPayload } from "modules/courses/controllers/CourseController";
 
-type ID = string | ObjectId | null;
+export type ID = string | ObjectId | null;
 
 type TransformerOptions = {
   transformer: (params: TransformFnParams) => any;
@@ -208,10 +215,7 @@ export class Section implements ISection {
   order: string;
 
   @Expose()
-  itemIds: IItemId[];
-
-  @Expose()
-  isLast: boolean;
+  itemsGroupId: ID;
 
   @Expose()
   @Type(() => Date)
@@ -226,24 +230,103 @@ export class Section implements ISection {
       this.name = sectionPayload.name;
       this.description = sectionPayload.description;
     }
+		let sortedSections = existingSections.sort((a, b) =>
+			a.order.localeCompare(b.order)
+		);
     this.sectionId = new ObjectId();
     this.order = calculateNewOrder(
-      existingSections,
+      sortedSections,
       "sectionId",
       sectionPayload.afterSectionId,
       sectionPayload.beforeSectionId
     );
-    this.itemIds = [];
-    this.isLast = false;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
+}
+
+export class Item implements IBaseItem {
+
+	@Expose()
+	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+	@Transform(StringToObjectId.transformer, { toClassOnly: true })
+	itemId?: ID;
+
+	@Expose()
+	name: string;
+
+	@Expose()
+	description: string;
+
+	@Expose()
+	type: ItemType;
+
+	@Expose()
+	order: string;
+
+	itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
+
+	constructor(itemPayload: ItemPayload, existingItems: Item[]) {
+		if (itemPayload) {
+			this.name = itemPayload.name;
+			this.description = itemPayload.description;
+			this.type = itemPayload.type;
+			switch (this.type) {
+				case ItemType.VIDEO:
+					this.itemDetails = itemPayload.videoDetails;
+					break;
+				case ItemType.QUIZ:
+					this.itemDetails = itemPayload.quizDetails;
+					break;
+				case ItemType.BLOG:
+					this.itemDetails = itemPayload.blogDetails;
+					break;
+				default:
+					break;
+			}
+		}
+		this.itemId = new ObjectId();
+		let sortedItems = existingItems.sort((a, b) =>
+			a.order.localeCompare(b.order)
+		);
+		this.order = calculateNewOrder(
+			sortedItems,
+			"itemId",
+			itemPayload.afterItemId,
+			itemPayload.beforeItemId
+			);
+	}
+
+	
+}
+
+export class ItemsGroup {
+
+	@Expose()
+	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+	@Transform(StringToObjectId.transformer, { toClassOnly: true })
+	_id?: ID;
+
+	@Expose()
+	@Type(() => Item)
+	items: Item[];
+
+	@Expose()
+	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+	@Transform(StringToObjectId.transformer, { toClassOnly: true })
+	sectionId: ID;
+
+	constructor(sectionId?: ID, items?: Item[], ) {
+		this.items = items? items :[];
+		this.sectionId = sectionId;
+	}
 }
 
 @Service()
 export class NewCourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
+	private itemsGroupCollection: Collection<ItemsGroup>;
 
   constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
 
@@ -252,6 +335,9 @@ export class NewCourseRepository implements ICourseRepository {
     this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
       "newCourseVersion"
     );
+		this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
+			"itemsGroup"
+		);
   }
   async create(course: Course): Promise<Course | null> {
     await this.init();
@@ -316,7 +402,7 @@ export class NewCourseRepository implements ICourseRepository {
   }
   async createVersion(
     courseVersion: CourseVersion
-  ): Promise<ICourseVersion | null> {
+  ): Promise<CourseVersion | null> {
     await this.init();
     try {
       const result = await this.courseVersionCollection.insertOne(
@@ -339,7 +425,7 @@ export class NewCourseRepository implements ICourseRepository {
       );
     }
   }
-  async readVersion(versionId: string): Promise<ICourseVersion | null> {
+  async readVersion(versionId: string): Promise<CourseVersion | null> {
     await this.init();
     try {
       const courseVersion = await this.courseVersionCollection.findOne({
@@ -357,7 +443,7 @@ export class NewCourseRepository implements ICourseRepository {
   async updateVersion(
     versionId: string,
     courseVersion: CourseVersion
-  ): Promise<ICourseVersion | null> {
+  ): Promise<CourseVersion | null> {
     await this.init();
     try {
       const { _id, ...fields } = courseVersion;
@@ -383,11 +469,76 @@ export class NewCourseRepository implements ICourseRepository {
       );
     }
   }
-  async readSection(sectionId: string): Promise<ISection | null> {
+	async createItemsGroup(itemsGroup: ItemsGroup): Promise<ItemsGroup | null> {
+		await this.init();
+		try {
+			const result = await this.itemsGroupCollection.insertOne(itemsGroup);
+			if (result) {
+				console.log("Items created", result.insertedId);
+				const newItems = await this.itemsGroupCollection.findOne({
+					_id: result.insertedId,
+				});
+				return instanceToPlain(
+					Object.assign(new ItemsGroup(), newItems)
+				) as ItemsGroup;
+			} else {
+				throw new CreateError("Failed to create items");
+			}
+		} catch (error) {
+			throw new CreateError(
+				"Failed to create items.\n More Details: " + error
+			);
+		}
+	}
+	async readItemsGroup(itemsGroupId: string): Promise<ItemsGroup | null> {
+		await this.init();
+		try {
+			const items = await this.itemsGroupCollection.findOne({
+				_id: new ObjectId(itemsGroupId),
+			});
+			return instanceToPlain(
+				Object.assign(new ItemsGroup(), items)
+			) as ItemsGroup;
+		} catch (error) {
+			throw new ReadError(
+				"Failed to read items.\n More Details: " + error
+			);
+		}
+	}
+
+	async updateItemsGroup(
+		itemsGroupId: string,
+		itemsGroup: ItemsGroup
+	): Promise<ItemsGroup | null> {
+		await this.init();
+		try {
+			const { _id, ...fields } = itemsGroup;
+			const result = await this.itemsGroupCollection.updateOne(
+				{ _id: new ObjectId(itemsGroupId) },
+				{ $set: fields }
+			);
+			if (result.modifiedCount === 1) {
+				const updatedItems = await this.itemsGroupCollection.findOne({
+					_id: new ObjectId(itemsGroupId),
+				});
+				return instanceToPlain(
+					Object.assign(new ItemsGroup(), updatedItems)
+				) as ItemsGroup;
+			} else {
+				throw new UpdateError("Failed to update items");
+			}
+		} catch (error) {
+			throw new UpdateError(
+				"Failed to update items.\n More Details: " + error
+			);
+		}
+	}
+
+  async readSection(itemsGroupId: string): Promise<ISection | null> {
     throw new Error("Method not implemented.");
   }
   async updateSection(
-    sectionId: string,
+    itemsGroupId: string,
     section: Partial<ISection>
   ): Promise<ISection | null> {
     throw new Error("Method not implemented.");
