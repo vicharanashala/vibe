@@ -1,93 +1,151 @@
+import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
-import { Application } from "express";
-import { createExpressServer, useContainer } from "routing-controllers";
-import Container from "typedi";
-import { CourseController } from "../../controllers/CourseController";
-import { CourseService } from "../../services/CourseService";
-import { ICourseRepository } from "shared/database/interfaces/ICourseRepository";
+import Express from "express";
+import { useExpressServer } from "routing-controllers";
+import { Container } from "typedi";
+import { MongoDatabase } from "../../../../shared/database/providers/mongo/MongoDatabase";
+import { CourseRepository } from "../../../../shared/database/providers/mongo/repositories/CourseRepository";
+import { coursesModuleOptions } from "../../../../modules/courses";
+import { CreateCourseVersionPayloadValidator } from "modules/courses/classes/validators/CourseVersionPayloadValidators";
+import { CreateCoursePayloadValidator } from "modules/courses/classes/validators/CoursePayloadValidators";
 
-// Mock Repository
-const mockRepository: Partial<ICourseRepository> = {
-  create: jest.fn(),
-  read: jest.fn(),
-  update: jest.fn(),
-};
+describe("CourseController Integration Tests", () => {
+  let App = Express();
+  let app;
+  let mongoServer: MongoMemoryServer;
 
-// Inject Mocks
-Container.set("ICourseRepository", mockRepository);
-Container.set("ICourseService", new CourseService(mockRepository as ICourseRepository));
+  beforeAll(async () => {
+    // Start an in-memory MongoDB server
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
 
-let app: Application;
+    // Set up the real MongoDatabase and CourseRepository
+    Container.set("Database", new MongoDatabase(mongoUri, "vibe"));
+    const courseRepo = new CourseRepository(Container.get<MongoDatabase>("Database"));
+    Container.set("NewCourseRepo", courseRepo);
 
-beforeAll(() => {
-  useContainer(Container);
-  app = createExpressServer({
-    controllers: [CourseController],
+    // Create the Express app with the routing controllers configuration
+    app = useExpressServer(App, coursesModuleOptions);
   });
-});
 
-describe("CourseController API", () => {
+  afterAll(async () => {
+    // Close the in-memory MongoDB server after the tests
+    await mongoServer.stop();
+  });
+
   it("should create a course", async () => {
-    const mockCourse = {
-      id: "123",
-      name: "Test Course",
-      description: "A sample test course",
-      instructors: ["user123"],
-      versions: [],
+    const coursePayload = {
+      name: "New Course",
+      description: "Course description"
     };
 
-    (mockRepository.create as jest.Mock).mockResolvedValue(mockCourse);
-
     const response = await request(app)
-      .post("/courses")
-      .send({
-        name: "Test Course",
-        description: "A sample test course",
-        instructors: ["user123"],
-      })
+      .post("/courses/")
+      .send(coursePayload)
       .expect(200);
 
-    expect(response.body.name).toBe("Test Course");
-    expect(mockRepository.create).toHaveBeenCalled();
+    expect(response.body.name).toBe("New Course");
+    expect(response.body.description).toBe("Course description");
+    expect(response.body._id).toBeDefined();
   });
 
-  it("should fetch a course by ID", async () => {
-    const mockCourse = {
-      id: "123",
-      name: "Test Course",
-      description: "A sample test course",
-      instructors: ["user123"],
-      versions: [],
+  it("should read a course by ID", async () => {
+    // First, create a course
+    const coursePayload = {
+      name: "Existing Course",
+      description: "Course description"
     };
 
-    (mockRepository.read as jest.Mock).mockResolvedValue(mockCourse);
+    const createdCourseResponse = await request(app)
+      .post("/courses/")
+      .send(coursePayload)
+      .expect(200);
 
-    const response = await request(app).get("/courses/123").expect(200);
+    const courseId = createdCourseResponse.body._id;
 
-    expect(response.body.name).toBe("Test Course");
-    expect(mockRepository.read).toHaveBeenCalledWith("123");
+    // Now, read the course by its ID
+    const response = await request(app)
+      .get(`/courses/${courseId}`)
+      .expect(200);
+
+    expect(response.body.name).toBe("Existing Course");
+    expect(response.body.description).toBe("Course description");
+    expect(response.body._id).toBe(courseId);
   });
 
-  it("should update a course", async () => {
-    const updatedCourse = {
-      id: "123",
+  it("should update a course by ID", async () => {
+    // First, create a course
+    const coursePayload = {
+      name: "Existing Course",
+      description: "Course description"
+    };
+
+    const createdCourseResponse = await request(app)
+      .post("/courses/")
+      .send(coursePayload)
+      .expect(200);
+
+    const courseId = createdCourseResponse.body._id;
+
+    // Now, update the course by its ID
+    const updatedCoursePayload = {
       name: "Updated Course",
-      description: "Updated description",
-      instructors: ["user123"],
-      versions: [],
+      description: "Updated course description"
     };
-
-    (mockRepository.update as jest.Mock).mockResolvedValue(updatedCourse);
 
     const response = await request(app)
-      .patch("/courses/123")
-      .send({
-        name: "Updated Course",
-        description: "Updated description",
-      })
+      .put(`/courses/${courseId}`)
+      .send(updatedCoursePayload)
       .expect(200);
 
     expect(response.body.name).toBe("Updated Course");
-    expect(mockRepository.update).toHaveBeenCalledWith("123", expect.any(Object));
+    expect(response.body.description).toBe("Updated course description");
+    expect(response.body._id).toBe(courseId);
+
+    // Check if the course was actually updated
+    const readResponse = await request(app)
+      .get(`/courses/${courseId}`)
+      .expect(200);
+
+    expect(readResponse.body.name).toBe("Updated Course");
+    expect(readResponse.body.description).toBe("Updated course description");
+
+  });
+
+  it("should return 404 for a non-existing course", async () => {
+    const response = await request(app)
+      .get("/courses/67dd98f025dd87ebf638851c")
+      .expect(404);
+  });
+
+  it("should return 500 if unkown error occurs", async () => {
+    const coursePayload = {
+      name: "New Course",
+      description: "Course description"
+    };
+
+    // Mock the create method to throw an error
+    const courseRepo = Container.get<CourseRepository>("NewCourseRepo");
+    jest.spyOn(courseRepo, "create").mockImplementationOnce(() => {
+      throw new Error("Mocked error");
+    });
+
+    const response = await request(app)
+      .post("/courses/")
+      .send(coursePayload)
+      .expect(500);
+
+    // expect(response.body.message).toContain("Mocked error");
+  });
+
+  it("should return 400 for invalid course data", async () => {
+    const invalidPayload = { name: "" }; // Missing required fields
+
+    const response = await request(app)
+      .post("/courses/")
+      .send(invalidPayload)
+      .expect(400);
+
+    expect(response.body.message).toContain("Invalid body, check 'errors' property for more info.");
   });
 });

@@ -27,10 +27,6 @@ export interface ICourse {
 }
 
 type ID = string | ObjectId | null;
-export class Course {
-
-}
-
 export interface ICourseVersion {
     _id?: ID;
     courseId: ID;

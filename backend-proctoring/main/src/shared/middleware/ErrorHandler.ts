@@ -1,4 +1,4 @@
-import { appConfig } from '@config/app';
+import { appConfig } from '../../config/app';
 import { Middleware, ExpressErrorMiddlewareInterface, HttpError } from 'routing-controllers';
 import { Service } from 'typedi';
 

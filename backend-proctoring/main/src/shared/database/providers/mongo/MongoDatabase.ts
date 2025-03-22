@@ -32,14 +32,11 @@ export class MongoDatabase implements IDatabase<Db> {
      * @throws Will throw an error if the connection fails.
      */
     private async connect(): Promise<Db> {
-        console.log("Connecting to MongoDB:", this.dbName);
         try {
             await this.client.connect();
-            console.log("Connected to MongoDB:", this.dbName);
             this.database = this.client.db(this.dbName);
             return this.database;
         } catch (error) {
-            console.error("Error connecting to MongoDB:", error);
             throw error;
         }
     }

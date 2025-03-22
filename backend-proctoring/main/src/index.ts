@@ -4,18 +4,15 @@ import HTTP from 'http';
 import Express from 'express';
 import Sentry from '@sentry/node';
 import { loggingHandler } from 'shared/middleware/loggingHandler';
-import { appConfig } from '@config/app';
+import { appConfig } from 'config/app';
 import { RoutingControllersOptions, useContainer, useExpressServer } from 'routing-controllers';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { authModuleOptions } from 'modules/auth';
 import { coursesModuleOptions } from 'modules/courses';
 import Container from 'typedi';
 import { ICourseRepository, IDatabase } from 'shared/database';
-import { ICourseService } from 'modules/courses/interfaces/ICourseService';
 import { MongoDatabase } from 'shared/database/providers/MongoDatabaseProvider';
-import { CourseRepository } from 'shared/database/providers/mongo/repositories/CourseRepository';
-import { CourseService } from 'modules/courses/services/CourseService';
-import { dbConfig } from '@config/db';
+import { dbConfig } from 'config/db';
 
 
 export const application = Express();
@@ -73,9 +70,6 @@ useContainer(Container);
 if (!Container.has("Database")) {
     Container.set<IDatabase>("Database", new MongoDatabase(dbConfig.url, "vibe"));
 }
-
-Container.set<ICourseRepository>("ICourseRepository", new CourseRepository(Container.get<MongoDatabase>("Database")));
-Container.set<ICourseService>("ICourseService", new CourseService(Container.get<ICourseRepository>("ICourseRepository")));
 
 
 export const main = () => {
