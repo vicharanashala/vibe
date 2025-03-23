@@ -67,6 +67,9 @@ export class CourseRepository implements ICourseRepository {
   async update(id: string, course: Partial<ICourse>): Promise<ICourse | null> {
     await this.init();
     try {
+
+      await this.read(id);
+
       const { _id, ...fields } = course;
       const result = await this.courseCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -83,6 +86,10 @@ export class CourseRepository implements ICourseRepository {
         throw new UpdateError("Failed to update course");
       }
     } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        console.log("Item not found from update");
+        throw error;
+      }
       throw new UpdateError(
         "Failed to update course.\n More Details: " + error
       );
@@ -91,7 +98,6 @@ export class CourseRepository implements ICourseRepository {
   async delete(id: string): Promise<boolean> {
     throw new Error("Method not implemented.");
   }
-
   async createVersion(
     courseVersion: CourseVersion
   ): Promise<CourseVersion | null> {
@@ -224,5 +230,4 @@ export class CourseRepository implements ICourseRepository {
 			);
 		}
 	}
-
 }

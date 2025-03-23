@@ -35,8 +35,13 @@ describe("Course Controller Integration Tests", () => {
     await mongoServer.stop();
   });
 
+  beforeEach(() => {
+    // Ensure mocks are reset before each test to prevent interference
+    jest.restoreAllMocks();
+  });
+
   // ------Tests for Create Course------
-  describe("Course Creation", () => {
+  describe("COURSE CREATION", () => {
     describe("Success Scenario", () => {
       it("should create a course", async () => {
         const coursePayload = {
@@ -92,7 +97,7 @@ describe("Course Controller Integration Tests", () => {
   });
 
   // ------Tests for Read Course------
-  describe("Course Retrieval", () => {
+  describe("COURSE RETRIEVAL", () => {
     describe("Success Scenario", () => {
       it("should read a course by ID", async () => {
         // First, create a course
@@ -129,7 +134,7 @@ describe("Course Controller Integration Tests", () => {
   });
 
   // ------Tests for Update Course------
-  describe("Course Updation", () => {
+  describe("COURSE UPDATION", () => {
     describe("Success Scenario", () => {
       it("should update a course by ID", async () => {
         // First, create a course
@@ -171,5 +176,96 @@ describe("Course Controller Integration Tests", () => {
         );
       });
     });
+    describe("Error Scenarios", () => {
+      it("should return 404 for a non-existing course", async () => {
+        jest.restoreAllMocks();
+
+        const response = await request(app)
+          .put("/courses/67dd98f025dd87ebf639851c")
+          .send({ name: "Updated Course" })
+          .expect(404);
+
+        console.log(response.body);
+      });
+
+      it("should return 400 for invalid course data", async () => {
+        const coursePayload = {
+          name: "Existing Course",
+          description: "Course description",
+        };
+
+        const createdCourseResponse = await request(app)
+          .post("/courses/")
+          .send(coursePayload)
+          .expect(200);
+
+        const courseId = createdCourseResponse.body._id;
+
+        // Missing name field
+        const invalidPayload = { name: "" }; // Missing required fields
+
+        const response = await request(app)
+          .put(`/courses/${courseId}`)
+          .send(invalidPayload)
+          .expect(400);
+
+        expect(response.body.message).toContain(
+          "Invalid body, check 'errors' property for more info."
+        );
+
+        // Missing description field
+        const invalidPayload2 = { description: "" }; // Missing required fields
+
+        const response2 = await request(app)
+          .put(`/courses/${courseId}`)
+          .send(invalidPayload2)
+          .expect(400);
+
+        expect(response2.body.message).toContain(
+          "Invalid body, check 'errors' property for more info."
+        );
+
+        // No fields
+        const invalidPayload3 = {}; // Missing required fields
+
+        const response3 = await request(app)
+          .put(`/courses/${courseId}`)
+          .send(invalidPayload3)
+          .expect(400);
+
+        expect(response3.body.message).toContain(
+          "Invalid body, check 'errors' property for more info."
+        );
+      });
+
+      it("should return 500 if unkown error occurs", async () => {
+        const coursePayload = {
+          name: "Existing Course",
+          description: "Course description",
+        };
+
+        const createdCourseResponse = await request(app)
+          .post("/courses/")
+          .send(coursePayload)
+          .expect(200);
+
+        const courseId = createdCourseResponse.body._id;
+
+        // Mock the update method to throw an error
+        const courseRepo = Container.get<CourseRepository>("NewCourseRepo");
+        jest.spyOn(courseRepo, "update").mockImplementationOnce(() => {
+          throw new Error("Mocked error from another test");
+        });
+
+        const response = await request(app)
+          .put(`/courses/${courseId}`)
+          .send(coursePayload)
+          .expect(500);
+        console.log(response.body);
+        expect(response.body.message).toContain("Mocked error");
+      });
+    });
   });
 });
+
+

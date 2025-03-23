@@ -24,8 +24,11 @@ import { CourseRepository } from "shared/database/providers/mongo/repositories/C
 import { HTTPError } from "shared/middleware/ErrorHandler";
 import { Service, Inject } from "typedi";
 import { Course } from "../classes/transformers/Course";
-import {ItemNotFoundError} from "shared/errors/errors";
-import { CreateCoursePayloadValidator, UpdateCoursePayloadValidator } from "../classes/validators/CoursePayloadValidators";
+import { ItemNotFoundError } from "shared/errors/errors";
+import {
+  CreateCoursePayloadValidator,
+  UpdateCoursePayloadValidator,
+} from "../classes/validators/CoursePayloadValidators";
 
 @JsonController("/courses")
 @Service()
@@ -59,7 +62,7 @@ export class CourseController {
       const courses = await this.courseRepo.read(id);
       return instanceToPlain(courses);
     } catch (error) {
-      if(error instanceof ItemNotFoundError) {
+      if (error instanceof ItemNotFoundError) {
         throw new HttpError(404, error.message);
       }
       throw new HttpError(500, error.message);
@@ -73,11 +76,14 @@ export class CourseController {
     @Body({ validate: true }) payload: UpdateCoursePayloadValidator
   ) {
     try {
+
       const course = await this.courseRepo.update(id, payload);
       return instanceToPlain(course);
     } catch (error) {
-      throw new HTTPError(500, error.message);
+      if (error instanceof ItemNotFoundError) {
+        throw new HttpError(404, error.message);
+      }
+      throw new HttpError(500, error.message);
     }
   }
-
 }
