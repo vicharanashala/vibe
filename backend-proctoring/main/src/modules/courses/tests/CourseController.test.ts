@@ -3,9 +3,9 @@ import request from "supertest";
 import Express from "express";
 import { useExpressServer } from "routing-controllers";
 import { Container } from "typedi";
-import { MongoDatabase } from "../../../../shared/database/providers/mongo/MongoDatabase";
-import { CourseRepository } from "../../../../shared/database/providers/mongo/repositories/CourseRepository";
-import { coursesModuleOptions } from "../../../../modules/courses";
+import { MongoDatabase } from "../../../shared/database/providers/mongo/MongoDatabase";
+import { CourseRepository } from "../../../shared/database/providers/mongo/repositories/CourseRepository";
+import { coursesModuleOptions } from "..";
 import { CreateCourseVersionPayloadValidator } from "modules/courses/classes/validators/CourseVersionPayloadValidators";
 import { CreateCoursePayloadValidator } from "modules/courses/classes/validators/CoursePayloadValidators";
 
