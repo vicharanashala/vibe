@@ -11,13 +11,14 @@ import {
 import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
 import { ReadError, UpdateError } from "shared/errors/errors";
 import { HTTPError } from "shared/middleware/ErrorHandler";
-import { Inject } from "typedi";
+import { Inject, Service } from "typedi";
 import { ItemsGroup } from "../classes/transformers/Item";
 import { Section } from "../classes/transformers/Section";
 import { CreateSectionPayloadValidator } from "../classes/validators/SectionValidators";
 import { calculateNewOrder } from "../utils/calculateNewOrder";
 
 @JsonController()
+@Service()
 export class SectionController {
   constructor(
     @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository

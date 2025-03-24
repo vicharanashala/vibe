@@ -35,10 +35,10 @@ describe("Course Controller Integration Tests", () => {
     await mongoServer.stop();
   });
 
-  beforeEach(() => {
-    // Ensure mocks are reset before each test to prevent interference
-    jest.restoreAllMocks();
-  });
+  // beforeEach(() => {
+  //   // Ensure mocks are reset before each test to prevent interference
+  //   jest.restoreAllMocks();
+  // });
 
   // ------Tests for Create Course------
   describe("COURSE CREATION", () => {
@@ -130,6 +130,35 @@ describe("Course Controller Integration Tests", () => {
           .get("/courses/67dd98f025dd87ebf638851c")
           .expect(404);
       });
+
+      // One more test for the error scenario where unexpected unkown error should throw 500
+      it("should return 500 if unkown error occurs", async () => {
+        const coursePayload = {
+          name: "Existing Course",
+          description: "Course description",
+        };
+
+        const createdCourseResponse = await request(app)
+          .post("/courses/")
+          .send(coursePayload)
+          .expect(200);
+
+        const courseId = createdCourseResponse.body._id;
+
+        // Mock the read method to throw an error
+        const courseRepo = Container.get<CourseRepository>("NewCourseRepo");
+
+        jest.spyOn(courseRepo, "read").mockImplementationOnce(() => {
+          throw new Error("Mocked error from another test");
+        });
+
+        const response = await request(app)
+          .get(`/courses/${courseId}`)
+          .expect(500);
+
+        expect(response.body.message).toContain("Mocked error");
+      }
+      );
     });
   });
 
@@ -185,7 +214,6 @@ describe("Course Controller Integration Tests", () => {
           .send({ name: "Updated Course" })
           .expect(404);
 
-        console.log(response.body);
       });
 
       it("should return 400 for invalid course data", async () => {
@@ -261,11 +289,10 @@ describe("Course Controller Integration Tests", () => {
           .put(`/courses/${courseId}`)
           .send(coursePayload)
           .expect(500);
-        console.log(response.body);
         expect(response.body.message).toContain("Mocked error");
       });
     });
   });
-});
 
+});
 

@@ -87,7 +87,6 @@ export class CourseRepository implements ICourseRepository {
       }
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
-        console.log("Item not found from update");
         throw error;
       }
       throw new UpdateError(
@@ -129,10 +128,18 @@ export class CourseRepository implements ICourseRepository {
       const courseVersion = await this.courseVersionCollection.findOne({
         _id: new ObjectId(versionId),
       });
+
+      if(courseVersion == null){
+        throw new ItemNotFoundError("Course Version not found");
+      }
+
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion)
       ) as CourseVersion;
     } catch (error) {
+      if(error instanceof ItemNotFoundError){
+        throw error;
+      }
       throw new ReadError(
         "Failed to read course version.\n More Details: " + error
       );

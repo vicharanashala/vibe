@@ -36,9 +36,6 @@ export class CourseController {
   constructor(
     @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
   ) {
-    if (!this.courseRepo) {
-      throw new Error("CourseRepository is not properly injected");
-    }
   }
 
   @Authorized(["admin", "instructor"])

@@ -11,20 +11,17 @@ import {
   Post,
 } from "routing-controllers";
 import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
-import { CreateError, ReadError, UpdateError } from "shared/errors/errors";
-import { Inject } from "typedi";
+import { CreateError, ItemNotFoundError, ReadError, UpdateError } from "shared/errors/errors";
+import { Inject, Service } from "typedi";
 import { CourseVersion } from "../classes/transformers/CourseVersion";
 import { CreateCourseVersionPayloadValidator } from "../classes/validators/CourseVersionPayloadValidators";
 
-@JsonController()
+@JsonController("/courses")
+@Service()
 export class CourseVersionController {
   constructor(
     @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
-  ) {
-    if (!this.courseRepo) {
-      throw new Error("CourseRepository is not properly injected");
-    }
-  }
+  ) {}
   @Authorized(["admin", "instructor"])
   @Post("/:id/versions")
   async create(
@@ -32,6 +29,8 @@ export class CourseVersionController {
     @Body({ validate: true }) payload: CreateCourseVersionPayloadValidator
   ) {
     try {
+        // console.log("id", id);
+        // console.log("payload", payload);
       //Fetch Course from DB
       const course = await this.courseRepo.read(id);
 
@@ -52,16 +51,16 @@ export class CourseVersionController {
         version: instanceToPlain(version),
       };
     } catch (error) {
-      if (error instanceof CreateError) {
-        throw new HttpError(500, error.message);
-      }
-      if (error instanceof ReadError) {
-        throw new HttpError(404, error.message);
-      }
-      if (error instanceof UpdateError) {
-        throw new HttpError(500, error.message);
-      }
-      throw new HttpError(500, error.message);
+    //   if (error instanceof CreateError) {
+    //     throw new HttpError(500, error.message);
+    //   }
+    //   if (error instanceof ReadError) {
+    //     throw new HttpError(404, error.message);
+    //   }
+    //   if (error instanceof UpdateError) {
+    //     throw new HttpError(500, error.message);
+    //   }
+    //   throw new HttpError(500, error.message);
     }
   }
 
@@ -74,8 +73,9 @@ export class CourseVersionController {
     } catch (error) {
       if (error instanceof ReadError) {
         throw new HttpError(500, error.message);
-      } else {
-        throw new HttpError(500, "Failed to retrieve course versions");
+      } 
+      if (error instanceof ItemNotFoundError) {
+        throw new HttpError(404, error.message);
       }
     }
   }

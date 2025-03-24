@@ -13,7 +13,7 @@ import {
 import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
 import { UpdateError } from "shared/errors/errors";
 import { HTTPError } from "shared/middleware/ErrorHandler";
-import { Inject } from "typedi";
+import { Inject, Service } from "typedi";
 import { Item } from "../classes/transformers/Item";
 import {
   CreateItemPayloadValidator,
@@ -23,6 +23,7 @@ import {
 import { calculateNewOrder } from "../utils/calculateNewOrder";
 
 @JsonController()
+@Service()
 export class ItemController {
   constructor(
     @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
