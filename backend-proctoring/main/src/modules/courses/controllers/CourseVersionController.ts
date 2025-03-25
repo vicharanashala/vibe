@@ -14,7 +14,7 @@ import { CourseRepository } from "shared/database/providers/mongo/repositories/C
 import { CreateError, ItemNotFoundError, ReadError, UpdateError } from "shared/errors/errors";
 import { Inject, Service } from "typedi";
 import { CourseVersion } from "../classes/transformers/CourseVersion";
-import { CreateCourseVersionPayloadValidator } from "../classes/validators/CourseVersionPayloadValidators";
+import { CreateCourseVersionPayloadValidator } from "../classes/validators/CourseVersionValidators";
 
 @JsonController("/courses")
 @Service()

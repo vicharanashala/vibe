@@ -6,8 +6,8 @@ import { Container } from "typedi";
 import { MongoDatabase } from "../../../shared/database/providers/mongo/MongoDatabase";
 import { CourseRepository } from "../../../shared/database/providers/mongo/repositories/CourseRepository";
 import { coursesModuleOptions } from "..";
-import { CreateCourseVersionPayloadValidator } from "modules/courses/classes/validators/CourseVersionPayloadValidators";
-import { CreateCoursePayloadValidator } from "modules/courses/classes/validators/CoursePayloadValidators";
+import { CreateCourseVersionPayloadValidator } from "modules/courses/classes/validators/CourseVersionValidators";
+import { CreateCoursePayloadValidator } from "modules/courses/classes/validators/CourseValidators";
 
 describe("Course Controller Integration Tests", () => {
   let App = Express();

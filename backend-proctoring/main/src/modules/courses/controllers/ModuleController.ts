@@ -3,8 +3,11 @@ import "reflect-metadata";
 import {
   Authorized,
   Body,
+  HttpError,
+  InternalServerError,
   JsonController,
   Param,
+  Params,
   Post,
   Put,
 } from "routing-controllers";
@@ -15,8 +18,15 @@ import { Inject, Service } from "typedi";
 import { Module } from "../classes/transformers/Module";
 import { CreateModulePayloadValidator } from "../classes/validators/ModuleValidators";
 import { calculateNewOrder } from "../utils/calculateNewOrder";
+import { IsMongoId, IsString } from "class-validator";
 
-@JsonController()
+class CreateParams {
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+}
+
+@JsonController("/courses")
 @Service()
 export class ModuleController {
   constructor(
@@ -29,16 +39,15 @@ export class ModuleController {
   @Authorized(["admin"])
   @Post("/versions/:versionId/modules")
   async create(
-    @Param("versionId") versionId: string,
+    @Params({validate: true}) params: CreateParams,
     @Body({ validate: true }) payload: CreateModulePayloadValidator
   ) {
     try {
       //Fetch Version
-      const version = await this.courseRepo.readVersion(versionId);
+      const version = await this.courseRepo.readVersion(params.versionId);
 
       //Create Module
       const module = new Module(payload, version.modules);
-      console.log(module);
 
       //Add Module to Version
       version.modules.push(module);
@@ -48,7 +57,7 @@ export class ModuleController {
 
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
-        versionId,
+        params.versionId,
         version
       );
 
@@ -56,7 +65,7 @@ export class ModuleController {
         version: instanceToPlain(updatedVersion),
       };
     } catch (error) {
-      throw new HTTPError(500, error);
+      throw new InternalServerError(error.message);
     }
   }
 

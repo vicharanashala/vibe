@@ -28,7 +28,7 @@ import { ItemNotFoundError } from "shared/errors/errors";
 import {
   CreateCoursePayloadValidator,
   UpdateCoursePayloadValidator,
-} from "../classes/validators/CoursePayloadValidators";
+} from "../classes/validators/CourseValidators";
 
 @JsonController("/courses")
 @Service()
