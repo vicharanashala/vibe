@@ -6,8 +6,6 @@ import { ObjectIdToString, StringToObjectId } from "shared/constants/transformer
 import { IBaseItem, ItemType, IVideoDetails, IQuizDetails, IBlogDetails } from "shared/interfaces/IUser";
 import { ID } from "shared/types";
 import { CreateItemPayloadValidator } from "../validators/ItemValidators";
-import e from "express";
-
 class Item implements IBaseItem {
   @Expose()
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
