@@ -76,7 +76,7 @@ class ItemsGroup {
 	@Transform(StringToObjectId.transformer, { toClassOnly: true })
 	sectionId: ID;
 
-	constructor(sectionId?: ID, items?: Item[], ) {
+	constructor(sectionId?: ID, items?: Item[]) {
 		this.items = items? items :[];
 		this.sectionId = sectionId;
 	}
