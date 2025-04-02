@@ -1,6 +1,6 @@
 frontend:
   - changed-files:
-      - any-glob-to-any-file: ["frontend-cal/**"]
+      - any-glob-to-any-file: ["frontend/**"]
 
 backend:
   - changed-files:
@@ -22,5 +22,5 @@ docs:
 dependencies:
   - changed-files:
       - any-glob-to-any-file:
-        - "frontend-cal/package*.json"
-        - "backend/requirements.txt"
+        - "frontend/package*.json"
+        - "backend/package*.json"
