@@ -1,17 +1,25 @@
 import 'reflect-metadata';
-import { Expose, Transform, Type } from "class-transformer";
-import { calculateNewOrder } from "modules/courses/utils/calculateNewOrder";
-import { ObjectId } from "mongodb";
-import { ObjectIdToString, StringToObjectId } from "shared/constants/transformerConstants";
-import { IModule } from "shared/interfaces/IUser";
-import { ID } from "shared/types";
-import { CreateModulePayloadValidator } from "../validators/ModuleValidators";
-import { Section } from "./Section";
+import {Expose, Transform, Type} from 'class-transformer';
+import {calculateNewOrder} from 'modules/courses/utils/calculateNewOrder';
+import {ObjectId} from 'mongodb';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from 'shared/constants/transformerConstants';
+import {IModule} from 'shared/interfaces/IUser';
+import {ID} from 'shared/types';
+import {CreateModulePayloadValidator} from '../validators/ModuleValidators';
+import {Section} from './Section';
 
+/**
+ * Module data transformation.
+ *
+ * @category Courses/Transformers
+ */
 class Module implements IModule {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   moduleId?: ID;
 
   @Expose()
@@ -35,20 +43,23 @@ class Module implements IModule {
   @Type(() => Date)
   updatedAt: Date;
 
-  constructor(modulePayload: CreateModulePayloadValidator, existingModules: IModule[]) {
+  constructor(
+    modulePayload: CreateModulePayloadValidator,
+    existingModules: IModule[],
+  ) {
     if (modulePayload) {
       this.name = modulePayload.name;
       this.description = modulePayload.description;
     }
     const sortedModules = existingModules.sort((a, b) =>
-      a.order.localeCompare(b.order)
+      a.order.localeCompare(b.order),
     );
     this.moduleId = new ObjectId();
     this.order = calculateNewOrder(
       sortedModules,
-      "moduleId",
+      'moduleId',
       modulePayload.afterModuleId,
-      modulePayload.beforeModuleId
+      modulePayload.beforeModuleId,
     );
     this.sections = [];
     this.createdAt = new Date();
@@ -56,4 +67,4 @@ class Module implements IModule {
   }
 }
 
-export { Module };
+export {Module};

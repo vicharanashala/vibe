@@ -1,5 +1,5 @@
-import { instanceToPlain } from "class-transformer";
-import "reflect-metadata";
+import {instanceToPlain} from 'class-transformer';
+import 'reflect-metadata';
 import {
   Authorized,
   Body,
@@ -7,40 +7,44 @@ import {
   Param,
   Post,
   Put,
-} from "routing-controllers";
-import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
-import { ReadError, UpdateError } from "shared/errors/errors";
-import { HTTPError } from "shared/middleware/ErrorHandler";
-import { Inject, Service } from "typedi";
-import { ItemsGroup } from "../classes/transformers/Item";
-import { Section } from "../classes/transformers/Section";
-import { CreateSectionPayloadValidator } from "../classes/validators/SectionValidators";
-import { calculateNewOrder } from "../utils/calculateNewOrder";
+} from 'routing-controllers';
+import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {ReadError, UpdateError} from 'shared/errors/errors';
+import {HTTPError} from 'shared/middleware/ErrorHandler';
+import {Inject, Service} from 'typedi';
+import {ItemsGroup} from '../classes/transformers/Item';
+import {Section} from '../classes/transformers/Section';
+import {CreateSectionPayloadValidator} from '../classes/validators/SectionValidators';
+import {calculateNewOrder} from '../utils/calculateNewOrder';
 
+/**
+ *
+ * @category Courses/Controllers
+ */
 @JsonController()
 @Service()
 export class SectionController {
   constructor(
-    @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
+    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
-      throw new Error("CourseRepository is not properly injected");
+      throw new Error('CourseRepository is not properly injected');
     }
   }
 
-  @Authorized(["admin"])
-  @Post("/versions/:versionId/modules/:moduleId/sections")
+  @Authorized(['admin'])
+  @Post('/versions/:versionId/modules/:moduleId/sections')
   async create(
-    @Param("versionId") versionId: string,
-    @Param("moduleId") moduleId: string,
-    @Body({ validate: true }) payload: CreateSectionPayloadValidator
+    @Param('versionId') versionId: string,
+    @Param('moduleId') moduleId: string,
+    @Body({validate: true}) payload: CreateSectionPayloadValidator,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Create Section
       const section = new Section(payload, module.sections);
@@ -64,7 +68,7 @@ export class SectionController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {
@@ -77,31 +81,31 @@ export class SectionController {
     }
   }
 
-  @Authorized(["admin"])
-  @Put("/versions/:versionId/modules/:moduleId/sections/:sectionId")
+  @Authorized(['admin'])
+  @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   async update(
-    @Param("versionId") versionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("sectionId") sectionId: string,
-    @Body({ validate: true }) payload: Partial<CreateSectionPayloadValidator>
+    @Param('versionId') versionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('sectionId') sectionId: string,
+    @Body({validate: true}) payload: Partial<CreateSectionPayloadValidator>,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
-      if (!module) throw new ReadError("Module not found");
+      const module = version.modules.find(m => m.moduleId === moduleId);
+      if (!module) throw new ReadError('Module not found');
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
-      if (!section) throw new ReadError("Section not found");
+      const section = module.sections.find(s => s.sectionId === sectionId);
+      if (!section) throw new ReadError('Section not found');
 
       //Update Section
-      Object.assign(section, payload.name ? { name: payload.name } : {});
+      Object.assign(section, payload.name ? {name: payload.name} : {});
       Object.assign(
         section,
-        payload.description ? { description: payload.description } : {}
+        payload.description ? {description: payload.description} : {},
       );
       section.updatedAt = new Date();
 
@@ -114,7 +118,7 @@ export class SectionController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {
@@ -127,20 +131,20 @@ export class SectionController {
     }
   }
 
-  @Authorized(["admin"])
-  @Put("/versions/:versionId/modules/:moduleId/sections/:sectionId/move")
+  @Authorized(['admin'])
+  @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
   async move(
-    @Param("versionId") versionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("sectionId") sectionId: string,
-    @Body() body: { afterSectionId?: string; beforeSectionId?: string }
+    @Param('versionId') versionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('sectionId') sectionId: string,
+    @Body() body: {afterSectionId?: string; beforeSectionId?: string},
   ) {
     try {
-      const { afterSectionId, beforeSectionId } = body;
+      const {afterSectionId, beforeSectionId} = body;
 
       if (!afterSectionId && !beforeSectionId) {
         throw new UpdateError(
-          "Either afterModuleId or beforeModuleId is required"
+          'Either afterModuleId or beforeModuleId is required',
         );
       }
 
@@ -148,22 +152,22 @@ export class SectionController {
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Sort Sections based on order
       const sortedSections = module.sections.sort((a, b) =>
-        a.order.localeCompare(b.order)
+        a.order.localeCompare(b.order),
       );
 
       //Calculate New Order
       const newOrder = calculateNewOrder(
         sortedSections,
-        "sectionId",
+        'sectionId',
         afterSectionId,
-        beforeSectionId
+        beforeSectionId,
       );
 
       //Update Section Order
@@ -179,7 +183,7 @@ export class SectionController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {

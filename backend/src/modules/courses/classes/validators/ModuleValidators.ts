@@ -6,9 +6,12 @@ import {
   MaxLength,
   IsOptional,
   IsMongoId,
-} from "class-validator";
-import { IModule, ISection } from "shared/interfaces/IUser";
+} from 'class-validator';
+import {IModule, ISection} from 'shared/interfaces/IUser';
 
+/**
+ * @category Courses/Validators/ModuleValidators
+ */
 class CreateModulePayloadValidator implements IModule {
   @IsEmpty()
   moduleId?: string | undefined;
@@ -46,4 +49,4 @@ class CreateModulePayloadValidator implements IModule {
   updatedAt: Date;
 }
 
-export { CreateModulePayloadValidator };
+export {CreateModulePayloadValidator};

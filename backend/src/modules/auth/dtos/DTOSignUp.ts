@@ -2,15 +2,15 @@
  * @file DTOSignUp.ts
  * @description User signup payload validation class.
  * @module auth
- * 
+ *
  * @author Aditya BMV
  * @organization DLED
  * @license MIT
  * @created 2025-03-06
  */
 
-import { IsNotEmpty, IsEmail, MinLength, IsAlpha } from "class-validator";
-import { SignUpPayload } from "../interfaces/IAuthService";
+import {IsNotEmpty, IsEmail, MinLength, IsAlpha} from 'class-validator';
+import {SignUpPayload} from '../interfaces/IAuthService';
 
 export class DTOSignUp implements SignUpPayload {
   @IsEmail()

@@ -1,15 +1,29 @@
 import 'reflect-metadata';
-import { Expose, Transform, Type } from "class-transformer";
-import { calculateNewOrder } from "modules/courses/utils/calculateNewOrder";
-import { ObjectId } from "mongodb";
-import { ObjectIdToString, StringToObjectId } from "shared/constants/transformerConstants";
-import { IBaseItem, ItemType, IVideoDetails, IQuizDetails, IBlogDetails } from "shared/interfaces/IUser";
-import { ID } from "shared/types";
-import { CreateItemPayloadValidator } from "../validators/ItemValidators";
+import {Expose, Transform, Type} from 'class-transformer';
+import {calculateNewOrder} from 'modules/courses/utils/calculateNewOrder';
+import {ObjectId} from 'mongodb';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from 'shared/constants/transformerConstants';
+import {
+  IBaseItem,
+  ItemType,
+  IVideoDetails,
+  IQuizDetails,
+  IBlogDetails,
+} from 'shared/interfaces/IUser';
+import {ID} from 'shared/types';
+import {CreateItemPayloadValidator} from '../validators/ItemValidators';
+/**
+ * Item data transformation.
+ *
+ * @category Courses/Transformers/Item
+ */
 class Item implements IBaseItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemId?: ID;
 
   @Expose()
@@ -23,7 +37,6 @@ class Item implements IBaseItem {
 
   @Expose()
   order: string;
-
 
   itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
 
@@ -47,39 +60,42 @@ class Item implements IBaseItem {
       }
     }
     this.itemId = new ObjectId();
-    let sortedItems = existingItems.sort((a, b) =>
-      a.order.localeCompare(b.order)
+    const sortedItems = existingItems.sort((a, b) =>
+      a.order.localeCompare(b.order),
     );
     this.order = calculateNewOrder(
       sortedItems,
-      "itemId",
+      'itemId',
       itemPayload.afterItemId,
-      itemPayload.beforeItemId
+      itemPayload.beforeItemId,
     );
   }
 }
 
-
+/**
+ * Items Group data transformation.
+ *
+ * @category Courses/Transformers
+ */
 class ItemsGroup {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  _id?: ID;
 
-	@Expose()
-	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-	@Transform(StringToObjectId.transformer, { toClassOnly: true })
-	_id?: ID;
+  @Expose()
+  @Type(() => Item)
+  items: Item[];
 
-	@Expose()
-	@Type(() => Item)
-	items: Item[];
+  @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  sectionId: ID;
 
-	@Expose()
-	@Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-	@Transform(StringToObjectId.transformer, { toClassOnly: true })
-	sectionId: ID;
-
-	constructor(sectionId?: ID, items?: Item[]) {
-		this.items = items? items :[];
-		this.sectionId = sectionId;
-	}
+  constructor(sectionId?: ID, items?: Item[]) {
+    this.items = items ? items : [];
+    this.sectionId = sectionId;
+  }
 }
 
-export { Item, ItemsGroup };
+export {Item, ItemsGroup};

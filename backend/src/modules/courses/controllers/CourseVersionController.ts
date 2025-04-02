@@ -1,6 +1,6 @@
-import { instanceToPlain } from "class-transformer";
-import { ObjectId } from "mongodb";
-import "reflect-metadata";
+import {instanceToPlain} from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import 'reflect-metadata';
 import {
   Authorized,
   Body,
@@ -9,28 +9,32 @@ import {
   JsonController,
   Param,
   Post,
-} from "routing-controllers";
-import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
-import { CreateError, ItemNotFoundError, ReadError, UpdateError } from "shared/errors/errors";
-import { Inject, Service } from "typedi";
-import { CourseVersion } from "../classes/transformers/CourseVersion";
-import { CreateCourseVersionPayloadValidator } from "../classes/validators/CourseVersionValidators";
+} from 'routing-controllers';
+import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemNotFoundError, ReadError} from 'shared/errors/errors';
+import {Inject, Service} from 'typedi';
+import {CourseVersion} from '../classes/transformers/CourseVersion';
+import {CreateCourseVersionPayloadValidator} from '../classes/validators/CourseVersionValidators';
 
-@JsonController("/courses")
+/**
+ *
+ * @category Courses/Controllers
+ */
+@JsonController('/courses')
 @Service()
 export class CourseVersionController {
   constructor(
-    @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
+    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
   ) {}
-  @Authorized(["admin", "instructor"])
-  @Post("/:id/versions")
+  @Authorized(['admin', 'instructor'])
+  @Post('/:id/versions')
   async create(
-    @Param("id") id: string,
-    @Body({ validate: true }) payload: CreateCourseVersionPayloadValidator
+    @Param('id') id: string,
+    @Body({validate: true}) payload: CreateCourseVersionPayloadValidator,
   ) {
     try {
-        // console.log("id", id);
-        // console.log("payload", payload);
+      // console.log("id", id);
+      // console.log("payload", payload);
       //Fetch Course from DB
       const course = await this.courseRepo.read(id);
 
@@ -51,29 +55,29 @@ export class CourseVersionController {
         version: instanceToPlain(version),
       };
     } catch (error) {
-    //   if (error instanceof CreateError) {
-    //     throw new HttpError(500, error.message);
-    //   }
-    //   if (error instanceof ReadError) {
-    //     throw new HttpError(404, error.message);
-    //   }
-    //   if (error instanceof UpdateError) {
-    //     throw new HttpError(500, error.message);
-    //   }
-    //   throw new HttpError(500, error.message);
+      //   if (error instanceof CreateError) {
+      //     throw new HttpError(500, error.message);
+      //   }
+      //   if (error instanceof ReadError) {
+      //     throw new HttpError(404, error.message);
+      //   }
+      //   if (error instanceof UpdateError) {
+      //     throw new HttpError(500, error.message);
+      //   }
+      //   throw new HttpError(500, error.message);
     }
   }
 
-  @Authorized(["admin", "instructor", "student"])
-  @Get("/versions/:id")
-  async read(@Param("id") id: string) {
+  @Authorized(['admin', 'instructor', 'student'])
+  @Get('/versions/:id')
+  async read(@Param('id') id: string) {
     try {
       const version = await this.courseRepo.readVersion(id);
       return instanceToPlain(version);
     } catch (error) {
       if (error instanceof ReadError) {
         throw new HttpError(500, error.message);
-      } 
+      }
       if (error instanceof ItemNotFoundError) {
         throw new HttpError(404, error.message);
       }

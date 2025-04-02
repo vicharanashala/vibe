@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Type } from "class-transformer";
+import {Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -14,15 +14,18 @@ import {
   IsEnum,
   ValidateIf,
   ValidateNested,
-} from "class-validator";
+} from 'class-validator';
 import {
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
   IBaseItem,
   ItemType,
-} from "shared/interfaces/IUser";
+} from 'shared/interfaces/IUser';
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @IsNotEmpty()
   @IsString()
@@ -31,13 +34,13 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 
   @IsNotEmpty()
   @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/, {
-    message: "Invalid time format, it should be HH:MM:SS",
+    message: 'Invalid time format, it should be HH:MM:SS',
   })
   startTime: string;
 
   @IsNotEmpty()
   @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/, {
-    message: "Invalid time format, it should be HH:MM:SS",
+    message: 'Invalid time format, it should be HH:MM:SS',
   })
   endTime: string;
 
@@ -46,6 +49,9 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   points: number;
 }
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class QuizDetailsPayloadValidator implements IQuizDetails {
   @IsNotEmpty()
   @IsPositive()
@@ -63,6 +69,9 @@ class QuizDetailsPayloadValidator implements IQuizDetails {
   deadline: Date;
 }
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class BlogDetailsPayloadValidator implements IBlogDetails {
   @IsEmpty()
   tags: string[];
@@ -76,6 +85,9 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   points: number;
 }
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class CreateItemPayloadValidator implements IBaseItem {
   @IsEmpty()
   _id?: string;
@@ -118,25 +130,28 @@ class CreateItemPayloadValidator implements IBaseItem {
   type: ItemType;
 
   // Conditional validation based on type
-  @ValidateIf((o) => o.type === ItemType.VIDEO)
+  @ValidateIf(o => o.type === ItemType.VIDEO)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => VideoDetailsPayloadValidator)
   videoDetails?: VideoDetailsPayloadValidator;
 
-  @ValidateIf((o) => o.type === ItemType.BLOG)
+  @ValidateIf(o => o.type === ItemType.BLOG)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => BlogDetailsPayloadValidator)
   blogDetails?: BlogDetailsPayloadValidator;
 
-  @ValidateIf((o) => o.type === ItemType.QUIZ)
+  @ValidateIf(o => o.type === ItemType.QUIZ)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => QuizDetailsPayloadValidator)
   quizDetails?: QuizDetailsPayloadValidator;
 }
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class UpdateItemPayloadValidator implements IBaseItem {
   @IsEmpty()
   _id?: string;
@@ -179,25 +194,28 @@ class UpdateItemPayloadValidator implements IBaseItem {
   beforeItemId?: string;
 
   // Conditional validation based on type
-  @ValidateIf((o) => o.type === ItemType.VIDEO)
+  @ValidateIf(o => o.type === ItemType.VIDEO)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => VideoDetailsPayloadValidator)
   videoDetails?: VideoDetailsPayloadValidator;
 
-  @ValidateIf((o) => o.type === ItemType.BLOG)
+  @ValidateIf(o => o.type === ItemType.BLOG)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => BlogDetailsPayloadValidator)
   blogDetails?: BlogDetailsPayloadValidator;
 
-  @ValidateIf((o) => o.type === ItemType.QUIZ)
+  @ValidateIf(o => o.type === ItemType.QUIZ)
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => QuizDetailsPayloadValidator)
   quizDetails?: QuizDetailsPayloadValidator;
 }
 
+/**
+ * @category Courses/Validators/ItemValidators
+ */
 class MoveItemPayloadValidator {
   @IsOptional()
   @IsMongoId()

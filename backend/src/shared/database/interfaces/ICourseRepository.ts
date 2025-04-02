@@ -1,5 +1,5 @@
-import { ItemsGroup } from "modules/courses/classes/transformers/transformers";
-import { ICourse, ICourseVersion, ISection } from "shared/interfaces/IUser";
+import {ItemsGroup} from 'modules/courses/classes/transformers/index';
+import {ICourse, ICourseVersion} from 'shared/interfaces/IUser';
 
 export interface ICourseRepository {
   create(course: ICourse): Promise<ICourse | null>;
@@ -11,13 +11,13 @@ export interface ICourseRepository {
   readVersion(versionId: string): Promise<ICourseVersion | null>;
   updateVersion(
     versionId: string,
-    courseVersion: ICourseVersion
+    courseVersion: ICourseVersion,
   ): Promise<ICourseVersion | null>;
 
   createItemsGroup(itemsGroup: ItemsGroup): Promise<ItemsGroup | null>;
   readItemsGroup(itemsGroupId: string): Promise<ItemsGroup | null>;
   updateItemsGroup(
     itemsGroupId: string,
-    itemsGroup: ItemsGroup
+    itemsGroup: ItemsGroup,
   ): Promise<ItemsGroup | null>;
 }

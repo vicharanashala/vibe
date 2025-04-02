@@ -2,7 +2,7 @@
  * @file index.ts
  * @description This file exports all the DTOs used in the auth module.
  * @module auth
- * 
+ *
  * @author Aditya BMV
  * @organization DLED
  * @license MIT

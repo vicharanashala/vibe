@@ -1,8 +1,18 @@
 import 'reflect-metadata';
-import { IsEmpty, IsNotEmpty, IsString, MaxLength, IsOptional, IsMongoId } from "class-validator";
-import { ISection } from "shared/interfaces/IUser";
-import { ID } from "shared/types";
+import {
+  IsEmpty,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  IsOptional,
+  IsMongoId,
+} from 'class-validator';
+import {ISection} from 'shared/interfaces/IUser';
+import {ID} from 'shared/types';
 
+/**
+ * @category Courses/Validators/ModuleValidators
+ */
 class CreateSectionPayloadValidator implements ISection {
   @IsEmpty()
   sectionId?: string | undefined;
@@ -40,6 +50,4 @@ class CreateSectionPayloadValidator implements ISection {
   updatedAt: Date;
 }
 
-export {
-    CreateSectionPayloadValidator
-}
+export {CreateSectionPayloadValidator};

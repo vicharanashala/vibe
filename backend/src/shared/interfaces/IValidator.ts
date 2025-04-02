@@ -1,3 +1,3 @@
 export interface IValidator {
-    validate: () => boolean;
+  validate: () => boolean;
 }

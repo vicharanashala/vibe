@@ -1,7 +1,20 @@
 import 'reflect-metadata';
-import { IsNotEmpty, IsString, MaxLength, MinLength, IsEmpty, IsOptional, Min, ValidateIf } from "class-validator";
-import { ICourse } from "shared/interfaces/IUser";
+import {
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  MinLength,
+  IsEmpty,
+  IsOptional,
+  ValidateIf,
+} from 'class-validator';
+import {ICourse} from 'shared/interfaces/IUser';
 
+/**
+ * Validation for course payloads.
+ *
+ * @category Courses/Validators/CourseValidators
+ */
 class CreateCoursePayloadValidator implements ICourse {
   @IsNotEmpty()
   @IsString()
@@ -27,6 +40,11 @@ class CreateCoursePayloadValidator implements ICourse {
   updatedAt?: Date;
 }
 
+/**
+ * Validation for course payloads.
+ *
+ * @category Courses/Validators/CourseValidators
+ */
 class UpdateCoursePayloadValidator implements Partial<ICourse> {
   @IsOptional()
   @IsString()
@@ -40,12 +58,11 @@ class UpdateCoursePayloadValidator implements Partial<ICourse> {
   @MinLength(3)
   description: string;
 
-  @ValidateIf((o) => !o.name && !o.description)
-  @IsNotEmpty({ message: 'At least one of "name" or "description" must be provided' })
+  @ValidateIf(o => !o.name && !o.description)
+  @IsNotEmpty({
+    message: 'At least one of "name" or "description" must be provided',
+  })
   nameOrDescription: string;
-
 }
 
-
-
-export { CreateCoursePayloadValidator, UpdateCoursePayloadValidator };
+export {CreateCoursePayloadValidator, UpdateCoursePayloadValidator};

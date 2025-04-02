@@ -1,6 +1,6 @@
 {
     "plugin": ["typedoc-plugin-markdown"],
-    "out": "./documentation",
+    "out": "./docs",
     "entryPoints": ["./src"],
     "entryPointStrategy": "expand",
     "exclude": [

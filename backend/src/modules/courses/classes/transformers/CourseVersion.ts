@@ -1,22 +1,27 @@
 import 'reflect-metadata';
-import { Expose, Transform, Type } from "class-transformer";
+import {Expose, Transform, Type} from 'class-transformer';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from "shared/constants/transformerConstants";
-import { ICourseVersion } from "shared/interfaces/IUser";
-import { ID } from "shared/types";
-import { Module } from "./Module";
+} from 'shared/constants/transformerConstants';
+import {ICourseVersion} from 'shared/interfaces/IUser';
+import {ID} from 'shared/types';
+import {Module} from './Module';
 
+/**
+ * Course version data transformation.
+ *
+ * @category Courses/Transformers
+ */
 class CourseVersion implements ICourseVersion {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   courseId: ID;
 
   @Expose()
@@ -49,4 +54,4 @@ class CourseVersion implements ICourseVersion {
   }
 }
 
-export { CourseVersion };
+export {CourseVersion};

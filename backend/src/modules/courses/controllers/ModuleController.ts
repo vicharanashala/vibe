@@ -1,46 +1,49 @@
-import { instanceToPlain } from "class-transformer";
-import "reflect-metadata";
+import {instanceToPlain} from 'class-transformer';
+import 'reflect-metadata';
 import {
   Authorized,
   Body,
-  HttpError,
   InternalServerError,
   JsonController,
   Param,
   Params,
   Post,
   Put,
-} from "routing-controllers";
-import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
-import { ReadError, UpdateError } from "shared/errors/errors";
-import { HTTPError } from "shared/middleware/ErrorHandler";
-import { Inject, Service } from "typedi";
-import { Module } from "../classes/transformers/Module";
-import { CreateModulePayloadValidator } from "../classes/validators/ModuleValidators";
-import { calculateNewOrder } from "../utils/calculateNewOrder";
-import { IsMongoId, IsString } from "class-validator";
+} from 'routing-controllers';
+import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {ReadError, UpdateError} from 'shared/errors/errors';
+import {HTTPError} from 'shared/middleware/ErrorHandler';
+import {Inject, Service} from 'typedi';
+import {Module} from '../classes/transformers/Module';
+import {CreateModulePayloadValidator} from '../classes/validators/ModuleValidators';
+import {calculateNewOrder} from '../utils/calculateNewOrder';
+import {IsMongoId, IsString} from 'class-validator';
 
-class CreateParams {
+export class CreateParams {
   @IsMongoId()
   @IsString()
   versionId: string;
 }
 
-@JsonController("/courses")
+/**
+ *
+ * @category Courses/Controllers
+ */
+@JsonController('/courses')
 @Service()
 export class ModuleController {
   constructor(
-    @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
+    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
-      throw new Error("CourseRepository is not properly injected");
+      throw new Error('CourseRepository is not properly injected');
     }
   }
-  @Authorized(["admin"])
-  @Post("/versions/:versionId/modules")
+  @Authorized(['admin'])
+  @Post('/versions/:versionId/modules')
   async create(
     @Params({validate: true}) params: CreateParams,
-    @Body({ validate: true }) payload: CreateModulePayloadValidator
+    @Body({validate: true}) payload: CreateModulePayloadValidator,
   ) {
     try {
       //Fetch Version
@@ -58,7 +61,7 @@ export class ModuleController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         params.versionId,
-        version
+        version,
       );
 
       return {
@@ -69,26 +72,26 @@ export class ModuleController {
     }
   }
 
-  @Authorized(["admin"])
-  @Put("/versions/:versionId/modules/:moduleId")
+  @Authorized(['admin'])
+  @Put('/versions/:versionId/modules/:moduleId')
   async update(
-    @Param("versionId") versionId: string,
-    @Param("moduleId") moduleId: string,
-    @Body({ validate: true }) payload: Partial<CreateModulePayloadValidator>
+    @Param('versionId') versionId: string,
+    @Param('moduleId') moduleId: string,
+    @Body({validate: true}) payload: Partial<CreateModulePayloadValidator>,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
-      if (!module) throw new ReadError("Module not found");
+      const module = version.modules.find(m => m.moduleId === moduleId);
+      if (!module) throw new ReadError('Module not found');
 
       //Update Module
-      Object.assign(module, payload.name ? { name: payload.name } : {});
+      Object.assign(module, payload.name ? {name: payload.name} : {});
       Object.assign(
         module,
-        payload.description ? { description: payload.description } : {}
+        payload.description ? {description: payload.description} : {},
       );
       module.updatedAt = new Date();
 
@@ -98,7 +101,7 @@ export class ModuleController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {
@@ -111,19 +114,19 @@ export class ModuleController {
     }
   }
 
-  @Authorized(["admin"])
-  @Put("/versions/:versionId/modules/:moduleId/move")
+  @Authorized(['admin'])
+  @Put('/versions/:versionId/modules/:moduleId/move')
   async move(
-    @Param("versionId") versionId: string,
-    @Param("moduleId") moduleId: string,
-    @Body() body: { afterModuleId?: string; beforeModuleId?: string }
+    @Param('versionId') versionId: string,
+    @Param('moduleId') moduleId: string,
+    @Body() body: {afterModuleId?: string; beforeModuleId?: string},
   ) {
     try {
-      const { afterModuleId, beforeModuleId } = body;
+      const {afterModuleId, beforeModuleId} = body;
 
       if (!afterModuleId && !beforeModuleId) {
         throw new UpdateError(
-          "Either afterModuleId or beforeModuleId is required"
+          'Either afterModuleId or beforeModuleId is required',
         );
       }
 
@@ -132,19 +135,19 @@ export class ModuleController {
 
       //Sort Modules based on order
       const sortedModules = version.modules.sort((a, b) =>
-        a.order.localeCompare(b.order)
+        a.order.localeCompare(b.order),
       );
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
-      if (!module) throw new ReadError("Module not found");
+      const module = version.modules.find(m => m.moduleId === moduleId);
+      if (!module) throw new ReadError('Module not found');
 
       //Calculate New Order
       const newOrder = calculateNewOrder(
         sortedModules,
-        "moduleId",
+        'moduleId',
         afterModuleId,
-        beforeModuleId
+        beforeModuleId,
       );
 
       //Update Module Order
@@ -157,7 +160,7 @@ export class ModuleController {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {

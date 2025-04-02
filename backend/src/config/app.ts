@@ -1,4 +1,4 @@
-import { env } from '../utils/env';
+import {env} from '../utils/env';
 
 function getAppPath() {
   let currentDir = __dirname;
@@ -17,5 +17,4 @@ export const appConfig = {
   routePrefix: env('APP_ROUTE_PREFIX'),
   url: env('APP_URL'),
   appPath: getAppPath(),
-
 };

@@ -1,5 +1,5 @@
-import { instanceToPlain } from "class-transformer";
-import "reflect-metadata";
+import {instanceToPlain} from 'class-transformer';
+import 'reflect-metadata';
 import {
   Authorized,
   BadRequestError,
@@ -9,51 +9,55 @@ import {
   Param,
   Post,
   Put,
-} from "routing-controllers";
-import { CourseRepository } from "shared/database/providers/mongo/repositories/CourseRepository";
-import { UpdateError } from "shared/errors/errors";
-import { HTTPError } from "shared/middleware/ErrorHandler";
-import { Inject, Service } from "typedi";
-import { Item } from "../classes/transformers/Item";
+} from 'routing-controllers';
+import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {UpdateError} from 'shared/errors/errors';
+import {HTTPError} from 'shared/middleware/ErrorHandler';
+import {Inject, Service} from 'typedi';
+import {Item} from '../classes/transformers/Item';
 import {
   CreateItemPayloadValidator,
   UpdateItemPayloadValidator,
   MoveItemPayloadValidator,
-} from "../classes/validators/ItemValidators";
-import { calculateNewOrder } from "../utils/calculateNewOrder";
+} from '../classes/validators/ItemValidators';
+import {calculateNewOrder} from '../utils/calculateNewOrder';
 
+/**
+ *
+ * @category Courses/Controllers
+ */
 @JsonController()
 @Service()
 export class ItemController {
   constructor(
-    @Inject("NewCourseRepo") private readonly courseRepo: CourseRepository
+    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
-      throw new Error("CourseRepository is not properly injected");
+      throw new Error('CourseRepository is not properly injected');
     }
   }
 
-  @Authorized(["admin"])
-  @Post("/versions/:versionId/modules/:moduleId/sections/:sectionId/items")
+  @Authorized(['admin'])
+  @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   async create(
-    @Param("sectionId") sectionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("versionId") versionId: string,
-    @Body({ validate: true }) item: CreateItemPayloadValidator
+    @Param('sectionId') sectionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('versionId') versionId: string,
+    @Body({validate: true}) item: CreateItemPayloadValidator,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Fetch ItemGroup
       const itemsGroup = await this.courseRepo.readItemsGroup(
-        section.itemsGroupId.toString()
+        section.itemsGroupId.toString(),
       );
 
       //Create Item
@@ -73,13 +77,13 @@ export class ItemController {
 
       const updatedItemsGroup = await this.courseRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
-        itemsGroup
+        itemsGroup,
       );
 
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {
@@ -93,26 +97,26 @@ export class ItemController {
     }
   }
 
-  @Authorized(["admin", "instructor", "student"])
-  @Get("/versions/:versionId/modules/:moduleId/sections/:sectionId/items")
+  @Authorized(['admin', 'instructor', 'student'])
+  @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   async readAll(
-    @Param("sectionId") sectionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("versionId") versionId: string
+    @Param('sectionId') sectionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('versionId') versionId: string,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Fetch Items
       const itemsGroup = await this.courseRepo.readItemsGroup(
-        section.itemsGroupId.toString()
+        section.itemsGroupId.toString(),
       );
 
       return {
@@ -125,53 +129,53 @@ export class ItemController {
     }
   }
 
-  @Authorized(["admin"])
+  @Authorized(['admin'])
   @Put(
-    "/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId"
+    '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
   async update(
-    @Param("sectionId") sectionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("versionId") versionId: string,
-    @Param("itemId") itemId: string,
-    @Body({ validate: true }) payload: UpdateItemPayloadValidator
+    @Param('sectionId') sectionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('versionId') versionId: string,
+    @Param('itemId') itemId: string,
+    @Body({validate: true}) payload: UpdateItemPayloadValidator,
   ) {
     try {
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Fetch ItemsGroup
       const itemsGroup = await this.courseRepo.readItemsGroup(
-        section.itemsGroupId.toString()
+        section.itemsGroupId.toString(),
       );
 
       //Find Item
-      const item = itemsGroup.items.find((i) => i.itemId === itemId);
+      const item = itemsGroup.items.find(i => i.itemId === itemId);
 
       //Update Item
-      Object.assign(item, payload.name ? { name: payload.name } : {});
+      Object.assign(item, payload.name ? {name: payload.name} : {});
       Object.assign(
         item,
-        payload.description ? { description: payload.description } : {}
+        payload.description ? {description: payload.description} : {},
       );
-      Object.assign(item, payload.type ? { type: payload.type } : {});
+      Object.assign(item, payload.type ? {type: payload.type} : {});
 
       //Update Item Details
       Object.assign(
         item,
         payload.videoDetails
-          ? { itemDetails: payload.videoDetails }
+          ? {itemDetails: payload.videoDetails}
           : payload.blogDetails
-          ? { itemDetails: payload.blogDetails }
-          : payload.quizDetails
-          ? { itemDetails: payload.quizDetails }
-          : {}
+            ? {itemDetails: payload.blogDetails}
+            : payload.quizDetails
+              ? {itemDetails: payload.quizDetails}
+              : {},
       );
 
       //Update Section Update Date
@@ -186,13 +190,13 @@ export class ItemController {
       //Update ItemsGroup
       const updatedItemsGroup = await this.courseRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
-        itemsGroup
+        itemsGroup,
       );
 
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {
@@ -206,52 +210,52 @@ export class ItemController {
     }
   }
 
-  @Authorized(["admin"])
+  @Authorized(['admin'])
   @Put(
-    "/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move"
+    '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
   async move(
-    @Param("sectionId") sectionId: string,
-    @Param("moduleId") moduleId: string,
-    @Param("versionId") versionId: string,
-    @Param("itemId") itemId: string,
-    @Body({ validate: true }) body: MoveItemPayloadValidator
+    @Param('sectionId') sectionId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('versionId') versionId: string,
+    @Param('itemId') itemId: string,
+    @Body({validate: true}) body: MoveItemPayloadValidator,
   ) {
     try {
-      const { afterItemId, beforeItemId } = body;
+      const {afterItemId, beforeItemId} = body;
 
       if (!afterItemId && !beforeItemId) {
-        throw new UpdateError("Either afterItemId or beforeItemId is required");
+        throw new UpdateError('Either afterItemId or beforeItemId is required');
       }
 
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
       //Find Module
-      const module = version.modules.find((m) => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId === moduleId);
 
       //Find Section
-      const section = module.sections.find((s) => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Fetch ItemsGroup
       const itemsGroup = await this.courseRepo.readItemsGroup(
-        section.itemsGroupId.toString()
+        section.itemsGroupId.toString(),
       );
 
       //Find Item
-      const item = itemsGroup.items.find((i) => i.itemId === itemId);
+      const item = itemsGroup.items.find(i => i.itemId === itemId);
 
       //Sort Items based on order
       const sortedItems = itemsGroup.items.sort((a, b) =>
-        a.order.localeCompare(b.order)
+        a.order.localeCompare(b.order),
       );
 
       //Calculate New Order
       const newOrder = calculateNewOrder(
         sortedItems,
-        "itemId",
+        'itemId',
         afterItemId,
-        beforeItemId
+        beforeItemId,
       );
 
       //Update Item Order
@@ -265,13 +269,13 @@ export class ItemController {
       //Update ItemsGroup
       const updatedItemsGroup = await this.courseRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
-        itemsGroup
+        itemsGroup,
       );
 
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version
+        version,
       );
 
       return {

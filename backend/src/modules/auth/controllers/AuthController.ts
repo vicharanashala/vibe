@@ -9,7 +9,7 @@
  * @created 2025-03-06
  */
 
-import "reflect-metadata";
+import 'reflect-metadata';
 import {
   JsonController,
   Post,
@@ -17,25 +17,29 @@ import {
   Authorized,
   Req,
   Patch,
-  Res,
   HttpError,
-} from "routing-controllers";
-import { Inject, Service } from "typedi";
-import { AuthenticatedRequest, IAuthService } from "../interfaces/IAuthService";
-import { instanceToPlain } from "class-transformer";
-import { ChangePasswordError } from "../services/FirebaseAuthService";
-import { Response } from "express";
-import { DTOSignUp, DTOChangePassword } from "../dtos/index";
+} from 'routing-controllers';
+import {Inject, Service} from 'typedi';
+import {AuthenticatedRequest, IAuthService} from '../interfaces/IAuthService';
+import {instanceToPlain} from 'class-transformer';
+import {ChangePasswordError} from '../services/FirebaseAuthService';
+import {DTOSignUp, DTOChangePassword} from '../dtos/index';
 
-@JsonController("/auth")
+@JsonController('/auth')
 @Service()
+
+/**
+ * AuthController handles authentication-related routes.
+ * It provides endpoints for user signup, password change, and token verification.
+ * @group Auth
+ */
 export class AuthController {
   /**
    * Constructs the AuthController with the required AuthService.
    * @param authService - Service responsible for authentication logic.
    */
   constructor(
-    @Inject("AuthService") private readonly authService: IAuthService
+    @Inject('AuthService') private readonly authService: IAuthService,
   ) {}
 
   /**
@@ -44,8 +48,8 @@ export class AuthController {
    * @param payload - User signup details validated via DTOSignUp.
    * @returns Plain object representation of the newly created user.
    */
-  @Post("/signup")
-  async signup(@Body({ validate: true }) payload: DTOSignUp) {
+  @Post('/signup')
+  async signup(@Body({validate: true}) payload: DTOSignUp) {
     const user = await this.authService.signup(payload);
     return instanceToPlain(user);
   }
@@ -60,18 +64,18 @@ export class AuthController {
    * @returns Confirmation message upon successful password change.
    * @throws `HttpError` - On business logic errors or unexpected server errors.
    */
-  @Authorized(["admin", "teacher", "student"])
-  @Patch("/change-password")
+  @Authorized(['admin', 'teacher', 'student'])
+  @Patch('/change-password')
   async changePassword(
     @Body() payload: DTOChangePassword,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     try {
       const result = await this.authService.changePassword(
         payload,
-        request.user
+        request.user,
       );
-      return { success: true, message: result.message };
+      return {success: true, message: result.message};
     } catch (error) {
       if (error instanceof ChangePasswordError) {
         throw new HttpError(400, error.message);
@@ -79,7 +83,7 @@ export class AuthController {
       if (error instanceof Error) {
         throw new HttpError(500, error.message);
       }
-      throw new HttpError(500, "Internal server error");
+      throw new HttpError(500, 'Internal server error');
     }
   }
 
@@ -90,11 +94,11 @@ export class AuthController {
    *
    * @returns Confirmation message if token is valid.
    */
-  @Authorized(["admin"])
-  @Post("/verify")
+  @Authorized(['admin'])
+  @Post('/verify')
   async verifyToken() {
     return {
-      message: "Token is valid",
+      message: 'Token is valid',
     };
   }
 }

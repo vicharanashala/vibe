@@ -2,16 +2,16 @@
  * @file IAuthService.ts
  * @description Interfaces for the authentication service.
  * @module auth
- * 
+ *
  * @author Aditya BMV
  * @organization DLED
  * @license MIT
  * @created 2025-03-06
  */
 
-import "reflect-metadata";
-import { Request } from "express";
-import { IUser } from "shared/interfaces/IUser";
+import 'reflect-metadata';
+import {Request} from 'express';
+import {IUser} from 'shared/interfaces/IUser';
 
 /**
  * Payload for the sign-up process.
@@ -82,8 +82,8 @@ export interface IAuthService {
    */
   changePassword(
     payload: ChangePasswordPayload,
-    requestUser: IUser
-  ): Promise<{ success: boolean; message: string }>;
+    requestUser: IUser,
+  ): Promise<{success: boolean; message: string}>;
 }
 
 /**

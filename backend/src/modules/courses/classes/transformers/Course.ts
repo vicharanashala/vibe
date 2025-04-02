@@ -1,18 +1,23 @@
 import 'reflect-metadata';
-import { Expose, Transform, Type } from "class-transformer";
+import {Expose, Transform, Type} from 'class-transformer';
 import {
   ObjectIdArrayToStringArray,
   StringArrayToObjectIdArray,
   ObjectIdToString,
   StringToObjectId,
-} from "shared/constants/transformerConstants";
-import { ICourse } from "shared/interfaces/IUser";
-import { ID } from "shared/types";
+} from 'shared/constants/transformerConstants';
+import {ICourse} from 'shared/interfaces/IUser';
+import {ID} from 'shared/types';
 
+/**
+ * Course data transformation.
+ *
+ * @category Courses/Transformers
+ */
 class Course implements ICourse {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true }) // Convert ObjectId -> string when serializing
-  @Transform(StringToObjectId.transformer, { toClassOnly: true }) // Convert string -> ObjectId when deserializing
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
+  @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
   _id?: ID;
 
   @Expose()
@@ -22,13 +27,13 @@ class Course implements ICourse {
   description: string;
 
   @Expose()
-  @Transform(ObjectIdArrayToStringArray.transformer, { toPlainOnly: true }) // Convert ObjectId[] -> string[] when serializing
-  @Transform(StringArrayToObjectIdArray.transformer, { toClassOnly: true }) // Convert string[] -> ObjectId[] when deserializing
+  @Transform(ObjectIdArrayToStringArray.transformer, {toPlainOnly: true}) // Convert ObjectId[] -> string[] when serializing
+  @Transform(StringArrayToObjectIdArray.transformer, {toClassOnly: true}) // Convert string[] -> ObjectId[] when deserializing
   versions: ID[];
 
   @Expose()
-  @Transform(ObjectIdArrayToStringArray.transformer, { toPlainOnly: true }) // Convert ObjectId[] -> string[] when serializing
-  @Transform(StringArrayToObjectIdArray.transformer, { toClassOnly: true }) // Convert string[] -> ObjectId[] when deserializing
+  @Transform(ObjectIdArrayToStringArray.transformer, {toPlainOnly: true}) // Convert ObjectId[] -> string[] when serializing
+  @Transform(StringArrayToObjectIdArray.transformer, {toClassOnly: true}) // Convert string[] -> ObjectId[] when deserializing
   instructors: ID[];
 
   @Expose()
@@ -52,4 +57,4 @@ class Course implements ICourse {
   }
 }
 
-export { Course };
+export {Course};
