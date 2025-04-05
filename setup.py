@@ -3,6 +3,7 @@ import subprocess
 import shutil
 import platform
 import os
+import textwrap
 import urllib.request
 import tempfile
 import json
@@ -239,7 +240,7 @@ class MongoDBBinaryStep(PipelineStep):
             await mongod.getUri();
             await mongod.stop();
         })();
-        """
+        """)
         try:
             subprocess.run(["pnpm", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
             state.update(self.name, True)
