@@ -17,6 +17,11 @@ const config: Config = {
   deploymentBranch: "gh-pages",
   trailingSlash: false,
 
+  markdown: {
+    mermaid: true,
+  },
+
+
   plugins: [
     [
       "docusaurus-plugin-typedoc",
@@ -30,7 +35,7 @@ const config: Config = {
         entryFileName:"Backend.md",
         entryPointStrategy: "expand",
         tsconfig: "../backend/tsconfig.json",
-        out: "./docs/backend/",
+        out: "./docs/api/backend",
         exclude: ["**/tests/**"],
         router: "category",
         sidebar: {
@@ -103,9 +108,8 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
-          label: "Tutorial",
+          label: "Documentation",
         },
-        { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/continuousactivelearning/vibe",
           label: "GitHub",
