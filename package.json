@@ -7,7 +7,7 @@
 		"prepare": "husky"
 	},
 	"lint-staged": {
-    "backend/**/*.{js,jsx,ts,tsx,json}": [
+    "backend/**/*.{js,jsx,ts,tsx}": [
 		"cmd /c cd backend && pnpm run lint"
     ]
   }

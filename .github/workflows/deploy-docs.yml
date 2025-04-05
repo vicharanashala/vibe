@@ -1,0 +1,46 @@
+name: Deploy Docusaurus to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master  # or whichever branch you want to deploy from
+  workflow_dispatch:  # allows manual trigger from the Actions tab
+
+permissions:
+  contents: write  # Required by actions-gh-pages to push to gh-pages branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for deploying with full git history
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18  # Docusaurus recommends 18 LTS (use 22 only if needed)
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: docs  # Path to your Docusaurus project
+
+      - name: Build Docusaurus site
+        run: pnpm run build
+        working-directory: docs
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/build
+          publish_branch: gh-pages  # Default, but good to be explicit
