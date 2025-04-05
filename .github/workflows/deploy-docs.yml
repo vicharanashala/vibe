@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18  # Docusaurus recommends 18 LTS (use 22 only if needed)
-          cache: 'pnpm'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
