@@ -1,0 +1,18 @@
+{
+  "extends": "./node_modules/gts/",
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "off",
+    "no-unused-vars": "off",
+    
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts", "**/tests/**"],
+      "rules": {
+        "n/no-unpublished-import": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "no-unused-vars": "off"
+      }
+    }
+  ]
+}

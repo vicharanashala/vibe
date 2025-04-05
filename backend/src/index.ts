@@ -1,4 +1,6 @@
-import './instrument';
+if (process.env.NODE_ENV === 'production') {
+  import('./instrument');
+}
 import Express from 'express';
 import Sentry from '@sentry/node';
 import {loggingHandler} from 'shared/middleware/loggingHandler';
@@ -39,15 +41,14 @@ export const ServiceFactory = (
   service.get('/main/healthcheck', (req, res) => {
     res.send('Hello World');
   });
-  service.get('/debug-sentry', () => {
-    throw new Error('My first Sentry error!');
-  });
 
   console.log('--------------------------------------------------------');
   console.log('Routes Handler');
   console.log('--------------------------------------------------------');
   //After Adding Routes
-  Sentry.setupExpressErrorHandler(service);
+  if (process.env.NODE_ENV === 'production') {
+    Sentry.setupExpressErrorHandler(service);
+  }
 
   console.log('--------------------------------------------------------');
   console.log('Starting Server');

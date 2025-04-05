@@ -10,8 +10,7 @@ devops:
   - changed-files:
       - any-glob-to-any-file:
         - ".github/**"
-        - "**/.devcontainer/**"
-        - "dev/**"
+        - ".husky/**"
 
 docs:
   - changed-files:
