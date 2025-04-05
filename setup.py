@@ -242,7 +242,7 @@ class MongoDBBinaryStep(PipelineStep):
         })();
         """)
         try:
-            subprocess.run(["pnpm", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
+            subprocess.run(["pnpx", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
             state.update(self.name, True)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]❌ Failed to download MongoDB binaries: {e}[/red]")
