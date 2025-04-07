@@ -1,0 +1,160 @@
+---
+title: Issues Summary
+---
+
+## Summary
+
+
+import React, { useEffect, useState } from 'react';
+
+export default function ModuleTable() {
+  const [groupedData, setGroupedData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Regular expression for conventional commit style:
+  // Matches: type(scope): subject
+  const commitRegex = /^(?<type>\w+)\((?<scope>[^)]+)\):\s*(?<subject>.+)$/;
+
+  useEffect(() => {
+    async function fetchIssues() {
+      try {
+        const res = await fetch('https://api.github.com/repos/continuousactivelearning/vibe/issues');
+        const data = await res.json();
+
+        // Filter for issues with conventional commit style (ignoring pull requests)
+        const validIssues = data.filter(issue => {
+          return !issue.pull_request && commitRegex.test(issue.title);
+        });
+
+        // Group issues by scope and subject
+        const groups = {};
+        validIssues.forEach(issue => {
+          const match = issue.title.match(commitRegex);
+          if (!match) return;
+          const { type, scope, subject } = match.groups;
+          // Use a unique key combining scope and subject
+          const key = `${scope}|||${subject}`;
+          if (!groups[key]) {
+            groups[key] = { scope, subject, devIssue: null, testIssue: null, issues: [], labels: [] };
+          }
+          // Store both issue number and link
+          groups[key].issues.push({ number: issue.number, url: issue.html_url });
+
+          // Merge labels if available
+          if (issue.labels && Array.isArray(issue.labels)) {
+            issue.labels.forEach(label => {
+              if (!groups[key].labels.includes(label.name)) {
+                groups[key].labels.push(label.name);
+              }
+            });
+          }
+          // If type is 'test', consider it as testIssue; otherwise, devIssue.
+          if (type.toLowerCase() === 'test') {
+            groups[key].testIssue = issue;
+          } else {
+            groups[key].devIssue = issue;
+          }
+        });
+
+        // Convert groups object to an array for display
+        setGroupedData(Object.values(groups));
+      } catch (err) {
+        console.error('Error fetching issues:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchIssues();
+  }, []);
+
+  // Helper: maps issue state to an emoji (closed = ✅, open = ❌)
+  const mapStateEmoji = (state) => (state === 'closed' ? '✅' : '❌');
+
+  // Helper: returns a list of avatar images (with tooltips) linking to each assignee's GitHub profile
+  const getAssigneesAvatars = (issue) => {
+    if (!issue) return null;
+
+    let assignees = [];
+    if (issue.assignees && issue.assignees.length > 0) {
+      assignees = issue.assignees;
+    } else if (issue.assignee) {
+      assignees = [issue.assignee];
+    }
+
+    return assignees.map((a, idx) => (
+      <a
+        key={idx}
+        href={a.html_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={a.login}    // Tooltip with username
+        style={{ marginRight: '0.5rem', display: 'inline-block' }}
+      >
+        <img
+          src={a.avatar_url}
+          alt={a.login}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            objectFit: 'cover'
+          }}
+        />
+      </a>
+    ));
+  };
+
+  return (
+    <div>
+      {loading ? (
+        <p>Loading issues...</p>
+      ) : (
+        <table style={{ borderCollapse: 'collapse', width: '100%' }} border="1" cellPadding="6">
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Subject</th>
+              <th style={{ textAlign: 'center' }}>Dev Status</th>
+              <th style={{ textAlign: 'center' }}>Test Status</th>
+              <th>Dev By</th>
+              <th>Test By</th>
+              <th>Tags</th>
+              <th>Issue Links</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupedData.map((group, index) => {
+              const devStatus = group.devIssue ? mapStateEmoji(group.devIssue.state) : '';
+              const testStatus = group.testIssue ? mapStateEmoji(group.testIssue.state) : '';
+              const devBy = group.devIssue ? getAssigneesAvatars(group.devIssue) : '';
+              const testBy = group.testIssue ? getAssigneesAvatars(group.testIssue) : '';
+              const tags = group.labels.join(', ');
+              return (
+                <tr key={index}>
+                  <td>{group.scope}</td>
+                  <td>{group.subject}</td>
+                  <td style={{ textAlign: 'center' }}>{devStatus}</td>
+                  <td style={{ textAlign: 'center' }}>{testStatus}</td>
+                  <td style={{ textAlign: 'center' }}>{devBy}</td>
+                  <td style={{ textAlign: 'center' }}>{testBy}</td>
+                  <td>{tags}</td>
+                  <td>
+                    {group.issues.map((item, idx) => (
+                      <span key={idx}>
+                        <a href={item.url} target="_blank" rel="noopener noreferrer">
+                          #{item.number}
+                        </a>
+                        {idx < group.issues.length - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
