@@ -35,6 +35,7 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   authorizationChecker: async function () {
     return true;
   },
+  validation: true,
 };
 
 export * from './classes/validators/index';

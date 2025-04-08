@@ -8,7 +8,7 @@ import {
 } from 'shared/constants/transformerConstants';
 import {ISection} from 'shared/interfaces/IUser';
 import {ID} from 'shared/types';
-import {CreateSectionPayloadValidator} from '../validators/SectionValidators';
+import {CreateSectionBody} from '../validators/SectionValidators';
 
 /**
  * Section data transformation.
@@ -41,13 +41,10 @@ class Section implements ISection {
   @Type(() => Date)
   updatedAt: Date;
 
-  constructor(
-    sectionPayload: CreateSectionPayloadValidator,
-    existingSections: ISection[],
-  ) {
-    if (sectionPayload) {
-      this.name = sectionPayload.name;
-      this.description = sectionPayload.description;
+  constructor(sectionBody: CreateSectionBody, existingSections: ISection[]) {
+    if (sectionBody) {
+      this.name = sectionBody.name;
+      this.description = sectionBody.description;
     }
     const sortedSections = existingSections.sort((a, b) =>
       a.order.localeCompare(b.order),
@@ -56,8 +53,8 @@ class Section implements ISection {
     this.order = calculateNewOrder(
       sortedSections,
       'sectionId',
-      sectionPayload.afterSectionId,
-      sectionPayload.beforeSectionId,
+      sectionBody.afterSectionId,
+      sectionBody.beforeSectionId,
     );
     this.createdAt = new Date();
     this.updatedAt = new Date();

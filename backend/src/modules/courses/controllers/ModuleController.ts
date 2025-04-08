@@ -5,7 +5,6 @@ import {
   Body,
   InternalServerError,
   JsonController,
-  Param,
   Params,
   Post,
   Put,
@@ -15,15 +14,15 @@ import {ReadError, UpdateError} from 'shared/errors/errors';
 import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {Module} from '../classes/transformers/Module';
-import {CreateModulePayloadValidator} from '../classes/validators/ModuleValidators';
+import {
+  CreateModuleParams,
+  CreateModuleBody,
+  MoveModuleBody,
+  MoveModuleParams,
+  UpdateModuleBody,
+  UpdateModuleParams,
+} from '../classes/validators/ModuleValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {IsMongoId, IsString} from 'class-validator';
-
-export class CreateParams {
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-}
 
 /**
  *
@@ -42,15 +41,16 @@ export class ModuleController {
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules')
   async create(
-    @Params({validate: true}) params: CreateParams,
-    @Body({validate: true}) payload: CreateModulePayloadValidator,
+    @Params() params: CreateModuleParams,
+    @Body() body: CreateModuleBody,
   ) {
     try {
+      const {versionId} = params;
       //Fetch Version
-      const version = await this.courseRepo.readVersion(params.versionId);
+      const version = await this.courseRepo.readVersion(versionId);
 
       //Create Module
-      const module = new Module(payload, version.modules);
+      const module = new Module(body, version.modules);
 
       //Add Module to Version
       version.modules.push(module);
@@ -75,11 +75,11 @@ export class ModuleController {
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId')
   async update(
-    @Param('versionId') versionId: string,
-    @Param('moduleId') moduleId: string,
-    @Body({validate: true}) payload: Partial<CreateModulePayloadValidator>,
+    @Params() params: UpdateModuleParams,
+    @Body() body: UpdateModuleBody,
   ) {
     try {
+      const {versionId, moduleId} = params;
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
@@ -88,10 +88,10 @@ export class ModuleController {
       if (!module) throw new ReadError('Module not found');
 
       //Update Module
-      Object.assign(module, payload.name ? {name: payload.name} : {});
+      Object.assign(module, body.name ? {name: body.name} : {});
       Object.assign(
         module,
-        payload.description ? {description: payload.description} : {},
+        body.description ? {description: body.description} : {},
       );
       module.updatedAt = new Date();
 
@@ -116,11 +116,8 @@ export class ModuleController {
 
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/move')
-  async move(
-    @Param('versionId') versionId: string,
-    @Param('moduleId') moduleId: string,
-    @Body() body: {afterModuleId?: string; beforeModuleId?: string},
-  ) {
+  async move(@Params() params: MoveModuleParams, @Body() body: MoveModuleBody) {
+    const {versionId, moduleId} = params;
     try {
       const {afterModuleId, beforeModuleId} = body;
 

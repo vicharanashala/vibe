@@ -7,14 +7,18 @@ import {
   Get,
   HttpError,
   JsonController,
-  Param,
+  Params,
   Post,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {ItemNotFoundError, ReadError} from 'shared/errors/errors';
 import {Inject, Service} from 'typedi';
 import {CourseVersion} from '../classes/transformers/CourseVersion';
-import {CreateCourseVersionPayloadValidator} from '../classes/validators/CourseVersionValidators';
+import {
+  CreateCourseVersionParams,
+  CreateCourseVersionBody,
+  ReadCourseVersionParams,
+} from '../classes/validators/CourseVersionValidators';
 
 /**
  *
@@ -29,9 +33,10 @@ export class CourseVersionController {
   @Authorized(['admin', 'instructor'])
   @Post('/:id/versions')
   async create(
-    @Param('id') id: string,
-    @Body({validate: true}) payload: CreateCourseVersionPayloadValidator,
+    @Params() params: CreateCourseVersionParams,
+    @Body() body: CreateCourseVersionBody,
   ) {
+    const {id} = params;
     try {
       // console.log("id", id);
       // console.log("payload", payload);
@@ -39,7 +44,7 @@ export class CourseVersionController {
       const course = await this.courseRepo.read(id);
 
       //Create Version
-      let version = new CourseVersion(payload);
+      let version = new CourseVersion(body);
       version.courseId = new ObjectId(id);
       version = (await this.courseRepo.createVersion(version)) as CourseVersion;
 
@@ -70,7 +75,8 @@ export class CourseVersionController {
 
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:id')
-  async read(@Param('id') id: string) {
+  async read(@Params() params: ReadCourseVersionParams) {
+    const {id} = params;
     try {
       const version = await this.courseRepo.readVersion(id);
       return instanceToPlain(version);

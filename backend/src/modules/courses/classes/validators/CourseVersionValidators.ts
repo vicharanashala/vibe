@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import {IsEmpty, IsNotEmpty, IsString} from 'class-validator';
+import {IsEmpty, IsMongoId, IsNotEmpty, IsString} from 'class-validator';
 import {ICourseVersion, IModule} from 'shared/interfaces/IUser';
 
 /**
@@ -7,7 +7,7 @@ import {ICourseVersion, IModule} from 'shared/interfaces/IUser';
  *
  * @category Courses/Validators/CourseVersionValidators
  */
-class CreateCourseVersionPayloadValidator implements ICourseVersion {
+class CreateCourseVersionBody implements ICourseVersion {
   @IsEmpty()
   courseId: string;
 
@@ -29,4 +29,19 @@ class CreateCourseVersionPayloadValidator implements ICourseVersion {
   updatedAt: Date;
 }
 
-export {CreateCourseVersionPayloadValidator};
+class CreateCourseVersionParams {
+  @IsMongoId()
+  @IsString()
+  id: string;
+}
+class ReadCourseVersionParams {
+  @IsMongoId()
+  @IsString()
+  id: string;
+}
+
+export {
+  CreateCourseVersionBody,
+  CreateCourseVersionParams,
+  ReadCourseVersionParams,
+};

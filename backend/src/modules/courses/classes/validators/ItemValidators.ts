@@ -88,7 +88,7 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
 /**
  * @category Courses/Validators/ItemValidators
  */
-class CreateItemPayloadValidator implements IBaseItem {
+class CreateItemBody implements IBaseItem {
   @IsEmpty()
   _id?: string;
 
@@ -152,7 +152,7 @@ class CreateItemPayloadValidator implements IBaseItem {
 /**
  * @category Courses/Validators/ItemValidators
  */
-class UpdateItemPayloadValidator implements IBaseItem {
+class UpdateItemBody implements IBaseItem {
   @IsEmpty()
   _id?: string;
 
@@ -216,7 +216,7 @@ class UpdateItemPayloadValidator implements IBaseItem {
 /**
  * @category Courses/Validators/ItemValidators
  */
-class MoveItemPayloadValidator {
+class MoveItemBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
@@ -226,13 +226,93 @@ class MoveItemPayloadValidator {
   @IsMongoId()
   @IsString()
   beforeItemId?: string;
+
+  @ValidateIf(o => !o.afterItemId && !o.beforeItemId)
+  @IsNotEmpty({
+    message: 'At least one of "afterItemId" or "beforeItemId" must be provided',
+  })
+  onlyOneAllowed: string;
+
+  @ValidateIf(o => o.afterItemId && o.beforeItemId)
+  @IsNotEmpty({
+    message: 'Only one of "afterItemId" or "beforeItemId" must be provided',
+  })
+  bothNotAllowed: string;
+}
+
+class CreateItemParams {
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+}
+
+class ReadAllItemsParams {
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+}
+
+class UpdateItemParams {
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
+class MoveItemParams {
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+
+  @IsMongoId()
+  @IsString()
+  itemId: string;
 }
 
 export {
-  CreateItemPayloadValidator,
-  UpdateItemPayloadValidator,
-  MoveItemPayloadValidator,
+  CreateItemBody,
+  UpdateItemBody,
+  MoveItemBody,
   VideoDetailsPayloadValidator,
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
+  CreateItemParams,
+  ReadAllItemsParams,
+  UpdateItemParams,
+  MoveItemParams,
 };

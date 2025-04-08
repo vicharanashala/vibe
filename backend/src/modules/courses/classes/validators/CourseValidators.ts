@@ -7,6 +7,7 @@ import {
   IsEmpty,
   IsOptional,
   ValidateIf,
+  IsMongoId,
 } from 'class-validator';
 import {ICourse} from 'shared/interfaces/IUser';
 
@@ -15,7 +16,7 @@ import {ICourse} from 'shared/interfaces/IUser';
  *
  * @category Courses/Validators/CourseValidators
  */
-class CreateCoursePayloadValidator implements ICourse {
+class CreateCourseBody implements ICourse {
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
@@ -45,7 +46,7 @@ class CreateCoursePayloadValidator implements ICourse {
  *
  * @category Courses/Validators/CourseValidators
  */
-class UpdateCoursePayloadValidator implements Partial<ICourse> {
+class UpdateCourseBody implements Partial<ICourse> {
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -65,4 +66,20 @@ class UpdateCoursePayloadValidator implements Partial<ICourse> {
   nameOrDescription: string;
 }
 
-export {CreateCoursePayloadValidator, UpdateCoursePayloadValidator};
+class ReadCourseParams {
+  @IsMongoId()
+  @IsString()
+  id: string;
+}
+class UpdateCourseParams {
+  @IsMongoId()
+  @IsString()
+  id: string;
+}
+
+export {
+  CreateCourseBody,
+  UpdateCourseBody,
+  ReadCourseParams,
+  UpdateCourseParams,
+};

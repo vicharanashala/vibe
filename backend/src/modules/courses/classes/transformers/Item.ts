@@ -14,7 +14,7 @@ import {
   IBlogDetails,
 } from 'shared/interfaces/IUser';
 import {ID} from 'shared/types';
-import {CreateItemPayloadValidator} from '../validators/ItemValidators';
+import {CreateItemBody} from '../validators/ItemValidators';
 /**
  * Item data transformation.
  *
@@ -40,20 +40,20 @@ class Item implements IBaseItem {
 
   itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
 
-  constructor(itemPayload: CreateItemPayloadValidator, existingItems: Item[]) {
-    if (itemPayload) {
-      this.name = itemPayload.name;
-      this.description = itemPayload.description;
-      this.type = itemPayload.type;
+  constructor(itemBody: CreateItemBody, existingItems: Item[]) {
+    if (itemBody) {
+      this.name = itemBody.name;
+      this.description = itemBody.description;
+      this.type = itemBody.type;
       switch (this.type) {
         case ItemType.VIDEO:
-          this.itemDetails = itemPayload.videoDetails;
+          this.itemDetails = itemBody.videoDetails;
           break;
         case ItemType.QUIZ:
-          this.itemDetails = itemPayload.quizDetails;
+          this.itemDetails = itemBody.quizDetails;
           break;
         case ItemType.BLOG:
-          this.itemDetails = itemPayload.blogDetails;
+          this.itemDetails = itemBody.blogDetails;
           break;
         default:
           break;
@@ -66,8 +66,8 @@ class Item implements IBaseItem {
     this.order = calculateNewOrder(
       sortedItems,
       'itemId',
-      itemPayload.afterItemId,
-      itemPayload.beforeItemId,
+      itemBody.afterItemId,
+      itemBody.beforeItemId,
     );
   }
 }

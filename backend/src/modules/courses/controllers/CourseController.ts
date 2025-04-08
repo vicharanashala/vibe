@@ -7,16 +7,18 @@ import {
   Body,
   HttpError,
   Get,
-  Param,
   Put,
+  Params,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {Service, Inject} from 'typedi';
 import {Course} from '../classes/transformers/Course';
 import {ItemNotFoundError} from 'shared/errors/errors';
 import {
-  CreateCoursePayloadValidator,
-  UpdateCoursePayloadValidator,
+  CreateCourseBody,
+  ReadCourseParams,
+  UpdateCourseParams,
+  UpdateCourseBody,
 } from '../classes/validators/CourseValidators';
 
 /**
@@ -32,8 +34,8 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Post('/')
-  async create(@Body({validate: true}) payload: CreateCoursePayloadValidator) {
-    let course = new Course(payload);
+  async create(@Body() body: CreateCourseBody) {
+    let course = new Course(body);
     try {
       course = await this.courseRepo.create(course);
       return instanceToPlain(course);
@@ -44,7 +46,8 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Get('/:id')
-  async read(@Param('id') id: string) {
+  async read(@Params() params: ReadCourseParams) {
+    const {id} = params;
     try {
       const courses = await this.courseRepo.read(id);
       return instanceToPlain(courses);
@@ -59,11 +62,12 @@ export class CourseController {
   @Authorized(['admin', 'instructor'])
   @Put('/:id')
   async update(
-    @Param('id') id: string,
-    @Body({validate: true}) payload: UpdateCoursePayloadValidator,
+    @Params() params: UpdateCourseParams,
+    @Body() body: UpdateCourseBody,
   ) {
+    const {id} = params;
     try {
-      const course = await this.courseRepo.update(id, payload);
+      const course = await this.courseRepo.update(id, body);
       return instanceToPlain(course);
     } catch (error) {
       if (error instanceof ItemNotFoundError) {

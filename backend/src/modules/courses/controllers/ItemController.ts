@@ -6,7 +6,7 @@ import {
   Body,
   Get,
   JsonController,
-  Param,
+  Params,
   Post,
   Put,
 } from 'routing-controllers';
@@ -16,9 +16,13 @@ import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {Item} from '../classes/transformers/Item';
 import {
-  CreateItemPayloadValidator,
-  UpdateItemPayloadValidator,
-  MoveItemPayloadValidator,
+  CreateItemBody,
+  UpdateItemBody,
+  MoveItemBody,
+  CreateItemParams,
+  ReadAllItemsParams,
+  UpdateItemParams,
+  MoveItemParams,
 } from '../classes/validators/ItemValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
@@ -40,12 +44,11 @@ export class ItemController {
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   async create(
-    @Param('sectionId') sectionId: string,
-    @Param('moduleId') moduleId: string,
-    @Param('versionId') versionId: string,
-    @Body({validate: true}) item: CreateItemPayloadValidator,
+    @Params() params: CreateItemParams,
+    @Body() body: CreateItemBody,
   ) {
     try {
+      const {versionId, moduleId, sectionId} = params;
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
@@ -61,7 +64,7 @@ export class ItemController {
       );
 
       //Create Item
-      const newItem = new Item(item, itemsGroup.items);
+      const newItem = new Item(body, itemsGroup.items);
 
       //Add Item to ItemsGroup
       itemsGroup.items.push(newItem);
@@ -99,12 +102,9 @@ export class ItemController {
 
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
-  async readAll(
-    @Param('sectionId') sectionId: string,
-    @Param('moduleId') moduleId: string,
-    @Param('versionId') versionId: string,
-  ) {
+  async readAll(@Params() params: ReadAllItemsParams) {
     try {
+      const {versionId, moduleId, sectionId} = params;
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
@@ -134,13 +134,11 @@ export class ItemController {
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
   async update(
-    @Param('sectionId') sectionId: string,
-    @Param('moduleId') moduleId: string,
-    @Param('versionId') versionId: string,
-    @Param('itemId') itemId: string,
-    @Body({validate: true}) payload: UpdateItemPayloadValidator,
+    @Params() params: UpdateItemParams,
+    @Body() body: UpdateItemBody,
   ) {
     try {
+      const {versionId, moduleId, sectionId, itemId} = params;
       //Fetch Version
       const version = await this.courseRepo.readVersion(versionId);
 
@@ -159,22 +157,22 @@ export class ItemController {
       const item = itemsGroup.items.find(i => i.itemId === itemId);
 
       //Update Item
-      Object.assign(item, payload.name ? {name: payload.name} : {});
+      Object.assign(item, body.name ? {name: body.name} : {});
       Object.assign(
         item,
-        payload.description ? {description: payload.description} : {},
+        body.description ? {description: body.description} : {},
       );
-      Object.assign(item, payload.type ? {type: payload.type} : {});
+      Object.assign(item, body.type ? {type: body.type} : {});
 
       //Update Item Details
       Object.assign(
         item,
-        payload.videoDetails
-          ? {itemDetails: payload.videoDetails}
-          : payload.blogDetails
-            ? {itemDetails: payload.blogDetails}
-            : payload.quizDetails
-              ? {itemDetails: payload.quizDetails}
+        body.videoDetails
+          ? {itemDetails: body.videoDetails}
+          : body.blogDetails
+            ? {itemDetails: body.blogDetails}
+            : body.quizDetails
+              ? {itemDetails: body.quizDetails}
               : {},
       );
 
@@ -214,14 +212,9 @@ export class ItemController {
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
-  async move(
-    @Param('sectionId') sectionId: string,
-    @Param('moduleId') moduleId: string,
-    @Param('versionId') versionId: string,
-    @Param('itemId') itemId: string,
-    @Body({validate: true}) body: MoveItemPayloadValidator,
-  ) {
+  async move(@Params() params: MoveItemParams, @Body() body: MoveItemBody) {
     try {
+      const {versionId, moduleId, sectionId, itemId} = params;
       const {afterItemId, beforeItemId} = body;
 
       if (!afterItemId && !beforeItemId) {

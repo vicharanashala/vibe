@@ -8,7 +8,7 @@ import {
 } from 'shared/constants/transformerConstants';
 import {IModule} from 'shared/interfaces/IUser';
 import {ID} from 'shared/types';
-import {CreateModulePayloadValidator} from '../validators/ModuleValidators';
+import {CreateModuleBody} from '../validators/ModuleValidators';
 import {Section} from './Section';
 
 /**
@@ -43,13 +43,10 @@ class Module implements IModule {
   @Type(() => Date)
   updatedAt: Date;
 
-  constructor(
-    modulePayload: CreateModulePayloadValidator,
-    existingModules: IModule[],
-  ) {
-    if (modulePayload) {
-      this.name = modulePayload.name;
-      this.description = modulePayload.description;
+  constructor(moduleBody: CreateModuleBody, existingModules: IModule[]) {
+    if (moduleBody) {
+      this.name = moduleBody.name;
+      this.description = moduleBody.description;
     }
     const sortedModules = existingModules.sort((a, b) =>
       a.order.localeCompare(b.order),
@@ -58,8 +55,8 @@ class Module implements IModule {
     this.order = calculateNewOrder(
       sortedModules,
       'moduleId',
-      modulePayload.afterModuleId,
-      modulePayload.beforeModuleId,
+      moduleBody.afterModuleId,
+      moduleBody.beforeModuleId,
     );
     this.sections = [];
     this.createdAt = new Date();
