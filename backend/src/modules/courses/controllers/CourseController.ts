@@ -22,6 +22,16 @@ import {
 } from '../classes/validators/CourseValidators';
 
 /**
+ * @category Courses/Controllers
+ * @categoryDescription
+
+ */
+
+/**
+ * Controller for managing courses.
+ * Handles API endpoints related to course creation, reading, and updating.
+ * Uses dependency injection to work with CourseRepository and exposes
+ * endpoints under the `/courses` route.
  *
  * @category Courses/Controllers
  */
@@ -32,6 +42,13 @@ export class CourseController {
     @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
   ) {}
 
+  /**
+   * Create a new course.
+   * @param body - Validated payload for course creation.
+   * @returns The created course object.
+   *
+   * @throws HttpError - If the course creation fails.
+   */
   @Authorized(['admin', 'instructor'])
   @Post('/')
   async create(@Body() body: CreateCourseBody) {
@@ -44,6 +61,13 @@ export class CourseController {
     }
   }
 
+  /**
+   * Retrieve a course by its ID.
+   * @param params - Contains the course Mongo ID.
+   * @returns The course data if found.
+   *
+   * @throws HttpError - If the course is not found or if an error occurs.
+   */
   @Authorized(['admin', 'instructor'])
   @Get('/:id')
   async read(@Params() params: ReadCourseParams) {
@@ -59,6 +83,14 @@ export class CourseController {
     }
   }
 
+  /**
+   * Update a course by ID.
+   * @param params - The course ID.
+   * @param body - The fields to update.
+   * @returns The updated course object.
+   *
+   * @throws HttpError - If the course is not found or if an error occurs.
+   */
   @Authorized(['admin', 'instructor'])
   @Put('/:id')
   async update(

@@ -1,4 +1,6 @@
-Defined in: [classes/validators/ItemValidators.ts:75](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L75)
+Defined in: [classes/validators/ItemValidators.ts:104](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L104)
+
+Blog item details for content-based reading or writing activities.
 
 ## Implements
 
@@ -20,7 +22,9 @@ Defined in: [classes/validators/ItemValidators.ts:75](https://github.com/continu
 
 > **content**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:81](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L81)
+Defined in: [classes/validators/ItemValidators.ts:116](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L116)
+
+Full blog content in markdown or plain text.
 
 #### Implementation of
 
@@ -32,7 +36,9 @@ Defined in: [classes/validators/ItemValidators.ts:81](https://github.com/continu
 
 > **points**: `number`
 
-Defined in: [classes/validators/ItemValidators.ts:85](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L85)
+Defined in: [classes/validators/ItemValidators.ts:123](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L123)
+
+Points assigned to the blog submission.
 
 #### Implementation of
 
@@ -44,7 +50,9 @@ Defined in: [classes/validators/ItemValidators.ts:85](https://github.com/continu
 
 > **tags**: `string`[]
 
-Defined in: [classes/validators/ItemValidators.ts:77](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L77)
+Defined in: [classes/validators/ItemValidators.ts:109](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L109)
+
+Tags for categorizing the blog (auto-managed).
 
 #### Implementation of
 

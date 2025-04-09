@@ -1,4 +1,6 @@
-Defined in: [classes/validators/ItemValidators.ts:55](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L55)
+Defined in: [classes/validators/ItemValidators.ts:70](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L70)
+
+Quiz item details for scheduled quiz-based evaluation.
 
 ## Implements
 
@@ -20,7 +22,9 @@ Defined in: [classes/validators/ItemValidators.ts:55](https://github.com/continu
 
 > **deadline**: `Date`
 
-Defined in: [classes/validators/ItemValidators.ts:69](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L69)
+Defined in: [classes/validators/ItemValidators.ts:96](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L96)
+
+ISO date string for quiz deadline.
 
 #### Implementation of
 
@@ -32,7 +36,9 @@ Defined in: [classes/validators/ItemValidators.ts:69](https://github.com/continu
 
 > **questions**: `string`[]
 
-Defined in: [classes/validators/ItemValidators.ts:65](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L65)
+Defined in: [classes/validators/ItemValidators.ts:89](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L89)
+
+List of quiz question IDs (auto-managed).
 
 #### Implementation of
 
@@ -44,7 +50,9 @@ Defined in: [classes/validators/ItemValidators.ts:65](https://github.com/continu
 
 > **questionVisibility**: `number`
 
-Defined in: [classes/validators/ItemValidators.ts:58](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L58)
+Defined in: [classes/validators/ItemValidators.ts:76](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L76)
+
+Number of quiz questions visible to students.
 
 #### Implementation of
 
@@ -56,7 +64,9 @@ Defined in: [classes/validators/ItemValidators.ts:58](https://github.com/continu
 
 > **releaseTime**: `Date`
 
-Defined in: [classes/validators/ItemValidators.ts:62](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L62)
+Defined in: [classes/validators/ItemValidators.ts:83](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L83)
+
+ISO date string representing quiz release time.
 
 #### Implementation of
 

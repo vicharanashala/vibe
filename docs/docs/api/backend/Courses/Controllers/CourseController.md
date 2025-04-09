@@ -1,4 +1,9 @@
-Defined in: [controllers/CourseController.ts:28](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/CourseController.ts#L28)
+Defined in: [controllers/CourseController.ts:40](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseController.ts#L40)
+
+Controller for managing courses.
+Handles API endpoints related to course creation, reading, and updating.
+Uses dependency injection to work with CourseRepository and exposes
+endpoints under the `/courses` route.
 
 ## Constructors
 
@@ -6,7 +11,7 @@ Defined in: [controllers/CourseController.ts:28](https://github.com/continuousac
 
 > **new CourseController**(`courseRepo`): `CourseController`
 
-Defined in: [controllers/CourseController.ts:29](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/CourseController.ts#L29)
+Defined in: [controllers/CourseController.ts:41](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseController.ts#L41)
 
 #### Parameters
 
@@ -22,56 +27,88 @@ Defined in: [controllers/CourseController.ts:29](https://github.com/continuousac
 
 ### create()
 
-> **create**(`payload`): `Promise`\<`Record`\<`string`, `any`\>\>
+> **create**(`body`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [controllers/CourseController.ts:35](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/CourseController.ts#L35)
+Defined in: [controllers/CourseController.ts:54](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseController.ts#L54)
+
+Create a new course.
 
 #### Parameters
 
-##### payload
+##### body
 
-[`CreateCoursePayloadValidator`](../Validators/CourseValidators/CreateCoursePayloadValidator.md)
+[`CreateCourseBody`](../Validators/CourseValidators/CreateCourseBody.md)
+
+Validated payload for course creation.
 
 #### Returns
 
 `Promise`\<`Record`\<`string`, `any`\>\>
+
+The created course object.
+
+#### Throws
+
+HttpError - If the course creation fails.
 
 ***
 
 ### read()
 
-> **read**(`id`): `Promise`\<`Record`\<`string`, `any`\>\>
+> **read**(`params`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [controllers/CourseController.ts:47](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/CourseController.ts#L47)
+Defined in: [controllers/CourseController.ts:73](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseController.ts#L73)
+
+Retrieve a course by its ID.
 
 #### Parameters
 
-##### id
+##### params
 
-`string`
+[`ReadCourseParams`](../Validators/CourseValidators/ReadCourseParams.md)
+
+Contains the course Mongo ID.
 
 #### Returns
 
 `Promise`\<`Record`\<`string`, `any`\>\>
+
+The course data if found.
+
+#### Throws
+
+HttpError - If the course is not found or if an error occurs.
 
 ***
 
 ### update()
 
-> **update**(`id`, `payload`): `Promise`\<`Record`\<`string`, `any`\>\>
+> **update**(`params`, `body`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [controllers/CourseController.ts:61](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/CourseController.ts#L61)
+Defined in: [controllers/CourseController.ts:96](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseController.ts#L96)
+
+Update a course by ID.
 
 #### Parameters
 
-##### id
+##### params
 
-`string`
+[`UpdateCourseParams`](../Validators/CourseValidators/UpdateCourseParams.md)
 
-##### payload
+The course ID.
 
-[`UpdateCoursePayloadValidator`](../Validators/CourseValidators/UpdateCoursePayloadValidator.md)
+##### body
+
+[`UpdateCourseBody`](../Validators/CourseValidators/UpdateCourseBody.md)
+
+The fields to update.
 
 #### Returns
 
 `Promise`\<`Record`\<`string`, `any`\>\>
+
+The updated course object.
+
+#### Throws
+
+HttpError - If the course is not found or if an error occurs.

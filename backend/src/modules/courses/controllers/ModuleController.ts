@@ -25,9 +25,15 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
 /**
+ * Controller for managing modules within a course version.
+ * Handles creation, updating, and reordering of modules.
  *
  * @category Courses/Controllers
+ * @categoryDescription
+ * Provides endpoints for adding, modifying, and reordering course modules.
+ * Modules are nested under specific versions and define core content units.
  */
+
 @JsonController('/courses')
 @Service()
 export class ModuleController {
@@ -38,6 +44,19 @@ export class ModuleController {
       throw new Error('CourseRepository is not properly injected');
     }
   }
+
+  /**
+   * Create a new module under a specific course version.
+   *
+   * @param params - Route parameters including the course version ID.
+   * @param body - Payload containing module name, description, etc.
+   * @returns The updated course version with the new module.
+   *
+   * @throws InternalServerError on any failure during module creation.
+   *
+   * @category Courses/Controllers
+   */
+
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules')
   async create(
@@ -71,6 +90,18 @@ export class ModuleController {
       throw new InternalServerError(error.message);
     }
   }
+
+  /**
+   * Update an existing module's name or description.
+   *
+   * @param params - Route parameters including versionId and moduleId.
+   * @param body - Fields to update such as name and/or description.
+   * @returns The updated course version.
+   *
+   * @throws HTTPError(404) if the module is not found.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId')
@@ -113,6 +144,20 @@ export class ModuleController {
       }
     }
   }
+
+  /**
+   * Reorder a module within its course version.
+   * The new position is determined using beforeModuleId or afterModuleId.
+   *
+   * @param params - Route parameters including versionId and moduleId.
+   * @param body - Positioning details: beforeModuleId or afterModuleId.
+   * @returns The updated course version with modules in new order.
+   *
+   * @throws UpdateError if neither beforeModuleId nor afterModuleId is provided.
+   * @throws HTTPError(500) for other internal errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/move')

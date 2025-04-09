@@ -27,9 +27,15 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
 /**
+ * Controller for managing items within course modules and sections.
+ * Handles operations such as creation, retrieval, update, and reordering.
  *
  * @category Courses/Controllers
+ * @categoryDescription
+ * Provides endpoints for working with "items" inside sections of modules
+ * within course versions. This includes content like videos, blogs, or quizzes.
  */
+
 @JsonController()
 @Service()
 export class ItemController {
@@ -40,6 +46,18 @@ export class ItemController {
       throw new Error('CourseRepository is not properly injected');
     }
   }
+
+  /**
+   * Create a new item under a specific section of a module in a course version.
+   *
+   * @param params - Route parameters including versionId, moduleId, and sectionId.
+   * @param body - The item data to be created.
+   * @returns The updated itemsGroup and version.
+   *
+   * @throws HTTPError(500) on internal errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
@@ -100,6 +118,17 @@ export class ItemController {
     }
   }
 
+  /**
+   * Retrieve all items from a section of a module in a course version.
+   *
+   * @param params - Route parameters including versionId, moduleId, and sectionId.
+   * @returns The list of items within the section.
+   *
+   * @throws HTTPError(500) on internal errors.
+   *
+   * @category Courses/Controllers
+   */
+
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   async readAll(@Params() params: ReadAllItemsParams) {
@@ -128,6 +157,18 @@ export class ItemController {
       }
     }
   }
+
+  /**
+   * Update an existing item in a section of a module in a course version.
+   *
+   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
+   * @param body - Fields to update, including name, description, type, and itemDetails.
+   * @returns The updated itemsGroup and version.
+   *
+   * @throws HTTPError(500) on internal errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Put(
@@ -207,6 +248,19 @@ export class ItemController {
       }
     }
   }
+
+  /**
+   * Move an item to a new position within a section by recalculating its order.
+   *
+   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
+   * @param body - Movement instructions including `afterItemId` or `beforeItemId`.
+   * @returns The updated itemsGroup and version.
+   *
+   * @throws BadRequestError if both afterItemId and beforeItemId are missing.
+   * @throws HTTPError(500) on internal errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Put(

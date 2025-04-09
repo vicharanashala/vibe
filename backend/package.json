@@ -1,5 +1,5 @@
 {
-  "name": "vibe-backend",
+  "name": "backend",
   "version": "3.0.0",
   "description": "This is ViBe backend.",
   "main": "index.js",
@@ -46,7 +46,7 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typedoc": "^0.27.9",
+    "typedoc": "^0.28.2",
     "typedoc-plugin-markdown": "^4.4.2",
     "typescript": "^5.8.2"
   },
@@ -71,12 +71,6 @@
     "nanoid": "^5.1.2",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
-    "typedi": "^0.10.0",
-    "typedoc-github-theme": "^0.2.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "ts-node": "link:..\\..\\..\\..\\..\\AppData\\Local\\pnpm\\global\\5\\node_modules\\ts-node"
-    }
+    "typedi": "^0.10.0"
   }
 }

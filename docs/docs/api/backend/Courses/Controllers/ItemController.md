@@ -1,4 +1,7 @@
-Defined in: [controllers/ItemController.ts:31](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L31)
+Defined in: [controllers/ItemController.ts:41](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L41)
+
+Controller for managing items within course modules and sections.
+Handles operations such as creation, retrieval, update, and reordering.
 
 ## Constructors
 
@@ -6,7 +9,7 @@ Defined in: [controllers/ItemController.ts:31](https://github.com/continuousacti
 
 > **new ItemController**(`courseRepo`): `ItemController`
 
-Defined in: [controllers/ItemController.ts:32](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L32)
+Defined in: [controllers/ItemController.ts:42](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L42)
 
 #### Parameters
 
@@ -20,124 +23,136 @@ Defined in: [controllers/ItemController.ts:32](https://github.com/continuousacti
 
 ## Methods
 
-### create()
+### Courses/Controllers
 
-> **create**(`sectionId`, `moduleId`, `versionId`, `item`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
+#### create()
 
-Defined in: [controllers/ItemController.ts:42](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L42)
+> **create**(`params`, `body`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
-#### Parameters
+Defined in: [controllers/ItemController.ts:64](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L64)
 
-##### sectionId
+Create a new item under a specific section of a module in a course version.
 
-`string`
+##### Parameters
 
-##### moduleId
+###### params
 
-`string`
+[`CreateItemParams`](../Validators/ItemValidators/CreateItemParams.md)
 
-##### versionId
+Route parameters including versionId, moduleId, and sectionId.
 
-`string`
+###### body
 
-##### item
+[`CreateItemBody`](../Validators/ItemValidators/CreateItemBody.md)
 
-[`CreateItemPayloadValidator`](../Validators/ItemValidators/CreateItemPayloadValidator.md)
+The item data to be created.
 
-#### Returns
-
-`Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
-
-***
-
-### move()
-
-> **move**(`sectionId`, `moduleId`, `versionId`, `itemId`, `body`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
-
-Defined in: [controllers/ItemController.ts:217](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L217)
-
-#### Parameters
-
-##### sectionId
-
-`string`
-
-##### moduleId
-
-`string`
-
-##### versionId
-
-`string`
-
-##### itemId
-
-`string`
-
-##### body
-
-[`MoveItemPayloadValidator`](../Validators/ItemValidators/MoveItemPayloadValidator.md)
-
-#### Returns
+##### Returns
 
 `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
+The updated itemsGroup and version.
+
+##### Throws
+
+HTTPError(500) on internal errors.
+
 ***
 
-### readAll()
+#### move()
 
-> **readAll**(`sectionId`, `moduleId`, `versionId`): `Promise`\<\{ `itemsGroup`: [`ItemsGroup`](../Transformers/ItemsGroup.md); \}\>
+> **move**(`params`, `body`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/ItemController.ts:102](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L102)
+Defined in: [controllers/ItemController.ts:269](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L269)
 
-#### Parameters
+Move an item to a new position within a section by recalculating its order.
 
-##### sectionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`MoveItemParams`](../Validators/ItemValidators/MoveItemParams.md)
 
-`string`
+Route parameters including versionId, moduleId, sectionId, and itemId.
 
-##### versionId
+###### body
 
-`string`
+[`MoveItemBody`](../Validators/ItemValidators/MoveItemBody.md)
 
-#### Returns
+Movement instructions including `afterItemId` or `beforeItemId`.
+
+##### Returns
+
+`Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated itemsGroup and version.
+
+##### Throws
+
+BadRequestError if both afterItemId and beforeItemId are missing.
+
+##### Throws
+
+HTTPError(500) on internal errors.
+
+***
+
+#### readAll()
+
+> **readAll**(`params`): `Promise`\<\{ `itemsGroup`: [`ItemsGroup`](../Transformers/ItemsGroup.md); \}\>
+
+Defined in: [controllers/ItemController.ts:134](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L134)
+
+Retrieve all items from a section of a module in a course version.
+
+##### Parameters
+
+###### params
+
+[`ReadAllItemsParams`](../Validators/ItemValidators/ReadAllItemsParams.md)
+
+Route parameters including versionId, moduleId, and sectionId.
+
+##### Returns
 
 `Promise`\<\{ `itemsGroup`: [`ItemsGroup`](../Transformers/ItemsGroup.md); \}\>
 
+The list of items within the section.
+
+##### Throws
+
+HTTPError(500) on internal errors.
+
 ***
 
-### update()
+#### update()
 
-> **update**(`sectionId`, `moduleId`, `versionId`, `itemId`, `payload`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
+> **update**(`params`, `body`): `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/ItemController.ts:136](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ItemController.ts#L136)
+Defined in: [controllers/ItemController.ts:177](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ItemController.ts#L177)
 
-#### Parameters
+Update an existing item in a section of a module in a course version.
 
-##### sectionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`UpdateItemParams`](../Validators/ItemValidators/UpdateItemParams.md)
 
-`string`
+Route parameters including versionId, moduleId, sectionId, and itemId.
 
-##### versionId
+###### body
 
-`string`
+[`UpdateItemBody`](../Validators/ItemValidators/UpdateItemBody.md)
 
-##### itemId
+Fields to update, including name, description, type, and itemDetails.
 
-`string`
-
-##### payload
-
-[`UpdateItemPayloadValidator`](../Validators/ItemValidators/UpdateItemPayloadValidator.md)
-
-#### Returns
+##### Returns
 
 `Promise`\<\{ `itemsGroup`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated itemsGroup and version.
+
+##### Throws
+
+HTTPError(500) on internal errors.

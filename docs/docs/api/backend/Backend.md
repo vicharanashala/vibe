@@ -22,30 +22,47 @@
 
 ### Courses/Validators/CourseValidators
 
-- [CreateCoursePayloadValidator](Courses/Validators/CourseValidators/CreateCoursePayloadValidator.md)
-- [UpdateCoursePayloadValidator](Courses/Validators/CourseValidators/UpdateCoursePayloadValidator.md)
+- [CreateCourseBody](Courses/Validators/CourseValidators/CreateCourseBody.md)
+- [ReadCourseParams](Courses/Validators/CourseValidators/ReadCourseParams.md)
+- [UpdateCourseBody](Courses/Validators/CourseValidators/UpdateCourseBody.md)
+- [UpdateCourseParams](Courses/Validators/CourseValidators/UpdateCourseParams.md)
 
 ### Courses/Validators/CourseVersionValidators
 
-- [CreateCourseVersionPayloadValidator](Courses/Validators/CourseVersionValidators/CreateCourseVersionPayloadValidator.md)
+- [CreateCourseVersionBody](Courses/Validators/CourseVersionValidators/CreateCourseVersionBody.md)
+- [CreateCourseVersionParams](Courses/Validators/CourseVersionValidators/CreateCourseVersionParams.md)
+- [ReadCourseVersionParams](Courses/Validators/CourseVersionValidators/ReadCourseVersionParams.md)
 
 ### Courses/Validators/ItemValidators
 
 - [BlogDetailsPayloadValidator](Courses/Validators/ItemValidators/BlogDetailsPayloadValidator.md)
-- [CreateItemPayloadValidator](Courses/Validators/ItemValidators/CreateItemPayloadValidator.md)
-- [MoveItemPayloadValidator](Courses/Validators/ItemValidators/MoveItemPayloadValidator.md)
+- [CreateItemBody](Courses/Validators/ItemValidators/CreateItemBody.md)
+- [CreateItemParams](Courses/Validators/ItemValidators/CreateItemParams.md)
+- [MoveItemBody](Courses/Validators/ItemValidators/MoveItemBody.md)
+- [MoveItemParams](Courses/Validators/ItemValidators/MoveItemParams.md)
 - [QuizDetailsPayloadValidator](Courses/Validators/ItemValidators/QuizDetailsPayloadValidator.md)
-- [UpdateItemPayloadValidator](Courses/Validators/ItemValidators/UpdateItemPayloadValidator.md)
+- [ReadAllItemsParams](Courses/Validators/ItemValidators/ReadAllItemsParams.md)
+- [UpdateItemBody](Courses/Validators/ItemValidators/UpdateItemBody.md)
+- [UpdateItemParams](Courses/Validators/ItemValidators/UpdateItemParams.md)
 - [VideoDetailsPayloadValidator](Courses/Validators/ItemValidators/VideoDetailsPayloadValidator.md)
 
 ### Courses/Validators/ModuleValidators
 
-- [CreateModulePayloadValidator](Courses/Validators/ModuleValidators/CreateModulePayloadValidator.md)
-- [CreateSectionPayloadValidator](Courses/Validators/ModuleValidators/CreateSectionPayloadValidator.md)
+- [CreateModuleBody](Courses/Validators/ModuleValidators/CreateModuleBody.md)
+- [CreateModuleParams](Courses/Validators/ModuleValidators/CreateModuleParams.md)
+- [MoveModuleBody](Courses/Validators/ModuleValidators/MoveModuleBody.md)
+- [MoveModuleParams](Courses/Validators/ModuleValidators/MoveModuleParams.md)
+- [UpdateModuleBody](Courses/Validators/ModuleValidators/UpdateModuleBody.md)
+- [UpdateModuleParams](Courses/Validators/ModuleValidators/UpdateModuleParams.md)
 
-### Other
+### Courses/Validators/SectionValidators
 
-- [CreateParams](Other/CreateParams.md)
+- [CreateSectionBody](Courses/Validators/SectionValidators/CreateSectionBody.md)
+- [CreateSectionParams](Courses/Validators/SectionValidators/CreateSectionParams.md)
+- [MoveSectionBody](Courses/Validators/SectionValidators/MoveSectionBody.md)
+- [MoveSectionParams](Courses/Validators/SectionValidators/MoveSectionParams.md)
+- [UpdateSectionBody](Courses/Validators/SectionValidators/UpdateSectionBody.md)
+- [UpdateSectionParams](Courses/Validators/SectionValidators/UpdateSectionParams.md)
 
 ## Variables
 

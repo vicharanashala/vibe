@@ -1,4 +1,7 @@
-Defined in: [controllers/ModuleController.ts:34](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ModuleController.ts#L34)
+Defined in: [controllers/ModuleController.ts:39](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ModuleController.ts#L39)
+
+Controller for managing modules within a course version.
+Handles creation, updating, and reordering of modules.
 
 ## Constructors
 
@@ -6,7 +9,7 @@ Defined in: [controllers/ModuleController.ts:34](https://github.com/continuousac
 
 > **new ModuleController**(`courseRepo`): `ModuleController`
 
-Defined in: [controllers/ModuleController.ts:35](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ModuleController.ts#L35)
+Defined in: [controllers/ModuleController.ts:40](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ModuleController.ts#L40)
 
 #### Parameters
 
@@ -20,80 +23,109 @@ Defined in: [controllers/ModuleController.ts:35](https://github.com/continuousac
 
 ## Methods
 
-### create()
+### Courses/Controllers
 
-> **create**(`params`, `payload`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+#### create()
 
-Defined in: [controllers/ModuleController.ts:44](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ModuleController.ts#L44)
+> **create**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-#### Parameters
+Defined in: [controllers/ModuleController.ts:62](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ModuleController.ts#L62)
 
-##### params
+Create a new module under a specific course version.
 
-[`CreateParams`](../../Other/CreateParams.md)
+##### Parameters
 
-##### payload
+###### params
 
-[`CreateModulePayloadValidator`](../Validators/ModuleValidators/CreateModulePayloadValidator.md)
+[`CreateModuleParams`](../Validators/ModuleValidators/CreateModuleParams.md)
 
-#### Returns
+Route parameters including the course version ID.
+
+###### body
+
+[`CreateModuleBody`](../Validators/ModuleValidators/CreateModuleBody.md)
+
+Payload containing module name, description, etc.
+
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version with the new module.
+
+##### Throws
+
+InternalServerError on any failure during module creation.
 
 ***
 
-### move()
+#### move()
 
-> **move**(`versionId`, `moduleId`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+> **move**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/ModuleController.ts:119](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ModuleController.ts#L119)
+Defined in: [controllers/ModuleController.ts:164](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ModuleController.ts#L164)
 
-#### Parameters
+Reorder a module within its course version.
+The new position is determined using beforeModuleId or afterModuleId.
 
-##### versionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`MoveModuleParams`](../Validators/ModuleValidators/MoveModuleParams.md)
 
-`string`
+Route parameters including versionId and moduleId.
 
-##### body
+###### body
 
-###### afterModuleId?
+[`MoveModuleBody`](../Validators/ModuleValidators/MoveModuleBody.md)
 
-`string`
+Positioning details: beforeModuleId or afterModuleId.
 
-###### beforeModuleId?
-
-`string`
-
-#### Returns
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version with modules in new order.
+
+##### Throws
+
+UpdateError if neither beforeModuleId nor afterModuleId is provided.
+
+##### Throws
+
+HTTPError(500) for other internal errors.
 
 ***
 
-### update()
+#### update()
 
-> **update**(`versionId`, `moduleId`, `payload`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+> **update**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/ModuleController.ts:77](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/ModuleController.ts#L77)
+Defined in: [controllers/ModuleController.ts:108](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/ModuleController.ts#L108)
 
-#### Parameters
+Update an existing module's name or description.
 
-##### versionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`UpdateModuleParams`](../Validators/ModuleValidators/UpdateModuleParams.md)
 
-`string`
+Route parameters including versionId and moduleId.
 
-##### payload
+###### body
 
-`Partial`\<[`CreateModulePayloadValidator`](../Validators/ModuleValidators/CreateModulePayloadValidator.md)\>
+[`UpdateModuleBody`](../Validators/ModuleValidators/UpdateModuleBody.md)
 
-#### Returns
+Fields to update such as name and/or description.
+
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version.
+
+##### Throws
+
+HTTPError(404) if the module is not found.

@@ -7,6 +7,7 @@ import {
 import {ICourseVersion} from 'shared/interfaces/IUser';
 import {ID} from 'shared/types';
 import {Module} from './Module';
+import {CreateCourseVersionBody} from '../validators';
 
 /**
  * Course version data transformation.
@@ -42,11 +43,11 @@ class CourseVersion implements ICourseVersion {
   @Type(() => Date)
   updatedAt: Date;
 
-  constructor(courseVersionPayload?: ICourseVersion) {
-    if (courseVersionPayload) {
-      this.courseId = courseVersionPayload.courseId;
-      this.version = courseVersionPayload.version;
-      this.description = courseVersionPayload.description;
+  constructor(courseVersionBody?: CreateCourseVersionBody) {
+    if (courseVersionBody) {
+      this.courseId = courseVersionBody.courseId;
+      this.version = courseVersionBody.version;
+      this.description = courseVersionBody.description;
     }
     this.modules = [];
     this.createdAt = new Date();

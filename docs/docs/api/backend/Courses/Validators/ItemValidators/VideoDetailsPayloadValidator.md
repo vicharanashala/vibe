@@ -1,4 +1,6 @@
-Defined in: [classes/validators/ItemValidators.ts:29](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L29)
+Defined in: [classes/validators/ItemValidators.ts:30](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L30)
+
+Video item details for embedded video learning content.
 
 ## Implements
 
@@ -20,7 +22,9 @@ Defined in: [classes/validators/ItemValidators.ts:29](https://github.com/continu
 
 > **endTime**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:45](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L45)
+Defined in: [classes/validators/ItemValidators.ts:55](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L55)
+
+End time of the clip in HH:MM:SS format.
 
 #### Implementation of
 
@@ -32,7 +36,9 @@ Defined in: [classes/validators/ItemValidators.ts:45](https://github.com/continu
 
 > **points**: `number`
 
-Defined in: [classes/validators/ItemValidators.ts:49](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L49)
+Defined in: [classes/validators/ItemValidators.ts:62](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L62)
+
+Points assigned to the video interaction.
 
 #### Implementation of
 
@@ -44,7 +50,9 @@ Defined in: [classes/validators/ItemValidators.ts:49](https://github.com/continu
 
 > **startTime**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:39](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L39)
+Defined in: [classes/validators/ItemValidators.ts:46](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L46)
+
+Start time of the clip in HH:MM:SS format.
 
 #### Implementation of
 
@@ -56,7 +64,9 @@ Defined in: [classes/validators/ItemValidators.ts:39](https://github.com/continu
 
 > **URL**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:33](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/validators/ItemValidators.ts#L33)
+Defined in: [classes/validators/ItemValidators.ts:37](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L37)
+
+Public video URL (e.g., YouTube or Vimeo link).
 
 #### Implementation of
 

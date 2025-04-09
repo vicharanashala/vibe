@@ -6,7 +6,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
   title: "ViBe",
-  tagline: "A ViBe for everyone",
+  tagline: "Reimagining Learning, One Question at a Time",
   favicon: "img/favicon.ico",
 
   // Set the production url of your site here
@@ -20,6 +20,7 @@ const config: Config = {
   markdown: {
     mermaid: true,
   },
+
 
 
   plugins: [
@@ -93,15 +94,14 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
-
   themeConfig: {
     // Replace with your project's social card
     image: "img/docusaurus-social-card.jpg",
     navbar: {
       title: "ViBe",
       logo: {
-        alt: "ViBe Logo",
-        src: "img/logo.svg",
+        alt: "Vikram Betaal(ViBe) Logo",
+        src: "img/logo.png",
       },
       items: [
         {
@@ -116,6 +116,13 @@ const config: Config = {
           position: "right",
         },
       ],
+    },
+    algolia: {
+      appId: 'XXGSK16Q2E',
+      apiKey: '185a09fe6fdd903609d79c14183bbe32',
+      insights: true,
+      indexName: 'continuousactivelearningio',
+      contextualSearch: true,
     },
     footer: {
       style: "dark",

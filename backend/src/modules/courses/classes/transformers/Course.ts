@@ -8,6 +8,7 @@ import {
 } from 'shared/constants/transformerConstants';
 import {ICourse} from 'shared/interfaces/IUser';
 import {ID} from 'shared/types';
+import {CreateCourseBody} from '../validators';
 
 /**
  * Course data transformation.
@@ -44,10 +45,10 @@ class Course implements ICourse {
   @Type(() => Date)
   updatedAt?: Date | null;
 
-  constructor(coursePayload?: ICourse) {
-    if (coursePayload) {
-      this.name = coursePayload.name;
-      this.description = coursePayload.description;
+  constructor(courseBody?: CreateCourseBody) {
+    if (courseBody) {
+      this.name = courseBody.name;
+      this.description = courseBody.description;
     }
 
     this.versions = [];

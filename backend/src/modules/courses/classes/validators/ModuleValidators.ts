@@ -1,66 +1,111 @@
-import 'reflect-metadata';
 import {
   IsEmpty,
+  IsMongoId,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
-  IsOptional,
-  IsMongoId,
   ValidateIf,
 } from 'class-validator';
 import {IModule, ISection} from 'shared/interfaces/IUser';
 
 /**
+ * Payload for creating a new module inside a course version.
+ *
  * @category Courses/Validators/ModuleValidators
  */
 class CreateModuleBody implements IModule {
+  /**
+   * Unique module ID (auto-generated).
+   */
   @IsEmpty()
   moduleId?: string | undefined;
 
+  /**
+   * Name/title of the module.
+   * Maximum 255 characters.
+   */
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
 
+  /**
+   * Detailed description of the module.
+   * Maximum 1000 characters.
+   */
   @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
 
+  /**
+   * Order string for module placement (auto-managed).
+   */
   @IsEmpty()
   order: string;
 
+  /**
+   * Optional: Move the module after this ID.
+   */
   @IsOptional()
   @IsMongoId()
   @IsString()
   afterModuleId?: string;
 
+  /**
+   * Optional: Move the module before this ID.
+   */
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
 
+  /**
+   * Array of section objects (auto-managed).
+   */
   @IsEmpty()
   sections: ISection[];
 
+  /**
+   * Module creation timestamp (auto-managed).
+   */
   @IsEmpty()
   createdAt: Date;
 
+  /**
+   * Module update timestamp (auto-managed).
+   */
   @IsEmpty()
   updatedAt: Date;
 }
 
+/**
+ * Payload for updating an existing module.
+ * Supports partial updates.
+ *
+ * @category Courses/Validators/ModuleValidators
+ */
 class UpdateModuleBody implements Partial<IModule> {
+  /**
+   * New name of the module (optional).
+   */
   @IsOptional()
   @IsString()
   @MaxLength(255)
   name: string;
 
+  /**
+   * New description of the module (optional).
+   */
   @IsOptional()
   @IsString()
   @MaxLength(1000)
   description: string;
 
+  /**
+   * At least one of `name` or `description` must be provided.
+   */
   @ValidateIf(o => !o.name && !o.description)
   @IsNotEmpty({
     message: 'At least one of "name" or "description" must be provided',
@@ -68,17 +113,31 @@ class UpdateModuleBody implements Partial<IModule> {
   nameOrDescription: string;
 }
 
+/**
+ * Payload for moving a module within its version.
+ *
+ * @category Courses/Validators/ModuleValidators
+ */
 class MoveModuleBody {
+  /**
+   * Optional: Move the module after this ID.
+   */
   @IsOptional()
   @IsMongoId()
   @IsString()
   afterModuleId?: string;
 
+  /**
+   * Optional: Move the module before this ID.
+   */
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
 
+  /**
+   * Validation helper: at least one of afterModuleId or beforeModuleId is required.
+   */
   @ValidateIf(o => !o.afterModuleId && !o.beforeModuleId)
   @IsNotEmpty({
     message:
@@ -86,6 +145,9 @@ class MoveModuleBody {
   })
   onlyOneAllowed: string;
 
+  /**
+   * Validation helper: both afterModuleId and beforeModuleId should not be used together.
+   */
   @ValidateIf(o => o.afterModuleId && o.beforeModuleId)
   @IsNotEmpty({
     message: 'Only one of "afterModuleId" or "beforeModuleId" must be provided',
@@ -93,27 +155,57 @@ class MoveModuleBody {
   bothNotAllowed: string;
 }
 
+/**
+ * Route parameters for creating a module.
+ *
+ * @category Courses/Validators/ModuleValidators
+ */
 class CreateModuleParams {
+  /**
+   * ID of the course version to which the module will be added.
+   */
   @IsMongoId()
   @IsString()
   versionId: string;
 }
 
+/**
+ * Route parameters for updating a module.
+ *
+ * @category Courses/Validators/ModuleValidators
+ */
 class UpdateModuleParams {
+  /**
+   * ID of the course version.
+   */
   @IsMongoId()
   @IsString()
   versionId: string;
 
+  /**
+   * ID of the module to be updated.
+   */
   @IsMongoId()
   @IsString()
   moduleId: string;
 }
 
+/**
+ * Route parameters for moving a module.
+ *
+ * @category Courses/Validators/ModuleValidators
+ */
 class MoveModuleParams {
+  /**
+   * ID of the course version.
+   */
   @IsMongoId()
   @IsString()
   versionId: string;
 
+  /**
+   * ID of the module to move.
+   */
   @IsMongoId()
   @IsString()
   moduleId: string;

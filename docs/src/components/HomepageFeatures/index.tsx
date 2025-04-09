@@ -5,48 +5,47 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
+  Image: string;
   description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: 'Active Learning, Not Passive Watching',
+    Image: require('@site/static/img/home_one.png').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Online education often becomes a checkbox activity. 
+        ViBe changes that. By weaving in spontaneous comprehension checks, reflections, and interactive nudges, we ensure learners stay engaged and involved — not just present.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: 'Trust Through Gentle Proctoring',
+    Image: require('@site/static/img/home_two.png').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        We believe in trust, not surveillance. ViBe includes respectful presence verification — like subtle camera prompts, gesture-based checks, and environment control — to uphold fairness in assessments while keeping students comfortable and in control.
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: 'Guided by AI, Open to All',
+    Image: require('@site/static/img/home_three.png').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        From content creation to learner feedback, ViBe uses AI to support both educators and learners — helping create better materials, personalized checkpoints, and responsive progress tracking. 
+        And because ViBe is open-source, everyone can contribute, access, and improve it freely.
       </>
     ),
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({title, Image, description}: FeatureItem): ReactNode {
   return (
-    <div className={clsx('col col--4')}>
+    <div className={clsx('col col--4', styles.feature)}>
       <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
+        <img src={Image} className={styles.featureImg} alt={title} style={{ width: '200px', height: 'auto' }}/>
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>
@@ -61,8 +60,8 @@ export default function HomepageFeatures(): ReactNode {
     <section className={styles.features}>
       <div className="container">
         <div className="row">
-          {FeatureList.map((props, idx) => (
-            <Feature key={idx} {...props} />
+          {FeatureList.map((item, idx) => (
+            <Feature key={idx} {...item} />
           ))}
         </div>
       </div>

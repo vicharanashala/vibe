@@ -1,4 +1,7 @@
-Defined in: [controllers/SectionController.ts:26](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/SectionController.ts#L26)
+Defined in: [controllers/SectionController.ts:40](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L40)
+
+Controller for managing sections within course modules.
+Handles creation, update, and reordering of sections under modules in course versions.
 
 ## Constructors
 
@@ -6,7 +9,7 @@ Defined in: [controllers/SectionController.ts:26](https://github.com/continuousa
 
 > **new SectionController**(`courseRepo`): `SectionController`
 
-Defined in: [controllers/SectionController.ts:27](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/SectionController.ts#L27)
+Defined in: [controllers/SectionController.ts:41](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L41)
 
 #### Parameters
 
@@ -20,92 +23,109 @@ Defined in: [controllers/SectionController.ts:27](https://github.com/continuousa
 
 ## Methods
 
-### create()
+### Courses/Controllers
 
-> **create**(`versionId`, `moduleId`, `payload`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+#### create()
 
-Defined in: [controllers/SectionController.ts:37](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/SectionController.ts#L37)
+> **create**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-#### Parameters
+Defined in: [controllers/SectionController.ts:64](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L64)
 
-##### versionId
+Create a new section under a specific module within a course version.
+Automatically generates and assigns a new ItemsGroup to the section.
 
-`string`
+##### Parameters
 
-##### moduleId
+###### params
 
-`string`
+[`CreateSectionParams`](../Validators/SectionValidators/CreateSectionParams.md)
 
-##### payload
+Route parameters including versionId and moduleId.
 
-[`CreateSectionPayloadValidator`](../Validators/ModuleValidators/CreateSectionPayloadValidator.md)
+###### body
 
-#### Returns
+[`CreateSectionBody`](../Validators/SectionValidators/CreateSectionBody.md)
+
+Payload for creating the section (e.g., name, description).
+
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version containing the new section.
+
+##### Throws
+
+HTTPError(500) on internal errors.
 
 ***
 
-### move()
+#### move()
 
-> **move**(`versionId`, `moduleId`, `sectionId`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+> **move**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/SectionController.ts:136](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/SectionController.ts#L136)
+Defined in: [controllers/SectionController.ts:187](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L187)
 
-#### Parameters
+Reorder a section within its module by calculating a new order key.
 
-##### versionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`MoveSectionParams`](../Validators/SectionValidators/MoveSectionParams.md)
 
-`string`
+Route parameters including versionId, moduleId, and sectionId.
 
-##### sectionId
+###### body
 
-`string`
+[`MoveSectionBody`](../Validators/SectionValidators/MoveSectionBody.md)
 
-##### body
+Positioning details: beforeSectionId or afterSectionId.
 
-###### afterSectionId?
-
-`string`
-
-###### beforeSectionId?
-
-`string`
-
-#### Returns
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version with reordered sections.
+
+##### Throws
+
+UpdateError if neither beforeSectionId nor afterSectionId is provided.
+
+##### Throws
+
+HTTPError(500) on internal processing errors.
 
 ***
 
-### update()
+#### update()
 
-> **update**(`versionId`, `moduleId`, `sectionId`, `payload`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+> **update**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/SectionController.ts:86](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/controllers/SectionController.ts#L86)
+Defined in: [controllers/SectionController.ts:125](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L125)
 
-#### Parameters
+Update an existing section's metadata (name or description).
 
-##### versionId
+##### Parameters
 
-`string`
+###### params
 
-##### moduleId
+[`UpdateSectionParams`](../Validators/SectionValidators/UpdateSectionParams.md)
 
-`string`
+Route parameters including versionId, moduleId, and sectionId.
 
-##### sectionId
+###### body
 
-`string`
+[`UpdateSectionBody`](../Validators/SectionValidators/UpdateSectionBody.md)
 
-##### payload
+Updated fields for the section.
 
-`Partial`\<[`CreateSectionPayloadValidator`](../Validators/ModuleValidators/CreateSectionPayloadValidator.md)\>
-
-#### Returns
+##### Returns
 
 `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
+
+The updated course version with modified section.
+
+##### Throws
+
+HTTPError(500) if the section or module is not found or if update fails.

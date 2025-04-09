@@ -1,4 +1,4 @@
-Defined in: [classes/transformers/CourseVersion.ts:16](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L16)
+Defined in: [classes/transformers/CourseVersion.ts:17](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L17)
 
 Course version data transformation.
 
@@ -10,15 +10,15 @@ Course version data transformation.
 
 ### Constructor
 
-> **new CourseVersion**(`courseVersionPayload`?): `CourseVersion`
+> **new CourseVersion**(`courseVersionBody`?): `CourseVersion`
 
-Defined in: [classes/transformers/CourseVersion.ts:45](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L45)
+Defined in: [classes/transformers/CourseVersion.ts:46](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L46)
 
 #### Parameters
 
-##### courseVersionPayload?
+##### courseVersionBody?
 
-`ICourseVersion`
+[`CreateCourseVersionBody`](../Validators/CourseVersionValidators/CreateCourseVersionBody.md)
 
 #### Returns
 
@@ -30,7 +30,7 @@ Defined in: [classes/transformers/CourseVersion.ts:45](https://github.com/contin
 
 > `optional` **\_id**: `ID`
 
-Defined in: [classes/transformers/CourseVersion.ts:20](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L20)
+Defined in: [classes/transformers/CourseVersion.ts:21](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L21)
 
 #### Implementation of
 
@@ -42,7 +42,7 @@ Defined in: [classes/transformers/CourseVersion.ts:20](https://github.com/contin
 
 > **courseId**: `ID`
 
-Defined in: [classes/transformers/CourseVersion.ts:25](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L25)
+Defined in: [classes/transformers/CourseVersion.ts:26](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L26)
 
 #### Implementation of
 
@@ -54,7 +54,7 @@ Defined in: [classes/transformers/CourseVersion.ts:25](https://github.com/contin
 
 > **createdAt**: `Date`
 
-Defined in: [classes/transformers/CourseVersion.ts:39](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L39)
+Defined in: [classes/transformers/CourseVersion.ts:40](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L40)
 
 #### Implementation of
 
@@ -66,7 +66,7 @@ Defined in: [classes/transformers/CourseVersion.ts:39](https://github.com/contin
 
 > **description**: `string`
 
-Defined in: [classes/transformers/CourseVersion.ts:31](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L31)
+Defined in: [classes/transformers/CourseVersion.ts:32](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L32)
 
 #### Implementation of
 
@@ -78,7 +78,7 @@ Defined in: [classes/transformers/CourseVersion.ts:31](https://github.com/contin
 
 > **modules**: [`Module`](Module.md)[]
 
-Defined in: [classes/transformers/CourseVersion.ts:35](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L35)
+Defined in: [classes/transformers/CourseVersion.ts:36](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L36)
 
 #### Implementation of
 
@@ -90,7 +90,7 @@ Defined in: [classes/transformers/CourseVersion.ts:35](https://github.com/contin
 
 > **updatedAt**: `Date`
 
-Defined in: [classes/transformers/CourseVersion.ts:43](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L43)
+Defined in: [classes/transformers/CourseVersion.ts:44](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L44)
 
 #### Implementation of
 
@@ -102,7 +102,7 @@ Defined in: [classes/transformers/CourseVersion.ts:43](https://github.com/contin
 
 > **version**: `string`
 
-Defined in: [classes/transformers/CourseVersion.ts:28](https://github.com/continuousactivelearning/cal/blob/82a7f7bd547282a4f223f46ab6c2efe92f30e4ce/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L28)
+Defined in: [classes/transformers/CourseVersion.ts:29](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/transformers/CourseVersion.ts#L29)
 
 #### Implementation of
 

@@ -1,30 +1,33 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Global theme customization for Docusaurus with black/white base
+ * and warm amber/red tint.
  */
 
-/* You can override the default Infima variables here. */
-:root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+ :root {
+  --ifm-color-primary: #ff914d; /* soft orange / amber */
+  --ifm-color-primary-dark: #e67e36;
+  --ifm-color-primary-darker: #cc6f2f;
+  --ifm-color-primary-darkest: #b35f29;
+  --ifm-color-primary-light: #ffa263;
+  --ifm-color-primary-lighter: #ffb380;
+  --ifm-color-primary-lightest: #ffc499;
+
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.05);
+
+  /* Optional: Global fonts or overrides */
+  /* --ifm-font-family-base: 'Inter', sans-serif; */
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* Dark mode: invert the base, preserve warm highlight */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #ff9e63; /* slightly brighter in dark */
+  --ifm-color-primary-dark: #ff8a3d;
+  --ifm-color-primary-darker: #e6732b;
+  --ifm-color-primary-darkest: #cc5c1a;
+  --ifm-color-primary-light: #ffb17d;
+  --ifm-color-primary-lighter: #ffc69c;
+  --ifm-color-primary-lightest: #ffd7b8;
+
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.05);
 }

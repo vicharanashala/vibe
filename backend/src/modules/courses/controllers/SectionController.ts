@@ -25,9 +25,16 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
 /**
+ * Controller for managing sections within course modules.
+ * Handles creation, update, and reordering of sections under modules in course versions.
  *
  * @category Courses/Controllers
+ * @categoryDescription
+ * Provides endpoints for managing "sections" in a module,
+ * including creating sections, updating section metadata,
+ * and adjusting section order within a module.
  */
+
 @JsonController()
 @Service()
 export class SectionController {
@@ -38,6 +45,19 @@ export class SectionController {
       throw new Error('CourseRepository is not properly injected');
     }
   }
+
+  /**
+   * Create a new section under a specific module within a course version.
+   * Automatically generates and assigns a new ItemsGroup to the section.
+   *
+   * @param params - Route parameters including versionId and moduleId.
+   * @param body - Payload for creating the section (e.g., name, description).
+   * @returns The updated course version containing the new section.
+   *
+   * @throws HTTPError(500) on internal errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections')
@@ -88,6 +108,18 @@ export class SectionController {
     }
   }
 
+  /**
+   * Update an existing section's metadata (name or description).
+   *
+   * @param params - Route parameters including versionId, moduleId, and sectionId.
+   * @param body - Updated fields for the section.
+   * @returns The updated course version with modified section.
+   *
+   * @throws HTTPError(500) if the section or module is not found or if update fails.
+   *
+   * @category Courses/Controllers
+   */
+
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   async update(
@@ -136,6 +168,19 @@ export class SectionController {
       }
     }
   }
+
+  /**
+   * Reorder a section within its module by calculating a new order key.
+   *
+   * @param params - Route parameters including versionId, moduleId, and sectionId.
+   * @param body - Positioning details: beforeSectionId or afterSectionId.
+   * @returns The updated course version with reordered sections.
+   *
+   * @throws UpdateError if neither beforeSectionId nor afterSectionId is provided.
+   * @throws HTTPError(500) on internal processing errors.
+   *
+   * @category Courses/Controllers
+   */
 
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
