@@ -1,4 +1,4 @@
-Defined in: [controllers/CourseVersionController.ts:34](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/CourseVersionController.ts#L34)
+Defined in: [controllers/CourseVersionController.ts:34](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseVersionController.ts#L34)
 
 Controller for handling course version operations like creation and retrieval.
 All routes are prefixed with `/courses`.
@@ -9,7 +9,7 @@ All routes are prefixed with `/courses`.
 
 > **new CourseVersionController**(`courseRepo`): `CourseVersionController`
 
-Defined in: [controllers/CourseVersionController.ts:35](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/CourseVersionController.ts#L35)
+Defined in: [controllers/CourseVersionController.ts:35](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseVersionController.ts#L35)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [controllers/CourseVersionController.ts:35](https://github.com/saara
 
 > **create**(`params`, `body`): `Promise`\<\{ `course`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/CourseVersionController.ts:53](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/CourseVersionController.ts#L53)
+Defined in: [controllers/CourseVersionController.ts:53](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseVersionController.ts#L53)
 
 Create a new version for a specific course.
 
@@ -67,7 +67,7 @@ HttpError(500) on any other internal error
 
 > **read**(`params`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [controllers/CourseVersionController.ts:104](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/CourseVersionController.ts#L104)
+Defined in: [controllers/CourseVersionController.ts:100](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/CourseVersionController.ts#L100)
 
 Retrieve a course version by its ID.
 

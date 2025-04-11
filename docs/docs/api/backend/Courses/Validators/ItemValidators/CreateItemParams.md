@@ -1,4 +1,4 @@
-Defined in: [classes/validators/ItemValidators.ts:387](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L387)
+Defined in: [classes/validators/ItemValidators.ts:387](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L387)
 
 Route parameters for creating a new item.
 
@@ -18,7 +18,7 @@ Route parameters for creating a new item.
 
 > **moduleId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:396](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L396)
+Defined in: [classes/validators/ItemValidators.ts:396](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L396)
 
 Module ID inside the version
 
@@ -28,7 +28,7 @@ Module ID inside the version
 
 > **sectionId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:401](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L401)
+Defined in: [classes/validators/ItemValidators.ts:401](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L401)
 
 Section ID inside the module
 
@@ -38,6 +38,6 @@ Section ID inside the module
 
 > **versionId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:391](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L391)
+Defined in: [classes/validators/ItemValidators.ts:391](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L391)
 
 Version ID of the course

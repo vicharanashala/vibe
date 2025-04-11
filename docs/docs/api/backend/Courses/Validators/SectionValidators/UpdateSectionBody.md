@@ -1,4 +1,4 @@
-Defined in: [classes/validators/SectionValidators.ts:90](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/SectionValidators.ts#L90)
+Defined in: [classes/validators/SectionValidators.ts:90](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/SectionValidators.ts#L90)
 
 Payload for updating a section.
 Allows partial updates to name or description.
@@ -23,7 +23,7 @@ Allows partial updates to name or description.
 
 > **description**: `string`
 
-Defined in: [classes/validators/SectionValidators.ts:105](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/SectionValidators.ts#L105)
+Defined in: [classes/validators/SectionValidators.ts:105](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/SectionValidators.ts#L105)
 
 New description of the section (optional).
 
@@ -37,7 +37,7 @@ New description of the section (optional).
 
 > **name**: `string`
 
-Defined in: [classes/validators/SectionValidators.ts:97](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/SectionValidators.ts#L97)
+Defined in: [classes/validators/SectionValidators.ts:97](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/SectionValidators.ts#L97)
 
 New name of the section (optional).
 
@@ -51,6 +51,6 @@ New name of the section (optional).
 
 > **nameOrDescription**: `string`
 
-Defined in: [classes/validators/SectionValidators.ts:114](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/SectionValidators.ts#L114)
+Defined in: [classes/validators/SectionValidators.ts:114](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/SectionValidators.ts#L114)
 
 At least one of name or description must be provided.
