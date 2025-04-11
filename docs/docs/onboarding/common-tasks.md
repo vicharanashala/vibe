@@ -146,21 +146,6 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    - Create unit tests for your service
    - Create integration tests for your API endpoint
 
-### Working with Database
-
-1. **Create or update model**
-   - Define your data model
-   - Add relationships to other models
-
-2. **Create migration if needed**
-   - Generate migration file
-   - Define up and down methods
-
-3. **Run migrations**
-   ```bash
-   pnpm run migration:run
-   ```
-
 ## Documentation Tasks
 
 ### Updating Existing Documentation
