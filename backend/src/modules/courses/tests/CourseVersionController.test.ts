@@ -88,7 +88,8 @@ describe('Course Version Controller Integration Tests', () => {
         };
 
         // log the endpoint to request to
-        const endPoint = '/courses/123/versions';
+        //endpoint id should be a valid mongoId.
+        const endPoint = '/courses/5f9b1b3c9d1f1f1f1f1f1f1f/versions';
         const versionResponse = await request(app)
           .post(endPoint)
           .send(courseVersionPayload)
