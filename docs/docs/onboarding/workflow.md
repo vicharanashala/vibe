@@ -57,7 +57,7 @@ Be prepared to share:
 
 ### Weekly Check-ins
 
-We schedule weekly one-on-one meetings to:
+We schedule weekly meetings to:
 - Review your progress
 - Provide feedback
 - Address any concerns
@@ -87,6 +87,6 @@ A: Notify a maintainer and ask for the next priority task, or take initiative on
 A: We encourage questions! Try to solve problems independently first, but don't spend more than 30-60 minutes stuck before asking for guidance.
 
 **Q: How do I contribute to documentation?**  
-A: As you learn and solve problems, consider documenting your solutions in our wiki or creating PRs to update our official documentation.
+A: As you learn and solve problems, consider creating PRs to update our official documentation.
 
 Remember, the goal of your internship is both to contribute valuable work and to learn. We're here to support your growth as a developer!

@@ -45,7 +45,7 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    - Write tests for different states and props
 
 5. **Document your component**
-   - Add JSDoc comments
+   - Add TSDoc comments
    - Create usage examples if complex
 
 ### Adding a New Page
@@ -84,17 +84,27 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    - Determine which module your endpoint belongs to
    - If it's a new feature, consider creating a new module
 
-2. **Create DTO (Data Transfer Object)**
+2. **Create input types**
    ```typescript
-   // src/modules/your-module/classes/your-dto.ts
+   // src/modules/your-module/classes/your-input-types.ts
    import { IsString, IsNotEmpty } from 'class-validator';
    
-   export class YourRequestDto {
+   export class CreateYourResourceBody {
      @IsString()
      @IsNotEmpty()
      name: string;
      
      // Add other properties with validation
+   }
+   
+   // For query parameters
+   export class GetYourResourceQueryParams {
+     // Query params properties
+   }
+   
+   // For route parameters
+   export class GetYourResourceParams {
+     // Route params properties
    }
    ```
 
@@ -103,7 +113,7 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    // src/modules/your-module/controllers/your-controller.ts
    import { Controller, Post, Body } from 'routing-controllers';
    import { Service } from 'typedi';
-   import { YourRequestDto } from '../classes/your-dto';
+   import { CreateYourResourceBody } from '../classes/your-input-types';
    
    @Controller('/your-endpoint')
    @Service()
@@ -111,8 +121,8 @@ This document provides step-by-step guides for common tasks you'll encounter as 
      constructor(private yourService: YourService) {}
      
      @Post('/')
-     async createSomething(@Body() data: YourRequestDto) {
-       return this.yourService.createSomething(data);
+     async createSomething(@Body() body: CreateYourResourceBody) {
+       return this.yourService.createSomething(body);
      }
    }
    ```
@@ -121,13 +131,13 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    ```typescript
    // src/modules/your-module/services/your-service.ts
    import { Service } from 'typedi';
-   import { YourRequestDto } from '../classes/your-dto';
+   import { CreateYourResourceBody } from '../classes/your-input-types';
    
    @Service()
    export class YourService {
-     async createSomething(data: YourRequestDto) {
+     async createSomething(body: CreateYourResourceBody) {
        // Implementation
-       return { success: true, data };
+       return { success: true, data: body };
      }
    }
    ```

@@ -177,6 +177,47 @@ class UserController {
 }
 ```
 
+### class-transformer & class-validator
+
+**What it is:** class-transformer is a library for transforming plain objects to class instances and vice versa. class-validator provides decorators for validating class properties.
+
+**How we use it:** We use these libraries to validate incoming request data and transform between DTOs and domain models, ensuring type safety and data integrity.
+
+**Learning Resources:**
+- [class-transformer GitHub](https://github.com/typestack/class-transformer)
+- [class-validator GitHub](https://github.com/typestack/class-validator)
+- [class-validator Documentation](https://github.com/typestack/class-validator#table-of-contents)
+
+**Quick Start:**
+```typescript
+import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import { Expose, Transform } from 'class-transformer';
+
+export class CreateUserDto {
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+  
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
+  
+  @Expose({ name: 'firstName' })
+  @IsNotEmpty()
+  first_name: string;
+  
+  @Transform(({ value }) => value.trim())
+  bio?: string;
+}
+
+// In controller using routing-controllers
+@Post('/')
+async createUser(@Body({ validate: true }) user: CreateUserDto) {
+  // Body is automatically validated and transformed
+  return this.userService.create(user);
+}
+```
+
 ### Express.js
 
 **What it is:** A minimal and flexible Node.js web application framework that provides robust features for web and mobile applications.
