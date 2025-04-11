@@ -1,4 +1,4 @@
-Defined in: [classes/validators/ItemValidators.ts:239](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L239)
+Defined in: [classes/validators/ItemValidators.ts:239](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L239)
 
 Body for updating an item.
 Allows partial updates to name, description, and details.
@@ -23,7 +23,7 @@ Allows partial updates to name, description, and details.
 
 > `optional` **\_id**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:244](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L244)
+Defined in: [classes/validators/ItemValidators.ts:244](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L244)
 
 MongoDB ID of the item (auto-managed).
 
@@ -33,7 +33,7 @@ MongoDB ID of the item (auto-managed).
 
 > `optional` **afterItemId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:303](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L303)
+Defined in: [classes/validators/ItemValidators.ts:303](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L303)
 
 Optional: reorder after this item.
 
@@ -43,7 +43,7 @@ Optional: reorder after this item.
 
 > `optional` **beforeItemId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:311](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L311)
+Defined in: [classes/validators/ItemValidators.ts:311](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L311)
 
 Optional: reorder before this item.
 
@@ -53,7 +53,7 @@ Optional: reorder before this item.
 
 > `optional` **blogDetails**: [`BlogDetailsPayloadValidator`](BlogDetailsPayloadValidator.md)
 
-Defined in: [classes/validators/ItemValidators.ts:329](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L329)
+Defined in: [classes/validators/ItemValidators.ts:329](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L329)
 
 Updated blog details (if type is BLOG).
 
@@ -63,7 +63,7 @@ Updated blog details (if type is BLOG).
 
 > **createdAt**: `Date`
 
-Defined in: [classes/validators/ItemValidators.ts:282](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L282)
+Defined in: [classes/validators/ItemValidators.ts:282](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L282)
 
 Created at timestamp (auto-managed).
 
@@ -73,7 +73,7 @@ Created at timestamp (auto-managed).
 
 > **description**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:258](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L258)
+Defined in: [classes/validators/ItemValidators.ts:258](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L258)
 
 Updated description (optional).
 
@@ -87,7 +87,7 @@ Updated description (optional).
 
 > **itemDetails**: `IVideoDetails` \| `IQuizDetails` \| `IBlogDetails`
 
-Defined in: [classes/validators/ItemValidators.ts:276](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L276)
+Defined in: [classes/validators/ItemValidators.ts:276](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L276)
 
 Item details (auto-managed).
 
@@ -101,7 +101,7 @@ Item details (auto-managed).
 
 > **name**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:251](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L251)
+Defined in: [classes/validators/ItemValidators.ts:251](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L251)
 
 Updated name (optional).
 
@@ -115,7 +115,7 @@ Updated name (optional).
 
 > **order**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:270](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L270)
+Defined in: [classes/validators/ItemValidators.ts:270](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L270)
 
 Order (auto-managed).
 
@@ -129,7 +129,7 @@ Order (auto-managed).
 
 > `optional` **quizDetails**: [`QuizDetailsPayloadValidator`](QuizDetailsPayloadValidator.md)
 
-Defined in: [classes/validators/ItemValidators.ts:338](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L338)
+Defined in: [classes/validators/ItemValidators.ts:338](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L338)
 
 Updated quiz details (if type is QUIZ).
 
@@ -139,7 +139,7 @@ Updated quiz details (if type is QUIZ).
 
 > **sectionId**: `string`
 
-Defined in: [classes/validators/ItemValidators.ts:264](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L264)
+Defined in: [classes/validators/ItemValidators.ts:264](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L264)
 
 Section ID (auto-managed).
 
@@ -149,7 +149,7 @@ Section ID (auto-managed).
 
 > **type**: `ItemType`
 
-Defined in: [classes/validators/ItemValidators.ts:295](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L295)
+Defined in: [classes/validators/ItemValidators.ts:295](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L295)
 
 Updated type, if changing item category.
 
@@ -163,7 +163,7 @@ Updated type, if changing item category.
 
 > **updatedAt**: `Date`
 
-Defined in: [classes/validators/ItemValidators.ts:288](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L288)
+Defined in: [classes/validators/ItemValidators.ts:288](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L288)
 
 Updated at timestamp (auto-managed).
 
@@ -173,6 +173,6 @@ Updated at timestamp (auto-managed).
 
 > `optional` **videoDetails**: [`VideoDetailsPayloadValidator`](VideoDetailsPayloadValidator.md)
 
-Defined in: [classes/validators/ItemValidators.ts:320](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/classes/validators/ItemValidators.ts#L320)
+Defined in: [classes/validators/ItemValidators.ts:320](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/classes/validators/ItemValidators.ts#L320)
 
 Updated video details (if type is VIDEO).

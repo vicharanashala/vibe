@@ -1,4 +1,4 @@
-Defined in: [controllers/SectionController.ts:40](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L40)
+Defined in: [controllers/SectionController.ts:40](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/SectionController.ts#L40)
 
 Controller for managing sections within course modules.
 Handles creation, update, and reordering of sections under modules in course versions.
@@ -9,7 +9,7 @@ Handles creation, update, and reordering of sections under modules in course ver
 
 > **new SectionController**(`courseRepo`): `SectionController`
 
-Defined in: [controllers/SectionController.ts:41](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L41)
+Defined in: [controllers/SectionController.ts:41](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/SectionController.ts#L41)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [controllers/SectionController.ts:41](https://github.com/continuousa
 
 > **create**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/SectionController.ts:64](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L64)
+Defined in: [controllers/SectionController.ts:64](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/SectionController.ts#L64)
 
 Create a new section under a specific module within a course version.
 Automatically generates and assigns a new ItemsGroup to the section.
@@ -64,7 +64,7 @@ HTTPError(500) on internal errors.
 
 > **move**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/SectionController.ts:187](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L187)
+Defined in: [controllers/SectionController.ts:187](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/SectionController.ts#L187)
 
 Reorder a section within its module by calculating a new order key.
 
@@ -102,7 +102,7 @@ HTTPError(500) on internal processing errors.
 
 > **update**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [controllers/SectionController.ts:125](https://github.com/continuousactivelearning/vibe/blob/dbf557f2b5c1ec47c296f0289b3a6f789bb5efa2/backend/src/modules/courses/controllers/SectionController.ts#L125)
+Defined in: [controllers/SectionController.ts:125](https://github.com/saaranshgarg1/vibe/blob/67a31fca9c5546ea9aafedb5fb5b41a5b80e1d53/backend/src/modules/courses/controllers/SectionController.ts#L125)
 
 Update an existing section's metadata (name or description).
 
