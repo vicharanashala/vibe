@@ -13,8 +13,8 @@ This guide outlines the day-to-day workflow and expectations for interns at ViBe
    - Follow the [Installation Guide](../getting-started/intro.md)
    - Make sure all tools and dependencies are properly installed
    
-2. **Introduce yourself in Github Discussions**
-    - Introduce yourself in [#introduction](https://github.com/continuousactivelearning/vibe/discussions/249) on github discussions.
+2. **Introduce yourself in GitHub Discussions**
+    - Introduce yourself in [#introduction](https://github.com/continuousactivelearning/vibe/discussions/249) on GitHub discussions.
    
 4. **Review documentation**
    - Read through this onboarding documentation
