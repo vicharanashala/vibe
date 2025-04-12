@@ -177,7 +177,7 @@ class UserController {
 }
 ```
 
-### class-transformer & class-validator
+### DTOs
 
 **What it is:** class-transformer is a library for transforming plain objects to class instances and vice versa. class-validator provides decorators for validating class properties.
 

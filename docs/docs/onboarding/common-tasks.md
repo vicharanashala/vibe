@@ -17,8 +17,7 @@ This document provides step-by-step guides for common tasks you'll encounter as 
 
 2. **Create component file**
    ```bash
-   mkdir -p src/components/YourComponent
-   touch src/components/YourComponent/index.tsx
+   touch src/components/ui/index.tsx
    ```
 
 3. **Implement the component**
@@ -40,11 +39,7 @@ This document provides step-by-step guides for common tasks you'll encounter as 
    }
    ```
 
-4. **Test your component**
-   - Create test file: `src/components/YourComponent/YourComponent.test.tsx`
-   - Write tests for different states and props
-
-5. **Document your component**
+4. **Document your component**
    - Add TSDoc comments
    - Create usage examples if complex
 
