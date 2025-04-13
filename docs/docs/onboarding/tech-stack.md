@@ -177,7 +177,7 @@ class UserController {
 }
 ```
 
-### DTOs
+### DTOs, Class Transformers and Class Validators
 
 **What it is:** class-transformer is a library for transforming plain objects to class instances and vice versa. class-validator provides decorators for validating class properties.
 
@@ -193,7 +193,7 @@ class UserController {
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import { Expose, Transform } from 'class-transformer';
 
-export class CreateUserDto {
+export class CreateUser {
   @IsNotEmpty()
   @IsEmail()
   email: string;
@@ -212,7 +212,7 @@ export class CreateUserDto {
 
 // In controller using routing-controllers
 @Post('/')
-async createUser(@Body({ validate: true }) user: CreateUserDto) {
+async createUser(@Body({ validate: true }) user: CreateUser) {
   // Body is automatically validated and transformed
   return this.userService.create(user);
 }
