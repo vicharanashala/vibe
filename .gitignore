@@ -54,3 +54,5 @@ node_modules/
 .sentryclirc
 .sentryclirc.local
 .vibe.json
+
+.venv
