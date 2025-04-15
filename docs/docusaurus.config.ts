@@ -32,6 +32,7 @@ const config: Config = {
         hidePageTitle: true,
         entryPoints: [
           "../backend/src/modules/courses/index.ts",
+          "../backend/src/modules/auth/index.ts",
         ],
         entryFileName:"Backend.md",
         entryPointStrategy: "expand",
@@ -71,7 +72,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/",
+            "https://github.com/continuousactivelearning/vibe/edit/main/docs/",
         },
         blog: {
           showReadingTime: true,

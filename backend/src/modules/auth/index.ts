@@ -60,3 +60,8 @@ export const authModuleOptions: RoutingControllersOptions = {
     }
   },
 };
+
+export * from './classes/validators/index';
+export * from './controllers/index';
+export * from './interfaces/index';
+export * from './services/index';
