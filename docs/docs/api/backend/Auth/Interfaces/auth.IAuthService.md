@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:26](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/interfaces/IAuthService.ts#L26)
+Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:26](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/interfaces/IAuthService.ts#L26)
 
 Interface representing the authentication service.
 Defines the contract that any authentication service implementation
@@ -10,7 +10,7 @@ must fulfill, regardless of the underlying authentication provider.
 
 > **changePassword**(`body`, `requestUser`): `Promise`\<\{ `message`: `string`; `success`: `boolean`; \}\>
 
-Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:59](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/interfaces/IAuthService.ts#L59)
+Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:59](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/interfaces/IAuthService.ts#L59)
 
 Changes the password for an authenticated user.
 Validates that the new password meets requirements and updates
@@ -46,7 +46,7 @@ Error - If password change fails or validation errors occur
 
 > **signup**(`body`): `Promise`\<`IUser`\>
 
-Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:37](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/interfaces/IAuthService.ts#L37)
+Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:37](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/interfaces/IAuthService.ts#L37)
 
 Signs up a new user in the system.
 Creates a new user account with the provided credentials and
@@ -77,7 +77,7 @@ Error - If user creation fails for any reason
 
 > **verifyToken**(`token`): `Promise`\<`IUser`\>
 
-Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:47](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/interfaces/IAuthService.ts#L47)
+Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:47](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/interfaces/IAuthService.ts#L47)
 
 Verifies the validity of an authentication token.
 Decodes the token and retrieves the associated user information.

@@ -73,7 +73,6 @@ export interface IAuthService {
  * The `authorizationChecker` function configured in Routing Controllers Options
  * from the `routing-controllers` package populates the `user` property.
  *
- * @category Auth/Interfaces
  */
 export interface AuthenticatedRequest extends Request {
   /**

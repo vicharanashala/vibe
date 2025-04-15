@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:431](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L431)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:431](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L431)
 
 Route parameters for updating a specific item.
 
@@ -18,7 +18,7 @@ Route parameters for updating a specific item.
 
 > **itemId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:450](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L450)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:450](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L450)
 
 Target item ID to update
 
@@ -28,7 +28,7 @@ Target item ID to update
 
 > **moduleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:440](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L440)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:440](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L440)
 
 Module ID inside the version
 
@@ -38,7 +38,7 @@ Module ID inside the version
 
 > **sectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:445](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L445)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:445](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L445)
 
 Section ID inside the module
 
@@ -48,6 +48,6 @@ Section ID inside the module
 
 > **versionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:435](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L435)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:435](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L435)
 
 Version ID of the course

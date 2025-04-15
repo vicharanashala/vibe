@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:18](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L18)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:18](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L18)
 
 Payload for creating a section inside a module.
 
@@ -22,7 +22,7 @@ Payload for creating a section inside a module.
 
 > `optional` **afterSectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:55](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L55)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:55](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L55)
 
 Optional: place the section after this section ID.
 
@@ -32,7 +32,7 @@ Optional: place the section after this section ID.
 
 > `optional` **beforeSectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:63](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L63)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:63](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L63)
 
 Optional: place the section before this section ID.
 
@@ -42,7 +42,7 @@ Optional: place the section before this section ID.
 
 > **createdAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:75](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L75)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:75](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L75)
 
 Creation timestamp (auto-managed).
 
@@ -56,7 +56,7 @@ Creation timestamp (auto-managed).
 
 > **description**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:41](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L41)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:41](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L41)
 
 Description or purpose of the section.
 Maximum 1000 characters.
@@ -71,7 +71,7 @@ Maximum 1000 characters.
 
 > `optional` **itemsGroupId**: `ID`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:69](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L69)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:69](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L69)
 
 ItemsGroup ID associated with this section (auto-managed).
 
@@ -85,7 +85,7 @@ ItemsGroup ID associated with this section (auto-managed).
 
 > **name**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:32](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L32)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:32](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L32)
 
 Name/title of the section.
 Maximum 255 characters.
@@ -100,7 +100,7 @@ Maximum 255 characters.
 
 > **order**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:47](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L47)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:47](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L47)
 
 Order string for section placement (auto-managed).
 
@@ -114,7 +114,7 @@ Order string for section placement (auto-managed).
 
 > `optional` **sectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:23](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L23)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:23](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L23)
 
 Unique section ID (auto-generated).
 
@@ -128,7 +128,7 @@ Unique section ID (auto-generated).
 
 > **updatedAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:81](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/SectionValidators.ts#L81)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:81](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L81)
 
 Last updated timestamp (auto-managed).
 

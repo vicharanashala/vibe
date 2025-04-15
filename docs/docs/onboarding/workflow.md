@@ -36,7 +36,7 @@ Be prepared to share:
    - Description of the feature or bug fix
    - Due date (if applicable)
 3. If you want to work on a particular Issue, comment on it. Soon, one of the managers of the repository will assign you the issue if he/she deems fit. 
-4. Further, see [Contributing](../contributing/) to learn how to properly contribute to the project.
+4. Further, see [Contributing](../category/contributing/) to learn how to properly contribute to the project.
 
 ### Code Review Process
 

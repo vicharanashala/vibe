@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/controllers/CourseController.ts:40](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/controllers/CourseController.ts#L40)
+Defined in: [backend/src/modules/courses/controllers/CourseController.ts:40](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseController.ts#L40)
 
 Controller for managing courses.
 Handles API endpoints related to course creation, reading, and updating.
@@ -11,7 +11,7 @@ endpoints under the `/courses` route.
 
 > **new CourseController**(`courseRepo`): `CourseController`
 
-Defined in: [backend/src/modules/courses/controllers/CourseController.ts:41](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/controllers/CourseController.ts#L41)
+Defined in: [backend/src/modules/courses/controllers/CourseController.ts:41](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseController.ts#L41)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [backend/src/modules/courses/controllers/CourseController.ts:41](htt
 
 > **create**(`body`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [backend/src/modules/courses/controllers/CourseController.ts:54](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/controllers/CourseController.ts#L54)
+Defined in: [backend/src/modules/courses/controllers/CourseController.ts:54](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseController.ts#L54)
 
 Create a new course.
 
@@ -57,7 +57,7 @@ HttpError - If the course creation fails.
 
 > **read**(`params`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [backend/src/modules/courses/controllers/CourseController.ts:73](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/controllers/CourseController.ts#L73)
+Defined in: [backend/src/modules/courses/controllers/CourseController.ts:73](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseController.ts#L73)
 
 Retrieve a course by its ID.
 
@@ -85,7 +85,7 @@ HttpError - If the course is not found or if an error occurs.
 
 > **update**(`params`, `body`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [backend/src/modules/courses/controllers/CourseController.ts:96](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/controllers/CourseController.ts#L96)
+Defined in: [backend/src/modules/courses/controllers/CourseController.ts:96](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseController.ts#L96)
 
 Update a course by ID.
 

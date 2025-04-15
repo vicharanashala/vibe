@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/auth/services/FirebaseAuthService.ts:28](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/services/FirebaseAuthService.ts#L28)
+Defined in: [backend/src/modules/auth/services/FirebaseAuthService.ts:28](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/services/FirebaseAuthService.ts#L28)
 
 Custom error thrown during password change operations.
 
@@ -12,7 +12,7 @@ Custom error thrown during password change operations.
 
 > **new ChangePasswordError**(`message`): `ChangePasswordError`
 
-Defined in: [backend/src/modules/auth/services/FirebaseAuthService.ts:34](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/services/FirebaseAuthService.ts#L34)
+Defined in: [backend/src/modules/auth/services/FirebaseAuthService.ts:34](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/services/FirebaseAuthService.ts#L34)
 
 Creates a new ChangePasswordError instance.
 

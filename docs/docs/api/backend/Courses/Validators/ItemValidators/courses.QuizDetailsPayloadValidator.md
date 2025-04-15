@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:70](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L70)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:70](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L70)
 
 Quiz item details for scheduled quiz-based evaluation.
 
@@ -22,7 +22,7 @@ Quiz item details for scheduled quiz-based evaluation.
 
 > **deadline**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:96](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L96)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:96](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L96)
 
 ISO date string for quiz deadline.
 
@@ -36,7 +36,7 @@ ISO date string for quiz deadline.
 
 > **questions**: `string`[]
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:89](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L89)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:89](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L89)
 
 List of quiz question IDs (auto-managed).
 
@@ -50,7 +50,7 @@ List of quiz question IDs (auto-managed).
 
 > **questionVisibility**: `number`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:76](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L76)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:76](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L76)
 
 Number of quiz questions visible to students.
 
@@ -64,7 +64,7 @@ Number of quiz questions visible to students.
 
 > **releaseTime**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:83](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ItemValidators.ts#L83)
+Defined in: [backend/src/modules/courses/classes/validators/ItemValidators.ts:83](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ItemValidators.ts#L83)
 
 ISO date string representing quiz release time.
 

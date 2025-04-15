@@ -21,7 +21,6 @@
 
 ### Auth/Interfaces
 
-- [AuthenticatedRequest](../Auth/Interfaces/auth.AuthenticatedRequest.md)
 - [IAuthService](../Auth/Interfaces/auth.IAuthService.md)
 
 ## Variables

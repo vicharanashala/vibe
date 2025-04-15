@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:121](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L121)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:121](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L121)
 
 Payload for moving a module within its version.
 
@@ -18,7 +18,7 @@ Payload for moving a module within its version.
 
 > `optional` **afterModuleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:128](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L128)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:128](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L128)
 
 Optional: Move the module after this ID.
 
@@ -28,7 +28,7 @@ Optional: Move the module after this ID.
 
 > `optional` **beforeModuleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:136](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L136)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:136](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L136)
 
 Optional: Move the module before this ID.
 
@@ -38,7 +38,7 @@ Optional: Move the module before this ID.
 
 > **bothNotAllowed**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:155](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L155)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:155](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L155)
 
 Validation helper: both afterModuleId and beforeModuleId should not be used together.
 
@@ -48,6 +48,6 @@ Validation helper: both afterModuleId and beforeModuleId should not be used toge
 
 > **onlyOneAllowed**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:146](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L146)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:146](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L146)
 
 Validation helper: at least one of afterModuleId or beforeModuleId is required.

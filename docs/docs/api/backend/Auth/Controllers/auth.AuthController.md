@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/auth/controllers/AuthController.ts:36](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/controllers/AuthController.ts#L36)
+Defined in: [backend/src/modules/auth/controllers/AuthController.ts:36](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/controllers/AuthController.ts#L36)
 
 Controller that handles all authentication-related HTTP endpoints.
 Exposes routes for user registration, password management, and token verification.
@@ -9,7 +9,7 @@ Exposes routes for user registration, password management, and token verificatio
 
 > **new AuthController**(`authService`): `AuthController`
 
-Defined in: [backend/src/modules/auth/controllers/AuthController.ts:43](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/controllers/AuthController.ts#L43)
+Defined in: [backend/src/modules/auth/controllers/AuthController.ts:43](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/controllers/AuthController.ts#L43)
 
 Creates a new instance of the AuthController.
 Uses dependency injection to receive an implementation of IAuthService.
@@ -32,7 +32,7 @@ The authentication service implementation to use
 
 > **changePassword**(`body`, `request`): `Promise`\<\{ `message`: `string`; `success`: `boolean`; \}\>
 
-Defined in: [backend/src/modules/auth/controllers/AuthController.ts:73](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/controllers/AuthController.ts#L73)
+Defined in: [backend/src/modules/auth/controllers/AuthController.ts:73](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/controllers/AuthController.ts#L73)
 
 Handles requests to change a user's password.
 Only accessible to authenticated users with admin, teacher, or student roles.
@@ -47,7 +47,7 @@ Contains the new password and confirmation password
 
 ##### request
 
-[`AuthenticatedRequest`](../Interfaces/auth.AuthenticatedRequest.md)
+`AuthenticatedRequest`
 
 The authenticated HTTP request containing the current user
 
@@ -71,7 +71,7 @@ HttpError(500) - If an unexpected server error occurs
 
 > **signup**(`body`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [backend/src/modules/auth/controllers/AuthController.ts:56](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/controllers/AuthController.ts#L56)
+Defined in: [backend/src/modules/auth/controllers/AuthController.ts:56](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/controllers/AuthController.ts#L56)
 
 Handles user signup/registration requests.
 Creates new user accounts using the provided credentials.
@@ -100,7 +100,7 @@ HttpError - If user creation fails for any reason
 
 > **verifyToken**(): `Promise`\<\{ `message`: `string`; \}\>
 
-Defined in: [backend/src/modules/auth/controllers/AuthController.ts:102](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/auth/controllers/AuthController.ts#L102)
+Defined in: [backend/src/modules/auth/controllers/AuthController.ts:102](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/controllers/AuthController.ts#L102)
 
 Verifies if the user's authentication token is valid.
 This endpoint is restricted to admin users only.

@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:17](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L17)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:17](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L17)
 
 Payload for creating a new module inside a course version.
 
@@ -22,7 +22,7 @@ Payload for creating a new module inside a course version.
 
 > `optional` **afterModuleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:54](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L54)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:54](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L54)
 
 Optional: Move the module after this ID.
 
@@ -32,7 +32,7 @@ Optional: Move the module after this ID.
 
 > `optional` **beforeModuleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:62](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L62)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:62](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L62)
 
 Optional: Move the module before this ID.
 
@@ -42,7 +42,7 @@ Optional: Move the module before this ID.
 
 > **createdAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:74](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L74)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:74](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L74)
 
 Module creation timestamp (auto-managed).
 
@@ -56,7 +56,7 @@ Module creation timestamp (auto-managed).
 
 > **description**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:40](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L40)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:40](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L40)
 
 Detailed description of the module.
 Maximum 1000 characters.
@@ -71,7 +71,7 @@ Maximum 1000 characters.
 
 > `optional` **moduleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:22](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L22)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:22](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L22)
 
 Unique module ID (auto-generated).
 
@@ -85,7 +85,7 @@ Unique module ID (auto-generated).
 
 > **name**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:31](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L31)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:31](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L31)
 
 Name/title of the module.
 Maximum 255 characters.
@@ -100,7 +100,7 @@ Maximum 255 characters.
 
 > **order**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:46](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L46)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:46](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L46)
 
 Order string for module placement (auto-managed).
 
@@ -114,7 +114,7 @@ Order string for module placement (auto-managed).
 
 > **sections**: `ISection`[]
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:68](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L68)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:68](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L68)
 
 Array of section objects (auto-managed).
 
@@ -128,7 +128,7 @@ Array of section objects (auto-managed).
 
 > **updatedAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:80](https://github.com/continuousactivelearning/vibe/blob/4a4fd41682dd9274e95c74d5ff310441c462b96e/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L80)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:80](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L80)
 
 Module update timestamp (auto-managed).
 
