@@ -60,15 +60,19 @@ class Item implements IBaseItem {
       }
     }
     this.itemId = new ObjectId();
-    const sortedItems = existingItems.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    );
-    this.order = calculateNewOrder(
-      sortedItems,
-      'itemId',
-      itemBody.afterItemId,
-      itemBody.beforeItemId,
-    );
+
+    // to faciliate plain and instance conversion.
+    if (existingItems) {
+      const sortedItems = existingItems.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      this.order = calculateNewOrder(
+        sortedItems,
+        'itemId',
+        itemBody.afterItemId,
+        itemBody.beforeItemId,
+      );
+    }
   }
 }
 

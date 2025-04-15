@@ -7,6 +7,7 @@ import {Collection, ObjectId} from 'mongodb';
 import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
 import {
   CreateError,
+  DeleteError,
   ItemNotFoundError,
   ReadError,
   UpdateError,
@@ -208,6 +209,24 @@ export class CourseRepository implements ICourseRepository {
       throw new ReadError('Failed to read items.\n More Details: ' + error);
     }
   }
+
+  async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
+    await this.init();
+    try {
+      const result = await this.itemsGroupCollection.updateOne(
+        {_id: new ObjectId(itemGroupsId)},
+        {$pull: {items: {itemId: new ObjectId(itemId)}}},
+      );
+      if (result.modifiedCount === 1) {
+        return true;
+      } else {
+        throw new DeleteError('Failed to delete item');
+      }
+    } catch (error) {
+      throw new DeleteError('Failed to delete item.\n More Details: ' + error);
+    }
+  }
+
   async updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,

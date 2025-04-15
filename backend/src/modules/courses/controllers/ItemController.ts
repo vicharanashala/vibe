@@ -1,4 +1,4 @@
-import {instanceToPlain} from 'class-transformer';
+import {instanceToPlain, plainToInstance} from 'class-transformer';
 import 'reflect-metadata';
 import {
   Authorized,
@@ -9,12 +9,14 @@ import {
   Params,
   Post,
   Put,
+  Delete,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {UpdateError} from 'shared/errors/errors';
+import {DeleteError} from 'shared/errors/errors';
 import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
-import {Item} from '../classes/transformers/Item';
+import {Item, ItemsGroup} from '../classes/transformers/Item';
 import {
   CreateItemBody,
   UpdateItemBody,
@@ -23,6 +25,7 @@ import {
   ReadAllItemsParams,
   UpdateItemParams,
   MoveItemParams,
+  DeleteItemParams,
 } from '../classes/validators/ItemValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
@@ -77,8 +80,9 @@ export class ItemController {
       const section = module.sections.find(s => s.sectionId === sectionId);
 
       //Fetch ItemGroup
-      const itemsGroup = await this.courseRepo.readItemsGroup(
-        section.itemsGroupId.toString(),
+      const itemsGroup = plainToInstance(
+        ItemsGroup,
+        await this.courseRepo.readItemsGroup(section.itemsGroupId.toString()),
       );
 
       //Create Item
@@ -250,6 +254,67 @@ export class ItemController {
   }
 
   /**
+   * Delete an item from a section of a module in a course version.
+   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
+   * @return The updated itemsGroup and version.
+   * @throw HTTPError(500) on internal errors.
+   * @category Courses/Controllers
+   */
+
+  @Authorized(['instructor', 'admin'])
+  @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  async delete(@Params() params: DeleteItemParams) {
+    try {
+      const {itemsGroupId, itemId} = params;
+
+      if (!itemsGroupId || !itemId) {
+        throw new DeleteError('Missing required parameters');
+      }
+
+      //Fetch ItemsGroup
+      const itemsGroup = await this.courseRepo.readItemsGroup(itemsGroupId);
+      if (!itemsGroup) {
+        throw new DeleteError('ItemsGroup not found');
+      }
+
+      const itemToDelete = itemsGroup.items.find(
+        i => i.itemId.toString() === itemId,
+      );
+
+      if (!itemToDelete) {
+        throw new DeleteError('Item not found');
+      }
+
+      const deletionStatus = await this.courseRepo.deleteItem(
+        itemsGroupId,
+        itemId,
+      );
+
+      if (!deletionStatus) {
+        throw new Error('Unable to delete item');
+      }
+
+      const updatedItemsGroup =
+        await this.courseRepo.readItemsGroup(itemsGroupId);
+
+      return {
+        deletedItem: instanceToPlain(itemToDelete),
+        updatedItemsGroup: instanceToPlain(updatedItemsGroup),
+      };
+    } catch (error) {
+      if (error.message === 'Item not found') {
+        throw new HTTPError(404, error);
+      }
+      if (error.message === 'Missing required parameters') {
+        throw new BadRequestError(error.message);
+      }
+      if (error instanceof Error) {
+        throw new HTTPError(500, error);
+      }
+    }
+  }
+
+  /**
    * Move an item to a new position within a section by recalculating its order.
    *
    * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
@@ -261,7 +326,6 @@ export class ItemController {
    *
    * @category Courses/Controllers
    */
-
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
