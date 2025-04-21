@@ -10,7 +10,8 @@
 	},
 	"scripts": {
 		"prepare": "husky",
-		"binaries": "pnpx ts-node scripts/preload-mongo-binary.ts"
+		"binaries": "pnpx ts-node scripts/preload-mongo-binary.ts",
+		"vibe": "pnpx ts-node scripts/cli/src/cli.ts"
 	},
 	"lint-staged": {
 		"backend/**/*.{js,jsx,ts,tsx}": [
@@ -18,6 +19,6 @@
 		]
 	},
 	"dependencies": {
-		"mongodb-memory-server-core": "^10.1.4"
+		"vibe": "link:cli"
 	}
 }

@@ -1,4 +1,5 @@
 packages:
-  - "frontend"
-  - "backend"
-  - "docs"
+  - frontend
+  - backend
+  - docs
+  - cli

@@ -1,0 +1,19 @@
+{
+  "name": "vibe",
+  "version": "0.1.0",
+  "main": "src/cli.ts",
+  "type": "module",
+  "bin": {
+    "vibe": "src/cli.ts"
+  },
+  "dependencies": {
+    "@inquirer/password": "^4.0.12",
+    "@inquirer/prompts": "^7.4.1",
+    "commander": "^10.0.0",
+    "mongodb-memory-server": "^10.1.4",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1"
+  }
+}
