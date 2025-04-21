@@ -477,6 +477,25 @@ class MoveItemParams {
   itemId: string;
 }
 
+/**
+ * Route parameters for deleting an item.
+ *
+ * @category Courses/Validators/ItemValidators
+ */
+
+class DeleteItemParams {
+  /** ItemsGroupId */
+
+  @IsMongoId()
+  @IsString()
+  itemsGroupId: string;
+
+  /** ItemId */
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
 export {
   CreateItemBody,
   UpdateItemBody,
@@ -488,4 +507,5 @@ export {
   ReadAllItemsParams,
   UpdateItemParams,
   MoveItemParams,
+  DeleteItemParams,
 };
