@@ -274,4 +274,100 @@ describe('Course Version Controller Integration Tests', () => {
       });
     });
   });
+
+  // Delete course version
+  describe('COURSE VERSION DELETE', () => {
+    const coursePayload = {
+      name: 'New Course',
+      description: 'Course description',
+    };
+
+    const courseVersionPayload = {
+      version: 'New Course Version',
+      description: 'Course version description',
+    };
+
+    const modulePayload = {
+      name: 'New Module',
+      description: 'Module description',
+    };
+
+    const sectionPayload = {
+      name: 'New Section',
+      description: 'Section description',
+    };
+
+    const itemPayload = {
+      name: 'Item1',
+      description: 'This an item',
+      type: 'VIDEO',
+      videoDetails: {
+        URL: 'http://url.com',
+        startTime: '00:00:00',
+        endTime: '00:00:40',
+        points: '10.5',
+      },
+    };
+
+    describe('Success Scenario', () => {
+      it('should delete a course version', async () => {
+        const courseResponse = await request(app)
+          .post('/courses/')
+          .send(coursePayload)
+          .expect(200);
+
+        const courseId = courseResponse.body._id;
+
+        const versionResponse = await request(app)
+          .post(`/courses/${courseId}/versions`)
+          .send(courseVersionPayload)
+          .expect(200);
+
+        const versionId = versionResponse.body.version._id;
+
+        const moduleResponse = await request(app)
+          .post(`/courses/versions/${versionId}/modules`)
+          .send(modulePayload)
+          .expect(200);
+
+        const moduleId = moduleResponse.body.version.modules[0].moduleId;
+
+        const sectionResponse = await request(app)
+          .post(`/versions/${versionId}/modules/${moduleId}/sections`)
+          .send(sectionPayload)
+          .expect(200);
+
+        const sectionId =
+          sectionResponse.body.version.modules[0].sections[0].sectionId;
+
+        const itemsGroupId =
+          sectionResponse.body.version.modules[0].sections[0].itemsGroupId;
+
+        const itemsGroupResponse = await request(app)
+          .post(
+            `/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+          )
+          .send(itemPayload)
+          .expect(200);
+
+        const deleteVersion = await request(app)
+          .delete(`/courses/${courseId}/versions/${versionId}`)
+          .expect(200);
+        expect(deleteVersion.body.deletedItem);
+      });
+    });
+    describe('Failure Scenario', () => {
+      it('should not delete a course version', async () => {
+        // invalid MongoId
+        await request(app).delete('/courses/123/versions/123').expect(400);
+
+        // course version or course id not found.
+        await request(app)
+          .delete(
+            '/courses/5f9b1b3c9d1f1f1f1f1f1f1f/versions/5f9b1b3c9d1f1f1f1f1f1f1f',
+          )
+          .expect(404);
+      });
+    });
+  });
 });
