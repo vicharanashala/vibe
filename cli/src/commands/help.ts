@@ -2,9 +2,8 @@ export function runHelp() {
   console.log(`vibe <command>
 
 Available commands:
-  dev     Start dev servers
-  test    Run test suites (currently a placeholder)
-  docs    Start docs server
-  prod    Prepare and deploy to production
+  setup   Initialize the setup
+  start   Start dev servers ("vibe start help" for more options)
+  test    Run test suites
   help    Show this help message`)
 }
