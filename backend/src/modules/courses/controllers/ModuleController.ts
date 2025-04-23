@@ -2,7 +2,10 @@ import {instanceToPlain} from 'class-transformer';
 import 'reflect-metadata';
 import {
   Authorized,
+  BadRequestError,
   Body,
+  Delete,
+  HttpError,
   InternalServerError,
   JsonController,
   Params,
@@ -10,7 +13,12 @@ import {
   Put,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ReadError, UpdateError} from 'shared/errors/errors';
+import {
+  DeleteError,
+  ItemNotFoundError,
+  ReadError,
+  UpdateError,
+} from 'shared/errors/errors';
 import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {Module} from '../classes/transformers/Module';
@@ -21,6 +29,7 @@ import {
   MoveModuleParams,
   UpdateModuleBody,
   UpdateModuleParams,
+  DeleteModuleParams,
 } from '../classes/validators/ModuleValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 
@@ -212,6 +221,44 @@ export class ModuleController {
       if (error instanceof Error) {
         throw new HTTPError(500, error);
       }
+    }
+  }
+
+  /**
+   * Delete a module from a specific course version.
+   *
+   * @param params - Parameters including version ID and module ID
+   * @returns The deleted module object
+   *
+   * @throws BadRequestError if version ID or module ID is missing
+   * @throws HttpError(404) if the module is not found
+   * @throws HttpError(500) for delete errors
+   *
+   * @category Courses/Controllers
+   */
+  @Delete('/versions/:versionId/modules/:moduleId')
+  async delete(@Params() params: DeleteModuleParams) {
+    const {versionId, moduleId} = params;
+    if (!versionId || !moduleId) {
+      throw new BadRequestError('Version ID and Module ID are required');
+    }
+    try {
+      const isDeleted = await this.courseRepo.deleteModule(versionId, moduleId);
+
+      if (!isDeleted) {
+        throw new DeleteError('Internal server error');
+      }
+      return {
+        message: `Module with the ID ${moduleId} in Version ${versionId} has been deleted successfully.`,
+      };
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        throw new HttpError(404, error.message);
+      }
+      if (error instanceof DeleteError) {
+        throw new HttpError(500, error.message);
+      }
+      throw new HttpError(500, error.message);
     }
   }
 }

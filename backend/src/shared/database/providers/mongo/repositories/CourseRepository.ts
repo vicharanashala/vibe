@@ -12,7 +12,7 @@ import {
   ReadError,
   UpdateError,
 } from 'shared/errors/errors';
-import {ICourse} from 'shared/interfaces/IUser';
+import {ICourse, IModule} from 'shared/interfaces/IUser';
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 
@@ -321,6 +321,83 @@ export class CourseRepository implements ICourseRepository {
       }
     } catch (error) {
       throw new UpdateError('Failed to update items.\n More Details: ' + error);
+    }
+  }
+
+  async deleteModule(
+    versionId: string,
+    moduleId: string,
+  ): Promise<boolean | null> {
+    await this.init();
+    try {
+      // Convert versionId and moduleId to ObjectId
+      const versionObjectId = new ObjectId(versionId);
+      const moduleObjectId = new ObjectId(moduleId);
+
+      // Find the course version
+      const courseVersion = await this.courseVersionCollection.findOne({
+        _id: versionObjectId,
+      });
+
+      if (!courseVersion) {
+        throw new ItemNotFoundError('Course Version not found');
+      }
+
+      // Find the module to delete
+      const module = courseVersion.modules.find(m =>
+        new ObjectId(m.moduleId).equals(moduleObjectId),
+      );
+
+      if (!module) {
+        throw new ItemNotFoundError('Module not found');
+      }
+
+      // Cascade delete sections and items
+      if (module.sections.length > 0) {
+        const itemGroupsIds = module.sections.map(
+          section => new ObjectId(section.itemsGroupId),
+        );
+
+        try {
+          const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
+            {
+              _id: {$in: itemGroupsIds},
+            },
+          );
+
+          if (itemDeletionResult.deletedCount === 0) {
+            throw new DeleteError('Failed to delete item groups');
+          }
+        } catch (error) {
+          throw new DeleteError('Item deletion failed');
+        }
+      }
+
+      // Remove the module from the course version
+      const updatedModules = courseVersion.modules.filter(
+        m => !new ObjectId(m.moduleId).equals(moduleObjectId),
+      );
+
+      const updateResult = await this.courseVersionCollection.updateOne(
+        {_id: versionObjectId},
+        {$set: {modules: updatedModules}},
+      );
+
+      if (updateResult.modifiedCount !== 1) {
+        throw new DeleteError('Failed to update course version');
+      }
+
+      return true;
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        throw error;
+      }
+      if (error instanceof DeleteError) {
+        throw error;
+      }
+      throw new DeleteError(
+        'Failed to delete module.\n More Details: ' + error,
+      );
     }
   }
 }
