@@ -43,11 +43,25 @@ export async function runStart() {
 
   // Extract command-line arguments
   const args = process.argv.slice(2);
-
+  if (args.includes("help")){
+    console.log("Usage: vibe start [backend|frontend|docs|all]");
+    console.log("Starts the specified services. If no arguments are provided, Frontend and Backend services will be started.");
+    console.log("Options:");
+    console.log("  backend  Start the backend service");
+    console.log("  frontend Start the frontend service");
+    console.log("  docs     Start the documentation service");
+    console.log("  all      Start all services");
+    process.exit(0);
+  }
   // Determine which services to start
-  const startBackend = args.includes('backend') || (!args.includes('backend') && !args.includes('frontend') && !args.includes('docs'));
-  const startFrontend = args.includes('frontend') || (!args.includes('backend') && !args.includes('frontend') && !args.includes('docs'));
-  const startDocs = args.includes('docs');
+  const startBackend = args.includes('backend') || args.length === 1 || args.includes('all');
+  const startFrontend = args.includes('frontend') || args.length === 1 || args.includes('all');
+  const startDocs = args.includes('docs') || args.includes('all');
+
+  if (!startBackend && !startFrontend && !startDocs) {
+    console.error("❌ Incorrect args passed.");
+    process.exit(1);
+  }
 
   try {
     const processes = [];

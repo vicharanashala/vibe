@@ -9,15 +9,18 @@ import {
   JsonController,
   Params,
   Post,
+  Delete,
+  BadRequestError,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemNotFoundError, ReadError} from 'shared/errors/errors';
+import {DeleteError, ItemNotFoundError, ReadError} from 'shared/errors/errors';
 import {Inject, Service} from 'typedi';
 import {CourseVersion} from '../classes/transformers/CourseVersion';
 import {
   CreateCourseVersionParams,
   CreateCourseVersionBody,
   ReadCourseVersionParams,
+  DeleteCourseVersionParams,
 } from '../classes/validators/CourseVersionValidators';
 
 /**
@@ -114,6 +117,39 @@ export class CourseVersionController {
         throw new HttpError(404, error.message);
       }
       throw new HttpError(500, error.message);
+    }
+  }
+  /**
+   * Delete the course version by its ID
+   *
+   * @params params - Parameters including the courseID and version ID.
+   * @returns The deleted course version object.
+   *
+   * @throws HttpError(404) if the course or version is not found.
+   * @throws HttpError(500) on any other internal server errors.
+   *
+   * @category Courses/Controllers
+   */
+
+  @Authorized(['admin', 'instructor'])
+  @Delete('/:courseId/versions/:versionId')
+  async delete(@Params() params: DeleteCourseVersionParams) {
+    const {courseId, versionId} = params;
+    if (!versionId || !courseId) {
+      throw new BadRequestError('Version ID is required');
+    }
+    try {
+      const version = await this.courseRepo.deleteVersion(courseId, versionId);
+      return {
+        message: `Version with the ID ${versionId} has been deleted successfully.`,
+      };
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        throw new HttpError(404, error.message);
+      }
+      if (error instanceof DeleteError) {
+        throw new HttpError(500, error.message);
+      }
     }
   }
 }

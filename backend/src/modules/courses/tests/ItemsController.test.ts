@@ -1,12 +1,11 @@
-import {coursesModuleOptions, ItemsGroup} from 'modules/courses';
+import {coursesModuleOptions} from 'modules/courses';
 import {MongoMemoryServer} from 'mongodb-memory-server';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
+import {useExpressServer} from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import Container from 'typedi';
 import Express from 'express';
 import request from 'supertest';
-import {ReadError} from 'shared/errors/errors';
 
 describe('Item Controller Integration Tests', () => {
   const App = Express();
