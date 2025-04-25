@@ -23,7 +23,7 @@ describe('Module Controller Integration Tests', () => {
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
-    Container.set('NewCourseRepo', courseRepo);
+    Container.set('CourseRepo', courseRepo);
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
@@ -203,7 +203,7 @@ describe('Module Controller Integration Tests', () => {
         const endPoint = `/courses/versions/${versionId}/modules`;
 
         // Throw an error
-        const moduleRepo = Container.get<CourseRepository>('NewCourseRepo');
+        const moduleRepo = Container.get<CourseRepository>('CourseRepo');
         jest.spyOn(moduleRepo, 'updateVersion').mockImplementation(() => {
           throw new Error('Unknown error');
         });

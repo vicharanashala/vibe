@@ -9,6 +9,7 @@ import {
   Get,
   Put,
   Params,
+  HttpCode,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {Service, Inject} from 'typedi';
@@ -39,7 +40,7 @@ import {
 @Service()
 export class CourseController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
   ) {}
 
   /**
@@ -50,12 +51,13 @@ export class CourseController {
    * @throws HttpError - If the course creation fails.
    */
   @Authorized(['admin', 'instructor'])
-  @Post('/')
-  async create(@Body() body: CreateCourseBody) {
+  @Post('/', {transformResponse: true})
+  @HttpCode(201)
+  async create(@Body() body: CreateCourseBody): Promise<Course> {
     let course = new Course(body);
     try {
       course = await this.courseRepo.create(course);
-      return instanceToPlain(course);
+      return course;
     } catch (error) {
       throw new HttpError(500, error.message);
     }

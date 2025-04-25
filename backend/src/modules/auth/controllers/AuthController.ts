@@ -18,6 +18,7 @@ import {
   Req,
   Patch,
   HttpError,
+  HttpCode,
 } from 'routing-controllers';
 import {Inject, Service} from 'typedi';
 import {AuthenticatedRequest, IAuthService} from '../interfaces/IAuthService';
@@ -53,6 +54,7 @@ export class AuthController {
    * @throws HttpError - If user creation fails for any reason
    */
   @Post('/signup')
+  @HttpCode(201)
   async signup(@Body() body: SignUpBody) {
     const user = await this.authService.signup(body);
     return instanceToPlain(user);

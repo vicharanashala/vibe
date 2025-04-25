@@ -5,6 +5,7 @@ import {
   BadRequestError,
   Body,
   Delete,
+  HttpCode,
   HttpError,
   InternalServerError,
   JsonController,
@@ -19,7 +20,6 @@ import {
   ReadError,
   UpdateError,
 } from 'shared/errors/errors';
-import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {Module} from '../classes/transformers/Module';
 import {
@@ -47,7 +47,7 @@ import {calculateNewOrder} from '../utils/calculateNewOrder';
 @Service()
 export class ModuleController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
       throw new Error('CourseRepository is not properly injected');
@@ -68,6 +68,7 @@ export class ModuleController {
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules')
+  @HttpCode(201)
   async create(
     @Params() params: CreateModuleParams,
     @Body() body: CreateModuleBody,
@@ -149,7 +150,7 @@ export class ModuleController {
       };
     } catch (error) {
       if (error instanceof ReadError) {
-        throw new HTTPError(404, error);
+        throw new HttpError(404, error.message);
       }
     }
   }
@@ -219,7 +220,7 @@ export class ModuleController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }

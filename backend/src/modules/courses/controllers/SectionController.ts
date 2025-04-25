@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import {
   Authorized,
   Body,
+  HttpCode,
+  HttpError,
   JsonController,
   Params,
   Post,
@@ -10,7 +12,6 @@ import {
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {ReadError, UpdateError} from 'shared/errors/errors';
-import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {ItemsGroup} from '../classes/transformers/Item';
 import {Section} from '../classes/transformers/Section';
@@ -35,11 +36,11 @@ import {calculateNewOrder} from '../utils/calculateNewOrder';
  * and adjusting section order within a module.
  */
 
-@JsonController()
+@JsonController('/courses')
 @Service()
 export class SectionController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
       throw new Error('CourseRepository is not properly injected');
@@ -61,6 +62,7 @@ export class SectionController {
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections')
+  @HttpCode(201)
   async create(
     @Params() params: CreateSectionParams,
     @Body() body: CreateSectionBody,
@@ -103,7 +105,7 @@ export class SectionController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -164,7 +166,7 @@ export class SectionController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -241,7 +243,7 @@ export class SectionController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }

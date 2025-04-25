@@ -1,41 +1,57 @@
-export class CreateError extends Error {
+import {HttpError} from 'routing-controllers';
+
+// 400 - Bad Request
+export class CreateError extends HttpError {
   constructor(message: string) {
-    super(message);
+    super(400, message);
     this.name = 'CreateError';
   }
 }
 
-export class ReadError extends Error {
+// 400 - Bad Request
+export class ReadError extends HttpError {
   constructor(message: string) {
-    super(message);
+    super(400, message);
     this.name = 'ReadError';
   }
 }
 
-export class UpdateError extends Error {
+// 400 - Bad Request
+export class UpdateError extends HttpError {
   constructor(message: string) {
-    super(message);
+    super(400, message);
     this.name = 'UpdateError';
   }
 }
 
-export class DeleteError extends Error {
+// 400 - Bad Request
+export class DeleteError extends HttpError {
   constructor(message: string) {
-    super(message);
+    super(400, message);
     this.name = 'DeleteError';
   }
 }
 
-export class ValidationError extends Error {
+// 404 - Not Found
+export class ItemNotFoundError extends HttpError {
   constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
+    super(404, message);
+    this.name = 'ItemNotFoundError';
   }
 }
 
-export class ItemNotFoundError extends Error {
+// 401 - Unauthorized
+export class NotAuthorizedError extends HttpError {
   constructor(message: string) {
-    super(message);
-    this.name = 'NotFoundError';
+    super(401, message);
+    this.name = 'NotAuthorizedError';
+  }
+}
+
+// 409 - Conflict
+export class AlreadyExists extends HttpError {
+  constructor(message: string) {
+    super(409, message);
+    this.name = 'UserAlreadyExistsError';
   }
 }

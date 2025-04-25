@@ -1,5 +1,6 @@
 packages:
   - frontend
   - backend
+  - backend/functions
   - docs
   - cli

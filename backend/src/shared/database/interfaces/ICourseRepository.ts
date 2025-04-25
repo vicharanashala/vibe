@@ -1,5 +1,11 @@
 import {ItemsGroup} from 'modules/courses/classes/transformers/index';
-import {ICourse, ICourseVersion} from 'shared/interfaces/IUser';
+import {
+  ICourse,
+  ICourseVersion,
+  IEnrollment,
+  IProgress,
+} from 'shared/interfaces/IUser';
+import {ObjectId} from 'mongodb';
 
 export interface ICourseRepository {
   create(course: ICourse): Promise<ICourse | null>;
@@ -20,4 +26,10 @@ export interface ICourseRepository {
     itemsGroupId: string,
     itemsGroup: ItemsGroup,
   ): Promise<ItemsGroup | null>;
+
+  getFirstOrderItems(courseVersionId: string): Promise<{
+    moduleId: ObjectId;
+    sectionId: ObjectId;
+    itemId: ObjectId;
+  }>;
 }

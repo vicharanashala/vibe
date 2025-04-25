@@ -19,14 +19,16 @@
     "compile": "tsc",
     "fix": "pnpx gts fix",
     "prepare": "pnpm run compile",
-    "pretest": "pnpm run compile",
-    "posttest": "pnpm run lint"
+    "emulator:auth": "firebase emulators:start --only auth",
+    "emulator:functions": "firebase emulators:start --only functions",
+    "emualtor:all": "firebase emulators:start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.4.1",
   "devDependencies": {
+    "@faker-js/faker": "^9.7.0",
     "@types/bcrypt": "^5.0.2",
     "@types/body-parser": "^1.19.5",
     "@types/config": "^3.3.5",

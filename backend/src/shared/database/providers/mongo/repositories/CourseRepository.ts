@@ -12,7 +12,12 @@ import {
   ReadError,
   UpdateError,
 } from 'shared/errors/errors';
-import {ICourse, IModule} from 'shared/interfaces/IUser';
+import {
+  ICourse,
+  IModule,
+  IEnrollment,
+  IProgress,
+} from 'shared/interfaces/IUser';
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 
@@ -39,9 +44,7 @@ export class CourseRepository implements ICourseRepository {
         const newCourse = await this.courseCollection.findOne({
           _id: result.insertedId,
         });
-        return instanceToPlain(
-          Object.assign(new Course(), newCourse),
-        ) as Course;
+        return Object.assign(new Course(), newCourse) as Course;
       } else {
         throw new CreateError('Failed to create course');
       }
@@ -177,7 +180,6 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-
   async deleteVersion(
     courseId: string,
     versionId: string,
@@ -248,7 +250,6 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-
   async createItemsGroup(itemsGroup: ItemsGroup): Promise<ItemsGroup | null> {
     await this.init();
     try {
@@ -280,7 +281,6 @@ export class CourseRepository implements ICourseRepository {
       throw new ReadError('Failed to read items.\n More Details: ' + error);
     }
   }
-
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
     await this.init();
     try {
@@ -297,7 +297,6 @@ export class CourseRepository implements ICourseRepository {
       throw new DeleteError('Failed to delete item.\n More Details: ' + error);
     }
   }
-
   async updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,
@@ -397,6 +396,64 @@ export class CourseRepository implements ICourseRepository {
       }
       throw new DeleteError(
         'Failed to delete module.\n More Details: ' + error,
+      );
+    }
+  }
+  async getFirstOrderItems(courseVersionId: string): Promise<{
+    moduleId: ObjectId;
+    sectionId: ObjectId;
+    itemId: ObjectId;
+  }> {
+    await this.init();
+    try {
+      const version = await this.readVersion(courseVersionId);
+      if (!version || !version.modules || version.modules.length === 0) {
+        throw new ReadError('Course version has no modules');
+      }
+
+      // Sort modules by order and get first
+      const sortedModules = version.modules.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstModule = sortedModules[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new ReadError('Module has no sections');
+      }
+
+      // Sort sections by order and get first
+      const sortedSections = firstModule.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstSection = sortedSections[0];
+
+      if (!firstSection.itemsGroupId) {
+        throw new ReadError('Section has no items group');
+      }
+
+      // Get items for first section
+      const itemsGroup = await this.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new ReadError('Items group has no items');
+      }
+
+      // Sort items by order and get first
+      const sortedItems = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstItem = sortedItems[0];
+
+      return {
+        moduleId: new ObjectId(firstModule.moduleId),
+        sectionId: new ObjectId(firstSection.sectionId),
+        itemId: new ObjectId(firstItem.itemId),
+      };
+    } catch (error) {
+      throw new ReadError(
+        'Failed to get first order items.\n More Details: ' + error,
       );
     }
   }

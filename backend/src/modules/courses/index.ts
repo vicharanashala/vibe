@@ -13,14 +13,23 @@ import {ItemController} from './controllers/ItemController';
 
 useContainer(Container);
 
-if (!Container.has('Database')) {
-  Container.set<IDatabase>('Database', new MongoDatabase(dbConfig.url, 'vibe'));
+export function setupCoursesModuleDependencies() {
+  if (!Container.has('Database')) {
+    Container.set<IDatabase>(
+      'Database',
+      new MongoDatabase(dbConfig.url, 'vibe'),
+    );
+  }
+
+  if (!Container.has('CourseRepo')) {
+    Container.set(
+      'CourseRepo',
+      new CourseRepository(Container.get<MongoDatabase>('Database')),
+    );
+  }
 }
 
-Container.set(
-  'NewCourseRepo',
-  new CourseRepository(Container.get<MongoDatabase>('Database')),
-);
+setupCoursesModuleDependencies();
 
 export const coursesModuleOptions: RoutingControllersOptions = {
   controllers: [
@@ -30,7 +39,7 @@ export const coursesModuleOptions: RoutingControllersOptions = {
     SectionController,
     ItemController,
   ],
-  // defaultErrorHandler: false,
+  defaultErrorHandler: true,
   // middlewares: [HttpErrorHandler],
   authorizationChecker: async function () {
     return true;

@@ -23,7 +23,7 @@ describe('Course Version Controller Integration Tests', () => {
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
-    Container.set('NewCourseRepo', courseRepo);
+    Container.set('CourseRepo', courseRepo);
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
@@ -264,7 +264,7 @@ describe('Course Version Controller Integration Tests', () => {
 
         // Mock the database to throw ReadError
 
-        const courseRepo = Container.get<CourseRepository>('NewCourseRepo');
+        const courseRepo = Container.get<CourseRepository>('CourseRepo');
 
         jest.spyOn(courseRepo, 'readVersion').mockImplementationOnce(() => {
           throw new ReadError('Mocked error from another test');

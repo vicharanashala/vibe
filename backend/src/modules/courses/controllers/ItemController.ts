@@ -10,11 +10,12 @@ import {
   Post,
   Put,
   Delete,
+  HttpError,
+  HttpCode,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {UpdateError} from 'shared/errors/errors';
 import {DeleteError} from 'shared/errors/errors';
-import {HTTPError} from 'shared/middleware/ErrorHandler';
 import {Inject, Service} from 'typedi';
 import {Item, ItemsGroup} from '../classes/transformers/Item';
 import {
@@ -39,11 +40,11 @@ import {calculateNewOrder} from '../utils/calculateNewOrder';
  * within course versions. This includes content like videos, blogs, or quizzes.
  */
 
-@JsonController()
+@JsonController('/courses')
 @Service()
 export class ItemController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
   ) {
     if (!this.courseRepo) {
       throw new Error('CourseRepository is not properly injected');
@@ -64,6 +65,7 @@ export class ItemController {
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
+  @HttpCode(201)
   async create(
     @Params() params: CreateItemParams,
     @Body() body: CreateItemBody,
@@ -117,7 +119,7 @@ export class ItemController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -157,7 +159,7 @@ export class ItemController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -248,7 +250,7 @@ export class ItemController {
       };
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -303,13 +305,13 @@ export class ItemController {
       };
     } catch (error) {
       if (error.message === 'Item not found') {
-        throw new HTTPError(404, error);
+        throw new HttpError(404, error.message);
       }
       if (error.message === 'Missing required parameters') {
         throw new BadRequestError(error.message);
       }
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
@@ -398,7 +400,7 @@ export class ItemController {
         throw new BadRequestError(error.message);
       }
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }

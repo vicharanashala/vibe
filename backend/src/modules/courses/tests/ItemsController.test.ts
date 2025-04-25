@@ -20,7 +20,7 @@ describe('Item Controller Integration Tests', () => {
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
-    Container.set('NewCourseRepo', courseRepo);
+    Container.set('CourseRepo', courseRepo);
 
     app = useExpressServer(App, coursesModuleOptions);
   });

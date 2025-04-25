@@ -14,14 +14,17 @@ import Container from 'typedi';
 import {IDatabase} from 'shared/database';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from 'config/db';
+import {usersModuleOptions} from 'modules/users';
+import * as firebase from 'firebase-admin';
+import {app} from 'firebase-admin';
+import {authModuleOptions} from 'modules';
 
 export const application = Express();
 
 export const ServiceFactory = (
   service: typeof application,
   options: RoutingControllersOptions,
-  port: Number,
-) => {
+): typeof application => {
   console.log('--------------------------------------------------------');
   console.log('Initializing service server');
   console.log('--------------------------------------------------------');
@@ -56,11 +59,7 @@ export const ServiceFactory = (
 
   useExpressServer(service, options);
 
-  service.listen(port, () => {
-    console.log('--------------------------------------------------------');
-    console.log('Started Server at http://localhost:' + port);
-    console.log('--------------------------------------------------------');
-  });
+  return service;
 };
 
 // Create a main function where multiple services are created
@@ -72,7 +71,12 @@ if (!Container.has('Database')) {
 }
 
 export const main = () => {
-  ServiceFactory(application, coursesModuleOptions, 4001);
+  const service = ServiceFactory(application, authModuleOptions);
+  service.listen(4001, () => {
+    console.log('--------------------------------------------------------');
+    console.log('Started Server at http://localhost:' + 4001);
+    console.log('--------------------------------------------------------');
+  });
 };
 
 main();

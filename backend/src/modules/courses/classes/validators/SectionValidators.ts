@@ -15,13 +15,7 @@ import {ID} from 'shared/types';
  *
  * @category Courses/Validators/SectionValidators
  */
-class CreateSectionBody implements ISection {
-  /**
-   * Unique section ID (auto-generated).
-   */
-  @IsEmpty()
-  sectionId?: string | undefined;
-
+class CreateSectionBody implements Partial<ISection> {
   /**
    * Name/title of the section.
    * Maximum 255 characters.
@@ -41,12 +35,6 @@ class CreateSectionBody implements ISection {
   description: string;
 
   /**
-   * Order string for section placement (auto-managed).
-   */
-  @IsEmpty()
-  order: string;
-
-  /**
    * Optional: place the section after this section ID.
    */
   @IsOptional()
@@ -61,24 +49,6 @@ class CreateSectionBody implements ISection {
   @IsMongoId()
   @IsString()
   beforeSectionId?: string;
-
-  /**
-   * ItemsGroup ID associated with this section (auto-managed).
-   */
-  @IsEmpty()
-  itemsGroupId?: ID;
-
-  /**
-   * Creation timestamp (auto-managed).
-   */
-  @IsEmpty()
-  createdAt: Date;
-
-  /**
-   * Last updated timestamp (auto-managed).
-   */
-  @IsEmpty()
-  updatedAt: Date;
 }
 
 /**

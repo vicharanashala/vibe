@@ -14,13 +14,7 @@ import {IModule, ISection} from 'shared/interfaces/IUser';
  *
  * @category Courses/Validators/ModuleValidators
  */
-class CreateModuleBody implements IModule {
-  /**
-   * Unique module ID (auto-generated).
-   */
-  @IsEmpty()
-  moduleId?: string | undefined;
-
+class CreateModuleBody implements Partial<IModule> {
   /**
    * Name/title of the module.
    * Maximum 255 characters.
@@ -40,12 +34,6 @@ class CreateModuleBody implements IModule {
   description: string;
 
   /**
-   * Order string for module placement (auto-managed).
-   */
-  @IsEmpty()
-  order: string;
-
-  /**
    * Optional: Move the module after this ID.
    */
   @IsOptional()
@@ -60,24 +48,6 @@ class CreateModuleBody implements IModule {
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
-
-  /**
-   * Array of section objects (auto-managed).
-   */
-  @IsEmpty()
-  sections: ISection[];
-
-  /**
-   * Module creation timestamp (auto-managed).
-   */
-  @IsEmpty()
-  createdAt: Date;
-
-  /**
-   * Module update timestamp (auto-managed).
-   */
-  @IsEmpty()
-  updatedAt: Date;
 }
 
 /**

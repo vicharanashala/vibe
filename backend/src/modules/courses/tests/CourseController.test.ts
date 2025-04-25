@@ -22,7 +22,7 @@ describe('Course Controller Integration Tests', () => {
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
-    Container.set('NewCourseRepo', courseRepo);
+    Container.set('CourseRepo', courseRepo);
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
@@ -66,7 +66,7 @@ describe('Course Controller Integration Tests', () => {
         };
 
         // Mock the create method to throw an error
-        const courseRepo = Container.get<CourseRepository>('NewCourseRepo');
+        const courseRepo = Container.get<CourseRepository>('CourseRepo');
         jest.spyOn(courseRepo, 'create').mockImplementationOnce(() => {
           throw new Error('Mocked error');
         });
@@ -144,7 +144,7 @@ describe('Course Controller Integration Tests', () => {
         const courseId = createdCourseResponse.body._id;
 
         // Mock the read method to throw an error
-        const courseRepo = Container.get<CourseRepository>('NewCourseRepo');
+        const courseRepo = Container.get<CourseRepository>('CourseRepo');
 
         jest.spyOn(courseRepo, 'read').mockImplementationOnce(() => {
           throw new Error('Mocked error from another test');
@@ -276,7 +276,7 @@ describe('Course Controller Integration Tests', () => {
         const courseId = createdCourseResponse.body._id;
 
         // Mock the update method to throw an error
-        const courseRepo = Container.get<CourseRepository>('NewCourseRepo');
+        const courseRepo = Container.get<CourseRepository>('CourseRepo');
         jest.spyOn(courseRepo, 'update').mockImplementationOnce(() => {
           throw new Error('Mocked error from another test');
         });

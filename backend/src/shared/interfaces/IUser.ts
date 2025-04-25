@@ -282,3 +282,23 @@ export interface IBlogDetails {
   content: string;
   points: number;
 }
+
+// New interfaces for user enrollment and progress tracking
+export interface IEnrollment {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  status: 'active' | 'inactive';
+  enrollmentDate: Date;
+}
+
+export interface IProgress {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  currentModule: string | ObjectId;
+  currentSection: string | ObjectId;
+  currentItem: string | ObjectId;
+}

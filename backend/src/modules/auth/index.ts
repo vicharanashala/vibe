@@ -17,7 +17,7 @@ import {useContainer} from 'routing-controllers';
 import {IAuthService} from './interfaces/IAuthService';
 import {FirebaseAuthService} from './services/FirebaseAuthService';
 
-import {dbConfig} from 'config/db';
+import {dbConfig} from '../../config/db';
 import {IDatabase, IUserRepository} from 'shared/database';
 import {
   MongoDatabase,
@@ -26,15 +26,30 @@ import {
 
 useContainer(Container);
 
-Container.set<IDatabase>('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-Container.set<IUserRepository>(
-  'UserRepository',
-  new UserRepository(Container.get<MongoDatabase>('Database')),
-);
-Container.set<IAuthService>(
-  'AuthService',
-  new FirebaseAuthService(Container.get<IUserRepository>('UserRepository')),
-);
+export function setupAuthModuleDependencies(): void {
+  if (!Container.has('Database')) {
+    Container.set<IDatabase>(
+      'Database',
+      new MongoDatabase(dbConfig.url, 'vibe'),
+    );
+  }
+
+  if (!Container.has('UserRepository')) {
+    Container.set<IUserRepository>(
+      'UserRepository',
+      new UserRepository(Container.get<MongoDatabase>('Database')),
+    );
+  }
+
+  if (!Container.has('AuthService')) {
+    Container.set<IAuthService>(
+      'AuthService',
+      new FirebaseAuthService(Container.get<IUserRepository>('UserRepository')),
+    );
+  }
+}
+
+setupAuthModuleDependencies();
 
 export const authModuleOptions: RoutingControllersOptions = {
   controllers: [AuthController],
