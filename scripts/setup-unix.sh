@@ -174,8 +174,4 @@ vibe setup
 if [ "$WASCLONED" = true ]; then
   echo "Do 'cd vibe' to enter the directory."
 fi
-if ! command -v vibe >/dev/null 2>&1; then
 echo "✅ Setup complete! To use CLI restart the terminal or source the rc file."
-else
-  echo "To use CLI, run 'vibe' command."
-fi

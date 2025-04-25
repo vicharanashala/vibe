@@ -5,20 +5,8 @@ title: Installation
 This guide will help you set up ViBe on your local machine for development.
 
 ---
-
-## 🧰 Requirements
-
-Before you begin, make sure you have the following installed:
-
-| Tool       | Required Version | Notes |
-|------------|------------------|-------|
-| **Git**    | any              | For cloning the repository |
-| **Python** | 3.8+             | Used to bootstrap both frontend and backend |
-
-
----
-
-## 🚀 Clone the Repository
+You can clone the repository or directly download the setup file and run it to start the setup process.
+## 🚀 Clone the Repository (Optional)
 
 ```bash
 git clone https://github.com/continuousactivelearning/vibe.git
@@ -27,14 +15,15 @@ cd vibe
 
 ---
 
-## ⚙️ Setup Using Python
+## ⚙️ Setup Using Installation Scripts
 
-ViBe uses a custom `setup.py` script to help initialize the development environment (both backend and frontend).
+ViBe uses a custom `setup-unix.sh` and `setup-win.ps1` scripts to help initialize the development environment (both backend and frontend).
 
 ### 📦 Run the Setup
 
 ```bash
-python setup.py
+chmod +x scripts/setup-unix.sh
+./scripts/setup-unix.sh
 ```
 
 This script will:
@@ -42,7 +31,7 @@ This script will:
 - Install backend dependencies
 - Install frontend dependencies
 - Set up `.env` files
-- Start both servers (or give you options)
+- Installs the CLI
 
 > 🛠️ The script is interactive and will guide you step-by-step.
 
@@ -55,15 +44,13 @@ If you want to run services manually:
 ### 🖥 Frontend
 
 ```bash
-cd frontend
-pnpm run dev
+vibe start frontent
 ```
 
 ### ⚙️ Backend
 
 ```bash
-cd backend
-pnpm run dev
+vibe start backend
 ```
 
 ---
@@ -73,9 +60,7 @@ pnpm run dev
 If you're contributing to the documentation:
 
 ```bash
-cd docs
-pnpm install
-pnpm run start
+vibe start docs
 ```
 
 Visit: `http://localhost:3000/docs`
@@ -85,7 +70,6 @@ Visit: `http://localhost:3000/docs`
 ## 🐛 Having Issues?
 
 - Make sure all dependencies are installed correctly
-- Use `python --version`, `node -v`, `pnpm -v` to verify versions
 - Open an issue or ask in the [GitHub Discussions](https://github.com/continuousactivelearning/vibe/discussions)
 
 ---
