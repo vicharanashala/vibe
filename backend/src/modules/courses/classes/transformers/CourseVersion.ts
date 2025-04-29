@@ -4,7 +4,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from 'shared/constants/transformerConstants';
-import {ICourseVersion} from 'shared/interfaces/IUser';
+import {ICourseVersion} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 import {Module} from './Module';
 import {CreateCourseVersionBody} from '../validators';

@@ -7,7 +7,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import {ISection} from 'shared/interfaces/IUser';
+import {ISection} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 
 /**

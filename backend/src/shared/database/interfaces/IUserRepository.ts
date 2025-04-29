@@ -1,4 +1,4 @@
-import {IUser} from 'shared/interfaces/IUser';
+import {IUser} from 'shared/interfaces/Models';
 
 /**
  * Interface representing a repository for user-related operations.

@@ -46,7 +46,7 @@ describe('Course Version Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         // Get id
         const courseId = response.body._id;
@@ -62,7 +62,7 @@ describe('Course Version Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(endPoint)
           .send(courseVersionPayload)
-          .expect(200);
+          .expect(201);
 
         // Check if the response is correct
 
@@ -108,7 +108,7 @@ describe('Course Version Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         // Get id
         const courseId = response.body._id;
@@ -143,7 +143,7 @@ describe('Course Version Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         // Get id
         const courseId = response.body._id;
@@ -177,7 +177,7 @@ describe('Course Version Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         // Get id
         const courseId = response.body._id;
@@ -193,7 +193,7 @@ describe('Course Version Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(endPoint)
           .send(courseVersionPayload)
-          .expect(200);
+          .expect(201);
 
         // Get version id
         const versionId = versionResponse.body.version._id;
@@ -234,7 +234,7 @@ describe('Course Version Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         // Get id
 
@@ -254,7 +254,7 @@ describe('Course Version Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(endPoint)
           .send(courseVersionPayload)
-          .expect(200);
+          .expect(201);
 
         // Get version id
 
@@ -314,28 +314,28 @@ describe('Course Version Controller Integration Tests', () => {
         const courseResponse = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         const courseId = courseResponse.body._id;
 
         const versionResponse = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(courseVersionPayload)
-          .expect(200);
+          .expect(201);
 
         const versionId = versionResponse.body.version._id;
 
         const moduleResponse = await request(app)
           .post(`/courses/versions/${versionId}/modules`)
           .send(modulePayload)
-          .expect(200);
+          .expect(201);
 
         const moduleId = moduleResponse.body.version.modules[0].moduleId;
 
         const sectionResponse = await request(app)
           .post(`/versions/${versionId}/modules/${moduleId}/sections`)
           .send(sectionPayload)
-          .expect(200);
+          .expect(201);
 
         const sectionId =
           sectionResponse.body.version.modules[0].sections[0].sectionId;

@@ -9,17 +9,13 @@ import {
   HttpError,
   InternalServerError,
   JsonController,
+  NotFoundError,
   Params,
   Post,
   Put,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {
-  DeleteError,
-  ItemNotFoundError,
-  ReadError,
-  UpdateError,
-} from 'shared/errors/errors';
+import {DeleteError, ReadError, UpdateError} from 'shared/errors/errors';
 import {Inject, Service} from 'typedi';
 import {Module} from '../classes/transformers/Module';
 import {
@@ -253,7 +249,7 @@ export class ModuleController {
         message: `Module with the ID ${moduleId} in Version ${versionId} has been deleted successfully.`,
       };
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw new HttpError(404, error.message);
       }
       if (error instanceof DeleteError) {

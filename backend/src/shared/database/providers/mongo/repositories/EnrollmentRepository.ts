@@ -2,8 +2,9 @@ import 'reflect-metadata';
 import {Collection, ObjectId} from 'mongodb';
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
-import {IEnrollment, IProgress} from 'shared/interfaces/IUser';
-import {CreateError, ItemNotFoundError, ReadError} from 'shared/errors/errors';
+import {IEnrollment, IProgress} from 'shared/interfaces/Models';
+import {CreateError, ReadError} from 'shared/errors/errors';
+import {NotFoundError} from 'routing-controllers';
 
 @Service()
 export class EnrollmentRepository {
@@ -64,7 +65,7 @@ export class EnrollmentRepository {
       });
 
       if (!newEnrollment) {
-        throw new ItemNotFoundError('Newly created enrollment not found');
+        throw new NotFoundError('Newly created enrollment not found');
       }
 
       return newEnrollment;
@@ -89,7 +90,7 @@ export class EnrollmentRepository {
       });
 
       if (!newProgress) {
-        throw new ItemNotFoundError('Newly created progress not found');
+        throw new NotFoundError('Newly created progress not found');
       }
 
       return newProgress;

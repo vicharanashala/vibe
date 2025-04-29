@@ -12,7 +12,7 @@ import {
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
-} from 'shared/interfaces/IUser';
+} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 import {CreateItemBody} from '../validators/ItemValidators';
 /**

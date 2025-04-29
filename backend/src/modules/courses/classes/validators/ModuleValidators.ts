@@ -7,7 +7,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import {IModule, ISection} from 'shared/interfaces/IUser';
+import {IModule, ISection} from 'shared/interfaces/Models';
 
 /**
  * Payload for creating a new module inside a course version.

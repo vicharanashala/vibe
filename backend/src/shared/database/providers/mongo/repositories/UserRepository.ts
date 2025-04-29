@@ -1,5 +1,5 @@
-import {Collection, WithId} from 'mongodb';
-import {IUser} from 'shared/interfaces/IUser';
+import {Collection, ObjectId, WithId} from 'mongodb';
+import {IUser} from 'shared/interfaces/Models';
 import {Inject, Service} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 import {IUserRepository} from 'shared/database/interfaces/IUserRepository';
@@ -53,6 +53,15 @@ export class UserRepository implements IUserRepository {
   async findByEmail(email: string): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({email});
+    return this.transformUser(user);
+  }
+
+  /**
+   * Finds a user by ID.
+   */
+  async findById(id: string): Promise<IUser | null> {
+    await this.init();
+    const user = await this.usersCollection.findOne({_id: new ObjectId(id)});
     return this.transformUser(user);
   }
 

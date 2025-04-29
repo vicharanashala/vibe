@@ -4,7 +4,7 @@ import {
   ICourseVersion,
   IEnrollment,
   IProgress,
-} from 'shared/interfaces/IUser';
+} from 'shared/interfaces/Models';
 import {ObjectId} from 'mongodb';
 
 export interface ICourseRepository {

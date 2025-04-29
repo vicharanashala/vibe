@@ -10,7 +10,7 @@
 
 import 'reflect-metadata';
 import {Request} from 'express';
-import {IUser} from 'shared/interfaces/IUser';
+import {IUser} from 'shared/interfaces/Models';
 import {
   ChangePasswordBody,
   SignUpBody,

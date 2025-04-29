@@ -3,7 +3,7 @@ import {
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
-} from 'shared/interfaces/IUser';
+} from 'shared/interfaces/Models';
 
 export interface IItemRepository {
   createItem(item: IBaseItem): Promise<IBaseItem | null>;

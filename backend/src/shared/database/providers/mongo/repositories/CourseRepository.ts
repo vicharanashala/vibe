@@ -2,13 +2,12 @@ import 'reflect-metadata';
 import {instanceToPlain} from 'class-transformer';
 import {Course} from 'modules/courses/classes/transformers/Course';
 import {CourseVersion} from 'modules/courses/classes/transformers/CourseVersion';
-import {ItemsGroup} from 'modules/courses/classes/transformers/Item';
+import {Item, ItemsGroup} from 'modules/courses/classes/transformers/Item';
 import {Collection, ObjectId} from 'mongodb';
 import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
 import {
   CreateError,
   DeleteError,
-  ItemNotFoundError,
   ReadError,
   UpdateError,
 } from 'shared/errors/errors';
@@ -17,9 +16,10 @@ import {
   IModule,
   IEnrollment,
   IProgress,
-} from 'shared/interfaces/IUser';
+} from 'shared/interfaces/Models';
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
+import {NotFoundError} from 'routing-controllers';
 
 @Service()
 export class CourseRepository implements ICourseRepository {
@@ -61,11 +61,11 @@ export class CourseRepository implements ICourseRepository {
         _id: new ObjectId(id),
       });
       if (course === null) {
-        throw new ItemNotFoundError('Course not found');
+        throw new NotFoundError('Course not found');
       }
       return instanceToPlain(Object.assign(new Course(), course)) as Course;
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw error;
       }
       throw new ReadError('Failed to read course.\n More Details: ' + error);
@@ -92,7 +92,7 @@ export class CourseRepository implements ICourseRepository {
         throw new UpdateError('Failed to update course');
       }
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw error;
       }
       throw new UpdateError(
@@ -136,14 +136,14 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (courseVersion === null) {
-        throw new ItemNotFoundError('Course Version not found');
+        throw new NotFoundError('Course Version not found');
       }
 
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion),
       ) as CourseVersion;
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw error;
       }
       throw new ReadError(
@@ -196,12 +196,12 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (!course) {
-        throw new ItemNotFoundError('Course not found');
+        throw new NotFoundError('Course not found');
       }
 
       // 2. check if the course version exists.
       if (!courseVersion) {
-        throw new ItemNotFoundError('Course Version not found');
+        throw new NotFoundError('Course Version not found');
       }
 
       // 3. Extract itemGroupsIds before deleting the course version.
@@ -242,7 +242,7 @@ export class CourseRepository implements ICourseRepository {
       // 7. Return the deleted course version
       return courseVersion;
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw error;
       }
       throw new DeleteError(
@@ -281,6 +281,23 @@ export class CourseRepository implements ICourseRepository {
       throw new ReadError('Failed to read items.\n More Details: ' + error);
     }
   }
+  async readItem(courseVersionId: string, itemId: string): Promise<Item> {
+    await this.init();
+    const courseVersion = await this.readVersion(courseVersionId);
+    const itemGroupsIds = courseVersion.modules.flatMap(module =>
+      module.sections.map(section => section.itemsGroupId),
+    );
+
+    // Find the item in the items groups
+    for (const itemGroupId of itemGroupsIds) {
+      const itemsGroup = await this.readItemsGroup(itemGroupId.toString());
+      const item = itemsGroup.items.find(
+        item => item.itemId.toString() === itemId,
+      );
+      return item;
+    }
+  }
+
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
     await this.init();
     try {
@@ -339,7 +356,7 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (!courseVersion) {
-        throw new ItemNotFoundError('Course Version not found');
+        throw new NotFoundError('Course Version not found');
       }
 
       // Find the module to delete
@@ -348,7 +365,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (!module) {
-        throw new ItemNotFoundError('Module not found');
+        throw new NotFoundError('Module not found');
       }
 
       // Cascade delete sections and items
@@ -388,7 +405,7 @@ export class CourseRepository implements ICourseRepository {
 
       return true;
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw error;
       }
       if (error instanceof DeleteError) {

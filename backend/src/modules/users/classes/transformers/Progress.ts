@@ -5,7 +5,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from 'shared/constants/transformerConstants';
-import {IProgress} from 'shared/interfaces/IUser';
+import {IProgress} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 
 @Expose()
@@ -45,6 +45,9 @@ export class Progress implements IProgress {
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
   currentItem: ID;
 
+  @Expose()
+  completed: boolean;
+
   constructor(
     userId?: string,
     courseId?: string,
@@ -52,6 +55,7 @@ export class Progress implements IProgress {
     currentModule?: string,
     currentSection?: string,
     currentItem?: string,
+    completed = false,
   ) {
     if (
       userId &&
@@ -67,6 +71,7 @@ export class Progress implements IProgress {
       this.currentModule = new ObjectId(currentModule);
       this.currentSection = new ObjectId(currentSection);
       this.currentItem = new ObjectId(currentItem);
+      this.completed = completed;
     }
   }
 }

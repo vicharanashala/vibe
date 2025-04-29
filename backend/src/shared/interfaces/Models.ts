@@ -90,6 +90,8 @@ export interface IBlogItem {
   _id: string;
   title: string;
   content: string;
+  estimatedReadTimeInMinutes: Number;
+  tags: string[];
   points: Number;
 }
 
@@ -281,6 +283,7 @@ export interface IBlogDetails {
   tags: string[];
   content: string;
   points: number;
+  estimatedReadTimeInMinutes: number;
 }
 
 // New interfaces for user enrollment and progress tracking
@@ -301,4 +304,15 @@ export interface IProgress {
   currentModule: string | ObjectId;
   currentSection: string | ObjectId;
   currentItem: string | ObjectId;
+  completed: boolean;
+}
+
+export interface IWatchTime {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  itemId: string | ObjectId;
+  startTime: Date;
+  endTime?: Date;
 }

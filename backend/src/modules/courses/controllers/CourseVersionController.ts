@@ -12,9 +12,10 @@ import {
   Delete,
   BadRequestError,
   HttpCode,
+  NotFoundError,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {DeleteError, ItemNotFoundError, ReadError} from 'shared/errors/errors';
+import {DeleteError, ReadError} from 'shared/errors/errors';
 import {Inject, Service} from 'typedi';
 import {CourseVersion} from '../classes/transformers/CourseVersion';
 import {
@@ -83,7 +84,7 @@ export class CourseVersionController {
         version: instanceToPlain(version),
       };
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw new HttpError(404, error.message);
       }
       if (error instanceof ReadError) {
@@ -115,7 +116,7 @@ export class CourseVersionController {
       if (error instanceof ReadError) {
         throw new HttpError(500, error.message);
       }
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw new HttpError(404, error.message);
       }
       throw new HttpError(500, error.message);
@@ -146,7 +147,7 @@ export class CourseVersionController {
         message: `Version with the ID ${versionId} has been deleted successfully.`,
       };
     } catch (error) {
-      if (error instanceof ItemNotFoundError) {
+      if (error instanceof NotFoundError) {
         throw new HttpError(404, error.message);
       }
       if (error instanceof DeleteError) {

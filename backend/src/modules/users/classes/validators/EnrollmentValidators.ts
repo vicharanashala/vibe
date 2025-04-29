@@ -16,6 +16,7 @@ export class EnrollmentParams {
    * User ID of the student to enroll
    */
 
+  @IsMongoId()
   @IsString()
   @IsNotEmpty()
   userId: string;

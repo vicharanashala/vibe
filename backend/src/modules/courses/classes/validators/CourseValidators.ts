@@ -8,7 +8,7 @@ import {
   ValidateIf,
   IsMongoId,
 } from 'class-validator';
-import {ICourse} from 'shared/interfaces/IUser';
+import {ICourse} from 'shared/interfaces/Models';
 
 /**
  * DTO for creating a course.

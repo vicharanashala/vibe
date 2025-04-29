@@ -13,6 +13,10 @@ import {EnrollmentController} from './controllers/EnrollmentController';
 import {EnrollmentService} from './services';
 import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from '../../config/db';
+import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
+import {ProgressController} from './controllers/index';
+import {ProgressService} from './services/ProgressService';
+import {Course} from 'modules/courses';
 useContainer(Container);
 
 export function setupUsersModuleDependencies(): void {
@@ -24,6 +28,13 @@ export function setupUsersModuleDependencies(): void {
     Container.set(
       'EnrollmentRepo',
       new EnrollmentRepository(Container.get<MongoDatabase>('Database')),
+    );
+  }
+
+  if (!Container.has('ProgressRepo')) {
+    Container.set(
+      'ProgressRepo',
+      new ProgressRepository(Container.get<MongoDatabase>('Database')),
     );
   }
 
@@ -51,12 +62,23 @@ export function setupUsersModuleDependencies(): void {
       ),
     );
   }
+
+  if (!Container.has('ProgressService')) {
+    Container.set(
+      'ProgressService',
+      new ProgressService(
+        Container.get<ProgressRepository>('ProgressRepo'),
+        Container.get<CourseRepository>('CourseRepo'),
+        Container.get<UserRepository>('UserRepo'),
+      ),
+    );
+  }
 }
 
 setupUsersModuleDependencies();
 
 export const usersModuleOptions: RoutingControllersOptions = {
-  controllers: [EnrollmentController],
+  controllers: [EnrollmentController, ProgressController],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {

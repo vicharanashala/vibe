@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
-import {ICourseVersion} from 'shared/interfaces/IUser';
+import {ICourseVersion} from 'shared/interfaces/Models';
 
 /**
  * DTO for creating a new course version.

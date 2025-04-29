@@ -20,7 +20,7 @@ import {
   IQuizDetails,
   ItemType,
   IVideoDetails,
-} from 'shared/interfaces/IUser';
+} from 'shared/interfaces/Models';
 
 /**
  * Video item details for embedded video learning content.
@@ -121,6 +121,13 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   @IsNotEmpty()
   @IsDecimal()
   points: number;
+
+  /**
+   * Estimated time to complete the blog in minutes.
+   */
+  @IsNotEmpty()
+  @IsPositive()
+  estimatedReadTimeInMinutes: number;
 }
 
 /**

@@ -92,7 +92,7 @@ describe('Enrollment Controller Integration Tests', () => {
       // Expect the response to contain the user ID
       expect(signUpResponse.body).toHaveProperty('id');
       // Extract the user ID from the response
-      const userId = signUpResponse.body.firebaseUID;
+      const userId = signUpResponse.body.id;
 
       // 2. Create a course by hitting at endpoint /courses
 

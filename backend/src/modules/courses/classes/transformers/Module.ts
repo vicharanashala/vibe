@@ -6,7 +6,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from 'shared/constants/transformerConstants';
-import {IModule} from 'shared/interfaces/IUser';
+import {IModule} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 import {CreateModuleBody} from '../validators/ModuleValidators';
 import {Section} from './Section';

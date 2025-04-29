@@ -5,7 +5,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from 'shared/constants/transformerConstants';
-import {IEnrollment} from 'shared/interfaces/IUser';
+import {IEnrollment} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 
 @Expose()
@@ -39,7 +39,7 @@ export class Enrollment implements IEnrollment {
 
   constructor(userId?: string, courseId?: string, courseVersionId?: string) {
     if (userId && courseId && courseVersionId) {
-      this.userId = userId;
+      this.userId = new ObjectId(userId);
       this.courseId = new ObjectId(courseId);
       this.courseVersionId = new ObjectId(courseVersionId);
       this.status = 'active';

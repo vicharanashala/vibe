@@ -31,27 +31,3 @@ export class DeleteError extends HttpError {
     this.name = 'DeleteError';
   }
 }
-
-// 404 - Not Found
-export class ItemNotFoundError extends HttpError {
-  constructor(message: string) {
-    super(404, message);
-    this.name = 'ItemNotFoundError';
-  }
-}
-
-// 401 - Unauthorized
-export class NotAuthorizedError extends HttpError {
-  constructor(message: string) {
-    super(401, message);
-    this.name = 'NotAuthorizedError';
-  }
-}
-
-// 409 - Conflict
-export class AlreadyExists extends HttpError {
-  constructor(message: string) {
-    super(409, message);
-    this.name = 'UserAlreadyExistsError';
-  }
-}

@@ -6,7 +6,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from 'shared/constants/transformerConstants';
-import {ISection} from 'shared/interfaces/IUser';
+import {ISection} from 'shared/interfaces/Models';
 import {ID} from 'shared/types';
 import {CreateSectionBody} from '../validators/SectionValidators';
 

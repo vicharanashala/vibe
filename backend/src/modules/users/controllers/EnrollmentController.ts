@@ -14,7 +14,6 @@ import {
   EnrollUserResponse,
   Progress,
 } from '../classes/transformers';
-import {ItemNotFoundError} from 'shared/errors/errors';
 
 /**
  * Controller for managing student enrollments in courses.
