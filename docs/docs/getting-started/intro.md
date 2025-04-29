@@ -44,7 +44,7 @@ If you want to run services manually:
 ### 🖥 Frontend
 
 ```bash
-vibe start frontent
+vibe start frontend
 ```
 
 ### ⚙️ Backend
