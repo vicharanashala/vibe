@@ -46,35 +46,7 @@ check_repo() {
   fi
 }
 
-install_pnpm() {
-  if ! command -v pnpm >/dev/null 2>&1; then
-    echo "📦 Installing pnpm..."
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL https://get.pnpm.io/install.sh | sh -
-    else
-      if command -v wget >/dev/null 2>&1; then
-        wget -qO- https://get.pnpm.io/install.sh | sh -
-      else
-        echo "Installing curl..."
-        if [[ "$OS" == "Linux" ]]; then
-          if command -v apt >/dev/null 2>&1; then
-            sudo apt update
-            sudo apt install -y curl
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y curl
-          elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y curl
-          elif command -v pacman >/dev/null 2>&1; then
-            sudo pacman -Sy --noconfirm curl
-          fi
-        elif [[ "$OS" == "Darwin" ]]; then
-          brew install curl
-        fi
-        echo "Installing pnpm using curl..."
-        curl -fsSL https://get.pnpm.io/install.sh | sh -
-      fi
-    fi
-  fi
+detect_and_source_shell_config() {
   if [ -f "$HOME/.bashrc" ]; then
     source "$HOME/.bashrc"
   elif [ -f "$HOME/.bash_profile" ]; then
@@ -88,8 +60,25 @@ install_pnpm() {
   else
     echo "⚠️ No shell config file found; you may need to add pnpm to your PATH manually."
   fi
+}
+
+install_pnpm() {
   if ! command -v pnpm >/dev/null 2>&1; then
-    echo "❌ Failed to install pnpm, Restart the setup."
+    echo "📦 Installing pnpm..."
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL https://get.pnpm.io/install.sh | sh -
+    elif command -v wget >/dev/null 2>&1; then
+      wget -qO- https://get.pnpm.io/install.sh | sh -
+    else
+      echo "❌ curl or wget is required to install pnpm."
+      exit 1
+    fi
+  fi
+
+  detect_and_source_shell_config
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "❌ Failed to install pnpm. Restart the setup."
     exit 1
   else
     echo "✅ pnpm: $(pnpm -v)"
@@ -133,17 +122,7 @@ verify_node() {
       \. "$HOME/.nvm/nvm.sh"
       # Download and install Node.js:
       nvm install 23
-      if [ -f "$HOME/.bashrc" ]; then
-        source "$HOME/.bashrc"
-      elif [ -f "$HOME/.bash_profile" ]; then
-        source "$HOME/.bash_profile"
-      elif [ -f "$HOME/.zshrc" ]; then
-        source "$HOME/.zshrc"
-      elif [ -f "$HOME/.zprofile" ]; then
-        source "$HOME/.zprofile"
-      elif [ -f "$HOME/.config/fish/config.fish" ]; then
-        source "$HOME/.config/fish/config.fish"
-      fi
+      detect_and_source_shell_config
       if command -v node >/dev/null 2>&1; then
         echo "✅ Node.js updated to $(node -v)."
       else
@@ -157,31 +136,12 @@ verify_node() {
     \. "$HOME/.nvm/nvm.sh"
     # Download and install Node.js:
     nvm install 23
-    if [ -f "$HOME/.bashrc" ]; then
-      source "$HOME/.bashrc"
-    elif [ -f "$HOME/.bash_profile" ]; then
-      source "$HOME/.bash_profile"
-    elif [ -f "$HOME/.zshrc" ]; then
-      source "$HOME/.zshrc"
-    elif [ -f "$HOME/.zprofile" ]; then
-      source "$HOME/.zprofile"
-    elif [ -f "$HOME/.config/fish/config.fish" ]; then
-      source "$HOME/.config/fish/config.fish"
-    fi
+    detect_and_source_shell_config
   fi
 }
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME/.bashrc"
-elif [ -f "$HOME/.bash_profile" ]; then
-  source "$HOME/.bash_profile"
-elif [ -f "$HOME/.zshrc" ]; then
-  source "$HOME/.zshrc"
-elif [ -f "$HOME/.zprofile" ]; then
-  source "$HOME/.zprofile"
-elif [ -f "$HOME/.config/fish/config.fish" ]; then
-  source "$HOME/.config/fish/config.fish"
-fi
+detect_and_source_shell_config
+
 if [[ "$(pwd)" == */scripts ]]; then
   cd ..
 fi
