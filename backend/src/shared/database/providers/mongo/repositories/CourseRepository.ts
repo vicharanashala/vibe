@@ -294,7 +294,11 @@ export class CourseRepository implements ICourseRepository {
       const item = itemsGroup.items.find(
         item => item.itemId.toString() === itemId,
       );
-      return item;
+      if (!item) {
+        continue;
+      } else {
+        return item;
+      }
     }
   }
 

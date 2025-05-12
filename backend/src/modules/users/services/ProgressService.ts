@@ -11,6 +11,7 @@ import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {
   IBlogDetails,
   ICourseVersion,
+  IProgress,
   IVideoDetails,
   IWatchTime,
 } from 'shared/interfaces/Models';
@@ -82,6 +83,175 @@ class ProgressService {
       firstModule.moduleId.toString(),
       firstSection.sectionId.toString(),
       firstItem.itemId.toString(),
+    );
+  }
+
+  private async initializeProgressToModule(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    courseVersion: ICourseVersion,
+    moduleId: string,
+  ) {
+    // Get the first module, section, and item
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      return null; // No modules to track progress for
+    }
+
+    const module = courseVersion.modules.find(
+      module => module.moduleId.toString() === moduleId,
+    );
+
+    if (!module) {
+      throw new NotFoundError(
+        'Module not found in the specified course version.',
+      );
+    }
+
+    if (!module.sections || module.sections.length === 0) {
+      return null; // No sections to track progress for
+    }
+
+    const firstSection = module.sections.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    // Get the first item from the itemsGroup
+    const itemsGroup = await this.courseRepo.readItemsGroup(
+      firstSection.itemsGroupId.toString(),
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      return null; // No items to track progress for
+    }
+
+    const firstItem = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    // Create progress record
+    return new Progress(
+      userId,
+      courseId,
+      courseVersionId,
+      module.moduleId.toString(),
+      firstSection.sectionId.toString(),
+      firstItem.itemId.toString(),
+    );
+  }
+
+  private async initializeProgressToSection(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+  ) {
+    // Get the first module, section, and item
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      return null; // No modules to track progress for
+    }
+
+    const module = courseVersion.modules.find(
+      module => module.moduleId.toString() === moduleId,
+    );
+
+    if (!module) {
+      throw new NotFoundError(
+        'Module not found in the specified course version.',
+      );
+    }
+
+    const section = module.sections.find(
+      section => section.sectionId.toString() === sectionId,
+    );
+
+    if (!section) {
+      throw new NotFoundError('Section not found in the specified module.');
+    }
+
+    // Get the first item from the itemsGroup
+    const itemsGroup = await this.courseRepo.readItemsGroup(
+      section.itemsGroupId.toString(),
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      return null; // No items to track progress for
+    }
+
+    const firstItem = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    // Create progress record
+    return new Progress(
+      userId,
+      courseId,
+      courseVersionId,
+      module.moduleId.toString(),
+      section.sectionId.toString(),
+      firstItem.itemId.toString(),
+    );
+  }
+
+  private async initializeProgressToItem(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ) {
+    // Get the first module, section, and item
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      return null; // No modules to track progress for
+    }
+
+    const module = courseVersion.modules.find(
+      module => module.moduleId.toString() === moduleId,
+    );
+
+    if (!module) {
+      throw new NotFoundError(
+        'Module not found in the specified course version.',
+      );
+    }
+
+    const section = module.sections.find(
+      section => section.sectionId.toString() === sectionId,
+    );
+
+    if (!section) {
+      throw new NotFoundError('Section not found in the specified module.');
+    }
+
+    // Get the first item from the itemsGroup
+    const itemsGroup = await this.courseRepo.readItemsGroup(
+      section.itemsGroupId.toString(),
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      return null; // No items to track progress for
+    }
+
+    const item = itemsGroup.items.find(
+      item => item.itemId.toString() === itemId,
+    );
+
+    if (!item) {
+      throw new NotFoundError('Item not found in the specified section.');
+    }
+
+    // Create progress record
+    return new Progress(
+      userId,
+      courseId,
+      courseVersionId,
+      module.moduleId.toString(),
+      section.sectionId.toString(),
+      item.itemId.toString(),
     );
   }
 
@@ -202,13 +372,13 @@ class ProgressService {
       isLastItem = true;
     }
 
-    // If isLastItem, isLastSection and isLastModule is true, set completed to true
+    // Handle when the item is the last item in the last section of the last module
     if (isLastItem && isLastSection && isLastModule) {
       completed = true;
     }
 
-    // If isLastItem and isLastSection is true, get next module
-    if (isLastItem && isLastSection) {
+    // Handle when the item is the last item in the last section but not the last module
+    if (isLastItem && isLastSection && !isLastModule) {
       // Get index of the current module
       const currentModuleIndex = sortedModules.findIndex(
         module => module.moduleId === moduleId,
@@ -232,8 +402,8 @@ class ProgressService {
       currentItem = firstItem.itemId.toString();
     }
 
-    // If isLastItem is true, get next section
-    if (isLastItem) {
+    // Handle when the item is the last item in the section but not the last section and not the last module
+    if (isLastItem && !isLastSection && !isLastModule) {
       // Get index of the current section
       const currentSectionIndex = sortedSections?.findIndex(
         section => section.sectionId === sectionId,
@@ -252,8 +422,57 @@ class ProgressService {
       currentItem = firstItem.itemId.toString();
     }
 
-    // If isLastItem is not true, get next item and set currentItem to next itemId
-    if (!isLastItem) {
+    // Handle when none of the item, the section, or the module is last.
+    if (!isLastItem && !isLastSection && !isLastModule) {
+      // Get index of the current item
+      const currentItemIndex = sortedItems.findIndex(
+        item => item.itemId === itemId,
+      );
+      // Get next itemId
+      const nextItem = sortedItems[currentItemIndex + 1];
+      currentItem = nextItem.itemId.toString();
+    }
+
+    if (isLastItem && !isLastSection && isLastModule) {
+      // Get index of the current section
+      const currentSectionIndex = sortedSections?.findIndex(
+        section => section.sectionId === sectionId,
+      );
+      // Get next sectionId
+      const nextSection = sortedSections?.[currentSectionIndex + 1];
+      currentSection = nextSection?.sectionId.toString();
+
+      // Get first itemId in the next section
+      const itemsGroup = await this.courseRepo.readItemsGroup(
+        nextSection?.itemsGroupId.toString(),
+      );
+      const firstItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+      currentItem = firstItem.itemId.toString();
+    }
+
+    if (!isLastItem && !isLastSection && isLastModule) {
+      // Get index of the current item
+      const currentItemIndex = sortedItems.findIndex(
+        item => item.itemId === itemId,
+      );
+      // Get next itemId
+      const nextItem = sortedItems[currentItemIndex + 1];
+      currentItem = nextItem.itemId.toString();
+    }
+
+    if (!isLastItem && isLastSection && isLastModule) {
+      // Get index of the current item
+      const currentItemIndex = sortedItems.findIndex(
+        item => item.itemId === itemId,
+      );
+      // Get next itemId
+      const nextItem = sortedItems[currentItemIndex + 1];
+      currentItem = nextItem.itemId.toString();
+    }
+
+    if (!isLastItem && isLastSection && !isLastModule) {
       // Get index of the current item
       const currentItemIndex = sortedItems.findIndex(
         item => item.itemId === itemId,
@@ -443,6 +662,9 @@ class ProgressService {
 
     // Check if the watch time is greater than the item duration
     const item = await this.courseRepo.readItem(courseVersionId, itemId);
+    if (!item) {
+      throw new NotFoundError('Item not found in Course Version');
+    }
     if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
       // TODO: Handle other item types
       throw new BadRequestError('Item type is not supported');
@@ -481,6 +703,164 @@ class ProgressService {
 
     if (!updatedProgress) {
       throw new InternalServerError('Progress could not be updated');
+    }
+  }
+
+  // Admin Level Endpoint
+  async resetCourseProgress(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<void> {
+    await this.verifyDetails(userId, courseId, courseVersionId);
+
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+
+    const updatedProgress: IProgress = await this.initializeProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+    );
+
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: updatedProgress.currentModule,
+        currentSection: updatedProgress.currentSection,
+        currentItem: updatedProgress.currentItem,
+        completed: false,
+      },
+    );
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
+    }
+  }
+
+  async resetCourseProgressToModule(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+  ): Promise<void> {
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+
+    // Get the new progress after resetting to the module
+    const newProgress = await this.initializeProgressToModule(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
+
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
+    }
+  }
+
+  async resetCourseProgressToSection(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+    sectionId: string,
+  ) {
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+
+    // Get the new progress after resetting to the section
+    const newProgress = await this.initializeProgressToSection(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+      sectionId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
+
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
+    }
+  }
+
+  async resetCourseProgressToItem(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ) {
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+
+    // Get the new progress after resetting to the item
+    const newProgress = await this.initializeProgressToItem(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
+
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
     }
   }
 }

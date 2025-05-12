@@ -19,9 +19,9 @@
     "compile": "tsc",
     "fix": "pnpx gts fix",
     "prepare": "pnpm run compile",
-    "emulator:auth": "firebase emulators:start --only auth",
-    "emulator:functions": "firebase emulators:start --only functions",
-    "emualtor:all": "firebase emulators:start"
+    "emulators:auth": "firebase emulators:start --only auth",
+    "emulators:functions": "firebase emulators:start --only functions",
+    "emulators:all": "firebase emulators:start"
   },
   "keywords": [],
   "author": "",

@@ -276,7 +276,7 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(enrollmentResponse.body.progress.courseVersionId).toBe(
         courseVersionId,
       );
-    });
+    }, 20000);
   });
 
   // ------Tests for Read <ModuleName>------

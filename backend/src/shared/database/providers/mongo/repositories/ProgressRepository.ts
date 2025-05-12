@@ -75,7 +75,6 @@ class ProgressRepository {
         {$set: progress},
         {returnDocument: 'after'},
       );
-      console.log('result', result);
       if (!result._id) {
         console.log('Progress not found while updateing');
         throw new NotFoundError('Progress not found');
@@ -205,6 +204,36 @@ class ProgressRepository {
     });
 
     return result;
+  }
+
+  async findAndReplaceProgress(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    progress: Partial<IProgress>,
+  ): Promise<IProgress | null> {
+    await this.init();
+    try {
+      const result = await this.progressCollection.findOneAndUpdate(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {$set: progress},
+        {returnDocument: 'after'},
+      );
+
+      if (!result) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      return result;
+    } catch (error) {
+      throw new UpdateError(
+        `Failed to update progress tracking: ${error.message}`,
+      );
+    }
   }
 }
 
