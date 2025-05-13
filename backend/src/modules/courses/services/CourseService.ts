@@ -13,7 +13,9 @@ class CourseService {
   async createCourse(course: Course): Promise<Course> {
     const createdCourse = await this.courseRepo.create(course);
     if (!createdCourse) {
-      throw new InternalServerError('Failed to create course');
+      throw new InternalServerError(
+        'Failed to create course. Please try again later.',
+      );
     }
     return createdCourse;
   }
@@ -21,7 +23,9 @@ class CourseService {
   async readCourse(id: string): Promise<Course> {
     const course = await this.courseRepo.read(id);
     if (!course) {
-      throw new NotFoundError('Course not found');
+      throw new NotFoundError(
+        'No course found with the specified ID. Please verify the ID and try again.',
+      );
     }
     return course;
   }
@@ -32,7 +36,9 @@ class CourseService {
   ): Promise<Course> {
     const updatedCourse = await this.courseRepo.update(id, data);
     if (!updatedCourse) {
-      throw new NotFoundError('Course not found');
+      throw new NotFoundError(
+        'No course found with the specified ID. Please verify the ID and try again.',
+      );
     }
     return updatedCourse;
   }
