@@ -11,6 +11,7 @@ import {ModuleController} from './controllers/ModuleController';
 import {SectionController} from './controllers/SectionController';
 import {ItemController} from './controllers/ItemController';
 import {CourseService} from './services';
+import {HttpErrorHandler} from 'shared/middleware/errorHandler';
 
 useContainer(Container);
 
@@ -47,8 +48,9 @@ export const coursesModuleOptions: RoutingControllersOptions = {
     SectionController,
     ItemController,
   ],
-  defaultErrorHandler: true,
-  // middlewares: [HttpErrorHandler],
+  // defaultErrorHandler: true,
+  middlewares: [HttpErrorHandler],
+  defaultErrorHandler: false,
   authorizationChecker: async function () {
     return true;
   },

@@ -42,6 +42,9 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.1
+      class-validator-jsonschema:
+        specifier: ^5.0.2
+        version: 5.0.2(class-transformer@0.5.1)(class-validator@0.14.1)
       config:
         specifier: ^3.3.12
         version: 3.3.12
@@ -81,6 +84,9 @@ importers:
       routing-controllers:
         specifier: ^0.11.2
         version: 0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)
+      routing-controllers-openapi:
+        specifier: ^5.0.0
+        version: 5.0.0(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1))
       typedi:
         specifier: ^0.10.0
         version: 0.10.0
@@ -4995,6 +5001,12 @@ packages:
   class-transformer@0.5.1:
     resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
 
+  class-validator-jsonschema@5.0.2:
+    resolution: {integrity: sha512-b+oHktogJLWf/IRWEoVizrT/0TkYBHKxSLHbE4lq5DEJAEhq6z6nBJbw4hwh9akEeX3v08Hw8d5TBEv7VcZ8TQ==}
+    peerDependencies:
+      class-transformer: ^0.4.0 || ^0.5.0
+      class-validator: ^0.14.0
+
   class-validator@0.14.1:
     resolution: {integrity: sha512-2VEG9JICxIqTpoK1eMzZqaV+u/EiwEJkMGzTrZf6sU/fwsnOITVgYJ8yojSy6CaXtO9V0Cc6ZQZ8h8m4UBuLwQ==}
 
@@ -7487,11 +7499,17 @@ packages:
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
 
+  lodash.capitalize@4.2.1:
+    resolution: {integrity: sha512-kZzYOKspf8XVX5AvmQF94gQW0lejFVgb80G85bU4ZWzoJ6C03PQg3coYAUpSTpQWelrZELd3XWgHzw4Ck5kaIw==}
+
   lodash.clonedeep@4.5.0:
     resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
 
   lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
+
+  lodash.groupby@4.6.0:
+    resolution: {integrity: sha512-5dcWxm23+VAoz+awKmBaiBvzox8+RqMgFhi7UvX9DHZr2HdxHXM/Wrf8cfKpsW37RNrvtPn6hSwNqurSILbmJw==}
 
   lodash.includes@4.3.0:
     resolution: {integrity: sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==}
@@ -7519,6 +7537,9 @@ packages:
 
   lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
+
+  lodash.startcase@4.4.0:
+    resolution: {integrity: sha512-+WKqsK294HMSc2jEbNgpHpd0JfIBhp7rEV4aqXWqFr6AlXov+SlcgB1Fv01y2kGe3Gc8nMW7VA0SrGuSkRfIEg==}
 
   lodash.throttle@4.1.1:
     resolution: {integrity: sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==}
@@ -8106,6 +8127,7 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
+    deprecated: Use your platform's native DOMException instead
 
   node-emoji@2.2.0:
     resolution: {integrity: sha512-Z3lTE9pLaJF47NyMhd4ww1yFTAP8YhYI8SleJiHzM46Fgpm5cnNzSl9XfzFNqbaz+VlJrIj3fXQ4DeN1Rjm6cw==}
@@ -8243,6 +8265,9 @@ packages:
   open@8.4.2:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
+
+  openapi3-ts@3.2.0:
+    resolution: {integrity: sha512-/ykNWRV5Qs0Nwq7Pc0nJ78fgILvOT/60OxEmB3v7yQ8a8Bwcm43D4diaYazG/KBn6czA+52XYy931WFLMCUeSg==}
 
   opener@1.5.2:
     resolution: {integrity: sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A==}
@@ -9184,6 +9209,9 @@ packages:
   redux@5.0.1:
     resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
 
+  reflect-metadata@0.1.14:
+    resolution: {integrity: sha512-ZhYeb6nRaXCfhnndflDK8qI6ZQ/YcWZCISRAWICW9XYqMUwjZM9Z0DveWX/ABN01oxSHwVxKQmxeYZSsm0jh5A==}
+
   reflect-metadata@0.2.2:
     resolution: {integrity: sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==}
 
@@ -9367,6 +9395,11 @@ packages:
 
   roughjs@4.6.6:
     resolution: {integrity: sha512-ZUz/69+SYpFN/g/lUlo2FXcIjRkSu3nDarreVdGGndHEBJ6cXPdKguS8JGxwj5HA5xIbVKSmLgr5b3AWxtRfvQ==}
+
+  routing-controllers-openapi@5.0.0:
+    resolution: {integrity: sha512-7Xdo9DSRRVF/AwTL5+xgPp/76/QOXIVumMhdQlRg4sE4a9B8Br9fjDGbqDzLURqeCO4o1SGNKK4g88nhUtfXIw==}
+    peerDependencies:
+      routing-controllers: ^0.11.0
 
   routing-controllers@0.11.2:
     resolution: {integrity: sha512-VXwORuOHQfFYUdIFgf65uf7XK87X7tekCjVhN75bHKOlIkwF3JmrOkmY1wv0LVgn7Q3vf5qq8yxf2QASi1jiyw==}
@@ -16801,6 +16834,16 @@ snapshots:
 
   class-transformer@0.5.1: {}
 
+  class-validator-jsonschema@5.0.2(class-transformer@0.5.1)(class-validator@0.14.1):
+    dependencies:
+      class-transformer: 0.5.1
+      class-validator: 0.14.1
+      lodash.groupby: 4.6.0
+      lodash.merge: 4.6.2
+      openapi3-ts: 3.2.0
+      reflect-metadata: 0.2.2
+      tslib: 2.8.1
+
   class-validator@0.14.1:
     dependencies:
       '@types/validator': 13.12.3
@@ -19884,9 +19927,13 @@ snapshots:
 
   lodash.camelcase@4.3.0: {}
 
+  lodash.capitalize@4.2.1: {}
+
   lodash.clonedeep@4.5.0: {}
 
   lodash.debounce@4.0.8: {}
+
+  lodash.groupby@4.6.0: {}
 
   lodash.includes@4.3.0: {}
 
@@ -19905,6 +19952,8 @@ snapshots:
   lodash.merge@4.6.2: {}
 
   lodash.once@4.1.1: {}
+
+  lodash.startcase@4.4.0: {}
 
   lodash.throttle@4.1.1: {}
 
@@ -20904,6 +20953,10 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  openapi3-ts@3.2.0:
+    dependencies:
+      yaml: 2.7.1
+
   opener@1.5.2: {}
 
   optionator@0.9.4:
@@ -21058,8 +21111,7 @@ snapshots:
 
   path-to-regexp@3.3.0: {}
 
-  path-to-regexp@6.3.0:
-    optional: true
+  path-to-regexp@6.3.0: {}
 
   path-type@4.0.0: {}
 
@@ -21930,6 +21982,8 @@ snapshots:
 
   redux@5.0.1: {}
 
+  reflect-metadata@0.1.14: {}
+
   reflect-metadata@0.2.2: {}
 
   regenerate-unicode-properties@10.2.0:
@@ -22179,6 +22233,17 @@ snapshots:
       path-data-parser: 0.1.0
       points-on-curve: 0.2.0
       points-on-path: 0.2.1
+
+  routing-controllers-openapi@5.0.0(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)):
+    dependencies:
+      lodash.capitalize: 4.2.1
+      lodash.merge: 4.6.2
+      lodash.startcase: 4.4.0
+      openapi3-ts: 3.2.0
+      path-to-regexp: 6.3.0
+      reflect-metadata: 0.1.14
+      routing-controllers: 0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)
+      tslib: 2.8.1
 
   routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1):
     dependencies:

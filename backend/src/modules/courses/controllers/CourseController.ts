@@ -5,14 +5,13 @@ import {
   Authorized,
   Post,
   Body,
-  HttpError,
   Get,
   Put,
   Params,
   HttpCode,
-  NotFoundError,
+  Param,
+  Res,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {Service, Inject} from 'typedi';
 import {Course} from '../classes/transformers/Course';
 import {
@@ -20,8 +19,25 @@ import {
   ReadCourseParams,
   UpdateCourseParams,
   UpdateCourseBody,
+  CourseDataResponse,
+  CourseNotFoundErrorResponse,
 } from '../classes/validators/CourseValidators';
 import {CourseService} from '../services';
+import {getMetadataArgsStorage} from 'routing-controllers';
+import {
+  OpenAPI,
+  routingControllersToSpec,
+  ResponseSchema,
+} from 'routing-controllers-openapi';
+import {
+  JSONSchema,
+  validationMetadatasToSchemas,
+} from 'class-validator-jsonschema';
+import {coursesModuleOptions} from '..';
+import {
+  BadRequestErrorResponse,
+  DefaultErrorResponse,
+} from 'shared/middleware/errorHandler';
 
 @JsonController('/courses')
 @Service()
@@ -33,6 +49,17 @@ export class CourseController {
   @Authorized(['admin', 'instructor'])
   @Post('/', {transformResponse: true})
   @HttpCode(201)
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Course created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @OpenAPI({
+    summary: 'Create Course',
+    description: 'Creates a new course with the provided details.',
+  })
   async create(@Body() body: CreateCourseBody): Promise<Course> {
     const course = new Course(body);
     const createdCourse = await this.courseService.createCourse(course);
@@ -41,7 +68,22 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Get('/:id', {transformResponse: true})
-  async read(@Params() params: ReadCourseParams) {
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Course retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Get Course',
+    description: 'Retrieves the course details for the specified course ID.',
+  })
+  async read(@Params() params: ReadCourseParams, param: string) {
     const {id} = params;
     const course = await this.courseService.readCourse(id);
     return course;
@@ -49,6 +91,21 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Put('/:id', {transformResponse: true})
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Course updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Update Course',
+    description: 'Updates the course details for the specified course ID.',
+  })
   async update(
     @Params() params: UpdateCourseParams,
     @Body() body: UpdateCourseBody,
@@ -58,3 +115,36 @@ export class CourseController {
     return updatedCourse;
   }
 }
+
+const schemas = validationMetadatasToSchemas({
+  refPointerPrefix: '#/components/schemas/',
+  validationError: {
+    target: true,
+    value: true,
+  },
+});
+
+const storage = getMetadataArgsStorage();
+const spec = routingControllersToSpec(storage, coursesModuleOptions, {
+  tags: [
+    {
+      name: 'Courses',
+      description:
+        'Operations related to courses, which include creating, reading, and updating course information.',
+    },
+  ],
+  info: {
+    title: 'ViBe Course API',
+    version: '1.0.0',
+    description: 'API for managing courses',
+  },
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
+  components: {
+    schemas,
+  },
+});
+console.log(JSON.stringify(spec, null, 2));

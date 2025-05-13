@@ -91,7 +91,7 @@ describe('Course Controller Integration Tests', () => {
           .post('/courses/')
           .send(invalidPayload)
           .expect(400);
-
+        console.log(response.body);
         expect(response.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
@@ -132,6 +132,10 @@ describe('Course Controller Integration Tests', () => {
         const response = await request(app)
           .get(`/courses/${faker.database.mongodbObjectId()}`)
           .expect(404);
+        console.log(response.body);
+        expect(response.body.message).toContain(
+          'No course found with the specified ID. Please verify the ID and try again.',
+        );
       });
     });
   });
