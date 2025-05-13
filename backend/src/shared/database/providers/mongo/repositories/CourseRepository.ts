@@ -38,66 +38,42 @@ export class CourseRepository implements ICourseRepository {
   }
   async create(course: Course): Promise<Course | null> {
     await this.init();
-    try {
-      const result = await this.courseCollection.insertOne(course);
-      if (result.acknowledged) {
-        const newCourse = await this.courseCollection.findOne({
-          _id: result.insertedId,
-        });
-        return Object.assign(new Course(), newCourse) as Course;
-      } else {
-        throw new CreateError('Failed to create course');
-      }
-    } catch (error) {
-      throw new CreateError(
-        'Failed to create course.\n More Details: ' + error,
-      );
+    const result = await this.courseCollection.insertOne(course);
+    if (result.acknowledged) {
+      const newCourse = await this.courseCollection.findOne({
+        _id: result.insertedId,
+      });
+      return Object.assign(new Course(), newCourse) as Course;
+    } else {
+      return null;
     }
   }
   async read(id: string): Promise<ICourse | null> {
     await this.init();
-    try {
-      const course = await this.courseCollection.findOne({
-        _id: new ObjectId(id),
-      });
-      if (course === null) {
-        throw new NotFoundError('Course not found');
-      }
-      return instanceToPlain(Object.assign(new Course(), course)) as Course;
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new ReadError('Failed to read course.\n More Details: ' + error);
+    const course = await this.courseCollection.findOne({
+      _id: new ObjectId(id),
+    });
+    if (course) {
+      return Object.assign(new Course(), course) as Course;
+    } else {
+      return null;
     }
   }
   async update(id: string, course: Partial<ICourse>): Promise<ICourse | null> {
     await this.init();
-    try {
-      await this.read(id);
+    await this.read(id);
 
-      const {_id: _, ...fields} = course;
-      const result = await this.courseCollection.updateOne(
-        {_id: new ObjectId(id)},
-        {$set: fields},
-      );
-      if (result.modifiedCount === 1) {
-        const updatedCourse = await this.courseCollection.findOne({
-          _id: new ObjectId(id),
-        });
-        return instanceToPlain(
-          Object.assign(new Course(), updatedCourse),
-        ) as Course;
-      } else {
-        throw new UpdateError('Failed to update course');
-      }
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new UpdateError(
-        'Failed to update course.\n More Details: ' + error,
-      );
+    const {_id: _, ...fields} = course;
+    const res = await this.courseCollection.findOneAndUpdate(
+      {_id: new ObjectId(id)},
+      {$set: fields},
+      {returnDocument: 'after'},
+    );
+
+    if (res) {
+      return Object.assign(new Course(), res) as Course;
+    } else {
+      return null;
     }
   }
   async delete(id: string): Promise<boolean> {

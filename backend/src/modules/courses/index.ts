@@ -10,6 +10,7 @@ import {CourseVersionController} from './controllers/CourseVersionController';
 import {ModuleController} from './controllers/ModuleController';
 import {SectionController} from './controllers/SectionController';
 import {ItemController} from './controllers/ItemController';
+import {CourseService} from './services';
 
 useContainer(Container);
 
@@ -25,6 +26,13 @@ export function setupCoursesModuleDependencies() {
     Container.set(
       'CourseRepo',
       new CourseRepository(Container.get<MongoDatabase>('Database')),
+    );
+  }
+
+  if (!Container.has('CourseService')) {
+    Container.set(
+      'CourseService',
+      new CourseService(Container.get<CourseRepository>('CourseRepo')),
     );
   }
 }
