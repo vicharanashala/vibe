@@ -23,7 +23,7 @@ class Course implements ICourse {
     description: 'Unique identifier for the course',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'mongo-uid',
+    format: 'Mongo Object ID',
   })
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
   @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
@@ -57,7 +57,7 @@ class Course implements ICourse {
     type: 'array',
     items: {
       type: 'string',
-      format: 'mongo-uid',
+      format: 'Mongo Object ID',
     },
   })
   versions: ID[];
@@ -72,7 +72,7 @@ class Course implements ICourse {
     type: 'array',
     items: {
       type: 'string',
-      format: 'mongo-uid',
+      format: 'Mongo Object ID',
     },
   })
   instructors: ID[];

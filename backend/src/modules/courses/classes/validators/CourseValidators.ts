@@ -19,139 +19,105 @@ import {
 } from 'shared/constants/transformerConstants';
 import {ID} from 'shared/types';
 
-/**
- * DTO for creating a course.
- *
- * @category Courses/Validators/CourseValidators
- */
 class CreateCourseBody implements Partial<ICourse> {
-  /**
-   * The name of the course.
-   * Must be between 3 and 255 characters.
-   */
-  @IsNotEmpty()
-  @IsString()
-  @MaxLength(255)
-  @MinLength(3)
   @JSONSchema({
     title: 'Course Name',
     description: 'Name of the course',
     example: 'Introduction to Programming',
     type: 'string',
   })
-  name: string;
-
-  /**
-   * A brief description of the course.
-   * Max length is 1000 characters.
-   */
   @IsNotEmpty()
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(255)
+  @MinLength(3)
+  name: string;
+
   @JSONSchema({
     title: 'Course Description',
     description: 'Description of the course',
     example: 'This course covers the basics of programming.',
     type: 'string',
   })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(1000)
   description: string;
 }
 
-/**
- * DTO for updating a course.
- * Allows partial updates.
- *
- * @category Courses/Validators/CourseValidators
- */
 class UpdateCourseBody implements Partial<ICourse> {
-  /**
-   * New name for the course (optional).
-   * Must be between 3 and 255 characters.
-   */
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  @MinLength(3)
   @JSONSchema({
-    title: 'Course Name',
     description: 'Name of the course',
     example: 'Introduction to Programming',
     type: 'string',
   })
-  name: string;
-
-  /**
-   * New course description (optional).
-   * Must be between 3 and 1000 characters.
-   */
   @IsOptional()
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(255)
   @MinLength(3)
+  name: string;
+
   @JSONSchema({
-    title: 'Course Description',
     description: 'Description of the course',
     example: 'This course covers the basics of programming.',
     type: 'string',
   })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  @MinLength(3)
   description: string;
 
-  /**
-   * At least one of `name` or `description` must be present.
-   * This virtual field is used for validation purposes only.
-   */
+  @JSONSchema({
+    deprecated: true,
+    description:
+      '[READONLY] This is a virtual field used only for validation. Do not include this field in requests.\nEither "name" or "description" must be provided.',
+    readOnly: true,
+    writeOnly: false,
+    type: 'string',
+  })
   @ValidateIf(o => !o.name && !o.description)
   @IsNotEmpty({
     message: 'At least one of "name" or "description" must be provided',
   })
-  @Exclude()
   nameOrDescription: string;
 }
 
-/**
- * Route parameters for reading a course by ID.
- *
- * @category Courses/Validators/CourseValidators
- */
 class ReadCourseParams {
-  /**
-   * MongoDB ObjectId of the course to fetch.
-   */
+  @JSONSchema({
+    description: 'Object ID of the course to read',
+    example: '60d5ec49b3f1c8e4a8f8b8c1',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   id: string;
 }
 
-/**
- * Route parameters for updating a course by ID.
- *
- * @category Courses/Validators/CourseValidators
- */
 class UpdateCourseParams {
-  /**
-   * MongoDB ObjectId of the course to update.
-   */
+  @JSONSchema({
+    description: 'Object ID of the course to update',
+    example: '60d5ec49b3f1c8e4a8f8b8c1',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   id: string;
 }
 
 class CourseDataResponse implements ICourse {
-  @Expose()
   @JSONSchema({
-    title: 'Course ID',
     description: 'Unique identifier for the course',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'mongo-uid',
+    format: 'Mongo Object ID',
+    readOnly: true,
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
   @IsNotEmpty()
   _id?: ID;
 
-  @Expose()
   @JSONSchema({
-    title: 'Course Name',
     description: 'Name of the course',
     example: 'Introduction to Programming',
     type: 'string',
@@ -159,9 +125,7 @@ class CourseDataResponse implements ICourse {
   @IsNotEmpty()
   name: string;
 
-  @Expose()
   @JSONSchema({
-    title: 'Course Description',
     description: 'Description of the course',
     example: 'This course covers the basics of programming.',
     type: 'string',
@@ -169,69 +133,64 @@ class CourseDataResponse implements ICourse {
   @IsNotEmpty()
   description: string;
 
-  @Expose()
-  @Transform(ObjectIdArrayToStringArray.transformer, {toPlainOnly: true}) // Convert ObjectId[] -> string[] when serializing
   @JSONSchema({
-    title: 'Course Versions',
     description: 'List of course version IDs',
     example: ['60d5ec49b3f1c8e4a8f8b8c2', '60d5ec49b3f1c8e4a8f8b8c3'],
     type: 'array',
+    readOnly: true,
     items: {
       type: 'string',
-      format: 'mongo-uid',
+      format: 'Mongo Object ID',
     },
   })
   @IsNotEmpty()
   versions: ID[];
 
-  @Expose()
-  @Transform(ObjectIdArrayToStringArray.transformer, {toPlainOnly: true}) // Convert ObjectId[] -> string[] when serializing
   @JSONSchema({
-    title: 'Course Instructors',
     description: 'List of instructor IDs associated with the course',
     example: ['60d5ec49b3f1c8e4a8f8b8c4', '60d5ec49b3f1c8e4a8f8b8c5'],
     type: 'array',
+    readOnly: true,
     items: {
       type: 'string',
-      format: 'mongo-uid',
+      format: 'Mongo Object ID',
     },
   })
   @IsNotEmpty()
   instructors: ID[];
 
-  @Expose()
-  @Type(() => Date)
   @JSONSchema({
     title: 'Course Created At',
     description: 'Timestamp when the course was created',
     example: '2023-10-01T12:00:00Z',
     type: 'string',
     format: 'date-time',
+    readOnly: true,
   })
   @IsNotEmpty()
   createdAt?: Date | null;
 
-  @Expose()
-  @Type(() => Date)
   @JSONSchema({
     title: 'Course Updated At',
     description: 'Timestamp when the course was last updated',
     example: '2023-10-01T12:00:00Z',
     type: 'string',
     format: 'date-time',
+    readOnly: true,
   })
   @IsNotEmpty()
   updatedAt?: Date | null;
 }
 
 class CourseNotFoundErrorResponse {
-  @Expose()
   @JSONSchema({
     description: 'The error message.',
     example:
-      '"No course found with the specified ID. Please verify the ID and try again."',
+      'No course found with the specified ID. Please verify the ID and try again.',
     type: 'string',
+    readOnly: true,
   })
+  @IsNotEmpty()
   message: string;
 }
 

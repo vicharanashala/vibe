@@ -74,7 +74,7 @@
     "nanoid": "^5.1.2",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
-    "routing-controllers-openapi": "^5.0.0",
+    "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi#master",
     "typedi": "^0.10.0"
   }
 }

@@ -1,4 +1,3 @@
-import {instanceToPlain} from 'class-transformer';
 import 'reflect-metadata';
 import {
   JsonController,
@@ -9,8 +8,6 @@ import {
   Put,
   Params,
   HttpCode,
-  Param,
-  Res,
 } from 'routing-controllers';
 import {Service, Inject} from 'typedi';
 import {Course} from '../classes/transformers/Course';
@@ -29,16 +26,13 @@ import {
   routingControllersToSpec,
   ResponseSchema,
 } from 'routing-controllers-openapi';
-import {
-  JSONSchema,
-  validationMetadatasToSchemas,
-} from 'class-validator-jsonschema';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
 import {coursesModuleOptions} from '..';
-import {
-  BadRequestErrorResponse,
-  DefaultErrorResponse,
-} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
 
+@OpenAPI({
+  tags: ['Courses'],
+})
 @JsonController('/courses')
 @Service()
 export class CourseController {
@@ -83,7 +77,7 @@ export class CourseController {
     summary: 'Get Course',
     description: 'Retrieves the course details for the specified course ID.',
   })
-  async read(@Params() params: ReadCourseParams, param: string) {
+  async read(@Params() params: ReadCourseParams) {
     const {id} = params;
     const course = await this.courseService.readCourse(id);
     return course;
@@ -125,6 +119,7 @@ const schemas = validationMetadatasToSchemas({
 });
 
 const storage = getMetadataArgsStorage();
+console.log(storage.params);
 const spec = routingControllersToSpec(storage, coursesModuleOptions, {
   tags: [
     {
@@ -146,5 +141,38 @@ const spec = routingControllersToSpec(storage, coursesModuleOptions, {
   components: {
     schemas,
   },
+  servers: [
+    {
+      url: 'http://{host}:{port}{basePath}',
+      description: 'Local server',
+      variables: {
+        host: {
+          default: 'localhost',
+          description: 'Host name for the server',
+        },
+        port: {
+          default: '3000',
+          description: 'Port number for the server',
+        },
+        basePath: {
+          default: 'api',
+        },
+      },
+    },
+    {
+      url: 'https://{url}{basePath}',
+      description: 'Production server',
+      variables: {
+        host: {
+          default: 'api.example.com',
+          description: 'Host name for the production server',
+        },
+        basePath: {
+          default: '',
+          description: 'Base path for the production API',
+        },
+      },
+    },
+  ],
 });
 console.log(JSON.stringify(spec, null, 2));

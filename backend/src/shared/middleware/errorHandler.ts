@@ -30,51 +30,55 @@ import {
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class ValidationErrorResponse {
-  @IsObject() // Ensures 'target' is an object
   @JSONSchema({
     type: 'object',
     description: 'The object that was validated.',
+    readOnly: true,
   })
+  @IsObject() // Ensures 'target' is an object
   target: object;
 
-  @IsString() // Ensures 'property' is a string
-  @IsDefined() // Makes 'property' a required field
   @JSONSchema({
     type: 'string',
     description: 'The property that failed validation.',
+    readOnly: true,
   })
+  @IsString() // Ensures 'property' is a string
+  @IsDefined() // Makes 'property' a required field
   property: string;
 
-  @IsOptional() // Makes 'value' optional
   @JSONSchema({
     type: 'object',
     description: 'The value that failed validation.',
+    readOnly: true,
   })
   value: any;
 
-  @IsObject() // Ensures 'constraints' is an object
-  @IsOptional() // Makes 'constraints' optional
   @JSONSchema({
     type: 'object',
     description: 'Constraints that failed validation with error messages.',
+    readOnly: true,
   })
+  @IsObject() // Ensures 'constraints' is an object
   constraints: {[type: string]: string};
 
-  @IsArray() // Ensures 'children' is an array
-  @ValidateNested({each: true}) // Ensures each element inside 'children' is validated
-  @IsOptional() // Makes 'children' optional
   @JSONSchema({
     type: 'array',
+    format: 'ValidationErrorResponse',
     description: 'Contains all nested validation errors of the property.',
+    readOnly: true,
   })
+  @IsArray() // Ensures 'children' is an array
+  @ValidateNested({each: true}) // Ensures each element inside 'children' is validated
   children: ValidationErrorResponse[];
 
-  @IsObject() // Ensures 'contexts' is an object
-  @IsOptional() // Makes 'contexts' optional
   @JSONSchema({
     type: 'object',
     description: 'Contains all nested validation errors of the property.',
+    readOnly: true,
   })
+  @IsObject() // Ensures 'contexts' is an object
+  @IsOptional() // Makes 'contexts' optional
   contexts: {[type: string]: any};
 }
 
@@ -83,24 +87,26 @@ class DefaultErrorResponse {
   @JSONSchema({
     type: 'string',
     description: 'The error message.',
+    readOnly: true,
   })
   message: string;
 }
 
 class BadRequestErrorResponse {
-  @IsString()
   @JSONSchema({
     type: 'string',
     description: 'The error message.',
+    readOnly: true,
   })
+  @IsString()
   message: string;
 
-  @IsObject()
-  @IsOptional()
   @JSONSchema({
     type: 'object',
     description: 'The error details.',
+    readOnly: true,
   })
+  @IsObject()
   @ValidateNested()
   errors?: ValidationErrorResponse;
 }

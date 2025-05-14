@@ -85,8 +85,8 @@ importers:
         specifier: ^0.11.2
         version: 0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)
       routing-controllers-openapi:
-        specifier: ^5.0.0
-        version: 5.0.0(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1))
+        specifier: github:adityabmv/routing-controllers-openapi#master
+        version: https://codeload.github.com/adityabmv/routing-controllers-openapi/tar.gz/4155b1ceca8e898f72e19c7deac9aa159c23319b(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1))
       typedi:
         specifier: ^0.10.0
         version: 0.10.0
@@ -9396,8 +9396,9 @@ packages:
   roughjs@4.6.6:
     resolution: {integrity: sha512-ZUz/69+SYpFN/g/lUlo2FXcIjRkSu3nDarreVdGGndHEBJ6cXPdKguS8JGxwj5HA5xIbVKSmLgr5b3AWxtRfvQ==}
 
-  routing-controllers-openapi@5.0.0:
-    resolution: {integrity: sha512-7Xdo9DSRRVF/AwTL5+xgPp/76/QOXIVumMhdQlRg4sE4a9B8Br9fjDGbqDzLURqeCO4o1SGNKK4g88nhUtfXIw==}
+  routing-controllers-openapi@https://codeload.github.com/adityabmv/routing-controllers-openapi/tar.gz/4155b1ceca8e898f72e19c7deac9aa159c23319b:
+    resolution: {tarball: https://codeload.github.com/adityabmv/routing-controllers-openapi/tar.gz/4155b1ceca8e898f72e19c7deac9aa159c23319b}
+    version: 5.0.0
     peerDependencies:
       routing-controllers: ^0.11.0
 
@@ -22234,7 +22235,7 @@ snapshots:
       points-on-curve: 0.2.0
       points-on-path: 0.2.1
 
-  routing-controllers-openapi@5.0.0(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)):
+  routing-controllers-openapi@https://codeload.github.com/adityabmv/routing-controllers-openapi/tar.gz/4155b1ceca8e898f72e19c7deac9aa159c23319b(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)):
     dependencies:
       lodash.capitalize: 4.2.1
       lodash.merge: 4.6.2
