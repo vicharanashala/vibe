@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:34](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseVersionController.ts#L34)
+Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:39](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/CourseVersionController.ts#L39)
 
 Controller for handling course version operations like creation and retrieval.
 All routes are prefixed with `/courses`.
@@ -9,7 +9,7 @@ All routes are prefixed with `/courses`.
 
 > **new CourseVersionController**(`courseRepo`): `CourseVersionController`
 
-Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:35](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseVersionController.ts#L35)
+Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:40](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/CourseVersionController.ts#L40)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:
 
 > **create**(`params`, `body`): `Promise`\<\{ `course`: `Record`\<`string`, `any`\>; `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:53](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseVersionController.ts#L53)
+Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:59](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/CourseVersionController.ts#L59)
 
 Create a new version for a specific course.
 
@@ -63,11 +63,45 @@ HttpError(500) on any other internal error
 
 ***
 
+#### delete()
+
+> **delete**(`params`): `Promise`\<\{ `message`: `string`; \}\>
+
+Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:139](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/CourseVersionController.ts#L139)
+
+Delete the course version by its ID
+
+##### Parameters
+
+###### params
+
+[`DeleteCourseVersionParams`](../Validators/CourseVersionValidators/courses.DeleteCourseVersionParams.md)
+
+##### Returns
+
+`Promise`\<\{ `message`: `string`; \}\>
+
+The deleted course version object.
+
+##### Params
+
+params - Parameters including the courseID and version ID.
+
+##### Throws
+
+HttpError(404) if the course or version is not found.
+
+##### Throws
+
+HttpError(500) on any other internal server errors.
+
+***
+
 #### read()
 
 > **read**(`params`): `Promise`\<`Record`\<`string`, `any`\>\>
 
-Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:104](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/CourseVersionController.ts#L104)
+Defined in: [backend/src/modules/courses/controllers/CourseVersionController.ts:110](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/CourseVersionController.ts#L110)
 
 Retrieve a course version by its ID.
 

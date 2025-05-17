@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:122](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L122)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:92](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L92)
 
 Payload for reordering a section within a module.
 
@@ -18,7 +18,7 @@ Payload for reordering a section within a module.
 
 > `optional` **afterSectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:129](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L129)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:99](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L99)
 
 Optional: move after this section ID.
 
@@ -28,7 +28,7 @@ Optional: move after this section ID.
 
 > `optional` **beforeSectionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:137](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L137)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:107](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L107)
 
 Optional: move before this section ID.
 
@@ -38,7 +38,7 @@ Optional: move before this section ID.
 
 > **bothNotAllowed**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:157](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L157)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:127](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L127)
 
 Validation helper — only one of before/after should be used.
 
@@ -48,6 +48,6 @@ Validation helper — only one of before/after should be used.
 
 > **onlyOneAllowed**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:147](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L147)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:117](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L117)
 
 Validation helper — at least one position ID must be provided.

@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:177](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L177)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:147](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L147)
 
 Route parameters for updating a module.
 
@@ -18,7 +18,7 @@ Route parameters for updating a module.
 
 > **moduleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:190](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L190)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:160](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L160)
 
 ID of the module to be updated.
 
@@ -28,6 +28,6 @@ ID of the module to be updated.
 
 > **versionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:183](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L183)
+Defined in: [backend/src/modules/courses/classes/validators/ModuleValidators.ts:153](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/ModuleValidators.ts#L153)
 
 ID of the course version.

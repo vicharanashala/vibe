@@ -26,3 +26,7 @@
 ## Variables
 
 - [authModuleOptions](auth.authModuleOptions.md)
+
+## Functions
+
+- [setupAuthModuleDependencies](auth.setupAuthModuleDependencies.md)

@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:39](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/ModuleController.ts#L39)
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:44](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L44)
 
 Controller for managing modules within a course version.
 Handles creation, updating, and reordering of modules.
@@ -9,7 +9,7 @@ Handles creation, updating, and reordering of modules.
 
 > **new ModuleController**(`courseRepo`): `ModuleController`
 
-Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:40](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/ModuleController.ts#L40)
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:45](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L45)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:40](htt
 
 > **create**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:62](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/ModuleController.ts#L62)
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:68](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L68)
 
 Create a new module under a specific course version.
 
@@ -59,11 +59,47 @@ InternalServerError on any failure during module creation.
 
 ***
 
+#### delete()
+
+> **delete**(`params`): `Promise`\<\{ `message`: `string`; \}\>
+
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:237](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L237)
+
+Delete a module from a specific course version.
+
+##### Parameters
+
+###### params
+
+[`DeleteModuleParams`](../Validators/CourseVersionValidators/courses.DeleteModuleParams.md)
+
+Parameters including version ID and module ID
+
+##### Returns
+
+`Promise`\<\{ `message`: `string`; \}\>
+
+The deleted module object
+
+##### Throws
+
+BadRequestError if version ID or module ID is missing
+
+##### Throws
+
+HttpError(404) if the module is not found
+
+##### Throws
+
+HttpError(500) for delete errors
+
+***
+
 #### move()
 
 > **move**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:164](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/ModuleController.ts#L164)
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:170](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L170)
 
 Reorder a module within its course version.
 The new position is determined using beforeModuleId or afterModuleId.
@@ -102,7 +138,7 @@ HTTPError(500) for other internal errors.
 
 > **update**(`params`, `body`): `Promise`\<\{ `version`: `Record`\<`string`, `any`\>; \}\>
 
-Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:108](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/controllers/ModuleController.ts#L108)
+Defined in: [backend/src/modules/courses/controllers/ModuleController.ts:114](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/controllers/ModuleController.ts#L114)
 
 Update an existing module's name or description.
 

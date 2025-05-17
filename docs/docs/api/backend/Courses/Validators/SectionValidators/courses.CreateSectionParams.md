@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:165](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L165)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:135](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L135)
 
 Route parameters for creating a section in a module.
 
@@ -18,7 +18,7 @@ Route parameters for creating a section in a module.
 
 > **moduleId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:180](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L180)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:150](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L150)
 
 Module ID where the new section will be added.
 
@@ -28,6 +28,6 @@ Module ID where the new section will be added.
 
 > **versionId**: `string`
 
-Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:172](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/validators/SectionValidators.ts#L172)
+Defined in: [backend/src/modules/courses/classes/validators/SectionValidators.ts:142](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/validators/SectionValidators.ts#L142)
 
 Version ID of the course the module belongs to.

@@ -31,6 +31,8 @@
 
 - [CreateCourseVersionBody](../Courses/Validators/CourseVersionValidators/courses.CreateCourseVersionBody.md)
 - [CreateCourseVersionParams](../Courses/Validators/CourseVersionValidators/courses.CreateCourseVersionParams.md)
+- [DeleteCourseVersionParams](../Courses/Validators/CourseVersionValidators/courses.DeleteCourseVersionParams.md)
+- [DeleteModuleParams](../Courses/Validators/CourseVersionValidators/courses.DeleteModuleParams.md)
 - [ReadCourseVersionParams](../Courses/Validators/CourseVersionValidators/courses.ReadCourseVersionParams.md)
 
 ### Courses/Validators/ItemValidators
@@ -68,3 +70,7 @@
 ## Variables
 
 - [coursesModuleOptions](courses.coursesModuleOptions.md)
+
+## Functions
+
+- [setupCoursesModuleDependencies](courses.setupCoursesModuleDependencies.md)
