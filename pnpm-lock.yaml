@@ -85,7 +85,7 @@ importers:
         specifier: ^0.11.2
         version: 0.11.2(class-transformer@0.5.1)(class-validator@0.14.1)
       routing-controllers-openapi:
-        specifier: github:adityabmv/routing-controllers-openapi#master
+        specifier: github:adityabmv/routing-controllers-openapi
         version: https://codeload.github.com/adityabmv/routing-controllers-openapi/tar.gz/4155b1ceca8e898f72e19c7deac9aa159c23319b(routing-controllers@0.11.2(class-transformer@0.5.1)(class-validator@0.14.1))
       typedi:
         specifier: ^0.10.0

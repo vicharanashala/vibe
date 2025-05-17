@@ -26,19 +26,17 @@ import {
   UpdateModuleBody,
   UpdateModuleParams,
   DeleteModuleParams,
+  ModuleDataResponse,
+  ModuleNotFoundErrorResponse,
+  ModuleDeletedResponse,
 } from '../classes/validators/ModuleValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
 
-/**
- * Controller for managing modules within a course version.
- * Handles creation, updating, and reordering of modules.
- *
- * @category Courses/Controllers
- * @categoryDescription
- * Provides endpoints for adding, modifying, and reordering course modules.
- * Modules are nested under specific versions and define core content units.
- */
-
+@OpenAPI({
+  tags: ['Course Modules'],
+})
 @JsonController('/courses')
 @Service()
 export class ModuleController {
@@ -50,21 +48,25 @@ export class ModuleController {
     }
   }
 
-  /**
-   * Create a new module under a specific course version.
-   *
-   * @param params - Route parameters including the course version ID.
-   * @param body - Payload containing module name, description, etc.
-   * @returns The updated course version with the new module.
-   *
-   * @throws InternalServerError on any failure during module creation.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules')
   @HttpCode(201)
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Create Module',
+    description:
+      'Creates a new module in the specified course version with the provided details.',
+  })
   async create(
     @Params() params: CreateModuleParams,
     @Body() body: CreateModuleBody,
@@ -93,24 +95,31 @@ export class ModuleController {
         version: instanceToPlain(updatedVersion),
       };
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw new HttpError(404, error.message);
+      }
       throw new InternalServerError(error.message);
     }
   }
 
-  /**
-   * Update an existing module's name or description.
-   *
-   * @param params - Route parameters including versionId and moduleId.
-   * @param body - Fields to update such as name and/or description.
-   * @returns The updated course version.
-   *
-   * @throws HTTPError(404) if the module is not found.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId')
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Update Module',
+    description:
+      "Updates an existing module's name or description within a course version.",
+  })
   async update(
     @Params() params: UpdateModuleParams,
     @Body() body: UpdateModuleBody,
@@ -151,22 +160,24 @@ export class ModuleController {
     }
   }
 
-  /**
-   * Reorder a module within its course version.
-   * The new position is determined using beforeModuleId or afterModuleId.
-   *
-   * @param params - Route parameters including versionId and moduleId.
-   * @param body - Positioning details: beforeModuleId or afterModuleId.
-   * @returns The updated course version with modules in new order.
-   *
-   * @throws UpdateError if neither beforeModuleId nor afterModuleId is provided.
-   * @throws HTTPError(500) for other internal errors.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/move')
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module moved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Move Module',
+    description:
+      'Reorders a module within its course version by placing it before or after another module.',
+  })
   async move(@Params() params: MoveModuleParams, @Body() body: MoveModuleBody) {
     const {versionId, moduleId} = params;
     try {
@@ -215,25 +226,35 @@ export class ModuleController {
         version: instanceToPlain(updatedVersion),
       };
     } catch (error) {
+      if (error instanceof ReadError) {
+        throw new HttpError(404, error.message);
+      }
+      if (error instanceof UpdateError) {
+        throw new BadRequestError(error.message);
+      }
       if (error instanceof Error) {
         throw new HttpError(500, error.message);
       }
     }
   }
 
-  /**
-   * Delete a module from a specific course version.
-   *
-   * @param params - Parameters including version ID and module ID
-   * @returns The deleted module object
-   *
-   * @throws BadRequestError if version ID or module ID is missing
-   * @throws HttpError(404) if the module is not found
-   * @throws HttpError(500) for delete errors
-   *
-   * @category Courses/Controllers
-   */
+  @Authorized(['admin'])
   @Delete('/versions/:versionId/modules/:moduleId')
+  @ResponseSchema(ModuleDeletedResponse, {
+    description: 'Module deleted successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Delete Module',
+    description: 'Permanently removes a module from a course version.',
+  })
   async delete(@Params() params: DeleteModuleParams) {
     const {versionId, moduleId} = params;
     if (!versionId || !moduleId) {

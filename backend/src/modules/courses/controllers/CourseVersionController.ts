@@ -23,8 +23,16 @@ import {
   CreateCourseVersionBody,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
+  CourseVersionDataResponse,
+  CourseVersionNotFoundErrorResponse,
+  CreateCourseVersionResponse,
 } from '../classes/validators/CourseVersionValidators';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
 
+@OpenAPI({
+  tags: ['Course Versions'],
+})
 @JsonController('/courses')
 @Service()
 export class CourseVersionController {
@@ -35,6 +43,21 @@ export class CourseVersionController {
   @Authorized(['admin', 'instructor'])
   @Post('/:id/versions')
   @HttpCode(201)
+  @ResponseSchema(CreateCourseVersionResponse, {
+    description: 'Course version created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Create Course Version',
+    description: 'Creates a new version for a specific course.',
+  })
   async create(
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
@@ -73,6 +96,21 @@ export class CourseVersionController {
 
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:id')
+  @ResponseSchema(CourseVersionDataResponse, {
+    description: 'Course version retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course version not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Get Course Version',
+    description: 'Retrieves a course version by its ID.',
+  })
   async read(@Params() params: ReadCourseVersionParams) {
     const {id} = params;
     try {
@@ -91,6 +129,21 @@ export class CourseVersionController {
 
   @Authorized(['admin', 'instructor'])
   @Delete('/:courseId/versions/:versionId')
+  @ResponseSchema(DeleteCourseVersionParams, {
+    description: 'Course version deleted successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Delete Course Version',
+    description: 'Deletes a course version by its ID.',
+  })
   async delete(@Params() params: DeleteCourseVersionParams) {
     const {courseId, versionId} = params;
     if (!versionId || !courseId) {

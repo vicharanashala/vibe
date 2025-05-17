@@ -27,19 +27,17 @@ import {
   UpdateItemParams,
   MoveItemParams,
   DeleteItemParams,
+  ItemNotFoundErrorResponse,
+  ItemDataResponse,
+  DeletedItemResponse,
 } from '../classes/validators/ItemValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
 
-/**
- * Controller for managing items within course modules and sections.
- * Handles operations such as creation, retrieval, update, and reordering.
- *
- * @category Courses/Controllers
- * @categoryDescription
- * Provides endpoints for working with "items" inside sections of modules
- * within course versions. This includes content like videos, blogs, or quizzes.
- */
-
+@OpenAPI({
+  tags: ['Course Items'],
+})
 @JsonController('/courses')
 @Service()
 export class ItemController {
@@ -51,21 +49,25 @@ export class ItemController {
     }
   }
 
-  /**
-   * Create a new item under a specific section of a module in a course version.
-   *
-   * @param params - Route parameters including versionId, moduleId, and sectionId.
-   * @param body - The item data to be created.
-   * @returns The updated itemsGroup and version.
-   *
-   * @throws HTTPError(500) on internal errors.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Create Item',
+    description:
+      'Creates a new item in the specified section with the provided details.',
+  })
   async create(
     @Params() params: CreateItemParams,
     @Body() body: CreateItemBody,
@@ -124,19 +126,24 @@ export class ItemController {
     }
   }
 
-  /**
-   * Retrieve all items from a section of a module in a course version.
-   *
-   * @param params - Route parameters including versionId, moduleId, and sectionId.
-   * @returns The list of items within the section.
-   *
-   * @throws HTTPError(500) on internal errors.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Items retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Get All Items',
+    description:
+      'Retrieves all items from the specified section of a module in a course version.',
+  })
   async readAll(@Params() params: ReadAllItemsParams) {
     try {
       const {versionId, moduleId, sectionId} = params;
@@ -164,22 +171,26 @@ export class ItemController {
     }
   }
 
-  /**
-   * Update an existing item in a section of a module in a course version.
-   *
-   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
-   * @param body - Fields to update, including name, description, type, and itemDetails.
-   * @returns The updated itemsGroup and version.
-   *
-   * @throws HTTPError(500) on internal errors.
-   *
-   * @category Courses/Controllers
-   */
-
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Update Item',
+    description:
+      'Updates an existing item in the specified section with the provided details.',
+  })
   async update(
     @Params() params: UpdateItemParams,
     @Body() body: UpdateItemBody,
@@ -255,16 +266,23 @@ export class ItemController {
     }
   }
 
-  /**
-   * Delete an item from a section of a module in a course version.
-   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
-   * @return The updated itemsGroup and version.
-   * @throw HTTPError(500) on internal errors.
-   * @category Courses/Controllers
-   */
-
   @Authorized(['instructor', 'admin'])
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  @ResponseSchema(DeletedItemResponse, {
+    description: 'Item deleted successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Delete Item',
+    description: 'Deletes an item from a course section permanently.',
+  })
   async delete(@Params() params: DeleteItemParams) {
     try {
       const {itemsGroupId, itemId} = params;
@@ -316,22 +334,26 @@ export class ItemController {
     }
   }
 
-  /**
-   * Move an item to a new position within a section by recalculating its order.
-   *
-   * @param params - Route parameters including versionId, moduleId, sectionId, and itemId.
-   * @param body - Movement instructions including `afterItemId` or `beforeItemId`.
-   * @returns The updated itemsGroup and version.
-   *
-   * @throws BadRequestError if both afterItemId and beforeItemId are missing.
-   * @throws HTTPError(500) on internal errors.
-   *
-   * @category Courses/Controllers
-   */
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item moved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  @OpenAPI({
+    summary: 'Move Item',
+    description:
+      'Moves an item to a new position within its section by recalculating its order.',
+  })
   async move(@Params() params: MoveItemParams, @Body() body: MoveItemBody) {
     try {
       const {versionId, moduleId, sectionId, itemId} = params;
