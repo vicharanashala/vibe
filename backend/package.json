@@ -69,6 +69,7 @@
     "graphql": "~16.10.0",
     "jsonwebtoken": "^9.0.2",
     "lexorank": "^1.0.5",
+    "mathjs": "^14.4.0",
     "mongodb": "^6.15.0",
     "multer": "1.4.5-lts.1",
     "nanoid": "^5.1.2",
