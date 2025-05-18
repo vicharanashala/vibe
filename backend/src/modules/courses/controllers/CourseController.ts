@@ -119,7 +119,7 @@ const schemas = validationMetadatasToSchemas({
 });
 
 const storage = getMetadataArgsStorage();
-console.log(storage.params);
+// console.log(storage.params);
 const spec = routingControllersToSpec(storage, coursesModuleOptions, {
   tags: [
     {
@@ -175,4 +175,4 @@ const spec = routingControllersToSpec(storage, coursesModuleOptions, {
     },
   ],
 });
-console.log(JSON.stringify(spec, null, 2));
+// console.log(JSON.stringify(spec, null, 2));

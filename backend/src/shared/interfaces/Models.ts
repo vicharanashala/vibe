@@ -111,7 +111,8 @@ export interface IQuestion {
 
 export interface IQuestionParameter {
   name: string;
-  value: string[] | number[];
+  possibleValues: string[];
+  type: 'number' | 'string';
 }
 
 export interface IQuestionMetaDetails {

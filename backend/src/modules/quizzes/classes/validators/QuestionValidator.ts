@@ -1,203 +1,209 @@
 import {Type} from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsBooleanString,
   IsEmpty,
-  IsMongoId,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Validate,
   ValidateNested,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import {ObjectId} from 'mongodb';
 import {
+  IDESSolution,
+  ILotItem,
+  ILotOrder,
+  INATSolution,
+  IOTLSolution,
   IQuestion,
   IQuestionParameter,
-  ISOLQuestionSolution,
-  ISMLQuesionSolution,
-  IMTLQuestionSolution,
-  IOTLQuestionSolution,
-  INATQuestionSolution,
-  IDESQuestionSolution,
-  IQuestionOptionsLot,
-  IQuesionOptionsLotItem,
-  IMTLQuestionMatching,
-  IOTLQuestionOrdering,
-} from 'shared/interfaces/Models';
+  ISMLSolution,
+  ISOLSolution,
+  QuestionType,
+} from 'shared/interfaces/quiz';
+import {NATQuestion} from '../transformers/Question';
 
-interface Question {
-  questionText: string;
-  questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
-  isParameterized: boolean;
-  parameters?: IQuestionParameter[];
-  hintText?: string;
-  timeLimit: number;
-  points: number;
+class QuestionParameter implements IQuestionParameter {
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @IsNotEmpty()
+  @IsString({each: true})
+  @IsArray()
+  @ArrayMinSize(2)
+  possibleValues: string[];
+
+  @IsNotEmpty()
+  @IsString()
+  @IsEnum(['number', 'string'])
+  type: 'number' | 'string';
 }
 
-interface NATSolution {
-  decimalPrecision: number;
-  upperLimit: number;
-  lowerLimit: number;
-  value?: number;
-  expression?: string;
-}
+class LotItem implements ILotItem {
+  @IsNotEmpty()
+  @IsString()
+  text: string;
 
-interface OptionLotItem {
-  itemText: string;
+  @IsNotEmpty()
+  @IsString()
   explaination: string;
 }
 
-interface OptionOrder {
-  lotItem: OptionLotItem;
+class LotOrder implements ILotOrder {
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => LotItem)
+  lotItem: ILotItem;
+
+  @IsNotEmpty()
+  @IsNumber()
   order: number;
 }
 
-interface OptionMatch {
-  match: OptionLotItem[];
+class Question implements IQuestion {
+  @IsEmpty()
+  _id?: string | ObjectId;
+
+  @IsNotEmpty()
+  @IsString()
+  text: string;
+
+  @IsString()
+  @IsNotEmpty()
+  type: QuestionType;
+
+  @IsNotEmpty()
+  @IsBoolean()
+  isParameterized: boolean;
+
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => QuestionParameter)
+  parameters?: IQuestionParameter[];
+
+  @IsString()
+  hint?: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  timeLimitSeconds: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  points: number;
 }
 
-interface OTLSolution {
-  ordering: OptionOrder[];
+class SOLSolution implements ISOLSolution {
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  incorrectLotItems: ILotItem[];
+
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => LotItem)
+  correctLotItem: ILotItem;
 }
 
-interface SOLSolution {
-  incorrectLotItems: OptionLotItem[];
-  correctLotItem: OptionLotItem;
+class SMLSolution implements ISMLSolution {
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  incorrectLotItems: ILotItem[];
+
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  correctLotItems: ILotItem[];
 }
 
-interface SMLSolution {
-  incorrectLotItems: OptionLotItem[];
-  correctLotItems: OptionLotItem[];
+class OTLSolution implements IOTLSolution {
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => LotOrder)
+  ordering: ILotOrder[];
 }
 
-interface MTLSolution {
-  matches: OptionMatch[];
+class NATSoltion implements INATSolution {
+  @IsNotEmpty()
+  @IsNumber()
+  decimalPrecision: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  upperLimit: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  lowerLimit: number;
+
+  @IsNumber()
+  @IsOptional()
+  value?: number;
+
+  @IsString()
+  @IsOptional()
+  expression?: string;
 }
 
-const question: Question = {
-  questionText: 'This is question',
-  isParameterized: true,
-  parameters: [
-    {
-      name: 'a',
-      possibleValues: ['20', '10'],
-    },
-    {
-      name: 'b',
-      possibleValues: ['10', '12'],
-    },
-  ],
-  points: 10,
-  questionType: 'SOL',
-  timeLimit: 60,
-  hintText: 'This is easy',
-};
+class DESSolution implements IDESSolution {
+  @IsNotEmpty()
+  @IsString()
+  solutionText: string;
+}
 
-const solSolution: SOLSolution = {
-  incorrectLotItems: [
-    {
-      itemText: 'This is option 1',
-      explaination: '',
-    },
-    {
-      itemText: 'This is option 2',
-      explaination: 'sdad',
-    },
-  ],
-  correctLotItem: {
-    itemText: '',
-    explaination: '',
-  },
-};
+class CreateQuestionBody {
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => Question)
+  question: IQuestion;
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(({object}) => {
+    const question = object.question as Question;
+    switch (question.type) {
+      case 'SELECT_ONE_IN_LOT':
+        return SOLSolution;
+      case 'SELECT_MANY_IN_LOT':
+        return SMLSolution;
+      case 'ORDER_THE_LOTS':
+        return OTLSolution;
+      case 'NUMERIC_ANSWER_TYPE':
+        return NATSoltion;
+      case 'DESCRIPTIVE':
+        return DESSolution;
+      default:
+        throw new Error('Invalid question type');
+    }
+  })
+  solution:
+    | ISOLSolution
+    | ISMLSolution
+    | IOTLSolution
+    | INATSolution
+    | IDESSolution;
+}
 
-const smlSolution: SMLSolution = {
-  incorrectLotItems: [
-    {
-      itemText: 'This is option 1',
-      explaination: '',
-    },
-    {
-      itemText: 'This is option 2',
-      explaination: 'sdad',
-    },
-  ],
-  correctLotItems: [
-    {
-      itemText: 'This is option 3',
-      explaination: '',
-    },
-    {
-      itemText: 'This is option 4',
-      explaination: 'sdad',
-    },
-  ],
-};
-
-const otlSolution: OTLSolution = {
-  ordering: [
-    {
-      lotItem: {
-        itemText: 'item 1',
-        explaination: 'dahjkda',
-      },
-      order: 1,
-    },
-    {
-      lotItem: {
-        itemText: 'item 1',
-        explaination: 'dahjkda',
-      },
-      order: 2,
-    },
-  ],
-};
-
-const mtlSolution: MTLSolution = {
-  matches: [
-    {
-      match: [
-        {
-          itemText: 'This is option 3',
-          explaination: '',
-        },
-        {
-          itemText: 'This is option 4',
-          explaination: 'sdad',
-        },
-      ],
-    },
-    {
-      match: [
-        {
-          itemText: 'This is option 3',
-          explaination: '',
-        },
-        {
-          itemText: 'This is option 4',
-          explaination: 'sdad',
-        },
-      ],
-    },
-    {
-      match: [
-        {
-          itemText: 'This is option 3',
-          explaination: '',
-        },
-        {
-          itemText: 'This is option 4',
-          explaination: 'sdad',
-        },
-      ],
-    },
-  ],
-};
-
-const natSolution: NATSolution = {
-  decimalPrecision: 1,
-  upperLimit: 1.045,
-  lowerLimit: 2.0,
-  expression: '',
+export {
+  CreateQuestionBody,
+  Question,
+  SOLSolution,
+  SMLSolution,
+  OTLSolution,
+  NATSoltion,
+  DESSolution,
+  QuestionParameter,
+  LotItem,
+  LotOrder,
 };
