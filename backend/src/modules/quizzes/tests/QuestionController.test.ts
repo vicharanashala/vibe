@@ -61,7 +61,7 @@ describe('Progress Controller Integration Tests', () => {
   describe('Create Question', () => {
     it('should create a question', async () => {
       const questionData: IQuestion = {
-        text: 'This is a test question',
+        text: 'NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
         type: 'SELECT_ONE_IN_LOT',
         points: 10,
         timeLimitSeconds: 60,
@@ -72,14 +72,30 @@ describe('Progress Controller Integration Tests', () => {
             possibleValues: ['20', '10'],
             type: 'number',
           },
+          {
+            name: 'b',
+            possibleValues: ['1', '2', '3', '4.5', '7'],
+            type: 'number',
+          },
+          {
+            name: 'name',
+            possibleValues: ['John', 'Doe'],
+            type: 'string',
+          },
+          {
+            name: 'name2',
+            possibleValues: ['Kalix', 'Danny'],
+            type: 'string',
+          },
         ],
         hint: 'This is a hint',
       };
 
       const solution: ISOLSolution = {
         correctLotItem: {
-          text: 'This is the correct answer',
-          explaination: 'This is the explanation for the correct answer',
+          text: 'This is the correct answer <QParam>name</QParam>',
+          explaination:
+            'This is the explanation for the correct answer <QParam>name</QParam>',
         },
         incorrectLotItems: [
           {

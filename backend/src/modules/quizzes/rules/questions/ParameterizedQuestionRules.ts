@@ -13,8 +13,13 @@ export class ParameterizedQuestionRules {
   }
 
   static extractNumExprs(text: string): string[] {
-    const matches = [...text.matchAll(/<NumExpr>(.*?)<\/NumExpr>/gs)];
-    return matches.map(m => m[1]);
+    const regex = /<NumExpr>(.*?)<\/NumExpr>/gs;
+    const matches: string[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      matches.push(match[1]);
+    }
+    return matches;
   }
 
   static validateMathExpressions(
@@ -39,13 +44,22 @@ export class ParameterizedQuestionRules {
   }
 
   static checkLotItemsParameterized(lotItems: LotItem[]): void {
-    const hasTag = lotItems.some(item =>
-      /<QParam>.*?<\/QParam>|<NumExpr>.*?<\/NumExpr>/s.test(item.text),
-    );
-    if (!hasTag) {
-      throw new Error(
-        'At least one LotItem must contain a <QParam> or <NumExpr> tag.',
-      );
+    const qParamRegex = /<QParam>[\s\S]*?<\/QParam>/;
+    const numExprRegex = /<NumExpr>[\s\S]*?<\/NumExpr>/;
+
+    let found = false;
+
+    for (const item of lotItems) {
+      if (qParamRegex.test(item.text) || numExprRegex.test(item.text)) {
+        found = true;
+        break;
+      }
+
+      if (!found) {
+        throw new Error(
+          'At least one LotItem must contain a <QParam> or <NumExpr> tag.',
+        );
+      }
     }
   }
 }
