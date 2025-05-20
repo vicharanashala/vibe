@@ -22,26 +22,17 @@ class SignUpBody {
   @JSONSchema({
     title: 'Password',
     description:
-      'Password for account authentication (minimum 8 characters). Must contain: \
-1. **Uppercase letters** (A–Z)  \
-2. **Lowercase letters** (a–z)  \
-3. **Numbers** (0–9)  \
+      'Password for account authentication (minimum 8 characters). Must contain: <br />\
+1. **Uppercase letters** (A–Z)  <br /> \
+2. **Lowercase letters** (a–z)  <br /> \
+3. **Numbers** (0–9)   <br />\
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
     minLength: 8,
     format: 'password',
     writeOnly: true,
-    pattern:
-      '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',
   })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-    {
-      message:
-        'Password must be at least 8 characters long, include at least one uppercase letter, one lowercase letter, one number, and one special character.',
-    },
-  )
   @IsNotEmpty()
   @MinLength(8)
   password: string;
@@ -51,7 +42,6 @@ class SignUpBody {
     description: "User's first name (alphabetic characters only)",
     example: 'John',
     type: 'string',
-    pattern: '^[a-zA-Z]+$',
   })
   @IsAlpha()
   firstName: string;
@@ -61,7 +51,6 @@ class SignUpBody {
     description: "User's last name (alphabetic characters only)",
     example: 'Smith',
     type: 'string',
-    pattern: '^[a-zA-Z]+$',
   })
   @IsAlpha()
   lastName: string;
@@ -71,51 +60,33 @@ class ChangePasswordBody {
   @JSONSchema({
     title: 'New Password',
     description:
-      'New password that meets security requirements. Must contain: \
-1. **Uppercase letters** (A–Z)  \
-2. **Lowercase letters** (a–z)  \
-3. **Numbers** (0–9)  \
-4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)',
-    example: 'SecureP@ssw0rd',
-    type: 'string',
-    format: 'password',
-    minLength: 8,
-    writeOnly: true,
-    pattern:
-      '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',
-  })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-    {
-      message:
-        'Password must be at least 8 characters long, include at least one uppercase letter, one lowercase letter, one number, and one special character.',
-    },
-  )
-  newPassword: string;
-
-  @JSONSchema({
-    title: 'Confirm New Password',
-    description:
-      'Confirmation of the new password (must match exactly). Must contain: \
-1. **Uppercase letters** (A–Z)  \
-2. **Lowercase letters** (a–z)  \
-3. **Numbers** (0–9)  \
+      'New password that meets security requirements.  Must contain: <br />\
+1. **Uppercase letters** (A–Z)  <br /> \
+2. **Lowercase letters** (a–z)  <br /> \
+3. **Numbers** (0–9)   <br />\
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
     format: 'password',
     minLength: 8,
     writeOnly: true,
-    pattern:
-      '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',
   })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-    {
-      message:
-        'Password must be at least 8 characters long, include at least one uppercase letter, one lowercase letter, one number, and one special character.',
-    },
-  )
+  newPassword: string;
+
+  @JSONSchema({
+    title: 'Confirm New Password',
+    description:
+      'Confirmation of the new password (must match exactly). Must contain: <br />\
+1. **Uppercase letters** (A–Z)  <br /> \
+2. **Lowercase letters** (a–z)  <br /> \
+3. **Numbers** (0–9)   <br />\
+4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
+    example: 'SecureP@ssw0rd',
+    type: 'string',
+    format: 'password',
+    minLength: 8,
+    writeOnly: true,
+  })
   newPasswordConfirm: string;
 }
 

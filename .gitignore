@@ -49,6 +49,8 @@ node_modules/
 # Except __init__.py
 # !**/migrations/__init__.py
 
+docs/static/openapi
+backend/openapi
 
 # ignore sentry files
 .sentryclirc

@@ -20,7 +20,7 @@ the user's credentials in the authentication system.
 
 ##### body
 
-[`ChangePasswordBody`](../Validators/auth.ChangePasswordBody.md)
+[`ChangePasswordBody`](../../Other/auth.ChangePasswordBody.md)
 
 The payload containing the new password and confirmation
 
@@ -56,7 +56,7 @@ stores the user information in the database.
 
 ##### body
 
-[`SignUpBody`](../Validators/auth.SignUpBody.md)
+[`SignUpBody`](../../Other/auth.SignUpBody.md)
 
 The validated payload containing user registration information
               including email, password, first name, and last name

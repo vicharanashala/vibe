@@ -41,7 +41,6 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
     description: 'Start time of the video clip in HH:MM:SS format',
     example: '00:01:30',
     type: 'string',
-    pattern: '^(\\d{1,2}:)?\\d{1,2}:\\d{2}$',
   })
   @IsNotEmpty()
   @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/, {
@@ -54,7 +53,6 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
     description: 'End time of the video clip in HH:MM:SS format',
     example: '00:10:15',
     type: 'string',
-    pattern: '^(\\d{1,2}:)?d{1,2}:d{2}$',
   })
   @IsNotEmpty()
   @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/, {

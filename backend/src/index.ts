@@ -9,15 +9,19 @@ import {
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
-import {coursesModuleOptions} from 'modules/courses';
 import Container from 'typedi';
 import {IDatabase} from 'shared/database';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from 'config/db';
-import {usersModuleOptions} from 'modules/users';
 import * as firebase from 'firebase-admin';
 import {app} from 'firebase-admin';
-import {authModuleOptions} from 'modules';
+import {apiReference} from '@scalar/express-api-reference';
+import {OpenApiSpecService} from './modules/docs';
+
+// Import all module options
+import {authModuleOptions} from './modules/auth';
+import {coursesModuleOptions} from './modules/courses';
+import {usersModuleOptions} from './modules/users';
 
 export const application = Express();
 
@@ -45,6 +49,38 @@ export const ServiceFactory = (
     res.send('Hello World');
   });
 
+  // Set up the API documentation route
+  const openApiSpecService = Container.get(OpenApiSpecService);
+
+  // Register the /docs route before routing-controllers takes over
+  service.get('/docs', (req, res) => {
+    try {
+      const openApiSpec = openApiSpecService.generateOpenAPISpec();
+
+      const handler = apiReference({
+        spec: {
+          content: openApiSpec,
+        },
+        theme: {
+          title: 'ViBe API Documentation',
+          primaryColor: '#3B82F6',
+          sidebar: {
+            groupStrategy: 'byTagGroup',
+            defaultOpenLevel: 0,
+          },
+        },
+      });
+
+      // Call the handler to render the documentation
+      handler(req as any, res as any);
+    } catch (error) {
+      console.error('Error serving API documentation:', error);
+      res
+        .status(500)
+        .send(`Failed to load API documentation: ${error.message}`);
+    }
+  });
+
   console.log('--------------------------------------------------------');
   console.log('Routes Handler');
   console.log('--------------------------------------------------------');
@@ -57,7 +93,17 @@ export const ServiceFactory = (
   console.log('Starting Server');
   console.log('--------------------------------------------------------');
 
-  useExpressServer(service, options);
+  // Create combined routing controllers options
+  const routingControllersOptions = {
+    ...options,
+    controllers: [
+      ...(authModuleOptions.controllers as Function[]),
+      ...(coursesModuleOptions.controllers as Function[]),
+      ...(usersModuleOptions.controllers as Function[]),
+    ],
+  };
+
+  useExpressServer(service, routingControllersOptions);
 
   return service;
 };

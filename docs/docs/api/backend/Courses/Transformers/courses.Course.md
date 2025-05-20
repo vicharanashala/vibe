@@ -18,7 +18,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:48](http
 
 ##### courseBody?
 
-[`CreateCourseBody`](../Validators/CourseValidators/courses.CreateCourseBody.md)
+[`CreateCourseBody`](../../Other/courses.CreateCourseBody.md)
 
 #### Returns
 

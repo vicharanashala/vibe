@@ -1,6 +1,9 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import type { ScalarOptions } from '@scalar/docusaurus'
+import path from "path";
+import fs from "fs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -20,8 +23,6 @@ const config: Config = {
   markdown: {
     mermaid: true,
   },
-
-
 
   plugins: [
     [
@@ -45,6 +46,48 @@ const config: Config = {
         },
       },
     ],
+    [
+    '@scalar/docusaurus',
+    {
+      label: 'Scalar',
+      route: '/vibe/scalar',
+      showNavLink: true,
+      configuration: {
+        content: function() {
+          console.log('Attempting to load OpenAPI spec...');
+          
+          // This is the original path - go up one directory from __dirname to reach project root
+          const filePath = path.resolve(__dirname, './static/openapi/openapi.json');
+          console.log(`Looking for OpenAPI spec at: ${filePath}`);
+          
+          // Check if file exists
+          if (!fs.existsSync(filePath)) {
+            console.error(`ERROR: OpenAPI spec file not found at ${filePath}`);
+            return '{}';
+          }
+          
+          console.log('File exists, attempting to read...');
+          
+          try {
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            console.log('File read successfully, attempting to parse JSON...');
+            
+            try {
+              const jsonContent = JSON.parse(fileContent);
+              console.log('JSON parsed successfully');
+              return JSON.stringify(jsonContent);
+            } catch (parseError) {
+              console.error(`ERROR parsing OpenAPI spec JSON: ${parseError}`);
+              return '{}';
+            }
+          } catch (readError) {
+            console.error(`ERROR reading OpenAPI spec file: ${readError}`);
+            return '{}';
+          }
+        }(),
+      },
+    } as ScalarOptions,
+  ],
     [
       '@docusaurus/plugin-content-docs',
       {

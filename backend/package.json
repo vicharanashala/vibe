@@ -21,7 +21,9 @@
     "prepare": "pnpm run compile",
     "emulators:auth": "firebase emulators:start --only auth",
     "emulators:functions": "firebase emulators:start --only functions",
-    "emulators:all": "firebase emulators:start"
+    "emulators:all": "firebase emulators:start",
+    "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
+    "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
   },
   "keywords": [],
   "author": "",
@@ -53,6 +55,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@scalar/express-api-reference": "^0.7.6",
     "@sentry/cli": "^2.42.2",
     "@sentry/node": "^9.4.0",
     "@sentry/profiling-node": "^9.4.0",
