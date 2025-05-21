@@ -15,12 +15,7 @@ import {
 import {Service, Inject} from 'typedi';
 import {CreateQuestionBody} from '../classes/validators/QuestionValidator';
 import {QuestionFactory} from '../classes/transformers/Question';
-import {QuestionValidationService} from '../services/QuestionValidationService';
-import {QuestionProcessor} from '../rendering/QuestionProcessor';
-import {NumExprProcessor} from '../rendering/processors/NumExprProcessor';
-import {NumExprTexProcessor} from '../rendering/processors/NumExprTexProcessor';
-import {QParamProcessor} from '../rendering/processors/QParamProcessor';
-import {TagParserEngine} from '../rendering/TagParserEngine';
+import {QuestionProcessor} from '../question-processing/QuestionProcessor';
 
 @JsonController('/questions')
 @Service()
@@ -33,19 +28,7 @@ export class QuestionController {
   @OnUndefined(201)
   async create(@Body() body: CreateQuestionBody) {
     const question = QuestionFactory.createQuestion(body);
-
-    // const tagParserEngine = new TagParserEngine({
-    //   QParam: new QParamProcessor(),
-    //   NumExpr: new NumExprProcessor(),
-    //   NumExprTex: new NumExprTexProcessor(),
-    // });
-
-    // const businessRulesValidator = QuestionValidationService.resolve(
-    //   question,
-    //   tagParserEngine,
-    // );
     try {
-      // businessRulesValidator.validate();
       const questionProcessor = new QuestionProcessor(question);
       questionProcessor.validate();
 

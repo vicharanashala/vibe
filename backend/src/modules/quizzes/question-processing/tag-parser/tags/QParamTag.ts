@@ -1,6 +1,6 @@
-import {ITagProcessor, ParameterMap} from './ITagProcessor';
+import {Tag, ParameterMap} from './Tag';
 
-class QParamProcessor implements ITagProcessor {
+class QParamTag extends Tag {
   validate(text: string): boolean {
     // Check if the tag content is a valid parameter name
     return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(text.trim());
@@ -26,4 +26,4 @@ class QParamProcessor implements ITagProcessor {
   }
 }
 
-export {QParamProcessor};
+export {QParamTag};

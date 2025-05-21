@@ -1,9 +1,8 @@
 import {evaluate, parse, SymbolNode} from 'mathjs';
-import {ITagProcessor, ParameterMap} from './ITagProcessor';
-import {IQuesionOptionsLotItem} from 'shared/interfaces/Models';
+import {Tag, ParameterMap} from './Tag';
 import {IQuestionParameter} from 'shared/interfaces/quiz';
 
-class NumExprProcessor implements ITagProcessor {
+class NumExprTag extends Tag {
   validate(text: string, parameters?: IQuestionParameter[]): void {
     parse(text);
     if (parameters) {
@@ -55,4 +54,4 @@ class NumExprProcessor implements ITagProcessor {
   }
 }
 
-export {NumExprProcessor};
+export {NumExprTag};

@@ -1,6 +1,5 @@
-import {i} from 'mathjs';
 import {BaseQuestion} from 'modules/quizzes/classes/transformers';
-import {TagParserEngine} from 'modules/quizzes/rendering/TagParserEngine';
+import {TagParser} from 'modules/quizzes/question-processing/tag-parser/TagParser';
 
 export class BaseQuestionValidator {
   tagStatus: {
@@ -9,9 +8,9 @@ export class BaseQuestionValidator {
   } = {};
 
   question: BaseQuestion;
-  tagParserEngine: TagParserEngine;
+  tagParserEngine: TagParser;
 
-  constructor(question: BaseQuestion, tagParserEngine: TagParserEngine) {
+  constructor(question: BaseQuestion, tagParserEngine: TagParser) {
     this.question = question;
     this.tagParserEngine = tagParserEngine;
 

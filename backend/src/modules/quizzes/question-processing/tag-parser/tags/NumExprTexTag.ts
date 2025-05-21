@@ -1,8 +1,8 @@
 import {parse, SymbolNode} from 'mathjs';
-import {ITagProcessor, ParameterMap} from './ITagProcessor';
+import {Tag, ParameterMap} from './Tag';
 import {IQuestionParameter} from 'shared/interfaces/quiz';
 
-class NumExprTexProcessor implements ITagProcessor {
+class NumExprTexTag extends Tag {
   validate(text: string, parameters: IQuestionParameter[]): void {
     parse(text);
     if (parameters) {
@@ -58,11 +58,11 @@ class NumExprTexProcessor implements ITagProcessor {
       );
 
       const node = parse(exprWithValues);
-      return node.toTex();
+      return `$${node.toTex()}$`;
     } catch (err) {
       throw new Error(`Invalid TeX expression: ${text}`);
     }
   }
 }
 
-export {NumExprTexProcessor};
+export {NumExprTexTag};

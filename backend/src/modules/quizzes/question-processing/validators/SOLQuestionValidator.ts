@@ -1,9 +1,9 @@
 import {SOLQuestion} from '../../classes/transformers';
-import {TagParserEngine} from 'modules/quizzes/rendering/TagParserEngine';
+import {TagParser} from 'modules/quizzes/question-processing/tag-parser/TagParser';
 import {ILotItem} from 'shared/interfaces/quiz';
 import {BaseQuestionValidator} from './BaseQuestionValidator';
 
-export class SelectOneInLotValidator extends BaseQuestionValidator {
+export class SOLQuestionValidator extends BaseQuestionValidator {
   declare tagStatus: {
     questionHasTag?: boolean;
     hintHasTag?: boolean;
@@ -12,10 +12,10 @@ export class SelectOneInLotValidator extends BaseQuestionValidator {
     anyLotItemExplainationHasTag?: boolean;
   };
   declare question: SOLQuestion;
-  declare tagParserEngine: TagParserEngine;
+  declare tagParserEngine: TagParser;
   lotItems: ILotItem[];
 
-  constructor(question: SOLQuestion, tagParserEngine: TagParserEngine) {
+  constructor(question: SOLQuestion, tagParserEngine: TagParser) {
     super(question, tagParserEngine);
 
     if (question.isParameterized) {

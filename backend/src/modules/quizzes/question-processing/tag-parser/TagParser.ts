@@ -1,8 +1,8 @@
 import {IQuestionParameter} from 'shared/interfaces/quiz';
-import {ITagProcessor, ParameterMap} from './processors/ITagProcessor';
+import {Tag, ParameterMap} from './tags/Tag';
 
-class TagParserEngine {
-  constructor(private processors: Record<string, ITagProcessor>) {}
+class TagParser {
+  constructor(private processors: Record<string, Tag>) {}
 
   processText(text: string, context: ParameterMap): string {
     return text.replace(/<(\w+)>(.*?)<\/\1>/g, (_, tagName, inner) => {
@@ -33,4 +33,4 @@ class TagParserEngine {
   }
 }
 
-export {TagParserEngine};
+export {TagParser};
