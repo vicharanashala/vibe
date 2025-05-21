@@ -1,12 +1,19 @@
 import {SelectOneInLotValidator} from '../rules/questions/SelectOneInLotValidator';
-import {QuestionRuleValidator} from '../rules/questions/QuestionRuleValidator';
-import {BaseQuestion} from '../classes/transformers';
+import {BaseQuestion, SOLQuestion} from '../classes/transformers';
+import {BaseQuestionValidator} from '../rules/questions/BaseQuestionValidator';
+import {TagParserEngine} from '../rendering/TagParserEngine';
 
 export class QuestionValidationService {
-  static resolve(question: BaseQuestion): QuestionRuleValidator {
+  static resolve(
+    question: BaseQuestion,
+    tagParserEngine: TagParserEngine,
+  ): BaseQuestionValidator {
     switch (question.type) {
       case 'SELECT_ONE_IN_LOT':
-        return new SelectOneInLotValidator();
+        return new SelectOneInLotValidator(
+          question as SOLQuestion,
+          tagParserEngine,
+        );
       // Extend this as needed for other types
       default:
         throw new Error(

@@ -2,7 +2,7 @@ import {QuestionParameter} from '../classes/validators';
 import {ParameterMap} from './processors/ITagProcessor';
 
 class ParameterValueFactory {
-  static generate(parameter: QuestionParameter): string | number {
+  private static generate(parameter: QuestionParameter): string | number {
     const values = parameter.possibleValues;
     const randIndex = Math.floor(Math.random() * values.length);
     return parameter.type === 'number'

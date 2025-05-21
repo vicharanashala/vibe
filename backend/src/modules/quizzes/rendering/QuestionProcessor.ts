@@ -1,14 +1,12 @@
 import {BaseQuestion} from 'modules/quizzes/classes/transformers';
-import {IQuestionRenderStrategy} from './IQuestionRenderingStrategy';
-import {TagParserEngine} from '../TagParserEngine';
-import {QParamProcessor} from '../processors/QParamProcessor';
-import {NumExprProcessor} from '../processors/NumExprProcessor';
-import {NumExprTexProcessor} from '../processors/NumExprTexProcessor';
-import {Param} from 'routing-controllers';
-import {ParameterValueFactory} from '../ParameterValueFactory';
+import {TagParserEngine} from './TagParserEngine';
+import {QParamProcessor} from './processors/QParamProcessor';
+import {NumExprProcessor} from './processors/NumExprProcessor';
+import {NumExprTexProcessor} from './processors/NumExprTexProcessor';
+import {ParameterValueFactory} from './ParameterValueFactory';
 import {ILotItem} from 'shared/interfaces/quiz';
 
-class StudentQuestionRenderingStrategy implements IQuestionRenderStrategy {
+class QuestionProcessor {
   private tagParser: TagParserEngine;
 
   constructor() {
@@ -71,4 +69,4 @@ class StudentQuestionRenderingStrategy implements IQuestionRenderStrategy {
   }
 }
 
-export {StudentQuestionRenderingStrategy};
+export {QuestionProcessor as StudentQuestionRenderingStrategy};

@@ -61,7 +61,7 @@ describe('Progress Controller Integration Tests', () => {
   describe('Create Question', () => {
     it('should create a question', async () => {
       const questionData: IQuestion = {
-        text: 'NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
+        text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
         type: 'SELECT_ONE_IN_LOT',
         points: 10,
         timeLimitSeconds: 60,
@@ -75,7 +75,7 @@ describe('Progress Controller Integration Tests', () => {
           {
             name: 'b',
             possibleValues: ['1', '2', '3', '4.5', '7'],
-            type: 'number',
+            type: 'string',
           },
           {
             name: 'name',

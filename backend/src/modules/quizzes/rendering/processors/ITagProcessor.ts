@@ -1,6 +1,10 @@
+import {IQuestionParameter} from 'shared/interfaces/quiz';
+
 type ParameterMap = Record<string, string | number>;
 interface ITagProcessor {
-  process(tagContent: string, context: ParameterMap): string;
+  validate(text: string, parameters?: IQuestionParameter[]): void;
+  extract(text: string): string[];
+  process(text: string, context: ParameterMap): string;
 }
 
 export {ITagProcessor, ParameterMap};

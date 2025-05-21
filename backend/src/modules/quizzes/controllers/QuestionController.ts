@@ -18,7 +18,11 @@ import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QuestionFactory} from '../classes/transformers/Question';
 import {QuestionValidationService} from '../services/QuestionValidationService';
-import {StudentQuestionRenderingStrategy} from '../rendering/strategies/StudentQuestionRenderingStrategy';
+import {StudentQuestionRenderingStrategy} from '../rendering/QuestionProcessor';
+import {NumExprProcessor} from '../rendering/processors/NumExprProcessor';
+import {NumExprTexProcessor} from '../rendering/processors/NumExprTexProcessor';
+import {QParamProcessor} from '../rendering/processors/QParamProcessor';
+import {TagParserEngine} from '../rendering/TagParserEngine';
 
 @JsonController('/questions')
 @Service()
@@ -31,9 +35,19 @@ export class QuestionController {
   @OnUndefined(201)
   async create(@Body() body: CreateQuestionBody) {
     const question = QuestionFactory.createQuestion(body);
-    const businessRulesValidator = QuestionValidationService.resolve(question);
+
+    const tagParserEngine = new TagParserEngine({
+      QParam: new QParamProcessor(),
+      NumExpr: new NumExprProcessor(),
+      NumExprTex: new NumExprTexProcessor(),
+    });
+
+    const businessRulesValidator = QuestionValidationService.resolve(
+      question,
+      tagParserEngine,
+    );
     try {
-      businessRulesValidator.validateRules(question);
+      businessRulesValidator.validate();
       const renderStrategy = new StudentQuestionRenderingStrategy();
       const renderedQuestion = renderStrategy.render(question);
       return renderedQuestion;

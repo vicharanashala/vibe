@@ -1,41 +1,65 @@
-import {QuestionRuleValidator} from './QuestionRuleValidator';
-import {CommonQuestionRules} from './CommonQuestionRules';
-import {ParameterizedQuestionRules} from './ParameterizedQuestionRules';
 import {SOLQuestion} from '../../classes/transformers';
+import {TagParserEngine} from 'modules/quizzes/rendering/TagParserEngine';
+import {ILotItem} from 'shared/interfaces/quiz';
+import {BaseQuestionValidator} from './BaseQuestionValidator';
 
-export class SelectOneInLotValidator
-  implements QuestionRuleValidator<SOLQuestion>
-{
-  validateRules(question: SOLQuestion): void {
-    CommonQuestionRules.validate(question);
+export class SelectOneInLotValidator extends BaseQuestionValidator {
+  declare tagStatus: {
+    questionHasTag?: boolean;
+    hintHasTag?: boolean;
+    lotItemsWithTag?: boolean[];
+    anyLotItemHasTag?: boolean;
+    anyLotItemExplainationHasTag?: boolean;
+  };
+  declare question: SOLQuestion;
+  declare tagParserEngine: TagParserEngine;
+  lotItems: ILotItem[];
 
-    if (!question.correctLotItem) {
-      throw new Error('Correct option is required.');
-    }
+  constructor(question: SOLQuestion, tagParserEngine: TagParserEngine) {
+    super(question, tagParserEngine);
 
-    if (!question.incorrectLotItems?.length) {
-      throw new Error('At least one incorrect option is required.');
-    }
-
-    // Parameterization-specific checks
     if (question.isParameterized) {
-      ParameterizedQuestionRules.ensureParameterizedTagPresence(question.text);
-
-      const expressions = ParameterizedQuestionRules.extractNumExprs(
-        question.text,
+      this.lotItems = [question.correctLotItem, ...question.incorrectLotItems];
+      this.tagStatus.anyLotItemHasTag = this.lotItems.some(item =>
+        tagParserEngine.isAnyValidTagPresent(item.text),
       );
-      if (expressions.length) {
-        if (!question.parameters?.length) {
-          throw new Error('Parameters must be defined if <NumExpr> is used.');
-        }
-        ParameterizedQuestionRules.validateMathExpressions(
-          expressions,
-          question.parameters,
-        );
+      this.tagStatus.anyLotItemExplainationHasTag = this.lotItems.some(item =>
+        tagParserEngine.isAnyValidTagPresent(item.explaination),
+      );
+      this.tagStatus.lotItemsWithTag = this.lotItems.map(
+        item =>
+          tagParserEngine.isAnyValidTagPresent(item.text) ||
+          tagParserEngine.isAnyValidTagPresent(item.explaination),
+      );
+    }
+  }
+
+  validate(): void {
+    super.validate();
+    // Parameterization-specific checks
+    if (this.question.isParameterized) {
+      if (!this.tagStatus.anyLotItemHasTag) {
+        throw new Error('At least one LotItem must contain a valid tag.');
       }
 
-      const lotItems = [question.correctLotItem, ...question.incorrectLotItems];
-      ParameterizedQuestionRules.checkLotItemsParameterized(lotItems);
+      if (
+        this.tagStatus.anyLotItemHasTag ||
+        this.tagStatus.anyLotItemExplainationHasTag
+      ) {
+        this.tagStatus.lotItemsWithTag?.forEach((hasTag, index) => {
+          const item = this.lotItems[index];
+          if (this.tagParserEngine.isAnyValidTagPresent(item.text)) {
+            this.tagParserEngine.validateTags(item.text);
+          }
+          if (this.tagParserEngine.isAnyValidTagPresent(item.explaination)) {
+            this.tagParserEngine.validateTags(item.explaination);
+          }
+        });
+      }
+
+      if (this.tagStatus.hintHasTag) {
+        this.tagParserEngine.validateTags(this.question.hint);
+      }
     }
   }
 }

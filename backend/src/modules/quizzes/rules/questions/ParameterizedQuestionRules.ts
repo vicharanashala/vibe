@@ -1,4 +1,4 @@
-import {parse} from 'mathjs';
+import {parse, SymbolNode} from 'mathjs';
 import {QuestionParameter, LotItem} from '../../classes/validators';
 
 export class ParameterizedQuestionRules {
@@ -27,6 +27,38 @@ export class ParameterizedQuestionRules {
     parameters: QuestionParameter[],
   ): void {
     const paramMap = new Map(parameters.map(p => [p.name, p]));
+
+    for (const expr of exprs) {
+      try {
+        const parsedNode = parse(expr);
+        const symbols = [];
+
+        // Traverse the parsed node to collect all symbols
+        parsedNode.traverse((node: SymbolNode) => {
+          if (node.isSymbolNode) {
+            symbols.push(node.name);
+          }
+        });
+
+        const uniqueSymbols = Array.from(new Set(symbols));
+
+        for (const symbol of uniqueSymbols) {
+          // Check if all symbols are defined in parameters
+          if (!paramMap.has(symbol)) {
+            throw new Error(`Variable '${symbol}' not found in parameters.`);
+          }
+          // Check if the type of the symbol is 'number'
+          const param = paramMap.get(symbol);
+          if (param && param.type !== 'number') {
+            throw new Error(`Variable '${symbol}' must be of type 'number'.`);
+          }
+        }
+      } catch (err) {
+        throw new Error(
+          `Invalid math expression '${expr}': ${(err as Error).message}`,
+        );
+      }
+    }
 
     // for (const expr of exprs) {
     //   try {
