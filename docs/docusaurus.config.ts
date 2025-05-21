@@ -41,7 +41,7 @@ const config: Config = {
         exclude: ["**/tests/**"],
         router: "category",
         sidebar: {
-          fullNames: false,
+          autoConfiguration: true,
         },
       },
     ],
