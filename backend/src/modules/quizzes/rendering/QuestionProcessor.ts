@@ -3,12 +3,12 @@ import {TagParserEngine} from './TagParserEngine';
 import {QParamProcessor} from './processors/QParamProcessor';
 import {NumExprProcessor} from './processors/NumExprProcessor';
 import {NumExprTexProcessor} from './processors/NumExprTexProcessor';
-import {ParameterValueFactory} from './ParameterValueFactory';
 import {ILotItem} from 'shared/interfaces/quiz';
 import {BaseQuestionValidator} from '../rules/questions/BaseQuestionValidator';
 import {SelectOneInLotValidator} from '../rules/questions';
 import {triggerAsyncId} from 'async_hooks';
 import {ParameterMap} from './processors/ITagProcessor';
+import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
 
 interface IQuestionRenderView extends BaseQuestion {
   parameterMap?: ParameterMap;
@@ -77,8 +77,15 @@ class SOLQuestionRenderer extends BaseQuestionRenderer {
     const shuffledLotItems = processedLotItems.sort(() => Math.random() - 0.5);
 
     const renderedQuestionWithLotItems: SOLQuestionRenderView = {
-      ...renderedQuestion,
+      _id: renderedQuestion._id,
+      type: renderedQuestion.type,
+      isParameterized: renderedQuestion.isParameterized,
+      text: renderedQuestion.text,
+      hint: renderedQuestion.hint,
+      points: renderedQuestion.points,
+      timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       lotItems: shuffledLotItems,
+      parameterMap: parameterMap,
     };
 
     return renderedQuestionWithLotItems;
@@ -91,17 +98,17 @@ class QuestionProcessor {
   private validator: BaseQuestionValidator;
   private renderer: BaseQuestionRenderer;
 
-  private createValidator(question: BaseQuestion): BaseQuestionValidator {
-    switch (question.type) {
+  private createValidator(): BaseQuestionValidator {
+    switch (this.question.type) {
       case 'SELECT_ONE_IN_LOT':
         return new SelectOneInLotValidator(
-          question as SOLQuestion,
+          this.question as SOLQuestion,
           this.tagParser,
         );
       // Add more cases for other question types as needed
       default:
         throw new Error(
-          `No validator found for question type: ${question.type}`,
+          `No validator found for question type: ${this.question.type}`,
         );
     }
   }
@@ -128,7 +135,7 @@ class QuestionProcessor {
       NumExprTex: new NumExprTexProcessor(),
     });
     this.question = question;
-    this.validator = this.createValidator(question);
+    this.validator = this.createValidator();
     this.renderer = this.createRenderer();
   }
 
@@ -144,62 +151,11 @@ class QuestionProcessor {
     // Generates a map of parameter names to their values
     // This map is used to replace the parameter tags in the question text
     // The values are randomly chosen
-    const randomParameterMap = ParameterValueFactory.generateMap(
+    const randomParameterMap = generateRandomParameterMap(
       this.question.parameters,
     );
     return this.renderer.render(randomParameterMap);
   }
-
-  // render<T extends BaseQuestion>(question: T): T {
-  //   if (!question.isParameterized || !question.parameters?.length) {
-  //     return question;
-  //   }
-
-  //   // Generates a map of parameter names to their values
-  //   // This map is used to replace the parameter tags in the question text
-  //   // The values are randomly chosen
-  //   const paramMap = ParameterValueFactory.generateMap(question.parameters);
-
-  //   const processedText = this.tagParser.processText(question.text, paramMap);
-  //   const processedHint = this.tagParser.processText(question.hint, paramMap);
-
-  //   // If T is of type SOLQuestion, we need to process the correctLotItem and incorrectLotItems
-  //   if ('correctLotItem' in question && 'incorrectLotItems' in question) {
-  //     const correctLotItem = question.correctLotItem as ILotItem;
-  //     const incorrectLotItems = (question.incorrectLotItems as ILotItem[]).map(
-  //       item => ({
-  //         ...item,
-  //         text: this.tagParser.processText(item.text, paramMap),
-  //         explaination: this.tagParser.processText(item.explaination, paramMap),
-  //       }),
-  //     );
-
-  //     return {
-  //       ...question,
-  //       text: processedText,
-  //       hint: processedHint,
-  //       correctLotItem: {
-  //         ...correctLotItem,
-  //         text: this.tagParser.processText(correctLotItem.text, paramMap),
-  //         explaination: this.tagParser.processText(
-  //           correctLotItem.explaination,
-  //           paramMap,
-  //         ),
-  //       },
-  //       incorrectLotItems,
-  //     } as T;
-  //   }
-
-  //   return {
-  //     ...question,
-  //     text: processedText,
-  //     hint: processedHint,
-  //     parameters: question.parameters.map(p => ({
-  //       ...p,
-  //       value: paramMap[p.name],
-  //     })),
-  //   } as T;
-  // }
 }
 
 export {QuestionProcessor};
