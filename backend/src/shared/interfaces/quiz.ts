@@ -33,6 +33,7 @@ interface INATSolution {
 }
 
 interface ILotItem {
+  _id?: string | ObjectId;
   text: string;
   explaination: string;
 }

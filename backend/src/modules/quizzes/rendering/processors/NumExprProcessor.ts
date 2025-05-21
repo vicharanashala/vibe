@@ -5,7 +5,7 @@ import {IQuestionParameter} from 'shared/interfaces/quiz';
 
 class NumExprProcessor implements ITagProcessor {
   validate(text: string, parameters?: IQuestionParameter[]): void {
-    evaluate(text);
+    parse(text);
     if (parameters) {
       const paramMap = new Map(parameters.map(p => [p.name, p]));
       const parsedNode = parse(text);

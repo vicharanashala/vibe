@@ -49,16 +49,25 @@ export class SelectOneInLotValidator extends BaseQuestionValidator {
         this.tagStatus.lotItemsWithTag?.forEach((hasTag, index) => {
           const item = this.lotItems[index];
           if (this.tagParserEngine.isAnyValidTagPresent(item.text)) {
-            this.tagParserEngine.validateTags(item.text);
+            this.tagParserEngine.validateTags(
+              item.text,
+              this.question.parameters,
+            );
           }
           if (this.tagParserEngine.isAnyValidTagPresent(item.explaination)) {
-            this.tagParserEngine.validateTags(item.explaination);
+            this.tagParserEngine.validateTags(
+              item.explaination,
+              this.question.parameters,
+            );
           }
         });
       }
 
       if (this.tagStatus.hintHasTag) {
-        this.tagParserEngine.validateTags(this.question.hint);
+        this.tagParserEngine.validateTags(
+          this.question.hint,
+          this.question.parameters,
+        );
       }
     }
   }

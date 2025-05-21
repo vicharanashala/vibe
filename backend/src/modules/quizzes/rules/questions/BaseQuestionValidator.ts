@@ -36,11 +36,17 @@ export class BaseQuestionValidator {
     }
 
     if (this.tagStatus.questionHasTag) {
-      this.tagParserEngine.validateTags(this.question.text);
+      this.tagParserEngine.validateTags(
+        this.question.text,
+        this.question.parameters,
+      );
     }
 
     if (this.tagStatus.hintHasTag) {
-      this.tagParserEngine.validateTags(this.question.hint);
+      this.tagParserEngine.validateTags(
+        this.question.hint,
+        this.question.parameters,
+      );
     }
   }
 }

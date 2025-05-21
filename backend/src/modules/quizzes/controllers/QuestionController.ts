@@ -14,11 +14,9 @@ import {
 } from 'routing-controllers';
 import {Service, Inject} from 'typedi';
 import {CreateQuestionBody} from '../classes/validators/QuestionValidator';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QuestionFactory} from '../classes/transformers/Question';
 import {QuestionValidationService} from '../services/QuestionValidationService';
-import {StudentQuestionRenderingStrategy} from '../rendering/QuestionProcessor';
+import {QuestionProcessor} from '../rendering/QuestionProcessor';
 import {NumExprProcessor} from '../rendering/processors/NumExprProcessor';
 import {NumExprTexProcessor} from '../rendering/processors/NumExprTexProcessor';
 import {QParamProcessor} from '../rendering/processors/QParamProcessor';
@@ -36,20 +34,22 @@ export class QuestionController {
   async create(@Body() body: CreateQuestionBody) {
     const question = QuestionFactory.createQuestion(body);
 
-    const tagParserEngine = new TagParserEngine({
-      QParam: new QParamProcessor(),
-      NumExpr: new NumExprProcessor(),
-      NumExprTex: new NumExprTexProcessor(),
-    });
+    // const tagParserEngine = new TagParserEngine({
+    //   QParam: new QParamProcessor(),
+    //   NumExpr: new NumExprProcessor(),
+    //   NumExprTex: new NumExprTexProcessor(),
+    // });
 
-    const businessRulesValidator = QuestionValidationService.resolve(
-      question,
-      tagParserEngine,
-    );
+    // const businessRulesValidator = QuestionValidationService.resolve(
+    //   question,
+    //   tagParserEngine,
+    // );
     try {
-      businessRulesValidator.validate();
-      const renderStrategy = new StudentQuestionRenderingStrategy();
-      const renderedQuestion = renderStrategy.render(question);
+      // businessRulesValidator.validate();
+      const questionProcessor = new QuestionProcessor(question);
+      questionProcessor.validate();
+
+      const renderedQuestion = questionProcessor.render();
       return renderedQuestion;
     } catch (error) {
       throw new BadRequestError((error as Error).message);

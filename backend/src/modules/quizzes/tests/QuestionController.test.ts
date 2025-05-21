@@ -75,7 +75,7 @@ describe('Progress Controller Integration Tests', () => {
           {
             name: 'b',
             possibleValues: ['1', '2', '3', '4.5', '7'],
-            type: 'string',
+            type: 'number',
           },
           {
             name: 'name',
@@ -93,19 +93,20 @@ describe('Progress Controller Integration Tests', () => {
 
       const solution: ISOLSolution = {
         correctLotItem: {
-          text: 'This is the correct answer <QParam>name</QParam>',
+          text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
           explaination:
-            'This is the explanation for the correct answer <QParam>name</QParam>',
+            'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
         },
         incorrectLotItems: [
           {
-            text: 'This is an incorrect answer',
-            explaination: 'This is the explanation for the incorrect answer',
+            text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
+            explaination:
+              'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
           },
           {
-            text: 'This is another incorrect answer',
+            text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
             explaination:
-              'This is the explanation for another incorrect answer',
+              'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
           },
         ],
       };
