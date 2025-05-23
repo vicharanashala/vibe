@@ -18,7 +18,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:43](https:
 
 ##### itemBody
 
-[`CreateItemBody`](../../../Other/courses.CreateItemBody.md)
+[`CreateItemBody`](../../Validators/ItemValidators/courses.CreateItemBody.md)
 
 ##### existingItems
 

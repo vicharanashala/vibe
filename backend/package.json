@@ -21,9 +21,7 @@
     "prepare": "pnpm run compile",
     "emulators:auth": "firebase emulators:start --only auth",
     "emulators:functions": "firebase emulators:start --only functions",
-    "emulators:all": "firebase emulators:start",
-    "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
-    "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
+    "emulators:all": "firebase emulators:start"
   },
   "keywords": [],
   "author": "",
@@ -55,7 +53,6 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@scalar/express-api-reference": "^0.7.6",
     "@sentry/cli": "^2.42.2",
     "@sentry/node": "^9.4.0",
     "@sentry/profiling-node": "^9.4.0",
@@ -63,7 +60,6 @@
     "body-parser": "^1.20.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
-    "class-validator-jsonschema": "^5.0.2",
     "config": "^3.3.12",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
@@ -72,13 +68,11 @@
     "graphql": "~16.10.0",
     "jsonwebtoken": "^9.0.2",
     "lexorank": "^1.0.5",
-    "mathjs": "^14.4.0",
     "mongodb": "^6.15.0",
     "multer": "1.4.5-lts.1",
     "nanoid": "^5.1.2",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
-    "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
     "typedi": "^0.10.0"
   }
 }

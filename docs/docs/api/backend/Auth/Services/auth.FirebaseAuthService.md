@@ -47,7 +47,7 @@ Verifies that passwords match and the user exists before making changes.
 
 ##### body
 
-[`ChangePasswordBody`](../../Other/auth.ChangePasswordBody.md)
+[`ChangePasswordBody`](../Validators/auth.ChangePasswordBody.md)
 
 Contains the new password and confirmation
 
@@ -85,7 +85,7 @@ Registers a new user with Firebase Auth and stores user data in the repository.
 
 ##### body
 
-[`SignUpBody`](../../Other/auth.SignUpBody.md)
+[`SignUpBody`](../Validators/auth.SignUpBody.md)
 
 The validated signup information including email, password, and name
 

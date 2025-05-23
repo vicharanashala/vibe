@@ -20,7 +20,7 @@ import {Service} from 'typedi';
  */
 @Service()
 export class MongoDatabase implements IDatabase<Db> {
-  private client: MongoClient | null;
+  private client: MongoClient;
   public database: Db | null;
 
   /**
@@ -32,17 +32,6 @@ export class MongoDatabase implements IDatabase<Db> {
     private readonly uri: string,
     private readonly dbName: string,
   ) {
-    // Skip database connection if environment variable is set
-    if (process.env.SKIP_DB_CONNECTION === 'true') {
-      this.client = null;
-      this.database = null;
-      console.log(
-        'Database connection skipped due to SKIP_DB_CONNECTION environment variable',
-      );
-      return;
-    }
-
-    // Original initialization code
     this.client = new MongoClient(uri); // Removed options parameter
   }
 
@@ -51,8 +40,8 @@ export class MongoDatabase implements IDatabase<Db> {
    * @returns {Promise<Db>} The connected database instance.
    */
   private async connect(): Promise<Db> {
-    await this.client?.connect();
-    this.database = this.client?.db(this.dbName) || null;
+    await this.client.connect();
+    this.database = this.client.db(this.dbName);
     return this.database;
   }
 
@@ -74,14 +63,6 @@ export class MongoDatabase implements IDatabase<Db> {
    */
   public isConnected(): boolean {
     return this.database !== null;
-  }
-
-  /**
-   * Retrieves the client.
-   * @returns {Promise<MongoClient>} The connected database instance.
-   */
-  public async getClient(): Promise<MongoClient> {
-    return this.client;
   }
 
   /**

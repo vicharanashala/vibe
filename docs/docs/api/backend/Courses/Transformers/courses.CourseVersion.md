@@ -18,7 +18,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/CourseVersion.ts:4
 
 ##### courseVersionBody?
 
-[`CreateCourseVersionBody`](../../Other/courses.CreateCourseVersionBody.md)
+[`CreateCourseVersionBody`](../Validators/CourseVersionValidators/courses.CreateCourseVersionBody.md)
 
 #### Returns
 

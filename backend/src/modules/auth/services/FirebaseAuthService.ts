@@ -19,8 +19,6 @@ import {IUser} from 'shared/interfaces/Models';
 import {IUserRepository} from 'shared/database';
 import {IAuthService} from '../interfaces/IAuthService';
 import {ChangePasswordBody, SignUpBody} from '../classes/validators';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {CreateError} from 'shared/errors/errors';
 
 /**
  * Custom error thrown during password change operations.
@@ -67,12 +65,6 @@ export class FirebaseAuthService implements IAuthService {
     });
     this.auth = admin.auth();
   }
-
-  private readonly transactionOptions = {
-    readPreference: ReadPreference.primary,
-    writeConcern: new WriteConcern('majority'),
-    readConcern: new ReadConcern('majority'),
-  };
 
   /**
    * Verifies a Firebase authentication token and returns the associated user.
@@ -135,73 +127,15 @@ export class FirebaseAuthService implements IAuthService {
     };
 
     let createdUser: IUser;
-    const session = (await this.userRepository.getDBClient()).startSession();
+
     try {
-      await session.startTransaction(this.transactionOptions);
       // Store the user in our application database
-      createdUser = await this.userRepository.create(user, session);
-      if (!createdUser) {
-        throw new CreateError('Failed to create the user');
-      }
-      await session.commitTransaction();
+      createdUser = await this.userRepository.create(user);
     } catch (error) {
-      await session.abortTransaction();
       throw new Error('Failed to create user in the repository');
-    } finally {
-      await session.endSession();
     }
 
     return createdUser;
-  }
-
-  /**
-   * Verifies a Firebase authentication token and returns the associated user.
-   *
-   * @param token - The Firebase ID token to verify
-   * @returns A promise that resolves to the user data associated with the token
-   * @throws Error - If the token is invalid or verification fails
-   */
-  async verifySignUpProvider(token: string): Promise<IUser> {
-    const session = (await this.userRepository.getDBClient()).startSession();
-    try {
-      // Decode and verify the Firebase token
-      const decodedToken = await this.auth.verifyIdToken(token);
-      // Retrieve the full user record from Firebase
-      const userRecord = await this.auth.getUser(decodedToken.uid);
-      if (!userRecord) {
-        throw new Error('User not found');
-      }
-
-      await session.startTransaction(this.transactionOptions);
-      const user = await this.userRepository.findByEmail(
-        userRecord.email,
-        session,
-      );
-      if (!user) {
-        // Map Firebase user data to our application user model
-        const user: IUser = {
-          firebaseUID: userRecord.uid,
-          email: userRecord.email || '',
-          firstName: userRecord.displayName?.split(' ')[0] || '',
-          lastName: userRecord.displayName?.split(' ')[1] || '',
-          roles: ['student'], // Assuming roles are not stored in Firebase and defaulting to 'student'
-        };
-        const createdUser = await this.userRepository.create(user, session);
-        if (!createdUser) {
-          throw new CreateError('Failed to create the user');
-        }
-        await session.commitTransaction();
-        return createdUser;
-      } else {
-        await session.commitTransaction();
-        return user;
-      }
-    } catch (error) {
-      await session.abortTransaction();
-      throw new Error('Invalid token');
-    } finally {
-      await session.endSession();
-    }
   }
 
   /**

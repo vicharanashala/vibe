@@ -3,14 +3,7 @@ import {instanceToPlain} from 'class-transformer';
 import {Course} from 'modules/courses/classes/transformers/Course';
 import {CourseVersion} from 'modules/courses/classes/transformers/CourseVersion';
 import {Item, ItemsGroup} from 'modules/courses/classes/transformers/Item';
-import {
-  ClientSession,
-  Collection,
-  DeleteResult,
-  MongoClient,
-  ObjectId,
-  UpdateResult,
-} from 'mongodb';
+import {Collection, ObjectId} from 'mongodb';
 import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
 import {
   CreateError,
@@ -23,13 +16,10 @@ import {
   IModule,
   IEnrollment,
   IProgress,
-  ICourseVersion,
-  ISection,
 } from 'shared/interfaces/Models';
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 import {NotFoundError} from 'routing-controllers';
-import {Module, Section} from 'modules';
 
 @Service()
 export class CourseRepository implements ICourseRepository {
@@ -46,63 +36,68 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection =
       await this.db.getCollection<ItemsGroup>('itemsGroup');
   }
-
-  async getDBClient(): Promise<MongoClient> {
-    const client = await this.db.getClient();
-    if (!client) {
-      throw new Error('MongoDB client is not initialized');
-    }
-    return client;
-  }
-
-  async create(
-    course: Course,
-    session?: ClientSession,
-  ): Promise<Course | null> {
+  async create(course: Course): Promise<Course | null> {
     await this.init();
-    const result = await this.courseCollection.insertOne(course, {session});
-    if (result.acknowledged) {
-      const newCourse = await this.courseCollection.findOne(
-        {
+    try {
+      const result = await this.courseCollection.insertOne(course);
+      if (result.acknowledged) {
+        const newCourse = await this.courseCollection.findOne({
           _id: result.insertedId,
-        },
-        {session},
+        });
+        return Object.assign(new Course(), newCourse) as Course;
+      } else {
+        throw new CreateError('Failed to create course');
+      }
+    } catch (error) {
+      throw new CreateError(
+        'Failed to create course.\n More Details: ' + error,
       );
-      return Object.assign(new Course(), newCourse) as Course;
-    } else {
-      return null;
     }
   }
   async read(id: string): Promise<ICourse | null> {
     await this.init();
-    const course = await this.courseCollection.findOne({
-      _id: new ObjectId(id),
-    });
-    if (course) {
-      return Object.assign(new Course(), course) as Course;
-    } else {
-      return null;
+    try {
+      const course = await this.courseCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      if (course === null) {
+        throw new NotFoundError('Course not found');
+      }
+      return instanceToPlain(Object.assign(new Course(), course)) as Course;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ReadError('Failed to read course.\n More Details: ' + error);
     }
   }
-  async update(
-    id: string,
-    course: Partial<ICourse>,
-    session?: ClientSession,
-  ): Promise<ICourse | null> {
+  async update(id: string, course: Partial<ICourse>): Promise<ICourse | null> {
     await this.init();
-    await this.read(id);
+    try {
+      await this.read(id);
 
-    const {_id: _, ...fields} = course;
-    const res = await this.courseCollection.findOneAndUpdate(
-      {_id: new ObjectId(id)},
-      {$set: fields},
-      {returnDocument: 'after', session},
-    );
-
-    if (res) {
-      return Object.assign(new Course(), res) as Course;
-    } else {
-      return null;
+      const {_id: _, ...fields} = course;
+      const result = await this.courseCollection.updateOne(
+        {_id: new ObjectId(id)},
+        {$set: fields},
+      );
+      if (result.modifiedCount === 1) {
+        const updatedCourse = await this.courseCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        return instanceToPlain(
+          Object.assign(new Course(), updatedCourse),
+        ) as Course;
+      } else {
+        throw new UpdateError('Failed to update course');
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new UpdateError(
+        'Failed to update course.\n More Details: ' + error,
+      );
     }
   }
   async delete(id: string): Promise<boolean> {
@@ -111,21 +106,15 @@ export class CourseRepository implements ICourseRepository {
   }
   async createVersion(
     courseVersion: CourseVersion,
-    session?: ClientSession,
   ): Promise<CourseVersion | null> {
     await this.init();
     try {
-      const result = await this.courseVersionCollection.insertOne(
-        courseVersion,
-        {session},
-      );
+      const result =
+        await this.courseVersionCollection.insertOne(courseVersion);
       if (result.acknowledged) {
-        const newCourseVersion = await this.courseVersionCollection.findOne(
-          {
-            _id: result.insertedId,
-          },
-          {session},
-        );
+        const newCourseVersion = await this.courseVersionCollection.findOne({
+          _id: result.insertedId,
+        });
 
         return instanceToPlain(
           Object.assign(new CourseVersion(), newCourseVersion),
@@ -139,18 +128,12 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-  async readVersion(
-    versionId: string,
-    session?: ClientSession,
-  ): Promise<CourseVersion | null> {
+  async readVersion(versionId: string): Promise<CourseVersion | null> {
     await this.init();
     try {
-      const courseVersion = await this.courseVersionCollection.findOne(
-        {
-          _id: new ObjectId(versionId),
-        },
-        {session},
-      );
+      const courseVersion = await this.courseVersionCollection.findOne({
+        _id: new ObjectId(versionId),
+      });
 
       if (courseVersion === null) {
         throw new NotFoundError('Course Version not found');
@@ -171,22 +154,19 @@ export class CourseRepository implements ICourseRepository {
   async updateVersion(
     versionId: string,
     courseVersion: CourseVersion,
-    session?: ClientSession,
-  ): Promise<ICourseVersion | null> {
+  ): Promise<CourseVersion | null> {
     await this.init();
     try {
       const {_id: _, ...fields} = courseVersion;
       const result = await this.courseVersionCollection.updateOne(
         {_id: new ObjectId(versionId)},
         {$set: fields},
-        {session},
       );
       if (result.modifiedCount === 1) {
         const updatedCourseVersion = await this.courseVersionCollection.findOne(
           {
             _id: new ObjectId(versionId),
           },
-          {session},
         );
         return instanceToPlain(
           Object.assign(new CourseVersion(), updatedCourseVersion),
@@ -203,48 +183,64 @@ export class CourseRepository implements ICourseRepository {
   async deleteVersion(
     courseId: string,
     versionId: string,
-    itemGroupsIds: ObjectId[],
-    session?: ClientSession,
-  ): Promise<DeleteResult | null> {
+  ): Promise<CourseVersion | null> {
     await this.init();
     try {
-      // 1. Delete course version
-      const versionDeleteResult = await this.courseVersionCollection.deleteOne(
-        {
-          _id: new ObjectId(versionId),
-        },
-        {session},
+      // 1. find the course version to Delete.
+      const courseVersion = await this.courseVersionCollection.findOne({
+        _id: new ObjectId(versionId),
+      });
+
+      const course = await this.courseCollection.findOne({
+        _id: new ObjectId(courseId),
+      });
+
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+
+      // 2. check if the course version exists.
+      if (!courseVersion) {
+        throw new NotFoundError('Course Version not found');
+      }
+
+      // 3. Extract itemGroupsIds before deleting the course version.
+      const itemGroupsIds = courseVersion.modules.flatMap(module =>
+        module.sections.map(section => new ObjectId(section.itemsGroupId)),
       );
+
+      // 4. Delete course version
+      const versionDeleteResult = await this.courseVersionCollection.deleteOne({
+        _id: new ObjectId(versionId),
+      });
 
       if (versionDeleteResult.deletedCount !== 1) {
         throw new DeleteError('Failed to delete course version');
       }
 
-      // 2. Remove courseVersionId from the course
+      // 5. Remove courseVersionId from the course
+
       const courseUpdateResult = await this.courseCollection.updateOne(
         {_id: new ObjectId(courseId)},
         {$pull: {versions: versionId}},
-        {session},
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {
         throw new DeleteError('Failed to update course');
       }
 
-      // 3. Cascade Delete item groups
-      const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
-        {
-          _id: {$in: itemGroupsIds},
-        },
-        {session},
-      );
+      // 6. Cascade Delete item groups
+
+      const itemDeletionResult = await this.itemsGroupCollection.deleteMany({
+        _id: {$in: itemGroupsIds},
+      });
 
       if (itemDeletionResult.deletedCount === 0) {
         throw new DeleteError('Failed to delete item groups');
       }
 
-      // 4. Return the deleted course version
-      return versionDeleteResult;
+      // 7. Return the deleted course version
+      return courseVersion;
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -254,87 +250,97 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-
-  async deleteSection(
-    versionId: string,
-    moduleId: string,
-    sectionId: string,
-    courseVersion: CourseVersion,
-    session?: ClientSession,
-  ): Promise<UpdateResult | null> {
+  async createItemsGroup(itemsGroup: ItemsGroup): Promise<ItemsGroup | null> {
     await this.init();
     try {
-      // Convert versionId and moduleId to ObjectId
-      const moduleObjectId = new ObjectId(moduleId);
-
-      // Find the module to delete
-      const module = courseVersion.modules.find(m =>
-        new ObjectId(m.moduleId).equals(moduleObjectId),
-      );
-
-      if (!module) {
-        throw new NotFoundError('Module not found');
-      }
-
-      // Cascade delete sections and items
-      if (module.sections.length > 0) {
-        const section = module.sections.find(
-          section => section.sectionId === sectionId,
-        );
-        const itemGroupId = section?.itemsGroupId;
-
-        try {
-          const itemDeletionResult = await this.itemsGroupCollection.deleteOne(
-            {
-              _id: itemGroupId,
-            },
-            {session},
-          );
-
-          if (!itemDeletionResult.acknowledged) {
-            throw new DeleteError('Failed to delete item groups');
-          }
-        } catch (error) {
-          throw new DeleteError('Item deletion failed');
-        }
+      const result = await this.itemsGroupCollection.insertOne(itemsGroup);
+      if (result) {
+        const newItems = await this.itemsGroupCollection.findOne({
+          _id: result.insertedId,
+        });
+        return instanceToPlain(
+          Object.assign(new ItemsGroup(), newItems),
+        ) as ItemsGroup;
       } else {
-        throw new NotFoundError('Section not found');
+        throw new CreateError('Failed to create items');
       }
-
-      // Remove the section from the course version
-      const updatedModules = courseVersion.modules.map(m => {
-        if (new ObjectId(m.moduleId).equals(moduleObjectId)) {
-          return {
-            ...m,
-            sections: m.sections.filter(
-              s => !new ObjectId(s.sectionId).equals(sectionId),
-            ),
-          };
-        }
-        return m;
-      });
-
-      const updateResult = await this.courseVersionCollection.updateOne(
-        {_id: new ObjectId(versionId)},
-        {$set: {modules: updatedModules}},
-        {session},
-      );
-
-      if (updateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update Section');
-      }
-
-      return updateResult;
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-      if (error instanceof DeleteError) {
-        throw error;
-      }
-      throw new DeleteError(
-        'Failed to delete Section.\n More Details: ' + error,
+      throw new CreateError('Failed to create items.\n More Details: ' + error);
+    }
+  }
+  async readItemsGroup(itemsGroupId: string): Promise<ItemsGroup | null> {
+    await this.init();
+    try {
+      const items = await this.itemsGroupCollection.findOne({
+        _id: new ObjectId(itemsGroupId),
+      });
+      return instanceToPlain(
+        Object.assign(new ItemsGroup(), items),
+      ) as ItemsGroup;
+    } catch (error) {
+      throw new ReadError('Failed to read items.\n More Details: ' + error);
+    }
+  }
+  async readItem(courseVersionId: string, itemId: string): Promise<Item> {
+    await this.init();
+    const courseVersion = await this.readVersion(courseVersionId);
+    const itemGroupsIds = courseVersion.modules.flatMap(module =>
+      module.sections.map(section => section.itemsGroupId),
+    );
+
+    // Find the item in the items groups
+    for (const itemGroupId of itemGroupsIds) {
+      const itemsGroup = await this.readItemsGroup(itemGroupId.toString());
+      const item = itemsGroup.items.find(
+        item => item.itemId.toString() === itemId,
       );
+      if (!item) {
+        continue;
+      } else {
+        return item;
+      }
+    }
+  }
+
+  async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
+    await this.init();
+    try {
+      const result = await this.itemsGroupCollection.updateOne(
+        {_id: new ObjectId(itemGroupsId)},
+        {$pull: {items: {itemId: new ObjectId(itemId)}}},
+      );
+      if (result.modifiedCount === 1) {
+        return true;
+      } else {
+        throw new DeleteError('Failed to delete item');
+      }
+    } catch (error) {
+      throw new DeleteError('Failed to delete item.\n More Details: ' + error);
+    }
+  }
+  async updateItemsGroup(
+    itemsGroupId: string,
+    itemsGroup: ItemsGroup,
+  ): Promise<ItemsGroup | null> {
+    await this.init();
+    try {
+      const {_id: _, ...fields} = itemsGroup;
+      const result = await this.itemsGroupCollection.updateOne(
+        {_id: new ObjectId(itemsGroupId)},
+        {$set: fields},
+      );
+      if (result.modifiedCount === 1) {
+        const updatedItems = await this.itemsGroupCollection.findOne({
+          _id: new ObjectId(itemsGroupId),
+        });
+        return instanceToPlain(
+          Object.assign(new ItemsGroup(), updatedItems),
+        ) as ItemsGroup;
+      } else {
+        throw new UpdateError('Failed to update items');
+      }
+    } catch (error) {
+      throw new UpdateError('Failed to update items.\n More Details: ' + error);
     }
   }
 
@@ -411,6 +417,64 @@ export class CourseRepository implements ICourseRepository {
       }
       throw new DeleteError(
         'Failed to delete module.\n More Details: ' + error,
+      );
+    }
+  }
+  async getFirstOrderItems(courseVersionId: string): Promise<{
+    moduleId: ObjectId;
+    sectionId: ObjectId;
+    itemId: ObjectId;
+  }> {
+    await this.init();
+    try {
+      const version = await this.readVersion(courseVersionId);
+      if (!version || !version.modules || version.modules.length === 0) {
+        throw new ReadError('Course version has no modules');
+      }
+
+      // Sort modules by order and get first
+      const sortedModules = version.modules.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstModule = sortedModules[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new ReadError('Module has no sections');
+      }
+
+      // Sort sections by order and get first
+      const sortedSections = firstModule.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstSection = sortedSections[0];
+
+      if (!firstSection.itemsGroupId) {
+        throw new ReadError('Section has no items group');
+      }
+
+      // Get items for first section
+      const itemsGroup = await this.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new ReadError('Items group has no items');
+      }
+
+      // Sort items by order and get first
+      const sortedItems = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+      const firstItem = sortedItems[0];
+
+      return {
+        moduleId: new ObjectId(firstModule.moduleId),
+        sectionId: new ObjectId(firstSection.sectionId),
+        itemId: new ObjectId(firstItem.itemId),
+      };
+    } catch (error) {
+      throw new ReadError(
+        'Failed to get first order items.\n More Details: ' + error,
       );
     }
   }

@@ -7,30 +7,31 @@ import Container from 'typedi';
 import Express from 'express';
 import request from 'supertest';
 import {ReadError} from 'shared/errors/errors';
-import {dbConfig} from '../../../config/db';
-import {CourseVersionService} from '../services';
 
-jest.setTimeout(90000);
 describe('Module Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
     // Start an in-memory MongoDB server
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
 
     // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
+    Container.set('Database', new MongoDatabase(mongoUri, 'vibe'));
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
     Container.set('CourseRepo', courseRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
+  });
+
+  afterAll(async () => {
+    // Close the in-memory MongoDB server after the tests
+    await mongoServer.stop();
   });
 
   // Tests for creating a module
@@ -47,7 +48,7 @@ describe('Module Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(201);
+          .expect(200);
 
         // Get course id
         const courseId = response.body._id;
@@ -61,10 +62,10 @@ describe('Module Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(courseVersionPayload)
-          .expect(201);
+          .expect(200);
 
         // Get version id
-        const versionId = versionResponse.body._id;
+        const versionId = versionResponse.body.version._id;
 
         // Create a module
         const modulePayload = {
@@ -78,7 +79,7 @@ describe('Module Controller Integration Tests', () => {
         const moduleResponse = await request(app)
           .post(endPoint)
           .send(modulePayload)
-          .expect(201);
+          .expect(200);
 
         // Extract the moduleId of the created module
         const createdModule = moduleResponse.body.version.modules.find(
@@ -129,7 +130,7 @@ describe('Module Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(201);
+          .expect(200);
 
         // Get course id
         const courseId = response.body._id;
@@ -144,7 +145,7 @@ describe('Module Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(courseVersionPayload)
-          .expect(201);
+          .expect(200);
 
         // Get version id
 
@@ -173,7 +174,7 @@ describe('Module Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(201);
+          .expect(200);
 
         // Get course id
         const courseId = response.body._id;
@@ -187,7 +188,7 @@ describe('Module Controller Integration Tests', () => {
         const versionResponse = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(courseVersionPayload)
-          .expect(201);
+          .expect(200);
 
         // Get version id
         const versionId = versionResponse.body.version._id;
@@ -210,7 +211,7 @@ describe('Module Controller Integration Tests', () => {
         const moduleResponse = await request(app)
           .post(endPoint)
           .send(modulePayload)
-          .expect(400);
+          .expect(500);
       });
     });
   });

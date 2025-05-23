@@ -18,7 +18,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:44](htt
 
 ##### sectionBody
 
-[`CreateSectionBody`](../../Other/courses.CreateSectionBody.md)
+[`CreateSectionBody`](../Validators/SectionValidators/courses.CreateSectionBody.md)
 
 ##### existingSections
 

@@ -7,7 +7,6 @@ import {
   NotFoundError,
 } from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {
   IBlogDetails,
@@ -17,7 +16,6 @@ import {
   IWatchTime,
 } from 'shared/interfaces/Models';
 import {Item} from 'modules/courses';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 
 /**
  * Service for managing user progress in courses.
@@ -35,9 +33,6 @@ class ProgressService {
 
     @Inject('UserRepo')
     private readonly userRepo: UserRepository,
-
-    @Inject('ItemRepo')
-    private readonly itemRepo: ItemRepository,
   ) {}
 
   /**
@@ -68,7 +63,7 @@ class ProgressService {
     )[0];
 
     // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
+    const itemsGroup = await this.courseRepo.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
 
@@ -122,7 +117,7 @@ class ProgressService {
     )[0];
 
     // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
+    const itemsGroup = await this.courseRepo.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
 
@@ -177,7 +172,7 @@ class ProgressService {
     }
 
     // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
+    const itemsGroup = await this.courseRepo.readItemsGroup(
       section.itemsGroupId.toString(),
     );
 
@@ -233,7 +228,7 @@ class ProgressService {
     }
 
     // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
+    const itemsGroup = await this.courseRepo.readItemsGroup(
       section.itemsGroupId.toString(),
     );
 
@@ -363,7 +358,7 @@ class ProgressService {
       .find(module => module.moduleId === moduleId)
       ?.sections.find(section => section.sectionId === sectionId)?.itemsGroupId;
     // 1.2 Get items from itemsGroupId
-    const itemsGroup = await this.itemRepo.readItemsGroup(
+    const itemsGroup = await this.courseRepo.readItemsGroup(
       itemsGroupId?.toString(),
     );
     // 1.3 Sort items in itemsGroup by order
@@ -398,7 +393,7 @@ class ProgressService {
       currentSection = firstSection?.sectionId.toString();
 
       // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
+      const itemsGroup = await this.courseRepo.readItemsGroup(
         firstSection?.itemsGroupId.toString(),
       );
       const firstItem = itemsGroup.items.sort((a, b) =>
@@ -418,7 +413,7 @@ class ProgressService {
       currentSection = nextSection?.sectionId.toString();
 
       // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
+      const itemsGroup = await this.courseRepo.readItemsGroup(
         nextSection?.itemsGroupId.toString(),
       );
       const firstItem = itemsGroup.items.sort((a, b) =>
@@ -448,7 +443,7 @@ class ProgressService {
       currentSection = nextSection?.sectionId.toString();
 
       // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
+      const itemsGroup = await this.courseRepo.readItemsGroup(
         nextSection?.itemsGroupId.toString(),
       );
       const firstItem = itemsGroup.items.sort((a, b) =>
@@ -556,35 +551,19 @@ class ProgressService {
     courseId: string,
     courseVersionId: string,
   ): Promise<Progress> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    try {
-      await session.startTransaction(txOptions);
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const progress = await this.progressRepository.findProgress(
-        userId,
-        courseId,
-        courseVersionId,
-      );
+    const progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
 
-      if (!progress) {
-        throw new NotFoundError('Progress not found');
-      }
-      await session.commitTransaction();
-      return Object.assign(new Progress(), progress);
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    if (!progress) {
+      throw new NotFoundError('Progress not found');
     }
+
+    return Object.assign(new Progress(), progress);
   }
 
   async startItem(
@@ -595,42 +574,23 @@ class ProgressService {
     sectionId: string,
     itemId: string,
   ): Promise<string> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      );
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    await this.verifyProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      moduleId,
+      sectionId,
+      itemId,
+    );
 
-      // Start tracking the item
-      const result = await this.progressRepository.startItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-      );
-
-      await session.commitTransaction();
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    // Start tracking the item
+    return await this.progressRepository.startItemTracking(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+    );
   }
 
   async stopItem(
@@ -642,51 +602,34 @@ class ProgressService {
     moduleId: string,
     watchItemId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      );
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    await this.verifyProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      moduleId,
+      sectionId,
+      itemId,
+    );
 
-      //Verify if the watchItemId is valid
-      const watchItem =
-        await this.progressRepository.getWatchTimeById(watchItemId);
+    //Verify if the watchItemId is valid
+    const watchItem =
+      await this.progressRepository.getWatchTimeById(watchItemId);
 
-      if (!watchItem) {
-        throw new NotFoundError('Watch item not found');
-      }
+    if (!watchItem) {
+      throw new NotFoundError('Watch item not found');
+    }
 
-      // Stop tracking the item
-      const result: IWatchTime = await this.progressRepository.stopItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-        watchItemId,
-      );
-      if (!result) {
-        throw new InternalServerError('Failed to stop tracking item');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    // Stop tracking the item
+    const result: IWatchTime = await this.progressRepository.stopItemTracking(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      watchItemId,
+    );
+    if (!result) {
+      throw new InternalServerError('Failed to stop tracking item');
     }
   }
 
@@ -699,83 +642,67 @@ class ProgressService {
     itemId: string,
     watchItemId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      await this.verifyDetails(userId, courseId, courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
 
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
+    await this.verifyProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+
+    // Get WatchTime of the item
+    const watchTime =
+      await this.progressRepository.getWatchTimeById(watchItemId);
+    if (!watchTime) {
+      throw new NotFoundError('Watch time not found');
+    }
+
+    // Check if the watch time is greater than the item duration
+    const item = await this.courseRepo.readItem(courseVersionId, itemId);
+    if (!item) {
+      throw new NotFoundError('Item not found in Course Version');
+    }
+    if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
+      // TODO: Handle other item types
+      throw new BadRequestError('Item type is not supported');
+    }
+    if (!item) {
+      throw new NotFoundError('Item not found');
+    }
+
+    const isValid = this.isValidWatchTime(watchTime, item);
+    if (!isValid) {
+      throw new BadRequestError(
+        'Watch time is not valid, the user did not watch the item long enough',
       );
+    }
 
-      // Get WatchTime of the item
-      const watchTime =
-        await this.progressRepository.getWatchTimeById(watchItemId);
-      if (!watchTime) {
-        throw new NotFoundError('Watch time not found');
-      }
+    // Get the course version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      // Check if the watch time is greater than the item duration
-      const item = await this.itemRepo.readItem(courseVersionId, itemId);
-      if (!item) {
-        throw new NotFoundError('Item not found in Course Version');
-      }
-      if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
-        // TODO: Handle other item types
-        throw new BadRequestError('Item type is not supported');
-      }
-      if (!item) {
-        throw new NotFoundError('Item not found');
-      }
+    // Get the new progress
+    const newProgress = await this.getNewProgress(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Update the progress
+    const updatedProgress = await this.progressRepository.updateProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      newProgress,
+    );
 
-      const isValid = this.isValidWatchTime(watchTime, item);
-      if (!isValid) {
-        throw new BadRequestError(
-          'Watch time is not valid, the user did not watch the item long enough',
-        );
-      }
-
-      // Get the course version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-
-      // Get the new progress
-      const newProgress = await this.getNewProgress(
-        courseVersion,
-        moduleId,
-        sectionId,
-        itemId,
-      );
-      if (!newProgress) {
-        throw new InternalServerError('New progress could not be calculated');
-      }
-      // Update the progress
-      const updatedProgress = await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-      );
-
-      if (!updatedProgress) {
-        throw new InternalServerError('Progress could not be updated');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    if (!updatedProgress) {
+      throw new InternalServerError('Progress could not be updated');
     }
   }
 
@@ -785,48 +712,32 @@ class ProgressService {
     courseId: string,
     courseVersionId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      await this.verifyDetails(userId, courseId, courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
 
-      // Get Course Version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      const updatedProgress: IProgress = await this.initializeProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
-      );
+    const updatedProgress: IProgress = await this.initializeProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+    );
 
-      // Set progress
-      const result = await this.progressRepository.findAndReplaceProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        {
-          currentModule: updatedProgress.currentModule,
-          currentSection: updatedProgress.currentSection,
-          currentItem: updatedProgress.currentItem,
-          completed: false,
-        },
-      );
-      if (!result) {
-        throw new InternalServerError('Progress could not be reset');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: updatedProgress.currentModule,
+        currentSection: updatedProgress.currentSection,
+        currentItem: updatedProgress.currentItem,
+        completed: false,
+      },
+    );
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
     }
   }
 
@@ -836,52 +747,36 @@ class ProgressService {
     courseVersionId: string,
     moduleId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      // Get Course Version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      // Get the new progress after resetting to the module
-      const newProgress = await this.initializeProgressToModule(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
-        moduleId,
-      );
-      if (!newProgress) {
-        throw new InternalServerError('New progress could not be calculated');
-      }
-      // Set progress
-      const result = await this.progressRepository.findAndReplaceProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        {
-          currentModule: newProgress.currentModule,
-          currentSection: newProgress.currentSection,
-          currentItem: newProgress.currentItem,
-          completed: false,
-        },
-      );
+    // Get the new progress after resetting to the module
+    const newProgress = await this.initializeProgressToModule(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
 
-      if (!result) {
-        throw new InternalServerError('Progress could not be reset');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
     }
   }
 
@@ -892,53 +787,37 @@ class ProgressService {
     moduleId: string,
     sectionId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      // Get Course Version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      // Get the new progress after resetting to the section
-      const newProgress = await this.initializeProgressToSection(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
-        moduleId,
-        sectionId,
-      );
-      if (!newProgress) {
-        throw new InternalServerError('New progress could not be calculated');
-      }
-      // Set progress
-      const result = await this.progressRepository.findAndReplaceProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        {
-          currentModule: newProgress.currentModule,
-          currentSection: newProgress.currentSection,
-          currentItem: newProgress.currentItem,
-          completed: false,
-        },
-      );
+    // Get the new progress after resetting to the section
+    const newProgress = await this.initializeProgressToSection(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+      sectionId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
 
-      if (!result) {
-        throw new InternalServerError('Progress could not be reset');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
     }
   }
 
@@ -950,54 +829,38 @@ class ProgressService {
     sectionId: string,
     itemId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      // Get Course Version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    await this.verifyDetails(userId, courseId, courseVersionId);
+    // Get Course Version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      // Get the new progress after resetting to the item
-      const newProgress = await this.initializeProgressToItem(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
-        moduleId,
-        sectionId,
-        itemId,
-      );
-      if (!newProgress) {
-        throw new InternalServerError('New progress could not be calculated');
-      }
-      // Set progress
-      const result = await this.progressRepository.findAndReplaceProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        {
-          currentModule: newProgress.currentModule,
-          currentSection: newProgress.currentSection,
-          currentItem: newProgress.currentItem,
-          completed: false,
-        },
-      );
+    // Get the new progress after resetting to the item
+    const newProgress = await this.initializeProgressToItem(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+    if (!newProgress) {
+      throw new InternalServerError('New progress could not be calculated');
+    }
+    // Set progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: newProgress.currentModule,
+        currentSection: newProgress.currentSection,
+        currentItem: newProgress.currentItem,
+        completed: false,
+      },
+    );
 
-      if (!result) {
-        throw new InternalServerError('Progress could not be reset');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
     }
   }
 }

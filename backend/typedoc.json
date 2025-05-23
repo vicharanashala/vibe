@@ -1,14 +1,14 @@
 {
-  "plugin": ["typedoc-plugin-markdown"],
-  "out": "./docs",
-  "entryPoints": ["./src"],
-  "entryPointStrategy": "expand",
-  "exclude": [
-    "**/*.spec.ts",
-    "**/*.test.ts",
-    "**/*.tsx",
-    "**/node_modules/**",
-    "**/build/**",
-    "./docusaurus/**"
-  ]
+    "plugin": ["typedoc-plugin-markdown"],
+    "out": "./docs",
+    "entryPoints": ["./src"],
+    "entryPointStrategy": "expand",
+    "exclude": [
+        "**/*.spec.ts", 
+        "**/*.test.ts",
+        "**/*.tsx",
+        "**/node_modules/**",
+        "**/build/**",
+        "./docusaurus/**"
+    ],
 }

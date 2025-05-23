@@ -1,41 +1,29 @@
 import {coursesModuleOptions} from 'modules/courses';
-import {useExpressServer} from 'routing-controllers';
+import {MongoMemoryServer} from 'mongodb-memory-server';
+import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import Container from 'typedi';
 import Express from 'express';
 import request from 'supertest';
 import {ReadError} from 'shared/errors/errors';
-import {CourseVersionService} from '../services';
-import {dbConfig} from '../../../config/db';
-import {SectionService} from '../services/SectionService';
 
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
+    // Start an in-memory MongoDB server
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+
     // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
+    Container.set('Database', new MongoDatabase(mongoUri, 'vibe'));
     const courseRepo = new CourseRepository(
       Container.get<MongoDatabase>('Database'),
     );
     Container.set('CourseRepo', courseRepo);
-    const itemRepo = new ItemRepository(
-      Container.get<MongoDatabase>('Database'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ItemRepo', itemRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    const sectionService = new SectionService(
-      Container.get<ItemRepository>('ItemRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    Container.set('SectionService', sectionService);
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
@@ -43,7 +31,7 @@ describe('Course Version Controller Integration Tests', () => {
 
   afterAll(async () => {
     // Close the in-memory MongoDB server after the tests
-    // await mongoServer.stop();
+    await mongoServer.stop();
   });
   // Create course version
   describe('COURSE VERSION CREATION', () => {
@@ -78,16 +66,16 @@ describe('Course Version Controller Integration Tests', () => {
 
         // Check if the response is correct
 
-        // expect(versionResponse.body.course._id).toBe(courseId);
-        expect(versionResponse.body.version).toBe('New Course Version');
-        expect(versionResponse.body.description).toBe(
+        expect(versionResponse.body.course._id).toBe(courseId);
+        expect(versionResponse.body.version.version).toBe('New Course Version');
+        expect(versionResponse.body.version.description).toBe(
           'Course version description',
         );
 
-        // expect the version id to be in the list of course, this is shared in response
-        // expect(versionResponse.body.course.versions).toContain(
-        //   versionResponse.body.version._id,
-        // );
+        //expect the version id to be in the list of course, this is shared in response
+        expect(versionResponse.body.course.versions).toContain(
+          versionResponse.body.version._id,
+        );
       });
     });
 
@@ -107,7 +95,7 @@ describe('Course Version Controller Integration Tests', () => {
           .send(courseVersionPayload)
           .expect(404);
 
-        expect(versionResponse.body.message).toContain('Course not found');
+        // expect(versionResponse.body.message).toContain("Course not found");
       });
 
       it('should return 400 if invalid course version data', async () => {
@@ -208,7 +196,7 @@ describe('Course Version Controller Integration Tests', () => {
           .expect(201);
 
         // Get version id
-        const versionId = versionResponse.body._id;
+        const versionId = versionResponse.body.version._id;
 
         // log the endpoint to request to
         const endPoint2 = `/courses/versions/${versionId}`;
@@ -270,11 +258,12 @@ describe('Course Version Controller Integration Tests', () => {
 
         // Get version id
 
-        const versionId = versionResponse.body._id;
+        const versionId = versionResponse.body.version._id;
 
         // log the endpoint to request to
 
         // Mock the database to throw ReadError
+
         const courseRepo = Container.get<CourseRepository>('CourseRepo');
 
         jest.spyOn(courseRepo, 'readVersion').mockImplementationOnce(() => {
@@ -334,7 +323,7 @@ describe('Course Version Controller Integration Tests', () => {
           .send(courseVersionPayload)
           .expect(201);
 
-        const versionId = versionResponse.body._id;
+        const versionId = versionResponse.body.version._id;
 
         const moduleResponse = await request(app)
           .post(`/courses/versions/${versionId}/modules`)
@@ -344,21 +333,22 @@ describe('Course Version Controller Integration Tests', () => {
         const moduleId = moduleResponse.body.version.modules[0].moduleId;
 
         const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
+          .post(`/versions/${versionId}/modules/${moduleId}/sections`)
           .send(sectionPayload)
           .expect(201);
 
-        const sectionId = sectionResponse.body.modules[0].sections[0].sectionId;
+        const sectionId =
+          sectionResponse.body.version.modules[0].sections[0].sectionId;
 
         const itemsGroupId =
-          sectionResponse.body.modules[0].sections[0].itemsGroupId;
+          sectionResponse.body.version.modules[0].sections[0].itemsGroupId;
 
         const itemsGroupResponse = await request(app)
           .post(
-            `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+            `/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
           )
           .send(itemPayload)
-          .expect(201);
+          .expect(200);
 
         const deleteVersion = await request(app)
           .delete(`/courses/${courseId}/versions/${versionId}`)

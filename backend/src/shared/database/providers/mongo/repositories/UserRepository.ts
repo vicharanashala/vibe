@@ -1,10 +1,4 @@
-import {
-  ClientSession,
-  Collection,
-  MongoClient,
-  ObjectId,
-  WithId,
-} from 'mongodb';
+import {Collection, ObjectId, WithId} from 'mongodb';
 import {IUser} from 'shared/interfaces/Models';
 import {Inject, Service} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
@@ -23,14 +17,6 @@ export class UserRepository implements IUserRepository {
     if (!this.usersCollection) {
       this.usersCollection = await this.db.getCollection<IUser>('users');
     }
-  }
-
-  async getDBClient(): Promise<MongoClient> {
-    const client = await this.db.getClient();
-    if (!client) {
-      throw new Error('MongoDB client is not initialized');
-    }
-    return client;
   }
 
   /**
@@ -55,21 +41,18 @@ export class UserRepository implements IUserRepository {
    * Creates a new user in the database.
    * - Generates a MongoDB `_id` internally but uses `firebaseUID` as the external identifier.
    */
-  async create(user: IUser, session?: ClientSession): Promise<IUser> {
+  async create(user: IUser): Promise<IUser> {
     await this.init();
-    const result = await this.usersCollection.insertOne(user, {session});
+    const result = await this.usersCollection.insertOne(user);
     return this.transformUser({...user, _id: result.insertedId})!;
   }
 
   /**
    * Finds a user by email.
    */
-  async findByEmail(
-    email: string,
-    session?: ClientSession,
-  ): Promise<IUser | null> {
+  async findByEmail(email: string): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne({email}, {session});
+    const user = await this.usersCollection.findOne({email});
     return this.transformUser(user);
   }
 

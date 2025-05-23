@@ -29,17 +29,21 @@ import {
 } from '..';
 import {faker} from '@faker-js/faker/.';
 import c from 'config';
-import {dbConfig} from '../../../config/db';
-jest.setTimeout(90000);
+
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
+  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
 
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
+    // Start an in-memory MongoDB servera
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+
+    Container.set('Database', new MongoDatabase(uri, 'vibe'));
 
     setupAuthModuleDependencies();
     setupCoursesModuleDependencies();
@@ -59,6 +63,11 @@ describe('Enrollment Controller Integration Tests', () => {
     };
 
     app = useExpressServer(appInstance, options);
+  });
+
+  afterAll(async () => {
+    // Stop the in-memory MongoDB server
+    await mongoServer.stop();
   });
 
   beforeEach(async () => {
@@ -267,7 +276,7 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(enrollmentResponse.body.progress.courseVersionId).toBe(
         courseVersionId,
       );
-    }, 90000);
+    }, 20000);
   });
 
   // ------Tests for Read <ModuleName>------

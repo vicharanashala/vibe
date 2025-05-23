@@ -75,14 +75,14 @@ export interface IVideoItem {
   url: string;
   name: string;
   description: string;
-  startTime: number;
-  endTime: number;
-  points: number;
+  startTime: Number;
+  endTime: Number;
+  points: Number;
 }
 
 export interface IQuizItem {
   _id: string;
-  questionVisibilityLimit: number;
+  questionVisibilityLimit: Number;
   questionIds: string[];
 }
 
@@ -90,20 +90,20 @@ export interface IBlogItem {
   _id: string;
   title: string;
   content: string;
-  estimatedReadTimeInMinutes: number;
+  estimatedReadTimeInMinutes: Number;
   tags: string[];
-  points: number;
+  points: Number;
 }
 
-export interface IQuestion {
+interface IQuestion {
   _id: string;
   questionText: string;
   questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
   parameterized: boolean;
   parameters?: IQuestionParameter[];
   hintText: string;
-  timeLimit: number;
-  points: number;
+  timeLimit: Number;
+  points: Number;
   metaDetails: IQuestionMetaDetails;
   createdAt: Date;
   updatedAt: Date;
@@ -111,8 +111,7 @@ export interface IQuestion {
 
 export interface IQuestionParameter {
   name: string;
-  possibleValues: string[];
-  type: 'number' | 'string';
+  value: string[] | Number[];
 }
 
 export interface IQuestionMetaDetails {
@@ -155,14 +154,14 @@ export interface IOTLQuestionSolution {
 
 export interface IOTLQuestionOrdering {
   lotItemId: string;
-  order: number;
+  order: Number;
 }
 
 export interface INATQuestionSolution {
-  decimalPrecision: number;
-  upperLimit: number;
-  lowerLimit: number;
-  value: number;
+  decimalPrecision: Number;
+  upperLimit: Number;
+  lowerLimit: Number;
+  value: Number;
 }
 
 export interface IDESQuestionSolution {
@@ -205,7 +204,7 @@ export interface IQuizResponse {
   _id: string;
   quizItemId: string;
   studentId: string;
-  questionsLength: number;
+  questionsLength: Number;
   graadingStatus: 'PENDING' | 'GRADED';
   submitted: boolean;
   questions: (
@@ -220,11 +219,11 @@ export interface IQuizResponse {
   updatedAt: Date;
 }
 
-export interface IQuizResponseItem {
+interface IQuizResponseItem {
   questionId: string;
   parameters: IQuestionParameter[];
-  points: number;
-  timeTaken: number;
+  points: Number;
+  timeTaken: Number;
 }
 
 export interface IQuizSOLQuestionResponse extends IQuizResponseItem {
@@ -244,7 +243,7 @@ export interface IQuizOTLQuestionResponse extends IQuizResponseItem {
 }
 
 export interface IQuizNATQuestionResponse extends IQuizResponseItem {
-  value: number;
+  value: Number;
 }
 
 export interface IQuizDESQuestionResponse extends IQuizResponseItem {

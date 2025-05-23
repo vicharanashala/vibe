@@ -1,5 +1,9 @@
 ## Classes
 
+### Auth/Controllers
+
+- [AuthController](../Auth/Controllers/auth.AuthController.md)
+
 ### Auth/Errors
 
 - [ChangePasswordError](../Auth/Errors/auth.ChangePasswordError.md)
@@ -8,15 +12,10 @@
 
 - [FirebaseAuthService](../Auth/Services/auth.FirebaseAuthService.md)
 
-### Other
+### Auth/Validators
 
-- [AuthController](auth.AuthController.md)
-- [AuthErrorResponse](auth.AuthErrorResponse.md)
-- [ChangePasswordBody](auth.ChangePasswordBody.md)
-- [ChangePasswordResponse](auth.ChangePasswordResponse.md)
-- [SignUpBody](auth.SignUpBody.md)
-- [SignUpResponse](auth.SignUpResponse.md)
-- [TokenVerificationResponse](auth.TokenVerificationResponse.md)
+- [ChangePasswordBody](../Auth/Validators/auth.ChangePasswordBody.md)
+- [SignUpBody](../Auth/Validators/auth.SignUpBody.md)
 
 ## Interfaces
 

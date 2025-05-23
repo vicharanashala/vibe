@@ -10,7 +10,7 @@ must fulfill, regardless of the underlying authentication provider.
 
 > **changePassword**(`body`, `requestUser`): `Promise`\<\{ `message`: `string`; `success`: `boolean`; \}\>
 
-Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:59](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/auth/interfaces/IAuthService.ts#L59)
+Defined in: [backend/src/modules/auth/interfaces/IAuthService.ts:59](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/auth/interfaces/IAuthService.ts#L59)
 
 Changes the password for an authenticated user.
 Validates that the new password meets requirements and updates
@@ -20,7 +20,7 @@ the user's credentials in the authentication system.
 
 ##### body
 
-[`ChangePasswordBody`](../../Other/auth.ChangePasswordBody.md)
+[`ChangePasswordBody`](../Validators/auth.ChangePasswordBody.md)
 
 The payload containing the new password and confirmation
 
@@ -56,7 +56,7 @@ stores the user information in the database.
 
 ##### body
 
-[`SignUpBody`](../../Other/auth.SignUpBody.md)
+[`SignUpBody`](../Validators/auth.SignUpBody.md)
 
 The validated payload containing user registration information
               including email, password, first name, and last name
