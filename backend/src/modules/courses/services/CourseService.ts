@@ -2,6 +2,7 @@ import {ICourseRepository} from 'shared/database';
 import {Inject, Service} from 'typedi';
 import {Course} from '../classes/transformers';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 
 @Service()
 class CourseService {
@@ -10,14 +11,31 @@ class CourseService {
     private readonly courseRepo: ICourseRepository,
   ) {}
 
+  private readonly transactionOptions = {
+    readPreference: ReadPreference.primary,
+    writeConcern: new WriteConcern('majority'),
+    readConcern: new ReadConcern('majority'),
+  };
+
   async createCourse(course: Course): Promise<Course> {
-    const createdCourse = await this.courseRepo.create(course);
-    if (!createdCourse) {
-      throw new InternalServerError(
-        'Failed to create course. Please try again later.',
-      );
+    const session = (await this.courseRepo.getDBClient()).startSession();
+
+    try {
+      await session.startTransaction(this.transactionOptions);
+      const createdCourse = await this.courseRepo.create(course, session);
+      if (!createdCourse) {
+        throw new InternalServerError(
+          'Failed to create course. Please try again later.',
+        );
+      }
+      await session.commitTransaction();
+      return createdCourse;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
     }
-    return createdCourse;
   }
 
   async readCourse(id: string): Promise<Course> {

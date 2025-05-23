@@ -73,6 +73,28 @@ export class EnrollmentRepository {
       throw new CreateError(`Failed to create enrollment: ${error.message}`);
     }
   }
+  /**
+   * Delete an enrollment record for a user in a specific course version
+   */
+  async deleteEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: any,
+  ): Promise<void> {
+    await this.init();
+    const result = await this.enrollmentCollection.deleteOne(
+      {
+        userId: userId,
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {session},
+    );
+    if (result.deletedCount === 0) {
+      throw new NotFoundError('Enrollment not found to delete');
+    }
+  }
 
   /**
    * Create a new progress tracking record
@@ -99,5 +121,22 @@ export class EnrollmentRepository {
         `Failed to create progress tracking: ${error.message}`,
       );
     }
+  }
+
+  async deleteProgress(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: any,
+  ): Promise<void> {
+    await this.init();
+    await this.progressCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {session},
+    );
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '..';
 import {dbConfig} from '../../../config/db';
 import {faker} from '@faker-js/faker/.';
+jest.setTimeout(60000);
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();

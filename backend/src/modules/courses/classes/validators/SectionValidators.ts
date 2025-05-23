@@ -281,6 +281,53 @@ class SectionNotFoundErrorResponse {
   message: string;
 }
 
+class SectionDeletedResponse {
+  @JSONSchema({
+    description: 'Deletion confirmation message',
+    example:
+      'Section with the ID 60d5ec49b3f1c8e4a8f8b8e6 in Version 60d5ec49b3f1c8e4a8f8b8d5 has been deleted successfully.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
+}
+
+class DeleteSectionParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version containing the module',
+    example: '60d5ec49b3f1c8e4a8f8b8d5',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module to delete',
+    example: '60d5ec49b3f1c8e4a8f8b8e6',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @JSONSchema({
+    title: 'Section ID',
+    description: 'ID of the section to delete',
+    example: '60d5ec49b3f1c8e4a8f8b8e6',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+}
+
 export {
   CreateSectionBody,
   UpdateSectionBody,
@@ -290,4 +337,6 @@ export {
   UpdateSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
+  SectionDeletedResponse,
+  DeleteSectionParams,
 };

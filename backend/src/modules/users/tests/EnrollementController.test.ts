@@ -29,21 +29,17 @@ import {
 } from '..';
 import {faker} from '@faker-js/faker/.';
 import c from 'config';
-
+import {dbConfig} from '../../../config/db';
+jest.setTimeout(90000);
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
-  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
 
-    // Start an in-memory MongoDB servera
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-
-    Container.set('Database', new MongoDatabase(uri, 'vibe'));
+    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
 
     setupAuthModuleDependencies();
     setupCoursesModuleDependencies();
@@ -63,11 +59,6 @@ describe('Enrollment Controller Integration Tests', () => {
     };
 
     app = useExpressServer(appInstance, options);
-  });
-
-  afterAll(async () => {
-    // Stop the in-memory MongoDB server
-    await mongoServer.stop();
   });
 
   beforeEach(async () => {
@@ -126,7 +117,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .send(courseVersionBody)
         .expect(201);
       // Expect the response to contain the course version ID
-      const courseVersionId = createCourseVersionResponse.body.version._id;
+      const courseVersionId = createCourseVersionResponse.body._id;
       expect(courseVersionId).toBeDefined();
 
       // 3. Create a module by hitting at endpoint /courses/:courseId/versions/:versionId/modules
@@ -276,7 +267,127 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(enrollmentResponse.body.progress.courseVersionId).toBe(
         courseVersionId,
       );
-    }, 20000);
+    }, 90000);
+  });
+
+  // ------Tests for Unenroll Enrollment------
+  describe('Unenroll Enrollment', () => {
+    it('should remove enrollment and progress for a user', async () => {
+      // 1. Create a new user
+      const signUpBody: SignUpBody = {
+        email: faker.internet.email(),
+        password: faker.internet.password(),
+        firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
+        lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+      };
+
+      const signUpResponse = await request(app)
+        .post('/auth/signup')
+        .send(signUpBody)
+        .expect(201);
+      const userId = signUpResponse.body.id;
+
+      // 2. Create a course
+      const courseBody: CreateCourseBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const courseResponse = await request(app)
+        .post('/courses')
+        .send(courseBody)
+        .expect(201);
+      const courseId: string = courseResponse.body._id;
+
+      // 3. Create course version
+      const courseVersionBody: CreateCourseVersionBody = {
+        version: '1.0',
+        description: 'Initial version',
+      };
+
+      const createCourseVersionResponse = await request(app)
+        .post(`/courses/${courseId}/versions`)
+        .send(courseVersionBody)
+        .expect(201);
+      const courseVersionId = createCourseVersionResponse.body._id;
+
+      // 4. Create a module
+      const moduleBody: CreateModuleBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const createModuleResponse = await request(app)
+        .post(`/courses/versions/${courseVersionId}/modules`)
+        .send(moduleBody)
+        .expect(201);
+      const moduleId = createModuleResponse.body.version.modules[0].moduleId;
+
+      // 5. Create a section
+      const sectionBody: CreateSectionBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const createSectionResponse = await request(app)
+        .post(
+          `/courses/versions/${courseVersionId}/modules/${moduleId}/sections`,
+        )
+        .send(sectionBody)
+        .expect(201);
+      const sectionId =
+        createSectionResponse.body.version.modules[0].sections[0].sectionId;
+
+      // 6. Create an item
+      const itemPayload = {
+        name: 'Item1',
+        description: 'This an item',
+        type: 'VIDEO',
+        videoDetails: {
+          URL: 'http://url.com',
+          startTime: '00:00:00',
+          endTime: '00:00:40',
+          points: '10.5',
+        },
+      };
+
+      const createItemResponse = await request(app)
+        .post(
+          `/courses/versions/${courseVersionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send(itemPayload)
+        .expect(201);
+      const itemId = createItemResponse.body.itemsGroup.items[0].itemId;
+
+      // 7. Enroll the user
+      const enrollmentResponse = await request(app).post(
+        `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+      );
+      expect(enrollmentResponse.status).toBe(200);
+      expect(enrollmentResponse.body).toHaveProperty('enrollment');
+      expect(enrollmentResponse.body).toHaveProperty('progress');
+
+      // 8. Unenroll the user
+      const unenrollResponse = await request(app).post(
+        `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}/unenroll`,
+      );
+      expect(unenrollResponse.status).toBe(200);
+      expect(unenrollResponse.body.enrollment).toBeNull();
+      expect(unenrollResponse.body.progress).toBeNull();
+
+      // 9. Try to enroll again (should succeed, since unenrolled)
+      const reEnrollResponse = await request(app).post(
+        `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+      );
+      expect(reEnrollResponse.status).toBe(200);
+      expect(reEnrollResponse.body).toHaveProperty('enrollment');
+      expect(reEnrollResponse.body).toHaveProperty('progress');
+      expect(reEnrollResponse.body.enrollment.userId).toBe(userId);
+      expect(reEnrollResponse.body.enrollment.courseId).toBe(courseId);
+      expect(reEnrollResponse.body.enrollment.courseVersionId).toBe(
+        courseVersionId,
+      );
+    }, 90000);
   });
 
   // ------Tests for Read <ModuleName>------

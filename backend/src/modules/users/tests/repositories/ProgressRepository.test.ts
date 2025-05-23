@@ -1,15 +1,13 @@
-import {MongoMemoryServer} from 'mongodb-memory-server';
 import {Container} from 'typedi';
 import {ObjectId} from 'mongodb';
-
 // Import the actual repository and database classes
 import {MongoDatabase} from 'shared/database/providers/mongo/MongoDatabase';
 import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
 import {IProgress} from 'shared/interfaces/Models';
 import {setupUsersModuleDependencies} from 'modules/users';
+import {dbConfig} from '../../../../config/db';
 
 describe('ProgressRepository Unit Tests', () => {
-  let mongoServer: MongoMemoryServer;
   let progressRepository: ProgressRepository;
   let testProgress: IProgress;
 
@@ -19,18 +17,9 @@ describe('ProgressRepository Unit Tests', () => {
   const courseVersionId = new ObjectId().toString();
 
   beforeAll(async () => {
-    // Start an in-memory MongoDB server
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-
     // Set up the real MongoDatabase and Repository
-    Container.set('Database', new MongoDatabase(uri, 'vibe'));
+    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
     setupUsersModuleDependencies();
-  });
-
-  afterAll(async () => {
-    // Stop the in-memory MongoDB server
-    await mongoServer.stop();
   });
 
   beforeEach(async () => {

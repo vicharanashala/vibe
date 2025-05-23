@@ -128,3 +128,11 @@ export class EnrollUserResponseData {
   @IsNotEmpty()
   progress: ProgressDataResponse;
 }
+export class EnrollmentNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'Error message indicating the enrollment was not found',
+    example: 'Enrollment could not be created or found.',
+  })
+  @IsString()
+  message: string;
+}

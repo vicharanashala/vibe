@@ -9,6 +9,7 @@ import {Container, Service} from 'typedi';
 import {MongoDatabase} from 'shared/database/providers/mongo/MongoDatabase';
 import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {EnrollmentController} from './controllers/EnrollmentController';
 import {EnrollmentService} from './services';
 import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
@@ -45,6 +46,16 @@ export function setupUsersModuleDependencies(): void {
     );
   }
 
+  if (!Container.has('ItemRepo')) {
+    Container.set(
+      'ItemRepo',
+      new ItemRepository(
+        Container.get<MongoDatabase>('Database'),
+        Container.get<CourseRepository>('CourseRepo'),
+      ),
+    );
+  }
+
   if (!Container.has('UserRepo')) {
     Container.set(
       'UserRepo',
@@ -59,6 +70,7 @@ export function setupUsersModuleDependencies(): void {
         Container.get<EnrollmentRepository>('EnrollmentRepo'),
         Container.get<CourseRepository>('CourseRepo'),
         Container.get<UserRepository>('UserRepo'),
+        Container.get<ItemRepository>('ItemRepo'),
       ),
     );
   }
@@ -70,6 +82,7 @@ export function setupUsersModuleDependencies(): void {
         Container.get<ProgressRepository>('ProgressRepo'),
         Container.get<CourseRepository>('CourseRepo'),
         Container.get<UserRepository>('UserRepo'),
+        Container.get<ItemRepository>('ItemRepo'),
       ),
     );
   }

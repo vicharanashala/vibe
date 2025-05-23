@@ -69,7 +69,7 @@ async function createCourseWithModulesSectionsAndItems(
     .post(`/courses/${allData.courseId}/versions`)
     .send({version: allData.version, description: 'Initial version'})
     .expect(201);
-  allData.courseVersionId = versionRes.body.version._id;
+  allData.courseVersionId = versionRes.body._id;
 
   // Create Modules, each with Sections, and each Section with Items
   for (let i = 0; i < numberOfModules; i++) {

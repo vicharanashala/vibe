@@ -77,6 +77,14 @@ export class MongoDatabase implements IDatabase<Db> {
   }
 
   /**
+   * Retrieves the client.
+   * @returns {Promise<MongoClient>} The connected database instance.
+   */
+  public async getClient(): Promise<MongoClient> {
+    return this.client;
+  }
+
+  /**
    * Retrieves a collection from the connected database.
    * @template T
    * @param {string} name - The name of the collection to retrieve.

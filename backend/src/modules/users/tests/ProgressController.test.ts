@@ -1,4 +1,3 @@
-import {MongoMemoryServer} from 'mongodb-memory-server';
 import request from 'supertest';
 import Express from 'express';
 import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
@@ -23,6 +22,7 @@ import {isMongoId} from 'class-validator';
 import {ProgressService} from '../services/ProgressService';
 import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from '../../../config/db';
 import {IUser, IWatchTime} from 'shared/interfaces/Models';
@@ -38,7 +38,6 @@ import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase';
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
-  let mongoServer: MongoMemoryServer;
   let user: IUser;
   let courseData: CourseData;
 
@@ -59,6 +58,7 @@ describe('Progress Controller Integration Tests', () => {
       Container.get<ProgressRepository>('ProgressRepo'),
       Container.get<CourseRepository>('CourseRepo'),
       Container.get<UserRepository>('UserRepo'),
+      Container.get<ItemRepository>('ItemRepo'),
     );
 
     // Remove the old ProgressService from the container
