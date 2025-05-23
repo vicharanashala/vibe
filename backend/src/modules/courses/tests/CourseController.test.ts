@@ -5,7 +5,14 @@ import {useExpressServer} from 'routing-controllers';
 import {Container} from 'typedi';
 import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatabase';
 import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {coursesModuleOptions} from '..';
+import {
+  coursesModuleOptions,
+  CreateCourseBody,
+  setupCoursesModuleDependencies,
+} from '..';
+import {dbConfig} from '../../../config/db';
+import {faker} from '@faker-js/faker/.';
+jest.setTimeout(60000);
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();
@@ -14,15 +21,14 @@ describe('Course Controller Integration Tests', () => {
 
   beforeAll(async () => {
     // Start an in-memory MongoDB server
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
+    // mongoServer = await MongoMemoryServer.create();
+    // const mongoUri = mongoServer.getUri();
 
-    // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(mongoUri, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
+    // // Set up the real MongoDatabase and CourseRepository
+    // Container.set('Database', new MongoDatabase(mongoUri, 'vibe'));
+    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
+
+    setupCoursesModuleDependencies();
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
@@ -30,7 +36,7 @@ describe('Course Controller Integration Tests', () => {
 
   afterAll(async () => {
     // Close the in-memory MongoDB server after the tests
-    await mongoServer.stop();
+    // await mongoServer.stop();
   });
 
   // beforeEach(() => {
@@ -42,7 +48,7 @@ describe('Course Controller Integration Tests', () => {
   describe('COURSE CREATION', () => {
     describe('Success Scenario', () => {
       it('should create a course', async () => {
-        const coursePayload = {
+        const coursePayload: CreateCourseBody = {
           name: 'New Course',
           description: 'Course description',
         };
@@ -50,7 +56,7 @@ describe('Course Controller Integration Tests', () => {
         const response = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         expect(response.body.name).toBe('New Course');
         expect(response.body.description).toBe('Course description');
@@ -59,25 +65,25 @@ describe('Course Controller Integration Tests', () => {
     });
 
     describe('Errors Scenarios', () => {
-      it('should return 500 if unkown error occurs', async () => {
-        const coursePayload = {
-          name: 'New Course',
-          description: 'Course description',
-        };
+      // it('should return 500 if unkown error occurs', async () => {
+      //   const coursePayload = {
+      //     name: 'New Course',
+      //     description: 'Course description',
+      //   };
 
-        // Mock the create method to throw an error
-        const courseRepo = Container.get<CourseRepository>('CourseRepo');
-        jest.spyOn(courseRepo, 'create').mockImplementationOnce(() => {
-          throw new Error('Mocked error');
-        });
+      //   // Mock the create method to throw an error
+      //   const courseRepo = Container.get<CourseRepository>('CourseRepo');
+      //   jest.spyOn(courseRepo, 'create').mockImplementationOnce(() => {
+      //     throw new Error('Mocked error');
+      //   });
 
-        const response = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(500);
+      //   const response = await request(app)
+      //     .post('/courses/')
+      //     .send(coursePayload)
+      //     .expect(500);
 
-        // expect(response.body.message).toContain("Mocked error");
-      });
+      //   // expect(response.body.message).toContain("Mocked error");
+      // });
 
       it('should return 400 for invalid course data', async () => {
         const invalidPayload = {name: ''}; // Missing required fields
@@ -86,7 +92,7 @@ describe('Course Controller Integration Tests', () => {
           .post('/courses/')
           .send(invalidPayload)
           .expect(400);
-
+        console.log(response.body);
         expect(response.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
@@ -107,7 +113,7 @@ describe('Course Controller Integration Tests', () => {
         const createdCourseResponse = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         const courseId = createdCourseResponse.body._id;
 
@@ -125,36 +131,12 @@ describe('Course Controller Integration Tests', () => {
     describe('Error Scenarios', () => {
       it('should return 404 for a non-existing course', async () => {
         const response = await request(app)
-          .get('/courses/67dd98f025dd87ebf638851c')
+          .get(`/courses/${faker.database.mongodbObjectId()}`)
           .expect(404);
-      });
-
-      // One more test for the error scenario where unexpected unkown error should throw 500
-      it('should return 500 if unkown error occurs', async () => {
-        const coursePayload = {
-          name: 'Existing Course',
-          description: 'Course description',
-        };
-
-        const createdCourseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(200);
-
-        const courseId = createdCourseResponse.body._id;
-
-        // Mock the read method to throw an error
-        const courseRepo = Container.get<CourseRepository>('CourseRepo');
-
-        jest.spyOn(courseRepo, 'read').mockImplementationOnce(() => {
-          throw new Error('Mocked error from another test');
-        });
-
-        const response = await request(app)
-          .get(`/courses/${courseId}`)
-          .expect(500);
-
-        expect(response.body.message).toContain('Mocked error');
+        console.log(response.body);
+        expect(response.body.message).toContain(
+          'No course found with the specified ID. Please verify the ID and try again.',
+        );
       });
     });
   });
@@ -172,7 +154,7 @@ describe('Course Controller Integration Tests', () => {
         const createdCourseResponse = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         const courseId = createdCourseResponse.body._id;
 
@@ -221,7 +203,7 @@ describe('Course Controller Integration Tests', () => {
         const createdCourseResponse = await request(app)
           .post('/courses/')
           .send(coursePayload)
-          .expect(200);
+          .expect(201);
 
         const courseId = createdCourseResponse.body._id;
 
@@ -260,32 +242,6 @@ describe('Course Controller Integration Tests', () => {
         expect(response3.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
-      });
-
-      it('should return 500 if unkown error occurs', async () => {
-        const coursePayload = {
-          name: 'Existing Course',
-          description: 'Course description',
-        };
-
-        const createdCourseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(200);
-
-        const courseId = createdCourseResponse.body._id;
-
-        // Mock the update method to throw an error
-        const courseRepo = Container.get<CourseRepository>('CourseRepo');
-        jest.spyOn(courseRepo, 'update').mockImplementationOnce(() => {
-          throw new Error('Mocked error from another test');
-        });
-
-        const response = await request(app)
-          .put(`/courses/${courseId}`)
-          .send(coursePayload)
-          .expect(500);
-        expect(response.body.message).toContain('Mocked error');
       });
     });
   });

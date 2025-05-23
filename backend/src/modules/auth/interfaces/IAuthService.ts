@@ -36,6 +36,8 @@ export interface IAuthService {
    */
   signup(body: SignUpBody): Promise<IUser>;
 
+  verifySignUpProvider(token: string): Promise<IUser>;
+
   /**
    * Verifies the validity of an authentication token.
    * Decodes the token and retrieves the associated user information.

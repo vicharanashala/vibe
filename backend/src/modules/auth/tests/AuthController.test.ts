@@ -48,6 +48,7 @@ describe('Auth Controller Integration Tests', () => {
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
       const response = await request(app).post('/auth/signup').send(signUpBody);
+      const responseBod = response;
 
       expect(response.body).toHaveProperty('id');
       expect(response.body.email).toBe(signUpBody.email);

@@ -1,6 +1,9 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import type { ScalarOptions } from '@scalar/docusaurus'
+import path from "path";
+import fs from "fs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -20,8 +23,6 @@ const config: Config = {
   markdown: {
     mermaid: true,
   },
-
-
 
   plugins: [
     [

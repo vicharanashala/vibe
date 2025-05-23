@@ -8,10 +8,10 @@ export class CreateError extends HttpError {
   }
 }
 
-// 400 - Bad Request
+// 500 - Internal Server Error
 export class ReadError extends HttpError {
   constructor(message: string) {
-    super(400, message);
+    super(500, message);
     this.name = 'ReadError';
   }
 }
