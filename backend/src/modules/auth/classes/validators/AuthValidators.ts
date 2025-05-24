@@ -56,6 +56,17 @@ class SignUpBody {
   lastName: string;
 }
 
+class VerifySignUpProviderBody {
+  @JSONSchema({
+    title: 'Token',
+    description: 'Token used for signup verification',
+    example: '43jdlsaksla;f328e9fjhsda',
+    type: 'string',
+  })
+  @IsString()
+  token: string;
+}
+
 class ChangePasswordBody {
   @JSONSchema({
     title: 'New Password',
@@ -177,6 +188,7 @@ export {
   SignUpBody,
   ChangePasswordBody,
   SignUpResponse,
+  VerifySignUpProviderBody,
   ChangePasswordResponse,
   TokenVerificationResponse,
   AuthErrorResponse,

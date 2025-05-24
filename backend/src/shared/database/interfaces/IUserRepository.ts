@@ -1,3 +1,4 @@
+import {ClientSession, MongoClient} from 'mongodb';
 import {IUser} from 'shared/interfaces/Models';
 
 /**
@@ -5,18 +6,23 @@ import {IUser} from 'shared/interfaces/Models';
  */
 export interface IUserRepository {
   /**
+   * Get the Client of the Repository.
+   * @returns A promise that resolves when the initialization is complete.
+   */
+  getDBClient(): Promise<MongoClient>;
+  /**
    * Creates a new user.
    * @param user - The user to create.
    * @returns A promise that resolves to the created user.
    */
-  create(user: IUser): Promise<IUser>;
+  create(user: IUser, session?: ClientSession): Promise<IUser>;
 
   /**
    * Finds a user by their email.
    * @param email - The email of the user to find.
    * @returns A promise that resolves to the user if found, or null if not found.
    */
-  findByEmail(email: string): Promise<IUser | null>;
+  findByEmail(email: string, session?: ClientSession): Promise<IUser | null>;
 
   /**
    * Adds a role to a user.

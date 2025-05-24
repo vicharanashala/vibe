@@ -22,6 +22,7 @@ import {OpenApiSpecService} from './modules/docs';
 import {authModuleOptions} from './modules/auth';
 import {coursesModuleOptions} from './modules/courses';
 import {usersModuleOptions} from './modules/users';
+import {rateLimiter} from 'shared/middleware/rateLimiter';
 
 export const application = Express();
 
@@ -35,6 +36,7 @@ export const ServiceFactory = (
 
   service.use(Express.urlencoded({extended: true}));
   service.use(Express.json());
+  service.use(rateLimiter);
 
   console.log('--------------------------------------------------------');
   console.log('Logging and Configuration Setup');
