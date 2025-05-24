@@ -105,6 +105,7 @@ export class AuthController {
 
   @Authorized(['admin', 'teacher', 'student'])
   @Patch('/change-password')
+  @UseBefore(AuthRateLimiter)
   @ResponseSchema(ChangePasswordResponse, {
     description: 'Password changed successfully',
   })
@@ -150,6 +151,7 @@ export class AuthController {
    */
   @Authorized(['admin'])
   @Post('/verify')
+  @UseBefore(AuthRateLimiter)
   @ResponseSchema(TokenVerificationResponse, {
     description: 'Token verification successful',
   })

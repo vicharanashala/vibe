@@ -36,7 +36,10 @@ export const ServiceFactory = (
 
   service.use(Express.urlencoded({extended: true}));
   service.use(Express.json());
-  service.use(rateLimiter);
+
+  if (process.env.NODE_ENV === 'production') {
+    service.use(rateLimiter);
+  }
 
   console.log('--------------------------------------------------------');
   console.log('Logging and Configuration Setup');

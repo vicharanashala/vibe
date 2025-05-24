@@ -53,9 +53,6 @@ export class SectionController {
     if (!this.itemRepo) {
       throw new Error('ItemRepository is not properly injected');
     }
-    if (!this.itemRepo) {
-      throw new Error('ItemRepository is not properly injected');
-    }
   }
 
   @Authorized(['admin'])

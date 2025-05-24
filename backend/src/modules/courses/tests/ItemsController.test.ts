@@ -122,6 +122,197 @@ describe('Item Controller Integration Tests', () => {
     });
   });
 
+  describe('ITEM READALL', () => {
+    const coursePayload = {
+      name: 'ReadAll Course',
+      description: 'desc',
+    };
+    const courseVersionPayload = {
+      version: 'v1',
+      description: 'desc',
+    };
+    const modulePayload = {
+      name: 'ReadAll Module',
+      description: 'desc',
+    };
+    const sectionPayload = {
+      name: 'ReadAll Section',
+      description: 'desc',
+    };
+    const itemPayload1 = {
+      name: 'ReadAll Item1',
+      description: 'desc1',
+      type: 'VIDEO',
+      videoDetails: {
+        URL: 'http://url.com/1',
+        startTime: '00:00:00',
+        endTime: '00:00:40',
+        points: '5',
+      },
+    };
+    const itemPayload2 = {
+      name: 'ReadAll Item2',
+      description: 'desc2',
+      type: 'VIDEO',
+      videoDetails: {
+        URL: 'http://url.com/2',
+        startTime: '00:00:00',
+        endTime: '00:00:40',
+        points: '8',
+      },
+    };
+
+    it('should read all items in a section', async () => {
+      const courseResponse = await request(app)
+        .post('/courses/')
+        .send(coursePayload)
+        .expect(201);
+      const courseId = courseResponse.body._id;
+
+      const versionResponse = await request(app)
+        .post(`/courses/${courseId}/versions`)
+        .send(courseVersionPayload)
+        .expect(201);
+      const versionId = versionResponse.body._id;
+
+      const moduleResponse = await request(app)
+        .post(`/courses/versions/${versionId}/modules`)
+        .send(modulePayload)
+        .expect(201);
+      const moduleId = moduleResponse.body.version.modules[0].moduleId;
+
+      const sectionResponse = await request(app)
+        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
+        .send(sectionPayload)
+        .expect(201);
+      const sectionId =
+        sectionResponse.body.version.modules[0].sections[0].sectionId;
+
+      // Add two items
+      await request(app)
+        .post(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send(itemPayload1)
+        .expect(201);
+
+      await request(app)
+        .post(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send(itemPayload2)
+        .expect(201);
+
+      // Read all items
+      const readAllResponse = await request(app)
+        .get(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .expect(200);
+      expect(readAllResponse.body.items.length).toBeGreaterThanOrEqual(2);
+      const names = readAllResponse.body.items.map(i => i.name);
+      expect(names).toContain(itemPayload1.name);
+      expect(names).toContain(itemPayload2.name);
+    });
+  });
+
+  describe('ITEM UPDATION', () => {
+    const coursePayload = {
+      name: 'Update Course',
+      description: 'desc',
+    };
+    const courseVersionPayload = {
+      version: 'v1',
+      description: 'desc',
+    };
+    const modulePayload = {
+      name: 'Update Module',
+      description: 'desc',
+    };
+    const sectionPayload = {
+      name: 'Update Section',
+      description: 'desc',
+    };
+    const itemPayload = {
+      name: 'Update Item',
+      description: 'desc',
+      type: 'VIDEO',
+      videoDetails: {
+        URL: 'http://url.com/1',
+        startTime: '00:00:00',
+        endTime: '00:00:40',
+        points: '5',
+      },
+    };
+
+    it('should update an item in a section', async () => {
+      const courseResponse = await request(app)
+        .post('/courses/')
+        .send(coursePayload)
+        .expect(201);
+      const courseId = courseResponse.body._id;
+
+      const versionResponse = await request(app)
+        .post(`/courses/${courseId}/versions`)
+        .send(courseVersionPayload)
+        .expect(201);
+      const versionId = versionResponse.body._id;
+
+      const moduleResponse = await request(app)
+        .post(`/courses/versions/${versionId}/modules`)
+        .send(modulePayload)
+        .expect(201);
+      const moduleId = moduleResponse.body.version.modules[0].moduleId;
+
+      const sectionResponse = await request(app)
+        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
+        .send(sectionPayload)
+        .expect(201);
+      const sectionId =
+        sectionResponse.body.version.modules[0].sections[0].sectionId;
+
+      // Add item
+      const itemResponse = await request(app)
+        .post(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send(itemPayload)
+        .expect(201);
+
+      const itemId = itemResponse.body.itemsGroup.items[0].itemId;
+
+      // Update item
+      const updatePayload = {
+        name: 'Updated Item Name',
+        description: 'Updated description',
+        type: 'VIDEO',
+        videoDetails: {
+          URL: 'http://url.com/updated',
+          startTime: '00:00:10',
+          endTime: '00:01:00',
+          points: '15',
+        },
+      };
+
+      const updateResponse = await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/${itemId}`,
+        )
+        .send(updatePayload)
+        .expect(200);
+
+      expect(updateResponse.body.itemsGroup.items[0].name).toBe(
+        updatePayload.name,
+      );
+      expect(updateResponse.body.itemsGroup.items[0].description).toBe(
+        updatePayload.description,
+      );
+      expect(updateResponse.body.itemsGroup.items[0].videoDetails.URL).toBe(
+        updatePayload.videoDetails.URL,
+      );
+    });
+  });
+
   describe('ITEM DELETION', () => {
     describe('Success Scenario', () => {
       const coursePayload = {
@@ -420,6 +611,178 @@ describe('Item Controller Integration Tests', () => {
         // item3 should now be before item1
         expect(idx3).toBeLessThan(idx1);
       });
+    });
+  });
+
+  describe('ITEM SERVICE ERROR PATHS', () => {
+    let itemService: any;
+    let itemRepo: any;
+    let courseRepo: any;
+
+    beforeAll(() => {
+      itemRepo = Container.get('ItemRepo');
+      courseRepo = Container.get('CourseRepo');
+      itemService = Container.get('ItemService');
+    });
+
+    it('should throw NotFoundError if version does not exist on createItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
+      await expect(
+        itemService.createItem('vId', 'mId', 'sId', {
+          name: 'x',
+          description: 'y',
+          type: 'VIDEO',
+          videoDetails: {},
+        }),
+      ).rejects.toThrow('Version vId not found.');
+    });
+
+    it('should throw if itemsGroup not found on createItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue(undefined);
+      await expect(
+        itemService.createItem('vId', 'mId', 'sId', {
+          name: 'x',
+          description: 'y',
+          type: 'VIDEO',
+          videoDetails: {},
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('should throw if updateItemsGroup fails on createItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
+      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
+        throw new Error('DB error');
+      });
+      await expect(
+        itemService.createItem('vId', 'mId', 'sId', {
+          name: 'x',
+          description: 'y',
+          type: 'VIDEO',
+          videoDetails: {},
+        }),
+      ).rejects.toThrow('DB error');
+    });
+
+    it('should throw NotFoundError if version does not exist on updateItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
+      await expect(
+        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
+      ).rejects.toThrow('Version vId not found.');
+    });
+
+    it('should throw if item not found on updateItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
+      await expect(
+        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
+      ).rejects.toThrow();
+    });
+
+    it('should throw if updateItemsGroup fails on updateItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest
+        .spyOn(itemRepo, 'readItemsGroup')
+        .mockResolvedValue({items: [{itemId: 'itemId'}]});
+      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
+        throw new Error('DB error');
+      });
+      await expect(
+        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
+      ).rejects.toThrow('DB error');
+    });
+
+    it('should throw InternalServerError if deleteItem returns false', async () => {
+      jest.spyOn(itemRepo, 'deleteItem').mockResolvedValue(false);
+      await expect(itemService.deleteItem('igId', 'itemId')).rejects.toThrow(
+        'Item deletion failed',
+      );
+    });
+
+    it('should throw if deleteItem throws', async () => {
+      jest.spyOn(itemRepo, 'deleteItem').mockImplementation(() => {
+        throw new Error('DB error');
+      });
+      await expect(itemService.deleteItem('igId', 'itemId')).rejects.toThrow(
+        'DB error',
+      );
+    });
+
+    it('should throw if neither afterItemId nor beforeItemId is provided in moveItem', async () => {
+      await expect(
+        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {}),
+      ).rejects.toThrow('Either afterItemId or beforeItemId is required');
+    });
+
+    it('should throw if item not found in moveItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
+      await expect(
+        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {
+          beforeItemId: 'otherId',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('should throw if updateItemsGroup fails on moveItem', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
+        modules: [
+          {
+            moduleId: 'mId',
+            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
+          },
+        ],
+      });
+      jest
+        .spyOn(itemRepo, 'readItemsGroup')
+        .mockResolvedValue({items: [{itemId: 'itemId', order: 'a'}]});
+      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
+        throw new Error('DB error');
+      });
+      await expect(
+        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {
+          beforeItemId: 'otherId',
+        }),
+      ).rejects.toThrow(
+        "Cannot read properties of undefined (reading 'order')",
+      );
     });
   });
 });

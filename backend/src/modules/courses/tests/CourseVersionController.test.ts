@@ -381,4 +381,82 @@ describe('Course Version Controller Integration Tests', () => {
       });
     });
   });
+
+  describe('COURSE VERSION SERVICE ERROR PATHS', () => {
+    let courseVersionService: any;
+    let courseRepo: any;
+
+    beforeAll(() => {
+      courseRepo = Container.get('CourseRepo');
+      courseVersionService = Container.get('CourseVersionService');
+    });
+
+    it('should throw NotFoundError if course does not exist on createCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'read').mockResolvedValue(null);
+      await expect(
+        courseVersionService.createCourseVersion('fakeCourseId', {
+          version: 'v',
+          description: 'd',
+        }),
+      ).rejects.toThrow('Course not found');
+    });
+
+    it('should throw InternalServerError if createVersion fails on createCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'read').mockResolvedValue({versions: []});
+      jest.spyOn(courseRepo, 'createVersion').mockResolvedValue(null);
+      await expect(
+        courseVersionService.createCourseVersion('5f9b1b3c9d1f1f1f1f1f1f1f', {
+          version: 'v',
+          description: 'd',
+        }),
+      ).rejects.toThrow('Failed to create course version.');
+    });
+
+    it('should throw InternalServerError if update fails on createCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'read').mockResolvedValue({versions: []});
+      jest.spyOn(courseRepo, 'createVersion').mockResolvedValue({_id: 'vId'});
+      jest.spyOn(courseRepo, 'update').mockResolvedValue(null);
+      await expect(
+        courseVersionService.createCourseVersion('5f9b1b3c9d1f1f1f1f1f1f1f', {
+          version: 'v',
+          description: 'd',
+        }),
+      ).rejects.toThrow('Failed to update course with new version.');
+    });
+
+    it('should throw InternalServerError if readVersion fails on readCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
+      await expect(
+        courseVersionService.readCourseVersion('vId'),
+      ).rejects.toThrow('Failed to read course version.');
+    });
+
+    it('should throw InternalServerError if readVersion fails on deleteCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
+      await expect(
+        courseVersionService.deleteCourseVersion('cId', 'vId'),
+      ).rejects.toThrow('Failed to update course with new version.');
+    });
+
+    it('should throw NotFoundError if course does not exist on deleteCourseVersion', async () => {
+      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({modules: []});
+      jest.spyOn(courseRepo, 'read').mockResolvedValue(null);
+      await expect(
+        courseVersionService.deleteCourseVersion('cId', 'vId'),
+      ).rejects.toThrow('Course with ID cId not found.');
+    });
+
+    it('should throw DeleteError if deleteVersion fails on deleteCourseVersion', async () => {
+      jest
+        .spyOn(courseRepo, 'readVersion')
+        .mockResolvedValue({modules: [{sections: []}]});
+      jest.spyOn(courseRepo, 'read').mockResolvedValue({versions: []});
+      jest
+        .spyOn(courseRepo, 'deleteVersion')
+        .mockResolvedValue({deletedCount: 0});
+      await expect(
+        courseVersionService.deleteCourseVersion('cId', 'vId'),
+      ).rejects.toThrow('Failed to delete course version');
+    });
+  });
 });

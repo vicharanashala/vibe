@@ -24,5 +24,9 @@ export function AuthRateLimiter(
   res: Response,
   next: NextFunction,
 ) {
-  return authRateLimiter(req, res, next); // delegate to express-rate-limit
+  if (process.env.NODE_ENV === 'production') {
+    return authRateLimiter(req, res, next); // delegate to express-rate-limit
+  } else {
+    next();
+  }
 }
