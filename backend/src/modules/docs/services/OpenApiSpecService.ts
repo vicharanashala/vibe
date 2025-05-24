@@ -14,13 +14,16 @@ import {docsModuleOptions} from '../../docs';
 export class OpenApiSpecService {
   generateOpenAPISpec() {
     // Get validation schemas
-    const schemas = validationMetadatasToSchemas({
+    const rawSchemas = validationMetadatasToSchemas({
       refPointerPrefix: '#/components/schemas/',
       validationError: {
         target: true,
         value: true,
       },
     });
+
+    // Filter and clean schemas to avoid missing pointer errors
+    const schemas = this.cleanSchemas(rawSchemas);
 
     // Get metadata storage
     const storage = getMetadataArgsStorage();
@@ -37,7 +40,6 @@ export class OpenApiSpecService {
     const routingControllersOptions = {
       controllers: allControllers as Function[],
       validation: true,
-      routePrefix: '/api',
     };
 
     // Create OpenAPI specification
@@ -139,7 +141,7 @@ export class OpenApiSpecService {
       },
       servers: [
         {
-          url: 'http://localhost:4001/api',
+          url: 'http://localhost:4001',
           description: 'Development server',
         },
         {
@@ -154,6 +156,169 @@ export class OpenApiSpecService {
       ],
     });
 
-    return spec;
+    // Clean the entire spec to handle any remaining invalid references
+    return this.cleanOpenAPISpec(spec);
+  }
+
+  private cleanSchemas(schemas: any): any {
+    const cleanedSchemas: any = {};
+
+    // First pass: collect all valid schema names
+    const validSchemaNames = new Set<string>();
+    for (const [name, schema] of Object.entries(schemas)) {
+      if (schema && typeof schema === 'object' && name !== 'Array') {
+        validSchemaNames.add(name);
+        cleanedSchemas[name] = this.fixArraySchemas(schema);
+      }
+    }
+
+    // Second pass: clean up references
+    for (const [name, schema] of Object.entries(cleanedSchemas)) {
+      cleanedSchemas[name] = this.cleanSchemaReferences(
+        schema,
+        validSchemaNames,
+      );
+    }
+
+    return cleanedSchemas;
+  }
+
+  private fixArraySchemas(obj: any): any {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.fixArraySchemas(item));
+    }
+
+    const fixed: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'type' && value === 'array') {
+        // Check if this array type has items property
+        const parentObj = obj as any;
+        if (!parentObj.items) {
+          console.warn(
+            'Warning: Array type missing items property, adding generic items',
+          );
+          fixed[key] = value;
+          fixed['items'] = {type: 'object'};
+        } else {
+          fixed[key] = value;
+          // Also copy the items property when it exists
+          fixed['items'] = this.fixArraySchemas(parentObj.items);
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        fixed[key] = this.fixArraySchemas(value);
+      } else {
+        fixed[key] = value;
+      }
+    }
+
+    // If this object has type: 'array' but no items, add default items
+    if (fixed.type === 'array' && !fixed.items) {
+      fixed.items = {type: 'object'};
+    }
+
+    return fixed;
+  }
+
+  private cleanSchemaReferences(obj: any, validSchemaNames: Set<string>): any {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item =>
+        this.cleanSchemaReferences(item, validSchemaNames),
+      );
+    }
+
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === '$ref' && typeof value === 'string') {
+        const refName = value.replace('#/components/schemas/', '');
+        if (validSchemaNames.has(refName)) {
+          cleaned[key] = value;
+        } else {
+          // Replace invalid reference with a generic object schema
+          return {type: 'object'};
+        }
+      } else {
+        cleaned[key] = this.cleanSchemaReferences(value, validSchemaNames);
+      }
+    }
+
+    return cleaned;
+  }
+
+  private cleanOpenAPISpec(spec: any): any {
+    // Get all available schema names
+    const availableSchemas = new Set(
+      Object.keys(spec.components?.schemas || {}),
+    );
+
+    // Recursively clean the entire spec
+    return this.cleanSpecReferences(spec, availableSchemas);
+  }
+
+  private cleanSpecReferences(obj: any, availableSchemas: Set<string>): any {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanSpecReferences(item, availableSchemas));
+    }
+
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === '$ref' && typeof value === 'string') {
+        const refName = value.replace('#/components/schemas/', '');
+        if (availableSchemas.has(refName)) {
+          cleaned[key] = value;
+        } else {
+          // Replace invalid reference with a generic object schema
+          console.warn(
+            `Warning: Missing schema reference "${refName}" replaced with generic object`,
+          );
+          return {
+            type: 'object',
+            description: `Schema for ${refName} (reference not found)`,
+          };
+        }
+      } else if (
+        key === 'schema' &&
+        value &&
+        typeof value === 'object' &&
+        !Array.isArray(value)
+      ) {
+        // Handle schema objects with $ref - add proper type checking
+        const schemaObj = value as Record<string, any>;
+        if (schemaObj.$ref && typeof schemaObj.$ref === 'string') {
+          const refName = schemaObj.$ref.replace('#/components/schemas/', '');
+          if (availableSchemas.has(refName)) {
+            cleaned[key] = value;
+          } else {
+            console.warn(
+              `Warning: Missing schema reference "${refName}" in schema object`,
+            );
+            cleaned[key] = {
+              type: 'object',
+              description: `Schema for ${refName} (reference not found)`,
+            };
+          }
+        } else {
+          cleaned[key] = this.cleanSpecReferences(
+            this.fixArraySchemas(value),
+            availableSchemas,
+          );
+        }
+      } else {
+        cleaned[key] = this.cleanSpecReferences(value, availableSchemas);
+      }
+    }
+
+    return cleaned;
   }
 }
