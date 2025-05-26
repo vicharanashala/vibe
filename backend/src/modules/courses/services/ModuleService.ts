@@ -10,6 +10,7 @@ import {Module} from '../classes/transformers/Module';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
+import {ICourseVersion} from 'shared/interfaces/Models';
 
 @Service()
 export class ModuleService {
@@ -18,7 +19,10 @@ export class ModuleService {
     private readonly courseRepo: CourseRepository,
   ) {}
 
-  public async createModule(versionId: string, body: CreateModuleBody) {
+  public async createModule(
+    versionId: string,
+    body: CreateModuleBody,
+  ): Promise<ICourseVersion> {
     const client = await this.courseRepo.getDBClient();
     const session = client.startSession();
     const txOptions = {

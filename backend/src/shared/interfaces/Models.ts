@@ -274,10 +274,36 @@ export interface IVideoDetails {
 }
 
 export interface IQuizDetails {
-  questionVisibility: number;
-  releaseTime: Date; // quiz start time
-  deadline: Date; // quiz deadline
   questions: string[]; // question ids
+  passThreshold: number; // 0-1
+  maxAttempts: number; // Maximum number of attempts allowed
+  quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
+  releaseTime: Date; // Release time for the quiz
+  questionVisibility: number; // Number of questions visible to the user at a time
+  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
+  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
+  allowPartialGrading: boolean; // If true, allows partial grading for questions
+  allowHint: boolean; // If true, allows users to use hints for questions
+  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
+  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+  showScoreAfterSubmission: boolean; // If true, shows score after submission
+}
+
+export interface IQuizSettings {
+  _id?: string | ObjectId;
+  quizId: string | ObjectId;
+  passThreshold: number; // 0-1
+  maxAttempts: number; // Maximum number of attempts allowed
+  quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
+  releaseTime: Date; // Release time for the quiz
+  questionVisibility: number; // Number of questions visible to the user at a time
+  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
+  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
+  allowPartialGrading: boolean; // If true, allows partial grading for questions
+  allowHint: boolean; // If true, allows users to use hints for questions
+  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
+  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+  showScoreAfterSubmission: boolean; // If true, shows score after submission
 }
 
 export interface IBlogDetails {

@@ -22,6 +22,7 @@ import {
   IVideoDetails,
 } from 'shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
+import {ObjectId} from 'mongodb';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -72,6 +73,15 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator implements IQuizDetails {
+  passThreshold: number;
+  maxAttempts: number;
+  quizType: 'DEADLINE' | 'NO_DEADLINE';
+  approximateTimeToComplete: string;
+  allowPartialGrading: boolean;
+  allowHint: boolean;
+  showCorrectAnswersAfterSubmission: boolean;
+  showExplanationAfterSubmission: boolean;
+  showScoreAfterSubmission: boolean;
   @JSONSchema({
     title: 'Question Visibility',
     description: 'Number of quiz questions visible to students at once',
