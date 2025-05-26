@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsMongoId,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
@@ -23,6 +24,7 @@ import {
 } from 'shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
+import {CourseVersion, ItemsGroup} from '../transformers';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -68,11 +70,11 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
     type: 'number',
   })
   @IsNotEmpty()
-  @IsDecimal()
+  @IsNumber()
   points: number;
 }
 
-class QuizDetailsPayloadValidator implements IQuizDetails {
+class QuizDetailsPayloadValidator implements Omit<IQuizDetails, 'questions'> {
   passThreshold: number;
   maxAttempts: number;
   quizType: 'DEADLINE' | 'NO_DEADLINE';
@@ -103,20 +105,6 @@ class QuizDetailsPayloadValidator implements IQuizDetails {
   @IsNotEmpty()
   @IsDateString()
   releaseTime: Date;
-
-  @JSONSchema({
-    title: 'Quiz Questions',
-    description: 'List of quiz question IDs (auto-managed)',
-    example: ['60d5ec49b3f1c8e4a8f8b8c1', '60d5ec49b3f1c8e4a8f8b8c2'],
-    type: 'array',
-    items: {
-      type: 'string',
-      format: 'Mongo Object ID',
-    },
-    readOnly: true,
-  })
-  @IsEmpty()
-  questions: string[];
 
   @JSONSchema({
     title: 'Quiz Deadline',
@@ -177,18 +165,7 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
-class CreateItemBody implements IBaseItem {
-  @JSONSchema({
-    title: 'Item ID',
-    description: 'MongoDB ID (auto-assigned)',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  _id?: string;
-
+class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     title: 'Item Name',
     description: 'Title of the item',
@@ -209,36 +186,6 @@ class CreateItemBody implements IBaseItem {
   @IsNotEmpty()
   @IsString()
   description: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'Section ID to which the item belongs (auto-managed)',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  sectionId: string;
-
-  @JSONSchema({
-    title: 'Item Order',
-    description: 'Order key for item placement (auto-managed)',
-    example: 'a1b2c3',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsEmpty()
-  order: string;
-
-  @JSONSchema({
-    title: 'Item Details',
-    description: 'Item details (depends on type) – video, blog, or quiz',
-    type: 'object',
-    readOnly: true,
-  })
-  @IsEmpty()
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
 
   @JSONSchema({
     title: 'After Item ID',
@@ -265,28 +212,6 @@ class CreateItemBody implements IBaseItem {
   beforeItemId?: string;
 
   @JSONSchema({
-    title: 'Created At',
-    description: 'Item creation timestamp (auto-managed)',
-    example: '2023-10-01T12:00:00Z',
-    type: 'string',
-    format: 'date-time',
-    readOnly: true,
-  })
-  @IsEmpty()
-  createdAt: Date;
-
-  @JSONSchema({
-    title: 'Updated At',
-    description: 'Item update timestamp (auto-managed)',
-    example: '2023-10-05T15:30:00Z',
-    type: 'string',
-    format: 'date-time',
-    readOnly: true,
-  })
-  @IsEmpty()
-  updatedAt: Date;
-
-  @JSONSchema({
     title: 'Item Type',
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
@@ -300,7 +225,6 @@ class CreateItemBody implements IBaseItem {
   @JSONSchema({
     title: 'Video Details',
     description: 'Details specific to video items',
-    type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.VIDEO)
   @IsNotEmpty()
@@ -311,7 +235,6 @@ class CreateItemBody implements IBaseItem {
   @JSONSchema({
     title: 'Blog Details',
     description: 'Details specific to blog items',
-    type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.BLOG)
   @IsNotEmpty()
@@ -742,7 +665,7 @@ class ItemDataResponse {
     readOnly: true,
   })
   @IsNotEmpty()
-  itemsGroup: Record<string, any>;
+  itemsGroup: ItemsGroup;
 
   @JSONSchema({
     description: 'The updated version data (when applicable)',
@@ -750,7 +673,7 @@ class ItemDataResponse {
     readOnly: true,
   })
   @IsOptional()
-  version?: Record<string, any>;
+  version?: CourseVersion;
 }
 
 class DeletedItemResponse {

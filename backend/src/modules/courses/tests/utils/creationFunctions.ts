@@ -5,14 +5,18 @@ import {
   CreateCourseBody,
   CreateCourseVersionBody,
   CreateCourseVersionParams,
+  CreateItemBody,
+  CreateItemParams,
   CreateModuleBody,
   CreateModuleParams,
   CreateSectionBody,
   CreateSectionParams,
+  ItemDataResponse,
   ModuleDataResponse,
   SectionDataResponse,
 } from 'modules/courses/classes/validators';
 import {Course, CourseVersion} from 'modules/courses/classes/transformers';
+import {ItemType} from 'shared/interfaces/Models';
 
 async function createCourse(app: typeof Express): Promise<Course> {
   const body: CreateCourseBody = {
@@ -88,4 +92,52 @@ async function createSection(
   return response.body as SectionDataResponse;
 }
 
-export {createCourse, createVersion, createModule, createSection};
+async function createQuizItem(
+  app: typeof Express,
+  versionId: string,
+  moduleId: string,
+  sectionId: string,
+): Promise<unknown> {
+  const itemPayload: CreateItemBody = {
+    name: faker.commerce.productName(),
+    description: faker.commerce.productDescription(),
+    type: ItemType.QUIZ,
+    quizDetails: {
+      questionVisibility: 3,
+      allowPartialGrading: true,
+      deadline: faker.date.future(),
+      allowHint: true,
+      maxAttempts: 5,
+      releaseTime: faker.date.future(),
+      quizType: 'DEADLINE',
+      showCorrectAnswersAfterSubmission: true,
+      showExplanationAfterSubmission: true,
+      showScoreAfterSubmission: true,
+      approximateTimeToComplete: '00:30:00',
+      passThreshold: 0.7,
+    },
+  };
+  const params: CreateItemParams = {
+    versionId: versionId,
+    moduleId: moduleId,
+    sectionId: sectionId,
+  };
+
+  const itemResponse = await request(app)
+    .post(
+      `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
+    )
+    .send(itemPayload);
+
+  expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+
+  return itemResponse.body as ItemDataResponse;
+}
+
+export {
+  createCourse,
+  createVersion,
+  createModule,
+  createSection,
+  createQuizItem,
+};

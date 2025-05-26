@@ -41,6 +41,7 @@ class Item implements IBaseItem {
   itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
 
   constructor(itemBody: CreateItemBody, existingItems: Item[]) {
+    const quizDetails = itemBody.quizDetails as IQuizDetails;
     if (itemBody) {
       this.name = itemBody.name;
       this.description = itemBody.description;
@@ -50,7 +51,8 @@ class Item implements IBaseItem {
           this.itemDetails = itemBody.videoDetails;
           break;
         case ItemType.QUIZ:
-          this.itemDetails = itemBody.quizDetails;
+          quizDetails.questions = [];
+          this.itemDetails = quizDetails;
           break;
         case ItemType.BLOG:
           this.itemDetails = itemBody.blogDetails;
