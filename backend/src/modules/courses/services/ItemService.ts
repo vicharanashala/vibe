@@ -2,7 +2,15 @@ import {Service, Inject} from 'typedi';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {IItemRepository} from 'shared/database';
 import {ICourseRepository} from 'shared/database/';
-import {Item} from '../classes/transformers/Item';
+import {
+  BlogItem,
+  Item,
+  ItemBase,
+  ItemDB,
+  ItemsGroup,
+  QuizItem,
+  VideoItem,
+} from '../classes/transformers/Item';
 import {
   CreateItemBody,
   UpdateItemBody,
@@ -10,6 +18,7 @@ import {
 } from '../classes/validators/ItemValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
+import {ItemType} from 'shared/interfaces/Models';
 
 @Service()
 export class ItemService {
@@ -42,16 +51,23 @@ export class ItemService {
       const module = version.modules.find(m => m.moduleId === moduleId)!;
       const section = module.sections.find(s => s.sectionId === sectionId)!;
 
-      const itemsGroup = await this.itemRepo.readItemsGroup(
+      const itemsGroup: ItemsGroup = await this.itemRepo.readItemsGroup(
         section.itemsGroupId.toString(),
         session,
       );
 
-      const newItem = new Item(body, itemsGroup.items);
-      itemsGroup.items.push(newItem);
+      const item = new ItemBase(body, itemsGroup.items);
+      itemsGroup.items.push(new ItemDB(item));
       section.updatedAt = new Date();
       module.updatedAt = new Date();
       version.updatedAt = new Date();
+
+      const createdItem = await this.itemRepo.createItem(
+        item.itemDetails as VideoItem,
+      );
+      if (!createdItem) {
+        throw new InternalServerError('Item creation failed');
+      }
 
       const updatedItemsGroup = await this.itemRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
@@ -111,7 +127,7 @@ export class ItemService {
         session,
       );
 
-      const item = itemsGroup.items.find(i => i.itemId.toString() === itemId)!;
+      const item = itemsGroup.items.find(i => i._id.toString() === itemId)!;
       Object.assign(item, body);
       section.updatedAt = new Date();
       module.updatedAt = new Date();
@@ -207,11 +223,11 @@ export class ItemService {
       );
       const newOrder = calculateNewOrder(
         sortedItems,
-        'itemId',
+        '_id',
         afterItemId,
         beforeItemId,
       );
-      const item = itemsGroup.items.find(i => i.itemId.toString() === itemId)!;
+      const item = itemsGroup.items.find(i => i._id.toString() === itemId)!;
       item.order = newOrder;
 
       // Sort items by order after updating

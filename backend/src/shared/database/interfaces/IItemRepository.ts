@@ -1,4 +1,10 @@
-import {ItemsGroup} from 'modules/courses/classes/transformers/index';
+import {
+  BlogItem,
+  Item,
+  ItemsGroup,
+  QuizItem,
+  VideoItem,
+} from 'modules/courses/classes/transformers/index';
 import {
   IBaseItem,
   IVideoDetails,
@@ -13,7 +19,7 @@ export interface IItemRepository {
     courseVersionId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<IBaseItem | null>;
+  ): Promise<Item | null>;
 
   deleteItem(
     itemGroupsId: string,
@@ -45,6 +51,8 @@ export interface IItemRepository {
     sectionId: ObjectId;
     itemId: ObjectId;
   }>;
+
+  createItem(item: Item, session?: ClientSession): Promise<Item | null>;
 
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
