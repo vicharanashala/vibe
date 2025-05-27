@@ -39,9 +39,9 @@ export class ItemRepository implements IItemRepository {
     this.itemsGroupCollection =
       await this.db.getCollection<ItemsGroup>('itemsGroup');
 
-    this.videoCollection = await this.db.getCollection<VideoItem>('video');
-    this.quizCollection = await this.db.getCollection<QuizItem>('quiz');
-    this.blogCollection = await this.db.getCollection<BlogItem>('blog');
+    this.videoCollection = await this.db.getCollection<VideoItem>('videos');
+    this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
+    this.blogCollection = await this.db.getCollection<BlogItem>('blogs');
   }
 
   // Methods for ItemsGroup operations

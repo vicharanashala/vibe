@@ -62,7 +62,7 @@ interface IAttemptDetails {
   submissionResultId?: string | ObjectId;
 }
 
-interface IUserQuizAttemptRecords {
+interface IUserQuizMetrics {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
@@ -149,3 +149,17 @@ interface IQuizSettings {
  *    - Return the submission result ID
  *
  */
+
+export {
+  IQuestionAnswer,
+  ISOLAnswer,
+  ISMLAnswer,
+  IOTLAnswer,
+  INATAnswer,
+  IDESAnswer,
+  IAttempt,
+  ISubmissionResult,
+  IAttemptDetails,
+  IUserQuizMetrics,
+  IQuizSettings,
+};
