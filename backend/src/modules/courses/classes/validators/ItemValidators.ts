@@ -1,5 +1,6 @@
 import {Type} from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsDecimal,
   IsEmpty,
@@ -12,6 +13,8 @@ import {
   IsString,
   IsUrl,
   Matches,
+  Max,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -25,6 +28,7 @@ import {
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {CourseVersion, ItemsGroup} from '../transformers';
+import {isNumeric} from 'mathjs';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -75,18 +79,114 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator implements Omit<IQuizDetails, 'questions'> {
-  passThreshold: number;
+  @JSONSchema({
+    title: 'Pass Threshold',
+    description: 'Minimum percentage required to pass, between 0 and 1',
+    example: 0.7,
+    type: 'number',
+    minimum: 0,
+    maximum: 1,
+  })
+  @IsPositive()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsNotEmpty()
+  passThreshold: number; // 0-1
+
+  @JSONSchema({
+    title: 'Maximum Attempts',
+    description:
+      'Maximum number of attempts allowed for the quiz, -1 for unlimited',
+    example: 3,
+    type: 'integer',
+    minimum: -1,
+  })
+  @IsNumber()
+  @Min(-1)
+  @IsNotEmpty()
   maxAttempts: number;
+
+  @JSONSchema({
+    title: 'Quiz Type',
+    description: 'Type of quiz: DEADLINE or NO_DEADLINE',
+    example: 'DEADLINE',
+    type: 'string',
+    enum: ['DEADLINE', 'NO_DEADLINE'],
+  })
+  @IsString()
+  @IsNotEmpty()
   quizType: 'DEADLINE' | 'NO_DEADLINE';
+
+  @JSONSchema({
+    title: 'Approximate Time to Complete',
+    description: 'Approximate time to complete the quiz in HH:MM:SS format',
+    example: '00:30:00',
+    type: 'string',
+  })
+  @Matches(/^(\d{1,2}:)?\d{1,2}:\d{2}$/, {
+    message: 'Invalid time format, it should be HH:MM:SS',
+  })
+  @IsNotEmpty()
   approximateTimeToComplete: string;
+
+  @JSONSchema({
+    title: 'Allow Partial Grading',
+    description:
+      'Whether to allow partial grading for questions, particularly for MSQ/SML type of questions.',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
   allowPartialGrading: boolean;
+
+  @JSONSchema({
+    title: 'Allow Hint',
+    description: 'Whether to allow students to see the hints for questions',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
   allowHint: boolean;
+
+  @JSONSchema({
+    title: 'Show Correct Answers After Submission',
+    description:
+      'Whether to return and show correct answers after successful submission of an attempt',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
   showCorrectAnswersAfterSubmission: boolean;
+
+  @JSONSchema({
+    title: 'Show Explanation After Submission',
+    description:
+      'Whether to return and show explanations for correct answers after successful submission of an attempt',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
   showExplanationAfterSubmission: boolean;
+
+  @JSONSchema({
+    title: 'Show Score After Submission',
+    description:
+      'Whether to return and show score after successful submission of an attempt',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
   showScoreAfterSubmission: boolean;
+
   @JSONSchema({
     title: 'Question Visibility',
-    description: 'Number of quiz questions visible to students at once',
+    description: 'Number of quiz questions visible to students in an attempt',
     example: 5,
     type: 'integer',
     minimum: 1,
@@ -113,7 +213,7 @@ class QuizDetailsPayloadValidator implements Omit<IQuizDetails, 'questions'> {
     type: 'string',
     format: 'date-time',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
   deadline: Date;
 }
@@ -254,18 +354,7 @@ class CreateItemBody implements Partial<IBaseItem> {
   quizDetails?: QuizDetailsPayloadValidator;
 }
 
-class UpdateItemBody implements IBaseItem {
-  @JSONSchema({
-    title: 'Item ID',
-    description: 'MongoDB ID (auto-assigned)',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  _id?: string;
-
+class UpdateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     title: 'Item Name',
     description: 'Updated title of the item',
@@ -286,17 +375,6 @@ class UpdateItemBody implements IBaseItem {
   @IsOptional()
   @IsString()
   description: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'Section ID to which the item belongs (auto-managed)',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  sectionId: string;
 
   @JSONSchema({
     title: 'Item Order',

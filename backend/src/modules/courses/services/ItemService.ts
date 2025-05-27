@@ -19,6 +19,7 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {ItemType} from 'shared/interfaces/Models';
+import {CourseVersion} from '../classes/transformers';
 
 @Service()
 export class ItemService {
@@ -97,7 +98,27 @@ export class ItemService {
     const version = await this.courseRepo.readVersion(versionId);
     const module = version.modules.find(m => m.moduleId === moduleId)!;
     const section = module.sections.find(s => s.sectionId === sectionId)!;
-    return this.itemRepo.readItemsGroup(section.itemsGroupId.toString());
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      section.itemsGroupId.toString(),
+    );
+
+    if (!itemsGroup) {
+      throw new NotFoundError(
+        `Items group for section ${sectionId} not found.`,
+      );
+    }
+
+    return itemsGroup;
+  }
+
+  public async readItem(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ) {
+    const item = await this.itemRepo.readItem(versionId, itemId);
+    return item;
   }
 
   public async updateItem(

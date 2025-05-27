@@ -134,10 +134,78 @@ async function createQuizItem(
   return itemResponse.body as ItemDataResponse;
 }
 
+async function createVideoItem(
+  app: typeof Express,
+  versionId: string,
+  moduleId: string,
+  sectionId: string,
+): Promise<unknown> {
+  const itemPayload: CreateItemBody = {
+    name: faker.commerce.productName(),
+    description: faker.commerce.productDescription(),
+    type: ItemType.VIDEO,
+    videoDetails: {
+      URL: faker.internet.url(),
+      startTime: '00:00:00',
+      endTime: '00:30:00',
+      points: 27,
+    },
+  };
+  const params: CreateItemParams = {
+    versionId: versionId,
+    moduleId: moduleId,
+    sectionId: sectionId,
+  };
+
+  const itemResponse = await request(app)
+    .post(
+      `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
+    )
+    .send(itemPayload);
+
+  expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+
+  return itemResponse.body as ItemDataResponse;
+}
+
+async function createBlogItem(
+  app: typeof Express,
+  versionId: string,
+  moduleId: string,
+  sectionId: string,
+): Promise<ItemDataResponse> {
+  const body: CreateItemBody = {
+    name: faker.commerce.productName(),
+    description: faker.commerce.productDescription(),
+    type: ItemType.BLOG,
+    blogDetails: {
+      content: 'This is a sample blog content.',
+      estimatedReadTimeInMinutes: 5,
+      tags: ['sample', 'blog', 'test'],
+      points: 30,
+    },
+  };
+
+  const params: CreateItemParams = {
+    versionId: versionId,
+    moduleId: moduleId,
+    sectionId: sectionId,
+  };
+
+  const itemResponse = await request(app)
+    .post(
+      `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
+    )
+    .send(body);
+  expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+  return itemResponse.body as ItemDataResponse;
+}
+
 export {
   createCourse,
   createVersion,
   createModule,
   createSection,
   createQuizItem,
+  createVideoItem,
 };

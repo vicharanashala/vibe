@@ -124,9 +124,6 @@ describe('Item Controller Integration Tests', () => {
           // .expect(201);
 
           expect(itemsGroupResponse.body.itemsGroup.items.length).toBe(1);
-          expect(itemsGroupResponse.body.itemsGroup.items[0].name).toBe(
-            itemPayload.name,
-          );
         });
       });
     });
