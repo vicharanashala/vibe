@@ -128,7 +128,7 @@ class ItemBase {
   @Expose()
   itemDetails: Item;
 
-  constructor(itemBody: CreateItemBody, existingItems: ItemDB[]) {
+  constructor(itemBody: CreateItemBody, existingItems: ItemRef[]) {
     this.itemId = new ObjectId();
     const quizDetails = itemBody.quizDetails as IQuizDetails;
     if (itemBody) {
@@ -179,7 +179,7 @@ class ItemBase {
   }
 }
 
-class ItemDB {
+class ItemRef {
   @Expose()
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
@@ -210,18 +210,18 @@ class ItemsGroup {
   _id?: ID;
 
   @Expose()
-  @Type(() => ItemDB)
-  items: ItemDB[];
+  @Type(() => ItemRef)
+  items: ItemRef[];
 
   @Expose()
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
   sectionId: ID;
 
-  constructor(sectionId?: ID, items?: ItemDB[]) {
+  constructor(sectionId?: ID, items?: ItemRef[]) {
     this.items = items ? items : [];
     this.sectionId = sectionId;
   }
 }
 
-export {ItemBase, ItemsGroup, ItemDB, QuizItem, VideoItem, BlogItem};
+export {ItemBase, ItemsGroup, ItemRef, QuizItem, VideoItem, BlogItem};

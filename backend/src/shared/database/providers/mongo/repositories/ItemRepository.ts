@@ -17,7 +17,6 @@ import {
   BlogItem,
   QuizItem,
   VideoItem,
-  ItemDB,
   Item,
 } from 'modules/courses/classes/transformers/Item';
 import {ItemType} from 'shared/interfaces/Models';
