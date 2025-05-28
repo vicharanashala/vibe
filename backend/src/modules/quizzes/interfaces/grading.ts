@@ -39,6 +39,7 @@ interface IAttempt {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
+  questionIds: string[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
   createdAt: Date;
   updatedAt: Date;
@@ -66,7 +67,9 @@ interface IUserQuizMetrics {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'PASSED' | 'FAILED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptId?: string | ObjectId;
+  latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
   attempts: IAttemptDetails[];
 }
