@@ -262,7 +262,6 @@ describe('Section Controller Integration Tests', () => {
         // .expect(200);
 
         const sections = moveResponse.body.modules[0].sections;
-        console.log(sections.map(i => i.sectionId));
         expect(sections.length).toBe(2);
 
         const idx1 = sections.findIndex(i => i.sectionId === section1Id);
@@ -330,7 +329,6 @@ describe('Section Controller Integration Tests', () => {
         // .expect(200);
 
         const sections = moveResponse.body.modules[0].sections;
-        console.log(sections.map(i => i.itemId));
         expect(sections.length).toBe(3);
 
         const idx1 = sections.findIndex(i => i.sectionId === sectionId1);

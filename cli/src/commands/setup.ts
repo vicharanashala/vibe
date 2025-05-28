@@ -25,6 +25,6 @@ export function runSetup() {
     runStep("welcome.ts");
     // runStep("firebase-login.ts");
     runStep("firebase-emulators.ts");
-    runStep("mongodb-binary.ts");
+    //runStep("mongodb-binary.ts");
     runStep("env.ts");
 }

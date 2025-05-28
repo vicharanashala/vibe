@@ -1,4 +1,3 @@
-import {MongoMemoryServer} from 'mongodb-memory-server';
 import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
@@ -9,29 +8,20 @@ import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatab
 import {authModuleOptions, SignUpBody} from '../index';
 import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {faker} from '@faker-js/faker';
-
+import {dbConfig} from '../../../config/db';
+jest.setTimeout(30000); // Set a longer timeout for integration tests
 describe('Auth Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
-  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
-    // Start an in-memory MongoDB servera
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-
     // Set up the real MongoDatabase and Repository
-    Container.set('Database', new MongoDatabase(uri, 'vibe'));
+    Container.set('Database', new MongoDatabase(dbConfig.url, dbConfig.dbName));
     const repo = new UserRepository(Container.get<MongoDatabase>('Database'));
     Container.set('Repo', repo);
 
     // Create the Express app with routing-controllers configuration
     app = useExpressServer(appInstance, authModuleOptions);
-  });
-
-  afterAll(async () => {
-    // Stop the in-memory MongoDB server
-    await mongoServer.stop();
   });
 
   beforeEach(async () => {

@@ -10,7 +10,7 @@ import {ReadError} from 'shared/errors/errors';
 import {CourseVersionService} from '../services';
 import {dbConfig} from '../../../config/db';
 import {SectionService} from '../services/SectionService';
-
+jest.setTimeout(90000); // Set a longer timeout for the tests
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
   let app;

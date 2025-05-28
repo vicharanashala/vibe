@@ -1,10 +1,13 @@
 import 'reflect-metadata';
 import {
+  IsArray,
   IsBoolean,
   IsDate,
+  IsInt,
   IsMongoId,
   IsNotEmpty,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ID} from 'shared/types';
@@ -128,6 +131,23 @@ export class EnrollUserResponseData {
   @IsNotEmpty()
   progress: ProgressDataResponse;
 }
+
+export class EnrollmentResponse {
+  @IsInt()
+  totalDocuments: number;
+
+  @IsInt()
+  totalPages: number;
+
+  @IsInt()
+  currentPage: number;
+
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EnrollmentDataResponse)
+  enrollments: EnrollmentDataResponse[];
+}
+
 export class EnrollmentNotFoundErrorResponse {
   @JSONSchema({
     description: 'Error message indicating the enrollment was not found',
