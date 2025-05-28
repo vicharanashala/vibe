@@ -1,0 +1,8 @@
+{
+  "label": "Additional Copilot tools",
+  "position": 8,
+  "link": {
+    "type": "generated-index",
+    "description": "Additional tools for GitHub Copilot"
+  }
+}

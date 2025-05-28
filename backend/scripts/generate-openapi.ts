@@ -28,13 +28,16 @@ const {docsModuleOptions} = require('../src/modules/docs');
 // Create combined metadata for OpenAPI
 const generateOpenAPISpec = () => {
   // Get validation schemas
-  const schemas = validationMetadatasToSchemas({
+  const rawSchemas = validationMetadatasToSchemas({
     refPointerPrefix: '#/components/schemas/',
     validationError: {
       target: true,
       value: true,
     },
   });
+
+  // Filter and clean schemas to avoid missing pointer errors
+  const schemas = cleanSchemas(rawSchemas);
 
   // Get metadata storage
   const storage = getMetadataArgsStorage();
@@ -51,7 +54,6 @@ const generateOpenAPISpec = () => {
   const routingControllersOptions = {
     controllers: allControllers,
     validation: true,
-    routePrefix: '/api',
   };
 
   // Create OpenAPI specification
@@ -151,7 +153,7 @@ const generateOpenAPISpec = () => {
     },
     servers: [
       {
-        url: 'http://localhost:4001/api',
+        url: 'http://localhost:4001',
         description: 'Development server',
       },
       {
@@ -166,8 +168,163 @@ const generateOpenAPISpec = () => {
     ],
   });
 
-  return spec;
+  // Clean the entire spec to handle any remaining invalid references
+  return cleanOpenAPISpec(spec);
 };
+
+function cleanSchemas(schemas) {
+  const cleanedSchemas = {};
+
+  // First pass: collect all valid schema names
+  const validSchemaNames = new Set();
+  for (const [name, schema] of Object.entries(schemas)) {
+    if (schema && typeof schema === 'object' && name !== 'Array') {
+      validSchemaNames.add(name);
+      cleanedSchemas[name] = fixArraySchemas(schema);
+    }
+  }
+
+  // Second pass: clean up references
+  for (const [name, schema] of Object.entries(cleanedSchemas)) {
+    cleanedSchemas[name] = cleanSchemaReferences(schema, validSchemaNames);
+  }
+
+  return cleanedSchemas;
+}
+
+function fixArraySchemas(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => fixArraySchemas(item));
+  }
+
+  const fixed = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === 'type' && value === 'array') {
+      // Check if this array type has items property
+      if (!obj.items) {
+        console.warn(
+          'Warning: Array type missing items property, adding generic items',
+        );
+        fixed[key] = value;
+        fixed['items'] = {type: 'object'};
+      } else {
+        fixed[key] = value;
+        // Also copy the items property when it exists
+        fixed['items'] = fixArraySchemas(obj.items);
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      fixed[key] = fixArraySchemas(value);
+    } else {
+      fixed[key] = value;
+    }
+  }
+
+  // If this object has type: 'array' but no items, add default items
+  if (fixed['type'] === 'array' && !fixed['items']) {
+    fixed['items'] = {type: 'object'};
+  }
+
+  return fixed;
+}
+
+function cleanSchemaReferences(obj, validSchemaNames) {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanSchemaReferences(item, validSchemaNames));
+  }
+
+  const cleaned = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '$ref' && typeof value === 'string') {
+      const refName = value.replace('#/components/schemas/', '');
+      if (validSchemaNames.has(refName)) {
+        cleaned[key] = value;
+      } else {
+        // Replace invalid reference with a generic object schema
+        return {type: 'object'};
+      }
+    } else {
+      cleaned[key] = cleanSchemaReferences(value, validSchemaNames);
+    }
+  }
+
+  return cleaned;
+}
+
+function cleanOpenAPISpec(spec) {
+  // Get all available schema names
+  const availableSchemas = new Set(Object.keys(spec.components?.schemas || {}));
+
+  // Recursively clean the entire spec
+  return cleanSpecReferences(spec, availableSchemas);
+}
+
+function cleanSpecReferences(obj, availableSchemas) {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanSpecReferences(item, availableSchemas));
+  }
+
+  const cleaned = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '$ref' && typeof value === 'string') {
+      const refName = value.replace('#/components/schemas/', '');
+      if (availableSchemas.has(refName)) {
+        cleaned[key] = value;
+      } else {
+        // Replace invalid reference with a generic object schema
+        console.warn(
+          `Warning: Missing schema reference "${refName}" replaced with generic object`,
+        );
+        return {
+          type: 'object',
+          description: `Schema for ${refName} (reference not found)`,
+        };
+      }
+    } else if (
+      key === 'schema' &&
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
+    ) {
+      // Handle schema objects with $ref - use bracket notation to avoid TypeScript errors
+      const refValue = value['$ref'];
+      if (refValue && typeof refValue === 'string') {
+        const refName = refValue.replace('#/components/schemas/', '');
+        if (availableSchemas.has(refName)) {
+          cleaned[key] = value;
+        } else {
+          console.warn(
+            `Warning: Missing schema reference "${refName}" in schema object`,
+          );
+          cleaned[key] = {
+            type: 'object',
+            description: `Schema for ${refName} (reference not found)`,
+          };
+        }
+      } else {
+        cleaned[key] = cleanSpecReferences(
+          fixArraySchemas(value),
+          availableSchemas,
+        );
+      }
+    } else {
+      cleaned[key] = cleanSpecReferences(value, availableSchemas);
+    }
+  }
+
+  return cleaned;
+}
 
 // Execute and save the OpenAPI specification
 const outputDir = path.resolve(__dirname, '../openapi');
