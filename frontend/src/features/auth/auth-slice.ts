@@ -1,35 +1,21 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { useAuthStore } from "@/lib/store/auth-store";
+import type { User } from "@/lib/store/auth-store";
 
-export type User = { // 🔹 Ensure the User type is also exported if needed
-  uid: string;
-  email: string;
-  role: "teacher" | "student" | null;
-};
-
-export interface AuthState { // ✅ Explicitly export AuthState
+// Provide a compatible interface for existing Redux code
+export interface AuthState {
   user: User | null;
 }
 
-const initialState: AuthState = {
-  user: JSON.parse(localStorage.getItem("user") || "null"), // ✅ Auto-populate from localStorage
+// These actions are now just wrappers around our Zustand store
+export const setUser = (user: User) => {
+  useAuthStore.getState().setUser(user);
 };
 
+export const logoutUser = () => {
+  useAuthStore.getState().clearUser();
+};
 
-const authSlice = createSlice({
-  name: "auth",
-  initialState,
-  reducers: {
-    setUser: (state, action: PayloadAction<User>) => {
-      state.user = action.payload;
-      localStorage.setItem("user", JSON.stringify(action.payload)); // Persist session
-    },
-    logoutUser: (state) => {
-      state.user = null;
-      localStorage.removeItem("user");
-    },
-  },
-});
-
-export const { setUser, logoutUser } = authSlice.actions;
-export default authSlice.reducer;
+// Export a dummy reducer for backward compatibility
+const dummyReducer = (state = { user: null }) => state;
+export default dummyReducer;
 

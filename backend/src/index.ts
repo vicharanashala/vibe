@@ -17,6 +17,7 @@ import * as firebase from 'firebase-admin';
 import {app} from 'firebase-admin';
 import {apiReference} from '@scalar/express-api-reference';
 import {OpenApiSpecService} from './modules/docs';
+import cors from 'cors';
 
 // Import all module options
 import {authModuleOptions} from './modules/auth';
@@ -34,6 +35,7 @@ export const ServiceFactory = (
   console.log('Initializing service server');
   console.log('--------------------------------------------------------');
 
+  service.use(cors());
   service.use(Express.urlencoded({extended: true}));
   service.use(Express.json());
 

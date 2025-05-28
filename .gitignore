@@ -51,6 +51,7 @@ node_modules/
 
 docs/static/openapi
 backend/openapi
+frontend/openapi.json
 
 # ignore sentry files
 .sentryclirc
