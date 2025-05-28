@@ -1,6 +1,7 @@
 import {ObjectId} from 'mongodb';
 
 import {IQuestionParameter} from 'shared/interfaces/quiz';
+import {ParameterMap} from '../question-processing/tag-parser';
 
 interface ISOLAnswer {
   lotItemId: string;
@@ -39,10 +40,15 @@ interface IAttempt {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  questionIds: string[]; // List of question IDs in the quiz
+  questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface IQuestionDetails {
+  questionId: string | ObjectId;
+  parameterMap?: ParameterMap;
 }
 
 interface ISubmissionResult {
@@ -165,4 +171,5 @@ export {
   IAttemptDetails,
   IUserQuizMetrics,
   IQuizSettings,
+  IQuestionDetails,
 };

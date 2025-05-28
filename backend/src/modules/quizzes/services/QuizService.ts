@@ -6,6 +6,7 @@ import {
   IAttempt,
   IAttemptDetails,
   IQuestionAnswer,
+  IQuestionDetails,
   ISubmissionResult,
   IUserQuizMetrics,
 } from '../interfaces/grading';
@@ -14,19 +15,30 @@ import {
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
+import {QuestionType} from 'shared/interfaces/quiz';
+import {BaseQuestion} from '../classes/transformers';
+import {QuestionProcessor} from '../question-processing/QuestionProcessor';
+import {IQuestionRenderView} from '../question-processing/renderers';
+import {ParameterMap} from '../question-processing/tag-parser';
+import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
 
 class Attempt implements IAttempt {
   _id?: string;
   quizId: string;
   userId: string;
-  questionIds: string[];
+  questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
   createdAt: Date;
   updatedAt: Date;
 
-  constructor(quizId: string, userId: string) {
+  constructor(
+    quizId: string,
+    userId: string,
+    questionDetails: IQuestionDetails[],
+  ) {
     this.quizId = quizId;
     this.userId = userId;
+    this.questionDetails = questionDetails;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
@@ -161,14 +173,54 @@ class QuizRepository {
   }
 }
 
+class QuestionRepository {
+  private questionCollection: Collection<BaseQuestion>;
+
+  constructor(
+    @Inject(() => MongoDatabase)
+    private db: MongoDatabase,
+  ) {}
+
+  private async init() {
+    this.questionCollection =
+      await this.db.getCollection<BaseQuestion>('questions');
+  }
+
+  public async createQuestion(question: BaseQuestion) {
+    await this.init();
+    const result = await this.questionCollection.insertOne(question);
+    if (result.acknowledged && result.insertedId) {
+      return result.insertedId.toString();
+    }
+    throw new InternalServerError('Failed to create question');
+  }
+
+  public async getQuestionById(
+    questionId: string,
+  ): Promise<BaseQuestion | null> {
+    await this.init();
+    const result = await this.questionCollection.findOne({_id: questionId});
+    if (!result) {
+      return null;
+    }
+    return result;
+  }
+}
+
 @Service()
 class QuizService {
   constructor(
     @Inject(() => QuizRepository)
     private quizRepository: QuizRepository,
+
+    @Inject(() => QuestionService)
+    private questionService: QuestionService,
   ) {}
 
-  public async attempt(userId: string, quizId: string): Promise<string> {
+  public async attempt(
+    userId: string,
+    quizId: string,
+  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
     //1. Check if UserQuizMetrics exists for the user and quiz
     let metrics = await this.quizRepository.getUserQuizMetrics(userId, quizId);
     const quiz = await this.quizRepository.getQuizById(quizId);
@@ -203,11 +255,16 @@ class QuizService {
       throw new BadRequestError('No available attempts left for this quiz');
     }
 
-    //4. Create a new attempt
-    const newAttempt = new Attempt(quizId, userId);
+    //4. Fetch questions for the quiz attempt
+    const {questionDetails, questionRenderViews} =
+      await this.getQuestionsForAttempt(quiz);
+
+    //5. Create a new attempt
+    const newAttempt = new Attempt(quizId, userId, questionDetails);
+
     const attemptId = await this.quizRepository.createAttempt(newAttempt);
 
-    //5. Update UserQuizMetrics with the new attempt
+    //6. Update UserQuizMetrics with the new attempt
     metrics.latestAttemptStatus = 'ATTEMPTED';
     metrics.latestAttemptId = attemptId;
     metrics.remainingAttempts--;
@@ -218,7 +275,7 @@ class QuizService {
     );
 
     //6. Return the attempt ID
-    return attemptId;
+    return {attemptId, questionRenderViews};
   }
   public async submit(
     userId: string,
@@ -227,6 +284,7 @@ class QuizService {
     answers: IQuestionAnswer[],
   ): Promise<void> {
     await this.save(userId, quizId, attemptId, answers);
+    await this.grade(attemptId, answers);
   }
   public async save(
     userId: string,
@@ -250,7 +308,85 @@ class QuizService {
     //4. Save the updated attempt
     await this.quizRepository.updateAttempt(attemptId, attempt);
   }
-  private async grade(): Promise<void> {}
+  private async grade(
+    attemptId: string,
+    answers: IQuestionAnswer[],
+  ): Promise<void> {}
 
-  private async getQuestionsForAttempt(quizId: string): Promise<void> {}
+  private async getQuestionsForAttempt(quiz: QuizItem): Promise<{
+    questionDetails: IQuestionDetails[];
+    questionRenderViews: IQuestionRenderView[];
+  }> {
+    const questions = quiz.details.questions;
+    const questionVisibility = quiz.details.questionVisibility;
+    const numberOfQuestions = questions.length;
+
+    let selectedQuestionIds: string[] = [];
+
+    if (numberOfQuestions > questionVisibility) {
+      // Randomly select questionVisibility number of questions
+      const shuffledQuestions = questions.sort(() => 0.5 - Math.random());
+      selectedQuestionIds = shuffledQuestions.slice(0, questionVisibility);
+    } else if (
+      numberOfQuestions < questionVisibility ||
+      numberOfQuestions === questionVisibility
+    ) {
+      // If there are fewer questions than visibility, show all questions
+      // If there are exactly as many questions as visibility, show all questions
+      selectedQuestionIds = questions;
+    }
+
+    const questionDetails: IQuestionDetails[] = [];
+    const questionRenderViews: IQuestionRenderView[] = [];
+
+    // Loop through selectedQuestionIds and fetch each question
+    for (const questionId of selectedQuestionIds) {
+      const question = (await this.questionService.getQuestionById(
+        questionId,
+        true,
+      )) as BaseQuestion;
+      const questionDetail: IQuestionDetails = {
+        questionId: questionId,
+        parameterMap: question.isParameterized
+          ? generateRandomParameterMap(question.parameters)
+          : null,
+      };
+      questionDetails.push(questionDetail);
+      questionRenderViews.push(
+        new QuestionProcessor(question).render(questionDetail.parameterMap),
+      );
+    }
+
+    return {questionDetails, questionRenderViews};
+  }
+}
+
+@Service()
+class QuestionService {
+  constructor(
+    @Inject(() => QuestionRepository)
+    private questionRepository: QuestionRepository,
+  ) {}
+
+  public async createQuestion(question: BaseQuestion): Promise<string> {
+    return await this.questionRepository.createQuestion(question);
+  }
+
+  public async getQuestionById(
+    questionId: string,
+    raw?: boolean,
+    parameterMap?: ParameterMap,
+  ): Promise<BaseQuestion | IQuestionRenderView> {
+    const question = await this.questionRepository.getQuestionById(questionId);
+    if (!question) {
+      throw new NotFoundError(`Question with ID ${questionId} not found`);
+    }
+
+    if (raw) {
+      return question;
+    }
+
+    const questionProcessor = new QuestionProcessor(question);
+    return questionProcessor.render(parameterMap);
+  }
 }
