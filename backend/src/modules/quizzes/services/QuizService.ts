@@ -6,6 +6,7 @@ import {
   IAttempt,
   IAttemptDetails,
   IQuestionAnswer,
+  IQuestionAnswerFeedback,
   IQuestionDetails,
   ISubmissionResult,
   IUserQuizMetrics,
@@ -284,7 +285,7 @@ class QuizService {
     answers: IQuestionAnswer[],
   ): Promise<void> {
     await this.save(userId, quizId, attemptId, answers);
-    await this.grade(attemptId, answers);
+    const feedbacks = await this.grade(attemptId, answers);
   }
   public async save(
     userId: string,
@@ -311,7 +312,31 @@ class QuizService {
   private async grade(
     attemptId: string,
     answers: IQuestionAnswer[],
-  ): Promise<void> {}
+  ): Promise<IQuestionAnswerFeedback[]> {
+    //1. Fetch the attempt by ID
+    const attempt = await this.quizRepository.getAttemptById(attemptId);
+    const quiz = await this.quizRepository.getQuizById(
+      attempt.quizId.toString(),
+    );
+    const feedbacks: IQuestionAnswerFeedback[] = [];
+    for (const answer of answers) {
+      const question = await this.questionService.getQuestionById(
+        answer.questionId,
+        true,
+      );
+
+      //Find parameter map for the question
+      const questionDetail = attempt.questionDetails.find(
+        qd => qd.questionId === answer.questionId,
+      );
+      const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
+        question,
+      ).grade(answer.answer, quiz, questionDetail.parameterMap);
+      feedbacks.push(feedback);
+    }
+
+    return feedbacks;
+  }
 
   private async getQuestionsForAttempt(quiz: QuizItem): Promise<{
     questionDetails: IQuestionDetails[];

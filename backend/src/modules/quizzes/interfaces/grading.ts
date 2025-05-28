@@ -28,12 +28,16 @@ interface IDESAnswer {
   answerText: string;
 }
 
+export type Answer =
+  | ISOLAnswer
+  | ISMLAnswer
+  | IOTLAnswer
+  | INATAnswer
+  | IDESAnswer;
+
 interface IQuestionAnswer {
   questionId: string;
-  type: string;
-  isParameterized: boolean;
-  parameters?: IQuestionParameter[];
-  answer: ISOLAnswer | ISMLAnswer | IOTLAnswer | INATAnswer | IDESAnswer;
+  answer: Answer;
 }
 
 interface IAttempt {
@@ -51,6 +55,13 @@ interface IQuestionDetails {
   parameterMap?: ParameterMap;
 }
 
+interface IQuestionAnswerFeedback {
+  questionId: string | ObjectId;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string; // Optional feedback for the answer
+}
+
 interface ISubmissionResult {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
@@ -59,6 +70,8 @@ interface ISubmissionResult {
   gradingStatus: 'SUBMITTED' | 'GRADED';
   score?: number;
   totalScore: number;
+  overallFeedback: IQuestionAnswerFeedback[];
+  createdAt: Date;
   submittedAt: Date;
   gradedAt: Date;
   gradedBy: string | ObjectId;
@@ -172,4 +185,5 @@ export {
   IUserQuizMetrics,
   IQuizSettings,
   IQuestionDetails,
+  IQuestionAnswerFeedback,
 };
