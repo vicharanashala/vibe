@@ -410,4 +410,132 @@ describe('Enrollment Controller Integration Tests', () => {
     //   // Write your test here
     // });
   });
+
+  // ------Tests for Get User Enrollments with Pagination------
+  describe('GET User Enrollments (Pagination)', () => {
+    it('should fetch paginated enrollments for a user', async () => {
+      // 1. Create a new user
+      const signUpBody: SignUpBody = {
+        email: faker.internet.email(),
+        password: faker.internet.password(),
+        firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
+        lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+      };
+
+      const signUpResponse = await request(app)
+        .post('/auth/signup')
+        .send(signUpBody)
+        .expect(201);
+      const userId = signUpResponse.body.id;
+
+      // 2. Create two courses and enroll user in both
+      const enrollments = [];
+      for (let i = 0; i < 2; i++) {
+        // Create course
+        const courseBody: CreateCourseBody = {
+          name: faker.commerce.productName(),
+          description: faker.commerce.productDescription(),
+        };
+        const courseResponse = await request(app)
+          .post('/courses')
+          .send(courseBody)
+          .expect(201);
+        const courseId: string = courseResponse.body._id;
+
+        // Create course version
+        const courseVersionBody: CreateCourseVersionBody = {
+          version: '1.0',
+          description: 'Initial version',
+        };
+        const createCourseVersionResponse = await request(app)
+          .post(`/courses/${courseId}/versions`)
+          .send(courseVersionBody)
+          .expect(201);
+        const courseVersionId = createCourseVersionResponse.body._id;
+
+        // Create module
+        const moduleBody: CreateModuleBody = {
+          name: faker.commerce.productName(),
+          description: faker.commerce.productDescription(),
+        };
+        const createModuleResponse = await request(app)
+          .post(`/courses/versions/${courseVersionId}/modules`)
+          .send(moduleBody)
+          .expect(201);
+        const moduleId = createModuleResponse.body.version.modules[0].moduleId;
+
+        // Create section
+        const sectionBody: CreateSectionBody = {
+          name: faker.commerce.productName(),
+          description: faker.commerce.productDescription(),
+        };
+        const createSectionResponse = await request(app)
+          .post(
+            `/courses/versions/${courseVersionId}/modules/${moduleId}/sections`,
+          )
+          .send(sectionBody)
+          .expect(201);
+        const sectionId =
+          createSectionResponse.body.version.modules[0].sections[0].sectionId;
+
+        // Create item
+        const itemPayload = {
+          name: 'Item1',
+          description: 'This an item',
+          type: 'VIDEO',
+          videoDetails: {
+            URL: 'http://url.com',
+            startTime: '00:00:00',
+            endTime: '00:00:40',
+            points: '10.5',
+          },
+        };
+        const createItemResponse = await request(app)
+          .post(
+            `/courses/versions/${courseVersionId}/modules/${moduleId}/sections/${sectionId}/items`,
+          )
+          .send(itemPayload)
+          .expect(201);
+        const itemId = createItemResponse.body.itemsGroup.items[0].itemId;
+
+        // Enroll the user
+        const enrollmentResponse = await request(app).post(
+          `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+        );
+        expect(enrollmentResponse.status).toBe(200);
+        expect(enrollmentResponse.body).toHaveProperty('enrollment');
+        expect(enrollmentResponse.body).toHaveProperty('progress');
+        enrollments.push(enrollmentResponse.body.enrollment);
+      }
+
+      // 3. Fetch enrollments with pagination (limit 1, page 1)
+      const getEnrollmentsResponse = await request(app)
+        .get(`/users/${userId}/enrollments?page=1&limit=1`)
+        .expect(200);
+
+      expect(getEnrollmentsResponse.body).toHaveProperty('totalDocuments', 2);
+      expect(getEnrollmentsResponse.body).toHaveProperty('totalPages', 2);
+      expect(getEnrollmentsResponse.body).toHaveProperty('currentPage', 1);
+      expect(getEnrollmentsResponse.body).toHaveProperty('enrollments');
+      expect(Array.isArray(getEnrollmentsResponse.body.enrollments)).toBe(true);
+      expect(getEnrollmentsResponse.body.enrollments.length).toBe(1);
+
+      // 4. Fetch enrollments with pagination (limit 1, page 2)
+      const getEnrollmentsResponsePage2 = await request(app)
+        .get(`/users/${userId}/enrollments?page=2&limit=1`)
+        .expect(200);
+
+      expect(getEnrollmentsResponsePage2.body).toHaveProperty(
+        'totalDocuments',
+        2,
+      );
+      expect(getEnrollmentsResponsePage2.body).toHaveProperty('totalPages', 2);
+      expect(getEnrollmentsResponsePage2.body).toHaveProperty('currentPage', 2);
+      expect(getEnrollmentsResponsePage2.body).toHaveProperty('enrollments');
+      expect(Array.isArray(getEnrollmentsResponsePage2.body.enrollments)).toBe(
+        true,
+      );
+      expect(getEnrollmentsResponsePage2.body.enrollments.length).toBe(1);
+    }, 90000);
+  });
 });

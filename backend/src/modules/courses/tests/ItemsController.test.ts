@@ -525,7 +525,6 @@ describe('Item Controller Integration Tests', () => {
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
-        console.log(items.map(i => i.itemId));
         expect(items.length).toBe(2);
 
         const idx1 = items.findIndex(i => i.itemId === item1Id);
@@ -608,7 +607,6 @@ describe('Item Controller Integration Tests', () => {
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
-        console.log(items.map(i => i.itemId));
         expect(items.length).toBe(3);
 
         const idx1 = items.findIndex(i => i.itemId === item1Id);

@@ -34,7 +34,7 @@ import {createUser} from './utils/createUser';
 import {createEnrollment} from './utils/createEnrollment';
 import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress';
 import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase';
-
+jest.setTimeout(300000); // Set timeout to 30 seconds for the tests
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
@@ -98,9 +98,7 @@ describe('Progress Controller Integration Tests', () => {
       courseData.modules[0].sections[0].sectionId,
       courseData.modules[0].sections[0].items[0].itemId,
     );
-
-    jest.setTimeout(30000);
-  }, 900000);
+  });
 
   afterAll(async () => {
     // Stop the in-memory MongoDB server
@@ -110,7 +108,7 @@ describe('Progress Controller Integration Tests', () => {
     Container.reset();
   });
 
-  beforeEach(async () => {}, 10000);
+  beforeEach(async () => {});
 
   // ------Tests for Create <ModuleName>------
   describe('Fetch Progress Data', () => {
@@ -142,7 +140,7 @@ describe('Progress Controller Integration Tests', () => {
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors).toBeTruthy();
       expect(response.body.errors[0].constraints).toHaveProperty('isMongoId');
-    }, 10000);
+    });
 
     it('should return 400 if courseId is invalid', async () => {
       const userId = user.id;
@@ -304,7 +302,7 @@ describe('Progress Controller Integration Tests', () => {
         courseData.modules[0].sections[0].sectionId,
         courseData.modules[0].sections[0].items[0].itemId,
       );
-    }, 50000);
+    });
 
     it('should update the progress, if isValidWatchTime is true', async () => {
       // Start the item progress
@@ -352,7 +350,7 @@ describe('Progress Controller Integration Tests', () => {
         )
         .send(updateProgressBody)
         .expect(200);
-    }, 50000);
+    });
     it('should not update the progress, if isValidWatchTime is false', async () => {
       // Start the item progress
       const startItemBody: StartItemBody = {
@@ -408,7 +406,7 @@ describe('Progress Controller Integration Tests', () => {
       expect(updateProgressResponse.body.message).toBe(
         'Watch time is not valid, the user did not watch the item long enough',
       );
-    }, 50000);
+    });
 
     it('should update the progress, if watch time is actually greater than or equal to 0.5 times video length', async () => {
       // Start the item progress
@@ -500,7 +498,7 @@ describe('Progress Controller Integration Tests', () => {
       expect(progressResponse.body.currentModule).not.toBe(
         courseData.modules[0].sections[0].items[0].itemId,
       );
-    }, 50000);
+    });
   });
 
   describe('Reset Progress', () => {
@@ -521,8 +519,7 @@ describe('Progress Controller Integration Tests', () => {
         courseData.modules[0].sections[0].sectionId,
         courseData.modules[0].sections[0].items[0].itemId,
       );
-      jest.setTimeout(30000);
-    }, 100000);
+    });
 
     describe('Reset Entire Course Progress', () => {
       describe('Success Scenario', () => {
@@ -568,7 +565,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
     });
 
@@ -599,7 +596,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -623,7 +620,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
 
@@ -655,7 +652,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -680,7 +677,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if sectionId is not in module', async () => {
           // Reset to module
@@ -703,7 +700,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
 
@@ -736,7 +733,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -762,7 +759,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if sectionId is invalid/not in course', async () => {
           // Reset to module
@@ -786,7 +783,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if itemId is invalid/not in section', async () => {
           // Reset to module
@@ -810,7 +807,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
   });
@@ -893,6 +890,6 @@ describe('Progress Controller Integration Tests', () => {
         expectedCompleted: true, // Course is completed after all modules are done
         app,
       });
-    }, 100000);
+    });
   });
 });

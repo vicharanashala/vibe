@@ -192,4 +192,52 @@ export class EnrollmentService {
       completed: false,
     });
   }
+
+  async getEnrollments(userId: string, skip: number, limit: number) {
+    const client = await this.courseRepo.getDBClient();
+    const session = client.startSession();
+    const txOptions = {
+      readPreference: ReadPreference.primary,
+      readConcern: new ReadConcern('snapshot'),
+      writeConcern: new WriteConcern('majority'),
+    };
+
+    try {
+      await session.startTransaction(txOptions);
+      const result = await this.enrollmentRepo.getEnrollments(
+        userId,
+        skip,
+        limit,
+      );
+      await session.commitTransaction();
+      return result;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async countEnrollments(userId: string) {
+    const client = await this.courseRepo.getDBClient();
+    const session = client.startSession();
+    const txOptions = {
+      readPreference: ReadPreference.primary,
+      readConcern: new ReadConcern('snapshot'),
+      writeConcern: new WriteConcern('majority'),
+    };
+
+    try {
+      await session.startTransaction(txOptions);
+      const result = await this.enrollmentRepo.countEnrollments(userId);
+      await session.commitTransaction();
+      return result;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
 }

@@ -139,4 +139,25 @@ export class EnrollmentRepository {
       {session},
     );
   }
+
+  /**
+   * Get paginated enrollments for a user
+   */
+  async getEnrollments(userId: string, skip: number, limit: number) {
+    await this.init();
+    return this.enrollmentCollection
+      .find({userId})
+      .skip(skip)
+      .limit(limit)
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
+  /**
+   * Count total enrollments for a user
+   */
+  async countEnrollments(userId: string) {
+    await this.init();
+    return this.enrollmentCollection.countDocuments({userId});
+  }
 }
