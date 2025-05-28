@@ -12,11 +12,21 @@ import {
 import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 import {NotFoundError} from 'routing-controllers';
-import {ItemsGroup, Item} from 'modules/courses/classes/transformers/Item';
+import {
+  ItemsGroup,
+  BlogItem,
+  QuizItem,
+  VideoItem,
+  Item,
+} from 'modules/courses/classes/transformers/Item';
+import {ItemType} from 'shared/interfaces/Models';
 
 @Service()
 export class ItemRepository implements IItemRepository {
   private itemsGroupCollection: Collection<ItemsGroup>;
+  private videoCollection: Collection<VideoItem>;
+  private quizCollection: Collection<QuizItem>;
+  private blogCollection: Collection<BlogItem>;
 
   constructor(
     @Inject(() => MongoDatabase)
@@ -28,8 +38,13 @@ export class ItemRepository implements IItemRepository {
   private async init() {
     this.itemsGroupCollection =
       await this.db.getCollection<ItemsGroup>('itemsGroup');
+
+    this.videoCollection = await this.db.getCollection<VideoItem>('videos');
+    this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
+    this.blogCollection = await this.db.getCollection<BlogItem>('blogs');
   }
 
+  // Methods for ItemsGroup operations
   async createItemsGroup(
     itemsGroup: ItemsGroup,
     session?: ClientSession,
@@ -78,31 +93,6 @@ export class ItemRepository implements IItemRepository {
     }
   }
 
-  async readItem(courseVersionId: string, itemId: string): Promise<Item> {
-    // Reading operations need no transaction
-    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-    if (!courseVersion) {
-      throw new ReadError(`Version ${courseVersionId} not found.`);
-    }
-
-    for (const module of courseVersion.modules) {
-      for (const section of module.sections) {
-        const itemsGroup = await this.readItemsGroup(
-          section.itemsGroupId.toString(),
-        );
-        const found = itemsGroup.items.find(
-          i => i.itemId.toString() === itemId,
-        );
-        if (found) {
-          return found;
-        }
-      }
-    }
-    throw new NotFoundError(
-      `Item ${itemId} not found in version ${courseVersionId}.`,
-    );
-  }
-
   async updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,
@@ -136,12 +126,167 @@ export class ItemRepository implements IItemRepository {
     }
   }
 
+  // Methods for Item CRUD operations
+  async createItem(item: Item, session?: ClientSession): Promise<Item | null> {
+    await this.init();
+
+    let collection: Collection<any> = null;
+    switch (item.type) {
+      case ItemType.VIDEO:
+        collection = this.videoCollection;
+        break;
+      case ItemType.QUIZ:
+        collection = this.quizCollection;
+        break;
+      case ItemType.BLOG:
+        collection = this.blogCollection;
+        break;
+      default:
+        throw new Error(`Unsupported item type: ${(item as any).type}`);
+    }
+    const result = await collection.insertOne(item, {session});
+    if (!result.insertedId) {
+      throw new Error(`Failed to insert item of type ${item.type}.`);
+    }
+
+    const createdItem = await collection.findOne(
+      {_id: result.insertedId},
+      {session},
+    );
+
+    return createdItem as Item;
+  }
+
+  async readItem(
+    courseVersionId: string,
+    itemId: string,
+  ): Promise<Item | null> {
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new ReadError(`Version ${courseVersionId} not found.`);
+    }
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+        const itemsGroup = await this.readItemsGroup(
+          section.itemsGroupId.toString(),
+        );
+        const found = itemsGroup.items.find(i => i._id.toString() === itemId);
+
+        if (found) {
+          let item: Item = null;
+
+          switch (found.type) {
+            case ItemType.VIDEO:
+              item = (await this.videoCollection.findOne({
+                _id: found._id,
+              })) as VideoItem;
+              break;
+            case ItemType.QUIZ:
+              item = (await this.quizCollection.findOne({
+                _id: found._id,
+              })) as QuizItem;
+              break;
+            case ItemType.BLOG:
+              item = (await this.blogCollection.findOne({
+                _id: found._id,
+              })) as BlogItem;
+              break;
+            default:
+              throw new ReadError(`Unknown item type: ${found.type}`);
+          }
+
+          return item;
+        }
+      }
+    }
+
+    // Step 3: If item isn't found after going through all sections
+    throw new NotFoundError(
+      `Item ${itemId} not found in version ${courseVersionId}.`,
+    );
+  }
+
+  async updateItem(item: Item, session?: ClientSession): Promise<Item> {
+    await this.init();
+
+    const {_id, type} = item;
+    if (!_id) {
+      throw new UpdateError('Item ID is required for update.');
+    }
+
+    let collection: Collection<any>;
+    switch (type) {
+      case ItemType.VIDEO:
+        collection = this.videoCollection;
+        break;
+      case ItemType.QUIZ:
+        collection = this.quizCollection;
+        break;
+      case ItemType.BLOG:
+        collection = this.blogCollection;
+        break;
+      default:
+        throw new UpdateError(`Unsupported item type: ${(item as any).type}`);
+    }
+
+    try {
+      const result = await collection.updateOne(
+        {_id: new ObjectId(_id)},
+        {
+          $set: {
+            name: item.name,
+            description: item.description,
+            details: item.details,
+          },
+        },
+        {session},
+      );
+
+      if (result.modifiedCount === 0) {
+        throw new UpdateError(`Failed to update item of type ${type}.`);
+      }
+
+      // Also update the embedded item in the itemsGroup (for UI sync, etc.)
+      const updateInGroup = await this.itemsGroupCollection.updateOne(
+        {'items._id': new ObjectId(_id)},
+        {
+          $set: {
+            'items.$.name': item.name,
+            'items.$.description': item.description,
+            'items.$.details': item.details,
+          },
+        },
+        {session},
+      );
+
+      if (updateInGroup.modifiedCount === 0) {
+        throw new UpdateError(
+          `Failed to update item in itemsGroup for ID ${_id}.`,
+        );
+      }
+
+      const updatedItem = await collection.findOne(
+        {_id: new ObjectId(_id)},
+        {session},
+      );
+
+      if (!updatedItem) {
+        throw new UpdateError(`Failed to fetch updated item with ID ${_id}.`);
+      }
+
+      return instanceToPlain(updatedItem) as Item;
+    } catch (error) {
+      throw new UpdateError(`updateItem error for type ${type}: ${error}`);
+    }
+  }
+
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
     await this.init();
     try {
       const result = await this.itemsGroupCollection.updateOne(
         {_id: new ObjectId(itemGroupsId)},
-        {$pull: {items: {itemId: new ObjectId(itemId)}}},
+        {$pull: {items: {_id: new ObjectId(itemId)}}},
       );
       if (result.modifiedCount === 1) {
         return true;
@@ -186,7 +331,7 @@ export class ItemRepository implements IItemRepository {
       return {
         moduleId: new ObjectId(firstModule.moduleId),
         sectionId: new ObjectId(firstSection.sectionId),
-        itemId: new ObjectId(firstItem.itemId),
+        itemId: new ObjectId(firstItem._id),
       };
     } catch (error) {
       throw new ReadError('getFirstOrderItems error: ' + error);

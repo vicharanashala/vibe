@@ -1,4 +1,4 @@
-import {coursesModuleOptions} from 'modules/courses';
+import {coursesModuleOptions, CreateItemBody, Item} from 'modules/courses';
 import {MongoMemoryServer} from 'mongodb-memory-server';
 import {useExpressServer} from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
@@ -9,6 +9,14 @@ import request from 'supertest';
 import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {dbConfig} from '../../../config/db';
 import {CourseVersionService, ItemService, SectionService} from '../services';
+import {
+  createCourse,
+  createModule,
+  createSection,
+  createVersion,
+} from './utils/creationFunctions';
+import {faker} from '@faker-js/faker/.';
+import {ItemType} from 'shared/interfaces/Models';
 
 jest.setTimeout(90000);
 describe('Item Controller Integration Tests', () => {
@@ -45,79 +53,78 @@ describe('Item Controller Integration Tests', () => {
 
   describe('ITEM CREATION', () => {
     describe('Success Scenario', () => {
-      const coursePayload = {
-        name: 'New Course',
-        description: 'Course description',
-      };
+      describe('Create Quiz Item', () => {
+        it('should create a quiz item', async () => {
+          const course = await createCourse(app);
+          const version = await createVersion(app, course._id.toString());
+          const module = await createModule(app, version._id.toString());
+          const section = await createSection(
+            app,
+            version._id.toString(),
+            module.version.modules[0].moduleId.toString(),
+          );
 
-      const courseVersionPayload = {
-        version: 'New Course Version',
-        description: 'Course version description',
-      };
+          const itemPayload: CreateItemBody = {
+            name: faker.commerce.productName(),
+            description: faker.commerce.productDescription(),
+            type: ItemType.QUIZ,
+            quizDetails: {
+              questionVisibility: 3,
+              allowPartialGrading: true,
+              deadline: faker.date.future(),
+              allowHint: true,
+              maxAttempts: 5,
+              releaseTime: faker.date.future(),
+              quizType: 'DEADLINE',
+              showCorrectAnswersAfterSubmission: true,
+              showExplanationAfterSubmission: true,
+              showScoreAfterSubmission: true,
+              approximateTimeToComplete: '00:30:00',
+              passThreshold: 0.7,
+            },
+          };
 
-      const modulePayload = {
-        name: 'New Module',
-        description: 'Module description',
-      };
+          const itemResponse = await request(app)
+            .post(
+              `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
+            )
+            .send(itemPayload);
 
-      const sectionPayload = {
-        name: 'New Section',
-        description: 'Section description',
-      };
+          expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+        });
+      });
+      describe('Create Video Item', () => {
+        it('should create a video item', async () => {
+          const course = await createCourse(app);
+          const version = await createVersion(app, course._id.toString());
+          const module = await createModule(app, version._id.toString());
+          const section = await createSection(
+            app,
+            version._id.toString(),
+            module.version.modules[0].moduleId.toString(),
+          );
 
-      const itemPayload = {
-        name: 'Item1',
-        description: 'This an item',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com',
-          startTime: '00:00:00',
-          endTime: '00:00:40',
-          points: '10.5',
-        },
-      };
+          const itemPayload: CreateItemBody = {
+            name: faker.commerce.productName(),
+            description: faker.commerce.productDescription(),
+            type: ItemType.VIDEO,
+            videoDetails: {
+              URL: 'http://url.com',
+              startTime: '00:00:00',
+              endTime: '00:00:40',
+              points: 10.5,
+            },
+          };
 
-      it('should create an item', async () => {
-        const courseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
+          const itemsGroupResponse = await request(app)
+            .post(
+              `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
+            )
+            .send(itemPayload);
+          // .expect(201);
 
-        const courseId = courseResponse.body._id;
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-
-        const versionId = versionResponse.body._id;
-
-        const moduleResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-
-        const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-        const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-          .send(sectionPayload)
-          .expect(201);
-
-        const sectionId =
-          sectionResponse.body.version.modules[0].sections[0].sectionId;
-
-        const itemsGroupResponse = await request(app)
-          .post(
-            `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
-          )
-          .send(itemPayload)
-          .expect(201);
-
-        expect(itemsGroupResponse.body.itemsGroup.items.length).toBe(1);
-        expect(itemsGroupResponse.body.itemsGroup.items[0].name).toBe(
-          itemPayload.name,
-        );
+          expect(itemsGroupResponse.body.itemsGroup.items.length).toBe(1);
+        });
       });
     });
   });

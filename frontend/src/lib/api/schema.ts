@@ -347,7 +347,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Item
+         * @description Retrieves a specific item from the specified section of a module in a course version.
+         */
+        get: operations["ItemController.readItem"];
         /**
          * Update Item
          * @description Updates an existing item in the specified section with the provided details.
@@ -1167,8 +1171,63 @@ export interface components {
         };
         QuizDetailsPayloadValidator: {
             /**
+             * Pass Threshold
+             * @description Minimum percentage required to pass, between 0 and 1
+             * @example 0.7
+             */
+            passThreshold: number;
+            /**
+             * Maximum Attempts
+             * @description Maximum number of attempts allowed for the quiz, -1 for unlimited
+             * @example 3
+             */
+            maxAttempts: number;
+            /**
+             * Quiz Type
+             * @description Type of quiz: DEADLINE or NO_DEADLINE
+             * @example DEADLINE
+             * @enum {string}
+             */
+            quizType: "DEADLINE" | "NO_DEADLINE";
+            /**
+             * Approximate Time to Complete
+             * @description Approximate time to complete the quiz in HH:MM:SS format
+             * @example 00:30:00
+             */
+            approximateTimeToComplete: string;
+            /**
+             * Allow Partial Grading
+             * @description Whether to allow partial grading for questions, particularly for MSQ/SML type of questions.
+             * @example true
+             */
+            allowPartialGrading: boolean;
+            /**
+             * Allow Hint
+             * @description Whether to allow students to see the hints for questions
+             * @example true
+             */
+            allowHint: boolean;
+            /**
+             * Show Correct Answers After Submission
+             * @description Whether to return and show correct answers after successful submission of an attempt
+             * @example true
+             */
+            showCorrectAnswersAfterSubmission: boolean;
+            /**
+             * Show Explanation After Submission
+             * @description Whether to return and show explanations for correct answers after successful submission of an attempt
+             * @example true
+             */
+            showExplanationAfterSubmission: boolean;
+            /**
+             * Show Score After Submission
+             * @description Whether to return and show score after successful submission of an attempt
+             * @example true
+             */
+            showScoreAfterSubmission: boolean;
+            /**
              * Question Visibility
-             * @description Number of quiz questions visible to students at once
+             * @description Number of quiz questions visible to students in an attempt
              * @example 5
              */
             questionVisibility: number;
@@ -1180,21 +1239,12 @@ export interface components {
              */
             releaseTime: string;
             /**
-             * Quiz Questions
-             * @description List of quiz question IDs (auto-managed)
-             * @example [
-             *       "60d5ec49b3f1c8e4a8f8b8c1",
-             *       "60d5ec49b3f1c8e4a8f8b8c2"
-             *     ]
-             */
-            readonly questions?: string[] | "" | unknown;
-            /**
              * Quiz Deadline
              * Format: date-time
              * @description ISO date string for quiz deadline
              * @example 2023-10-22T23:59:59Z
              */
-            deadline: string;
+            deadline?: string;
         };
         BlogDetailsPayloadValidator: {
             /**
@@ -1229,13 +1279,6 @@ export interface components {
         };
         CreateItemBody: {
             /**
-             * Item ID
-             * Format: Mongo Object ID
-             * @description MongoDB ID (auto-assigned)
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            readonly _id?: string | "" | unknown;
-            /**
              * Item Name
              * @description Title of the item
              * @example Introduction to Data Structures
@@ -1247,24 +1290,6 @@ export interface components {
              * @example Learn about basic data structures like arrays, linked lists, and stacks.
              */
             description: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description Section ID to which the item belongs (auto-managed)
-             * @example 60d5ec49b3f1c8e4a8f8b8d2
-             */
-            readonly sectionId?: string | "" | unknown;
-            /**
-             * Item Order
-             * @description Order key for item placement (auto-managed)
-             * @example a1b2c3
-             */
-            readonly order?: string | "" | unknown;
-            /**
-             * Item Details
-             * @description Item details (depends on type) – video, blog, or quiz
-             */
-            readonly itemDetails?: "" | unknown;
             /**
              * After Item ID
              * Format: Mongo Object ID
@@ -1279,20 +1304,6 @@ export interface components {
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeItemId?: string;
-            /**
-             * Created At
-             * Format: date-time
-             * @description Item creation timestamp (auto-managed)
-             * @example 2023-10-01T12:00:00Z
-             */
-            readonly createdAt?: string | "" | unknown;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Item update timestamp (auto-managed)
-             * @example 2023-10-05T15:30:00Z
-             */
-            readonly updatedAt?: string | "" | unknown;
             /**
              * Item Type
              * @description Type of the item: VIDEO, BLOG, or QUIZ
@@ -1318,13 +1329,6 @@ export interface components {
         };
         UpdateItemBody: {
             /**
-             * Item ID
-             * Format: Mongo Object ID
-             * @description MongoDB ID (auto-assigned)
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            readonly _id?: string | "" | unknown;
-            /**
              * Item Name
              * @description Updated title of the item
              * @example Advanced Data Structures
@@ -1336,13 +1340,6 @@ export interface components {
              * @example Learn about advanced data structures like trees, graphs, and hash tables.
              */
             description?: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description Section ID to which the item belongs (auto-managed)
-             * @example 60d5ec49b3f1c8e4a8f8b8d2
-             */
-            readonly sectionId?: string | "" | unknown;
             /**
              * Item Order
              * @description Order key for item placement (auto-managed)
@@ -1571,6 +1568,36 @@ export interface components {
             readonly deletedItem: Record<string, never>;
             /** @description The updated items group after deletion */
             readonly updatedItemsGroup: Record<string, never>;
+        };
+        ReadItemParams: {
+            /**
+             * Version ID
+             * Format: Mongo Object ID
+             * @description ID of the course version containing the item
+             * @example 60d5ec49b3f1c8e4a8f8b8d5
+             */
+            versionId: string;
+            /**
+             * Module ID
+             * Format: Mongo Object ID
+             * @description ID of the module containing the section
+             * @example 60d5ec49b3f1c8e4a8f8b8e6
+             */
+            moduleId: string;
+            /**
+             * Section ID
+             * Format: Mongo Object ID
+             * @description ID of the section containing the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f7
+             */
+            sectionId: string;
+            /**
+             * Item ID
+             * Format: Mongo Object ID
+             * @description ID of the item to be retrieved
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            itemId: string;
         };
         GetUserProgressParams: {
             /**
@@ -2728,6 +2755,49 @@ export interface operations {
         responses: {
             /** @description Item created successfully */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.readItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item retrieved successfully */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
