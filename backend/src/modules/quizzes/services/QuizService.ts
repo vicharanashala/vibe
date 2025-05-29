@@ -1,34 +1,26 @@
 import {QuizItem} from 'modules/courses';
-import {ClientSession, Collection} from 'mongodb';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import {Service, Inject} from 'typedi';
 import {
-  IAttempt,
-  IAttemptDetails,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
   IQuestionDetails,
-  ISubmission,
   IGradingResult,
-  IUserQuizMetrics,
 } from '../interfaces/grading';
-import {
-  BadRequestError,
-  InternalServerError,
-  NotFoundError,
-} from 'routing-controllers';
-import {QuestionType} from 'shared/interfaces/quiz';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
 import {BaseQuestion} from '../classes/transformers';
 import {QuestionProcessor} from '../question-processing/QuestionProcessor';
 import {IQuestionRenderView} from '../question-processing/renderers';
-import {ParameterMap} from '../question-processing/tag-parser';
 import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
-import {re} from 'mathjs';
-import {QuizRepository} from 'shared/database/providers/mongo/repositories/QuizRepository';
 import {Attempt} from '../classes/transformers/Attempt';
 import {Submission} from '../classes/transformers/Submissions';
 import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics';
 import {QuestionService} from './QuestionService';
+import {
+  AttemptRepository,
+  QuizRepository,
+  SubmissionRepository,
+  UserQuizMetricsRepository,
+} from '../repositories';
 
 @Service()
 class QuizService {
@@ -36,11 +28,20 @@ class QuizService {
     @Inject('QuizRepo')
     private quizRepository: QuizRepository,
 
+    @Inject('AttemptRepo')
+    private attemptRepository: AttemptRepository,
+
+    @Inject('SubmissionRepo')
+    private submissionRepository: SubmissionRepository,
+
+    @Inject('UserQuizMetricsRepo')
+    private userQuizMetricsRepository: UserQuizMetricsRepository,
+
     @Inject('QuestionService')
     private questionService: QuestionService,
   ) {}
 
-  private async getQuestionsForAttempt(quiz: QuizItem): Promise<{
+  private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
@@ -87,7 +88,7 @@ class QuizService {
     return {questionDetails, questionRenderViews};
   }
 
-  private buildGradingResult(
+  private _buildGradingResult(
     quiz: QuizItem,
     grading: IGradingResult,
   ): Partial<IGradingResult> {
@@ -114,8 +115,8 @@ class QuizService {
     quizId: string,
   ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
     //1. Check if UserQuizMetrics exists for the user and quiz
-    let metrics = await this.quizRepository.getUserQuizMetrics(userId, quizId);
-    const quiz = await this.quizRepository.getQuizById(quizId);
+    let metrics = await this.userQuizMetricsRepository.get(userId, quizId);
+    const quiz = await this.quizRepository.getById(quizId);
     if (!metrics) {
       //1a If not, create a new UserQuizMetrics
       if (!quiz) {
@@ -129,9 +130,9 @@ class QuizService {
       );
       //1b Create new UserQuizMetrics
       const createdMetricsId =
-        await this.quizRepository.createUserQuizMetrics(newMetrics);
+        await this.userQuizMetricsRepository.create(newMetrics);
 
-      metrics = await this.quizRepository.getUserQuizMetrics(userId, quizId);
+      metrics = await this.userQuizMetricsRepository.get(userId, quizId);
     }
 
     //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
@@ -149,19 +150,19 @@ class QuizService {
 
     //4. Fetch questions for the quiz attempt
     const {questionDetails, questionRenderViews} =
-      await this.getQuestionsForAttempt(quiz);
+      await this._getQuestionsForAttempt(quiz);
 
     //5. Create a new attempt
     const newAttempt = new Attempt(quizId, userId, questionDetails);
 
-    const attemptId = await this.quizRepository.createAttempt(newAttempt);
+    const attemptId = await this.attemptRepository.create(newAttempt);
 
     //6. Update UserQuizMetrics with the new attempt
     metrics.latestAttemptStatus = 'ATTEMPTED';
     metrics.latestAttemptId = attemptId;
     metrics.remainingAttempts--;
     metrics.attempts.push({attemptId});
-    await this.quizRepository.updateUserQuizMetrics(
+    await this.userQuizMetricsRepository.udpate(
       metrics._id.toString(),
       metrics,
     );
@@ -178,17 +179,14 @@ class QuizService {
   ): Promise<Partial<IGradingResult>> {
     await this.save(userId, quizId, attemptId, answers);
     //1. Fetch UserQuizMetrics by userId and quizId
-    const metrics = await this.quizRepository.getUserQuizMetrics(
-      userId,
-      quizId,
-    );
+    const metrics = await this.userQuizMetricsRepository.get(userId, quizId);
     if (!metrics) {
       throw new NotFoundError(
         `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
       );
     }
     //2. Check if Submission Result already exists for the attempt
-    const existingSubmission = await this.quizRepository.readSubmissionResult(
+    const existingSubmission = await this.submissionRepository.get(
       quizId,
       userId,
       attemptId,
@@ -200,8 +198,7 @@ class QuizService {
     }
     //3. Create a new Submission Result
     const submission = new Submission(quizId, userId, attemptId);
-    const submissionId =
-      await this.quizRepository.createSubmissionResult(submission);
+    const submissionId = await this.submissionRepository.create(submission);
 
     //4. Update the submission ID in UserQuizMetrics
     metrics.latestSubmissionResultId = submissionId;
@@ -214,7 +211,7 @@ class QuizService {
     //6. Update the submission with the feedbacks and score
     submission.gradingResult = gradingResult;
 
-    await this.quizRepository.updateSubmissionResult(submissionId, submission);
+    await this.submissionRepository.update(submissionId, submission);
 
     //7. Update the UserQuizMetrics with the new submission result in attempts
     metrics.attempts = metrics.attempts.map(attempt => {
@@ -223,16 +220,16 @@ class QuizService {
       }
       return attempt;
     });
-    await this.quizRepository.updateUserQuizMetrics(
+    await this.userQuizMetricsRepository.udpate(
       metrics._id.toString(),
       metrics,
     );
 
     //8. Get quiz details to check what details can be returned back
-    const quiz = await this.quizRepository.getQuizById(quizId);
+    const quiz = await this.quizRepository.getById(quizId);
 
     //9. Return grading result based on quiz settings
-    return this.buildGradingResult(quiz, gradingResult);
+    return this._buildGradingResult(quiz, gradingResult);
   }
 
   public async save(
@@ -242,12 +239,12 @@ class QuizService {
     answers: IQuestionAnswer[],
   ): Promise<void> {
     //1. Fetch the attempt by ID
-    const attempt = await this.quizRepository.getAttemptById(attemptId);
+    const attempt = await this.attemptRepository.getById(attemptId);
     if (!attempt) {
       throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
     }
     //2. Check if Deadline has passed for the quiz
-    const quiz = await this.quizRepository.getQuizById(quizId);
+    const quiz = await this.quizRepository.getById(quizId);
     if (!quiz) {
       throw new NotFoundError(`Quiz with ID ${quizId} not found`);
     }
@@ -266,7 +263,7 @@ class QuizService {
     attempt.updatedAt = new Date();
 
     //4. Save the updated attempt
-    await this.quizRepository.updateAttempt(attemptId, attempt);
+    await this.attemptRepository.update(attemptId, attempt);
   }
 
   private async grade(
@@ -274,10 +271,8 @@ class QuizService {
     answers: IQuestionAnswer[],
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
-    const attempt = await this.quizRepository.getAttemptById(attemptId);
-    const quiz = await this.quizRepository.getQuizById(
-      attempt.quizId.toString(),
-    );
+    const attempt = await this.attemptRepository.getById(attemptId);
+    const quiz = await this.quizRepository.getById(attempt.quizId.toString());
     const feedbacks: IQuestionAnswerFeedback[] = [];
     let totalScore;
     let totalMaxScore = 0;
