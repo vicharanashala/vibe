@@ -1,6 +1,4 @@
 import {ObjectId} from 'mongodb';
-
-import {IQuestionParameter} from 'shared/interfaces/quiz';
 import {ParameterMap} from '../question-processing/tag-parser';
 
 interface ISOLAnswer {

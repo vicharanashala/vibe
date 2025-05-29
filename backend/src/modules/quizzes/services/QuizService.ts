@@ -1,26 +1,23 @@
 import {QuizItem} from 'modules/courses';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
 import {Service, Inject} from 'typedi';
+import {BaseQuestion, UserQuizMetrics, Attempt, Submission} from '../classes';
 import {
-  IQuestionAnswer,
-  IQuestionAnswerFeedback,
   IQuestionDetails,
   IGradingResult,
+  IQuestionAnswer,
+  IQuestionAnswerFeedback,
 } from '../interfaces/grading';
-import {BadRequestError, NotFoundError} from 'routing-controllers';
-import {BaseQuestion} from '../classes/transformers';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor';
+import {QuestionProcessor} from '../question-processing';
 import {IQuestionRenderView} from '../question-processing/renderers';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
-import {Attempt} from '../classes/transformers/Attempt';
-import {Submission} from '../classes/transformers/Submissions';
-import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics';
-import {QuestionService} from './QuestionService';
 import {
-  AttemptRepository,
   QuizRepository,
+  AttemptRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
 } from '../repositories';
+import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
+import {QuestionService} from './QuestionService';
 
 @Service()
 class QuizService {
@@ -106,6 +103,49 @@ class QuizService {
     ) {
       result.overallFeedback = grading.overallFeedback;
     }
+
+    return result;
+  }
+
+  private async _grade(
+    attemptId: string,
+    answers: IQuestionAnswer[],
+  ): Promise<IGradingResult> {
+    //1. Fetch the attempt by ID
+    const attempt = await this.attemptRepository.getById(attemptId);
+    const quiz = await this.quizRepository.getById(attempt.quizId.toString());
+    const feedbacks: IQuestionAnswerFeedback[] = [];
+    let totalScore;
+    let totalMaxScore = 0;
+
+    for (const answer of answers) {
+      const question = await this.questionService.getById(
+        answer.questionId,
+        true,
+      );
+      totalMaxScore += question.points;
+      //Find parameter map for the question
+      const questionDetail = attempt.questionDetails.find(
+        qd => qd.questionId === answer.questionId,
+      );
+      const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
+        question,
+      ).grade(answer.answer, quiz, questionDetail.parameterMap);
+      feedbacks.push(feedback);
+      totalScore += feedback.score;
+    }
+
+    const result: IGradingResult = {
+      gradingStatus:
+        totalScore / totalMaxScore >= quiz.details.passThreshold
+          ? 'PASSED'
+          : 'FAILED',
+      overallFeedback: feedbacks,
+      totalMaxScore,
+      totalScore,
+      gradedAt: new Date(),
+      gradedBy: 'system',
+    };
 
     return result;
   }
@@ -206,7 +246,7 @@ class QuizService {
     //5. Change the latestAttemptStatus to 'SUBMITTED'
     metrics.latestAttemptStatus = 'SUBMITTED';
 
-    const gradingResult = await this.grade(attemptId, answers);
+    const gradingResult = await this._grade(attemptId, answers);
 
     //6. Update the submission with the feedbacks and score
     submission.gradingResult = gradingResult;
@@ -264,48 +304,5 @@ class QuizService {
 
     //4. Save the updated attempt
     await this.attemptRepository.update(attemptId, attempt);
-  }
-
-  private async grade(
-    attemptId: string,
-    answers: IQuestionAnswer[],
-  ): Promise<IGradingResult> {
-    //1. Fetch the attempt by ID
-    const attempt = await this.attemptRepository.getById(attemptId);
-    const quiz = await this.quizRepository.getById(attempt.quizId.toString());
-    const feedbacks: IQuestionAnswerFeedback[] = [];
-    let totalScore;
-    let totalMaxScore = 0;
-
-    for (const answer of answers) {
-      const question = await this.questionService.getById(
-        answer.questionId,
-        true,
-      );
-      totalMaxScore += question.points;
-      //Find parameter map for the question
-      const questionDetail = attempt.questionDetails.find(
-        qd => qd.questionId === answer.questionId,
-      );
-      const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
-        question,
-      ).grade(answer.answer, quiz, questionDetail.parameterMap);
-      feedbacks.push(feedback);
-      totalScore += feedback.score;
-    }
-
-    const result: IGradingResult = {
-      gradingStatus:
-        totalScore / totalMaxScore >= quiz.details.passThreshold
-          ? 'PASSED'
-          : 'FAILED',
-      overallFeedback: feedbacks,
-      totalMaxScore,
-      totalScore,
-      gradedAt: new Date(),
-      gradedBy: 'system',
-    };
-
-    return result;
   }
 }
