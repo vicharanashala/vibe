@@ -8,7 +8,8 @@ import {
   IQuestionAnswer,
   IQuestionAnswerFeedback,
   IQuestionDetails,
-  ISubmissionResult,
+  ISubmission,
+  IGradingResult,
   IUserQuizMetrics,
 } from '../interfaces/grading';
 import {
@@ -22,6 +23,7 @@ import {QuestionProcessor} from '../question-processing/QuestionProcessor';
 import {IQuestionRenderView} from '../question-processing/renderers';
 import {ParameterMap} from '../question-processing/tag-parser';
 import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
+import {re} from 'mathjs';
 
 class Attempt implements IAttempt {
   _id?: string;
@@ -62,11 +64,27 @@ class UserQuizMetrics implements IUserQuizMetrics {
   }
 }
 
+class Submission implements ISubmission {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  attemptId: string;
+  submittedAt: Date;
+  gradingResult?: IGradingResult;
+
+  constructor(quizId: string, userId: string, attemptId: string) {
+    this.quizId = quizId;
+    this.userId = userId;
+    this.attemptId = attemptId;
+    this.submittedAt = new Date();
+  }
+}
+
 @Service()
 class QuizRepository {
   private quizCollection: Collection<QuizItem>;
   private attemptCollection: Collection<IAttempt>;
-  private submissionResultCollection: Collection<ISubmissionResult>;
+  private submissionResultCollection: Collection<ISubmission>;
   private userQuizMetricsCollection: Collection<IUserQuizMetrics>;
 
   constructor(
@@ -78,8 +96,9 @@ class QuizRepository {
     this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
     this.attemptCollection =
       await this.db.getCollection<IAttempt>('quiz_attempts');
-    this.submissionResultCollection =
-      await this.db.getCollection<ISubmissionResult>('quiz_submission_results');
+    this.submissionResultCollection = await this.db.getCollection<ISubmission>(
+      'quiz_submission_results',
+    );
     this.userQuizMetricsCollection =
       await this.db.getCollection<IUserQuizMetrics>('user_quiz_metrics');
   }
@@ -110,12 +129,44 @@ class QuizRepository {
     return result;
   }
 
-  //   public async createSubmissionResult(submission: ISubmissionResult): Promise<ISubmissionResult> {}
-  //   public async readSubmissionResultById(submissionId: string): Promise<ISubmissionResult> {}
-  //   public async updateSubmissionResult(
-  //         submissionId: string,
-  //         updateData: Partial<ISubmissionResult>,
-  //     ): Promise<ISubmissionResult> {}
+  public async createSubmissionResult(
+    submission: ISubmission,
+  ): Promise<string> {
+    await this.init();
+    const result = await this.submissionResultCollection.insertOne(submission);
+    if (result.acknowledged && result.insertedId) {
+      return result.insertedId.toString();
+    }
+    throw new InternalServerError('Failed to create submission result');
+  }
+  public async readSubmissionResult(
+    quizId: string,
+    userId: string,
+    attemptId: string,
+  ): Promise<ISubmission> {
+    await this.init();
+    const result = await this.submissionResultCollection.findOne({
+      quizId,
+      userId,
+      attemptId,
+    });
+    if (!result) {
+      return null;
+    }
+    return result;
+  }
+  public async updateSubmissionResult(
+    submissionId: string,
+    updateData: Partial<ISubmission>,
+  ): Promise<ISubmission> {
+    await this.init();
+    const result = await this.submissionResultCollection.findOneAndUpdate(
+      {_id: submissionId},
+      {$set: updateData},
+      {returnDocument: 'after'},
+    );
+    return result;
+  }
 
   //CRUD for Quiz COllection
   public async getQuizById(
@@ -218,6 +269,28 @@ class QuizService {
     private questionService: QuestionService,
   ) {}
 
+  private buildGradingResult(
+    quiz: QuizItem,
+    grading: IGradingResult,
+  ): Partial<IGradingResult> {
+    let result: Partial<IGradingResult>;
+
+    if (quiz.details.showScoreAfterSubmission) {
+      result.totalScore = grading.totalScore;
+      result.totalMaxScore = grading.totalMaxScore;
+      result.gradingStatus = grading.gradingStatus;
+    }
+
+    if (
+      quiz.details.showCorrectAnswersAfterSubmission ||
+      quiz.details.showExplanationAfterSubmission
+    ) {
+      result.overallFeedback = grading.overallFeedback;
+    }
+
+    return result;
+  }
+
   public async attempt(
     userId: string,
     quizId: string,
@@ -283,10 +356,66 @@ class QuizService {
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
-  ): Promise<void> {
+  ): Promise<Partial<IGradingResult>> {
     await this.save(userId, quizId, attemptId, answers);
-    const feedbacks = await this.grade(attemptId, answers);
+    //1. Fetch UserQuizMetrics by userId and quizId
+    const metrics = await this.quizRepository.getUserQuizMetrics(
+      userId,
+      quizId,
+    );
+    if (!metrics) {
+      throw new NotFoundError(
+        `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
+      );
+    }
+    //2. Check if Submission Result already exists for the attempt
+    const existingSubmission = await this.quizRepository.readSubmissionResult(
+      quizId,
+      userId,
+      attemptId,
+    );
+    if (existingSubmission) {
+      throw new BadRequestError(
+        `Attempt with ID ${attemptId} has already been submitted`,
+      );
+    }
+    //3. Create a new Submission Result
+    const submission = new Submission(quizId, userId, attemptId);
+    const submissionId =
+      await this.quizRepository.createSubmissionResult(submission);
+
+    //4. Update the submission ID in UserQuizMetrics
+    metrics.latestSubmissionResultId = submissionId;
+
+    //5. Change the latestAttemptStatus to 'SUBMITTED'
+    metrics.latestAttemptStatus = 'SUBMITTED';
+
+    const gradingResult = await this.grade(attemptId, answers);
+
+    //6. Update the submission with the feedbacks and score
+    submission.gradingResult = gradingResult;
+
+    await this.quizRepository.updateSubmissionResult(submissionId, submission);
+
+    //7. Update the UserQuizMetrics with the new submission result in attempts
+    metrics.attempts = metrics.attempts.map(attempt => {
+      if (attempt.attemptId === attemptId) {
+        attempt.submissionResultId = submissionId;
+      }
+      return attempt;
+    });
+    await this.quizRepository.updateUserQuizMetrics(
+      metrics._id.toString(),
+      metrics,
+    );
+
+    //8. Get quiz details to check what details can be returned back
+    const quiz = await this.quizRepository.getQuizById(quizId);
+
+    //9. Return grading result based on quiz settings
+    return this.buildGradingResult(quiz, gradingResult);
   }
+
   public async save(
     userId: string,
     quizId: string,
@@ -297,6 +426,17 @@ class QuizService {
     const attempt = await this.quizRepository.getAttemptById(attemptId);
     if (!attempt) {
       throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
+    }
+    //2. Check if Deadline has passed for the quiz
+    const quiz = await this.quizRepository.getQuizById(quizId);
+    if (!quiz) {
+      throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+    }
+    if (
+      quiz.details.quizType === 'DEADLINE' &&
+      quiz.details.deadline < new Date()
+    ) {
+      throw new BadRequestError('Quiz deadline has passed');
     }
     //2. Check if the attempt belongs to the user and quiz
     if (attempt.userId !== userId || attempt.quizId !== quizId) {
@@ -309,22 +449,26 @@ class QuizService {
     //4. Save the updated attempt
     await this.quizRepository.updateAttempt(attemptId, attempt);
   }
+
   private async grade(
     attemptId: string,
     answers: IQuestionAnswer[],
-  ): Promise<IQuestionAnswerFeedback[]> {
+  ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
     const attempt = await this.quizRepository.getAttemptById(attemptId);
     const quiz = await this.quizRepository.getQuizById(
       attempt.quizId.toString(),
     );
     const feedbacks: IQuestionAnswerFeedback[] = [];
+    let totalScore;
+    let totalMaxScore = 0;
+
     for (const answer of answers) {
       const question = await this.questionService.getQuestionById(
         answer.questionId,
         true,
       );
-
+      totalMaxScore += question.points;
       //Find parameter map for the question
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
@@ -333,9 +477,22 @@ class QuizService {
         question,
       ).grade(answer.answer, quiz, questionDetail.parameterMap);
       feedbacks.push(feedback);
+      totalScore += feedback.score;
     }
 
-    return feedbacks;
+    const result: IGradingResult = {
+      gradingStatus:
+        totalScore / totalMaxScore >= quiz.details.passThreshold
+          ? 'PASSED'
+          : 'FAILED',
+      overallFeedback: feedbacks,
+      totalMaxScore,
+      totalScore,
+      gradedAt: new Date(),
+      gradedBy: 'system',
+    };
+
+    return result;
   }
 
   private async getQuestionsForAttempt(quiz: QuizItem): Promise<{

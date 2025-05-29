@@ -62,19 +62,13 @@ interface IQuestionAnswerFeedback {
   answerFeedback?: string; // Optional feedback for the answer
 }
 
-interface ISubmissionResult {
+interface ISubmission {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
   attemptId: string | ObjectId;
-  gradingStatus: 'SUBMITTED' | 'GRADED';
-  score?: number;
-  totalScore: number;
-  overallFeedback: IQuestionAnswerFeedback[];
-  createdAt: Date;
   submittedAt: Date;
-  gradedAt: Date;
-  gradedBy: string | ObjectId;
+  gradingResult?: IGradingResult; // Result of the grading process
 }
 
 interface IAttemptDetails {
@@ -91,6 +85,15 @@ interface IUserQuizMetrics {
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
   attempts: IAttemptDetails[];
+}
+
+export interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: Date;
+  gradedBy?: string;
 }
 
 /**
@@ -163,7 +166,7 @@ interface IQuizSettings {
  *    - If exists, return an error
  *    - If not, proceed
  *  - Create SubmissionResult
- *    - Set gradingStatus to 'SUBMITTED'
+ *    - Set gradingStatus to 'PENDING'
  *    - Set submittedAt to current time
  *    - Calculate total score based on points for each question in the attempt
  *    - Set totalScore to the calculated score
@@ -180,7 +183,7 @@ export {
   INATAnswer,
   IDESAnswer,
   IAttempt,
-  ISubmissionResult,
+  ISubmission,
   IAttemptDetails,
   IUserQuizMetrics,
   IQuizSettings,

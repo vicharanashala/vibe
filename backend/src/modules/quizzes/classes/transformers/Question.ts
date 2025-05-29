@@ -49,13 +49,6 @@ class SOLQuestion extends BaseQuestion implements ISOLSolution {
     this.incorrectLotItems = solution.incorrectLotItems;
     this.correctLotItem = solution.correctLotItem;
   }
-
-  toQuizView(): ISOLQuizView {
-    return {
-      ...this,
-      lot: this.incorrectLotItems.concat(this.correctLotItem),
-    } as ISOLQuizView;
-  }
 }
 
 class SMLQuestion extends BaseQuestion implements ISMLSolution {
@@ -67,12 +60,6 @@ class SMLQuestion extends BaseQuestion implements ISMLSolution {
     this.incorrectLotItems = solution.incorrectLotItems;
     this.correctLotItems = solution.correctLotItems;
   }
-  toQuizView(): ISMLQuizView {
-    return {
-      ...this,
-      lot: this.incorrectLotItems.concat(this.correctLotItems),
-    } as ISMLQuizView;
-  }
 }
 
 class OTLQuestion extends BaseQuestion implements IOTLSolution {
@@ -81,12 +68,6 @@ class OTLQuestion extends BaseQuestion implements IOTLSolution {
   constructor(question: IQuestion, solution: IOTLSolution) {
     super(question);
     this.ordering = solution.ordering;
-  }
-  toQuizView(): IOTLQuizView {
-    return {
-      ...this,
-      lot: this.ordering.map(lotOrder => lotOrder.lotItem),
-    } as IOTLQuizView;
   }
 }
 
@@ -105,12 +86,6 @@ class NATQuestion extends BaseQuestion implements INATSolution {
     this.value = solution.value;
     this.expression = solution.expression;
   }
-
-  toQuizView(): INATQuizView {
-    return {
-      ...this,
-    } as INATQuizView;
-  }
 }
 
 class DESQuestion extends BaseQuestion implements IDESSolution {
@@ -118,11 +93,6 @@ class DESQuestion extends BaseQuestion implements IDESSolution {
   constructor(question: IQuestion, solution: IDESSolution) {
     super(question);
     this.solutionText = solution.solutionText;
-  }
-  toQuizView(): IDESQuizView {
-    return {
-      ...this,
-    } as IDESQuizView;
   }
 }
 
