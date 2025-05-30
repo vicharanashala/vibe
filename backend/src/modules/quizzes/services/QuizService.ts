@@ -314,3 +314,5 @@ class QuizService {
     await this.attemptRepository.update(attemptId, attempt);
   }
 }
+
+export {QuizService};

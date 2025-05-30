@@ -1,3 +1,4 @@
+import {inject} from 'inversify';
 import {
   Collection,
   Db,
@@ -7,6 +8,7 @@ import {
 } from 'mongodb';
 import {IDatabase} from 'shared/database/interfaces/IDatabase';
 import {Service} from 'typedi';
+import TYPES from '../../../../types';
 
 /**
  * @class MongoDatabase
@@ -29,7 +31,9 @@ export class MongoDatabase implements IDatabase<Db> {
    * @param {string} dbName - The name of the database to connect to.
    */
   constructor(
+    @inject(TYPES.uri)
     private readonly uri: string,
+    @inject(TYPES.dbName)
     private readonly dbName: string,
   ) {
     // Skip database connection if environment variable is set

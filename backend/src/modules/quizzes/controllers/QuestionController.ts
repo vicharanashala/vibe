@@ -23,7 +23,7 @@ import {QuestionService} from '../services/QuestionService';
 @JsonController('/questions')
 @Service()
 @injectable()
-export class QuestionController {
+class QuestionController {
   constructor(
     @inject(TYPES.QuestionService)
     private readonly questionService: QuestionService,
@@ -46,3 +46,5 @@ export class QuestionController {
     }
   }
 }
+
+export {QuestionController};

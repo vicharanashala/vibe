@@ -21,7 +21,7 @@ import {
 } from 'shared/database/providers/MongoDatabaseProvider';
 import {IUser} from 'shared/interfaces/Models';
 import Container from 'typedi';
-import {quizzesModuleOptions} from '..';
+import {quizzesModuleOptions, setupQuizzesContainer} from '..';
 import {
   IOTLSolution,
   IQuestion,
@@ -42,6 +42,7 @@ describe('Progress Controller Integration Tests', () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
     // setupQuizzesModuleDependencies();
+    await setupQuizzesContainer();
 
     // Create the Express app with routing-controllers configuration
     const options: RoutingControllersOptions = {

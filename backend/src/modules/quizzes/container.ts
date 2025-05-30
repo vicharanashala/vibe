@@ -7,6 +7,9 @@ import {
   UserQuizMetricsRepository,
 } from './repositories';
 import {QuestionRepository} from './repositories/providers/mongodb/QuestionRepository';
+import {QuestionService} from './services/QuestionService';
+import {QuizService} from './services/QuizService';
+import {QuestionController} from './controllers';
 
 export const quizzesContainerModule = new ContainerModule(options => {
   // Repositories
@@ -23,5 +26,9 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .inSingletonScope();
 
   // Services
-  options.bind(TYPES.QuestionService).toSelf().inSingletonScope();
+  options.bind(TYPES.QuestionService).to(QuestionService).inSingletonScope();
+  options.bind(TYPES.QuizService).to(QuizService).inSingletonScope();
+
+  // Controllers
+  options.bind(QuestionController).toSelf().inSingletonScope();
 });

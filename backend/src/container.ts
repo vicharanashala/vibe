@@ -1,7 +1,7 @@
-import {dbConfig} from 'config/db';
+import {dbConfig} from './config/db';
 import {ContainerModule} from 'inversify';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from 'types';
+import {MongoDatabase} from './shared/database/providers/MongoDatabaseProvider';
+import TYPES from './types';
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
