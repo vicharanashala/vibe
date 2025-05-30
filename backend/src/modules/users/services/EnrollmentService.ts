@@ -188,7 +188,7 @@ export class EnrollmentService {
       courseVersionId: new ObjectId(courseVersionId),
       currentModule: firstModule.moduleId,
       currentSection: firstSection.sectionId,
-      currentItem: firstItem.itemId,
+      currentItem: firstItem._id,
       completed: false,
     });
   }

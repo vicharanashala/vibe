@@ -87,7 +87,7 @@ class ProgressService {
       courseVersionId,
       firstModule.moduleId.toString(),
       firstSection.sectionId.toString(),
-      firstItem.itemId.toString(),
+      firstItem._id.toString(),
     );
   }
 
@@ -141,7 +141,7 @@ class ProgressService {
       courseVersionId,
       module.moduleId.toString(),
       firstSection.sectionId.toString(),
-      firstItem.itemId.toString(),
+      firstItem._id.toString(),
     );
   }
 
@@ -196,7 +196,7 @@ class ProgressService {
       courseVersionId,
       module.moduleId.toString(),
       section.sectionId.toString(),
-      firstItem.itemId.toString(),
+      firstItem._id.toString(),
     );
   }
 
@@ -241,9 +241,7 @@ class ProgressService {
       return null; // No items to track progress for
     }
 
-    const item = itemsGroup.items.find(
-      item => item.itemId.toString() === itemId,
-    );
+    const item = itemsGroup.items.find(item => item._id.toString() === itemId);
 
     if (!item) {
       throw new NotFoundError('Item not found in the specified section.');
@@ -256,7 +254,7 @@ class ProgressService {
       courseVersionId,
       module.moduleId.toString(),
       section.sectionId.toString(),
-      item.itemId.toString(),
+      item._id.toString(),
     );
   }
 
@@ -371,7 +369,7 @@ class ProgressService {
       a.order.localeCompare(b.order),
     );
     // 2. Check if the itemId is the last item in the section
-    const lastItem = sortedItems[sortedItems.length - 1].itemId;
+    const lastItem = sortedItems[sortedItems.length - 1]._id;
     // 3. Set the isLastItem flag to true if it is the last item
     if (lastItem === itemId) {
       isLastItem = true;
@@ -404,7 +402,7 @@ class ProgressService {
       const firstItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
-      currentItem = firstItem.itemId.toString();
+      currentItem = firstItem._id.toString();
     }
 
     // Handle when the item is the last item in the section but not the last section and not the last module
@@ -424,18 +422,18 @@ class ProgressService {
       const firstItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
-      currentItem = firstItem.itemId.toString();
+      currentItem = firstItem._id.toString();
     }
 
     // Handle when none of the item, the section, or the module is last.
     if (!isLastItem && !isLastSection && !isLastModule) {
       // Get index of the current item
       const currentItemIndex = sortedItems.findIndex(
-        item => item.itemId === itemId,
+        item => item._id === itemId,
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem.itemId.toString();
+      currentItem = nextItem._id.toString();
     }
 
     if (isLastItem && !isLastSection && isLastModule) {
@@ -454,37 +452,37 @@ class ProgressService {
       const firstItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
-      currentItem = firstItem.itemId.toString();
+      currentItem = firstItem._id.toString();
     }
 
     if (!isLastItem && !isLastSection && isLastModule) {
       // Get index of the current item
       const currentItemIndex = sortedItems.findIndex(
-        item => item.itemId === itemId,
+        item => item._id === itemId,
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem.itemId.toString();
+      currentItem = nextItem._id.toString();
     }
 
     if (!isLastItem && isLastSection && isLastModule) {
       // Get index of the current item
       const currentItemIndex = sortedItems.findIndex(
-        item => item.itemId === itemId,
+        item => item._id === itemId,
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem.itemId.toString();
+      currentItem = nextItem._id.toString();
     }
 
     if (!isLastItem && isLastSection && !isLastModule) {
       // Get index of the current item
       const currentItemIndex = sortedItems.findIndex(
-        item => item.itemId === itemId,
+        item => item._id === itemId,
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem.itemId.toString();
+      currentItem = nextItem._id.toString();
     }
 
     return {
@@ -498,55 +496,57 @@ class ProgressService {
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     switch (item.type) {
       case 'VIDEO':
-        if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
-          const videoDetails = item.itemDetails as IVideoDetails;
-          const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-          const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+        return true;
+        // if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
+        //   const videoDetails = item.itemDetails as IVideoDetails;
+        //   const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
+        //   const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
+        //   const watchStartTime = new Date(watchTime.startTime);
+        //   const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        //   // Get Time difference in seconds
+        //   const timeDiff =
+        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Get Video duration in seconds
-          // Convert HH:MM:SS to seconds
-          const videoEndTimeInSeconds =
-            parseInt(videoEndTime.split(':')[0]) * 3600 +
-            parseInt(videoEndTime.split(':')[1]) * 60 +
-            parseInt(videoEndTime.split(':')[2]);
-          const videoStartTimeInSeconds =
-            parseInt(videoStartTime.split(':')[0]) * 3600 +
-            parseInt(videoStartTime.split(':')[1]) * 60 +
-            parseInt(videoStartTime.split(':')[2]);
+        //   // Get Video duration in seconds
+        //   // Convert HH:MM:SS to seconds
+        //   const videoEndTimeInSeconds =
+        //     parseInt(videoEndTime.split(':')[0]) * 3600 +
+        //     parseInt(videoEndTime.split(':')[1]) * 60 +
+        //     parseInt(videoEndTime.split(':')[2]);
+        //   const videoStartTimeInSeconds =
+        //     parseInt(videoStartTime.split(':')[0]) * 3600 +
+        //     parseInt(videoStartTime.split(':')[1]) * 60 +
+        //     parseInt(videoStartTime.split(':')[2]);
 
-          const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+        //   const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-          // Check if the watch time is >= 0.5 * video duration
-          if (timeDiff >= 0.45 * videoDuration) {
-            return true;
-          }
-          return false;
-        }
+        //   // Check if the watch time is >= 0.5 * video duration
+        //   if (timeDiff >= 0.45 * videoDuration) {
+        //     return true;
+        //   }
+        //   return false;
+        // }
 
         break;
 
       case 'BLOG':
-        if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
-          const blogDetails = item.itemDetails as IBlogDetails;
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+        return true;
+        // if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
+        //   const blogDetails = item.itemDetails as IBlogDetails;
+        //   const watchStartTime = new Date(watchTime.startTime);
+        //   const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        //   // Get Time difference in seconds
+        //   const timeDiff =
+        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Check if the watch time is >= 0.5 * estimated read time
-          if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-            return true;
-          }
-          return false;
-        }
+        //   // Check if the watch time is >= 0.5 * estimated read time
+        //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
+        //     return true;
+        //   }
+        //   return false;
+        // }
         break;
     }
   }
