@@ -18,23 +18,31 @@ import {
 } from '../repositories';
 import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
 import {QuestionService} from './QuestionService';
+import {inject, injectable} from 'inversify';
+import TYPES from '../types';
 
 @Service()
+@injectable()
 class QuizService {
   constructor(
     @Inject('QuizRepo')
+    @inject(TYPES.QuizRepo)
     private quizRepository: QuizRepository,
 
     @Inject('AttemptRepo')
+    @inject(TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
 
     @Inject('SubmissionRepo')
+    @inject(TYPES.SubmissionRepo)
     private submissionRepository: SubmissionRepository,
 
     @Inject('UserQuizMetricsRepo')
+    @inject(TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
 
     @Inject('QuestionService')
+    @inject(TYPES.QuestionService)
     private questionService: QuestionService,
   ) {}
 

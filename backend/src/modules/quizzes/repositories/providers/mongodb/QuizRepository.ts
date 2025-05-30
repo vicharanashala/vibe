@@ -1,3 +1,4 @@
+import {inject, injectable} from 'inversify';
 import {QuizItem} from 'modules/courses';
 import {
   IAttempt,
@@ -8,13 +9,16 @@ import {Collection, ClientSession} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import {Service, Inject} from 'typedi';
+import TYPES from '../../../../../types';
 
 @Service()
+@injectable()
 class QuizRepository {
   private quizCollection: Collection<QuizItem>;
 
   constructor(
     @Inject(() => MongoDatabase)
+    @inject(TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

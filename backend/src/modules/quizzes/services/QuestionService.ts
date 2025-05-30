@@ -5,11 +5,15 @@ import {QuestionProcessor} from '../question-processing/QuestionProcessor';
 import {IQuestionRenderView} from '../question-processing/renderers';
 import {ParameterMap} from '../question-processing/tag-parser';
 import {QuestionRepository} from 'shared/database/providers/mongo/repositories/QuestionRepository';
+import {inject, injectable} from 'inversify';
+import TYPES from '../types';
 
 @Service()
+@injectable()
 class QuestionService {
   constructor(
     @Inject(() => QuestionRepository)
+    @inject(TYPES.QuestionRepo)
     private questionRepository: QuestionRepository,
   ) {}
 
