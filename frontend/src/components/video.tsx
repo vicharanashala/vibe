@@ -255,7 +255,7 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
             style={{
               width: '100%',
               height: '100%',
-              background: '#000',
+              background: 'hsl(var(--background))',
               borderRadius: '12px 12px 0 0',
               overflow: 'hidden',
               pointerEvents: 'none',

@@ -444,6 +444,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{userId}/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User Enrollments
+         * @description Retrieves a paginated list of courses and course versions a user is enrolled in.
+         */
+        get: operations["EnrollmentController.getUserEnrollments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/": {
         parameters: {
             query?: never;
@@ -1914,6 +1934,12 @@ export interface components {
             /** @description Progress data for the user */
             progress: Record<string, never>;
         };
+        EnrollmentResponse: {
+            totalDocuments: number;
+            totalPages: number;
+            currentPage: number;
+            enrollments: Record<string, never>[];
+        };
         EnrollmentNotFoundErrorResponse: {
             /**
              * @description Error message indicating the enrollment was not found
@@ -3042,6 +3068,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"] | components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getUserEnrollments": {
+        parameters: {
+            query?: {
+                page?: unknown;
+                limit?: unknown;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of user enrollments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Enrollments Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
                 };
             };
         };

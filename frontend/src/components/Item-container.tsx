@@ -59,7 +59,7 @@ const ItemContainer: React.FC<ItemContainerProps> = ({ item, userId, courseId, c
           position: 'fixed',
           right: '20px',
           bottom: '20px',
-          backgroundColor: '#FFA500',
+          backgroundColor: 'hsl(var(--primary))',
           color: 'white',
           border: 'none',
           padding: '12px 24px',

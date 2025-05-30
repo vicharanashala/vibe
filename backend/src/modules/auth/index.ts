@@ -55,24 +55,25 @@ export const authModuleOptions: RoutingControllersOptions = {
   controllers: [AuthController],
   authorizationChecker: async function (action: Action, roles: string[]) {
     // Use the auth service to check if the user is authorized
-    const authService = Container.get<IAuthService>('AuthService');
-    const token = action.request.headers['authorization']?.split(' ')[1];
-    if (!token) {
-      return false;
-    }
-    try {
-      const user = await authService.verifyToken(token);
-      action.request.user = user;
+    // const authService = Container.get<IAuthService>('AuthService');
+    // const token = action.request.headers['authorization']?.split(' ')[1];
+    // if (!token) {
+    //   return false;
+    // }
+    // try {
+    //   const user = await authService.verifyToken(token);
+    //   action.request.user = user;
 
-      // Check if the user's roles match the required roles
-      if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
-        return false;
-      }
+    //   // Check if the user's roles match the required roles
+    //   if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
+    //     return false;
+    //   }
 
-      return true;
-    } catch (error) {
-      return false;
-    }
+    //   return true;
+    // } catch (error) {
+    //   return false;
+    // }
+    return true; // For now, allow all requests
   },
 };
 

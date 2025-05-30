@@ -2,6 +2,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
+
+
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -76,9 +78,9 @@
   --popover: 0 0% 100%;
   --popover-foreground: 20 14.3% 4.1%;
   
-  /* Primary orange-yellow theme */
-  --primary: 40 96% 55%; /* Orange-Yellow #f7cc3d */
-  --primary-foreground: 60 9.1% 97.8%;
+  /* Primary orange-yellow theme - Light mode: softer, lighter colors */
+  --primary: 42 88% 65%; /* Lighter, softer orange-yellow #f5d563 */
+  --primary-foreground: 38 10% 10%;
   
   /* Secondary theme */
   --secondary: 60 4.8% 95.9%;
@@ -87,30 +89,31 @@
   /* Supporting colors */
   --muted: 0 0% 96.1%;
   --muted-foreground: 0 0% 45.1%;
-  --accent: 38 85% 40%; /* Darker orange-yellow */
+  --accent: 40 75% 50%; /* Lighter, more gentle orange-yellow */
   --accent-foreground: 38 10% 10%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
-  --ring: 40 96% 55%; /* Orange-Yellow */
+  --ring: 42 88% 65%; /* Matching lighter primary */
   
-  /* Chart colors */
-  --chart-1: 40 96% 55%; /* Orange-Yellow */
-  --chart-2: 44 94% 44%;
-  --chart-3: 35 90% 45%;
-  --chart-4: 220 40% 40%; /* Indigo */
-  --chart-5: 38 78% 26%;
   
-  /* Sidebar theme */
+  /* Chart colors - Lighter variants for light mode */
+  --chart-1: 42 88% 65%; /* Lighter orange-yellow */
+  --chart-2: 46 85% 55%; /* Lighter yellow */
+  --chart-3: 38 75% 55%; /* Lighter orange */
+  --chart-4: 220 50% 55%; /* Lighter indigo */
+  --chart-5: 40 70% 45%; /* Lighter brown-orange */
+  
+  /* Sidebar theme - Light and airy */
   --sidebar: 0 0% 98%;
   --sidebar-foreground: 20 14.3% 4.1%;
-  --sidebar-primary: 40 96% 55%; /* Orange-Yellow */
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 38 85% 40%; /* Darker orange-yellow */
+  --sidebar-primary: 42 88% 65%; /* Lighter orange-yellow */
+  --sidebar-primary-foreground: 38 10% 10%;
+  --sidebar-accent: 40 75% 50%; /* Lighter accent */
   --sidebar-accent-foreground: 38 10% 10%;
   --sidebar-border: 20 5.9% 90%;
-  --sidebar-ring: 40 96% 55%; /* Orange-Yellow */
+  --sidebar-ring: 42 88% 65%; /* Matching lighter primary */
   
   /* Font and visual properties */
   --font-sans: Poppins, sans-serif;
@@ -138,9 +141,9 @@
   --popover: 20 14.3% 4.1%;
   --popover-foreground: 60 9.1% 97.8%;
   
-  /* Primary orange-yellow theme */
-  --primary: 40 96% 55%; /* Orange-Yellow */
-  --primary-foreground: 60 9.1% 97.8%;
+  /* Primary orange-yellow theme - Dark mode: vibrant, high contrast colors */
+  --primary: 38 95% 60%; /* More vibrant orange-yellow #faa835 */
+  --primary-foreground: 20 14.3% 4.1%;
   
   /* Secondary theme */
   --secondary: 12 6.5% 15.1%;
@@ -149,30 +152,30 @@
   /* Supporting colors */
   --muted: 12 6.5% 15.1%;
   --muted-foreground: 24 5.4% 63.9%;
-  --accent: 38 85% 30%; 
+  --accent: 36 90% 45%; /* More vibrant orange accent */
   --accent-foreground: 60 9.1% 97.8%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 60 9.1% 97.8%;
   --border: 12 6.5% 15.1%;
   --input: 12 6.5% 15.1%;
-  --ring: 40 96% 55%; /* Orange-Yellow */
+  --ring: 38 95% 60%; /* Matching vibrant primary */
   
-  /* Chart colors */
-  --chart-1: 40 96% 60%; /* Lighter orange-yellow */
-  --chart-2: 44 94% 44%;
-  --chart-3: 38 82% 31%;
-  --chart-4: 220 40% 50%; /* Lighter indigo */
-  --chart-5: 35 82% 40%;
+  /* Chart colors - More vibrant for dark mode */
+  --chart-1: 38 95% 60%; /* Vibrant orange-yellow */
+  --chart-2: 42 92% 50%; /* Vibrant yellow-orange */
+  --chart-3: 34 88% 45%; /* Vibrant orange */
+  --chart-4: 220 50% 60%; /* Brighter indigo */
+  --chart-5: 32 85% 50%; /* Vibrant amber */
   
-  /* Sidebar theme */
+  /* Sidebar theme - High contrast for dark mode */
   --sidebar: 20 14.3% 4.1%;
   --sidebar-foreground: 60 9.1% 97.8%;
-  --sidebar-primary: 40 96% 55%; /* Orange-Yellow */
-  --sidebar-primary-foreground: 60 9.1% 97.8%;
-  --sidebar-accent: 38 85% 30%;
+  --sidebar-primary: 38 95% 60%; /* Vibrant orange-yellow */
+  --sidebar-primary-foreground: 20 14.3% 4.1%;
+  --sidebar-accent: 36 90% 45%; /* Vibrant accent */
   --sidebar-accent-foreground: 60 9.1% 97.8%;
   --sidebar-border: 12 6.5% 15.1%;
-  --sidebar-ring: 40 96% 55%; /* Orange-Yellow */
+  --sidebar-ring: 38 95% 60%; /* Matching vibrant primary */
   
   /* Shadow properties remain unchanged */
 }
@@ -216,9 +219,9 @@
   animation: pulse-gentle 2s infinite;
 }
 
-/* Study streak indicator - orange-yellow gradient */
+/* Study streak indicator - responsive gradient using theme colors */
 .streak-indicator {
-  background: linear-gradient(45deg, #f7cc3d, #ffd700);
+  background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--chart-2)));
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;
 }

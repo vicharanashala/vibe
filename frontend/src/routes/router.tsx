@@ -19,6 +19,7 @@ import StudentDashboard from "@/pages/student/dashboard";
 import StudentCourses from "@/pages/student/courses";
 import StudentProfile from "@/pages/student/profile";
 import ItemContainer from '@/components/Item-container'
+import CoursePage from '@/pages/student/course-page'
 import { Item } from '@/components/Item-container' // Assuming Item is defined in Item-container
 import Dashboard from '@/pages/teacher/dashboard'
 import CreateCourse from '@/pages/teacher/create-course'
@@ -26,6 +27,127 @@ import GetCourse from '@/pages/teacher/get-course'
 import Editor from '@/pages/teacher/create-article'
 import FaceDetectors from '@/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
+import { useCourseStore } from '@/lib/store/course-store'
+
+const sampleText = `
+<script
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+  type="text/javascript">
+</script>
+# 🌟 Sample Markdown Document
+
+Welcome to this **comprehensive** sample Markdown document! Here, we explore the features of Markdown in a practical and structured way.
+
+## Mathematical Expressions
+
+This document demonstrates mathematical expressions using LaTeX syntax:
+
+### Inline Mathematics
+Here's an inline equation: $E = mc^2$ and another one: $\\int_0^1 x^2 dx = \\frac{1}{3}$.
+
+### Display Mathematics
+Here's a display equation:
+$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$
+
+And another complex equation:
+$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$
+
+### More Complex Examples
+Quadratic formula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$ (INLINE)
+
+Matrix notation:
+$$
+\\begin{aligned}
+\\begin{pmatrix} 
+a & b \\\\\\\\
+c & d 
+\\end{pmatrix} 
+\\end{aligned}
+$$
+
+---
+
+## 📋 Table of Contents
+1. [Text Formatting](#text-formatting)
+2. [Lists](#lists)
+3. [Links and Images](#links-and-images)
+4. [Blockquotes](#blockquotes)
+5. [Code Blocks](#code-blocks)
+6. [Tables](#tables)
+7. [Horizontal Rules](#horizontal-rules)
+8. [Task Lists](#task-lists)
+9. [Inline HTML](#inline-html)
+
+---
+
+## 1. 📝 Text Formatting
+
+Markdown allows you to format text in a variety of ways:
+
+- **Bold**
+- *Italic*
+- ***Bold and Italic***
+- ~~Strikethrough~~  
+- <sup>Superscript</sup> and <sub>Subscript</sub>
+- \`Inline code\`
+
+---
+
+## 2. 📑 Lists
+
+### Unordered List
+- Item 1
+  - Subitem 1.1
+  - Subitem 1.2
+- Item 2
+
+### Ordered List
+1. First
+2. Second
+   1. Second - A
+   2. Second - B
+3. Third
+
+---
+
+## 3. 🔗 Links and Images
+
+### Links
+- [OpenAI](https://www.openai.com)
+- [GitHub Repo](https://github.com/)
+
+### Images
+
+![Markdown Logo](https://markdown-here.com/img/icon256.png)
+
+---
+
+## 4. 💬 Blockquotes
+
+> "Markdown is not a replacement for HTML, but it's a good substitute for many cases."  
+> — *John Gruber*
+
+> > Nested blockquote  
+> > Example usage for quoting someone quoting someone else.
+
+---
+
+## 5. 💻 Code Blocks
+
+### Inline
+Use \`print("Hello, world!")\` to display a message in Python.
+
+### Block (fenced)
+\`\`\`python
+def greet(name):
+    print(f"Hello, {name}!")
+
+greet("Markdown")
+\`\`\`
+
+\`<div class="math">abc</div>\`
+`
+;
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -198,6 +320,41 @@ const videoRoute = new Route({
   component: () => <ItemContainer item={{name:"abc", itemtype:"video", content:"https://www.youtube.com/watch?v=vBH6GRJ1REM"} as Item} courseId="A" courseVersionId="B" userId="C" />
 });
 
+const articleRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/article',
+  component: () => <ItemContainer item={{name:"abc", itemtype:"article", content:sampleText} as Item} courseId="A" courseVersionId="B" userId="C" />
+});
+
+const quizRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/quiz',
+  component: () => <ItemContainer item={{name:"abc", itemtype:"quiz", content:"This is a sample quiz content."} as Item} courseId="A" courseVersionId="B" userId="C" />
+});
+
+const coursePageRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/learn',
+  component: CoursePage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: '/auth' });
+    }
+    
+    // Ensure user is a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+
+    // Ensure courseId and versionId are in zustand store
+    const { currentCourse } = useCourseStore.getState();
+    if (!currentCourse || !currentCourse.courseId || !currentCourse.versionId) {
+      throw redirect({ to: '/student/courses' });
+    }
+  },
+});
+
 // Create a catch-all not found route
 const notFoundRoute = new NotFoundRoute({
   getParentRoute: () => rootRoute,
@@ -219,7 +376,10 @@ const routeTree = rootRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
+    coursePageRoute,
+    articleRoute,
     videoRoute,
+    quizRoute,
   ]),
 ]);
 
