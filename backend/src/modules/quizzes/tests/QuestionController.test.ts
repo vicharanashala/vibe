@@ -29,7 +29,7 @@ import {
   ISOLSolution,
 } from 'shared/interfaces/quiz';
 import {SOLQuestion} from '../classes/transformers';
-import {CreateQuestionBody, SOLSolution} from '../classes/validators';
+import {QuestionBody, SOLSolution} from '../classes/validators';
 import request from 'supertest';
 
 describe('Progress Controller Integration Tests', () => {
@@ -104,7 +104,7 @@ describe('Progress Controller Integration Tests', () => {
         ],
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -141,7 +141,7 @@ describe('Progress Controller Integration Tests', () => {
         ],
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -222,7 +222,7 @@ describe('Progress Controller Integration Tests', () => {
         ],
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -247,7 +247,7 @@ describe('Progress Controller Integration Tests', () => {
         expression: '<QParam>x</QParam> + <QParam>y</QParam>',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -278,7 +278,7 @@ describe('Progress Controller Integration Tests', () => {
           'The process of <QParam>process</QParam> in <QParam>subject</QParam> involves several steps...',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -296,7 +296,7 @@ describe('Progress Controller Integration Tests', () => {
         correctLotItem: {text: 'No tags here.', explaination: 'No tags.'},
         incorrectLotItems: [],
       };
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/must have a valid tag/i);
@@ -318,7 +318,7 @@ describe('Progress Controller Integration Tests', () => {
         },
         incorrectLotItems: [],
       };
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -342,7 +342,7 @@ describe('Progress Controller Integration Tests', () => {
         },
         incorrectLotItems: [],
       };
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -361,7 +361,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       // Missing decimalPrecision, upperLimit, lowerLimit
       const solution = {};
-      const body: CreateQuestionBody = {
+      const body: QuestionBody = {
         question: questionData,
         solution: undefined,
       };
@@ -383,7 +383,7 @@ describe('Progress Controller Integration Tests', () => {
         correctLotItem: {text: 'Wrong tag.', explaination: 'Wrong tag.'},
         incorrectLotItems: [],
       };
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -408,7 +408,7 @@ describe('Progress Controller Integration Tests', () => {
         value: 4,
       };
 
-      const body: CreateQuestionBody = {
+      const body: QuestionBody = {
         question: questionData,
         solution: solution,
       };
@@ -451,7 +451,7 @@ describe('Progress Controller Integration Tests', () => {
         ],
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -535,7 +535,7 @@ describe('Progress Controller Integration Tests', () => {
         ],
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -569,7 +569,7 @@ describe('Progress Controller Integration Tests', () => {
           'The process of <QParam>process</QParam> in <QParam>subject</QParam> and <QParam>missingParam</QParam> involves several steps...',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/not found in context/i);
@@ -596,7 +596,7 @@ describe('Progress Controller Integration Tests', () => {
         expression: '<NumExpr>a + b + c</NumExpr>',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -624,7 +624,7 @@ describe('Progress Controller Integration Tests', () => {
         expression: '<NumExpr>a + b</NumExpr>',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/must be of type 'number'/i);
@@ -651,7 +651,7 @@ describe('Progress Controller Integration Tests', () => {
         expression: '<NumExprTex>a + b + c</NumExprTex>',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
@@ -679,7 +679,7 @@ describe('Progress Controller Integration Tests', () => {
         expression: '<NumExprTex>a + b</NumExprTex>',
       };
 
-      const body: CreateQuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/must be of type 'number'/i);

@@ -2,6 +2,7 @@ import {
   Body,
   CurrentUser,
   Get,
+  JsonController,
   OnUndefined,
   Params,
   Post,
@@ -20,13 +21,14 @@ import {inject, injectable} from 'inversify';
 import TYPES from '../types';
 
 @injectable()
+@JsonController('/quizzes')
 class QuizController {
   constructor(
     @inject(TYPES.QuizService)
     private readonly quizService: QuizService,
   ) {}
 
-  @Post('/quizzes/:quizId/attempt')
+  @Post('/:quizId/attempt')
   async attempt(
     @CurrentUser() user: IUser,
     @Params() params: CreateAttemptParams,
@@ -37,7 +39,7 @@ class QuizController {
   }
 
   @OnUndefined(200)
-  @Post('/quizzes/:quizId/attempt/:attemptId/save')
+  @Post('/:quizId/attempt/:attemptId/save')
   async save(
     @CurrentUser() user: IUser,
     @Params() params: SaveAttemptParams,
@@ -53,7 +55,7 @@ class QuizController {
     );
   }
 
-  @Post('/quizzes/:quizId/attempt/:attemptId/submit')
+  @Post('/:quizId/attempt/:attemptId/submit')
   async submit(
     @CurrentUser() user: IUser,
     @Params() params: SubmitAttemptParams,
@@ -69,3 +71,5 @@ class QuizController {
     return result as SubmitAttemptResponse;
   }
 }
+
+export {QuizController};

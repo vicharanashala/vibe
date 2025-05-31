@@ -46,6 +46,21 @@ class QuestionBankRepository {
     return result;
   }
 
+  public async removeQuestionFromAllBanks(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const result = await this.questionBankCollection.updateMany(
+      {questions: questionId},
+      {$pull: {questions: questionId}},
+      {session},
+    );
+
+    return result.modifiedCount; // number of banks updated
+  }
+
   public async update(
     questionBankId: string,
     updateData: Partial<IQuestionBank>,

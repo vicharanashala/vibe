@@ -19,6 +19,7 @@ import {
 import {QuestionBank} from '../classes/transformers/QuestionBank';
 import {Question} from '../classes';
 import TYPES from '../types';
+import {exp} from 'mathjs';
 
 @injectable()
 @JsonController('/question-bank')
@@ -82,3 +83,5 @@ class QuestionBankController {
     return {newQuestionId: id};
   }
 }
+
+export {QuestionBankController};

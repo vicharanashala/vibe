@@ -16,7 +16,7 @@ import {
   IQuestion,
   QuestionType,
 } from 'shared/interfaces/quiz';
-import {CreateQuestionBody} from '../validators/QuestionValidator';
+import {QuestionBody} from '../validators/QuestionValidator';
 
 abstract class BaseQuestion implements IQuestion {
   _id?: string | ObjectId;
@@ -46,8 +46,11 @@ class SOLQuestion extends BaseQuestion implements ISOLSolution {
 
   constructor(question: IQuestion, solution: ISOLSolution) {
     super(question);
-    this.incorrectLotItems = solution.incorrectLotItems;
-    this.correctLotItem = solution.correctLotItem;
+    this.incorrectLotItems = ensureLotItemIds(solution.incorrectLotItems);
+    this.correctLotItem = {
+      ...solution.correctLotItem,
+      _id: solution.correctLotItem._id ?? new ObjectId(),
+    };
   }
 }
 
@@ -57,8 +60,8 @@ class SMLQuestion extends BaseQuestion implements ISMLSolution {
 
   constructor(question: IQuestion, solution: ISMLSolution) {
     super(question);
-    this.incorrectLotItems = solution.incorrectLotItems;
-    this.correctLotItems = solution.correctLotItems;
+    this.incorrectLotItems = ensureLotItemIds(solution.incorrectLotItems);
+    this.correctLotItems = ensureLotItemIds(solution.correctLotItems);
   }
 }
 
@@ -67,7 +70,13 @@ class OTLQuestion extends BaseQuestion implements IOTLSolution {
 
   constructor(question: IQuestion, solution: IOTLSolution) {
     super(question);
-    this.ordering = solution.ordering;
+    this.ordering = solution.ordering.map(order => ({
+      ...order,
+      lotItem: {
+        ...order.lotItem,
+        _id: order.lotItem._id ?? new ObjectId(),
+      },
+    }));
   }
 }
 
@@ -96,9 +105,16 @@ class DESQuestion extends BaseQuestion implements IDESSolution {
   }
 }
 
+function ensureLotItemIds(items: ILotItem[]): ILotItem[] {
+  return items.map(item => ({
+    ...item,
+    _id: item._id ?? new ObjectId(),
+  }));
+}
+
 class QuestionFactory {
   static createQuestion(
-    body: CreateQuestionBody,
+    body: QuestionBody,
   ): SOLQuestion | SMLQuestion | OTLQuestion | NATQuestion | DESQuestion {
     switch (body.question.type) {
       case 'SELECT_ONE_IN_LOT':

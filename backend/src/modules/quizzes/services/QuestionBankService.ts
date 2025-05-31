@@ -8,12 +8,24 @@ import {BaseService} from 'shared/classes/BaseService';
 import {QuestionBank} from '../classes/transformers/QuestionBank';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {NotFoundError} from 'routing-controllers';
+import TYPES from '../types';
+import {inject, injectable} from 'inversify';
 
+import GLOBAL_TYPES from '../../../types';
+
+@injectable()
 class QuestionBankService extends BaseService {
   constructor(
+    @inject(TYPES.QuestionBankRepo)
     private readonly questionBankRepository: QuestionBankRepository,
+
+    @inject(TYPES.QuestionRepo)
     private readonly questionRepository: QuestionRepository,
+
+    @inject(TYPES.CourseRepo)
     private readonly courseRepository: CourseRepository,
+
+    @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
     super(database);
