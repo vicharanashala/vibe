@@ -1,3 +1,5 @@
+import {QuestionBank} from './classes/transformers/QuestionBank';
+
 const TYPES = {
   //Controllers
   QuestionController: Symbol.for('QuestionController'),
@@ -5,6 +7,7 @@ const TYPES = {
   //Services
   QuestionService: Symbol.for('QuestionService'),
   QuizService: Symbol.for('QuizService'),
+  QuestionBankService: Symbol.for('QuestionBankService'),
 
   //Repositories
   QuestionRepo: Symbol.for('QuestionRepo'),

@@ -19,11 +19,8 @@ class QuestionBankService extends BaseService {
     super(database);
   }
 
-  public async create(
-    createQuestionBankBody: CreateQuestionBankBody,
-  ): Promise<string> {
+  public async create(questionBank: QuestionBank): Promise<string> {
     return this._withTransaction(async session => {
-      const questionBank = new QuestionBank(createQuestionBankBody);
       if (questionBank.courseId) {
         const course = await this.courseRepository.read(
           questionBank.courseId,
@@ -48,10 +45,10 @@ class QuestionBankService extends BaseService {
       }
       if (questionBank.questions && questionBank.questions.length > 0) {
         const questions = await this.questionRepository.getByIds(
-          createQuestionBankBody.questions as string[],
+          questionBank.questions as string[],
           session,
         );
-        if (questions.length !== createQuestionBankBody.questions.length) {
+        if (questions.length !== questionBank.questions.length) {
           throw new NotFoundError('Some questions not found');
         }
       }
@@ -173,18 +170,10 @@ class QuestionBankService extends BaseService {
       return shuffledQuestions.slice(0, count);
     });
   }
-  public async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {
-    throw new Error('Method not implemented.');
-  }
-  public async getBanksForCourseVersion(
-    courseVersionId,
-  ): Promise<IQuestionBank[]> {
-    throw new Error('Method not implemented.');
-  }
   public async replaceQuestionWithDuplicate(
-    bankId,
-    originalQuestionId,
-  ): Promise<ID> {
+    bankId: string,
+    questionId: string,
+  ): Promise<string> {
     return this._withTransaction(async session => {
       const questionBank = await this.questionBankRepository.getById(
         bankId,
@@ -195,23 +184,23 @@ class QuestionBankService extends BaseService {
       }
 
       const originalQuestion = await this.questionRepository.getById(
-        originalQuestionId,
+        questionId,
         session,
       );
       if (!originalQuestion) {
         throw new NotFoundError(
-          `Original question with ID ${originalQuestionId} not found`,
+          `Original question with ID ${questionId} not found`,
         );
       }
 
-      const index = questionBank.questions.indexOf(originalQuestionId);
+      const index = questionBank.questions.indexOf(questionId);
       if (index === -1) {
         throw new NotFoundError(
-          `Question with ID ${originalQuestionId} not found in question bank`,
+          `Question with ID ${questionId} not found in question bank`,
         );
       }
       const duplicatedQuestion = await this.questionRepository.duplicate(
-        originalQuestionId,
+        questionId,
         session,
       );
 
@@ -220,4 +209,14 @@ class QuestionBankService extends BaseService {
       return duplicatedQuestion._id.toString();
     });
   }
+  public async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {
+    throw new Error('Method not implemented.');
+  }
+  public async getBanksForCourseVersion(
+    courseVersionId,
+  ): Promise<IQuestionBank[]> {
+    throw new Error('Method not implemented.');
+  }
 }
+
+export {QuestionBankService};
