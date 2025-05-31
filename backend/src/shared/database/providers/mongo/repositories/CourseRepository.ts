@@ -73,11 +73,14 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
   }
-  async read(id: string): Promise<ICourse | null> {
+  async read(id: string, session?: ClientSession): Promise<ICourse | null> {
     await this.init();
-    const course = await this.courseCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const course = await this.courseCollection.findOne(
+      {
+        _id: new ObjectId(id),
+      },
+      {session},
+    );
     if (course) {
       return Object.assign(new Course(), course) as Course;
     } else {

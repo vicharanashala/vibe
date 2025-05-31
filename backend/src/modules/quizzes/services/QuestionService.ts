@@ -18,7 +18,7 @@ class QuestionService {
   ) {}
 
   public async create(question: BaseQuestion): Promise<string> {
-    return await this.questionRepository.createQuestion(question);
+    return await this.questionRepository.create(question);
   }
 
   public async getById(
@@ -26,7 +26,7 @@ class QuestionService {
     raw?: boolean,
     parameterMap?: ParameterMap,
   ): Promise<BaseQuestion | IQuestionRenderView> {
-    const question = await this.questionRepository.getQuestionById(questionId);
+    const question = await this.questionRepository.getById(questionId);
     if (!question) {
       throw new NotFoundError(`Question with ID ${questionId} not found`);
     }

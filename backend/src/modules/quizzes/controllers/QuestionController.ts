@@ -35,15 +35,8 @@ class QuestionController {
   @OnUndefined(201)
   async create(@Body() body: CreateQuestionBody) {
     const question = QuestionFactory.createQuestion(body);
-    try {
-      const questionProcessor = new QuestionProcessor(question);
-      questionProcessor.validate();
-
-      const renderedQuestion = questionProcessor.render();
-      return renderedQuestion;
-    } catch (error) {
-      throw new BadRequestError((error as Error).message);
-    }
+    const id = await this.questionService.create(question);
+    return {questionId: id};
   }
 }
 
