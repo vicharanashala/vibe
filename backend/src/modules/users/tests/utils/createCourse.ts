@@ -11,7 +11,7 @@ interface ItemData {
     URL: string;
     startTime: string;
     endTime: string;
-    points: string;
+    points: number;
   };
   itemId: string;
 }
@@ -122,7 +122,7 @@ async function createCourseWithModulesSectionsAndItems(
             URL: faker.internet.url(),
             startTime: '00:00:00',
             endTime: '00:00:40',
-            points: '10.5',
+            points: 10.5,
           },
           itemId: '',
         };
@@ -136,7 +136,8 @@ async function createCourseWithModulesSectionsAndItems(
           .expect(201);
         //   console.log(itemRes.body);
         //   .expect(201);
-        itemData.itemId = itemRes.body.itemsGroup.items[k].itemId;
+        expect(itemRes.statusCode).toBe(201);
+        itemData.itemId = itemRes.body.itemsGroup.items[k]._id;
 
         sectionData.items.push(itemData);
       }

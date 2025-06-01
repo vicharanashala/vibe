@@ -179,17 +179,17 @@ export class ItemRepository implements IItemRepository {
           switch (found.type) {
             case ItemType.VIDEO:
               item = (await this.videoCollection.findOne({
-                _id: found._id,
+                _id: new ObjectId(found._id),
               })) as VideoItem;
               break;
             case ItemType.QUIZ:
               item = (await this.quizCollection.findOne({
-                _id: found._id,
+                _id: new ObjectId(found._id),
               })) as QuizItem;
               break;
             case ItemType.BLOG:
               item = (await this.blogCollection.findOne({
-                _id: found._id,
+                _id: new ObjectId(found._id),
               })) as BlogItem;
               break;
             default:
