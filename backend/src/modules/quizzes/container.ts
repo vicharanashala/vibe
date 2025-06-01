@@ -8,10 +8,10 @@ import {
 } from './repositories';
 import {QuestionRepository} from './repositories/providers/mongodb/QuestionRepository';
 import {QuestionService} from './services/QuestionService';
-import {QuizService} from './services/QuizService';
+import {AttemptService} from './services/AttemptService';
 import {QuestionController} from './controllers';
 import {QuestionBankController} from './controllers/QuestionBankController';
-import {QuizController} from './controllers/QuizController';
+import {AttemptController} from './controllers/AttemptController';
 import {QuestionBankService} from './services/QuestionBankService';
 import {QuestionBank} from './classes/transformers/QuestionBank';
 import {QuestionBankRepository} from './repositories/providers/mongodb/QuestionBankRepository';
@@ -40,10 +40,10 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .bind(TYPES.QuestionBankService)
     .to(QuestionBankService)
     .inSingletonScope();
-  options.bind(TYPES.QuizService).to(QuizService).inSingletonScope();
+  options.bind(TYPES.AttemptService).to(AttemptService).inSingletonScope();
 
   // Controllers
   options.bind(QuestionController).toSelf().inSingletonScope();
   options.bind(QuestionBankController).toSelf().inSingletonScope();
-  options.bind(QuizController).toSelf().inSingletonScope();
+  options.bind(AttemptController).toSelf().inSingletonScope();
 });

@@ -7,7 +7,7 @@ import {
   Params,
   Post,
 } from 'routing-controllers';
-import {QuizService} from '../services/QuizService';
+import {AttemptService} from '../services/AttemptService';
 import {IUser} from 'shared/interfaces/Models';
 import {
   CreateAttemptParams,
@@ -22,10 +22,10 @@ import TYPES from '../types';
 
 @injectable()
 @JsonController('/quizzes')
-class QuizController {
+class AttemptController {
   constructor(
-    @inject(TYPES.QuizService)
-    private readonly quizService: QuizService,
+    @inject(TYPES.AttemptService)
+    private readonly attemptService: AttemptService,
   ) {}
 
   @Post('/:quizId/attempt')
@@ -34,7 +34,7 @@ class QuizController {
     @Params() params: CreateAttemptParams,
   ): Promise<CreateAttemptResponse> {
     const {quizId} = params;
-    const attempt = await this.quizService.attempt(quizId, user.id);
+    const attempt = await this.attemptService.attempt(quizId, user.id);
     return attempt as CreateAttemptResponse;
   }
 
@@ -47,7 +47,7 @@ class QuizController {
   ): Promise<void> {
     const {quizId, attemptId} = params;
 
-    const attempt = await this.quizService.save(
+    const attempt = await this.attemptService.save(
       user.id,
       quizId,
       attemptId,
@@ -62,7 +62,7 @@ class QuizController {
     @Body() body: QuestionAnswersBody,
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
-    const result = await this.quizService.submit(
+    const result = await this.attemptService.submit(
       user.id,
       quizId,
       attemptId,
@@ -72,4 +72,4 @@ class QuizController {
   }
 }
 
-export {QuizController};
+export {AttemptController};

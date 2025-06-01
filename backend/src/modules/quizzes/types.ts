@@ -6,7 +6,7 @@ const TYPES = {
 
   //Services
   QuestionService: Symbol.for('QuestionService'),
-  QuizService: Symbol.for('QuizService'),
+  AttemptService: Symbol.for('AttemptService'),
   QuestionBankService: Symbol.for('QuestionBankService'),
 
   //Repositories

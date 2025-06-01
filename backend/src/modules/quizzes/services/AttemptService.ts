@@ -24,7 +24,7 @@ import {QuestionBankService} from './QuestionBankService';
 import {ID} from 'shared/types';
 
 @injectable()
-class QuizService {
+class AttemptService {
   constructor(
     @inject(TYPES.QuizRepo)
     private quizRepository: QuizRepository,
@@ -303,4 +303,4 @@ class QuizService {
   }
 }
 
-export {QuizService};
+export {AttemptService};
