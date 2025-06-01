@@ -34,6 +34,11 @@ import {SOLQuestionGrader} from './graders/SOLQuestionGrader';
 import {SMLQuestionGrader} from './graders/SMLQuestionGrader';
 import {Answer, IQuestionAnswerFeedback} from '../interfaces/grading';
 import {QuizItem} from 'modules/courses';
+import {
+  DESQuestionGrader,
+  NATQuestionGrader,
+  OTLQuestionGrader,
+} from './graders';
 
 class QuestionProcessor {
   private tagParser: TagParser;
@@ -116,6 +121,12 @@ class QuestionProcessor {
         return new SOLQuestionGrader(this.question as SOLQuestion);
       case 'SELECT_MANY_IN_LOT':
         return new SMLQuestionGrader(this.question as SMLQuestion);
+      case 'ORDER_THE_LOTS':
+        return new OTLQuestionGrader(this.question as OTLQuestion);
+      case 'NUMERIC_ANSWER_TYPE':
+        return new NATQuestionGrader(this.question as NATQuestion);
+      case 'DESCRIPTIVE':
+        return new DESQuestionGrader(this.question as DESQuestion);
       default:
         throw new Error(
           `No grader found for question type: ${this.question.type}`,
