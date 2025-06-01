@@ -273,8 +273,16 @@ export interface IVideoDetails {
   points: number;
 }
 
+export interface IQuestionBankRef {
+  bankId: string; // ObjectId as string
+  count: number; // How many questions to pick
+  difficulty?: string[]; // Optional filter
+  tags?: string[]; // Optional filter
+  type?: string; // Optional question type filter
+}
+
 export interface IQuizDetails {
-  questions: string[]; // question ids
+  questionBankRefs: IQuestionBankRef[]; // question ids
   passThreshold: number; // 0-1
   maxAttempts: number; // Maximum number of attempts allowed
   quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz

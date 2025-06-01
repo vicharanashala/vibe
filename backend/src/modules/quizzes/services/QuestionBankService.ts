@@ -12,6 +12,7 @@ import TYPES from '../types';
 import {inject, injectable} from 'inversify';
 
 import GLOBAL_TYPES from '../../../types';
+import {IQuestionBankRef} from 'shared/interfaces/Models';
 
 @injectable()
 class QuestionBankService extends BaseService {
@@ -156,30 +157,32 @@ class QuestionBankService extends BaseService {
       );
     });
   }
+
+  //Assumes IQuestionBankRef is valid and do not require validation
   public async getQuestions(
-    questionBankId: string,
-    count: number,
-  ): Promise<ID[]> {
+    questionBankRef: IQuestionBankRef,
+  ): Promise<string[]> {
     return this._withTransaction(async session => {
+      const {
+        bankId: questionBankId,
+        count,
+        difficulty,
+        tags,
+        type,
+      } = questionBankRef;
       const questionBank = await this.questionBankRepository.getById(
         questionBankId,
         session,
       );
-      if (!questionBank) {
-        throw new NotFoundError(
-          `Question bank with ID ${questionBankId} not found`,
-        );
-      }
-      if (questionBank.questions.length === 0) {
-        throw new NotFoundError(
-          `No questions found in question bank with ID ${questionBankId}`,
-        );
-      }
       //Return random question ids
       const shuffledQuestions = questionBank.questions.sort(
         () => 0.5 - Math.random(),
       );
-      return shuffledQuestions.slice(0, count);
+      //convert to string if they are ObjectIds
+      const shuffledQuestionsAsString = shuffledQuestions.map(q =>
+        q.toString(),
+      );
+      return shuffledQuestionsAsString.slice(0, count);
     });
   }
   public async replaceQuestionWithDuplicate(

@@ -13,6 +13,8 @@ import {QuestionController} from './controllers';
 import {QuestionBankController} from './controllers/QuestionBankController';
 import {QuizController} from './controllers/QuizController';
 import {QuestionBankService} from './services/QuestionBankService';
+import {QuestionBank} from './classes/transformers/QuestionBank';
+import {QuestionBankRepository} from './repositories/providers/mongodb/QuestionBankRepository';
 
 export const quizzesContainerModule = new ContainerModule(options => {
   // Repositories
@@ -26,6 +28,10 @@ export const quizzesContainerModule = new ContainerModule(options => {
   options
     .bind(TYPES.UserQuizMetricsRepo)
     .to(UserQuizMetricsRepository)
+    .inSingletonScope();
+  options
+    .bind(TYPES.QuestionBankRepo)
+    .to(QuestionBankRepository)
     .inSingletonScope();
 
   // Services

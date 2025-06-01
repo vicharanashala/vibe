@@ -78,7 +78,9 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   points: number;
 }
 
-class QuizDetailsPayloadValidator implements Omit<IQuizDetails, 'questions'> {
+class QuizDetailsPayloadValidator
+  implements Omit<IQuizDetails, 'questionBankRefs'>
+{
   @JSONSchema({
     title: 'Pass Threshold',
     description: 'Minimum percentage required to pass, between 0 and 1',

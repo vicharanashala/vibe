@@ -20,6 +20,8 @@ import {generateRandomParameterMap} from '../utils/functions/generateRandomParam
 import {QuestionService} from './QuestionService';
 import {inject, injectable} from 'inversify';
 import TYPES from '../types';
+import {QuestionBankService} from './QuestionBankService';
+import {ID} from 'shared/types';
 
 @injectable()
 class QuizService {
@@ -38,29 +40,22 @@ class QuizService {
 
     @inject(TYPES.QuestionService)
     private questionService: QuestionService,
+
+    @inject(TYPES.QuestionBankService)
+    private questionBankService: QuestionBankService,
   ) {}
 
   private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
-    const questions = quiz.details.questions;
-    const questionVisibility = quiz.details.questionVisibility;
-    const numberOfQuestions = questions.length;
+    const questionsBankRefs = quiz.details.questionBankRefs;
+    const selectedQuestionIds: string[] = [];
 
-    let selectedQuestionIds: string[] = [];
-
-    if (numberOfQuestions > questionVisibility) {
-      // Randomly select questionVisibility number of questions
-      const shuffledQuestions = questions.sort(() => 0.5 - Math.random());
-      selectedQuestionIds = shuffledQuestions.slice(0, questionVisibility);
-    } else if (
-      numberOfQuestions < questionVisibility ||
-      numberOfQuestions === questionVisibility
-    ) {
-      // If there are fewer questions than visibility, show all questions
-      // If there are exactly as many questions as visibility, show all questions
-      selectedQuestionIds = questions;
+    for (const questionBankRef of questionsBankRefs) {
+      const questionIdsForBank =
+        await this.questionBankService.getQuestions(questionBankRef);
+      selectedQuestionIds.push(...questionIdsForBank);
     }
 
     const questionDetails: IQuestionDetails[] = [];
@@ -83,7 +78,6 @@ class QuizService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
-
     return {questionDetails, questionRenderViews};
   }
 
