@@ -37,6 +37,22 @@ class QuizRepository {
     }
     return result;
   }
+
+  public async updateQuiz(
+    quiz: QuizItem,
+    session?: ClientSession,
+  ): Promise<QuizItem> {
+    await this.init();
+    const result = await this.quizCollection.findOneAndUpdate(
+      {_id: quiz._id},
+      {$set: quiz},
+      {returnDocument: 'after', session},
+    );
+    if (!result) {
+      return null;
+    }
+    return result;
+  }
 }
 
 export {QuizRepository};

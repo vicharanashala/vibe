@@ -1,5 +1,6 @@
 import {ObjectId} from 'mongodb';
 import {ID, IQuestionBank} from 'shared/interfaces/quiz';
+import {IQuestionBankRef} from 'shared/interfaces/Models';
 import {CreateQuestionBankBody} from '../validators/QuestionBankValidator';
 
 class QuestionBank implements IQuestionBank {
@@ -26,4 +27,26 @@ class QuestionBank implements IQuestionBank {
   }
 }
 
-export {QuestionBank};
+class QuestionBankRef implements IQuestionBankRef {
+  bankId: string; // ObjectId as string
+  count: number; // How many questions to pick
+  difficulty?: string[]; // Optional filter
+  tags?: string[]; // Optional filter
+  type?: string; // Optional question type filter
+
+  constructor(
+    bankId: string,
+    count: number,
+    difficulty?: string[],
+    tags?: string[],
+    type?: string,
+  ) {
+    this.bankId = bankId;
+    this.count = count;
+    this.difficulty = difficulty;
+    this.tags = tags;
+    this.type = type;
+  }
+}
+
+export {QuestionBank, QuestionBankRef};

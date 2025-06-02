@@ -1,9 +1,9 @@
 import {Type} from 'class-transformer';
 import {
   IsArray,
+  IsDate,
   IsDateString,
   IsEnum,
-  IsInt,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
@@ -16,6 +16,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
 import {
   Answer,
   IAttempt,
+  IAttemptDetails,
   IGradingResult,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
@@ -23,7 +24,9 @@ import {
 } from 'modules/quizzes/interfaces/grading';
 import {IQuestionRenderView} from 'modules/quizzes/question-processing/renderers';
 import {ObjectId} from 'mongodb';
+import {IQuizDetails, ItemType} from 'shared/interfaces/Models';
 import {IQuestion, QuestionType} from 'shared/interfaces/quiz';
+import {QuestionBankRef} from '../transformers/QuestionBank';
 
 // Request Schemas
 class CreateAttemptParams {
@@ -66,7 +69,7 @@ class SMLAnswer {
 }
 
 class Order {
-  @IsInt()
+  @IsNumber()
   @IsNotEmpty()
   order: number;
 
@@ -199,6 +202,300 @@ class SubmitAttemptResponse implements Partial<IGradingResult> {
   gradedBy?: string;
 }
 
+class QuizIdParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string;
+}
+
+class QuizAttemptParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  attemptId: string;
+}
+
+class QuizSubmissionParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  submissionId: string;
+}
+
+class UpdateQuizSubmissionParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  submissionId: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  score: number;
+}
+
+class RemoveQuestionBankParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  questionBankId: string;
+}
+
+class AddFeedbackParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  submissionId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  questionId: string;
+}
+
+class GetUserMatricesParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string;
+}
+
+class AddQuestionBankBody implements QuestionBankRef {
+  @IsMongoId()
+  @IsNotEmpty()
+  bankId: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  count: number;
+
+  @IsArray()
+  @IsOptional()
+  difficulty?: string[];
+
+  @IsArray()
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  tag?: string;
+}
+
+class EditQuestionBankBody implements Partial<QuestionBankRef> {
+  @IsMongoId()
+  @IsNotEmpty()
+  bankId: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  count: number;
+
+  @IsArray()
+  @IsOptional()
+  difficulty?: string[];
+
+  @IsArray()
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  tag?: string;
+}
+
+class RegradeSubmissionBody implements Partial<IGradingResult> {
+  @IsNumber()
+  @IsOptional()
+  totalScore?: number;
+
+  @IsNumber()
+  @IsOptional()
+  totalMaxScore?: number;
+
+  @IsOptional()
+  overallFeedback?: IQuestionAnswerFeedback[];
+
+  @IsEnum(['PENDING', 'PASSED', 'FAILED'])
+  @IsNotEmpty()
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+
+  @IsDate()
+  @IsOptional()
+  gradedAt?: Date;
+
+  @IsString()
+  @IsOptional()
+  gradedBy?: string;
+}
+
+class AddFeedbackBody {
+  @IsString()
+  @IsNotEmpty()
+  feedback: string;
+}
+
+class UserQuizMetricsResponse {
+  @IsMongoId()
+  @IsOptional()
+  _id?: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string | ObjectId;
+
+  @IsString()
+  @IsNotEmpty()
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+
+  @IsMongoId()
+  @IsOptional()
+  latestAttemptId?: string | ObjectId;
+
+  @IsMongoId()
+  @IsOptional()
+  latestSubmissionResultId?: string | ObjectId;
+
+  @IsNumber()
+  @IsNotEmpty()
+  remainingAttempts: number;
+
+  @IsNotEmpty()
+  attempts: IAttemptDetails[];
+}
+
+class QuizAttemptResponse {
+  @IsMongoId()
+  @IsOptional()
+  _id?: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string | ObjectId;
+
+  @IsNotEmpty()
+  questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
+
+  @IsOptional()
+  answers?: IQuestionAnswer[];
+
+  @IsDate()
+  @IsNotEmpty()
+  createdAt: Date;
+
+  @IsDate()
+  @IsNotEmpty()
+  updatedAt: Date;
+}
+
+class QuizSubmissionResponse {
+  @IsMongoId()
+  @IsOptional()
+  _id?: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  attemptId: string | ObjectId;
+
+  @IsDate()
+  @IsNotEmpty()
+  submittedAt: Date;
+
+  @IsOptional()
+  gradingResult?: IGradingResult;
+}
+
+class QuizDetailsResponse {
+  @IsMongoId()
+  @IsOptional()
+  _id?: string | ObjectId;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @IsEnum(ItemType)
+  @IsNotEmpty()
+  type: ItemType;
+
+  @IsOptional()
+  details?: IQuizDetails;
+}
+
+class QuizAnalyticsResponse {
+  @IsNumber()
+  @IsNotEmpty()
+  totalAttempts: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  submissions: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  passRate: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  averageScore: number;
+}
+
+class QuizPerformanceResponse {
+  @IsMongoId()
+  @IsNotEmpty()
+  questionId: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  correctRate: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  averageScore: number;
+}
+
+class QuizResultsResponse {
+  @IsMongoId()
+  @IsNotEmpty()
+  studentId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  attemptId: string | ObjectId;
+
+  @IsNumber()
+  @IsNotEmpty()
+  score: number;
+
+  @IsEnum(['PENDING', 'PASSED', 'FAILED'])
+  @IsNotEmpty()
+  status: 'PENDING' | 'PASSED' | 'FAILED' | any;
+}
+
+class FlaggedQuestionResponse {
+  //not yet implemented
+}
+
 export {
   CreateAttemptParams,
   SaveAttemptParams,
@@ -206,4 +503,23 @@ export {
   CreateAttemptResponse,
   SubmitAttemptResponse,
   QuestionAnswersBody,
+  AddQuestionBankBody,
+  EditQuestionBankBody,
+  RegradeSubmissionBody,
+  AddFeedbackBody,
+  QuizIdParam,
+  QuizAttemptParam,
+  QuizSubmissionParam,
+  UpdateQuizSubmissionParam,
+  RemoveQuestionBankParams,
+  GetUserMatricesParams,
+  AddFeedbackParams,
+  UserQuizMetricsResponse,
+  QuizAttemptResponse,
+  QuizSubmissionResponse,
+  QuizDetailsResponse,
+  QuizAnalyticsResponse,
+  QuizPerformanceResponse,
+  QuizResultsResponse,
+  FlaggedQuestionResponse,
 };

@@ -41,6 +41,20 @@ class AttemptRepository {
     }
     return result;
   }
+  public async countAttempts(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<number | null> {
+    await this.init();
+    const result = await this.attemptCollection.countDocuments(
+      {quizId: quizId},
+      {session},
+    );
+    if (!result) {
+      return null;
+    }
+    return result;
+  }
   public async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
@@ -48,6 +62,16 @@ class AttemptRepository {
       {$set: updateData},
       {returnDocument: 'after'},
     );
+    return result;
+  }
+  public async getByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IAttempt[]> {
+    await this.init();
+    const result = await this.attemptCollection
+      .find({quizId: quizId}, {session})
+      .toArray();
     return result;
   }
 }
