@@ -11,7 +11,7 @@ class BaseQuestionRenderer {
     this.tagParser = tagParser;
   }
 
-  render(parameterMap: ParameterMap): BaseQuestion | IQuestionRenderView {
+  render(parameterMap?: ParameterMap): BaseQuestion | IQuestionRenderView {
     if (!this.question.isParameterized || !this.question.parameters?.length) {
       return this.question;
     }

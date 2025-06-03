@@ -189,7 +189,7 @@ describe('Enrollment Controller Integration Tests', () => {
           URL: 'http://url.com',
           startTime: '00:00:00',
           endTime: '00:00:40',
-          points: '10.5',
+          points: 10.5,
         },
       };
 
@@ -209,11 +209,9 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(createItemResponse.body).toHaveProperty('itemsGroup');
       expect(createItemResponse.body.itemsGroup).toHaveProperty('items');
       expect(createItemResponse.body.itemsGroup.items).toHaveLength(1);
-      expect(createItemResponse.body.itemsGroup.items[0]).toHaveProperty(
-        'itemId',
-      );
+      expect(createItemResponse.body.itemsGroup.items[0]).toHaveProperty('_id');
 
-      const itemId = createItemResponse.body.itemsGroup.items[0].itemId;
+      const itemId = createItemResponse.body.itemsGroup.items[0]._id;
 
       // 3. Enroll the user in the course version by hitting at endpoint
 
@@ -347,7 +345,7 @@ describe('Enrollment Controller Integration Tests', () => {
           URL: 'http://url.com',
           startTime: '00:00:00',
           endTime: '00:00:40',
-          points: '10.5',
+          points: 10.5,
         },
       };
 

@@ -1,6 +1,5 @@
 import {ObjectId} from 'mongodb';
-
-import {IQuestionParameter} from 'shared/interfaces/quiz';
+import {ParameterMap} from '../question-processing/tag-parser';
 
 interface ISOLAnswer {
   lotItemId: string;
@@ -27,34 +26,47 @@ interface IDESAnswer {
   answerText: string;
 }
 
+export type Answer =
+  | ISOLAnswer
+  | ISMLAnswer
+  | IOTLAnswer
+  | INATAnswer
+  | IDESAnswer;
+
 interface IQuestionAnswer {
   questionId: string;
-  type: string;
-  isParameterized: boolean;
-  parameters?: IQuestionParameter[];
-  answer: ISOLAnswer | ISMLAnswer | IOTLAnswer | INATAnswer | IDESAnswer;
+  answer: Answer;
 }
 
 interface IAttempt {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
+  questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-interface ISubmissionResult {
+interface IQuestionDetails {
+  questionId: string | ObjectId;
+  parameterMap?: ParameterMap;
+}
+
+interface IQuestionAnswerFeedback {
+  questionId: string | ObjectId;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string; // Optional feedback for the answer
+}
+
+interface ISubmission {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
   attemptId: string | ObjectId;
-  gradingStatus: 'SUBMITTED' | 'GRADED';
-  score?: number;
-  totalScore: number;
   submittedAt: Date;
-  gradedAt: Date;
-  gradedBy: string | ObjectId;
+  gradingResult?: IGradingResult; // Result of the grading process
 }
 
 interface IAttemptDetails {
@@ -66,9 +78,20 @@ interface IUserQuizMetrics {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'PASSED' | 'FAILED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptId?: string | ObjectId;
+  latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
   attempts: IAttemptDetails[];
+}
+
+export interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: Date;
+  gradedBy?: string;
 }
 
 /**
@@ -141,7 +164,7 @@ interface IQuizSettings {
  *    - If exists, return an error
  *    - If not, proceed
  *  - Create SubmissionResult
- *    - Set gradingStatus to 'SUBMITTED'
+ *    - Set gradingStatus to 'PENDING'
  *    - Set submittedAt to current time
  *    - Calculate total score based on points for each question in the attempt
  *    - Set totalScore to the calculated score
@@ -158,8 +181,10 @@ export {
   INATAnswer,
   IDESAnswer,
   IAttempt,
-  ISubmissionResult,
+  ISubmission,
   IAttemptDetails,
   IUserQuizMetrics,
   IQuizSettings,
+  IQuestionDetails,
+  IQuestionAnswerFeedback,
 };

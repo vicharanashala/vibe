@@ -6,10 +6,14 @@ import {
   IsBooleanString,
   IsEmpty,
   IsEnum,
+  IsInt,
+  IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
   Validate,
   ValidateNested,
 } from 'class-validator';
@@ -66,10 +70,7 @@ class LotOrder implements ILotOrder {
   order: number;
 }
 
-class Question implements IQuestion {
-  @IsEmpty()
-  _id?: string | ObjectId;
-
+class Question implements Partial<IQuestion> {
   @IsNotEmpty()
   @IsString()
   text: string;
@@ -163,7 +164,7 @@ class DESSolution implements IDESSolution {
   solutionText: string;
 }
 
-class CreateQuestionBody {
+class QuestionBody {
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => Question)
@@ -195,8 +196,77 @@ class CreateQuestionBody {
     | IDESSolution;
 }
 
+class QuestionResponse
+  extends Question
+  implements
+    Partial<ISOLSolution>,
+    Partial<ISMLSolution>,
+    Partial<IOTLSolution>,
+    Partial<NATQuestion>,
+    Partial<DESSolution>
+{
+  @IsNotEmpty()
+  @IsMongoId()
+  _id?: string | ObjectId;
+
+  @IsOptional()
+  @IsString()
+  solutionText?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Max(10)
+  @Min(0)
+  decimalPrecision?: number;
+
+  @IsOptional()
+  @IsNumber()
+  upperLimit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  lowerLimit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  value?: number;
+
+  @IsOptional()
+  @IsString()
+  expression?: string;
+
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  ordering?: ILotOrder[];
+
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  correctLotItems?: ILotItem[];
+
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => LotItem)
+  incorrectLotItems?: ILotItem[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LotItem)
+  correctLotItem?: ILotItem;
+}
+
+class QuestionId {
+  @IsMongoId()
+  @IsNotEmpty()
+  questionId: string;
+}
+
 export {
-  CreateQuestionBody,
+  QuestionBody,
+  QuestionId,
+  QuestionResponse,
   Question,
   SOLSolution,
   SMLSolution,

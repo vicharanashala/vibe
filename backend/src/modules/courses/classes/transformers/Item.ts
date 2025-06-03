@@ -143,7 +143,7 @@ class ItemBase {
           );
           break;
         case ItemType.QUIZ:
-          quizDetails.questions = [];
+          quizDetails.questionBankRefs = [];
           this.itemDetails = new QuizItem(
             itemBody.name,
             itemBody.description,

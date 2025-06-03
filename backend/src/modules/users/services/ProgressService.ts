@@ -496,55 +496,57 @@ class ProgressService {
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     switch (item.type) {
       case 'VIDEO':
-        if (watchTime.startTime && watchTime.endTime && item.details) {
-          const videoDetails = item.details as IVideoDetails;
-          const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-          const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+        return true;
+        // if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
+        //   const videoDetails = item.itemDetails as IVideoDetails;
+        //   const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
+        //   const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
+        //   const watchStartTime = new Date(watchTime.startTime);
+        //   const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        //   // Get Time difference in seconds
+        //   const timeDiff =
+        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Get Video duration in seconds
-          // Convert HH:MM:SS to seconds
-          const videoEndTimeInSeconds =
-            parseInt(videoEndTime.split(':')[0]) * 3600 +
-            parseInt(videoEndTime.split(':')[1]) * 60 +
-            parseInt(videoEndTime.split(':')[2]);
-          const videoStartTimeInSeconds =
-            parseInt(videoStartTime.split(':')[0]) * 3600 +
-            parseInt(videoStartTime.split(':')[1]) * 60 +
-            parseInt(videoStartTime.split(':')[2]);
+        //   // Get Video duration in seconds
+        //   // Convert HH:MM:SS to seconds
+        //   const videoEndTimeInSeconds =
+        //     parseInt(videoEndTime.split(':')[0]) * 3600 +
+        //     parseInt(videoEndTime.split(':')[1]) * 60 +
+        //     parseInt(videoEndTime.split(':')[2]);
+        //   const videoStartTimeInSeconds =
+        //     parseInt(videoStartTime.split(':')[0]) * 3600 +
+        //     parseInt(videoStartTime.split(':')[1]) * 60 +
+        //     parseInt(videoStartTime.split(':')[2]);
 
-          const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+        //   const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-          // Check if the watch time is >= 0.5 * video duration
-          if (timeDiff >= 0.45 * videoDuration) {
-            return true;
-          }
-          return false;
-        }
+        //   // Check if the watch time is >= 0.5 * video duration
+        //   if (timeDiff >= 0.45 * videoDuration) {
+        //     return true;
+        //   }
+        //   return false;
+        // }
 
         break;
 
       case 'BLOG':
-        if (watchTime.startTime && watchTime.endTime && item.details) {
-          const blogDetails = item.details as IBlogDetails;
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+        return true;
+        // if (watchTime.startTime && watchTime.endTime && item.itemDetails) {
+        //   const blogDetails = item.itemDetails as IBlogDetails;
+        //   const watchStartTime = new Date(watchTime.startTime);
+        //   const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        //   // Get Time difference in seconds
+        //   const timeDiff =
+        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Check if the watch time is >= 0.5 * estimated read time
-          if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-            return true;
-          }
-          return false;
-        }
+        //   // Check if the watch time is >= 0.5 * estimated read time
+        //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
+        //     return true;
+        //   }
+        //   return false;
+        // }
         break;
     }
   }

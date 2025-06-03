@@ -30,14 +30,21 @@ import {Service, Inject} from 'typedi';
 import {MongoDatabase} from '../MongoDatabase';
 import {NotFoundError} from 'routing-controllers';
 import {Module, Section} from 'modules';
+import {inject, injectable} from 'inversify';
+import TYPES from '../../../../../types';
 
 @Service()
+@injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
   private itemsGroupCollection: Collection<ItemsGroup>;
 
-  constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
+  constructor(
+    @Inject(() => MongoDatabase)
+    @inject(TYPES.Database)
+    private db: MongoDatabase,
+  ) {}
 
   private async init() {
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
@@ -73,11 +80,14 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
   }
-  async read(id: string): Promise<ICourse | null> {
+  async read(id: string, session?: ClientSession): Promise<ICourse | null> {
     await this.init();
-    const course = await this.courseCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const course = await this.courseCollection.findOne(
+      {
+        _id: new ObjectId(id),
+      },
+      {session},
+    );
     if (course) {
       return Object.assign(new Course(), course) as Course;
     } else {
