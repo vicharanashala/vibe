@@ -30,10 +30,6 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/lib/store/course-store'
 
 const sampleText = `
-<script
-  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-  type="text/javascript">
-</script>
 # 🌟 Sample Markdown Document
 
 Welcome to this **comprehensive** sample Markdown document! Here, we explore the features of Markdown in a practical and structured way.
@@ -333,8 +329,8 @@ const quizRoute = new Route({
 });
 
 const coursePageRoute = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: '/learn',
+  getParentRoute: () => rootRoute,
+  path: '/student/learn',
   component: CoursePage,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
@@ -376,11 +372,11 @@ const routeTree = rootRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    coursePageRoute,
     articleRoute,
     videoRoute,
     quizRoute,
   ]),
+  coursePageRoute,
 ]);
 
 // For server-side rendering compatibility

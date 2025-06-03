@@ -16,6 +16,7 @@ import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from '../../config/db';
 import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
 import {ProgressController} from './controllers/index';
+import {UserController} from './controllers/UserController';
 import {ProgressService} from './services/ProgressService';
 import {Course} from 'modules/courses';
 useContainer(Container);
@@ -91,7 +92,7 @@ export function setupUsersModuleDependencies(): void {
 setupUsersModuleDependencies();
 
 export const usersModuleOptions: RoutingControllersOptions = {
-  controllers: [EnrollmentController, ProgressController],
+  controllers: [EnrollmentController, ProgressController, UserController],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {

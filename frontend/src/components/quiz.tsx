@@ -1,13 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical } from "lucide-react";
 
 // Enhanced question types
 interface QuizQuestion {
   id: string;
-  type: 'mcq' | 'multi_select' | 'numerical' | 'matching' | 'short_answer' | 'ranking';
+  type: 'mcq' | 'multi_select' | 'numerical' | 'short_answer' | 'ranking';
   question: string;
   options?: string[]; // For MCQ, multi-select, ranking questions
-  pairs?: { left: string; right: string }[]; // For matching questions
-  correctAnswer: string | number | number[] | { [key: string]: string } | string[]; // Different types for different question types
+  correctAnswer: string | number | number[] | string[]; // Different types for different question types
   points: number;
   timeLimit?: number; // in seconds
   tolerance?: number; // For numerical questions
@@ -21,12 +30,12 @@ interface QuizProps {
 
 export default function Quiz({ content }: QuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | number | number[] | { [key: string]: string } | string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [score, setScore] = useState(0);
-  const [currentConnecting, setCurrentConnecting] = useState<string | null>(null);
+  const [, setCurrentConnecting] = useState<string | null>(null);
 
   // Generate questions based on content
   const generateQuestionsFromContent = (content: string): QuizQuestion[] => {
@@ -81,42 +90,9 @@ export default function Quiz({ content }: QuizProps) {
       timeLimit: 15
     });
 
-    // Matching Question
-    questions.push({
-      id: '5',
-      type: 'matching',
-      question: 'Match the following concepts with their descriptions:',
-      pairs: [
-        { left: 'Quiz', right: 'Interactive assessment tool' },
-        { left: 'Content', right: 'Educational material' },
-        { left: 'Learning', right: 'Knowledge acquisition process' },
-        { left: 'Assessment', right: 'Evaluation method' },
-        { left: 'Feedback', right: 'Response to performance' }
-      ],
-      // Add extra options to make it more challenging
-      options: [
-        'Interactive assessment tool',
-        'Educational material', 
-        'Knowledge acquisition process',
-        'Evaluation method',
-        'Response to performance',
-        'Teaching methodology',
-        'Student engagement tool'
-      ],
-      correctAnswer: {
-        'Quiz': 'Interactive assessment tool',
-        'Content': 'Educational material',
-        'Learning': 'Knowledge acquisition process',
-        'Assessment': 'Evaluation method',
-        'Feedback': 'Response to performance'
-      },
-      points: 12,
-      timeLimit: 60
-    });
-
     // Ranking Question
     questions.push({
-      id: '6',
+      id: '5',
       type: 'ranking',
       question: 'Rank the following learning methods from most effective to least effective:',
       options: ['Active Practice', 'Passive Reading', 'Interactive Quizzes', 'Group Discussion'],
@@ -162,7 +138,7 @@ export default function Quiz({ content }: QuizProps) {
     }
   };
 
-  const handleAnswer = (answer: string | number | number[] | { [key: string]: string } | string[]) => {
+  const handleAnswer = (answer: string | number | number[] | string[]) => {
     setAnswers(prev => ({
       ...prev,
       [currentQuestion.id]: answer
@@ -193,7 +169,7 @@ export default function Quiz({ content }: QuizProps) {
     }
   }, [currentQuestionIndex, quizStarted, currentQuestion?.timeLimit]);
 
-  const isCorrectAnswer = (question: QuizQuestion, userAnswer: string | number | number[] | { [key: string]: string } | string[]): boolean => {
+  const isCorrectAnswer = (question: QuizQuestion, userAnswer: string | number | number[] | string[]): boolean => {
     switch (question.type) {
       case 'mcq': {
         return userAnswer === question.correctAnswer;
@@ -218,13 +194,6 @@ export default function Quiz({ content }: QuizProps) {
         return Math.abs(numAnswer - correctNum) <= tolerance;
       }
       
-      case 'matching': {
-        if (typeof userAnswer !== 'object' || typeof question.correctAnswer !== 'object') return false;
-        const userMatching = userAnswer as { [key: string]: string };
-        const correctMatching = question.correctAnswer as { [key: string]: string };
-        return Object.keys(correctMatching).every(key => userMatching[key] === correctMatching[key]);
-      }
-      
       case 'ranking': {
         if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) return false;
         return JSON.stringify(userAnswer) === JSON.stringify(question.correctAnswer);
@@ -235,7 +204,7 @@ export default function Quiz({ content }: QuizProps) {
     }
   };
 
-  const isAnswerValid = (question: QuizQuestion, answer: string | number | number[] | { [key: string]: string } | string[]): boolean => {
+  const isAnswerValid = (question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
     if (answer === undefined || answer === null) return false;
     
     switch (question.type) {
@@ -250,11 +219,6 @@ export default function Quiz({ content }: QuizProps) {
       }
       case 'numerical': {
         return typeof answer === 'number' && !isNaN(answer);
-      }
-      case 'matching': {
-        if (typeof answer !== 'object' || !question.pairs) return false;
-        const matchAnswer = answer as { [key: string]: string };
-        return question.pairs.every(pair => matchAnswer[pair.left] && matchAnswer[pair.left].trim().length > 0);
       }
       case 'ranking': {
         return Array.isArray(answer) && answer.length === (question.options?.length || 0);
@@ -280,86 +244,14 @@ export default function Quiz({ content }: QuizProps) {
       case 'multi_select': return 'Multiple Select';
       case 'short_answer': return 'Short Answer';
       case 'numerical': return 'Numerical';
-      case 'matching': return 'Matching';
       case 'ranking': return 'Ranking';
       default: return 'Question';
     }
   };
-
-  const getQuestionTypeColor = (type: string): string => {
-    switch (type) {
-      case 'mcq': return 'bg-blue-100 text-blue-800';
-      case 'multi_select': return 'bg-green-100 text-green-800';
-      case 'short_answer': return 'bg-yellow-100 text-yellow-800';
-      case 'numerical': return 'bg-purple-100 text-purple-800';
-      case 'matching': return 'bg-red-100 text-red-800';
-      case 'ranking': return 'bg-indigo-100 text-indigo-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Handle line drawing for matching questions
-  const handleMatchingItemClick = useCallback((item: string, isLeftSide: boolean) => {
-    if (currentQuestion.type !== 'matching') return;
-    
-    if (currentConnecting === null) {
-      // Start new connection
-      setCurrentConnecting(`${isLeftSide ? 'left:' : 'right:'}${item}`);
-    } else {
-      const [side, selectedItem] = currentConnecting.split(':');
-      
-      // Only allow connecting from left to right or right to left
-      if ((side === 'left' && !isLeftSide) || (side === 'right' && isLeftSide)) {
-        // Complete connection
-        const currentMatches = (answers[currentQuestion.id] as { [key: string]: string }) || {};
-        const newMatches = { ...currentMatches };
-        
-        if (side === 'left') {
-          newMatches[selectedItem] = item;
-        } else {
-          newMatches[item] = selectedItem;
-        }
-        
-        handleAnswer(newMatches);
-        setCurrentConnecting(null);
-      } else {
-        // Switch to new item on same side
-        setCurrentConnecting(`${isLeftSide ? 'left:' : 'right:'}${item}`);
-      }
-    }
-  }, [currentConnecting, currentQuestion, answers, handleAnswer]);
-
   // Reset connection when changing questions
   useEffect(() => {
     setCurrentConnecting(null);
   }, [currentQuestionIndex]);
-  
-  // Function to check if an item is connected
-  const isItemConnected = useCallback((item: string, isLeftSide: boolean) => {
-    if (currentQuestion.type !== 'matching' || !answers[currentQuestion.id]) return false;
-    
-    const matches = answers[currentQuestion.id] as { [key: string]: string };
-    
-    if (isLeftSide) {
-      return item in matches;
-    } else {
-      return Object.values(matches).includes(item);
-    }
-  }, [currentQuestion, answers]);
-
-  // Function to get connected pair
-  const getConnectedPair = useCallback((item: string, isLeftSide: boolean) => {
-    if (currentQuestion.type !== 'matching' || !answers[currentQuestion.id]) return null;
-    
-    const matches = answers[currentQuestion.id] as { [key: string]: string };
-    
-    if (isLeftSide) {
-      return matches[item] || null;
-    } else {
-      const key = Object.keys(matches).find(k => matches[k] === item);
-      return key || null;
-    }
-  }, [currentQuestion, answers]);
 
   // Handle drag start for ranking items
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -394,82 +286,97 @@ export default function Quiz({ content }: QuizProps) {
   // Quiz not started
   if (!quizStarted) {
     return (
-      <div className="quiz-container mx-auto p-6 bg-white rounded-lg shadow-md">
-        <h1 className="quiz-title text-2xl font-bold mb-4">Enhanced Quiz</h1>
-        <div className="quiz-content">
-          <p className="mb-6 text-gray-700">{content}</p>
+      <Card className="mx-auto">
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold">Enhanced Quiz</CardTitle>
+          <CardDescription className="text-lg">
+            Test your knowledge with this interactive quiz
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+            <p className="text-muted-foreground">{content}</p>
+          </div>
           
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Quiz Overview:</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
-              {quizQuestions.map((q, index) => (
-                <div key={q.id} className={`text-xs px-2 py-1 rounded-full text-center ${getQuestionTypeColor(q.type)}`}>
-                  Q{index + 1}: {getQuestionTypeLabel(q.type)}
-                </div>
-              ))}
-            </div>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>📊 Questions: {quizQuestions.length}</p>
-              <p>🎯 Total Points: {getTotalPoints()}</p>
-              <p>⏱️ Estimated Time: {Math.ceil(quizQuestions.reduce((total, q) => total + (q.timeLimit || 30), 0) / 60)} minutes</p>
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Quiz Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl">📊</span>
+                <span>Questions: {quizQuestions.length}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Trophy className="h-5 w-5" />
+                <span>Total Points: {getTotalPoints()}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-5 w-5" />
+                <span>Est. Time: {Math.ceil(quizQuestions.reduce((total, q) => total + (q.timeLimit || 30), 0) / 60)} min</span>
+              </div>
             </div>
           </div>
           
-          <button 
-            onClick={startQuiz}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors font-medium"
-          >
+          <Button onClick={startQuiz} className="w-full" size="lg">
             Start Quiz
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   // Quiz completed
   if (quizCompleted) {
     return (
-      <div className="quiz-container mx-auto p-6 bg-white rounded-lg shadow-md">
-        <h1 className="quiz-title text-2xl font-bold mb-4">Quiz Completed!</h1>
-        <div className="quiz-results">
-          <div className="text-center mb-6">
-            <div className="text-4xl font-bold text-green-600 mb-4">
+      <Card className="mx-auto">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold">Quiz Completed!</CardTitle>
+          <CardDescription>Great job! Here are your results.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">            <div className="text-center space-y-4">
+            <div className="text-6xl font-bold text-primary drop-shadow-sm">
               {score}/{getTotalPoints()}
             </div>
-            <p className="text-lg mb-4">
+            <p className="text-xl text-foreground">
               You scored {Math.round((score / getTotalPoints()) * 100)}%
             </p>
             {score === getTotalPoints() && (
-              <p className="text-green-600 font-medium">Perfect Score! 🎉</p>
+              <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
+                Perfect Score! 🎉
+              </Badge>
             )}
           </div>
           
-          {/* Detailed Results */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Question Details:</h3>
+          <Separator />
+          
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Question Details</h3>
             <div className="space-y-3">
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
                 const correct = isCorrectAnswer(question, userAnswer);
                 return (
-                  <div key={question.id} className={`p-3 rounded-md border ${correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">
-                        Q{index + 1}. {getQuestionTypeLabel(question.type)}
-                      </span>
-                      <span className={`text-sm ${correct ? 'text-green-600' : 'text-red-600'}`}>
-                        {correct ? `+${question.points}` : '0'} / {question.points} points
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{question.question}</p>
-                  </div>
+                  <Card key={question.id} className={correct ? 'quiz-success-card' : 'quiz-error-card'}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Badge variant="outline">
+                            Q{index + 1}: {getQuestionTypeLabel(question.type)}
+                          </Badge>
+                        </div>
+                        <Badge variant={correct ? 'default' : 'destructive'}>
+                          {correct ? `+${question.points}` : '0'} / {question.points} points
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">{question.question}</p>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
           </div>
           
           <div className="text-center">
-            <button 
+            <Button 
               onClick={() => {
                 setQuizStarted(false);
                 setQuizCompleted(false);
@@ -477,266 +384,192 @@ export default function Quiz({ content }: QuizProps) {
                 setAnswers({});
                 setScore(0);
               }}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              variant="outline"
+              size="lg"
             >
+              <RotateCcw className="mr-2 h-4 w-4" />
               Retake Quiz
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Quiz in progress
   return (
-    <div className="quiz-container mx-auto p-6 bg-white rounded-lg shadow-md">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-sm text-gray-600">
-          Question {currentQuestionIndex + 1} of {quizQuestions.length}
+    <Card className="mx-auto">
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <Badge variant="outline">
+            Question {currentQuestionIndex + 1} of {quizQuestions.length}
+          </Badge>
+          {timeLeft > 0 && (
+            <Badge 
+              variant="secondary" 
+              className={`font-mono text-lg px-3 py-2 ${timeLeft <= 10 ? 'bg-destructive/20 text-destructive animate-pulse border-destructive/50' : ''}`}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              {formatTime(timeLeft)}
+            </Badge>
+          )}
         </div>
-        {timeLeft > 0 && (
-          <div className="text-lg font-mono bg-black text-white px-3 py-1 rounded">
-            {formatTime(timeLeft)}
+        <Progress 
+          value={((currentQuestionIndex + 1) / quizQuestions.length) * 100} 
+          className="w-full h-3"
+        />
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Badge variant={currentQuestion.type === 'mcq' ? 'default' : 
+                           currentQuestion.type === 'multi_select' ? 'secondary' :
+                           currentQuestion.type === 'short_answer' ? 'outline' :
+                           currentQuestion.type === 'numerical' ? 'destructive' :
+                           'secondary'}>
+              {getQuestionTypeLabel(currentQuestion.type)}
+            </Badge>
+            <Badge variant="outline">
+              <Trophy className="mr-1 h-3 w-3" />
+              {currentQuestion.points} points
+            </Badge>
           </div>
-        )}
-      </div>
+          <h2 className="text-2xl font-semibold leading-tight">
+            {currentQuestion.question}
+          </h2>
 
-      {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-        <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${((currentQuestionIndex + 1) / quizQuestions.length) * 100}%` }}
-        ></div>
-      </div>
-
-      {/* Question */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getQuestionTypeColor(currentQuestion.type)}`}>
-            {getQuestionTypeLabel(currentQuestion.type)}
-          </span>
-          <span className="text-sm text-gray-600">
-            {currentQuestion.points} points
-          </span>
-        </div>
-        <h2 className="text-xl font-semibold mb-4">
-          {currentQuestion.question}
-        </h2>
-
-        {/* MCQ Options */}
-        {currentQuestion.type === 'mcq' && currentQuestion.options && (
-          <div className="space-y-3">
-            {currentQuestion.options.map((option, index) => (
-              <label 
-                key={index}
-                className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="radio"
-                  name={`question-${currentQuestion.id}`}
-                  value={index}
-                  checked={answers[currentQuestion.id] === index}
-                  onChange={() => handleAnswer(index)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span>{option}</span>
-              </label>
-            ))}
-          </div>
-        )}
-
-        {/* Multi-Select Options */}
-        {currentQuestion.type === 'multi_select' && currentQuestion.options && (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-600 mb-3">Select all that apply:</p>
-            {currentQuestion.options.map((option, index) => (
-              <label 
-                key={index}
-                className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  value={index}
-                  checked={Array.isArray(answers[currentQuestion.id]) && (answers[currentQuestion.id] as number[]).includes(index)}
-                  onChange={(e) => {
-                    const currentAnswers = Array.isArray(answers[currentQuestion.id]) ? [...(answers[currentQuestion.id] as number[])] : [];
-                    if (e.target.checked) {
-                      handleAnswer([...currentAnswers, index]);
-                    } else {
-                      handleAnswer(currentAnswers.filter(i => i !== index));
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span>{option}</span>
-              </label>
-            ))}
-          </div>
-        )}
-
-        {/* Short Answer Input */}
-        {currentQuestion.type === 'short_answer' && (
-          <input
-            type="text"
-            value={(answers[currentQuestion.id] as string) || ''}
-            onChange={(e) => handleAnswer(e.target.value)}
-            placeholder="Type your answer here"
-            className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        )}
-
-        {/* Numerical Input */}
-        {currentQuestion.type === 'numerical' && (
-          <div>
-            <input
-              type="number"
-              value={(answers[currentQuestion.id] as number) || ''}
-              onChange={(e) => handleAnswer(parseFloat(e.target.value) || 0)}
-              placeholder="Enter a number"
-              className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {currentQuestion.tolerance && (
-              <p className="text-xs text-gray-500 mt-1">
-                Tolerance: ±{currentQuestion.tolerance}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Matching Questions - Improved Interface */}
-        {currentQuestion.type === 'matching' && currentQuestion.pairs && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-3">Click items to connect matching pairs:</p>
-            
-            <div className="relative flex justify-between">
-              {/* Left Column */}
-              <div className="w-5/12 space-y-4">
-                {currentQuestion.pairs.map((pair, index) => (
-                  <div 
-                    key={`left-${index}`}
-                    onClick={() => handleMatchingItemClick(pair.left, true)}
-                    className={`p-3 border rounded-md cursor-pointer transition-all
-                      ${currentConnecting === `left:${pair.left}` ? 'bg-blue-200 border-blue-500' : ''}
-                      ${isItemConnected(pair.left, true) ? 'bg-green-100 border-green-500' : 'hover:bg-gray-50'}
-                    `}
-                  >
-                    {pair.left}
-                    <div className="w-3 h-3 rounded-full bg-blue-600 absolute -right-1.5 top-1/2 transform -translate-y-1/2"></div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Connection Lines */}
-              <div className="absolute w-full h-full pointer-events-none">
-                {currentQuestion.pairs.map((pair, index) => {
-                  const connectedRight = getConnectedPair(pair.left, true);
-                  if (!connectedRight) return null;
-                  
-                  // Find indexes to calculate positions
-                  const rightOptions = currentQuestion.options || 
-                    currentQuestion.pairs?.map(p => p.right) || [];
-                  const rightIndex = rightOptions.findIndex(item => item === connectedRight);
-                  
-                  return (
-                    <svg 
-                      key={`line-${index}`} 
-                      className="absolute top-0 left-0 w-full h-full"
-                    >
-                      <line 
-                        x1="45%" 
-                        y1={`${(index * 50) + 25}px`}
-                        x2="55%" 
-                        y2={`${(rightIndex * 50) + 25}px`}
-                        stroke="green" 
-                        strokeWidth="2"
-                      />
-                    </svg>
-                  );
-                })}
-              </div>
-              
-              {/* Right Column */}
-              <div className="w-5/12 space-y-4">
-                {(currentQuestion.options || currentQuestion.pairs?.map(p => p.right)).map((item, index) => (
-                  <div 
-                    key={`right-${index}`}
-                    onClick={() => handleMatchingItemClick(item, false)}
-                    className={`p-3 border rounded-md cursor-pointer transition-all
-                      ${currentConnecting === `right:${item}` ? 'bg-blue-200 border-blue-500' : ''}
-                      ${isItemConnected(item, false) ? 'bg-green-100 border-green-500' : 'hover:bg-gray-50'}
-                    `}
-                  >
-                    {item}
-                    <div className="w-3 h-3 rounded-full bg-blue-600 absolute -left-1.5 top-1/2 transform -translate-y-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Reset Connections Button */}
-            {Object.keys((answers[currentQuestion.id] as { [key: string]: string }) || {}).length > 0 && (
-              <button 
-                onClick={() => {
-                  handleAnswer({});
-                  setCurrentConnecting(null);
-                }}
-                className="text-sm px-3 py-1 text-red-600 border border-red-300 rounded hover:bg-red-50"
-              >
-                Reset Connections
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Ranking Questions - Improved Drag & Drop Interface */}
-        {currentQuestion.type === 'ranking' && currentQuestion.options && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-3">Drag and drop items to rank them:</p>
-            <div className="space-y-2">
-              {((answers[currentQuestion.id] as string[]) || currentQuestion.options).map((item, index) => (
-                <div 
-                  key={item} 
-                  className="flex items-center space-x-3 p-3 border rounded-md bg-white hover:bg-gray-50"
-                  draggable={true}
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, index)}
+          {/* MCQ Options */}
+          {currentQuestion.type === 'mcq' && currentQuestion.options && (
+            <RadioGroup 
+              value={answers[currentQuestion.id]?.toString()} 
+              onValueChange={(value) => handleAnswer(parseInt(value))}
+              className="space-y-3"
+            >
+              {currentQuestion.options.map((option, index) => (
+                <Label 
+                  key={index} 
+                  htmlFor={`option-${index}`}
+                  className="quiz-option-hover flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full"
                 >
-                  {/* Drag Handle (6 dots) */}
-                  <div className="cursor-grab active:cursor-grabbing grid grid-rows-2 grid-cols-3 gap-1">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                    ))}
-                  </div>
-                  
-                  <span className="font-medium text-gray-700 min-w-[30px]">{index + 1}.</span>
-                  <span className="flex-1">{item}</span>
-                </div>
+                  <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                  <span className="flex-1">{option}</span>
+                </Label>
+              ))}
+            </RadioGroup>
+          )}
+
+          {/* Multi-Select Options */}
+          {currentQuestion.type === 'multi_select' && currentQuestion.options && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Select all that apply:</p>
+              {currentQuestion.options.map((option, index) => (
+                <Label 
+                  key={index}
+                  htmlFor={`multi-${index}`}
+                  className="flex items-center space-x-3 rounded-lg border border-border p-4 hover:bg-accent/50 cursor-pointer w-full transition-colors"
+                >
+                  <Checkbox 
+                    id={`multi-${index}`}
+                    checked={Array.isArray(answers[currentQuestion.id]) && (answers[currentQuestion.id] as number[]).includes(index)}
+                    onCheckedChange={(checked) => {
+                      const currentAnswers = Array.isArray(answers[currentQuestion.id]) ? [...(answers[currentQuestion.id] as number[])] : [];
+                      if (checked) {
+                        handleAnswer([...currentAnswers, index]);
+                      } else {
+                        handleAnswer(currentAnswers.filter(i => i !== index));
+                      }
+                    }}
+                  />
+                  <span className="flex-1">{option}</span>
+                </Label>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <button
-          onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-          disabled={currentQuestionIndex === 0}
-          className="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Previous
-        </button>
-        
-        <button
-          onClick={handleNextQuestion}
-          disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id])}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
-        </button>
-      </div>
-    </div>
+          {/* Short Answer Input */}
+          {currentQuestion.type === 'short_answer' && (
+            <div className="space-y-2">
+              <Label htmlFor="short-answer">Your Answer</Label>
+              <Input
+                id="short-answer"
+                type="text"
+                value={(answers[currentQuestion.id] as string) || ''}
+                onChange={(e) => handleAnswer(e.target.value)}
+                placeholder="Type your answer here"
+                className="text-lg"
+              />
+            </div>
+          )}
+
+          {/* Numerical Input */}
+          {currentQuestion.type === 'numerical' && (
+            <div className="space-y-2">
+              <Label htmlFor="numerical-answer">Enter a number</Label>
+              <Input
+                id="numerical-answer"
+                type="number"
+                value={(answers[currentQuestion.id] as number) || ''}
+                onChange={(e) => handleAnswer(parseFloat(e.target.value) || 0)}
+                placeholder="Enter a number"
+                className="text-lg"
+              />
+              {currentQuestion.tolerance && (
+                <p className="text-xs text-muted-foreground">
+                  Tolerance: ±{currentQuestion.tolerance}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Ranking Questions */}
+          {currentQuestion.type === 'ranking' && currentQuestion.options && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Drag and drop items to rank them:</p>
+              <div className="space-y-2">
+                {((answers[currentQuestion.id] as string[]) || currentQuestion.options).map((item, index) => (
+                  <div 
+                    key={item} 
+                    className="flex items-center space-x-3 px-4 py-3 bg-card hover:bg-accent/50 cursor-move transition-colors border border-border rounded-lg"
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
+                  >
+                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    <Badge variant="outline" className="min-w-[40px] justify-center">
+                      {index + 1}
+                    </Badge>
+                    <span className="flex-1">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Navigation */}
+        <div className="flex justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentQuestionIndex === 0}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Previous
+          </Button>
+          
+          <Button
+            onClick={handleNextQuestion}
+            disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id])}
+          >
+            {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

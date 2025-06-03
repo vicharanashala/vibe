@@ -25,6 +25,16 @@ export interface IUserRepository {
   findByEmail(email: string, session?: ClientSession): Promise<IUser | null>;
 
   /**
+   * Finds a user by their Firebase UID.
+   * @param firebaseUID - The Firebase UID of the user to find.
+   * @returns A promise that resolves to the user if found, or null if not found.
+   */
+  findByFirebaseUID(
+    firebaseUID: string,
+    session?: ClientSession,
+  ): Promise<IUser | null>;
+
+  /**
    * Adds a role to a user.
    * @param userId - The ID of the user to add the role to.
    * @param role - The role to add.

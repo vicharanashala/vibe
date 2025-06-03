@@ -1,7 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Card } from '@/components/ui/card';
+import { Play, Pause, SkipBack, Volume2 } from 'lucide-react';
+import { useStartItem, useStopItem } from '../lib/api/hooks';
+import { useAuthStore } from '../lib/store/auth-store';
+import { useCourseStore } from '../lib/store/course-store';
 
 interface VideoProps {
-  youtubeUrl: string;
+  URL: string;
+  startTime?: string;
+  endTime?: string;
+  points?: string;
 }
 
 // Helper to extract YouTube video ID from URL
@@ -43,7 +53,20 @@ interface YTPlayerInstance {
   getAvailablePlaybackRates?: () => number[];
 }
 
-const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
+// Helper to parse time string (HH:MM:SS or MM:SS or SS) to seconds
+function parseTimeToSeconds(timeStr: string): number {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1]; // MM:SS
+  } else {
+    return parts[0] || 0; // SS
+  }
+}
+
+export default function Video({ URL, startTime, endTime, points }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -54,8 +77,56 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
+  const videoId = getYouTubeId(URL);
+  const userId = useAuthStore((state) => state.user?.userId);
+  const { currentCourse, setWatchItemId } = useCourseStore();
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
+  
+  // Parse start and end times
+  const startTimeSeconds = parseTimeToSeconds(startTime || '0');
+  const endTimeSeconds = parseTimeToSeconds(endTime || '');
+  
+  const progressStartedRef = useRef(false);
+  const progressStoppedRef = useRef(false);
 
-  const videoId = getYouTubeId(youtubeUrl);
+  function handleSendStartItem() {
+    if (!userId || !currentCourse?.itemId) return;
+    startItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId)
+  }
+
+  function handleStopProgress() {
+    if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId) return;
+    stopItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+  }
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -64,33 +135,42 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
-          controls: 0, // Hide default controls
-          disablekb: 1, // Disable keyboard controls
+          controls: 0,
+          disablekb: 1,
           modestbranding: 1,
           rel: 0,
-          fs: 0, // Disable fullscreen
-          iv_load_policy: 3, // Hide video annotations
-          cc_load_policy: 0, // Hide closed captions
-          autohide: 1, // Hide controls automatically
-          showinfo: 0, // Hide video title and uploader
-          playsinline: 1, // Play inline on mobile
-          enablejsapi: 1, // Enable JS API
-          origin: window.location.origin, // Set origin for security
-          widget_referrer: window.location.origin, // Additional security
-          start: 0, // Start from beginning
-          end: 0, // No end time restriction
-          loop: 0, // Don't loop
-          autoplay: 0, // Don't autoplay
+          fs: 0,
+          iv_load_policy: 3,
+          cc_load_policy: 0,
+          autohide: 1,
+          showinfo: 0,
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin,
+          widget_referrer: window.location.origin,
+          start: startTimeSeconds,
+          end: 0,
+          loop: 0,
+          autoplay: 0,
         },
         events: {
           onReady: (event: { target: YTPlayerInstance }) => {
             setPlayerReady(true);
             setDuration(event.target.getDuration());
             setVolume(event.target.getVolume());
+            setMaxTime(startTimeSeconds);
+            event.target.seekTo(startTimeSeconds, true);
           },
           onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
-            if (window.YT && event.data === window.YT.PlayerState.PLAYING) setPlaying(true);
-            else setPlaying(false);
+            if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+              setPlaying(true);
+              if (!progressStartedRef.current) {
+                handleSendStartItem();
+                progressStartedRef.current = true;
+              }
+            } else {
+              setPlaying(false);
+            }
           },
         },
       });
@@ -103,32 +183,29 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
       document.body.appendChild(tag);
       window.onYouTubeIframeAPIReady = createPlayer;
     }
-  }, [videoId]);
+
+    // Cleanup when component unmounts or URL changes
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy?.();
+        playerRef.current = null;
+      }
+    };
+  }, [videoId, startTimeSeconds]);
 
   // Block keyboard shortcuts globally when component is mounted
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block common YouTube keyboard shortcuts
       const blockedKeys = [
-        'Space', // Play/pause
-        'KeyK', // Play/pause
-        'ArrowLeft', // Rewind
-        'ArrowRight', // Fast forward
-        'ArrowUp', // Volume up
-        'ArrowDown', // Volume down
-        'KeyM', // Mute
-        'KeyF', // Fullscreen
-        'KeyT', // Theater mode
-        'KeyC', // Captions
-        'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 
-        'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', // Seek to position
-        'Period', 'Comma', // Frame by frame
-        'KeyI', 'KeyO', // In/Out points
+        'Space', 'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
+        'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+        'Period', 'Comma', 'KeyI', 'KeyO',
       ];
 
       if (blockedKeys.includes(e.code) || 
-          (e.shiftKey && e.code === 'Period') || // Speed up
-          (e.shiftKey && e.code === 'Comma')) { // Speed down
+          (e.shiftKey && e.code === 'Period') || 
+          (e.shiftKey && e.code === 'Comma')) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -138,7 +215,7 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, []);
 
-  // Poll current time and prevent forward seeking
+  // Poll current time and enforce time constraints
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (playerReady) {
@@ -150,66 +227,56 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
           setDuration(player.getDuration());
           setVolume(player.getVolume());
           
-          // Prevent forward seeking - adjust tolerance based on playback speed
-          const speedTolerance = playbackRate * 1.0; // Allow more tolerance at higher speeds
+          // Enforce startTime constraint
+          if (time < startTimeSeconds) {
+            player.seekTo(startTimeSeconds, true);
+            setMaxTime(startTimeSeconds);
+            return;
+          }
+          
+          // Enforce endTime constraint
+          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
+            if (!progressStoppedRef.current) {
+              handleStopProgress();
+              progressStoppedRef.current = true;
+            }
+            player.pauseVideo();
+            player.seekTo(endTimeSeconds, true);
+            setMaxTime(endTimeSeconds);
+            return;
+          }
+          
+          // Prevent forward seeking beyond what they've already watched
+          const speedTolerance = playbackRate * 1.0;
           const timeDifference = time - maxTime;
           
-          // Only prevent seeking if the jump is significantly larger than expected for the current speed
-          if (timeDifference > speedTolerance + 1.0) { // +1 second base tolerance
+          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
             player.seekTo(maxTime, true);
-          } else {
+          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
             setMaxTime(Math.max(maxTime, time));
           }
         }
-      }, Math.max(200, 500 / playbackRate)); // Adjust polling frequency based on speed
+      }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate]); // Add playbackRate to dependencies
+  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds]);
 
   // Control handlers
   const handlePlayPause = () => {
     const player = playerRef.current;
-    if (!player) return;
-    if (playing) player.pauseVideo();
-    else player.playVideo();
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value);
-    setVolume(v);
-    playerRef.current?.setVolume(v);
-  };
-
-  const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rate = Number(e.target.value);
-    setPlaybackRate(rate);
-    const player = playerRef.current;
-    if (player && typeof player.getAvailablePlaybackRates === 'function') {
-      const availableRates = player.getAvailablePlaybackRates!();
-      let closest = availableRates[0];
-      for (const r of availableRates) {
-        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
-      }
-      player.setPlaybackRate(closest);
-      setPlaybackRate(closest);
+    if (!player || typeof player.pauseVideo !== 'function') return; 
+    if (playing) {
+      player.pauseVideo();
     } else {
-      playerRef.current?.setPlaybackRate(rate);
+      player.playVideo();
     }
   };
 
   const handleBackward = () => {
     const player = playerRef.current;
     if (!player) return;
-    const newTime = Math.max(0, currentTime - 10);
+    const newTime = Math.max(startTimeSeconds, currentTime - 10);
     player.seekTo(newTime, true);
-  };
-
-  // Prevent forward seeking via progress bar
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const seekTime = Number(e.target.value);
-    if (seekTime <= maxTime) {
-      playerRef.current?.seekTo(seekTime, true);
-    }
   };
 
   const formatTime = (seconds: number): string => {
@@ -222,7 +289,7 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
     <div 
       style={{ 
         width: '100%', 
-        height: '100vh', 
+        height: '100%', 
         position: 'relative', 
         display: 'flex', 
         flexDirection: 'column',
@@ -230,7 +297,7 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
         alignItems: 'center',
         background: 'hsl(var(--background))',
         overflow: 'hidden',
-        padding: '3vh 5vw',
+        padding: '16px',
         boxSizing: 'border-box',
         cursor: 'pointer',
       }}
@@ -240,16 +307,16 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
     >
       <div style={{
         width: '100%',
-        maxWidth: '1000px',
-        height: '95vh',
+        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%',
         display: 'flex',
         flexDirection: 'column',
         borderRadius: '12px',
         overflow: 'hidden',
-        // boxShadow: '0 6px 24px rgba(0, 0, 0, 0.2)',
       }}>
         {/* Video Container */}
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <div
             ref={iframeRef}
             style={{
@@ -290,18 +357,18 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
               handlePlayPause();
             }}
             onContextMenu={(e) => {
-              e.preventDefault(); // Block right-click context menu
+              e.preventDefault();
               e.stopPropagation();
             }}
             onDoubleClick={(e) => {
-              e.preventDefault(); // Block double-click fullscreen
+              e.preventDefault();
               e.stopPropagation();
             }}
             onKeyDown={(e) => {
-              e.preventDefault(); // Block any keyboard events
+              e.preventDefault();
               e.stopPropagation();
             }}
-            tabIndex={-1} // Remove from tab order
+            tabIndex={-1}
           />
 
           {/* Additional security overlay */}
@@ -312,7 +379,7 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
               left: 0,
               right: 0,
               bottom: 0,
-              background: 'rgba(0,0,0,0.001)', // Nearly invisible but blocks events
+              background: 'rgba(0,0,0,0.001)',
               pointerEvents: 'auto',
               zIndex: 9,
             }}
@@ -329,66 +396,30 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
         <div
           style={{
             background: 'hsl(var(--card))',
-            padding: '12px 20px',
+            padding: '8px 16px',
             borderTop: '1px solid hsl(var(--primary) / 0.2)',
             borderRadius: '0 0 12px 12px',
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
             msUserSelect: 'none',
+            flexShrink: 0,
           }}
-          onClick={(e) => e.stopPropagation()} // Prevent play/pause when clicking controls
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress Bar */}
-          <div style={{ marginBottom: 12 }}>
-            <input
-              type="range"
-              min={0}
-              max={duration}
+          {/* Progress Bar - Visual indicator only, no seeking */}
+          <div style={{ marginBottom: 8 }}>
+            <Slider
+              value={[currentTime]}
+              min={startTimeSeconds}
+              max={endTimeSeconds > 0 ? endTimeSeconds : duration}
               step={0.1}
-              value={currentTime}
-              onChange={handleProgressChange}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                height: 5,
-                borderRadius: 3,
-                background: `linear-gradient(90deg, 
-                  hsl(var(--primary)) 0%, 
-                  hsl(var(--primary)) ${(currentTime / duration) * 100}%, 
-                  hsl(var(--muted)) ${(currentTime / duration) * 100}%, 
-                  hsl(var(--muted)) 100%)`,
-                outline: 'none',
-                cursor: 'pointer',
-                appearance: 'none',
-                WebkitAppearance: 'none',
+              onValueChange={() => {
+                // Disabled - no seeking allowed
               }}
+              className="w-full pointer-events-none"
+              disabled
             />
-            <style>{`
-              input[type="range"]::-webkit-slider-thumb {
-                appearance: none;
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                background: hsl(var(--primary));
-                cursor: pointer;
-                box-shadow: 0 2px 6px hsl(var(--primary) / 0.4);
-                transition: all 0.2s ease;
-              }
-              input[type="range"]::-webkit-slider-thumb:hover {
-                transform: scale(1.2);
-                box-shadow: 0 4px 12px hsl(var(--primary) / 0.6);
-              }
-              input[type="range"]::-moz-range-thumb {
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                background: hsl(var(--primary));
-                cursor: pointer;
-                border: none;
-                box-shadow: 0 2px 6px hsl(var(--primary) / 0.4);
-              }
-            `}</style>
           </div>
 
           {/* Control Bar */}
@@ -396,180 +427,103 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'space-between',
-            gap: 20 
+            gap: 12,
+            flexWrap: 'wrap'
           }}>
             {/* Left Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   handlePlayPause();
                 }}
-                style={{
-                  background: playing 
-                    ? 'hsl(var(--primary))' 
-                    : 'hsl(var(--muted))',
-                  color: playing ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 42,
-                  height: 42,
-                  fontSize: 16,
-                  cursor: 'pointer',
-                  boxShadow: playing 
-                    ? '0 3px 15px hsl(var(--primary) / 0.4)' 
-                    : '0 3px 12px hsl(var(--muted) / 0.3)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backdropFilter: 'blur(10px)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
+                size="icon"
+                variant={playing ? "default" : "secondary"}
+                className="rounded-full w-9 h-9 flex-shrink-0"
                 aria-label={playing ? 'Pause' : 'Play'}
               >
-                {playing ? '⏸' : '▶'}
-              </button>
+                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
               
-              <button
+              <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleBackward();
                 }}
-                style={{
-                  background: 'hsl(var(--muted))',
-                  color: 'hsl(var(--muted-foreground))',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 36,
-                  height: 36,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backdropFilter: 'blur(10px)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'hsl(var(--accent))';
-                  e.currentTarget.style.color = 'hsl(var(--accent-foreground))';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'hsl(var(--muted))';
-                  e.currentTarget.style.color = 'hsl(var(--muted-foreground))';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
+                size="icon"
+                variant="secondary"
+                className="rounded-full w-8 h-8 flex-shrink-0"
                 aria-label="Back 10 seconds"
               >
-                ⏪
-              </button>
+                <SkipBack className="h-3 w-3" />
+              </Button>
 
               <span style={{ 
                 color: 'hsl(var(--foreground))', 
                 fontFamily: 'var(--font-sans)', 
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 500,
-                minWidth: 90,
-                textShadow: '0 1px 3px hsl(var(--background) / 0.5)'
+                minWidth: 80,
+                textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
+                flexShrink: 0
               }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
+                {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
               </span>
             </div>
 
             {/* Right Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
               {/* Speed Control */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 6,
-                background: 'hsl(var(--accent) / 0.15)',
-                padding: '6px 12px',
-                borderRadius: 16,
-                backdropFilter: 'blur(10px)',
-              }}>
-                <span style={{ 
-                  color: 'hsl(var(--foreground))', 
-                  fontSize: 11, 
-                  fontWeight: 500,
-                  minWidth: 30
-                }}>
+              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                <span className="text-xs font-medium text-foreground min-w-[24px]">
                   Speed
                 </span>
-                <input
-                  type="range"
+                <Slider
+                  value={[playbackRate]}
                   min={0.25}
                   max={2}
                   step={0.05}
-                  value={playbackRate}
-                  onChange={handleSpeedChange}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ 
-                    accentColor: 'hsl(var(--primary))', 
-                    width: 70,
-                    height: 3,
-                    borderRadius: 2,
+                  onValueChange={(value) => {
+                    const rate = value[0];
+                    setPlaybackRate(rate);
+                    const player = playerRef.current;
+                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                      const availableRates = player.getAvailablePlaybackRates!();
+                      let closest = availableRates[0];
+                      for (const r of availableRates) {
+                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                      }
+                      player.setPlaybackRate(closest);
+                      setPlaybackRate(closest);
+                    } else {
+                      playerRef.current?.setPlaybackRate(rate);
+                    }
                   }}
+                  className="w-[50px]"
                 />
-                <span style={{ 
-                  color: 'hsl(var(--primary))', 
-                  fontSize: 11, 
-                  fontWeight: 600,
-                  minWidth: 28, 
-                  textAlign: 'center'
-                }}>
+                <span className="text-xs font-semibold text-primary min-w-[24px] text-center">
                   {playbackRate.toFixed(2)}x
                 </span>
-              </div>
+              </Card>
 
               {/* Volume Control */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 6,
-                background: 'hsl(var(--accent) / 0.15)',
-                padding: '6px 12px',
-                borderRadius: 16,
-                backdropFilter: 'blur(10px)',
-              }}>
-                <span style={{ 
-                  color: 'hsl(var(--accent))', 
-                  fontSize: 12, 
-                  fontWeight: 500 
-                }}>
-                  🔊
-                </span>
-                <input
-                  type="range"
+              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                <Volume2 className="h-3 w-3 text-accent flex-shrink-0" />
+                <Slider
+                  value={[volume]}
                   min={0}
                   max={100}
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ 
-                    accentColor: 'hsl(var(--primary))', 
-                    width: 60,
-                    height: 3,
-                    borderRadius: 2,
+                  onValueChange={(value) => {
+                    const v = value[0];
+                    setVolume(v);
+                    playerRef.current?.setVolume(v);
                   }}
+                  className="w-[40px]"
                 />
-                <span style={{ 
-                  color: 'hsl(var(--foreground))', 
-                  fontSize: 11, 
-                  fontWeight: 500,
-                  minWidth: 30, 
-                  textAlign: 'center'
-                }}>
+                <span className="text-xs font-medium text-foreground min-w-[24px] text-center">
                   {Math.round(volume)}%
                 </span>
-              </div>
+              </Card>
             </div>
           </div>
         </div>
@@ -616,6 +570,4 @@ const Video: React.FC<VideoProps> = ({ youtubeUrl }) => {
       `}</style>
     </div>
   );
-};
-
-export default Video;
+}

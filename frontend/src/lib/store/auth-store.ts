@@ -7,6 +7,10 @@ export type User = {
   name?: string;
   role: 'teacher' | 'student' | 'admin' | null;
   avatar?: string;
+  // Backend user fields
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 type AuthStore = {
@@ -25,16 +29,29 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,
-      token: localStorage.getItem('auth-token'),
-      isAuthenticated: !!localStorage.getItem('auth-token'),
+      token: localStorage.getItem('firebase-auth-token'),
+      isAuthenticated: !!localStorage.getItem('firebase-auth-token'),
       
-      setUser: (user) => set({ user, isAuthenticated: true }),
+      setUser: (user) => {
+        // Store backend user info in localStorage
+        if (user.userId) localStorage.setItem('user-id', user.userId);
+        if (user.email) localStorage.setItem('user-email', user.email);
+        if (user.firstName) localStorage.setItem('user-firstName', user.firstName);
+        if (user.lastName) localStorage.setItem('user-lastName', user.lastName);
+        
+        set({ user, isAuthenticated: true });
+      },
       setToken: (token) => {
-        localStorage.setItem('auth-token', token);
+        localStorage.setItem('firebase-auth-token', token);
         set({ token, isAuthenticated: true });
       },
       clearUser: () => {
-        localStorage.removeItem('auth-token');
+        localStorage.removeItem('firebase-auth-token');
+        // Clear backend user data from localStorage
+        localStorage.removeItem('user-id');
+        localStorage.removeItem('user-email');
+        localStorage.removeItem('user-firstName');
+        localStorage.removeItem('user-lastName');
         set({ user: null, token: null, isAuthenticated: false });
       },
       hasRole: (role) => {

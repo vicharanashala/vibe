@@ -11,7 +11,6 @@ import { useCourseStore } from "@/lib/store/course-store";
 import { useNavigate } from "@tanstack/react-router";  // Add TanStack Router import
 import { components } from "@/lib/api/schema";
 
-// const ITEMS_PER_PAGE = 6;
 
 export default function StudentCourses() {
   const [activeTab, setActiveTab] = useState("enrolled");
@@ -19,15 +18,16 @@ export default function StudentCourses() {
   
   // Get the current user from auth store
   const { user, isAuthenticated } = useAuthStore();
-  const userId = user?.uid;
+  const userId = user?.userId;
+  // const userId = "6831c13a7d17e06882be43ca";
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
     userId || "",
-    currentPage, 
-    // ITEMS_PER_PAGE
+    currentPage,
   );
 
   const enrollments = enrollmentsData?.enrollments || [];
+  // console.log("Enrollments Data:", enrollmentsData);
   const totalPages = enrollmentsData?.totalPages || 1;
   const currentPageFromAPI = enrollmentsData?.currentPage || 1;
   const totalDocuments = enrollmentsData?.totalDocuments || 0;
@@ -95,9 +95,15 @@ export default function StudentCourses() {
     );
   };
 
+  // write a function to convert buffer to hex string
+  const bufferToHex = (buffer: Buffer) => {
+    return Array.from(new Uint8Array(buffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
   // Add a component to fetch and display course details
   const CourseCard = ({ enrollment, index }: { enrollment: any, index: number }) => {
-    const courseId = enrollment.courseId || enrollment._id;
+    const courseId = bufferToHex(enrollment.courseId.buffer.data);
     const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
     const { setCurrentCourse } = useCourseStore();
     const navigate = useNavigate();  // Add this line to use TanStack Router
@@ -129,7 +135,11 @@ export default function StudentCourses() {
                 {courseDetails?.name || enrollment.name || `Course ${index + 1}`}
               </CardTitle>
               <CardDescription>
-                by {courseDetails?.instructors || enrollment.instructors || "Unknown Instructor"}
+                by <b>{courseDetails?.instructors 
+                  ? (Array.isArray(courseDetails.instructors) 
+                     ? courseDetails.instructors.join(', ') 
+                     : courseDetails.instructors) 
+                  : "Unknown Instructor"}</b>
               </CardDescription>
             </div>
             <Badge variant="outline">{progress}% complete</Badge>
@@ -146,7 +156,7 @@ export default function StudentCourses() {
             className="w-full"
             onClick={() => {
               // Extract both courseId and versionId from enrollment
-              const versionId = enrollment.courseVersionId || enrollment.versionId || "";
+              const versionId = bufferToHex(enrollment.courseVersionId.buffer.data) ||"";
               
               console.log("Setting course store:", {
                 courseId: courseId,

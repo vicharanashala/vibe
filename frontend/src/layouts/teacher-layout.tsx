@@ -64,7 +64,7 @@ export default function TeacherLayout() {
     
     setBreadcrumbs(items);
   }, [matches]);
-    console.log('Current user role:', user?.role);
+    // console.log('Current user role:', user?.role);
 
 
   return (

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import {Expose, Transform, Type} from 'class-transformer';
+import {IsArray, ValidateNested} from 'class-validator';
 import {
   ObjectIdToString,
   StringToObjectId,
@@ -32,6 +33,8 @@ class CourseVersion implements ICourseVersion {
   description: string;
 
   @Expose()
+  @IsArray()
+  @ValidateNested({each: true})
   @Type(() => Module)
   modules: Module[];
 

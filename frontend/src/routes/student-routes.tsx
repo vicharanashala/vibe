@@ -28,10 +28,6 @@ const studentRoutes: RouteObject = {
       element: <ItemContainer item={{name:"abc", itemtype:"video", content:"https://www.youtube.com/watch?v=vBH6GRJ1REM"} as Item} courseId="" courseVersionId="" userId="" />
     },
     {
-      path: "learn",
-      element: <CoursePage />,
-    },
-    {
       path:"article",
       element: <ItemContainer item={{name:"abc", itemtype:"article", content:"This is a sample article content."} as Item} courseId="" courseVersionId="" userId="" />
     },
@@ -46,4 +42,10 @@ const studentRoutes: RouteObject = {
   ],
 };
 
-export default studentRoutes;
+const learnRoutes: RouteObject = {
+  path: "student/learn",
+  element: <CoursePage />
+};
+
+
+export default {studentRoutes, learnRoutes};

@@ -11,26 +11,45 @@ import { queryClient } from './client';
 
 
 
-// Convert Firebase user to our app user model
+// Enhance mapFirebaseUserToAppUser to fetch backend user info directly
 const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
   if (!firebaseUser) return null;
-  
   try {
     // Get token for backend API calls
     const token = await firebaseUser.getIdToken();
-    
-    // Store token
-    const { user } = useAuthStore.getState();
     useAuthStore.getState().setToken(token);
-    
-    
-    // Map user
+
+    // Fetch backend user info directly using fetch
+    let backendUser = null;
+    try {
+      const res = await fetch(
+        `http://localhost:4001/users/firebase/${firebaseUser.uid}`,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+      if (res.ok) {
+        backendUser = await res.json();
+      }
+    } catch (error) {
+      console.error('Failed to fetch backend user:', error);
+      // Continue with Firebase data only
+    }
+
+    // Map user with backend data
     return {
       uid: firebaseUser.uid,
-      email: firebaseUser.email || '',
-      name: firebaseUser.displayName || '',
-      role: user?.role || null, // Use const assertion to match the allowed role values
+      email: firebaseUser.email || backendUser?.email || '',
+      name: firebaseUser.displayName || 
+            (backendUser ? `${backendUser.firstName} ${backendUser.lastName}`.trim() : ''),
+      role: useAuthStore.getState().user?.role || null,
       avatar: firebaseUser.photoURL || '',
+      userId: backendUser?.id,
+      firstName: backendUser?.firstName,
+      lastName: backendUser?.lastName,
     };
   } catch (error) {
     console.error('Error mapping Firebase user:', error);
@@ -46,6 +65,7 @@ export const initAuth = () => {
     if (firebaseUser) {
       const user = await mapFirebaseUserToAppUser(firebaseUser);
       if (user) {
+        console.log('User authenticated:', user);
         setUser(user);
       }
     } else {
@@ -88,12 +108,12 @@ export const loginWithEmail = async (email: string, password: string) => {
 // Logout
 export function logout() {
   // Clear token
-  localStorage.removeItem('auth-token');
+  localStorage.removeItem('firebase-auth-token');
   
   // Sign out from Firebase
   firebaseSignOut(auth).catch(err => console.error('Firebase logout error:', err));
   
-  // Clear user from store
+  // Clear user from store (this will also clear localStorage via store action)
   useAuthStore.getState().clearUser();
   
   // Reset query client
@@ -102,11 +122,11 @@ export function logout() {
 
 // Check if user is authenticated
 export function checkAuth() {
-  const token = localStorage.getItem('auth-token');
+  const token = localStorage.getItem('firebase-auth-token');
   const firebaseUser = auth.currentUser;
   return !!token && !!firebaseUser;
 }
 
 // API-specific functions
 // Use openapi-react-query hooks from hooks.ts
-export { useLogin } from './hooks';
+export { useLogin, useUserByFirebaseUID } from './hooks';

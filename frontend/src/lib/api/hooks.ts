@@ -68,8 +68,8 @@ export function useVerifySignUpProvider(): {
 
 // PATCH /auth/change-password
 export function useChangePassword(): {
-  mutate: (variables: { body: Record<string, never> }) => void,
-  mutateAsync: (variables: { body: Record<string, never> }) => Promise<components['schemas']['ChangePasswordResponse']>,
+  mutate: (variables: { body: components['schemas']['ChangePasswordBody'] }) => void,
+  mutateAsync: (variables: { body: components['schemas']['ChangePasswordBody'] }) => Promise<components['schemas']['ChangePasswordResponse']>,
   data: components['schemas']['ChangePasswordResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -152,8 +152,8 @@ export function useUpdateCourse(): {
 // POST /courses/{id}/versions
 export function useCreateCourseVersion(): {
   mutate: (variables: { params: { path: { id: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { id: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => Promise<Record<string, never>>,
-  data: Record<string, never> | undefined,
+  mutateAsync: (variables: { params: { path: { id: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => Promise<components['schemas']['CreateCourseVersionResponse']>,
+  data: components['schemas']['CreateCourseVersionResponse'] | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -171,7 +171,7 @@ export function useCreateCourseVersion(): {
 
 // GET /courses/versions/{id}
 export function useCourseVersionById(id: string): {
-  data: Record<string, never> | undefined,
+  data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -375,7 +375,7 @@ export function useMoveSection(): {
 // Item hooks
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
-export function useAllItems(versionId: string, moduleId: string, sectionId: string): {
+export function useItemsBySectionId(versionId: string, moduleId: string, sectionId: string): {
   data: components['schemas']['ItemDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -510,7 +510,7 @@ export function useEnrollUser(): {
   const result = api.useMutation("post", "/users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Enrollment failed') : null
+    error: result.error ? (result.error.message || 'User enrollment failed') : null
   };
 }
 
@@ -530,28 +530,28 @@ export function useUnenrollUser(): {
   const result = api.useMutation("post", "/users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Unenrollment failed') : null
+    error: result.error ? (result.error.message || 'User unenrollment failed') : null
   };
 }
 
 // GET /users/{userId}/enrollments
-export function useUserEnrollments(userId: string, page?: number): {
-  data: components['schemas']['EnrollmentResponse'] | undefined, 
-  isLoading: boolean, 
-  error: string | null, 
+export function useUserEnrollments(userId: string, page?: number, limit?: number): {
+  data: components['schemas']['EnrollmentResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{userId}/enrollments", {
-    params: {
+    params: { 
       path: { userId },
-      query: { page }
+      query: { page, limit }
     }
   });
 
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'An error occurred') : null,
+    error: result.error ? (result.error.message || 'Failed to fetch user enrollments') : null,
     refetch: result.refetch
   };
 }
@@ -572,7 +572,7 @@ export function useUserProgress(userId: string, courseId: string, courseVersionI
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch progress') : null,
+    error: result.error ? (result.error.message || 'Failed to fetch user progress') : null,
     refetch: result.refetch
   };
 }
@@ -593,7 +593,7 @@ export function useStartItem(): {
   const result = api.useMutation("post", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/start");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Start item failed') : null
+    error: result.error ? (result.error.message || 'Failed to start item') : null
   };
 }
 
@@ -613,12 +613,12 @@ export function useStopItem(): {
   const result = api.useMutation("post", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/stop");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Stop item failed') : null
+    error: result.error ? (result.error.message || 'Failed to stop item') : null
   };
 }
 
 // PATCH /users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/update
-export function useUpdateCourseProgress(): {
+export function useUpdateProgress(): {
   mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['UpdateProgressBody'] }) => void,
   mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['UpdateProgressBody'] }) => Promise<unknown>,
   data: unknown | undefined,
@@ -633,12 +633,12 @@ export function useUpdateCourseProgress(): {
   const result = api.useMutation("patch", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/update");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Progress update failed') : null
+    error: result.error ? (result.error.message || 'Failed to update progress') : null
   };
 }
 
 // PATCH /users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/reset
-export function useResetCourseProgress(): {
+export function useResetProgress(): {
   mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => void,
   mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => Promise<unknown>,
   data: unknown | undefined,
@@ -653,11 +653,26 @@ export function useResetCourseProgress(): {
   const result = api.useMutation("patch", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/reset");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Progress reset failed') : null
+    error: result.error ? (result.error.message || 'Failed to reset progress') : null
   };
 }
 
-// Legacy hooks for backwards compatibility
-export function useCourses(id: string): unknown {
-  return useCourseById(id);
+// User hooks
+
+export function useUserByFirebaseUID(firebaseUID: string): {
+  data: components['schemas']['UserByFirebaseUIDResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/firebase/{firebaseUID}", {
+    params: { path: { firebaseUID } }
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user by Firebase UID') : null,
+    refetch: result.refetch
+  };
 }

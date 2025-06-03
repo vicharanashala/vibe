@@ -564,6 +564,26 @@ export interface paths {
         patch: operations["ProgressController.resetProgress"];
         trace?: never;
     };
+    "/users/firebase/{firebaseUID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User by Firebase UID
+         * @description Retrieves a user ID using their Firebase UID.
+         */
+        get: operations["UserController.getUserByFirebaseUID"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -603,6 +623,22 @@ export interface components {
              * @example 43jdlsaksla;f328e9fjhsda
              */
             token: string;
+        };
+        ChangePasswordBody: {
+            /**
+             * New Password
+             * Format: password
+             * @description New password that meets security requirements.  Must contain: <br />1. **Uppercase letters** (A–Z)  <br /> 2. **Lowercase letters** (a–z)  <br /> 3. **Numbers** (0–9)   <br />4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)
+             * @example SecureP@ssw0rd
+             */
+            newPassword: string;
+            /**
+             * Confirm New Password
+             * Format: password
+             * @description Confirmation of the new password (must match exactly). Must contain: <br />1. **Uppercase letters** (A–Z)  <br /> 2. **Lowercase letters** (a–z)  <br /> 3. **Numbers** (0–9)   <br />4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)
+             * @example SecureP@ssw0rd
+             */
+            newPasswordConfirm: string;
         };
         SignUpResponse: {
             /**
@@ -781,6 +817,9 @@ export interface components {
              */
             readonly message: string;
         };
+        CourseVersion: {
+            modules: Record<string, never>[];
+        };
         CreateCourseVersionBody: {
             /**
              * Course ID
@@ -835,6 +874,65 @@ export interface components {
              * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
             courseId: string;
+        };
+        CourseVersionDataResponse: {
+            /**
+             * Format: Mongo Object ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8d2
+             */
+            readonly id: string;
+            /**
+             * @description Version name/label
+             * @example v1.0
+             */
+            readonly name: string;
+            /**
+             * @description Description of the version
+             * @example First release of the course
+             */
+            readonly description: string;
+            /**
+             * Format: Mongo Object ID
+             * @description ID of the course this version belongs to
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            readonly courseId: string;
+            /**
+             * Format: date-time
+             * @description Creation timestamp
+             * @example 2023-10-01T12:00:00Z
+             */
+            readonly createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last update timestamp
+             * @example 2023-10-01T12:00:00Z
+             */
+            readonly updatedAt: string;
+        };
+        CourseVersionNotFoundErrorResponse: {
+            /**
+             * @description HTTP status code
+             * @example 404
+             */
+            readonly statusCode: number;
+            /**
+             * @description Error message
+             * @example Course version not found
+             */
+            readonly message: string;
+            /**
+             * @description Error type
+             * @example Not Found
+             */
+            readonly error: string;
+        };
+        CreateCourseVersionResponse: {
+            /** @description The updated course object */
+            readonly course: Record<string, never>;
+            /** @description The created version object */
+            readonly version: Record<string, never>;
         };
         CreateModuleBody: {
             /**
@@ -1947,6 +2045,48 @@ export interface components {
              */
             message: string;
         };
+        UserByFirebaseUIDParams: {
+            /**
+             * @description Firebase UID of the user to find
+             * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
+             */
+            firebaseUID: string;
+        };
+        UserByFirebaseUIDResponse: {
+            /**
+             * @description Unique identifier for the user in the database
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            readonly id: string;
+            /**
+             * @description Firebase UID of the user
+             * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
+             */
+            readonly firebaseUID: string;
+            /**
+             * Format: email
+             * @description Email address of the user
+             * @example user@example.com
+             */
+            readonly email: string;
+            /**
+             * @description User's first name
+             * @example John
+             */
+            readonly firstName: string;
+            /**
+             * @description User's last name
+             * @example Smith
+             */
+            readonly lastName: string;
+        };
+        UserNotFoundErrorResponse: {
+            /**
+             * @description Error message indicating user was not found
+             * @example User not found with the provided Firebase UID
+             */
+            readonly message: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2052,7 +2192,7 @@ export interface operations {
         /** @description ChangePasswordBody */
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": components["schemas"]["ChangePasswordBody"];
             };
         };
         responses: {
@@ -2255,7 +2395,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CreateCourseVersionResponse"];
                 };
             };
             /** @description Bad Request Error */
@@ -2273,7 +2413,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
                 };
             };
         };
@@ -2295,7 +2435,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CourseVersionDataResponse"];
                 };
             };
             /** @description Bad Request Error */
@@ -2313,7 +2453,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
                 };
             };
         };
@@ -2354,7 +2494,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
                 };
             };
         };
@@ -3296,6 +3436,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.getUserByFirebaseUID": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                firebaseUID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User found successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserByFirebaseUIDResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
                 };
             };
         };

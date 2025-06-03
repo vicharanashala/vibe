@@ -23,16 +23,16 @@ export const apiClient = createClient({
 
 // Helper to get auth token from storage
 export const getAuthToken = (): string | null => {
-  const token = localStorage.getItem('auth-token');
+  const token = localStorage.getItem('firebase-auth-token');
   return token;
 };
 
 // Helper to set auth token
 export const setAuthToken = (token: string | null): void => {
   if (token) {
-    localStorage.setItem('auth-token', token);
+    localStorage.setItem('firebase-auth-token', token);
   } else {
-    localStorage.removeItem('auth-token');
+    localStorage.removeItem('firebase-auth-token');
   }
 };
 
@@ -71,7 +71,7 @@ apiClient.use({
     // Handle 401 Unauthorized responses
     if (res.response.status === 401) {
       // Clear auth token and redirect to login
-      localStorage.removeItem('auth-token');
+      localStorage.removeItem('firebase-auth-token');
       window.location.href = '/auth';
     }
     return res.response;

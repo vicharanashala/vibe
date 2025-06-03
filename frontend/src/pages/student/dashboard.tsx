@@ -15,6 +15,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -183,7 +184,8 @@ const ImageWithFallback = ({ src, alt, className, aspectRatio = "aspect-video" }
 };
 
 export default function Page() {
-  const [studentName] = useState("Alex");
+  const { user, } = useAuthStore();
+  const studentName = user?.name;
   const [greeting, setGreeting] = useState(getGreeting());
 
   useEffect(() => {

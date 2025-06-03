@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function StudentLayout() {
   const { user } = useAuthStore();
-  console.log('Current user role:', user?.role);
+  // console.log('Current user role:', user?.role);
 
 
   return (
@@ -109,10 +109,10 @@ export default function StudentLayout() {
         </div>
       </header>
       
-      <main className="relative flex flex-1 flex-col p-8">
+      <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background pointer-events-none" />
-        <div className="relative z-10">
+        <div className="relative z-10 h-full">
           <Outlet />
         </div>
       </main>

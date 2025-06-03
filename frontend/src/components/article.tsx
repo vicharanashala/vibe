@@ -13,16 +13,14 @@ import { NumberedList, BulletedList, TodoList } from '@yoopta/lists';
 import Code from '@yoopta/code';
 import { HeadingOne, HeadingTwo, HeadingThree } from '@yoopta/headings';
 import Divider from '@yoopta/divider';
-import { InlineMath, BlockMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 
 // Import Markdown Serialization
 import { markdown } from '@yoopta/exports';
-import { html } from "@yoopta/exports";
-
 
 // Import ShadCN UI Components
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Clock, Star } from "lucide-react";
 
 
 
@@ -42,23 +40,17 @@ const plugins = [
     Code,
 ];
 
-const getEditorWidth = () => {
-    const screenWidth = window.innerWidth;
-    
-    if (screenWidth < 640) return "95vw"; // Mobile (95% of viewport width)
-    if (screenWidth < 1024) return "100%"; // Tablets/iPads (80% of viewport width)
-    return "100vw"; // Laptops & Desktops (60% of viewport width)
-};
-
 interface ArticleProps {
     content: string;
+    estimatedReadTimeInMinutes?: string;
+    points?: string;
+    tags?: string[];
 }
 
-const Article = ({ content }: ArticleProps) => {
+const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleProps) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
-    const [editorWidth, setEditorWidth] = useState(getEditorWidth());
 
     // ✅ Load content from prop when component mounts or content changes
     useEffect(() => {
@@ -74,7 +66,7 @@ const Article = ({ content }: ArticleProps) => {
             
             // Fix common LaTeX formatting issues
             // Ensure proper escaping for backslashes in math contexts
-            processedContent = processedContent.replace(/\$\$(.*?)\$\$/gs, (match, mathContent) => {
+            processedContent = processedContent.replace(/\$\$(.*?)\$\$/gs, (_, mathContent) => {
                 // Clean up the math content - remove extra escaping that might interfere
                 const cleanMath = mathContent.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
                 return `$$${cleanMath}$$`;
@@ -85,16 +77,6 @@ const Article = ({ content }: ArticleProps) => {
             editor.setEditorValue(deserializedValue);
         }
     }, [editor, content]);
-
-    // ✅ Update width on window resize
-    useEffect(() => {
-        const handleResize = () => {
-            setEditorWidth(getEditorWidth());
-        };
-        
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
 
     // ✅ Add dark mode styles for Yoopta Editor
     useEffect(() => {
@@ -120,10 +102,42 @@ const Article = ({ content }: ArticleProps) => {
 
 
     return (
-        <MathRenderer className="min-h-screen py-8 px-2 bg-background text-foreground">
-            {/* Article Display Section */}
-            <div className="mt-8 flex justify-center">
-                <div className="w-full flex justify-center">
+        <MathRenderer className="h-full w-full bg-background">
+            <div className="h-full w-full">
+                {/* Article Metadata Topbar */}
+                {(estimatedReadTimeInMinutes || points || tags?.length) && (
+                    <div className="border-b bg-muted/50 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                            {estimatedReadTimeInMinutes && (
+                                <div className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4" />
+                                    <span>{estimatedReadTimeInMinutes} min read</span>
+                                </div>
+                            )}
+                            {points && (
+                                <div className="flex items-center gap-1">
+                                    <Star className="h-4 w-4" />
+                                    <span>{points} points</span>
+                                </div>
+                            )}
+                            {tags && tags.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <span>Tags:</span>
+                                    <div className="flex flex-wrap gap-1">
+                                        {tags.map((tag, index) => (
+                                            <Badge key={index} variant="secondary" className="text-xs">
+                                                {tag}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                
+                {/* Article Content */}
+                <div className="h-full w-full p-4">
                     <YooptaEditor
                         width="100%"
                         value={value}
@@ -131,6 +145,7 @@ const Article = ({ content }: ArticleProps) => {
                         plugins={plugins}
                         readOnly={true}
                         autoFocus={false}
+                        className="prose prose-lg max-w-none w-full"
                     />
                 </div>
             </div>
