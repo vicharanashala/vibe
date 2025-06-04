@@ -12,13 +12,12 @@
     "dev": "pnpx ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/index.ts",
     "build": "tsc && pnpm sentry:sourcemaps",
     "start": "node dist/index.js",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org aditya-bmv --project node-express ./build && sentry-cli sourcemaps upload --org aditya-bmv --project node-express ./build",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org dled --project vibe-backend ./dist && sentry-cli sourcemaps upload --org dled --project vibe-backend ./dist",
     "docs": "typedoc",
     "lint": "pnpx gts lint",
     "clean": "pnpx gts clean",
     "compile": "tsc",
     "fix": "pnpx gts fix",
-    "prepare": "pnpm run compile",
     "emulators:auth": "firebase emulators:start --only auth",
     "emulators:functions": "firebase emulators:start --only functions",
     "emulators:all": "firebase emulators:start",
@@ -36,7 +35,6 @@
     "@types/config": "^3.3.5",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
-    "@types/express-rate-limit": "^6.0.2",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/multer": "^1.4.12",
@@ -56,10 +54,11 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@casl/ability": "^6.7.3",
     "@scalar/express-api-reference": "^0.7.6",
-    "@sentry/cli": "^2.42.2",
-    "@sentry/node": "^9.4.0",
-    "@sentry/profiling-node": "^9.4.0",
+    "@sentry/cli": "^2.43.0",
+    "@sentry/node": "^9.22.0",
+    "@sentry/profiling-node": "^9.22.0",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
     "class-transformer": "^0.5.1",
@@ -72,7 +71,7 @@
     "express-rate-limit": "^7.5.0",
     "firebase-admin": "^13.2.0",
     "graphql": "~16.10.0",
-    "inversify": "^7.5.1",
+    "inversify": "^7.5.2",
     "jsonwebtoken": "^9.0.2",
     "lexorank": "^1.0.5",
     "mathjs": "^14.4.0",
@@ -82,6 +81,7 @@
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
-    "typedi": "^0.10.0"
+    "typedi": "^0.10.0",
+    "winston": "^3.17.0"
   }
 }

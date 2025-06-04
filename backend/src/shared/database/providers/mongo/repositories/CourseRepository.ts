@@ -1,8 +1,11 @@
 import 'reflect-metadata';
 import {instanceToPlain} from 'class-transformer';
-import {Course} from 'modules/courses/classes/transformers/Course';
-import {CourseVersion} from 'modules/courses/classes/transformers/CourseVersion';
-import {Item, ItemsGroup} from 'modules/courses/classes/transformers/Item';
+import {Course} from '../../../../../modules/courses/classes/transformers/Course';
+import {CourseVersion} from '../../../../../modules/courses/classes/transformers/CourseVersion';
+import {
+  Item,
+  ItemsGroup,
+} from '../../../../../modules/courses/classes/transformers/Item';
 import {
   ClientSession,
   Collection,
@@ -11,13 +14,13 @@ import {
   ObjectId,
   UpdateResult,
 } from 'mongodb';
-import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
+import {ICourseRepository} from '../../../interfaces/ICourseRepository';
 import {
   CreateError,
   DeleteError,
   ReadError,
   UpdateError,
-} from 'shared/errors/errors';
+} from '../../../../errors/errors';
 import {
   ICourse,
   IModule,
@@ -25,15 +28,13 @@ import {
   IProgress,
   ICourseVersion,
   ISection,
-} from 'shared/interfaces/Models';
-import {Service, Inject} from 'typedi';
+} from '../../../../interfaces/Models';
 import {MongoDatabase} from '../MongoDatabase';
 import {NotFoundError} from 'routing-controllers';
 import {Module, Section} from 'modules';
 import {inject, injectable} from 'inversify';
-import TYPES from '../../../../../types';
+import GLOBAL_TYPES from '../../../../../types';
 
-@Service()
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
@@ -41,8 +42,7 @@ export class CourseRepository implements ICourseRepository {
   private itemsGroupCollection: Collection<ItemsGroup>;
 
   constructor(
-    @Inject(() => MongoDatabase)
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 
@@ -115,10 +115,64 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
   }
-  async delete(id: string): Promise<boolean> {
-    console.log('delete course', id);
-    throw new Error('Method not implemented.');
+
+  async delete(id: string, session?: ClientSession): Promise<boolean> {
+    await this.init();
+    // 1. Find the Course document to retrieve its list of version IDs
+    const courseDoc = await this.courseCollection.findOne(
+      {_id: new ObjectId(id)},
+      {session},
+    );
+    if (!courseDoc) {
+      throw new NotFoundError('Course not found');
+    }
+
+    // 2. If the course has versions, delete each one:
+    //    - Read raw version document from courseVersionCollection
+    //    - Extract all itemsGroupId values from its modules/sections
+    //    - Call deleteVersion(...) to delete the version and its items
+    const versionIds: string[] = Array.isArray((courseDoc as any).versions)
+      ? (courseDoc as any).versions.map((v: any) => v.toString())
+      : [];
+
+    for (const versionId of versionIds) {
+      // 2a. Fetch the raw CourseVersion document
+      const rawVersion = await this.courseVersionCollection.findOne(
+        {_id: new ObjectId(versionId)},
+        {session},
+      );
+      if (!rawVersion) {
+        throw new NotFoundError(`CourseVersion with ID ${versionId} not found`);
+      }
+
+      // 2b. Walk through modules → sections → collect all itemsGroupId
+      const itemGroupsIds: ObjectId[] = [];
+      if (Array.isArray((rawVersion as any).modules)) {
+        for (const mod of (rawVersion as any).modules as any[]) {
+          if (Array.isArray(mod.sections)) {
+            for (const sec of mod.sections as any[]) {
+              itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+            }
+          }
+        }
+      }
+
+      // 2c. Invoke the existing deleteVersion(...) method
+      await this.deleteVersion(id, versionId, itemGroupsIds, session);
+    }
+
+    // 3. Finally, delete the Course document itself
+    const deleteCourseResult = await this.courseCollection.deleteOne(
+      {_id: new ObjectId(id)},
+      {session},
+    );
+    if (deleteCourseResult.deletedCount !== 1) {
+      throw new DeleteError('Failed to delete course');
+    }
+
+    return true;
   }
+
   async createVersion(
     courseVersion: CourseVersion,
     session?: ClientSession,
@@ -351,6 +405,7 @@ export class CourseRepository implements ICourseRepository {
   async deleteModule(
     versionId: string,
     moduleId: string,
+    session?: ClientSession,
   ): Promise<boolean | null> {
     await this.init();
     try {
@@ -359,9 +414,12 @@ export class CourseRepository implements ICourseRepository {
       const moduleObjectId = new ObjectId(moduleId);
 
       // Find the course version
-      const courseVersion = await this.courseVersionCollection.findOne({
-        _id: versionObjectId,
-      });
+      const courseVersion = await this.courseVersionCollection.findOne(
+        {
+          _id: versionObjectId,
+        },
+        {session},
+      );
 
       if (!courseVersion) {
         throw new NotFoundError('Course Version not found');
@@ -387,6 +445,7 @@ export class CourseRepository implements ICourseRepository {
             {
               _id: {$in: itemGroupsIds},
             },
+            {session},
           );
 
           if (itemDeletionResult.deletedCount === 0) {

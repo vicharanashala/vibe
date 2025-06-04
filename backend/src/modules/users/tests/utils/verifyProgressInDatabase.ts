@@ -1,6 +1,7 @@
 // utils/testProgressVerification.ts
 import request from 'supertest';
 import Express from 'express';
+import {ObjectId} from 'mongodb';
 
 export async function verifyProgressInDatabase({
   userId,
@@ -12,7 +13,7 @@ export async function verifyProgressInDatabase({
   expectedCompleted,
   app,
 }: {
-  userId: string;
+  userId: string | ObjectId;
   courseId: string;
   courseVersionId: string;
   expectedModuleId: string;

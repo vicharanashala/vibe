@@ -22,9 +22,13 @@ import {inject, injectable} from 'inversify';
 import TYPES from '../types';
 import {QuestionBankService} from './QuestionBankService';
 import {ID} from 'shared/types';
+import {BaseService} from 'shared/classes/BaseService';
+import {ClientSession, ObjectId} from 'mongodb';
+import GLOBAL_TYPES from '../../../types';
+import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 
 @injectable()
-class AttemptService {
+class AttemptService extends BaseService {
   constructor(
     @inject(TYPES.QuizRepo)
     private quizRepository: QuizRepository,
@@ -43,7 +47,12 @@ class AttemptService {
 
     @inject(TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
-  ) {}
+
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
   private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
     questionDetails: IQuestionDetails[];
@@ -106,10 +115,14 @@ class AttemptService {
   private async _grade(
     attemptId: string,
     answers: IQuestionAnswer[],
+    session?: ClientSession,
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
     const attempt = await this.attemptRepository.getById(attemptId);
-    const quiz = await this.quizRepository.getById(attempt.quizId.toString());
+    const quiz = await this.quizRepository.getById(
+      attempt.quizId.toString(),
+      session,
+    );
     const feedbacks: IQuestionAnswerFeedback[] = [];
     let totalScore;
     let totalMaxScore = 0;
@@ -147,159 +160,188 @@ class AttemptService {
   }
 
   public async attempt(
-    userId: string,
+    userId: string | ObjectId,
     quizId: string,
   ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
-    //1. Check if UserQuizMetrics exists for the user and quiz
-    let metrics = await this.userQuizMetricsRepository.get(userId, quizId);
-    const quiz = await this.quizRepository.getById(quizId);
-    if (!metrics) {
-      //1a If not, create a new UserQuizMetrics
-      if (!quiz) {
-        throw new NotFoundError(`Quiz with ID ${quizId} not found`);
-      }
-
-      const newMetrics: UserQuizMetrics = new UserQuizMetrics(
+    return this._withTransaction(async session => {
+      //1. Check if UserQuizMetrics exists for the user and quiz
+      let metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
-        quiz.details.maxAttempts,
+        session,
       );
-      //1b Create new UserQuizMetrics
-      const createdMetricsId =
-        await this.userQuizMetricsRepository.create(newMetrics);
+      const quiz = await this.quizRepository.getById(quizId, session);
+      if (!metrics) {
+        //1a If not, create a new UserQuizMetrics
+        if (!quiz) {
+          throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+        }
 
-      metrics = await this.userQuizMetricsRepository.get(userId, quizId);
-    }
+        const newMetrics: UserQuizMetrics = new UserQuizMetrics(
+          userId,
+          quizId,
+          quiz.details.maxAttempts,
+        );
+        //1b Create new UserQuizMetrics
+        const createdMetricsId = await this.userQuizMetricsRepository.create(
+          newMetrics,
+          session,
+        );
 
-    //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
-    if (
-      quiz.details.quizType === 'DEADLINE' &&
-      quiz.details.deadline < new Date()
-    ) {
-      throw new BadRequestError('Quiz deadline has passed');
-    }
+        metrics = await this.userQuizMetricsRepository.get(
+          userId,
+          quizId,
+          session,
+        );
+      }
 
-    //3. Check if available attempts > 0
-    if (metrics.remainingAttempts <= 0 || metrics.remainingAttempts !== -1) {
-      throw new BadRequestError('No available attempts left for this quiz');
-    }
+      //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
+      if (
+        quiz.details.quizType === 'DEADLINE' &&
+        quiz.details.deadline < new Date()
+      ) {
+        throw new BadRequestError('Quiz deadline has passed');
+      }
 
-    //4. Fetch questions for the quiz attempt
-    const {questionDetails, questionRenderViews} =
-      await this._getQuestionsForAttempt(quiz);
+      //3. Check if available attempts > 0
+      if (metrics.remainingAttempts <= 0 || metrics.remainingAttempts !== -1) {
+        throw new BadRequestError('No available attempts left for this quiz');
+      }
 
-    //5. Create a new attempt
-    const newAttempt = new Attempt(quizId, userId, questionDetails);
+      //4. Fetch questions for the quiz attempt
+      const {questionDetails, questionRenderViews} =
+        await this._getQuestionsForAttempt(quiz);
 
-    const attemptId = await this.attemptRepository.create(newAttempt);
+      //5. Create a new attempt
+      const newAttempt = new Attempt(quizId, userId, questionDetails);
 
-    //6. Update UserQuizMetrics with the new attempt
-    metrics.latestAttemptStatus = 'ATTEMPTED';
-    metrics.latestAttemptId = attemptId;
-    metrics.remainingAttempts--;
-    metrics.attempts.push({attemptId});
-    await this.userQuizMetricsRepository.udpate(
-      metrics._id.toString(),
-      metrics,
-    );
+      const attemptId = await this.attemptRepository.create(
+        newAttempt,
+        session,
+      );
 
-    //6. Return the attempt ID
-    return {attemptId, questionRenderViews};
+      //6. Update UserQuizMetrics with the new attempt
+      metrics.latestAttemptStatus = 'ATTEMPTED';
+      metrics.latestAttemptId = attemptId;
+      metrics.remainingAttempts--;
+      metrics.attempts.push({attemptId});
+      await this.userQuizMetricsRepository.udpate(
+        metrics._id.toString(),
+        metrics,
+      );
+
+      //6. Return the attempt ID
+      return {attemptId, questionRenderViews};
+    });
   }
 
   public async submit(
-    userId: string,
+    userId: string | ObjectId,
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
   ): Promise<Partial<IGradingResult>> {
-    await this.save(userId, quizId, attemptId, answers);
-    //1. Fetch UserQuizMetrics by userId and quizId
-    const metrics = await this.userQuizMetricsRepository.get(userId, quizId);
-    if (!metrics) {
-      throw new NotFoundError(
-        `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
+    return this._withTransaction(async session => {
+      await this.save(userId, quizId, attemptId, answers);
+      //1. Fetch UserQuizMetrics by userId and quizId
+      const metrics = await this.userQuizMetricsRepository.get(
+        userId,
+        quizId,
+        session,
       );
-    }
-    //2. Check if Submission Result already exists for the attempt
-    const existingSubmission = await this.submissionRepository.get(
-      quizId,
-      userId,
-      attemptId,
-    );
-    if (existingSubmission) {
-      throw new BadRequestError(
-        `Attempt with ID ${attemptId} has already been submitted`,
-      );
-    }
-    //3. Create a new Submission Result
-    const submission = new Submission(quizId, userId, attemptId);
-    const submissionId = await this.submissionRepository.create(submission);
-
-    //4. Update the submission ID in UserQuizMetrics
-    metrics.latestSubmissionResultId = submissionId;
-
-    //5. Change the latestAttemptStatus to 'SUBMITTED'
-    metrics.latestAttemptStatus = 'SUBMITTED';
-
-    const gradingResult = await this._grade(attemptId, answers);
-
-    //6. Update the submission with the feedbacks and score
-    submission.gradingResult = gradingResult;
-
-    await this.submissionRepository.update(submissionId, submission);
-
-    //7. Update the UserQuizMetrics with the new submission result in attempts
-    metrics.attempts = metrics.attempts.map(attempt => {
-      if (attempt.attemptId === attemptId) {
-        attempt.submissionResultId = submissionId;
+      if (!metrics) {
+        throw new NotFoundError(
+          `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
+        );
       }
-      return attempt;
+      //2. Check if Submission Result already exists for the attempt
+      const existingSubmission = await this.submissionRepository.get(
+        quizId,
+        userId,
+        attemptId,
+        session,
+      );
+      if (existingSubmission) {
+        throw new BadRequestError(
+          `Attempt with ID ${attemptId} has already been submitted`,
+        );
+      }
+      //3. Create a new Submission Result
+      const submission = new Submission(quizId, userId, attemptId);
+      const submissionId = await this.submissionRepository.create(
+        submission,
+        session,
+      );
+
+      //4. Update the submission ID in UserQuizMetrics
+      metrics.latestSubmissionResultId = submissionId;
+
+      //5. Change the latestAttemptStatus to 'SUBMITTED'
+      metrics.latestAttemptStatus = 'SUBMITTED';
+
+      const gradingResult = await this._grade(attemptId, answers, session);
+
+      //6. Update the submission with the feedbacks and score
+      submission.gradingResult = gradingResult;
+
+      await this.submissionRepository.update(submissionId, submission, session);
+
+      //7. Update the UserQuizMetrics with the new submission result in attempts
+      metrics.attempts = metrics.attempts.map(attempt => {
+        if (attempt.attemptId === attemptId) {
+          attempt.submissionResultId = submissionId;
+        }
+        return attempt;
+      });
+      await this.userQuizMetricsRepository.udpate(
+        metrics._id.toString(),
+        metrics,
+      );
+
+      //8. Get quiz details to check what details can be returned back
+      const quiz = await this.quizRepository.getById(quizId, session);
+
+      //9. Return grading result based on quiz settings
+      return this._buildGradingResult(quiz, gradingResult);
     });
-    await this.userQuizMetricsRepository.udpate(
-      metrics._id.toString(),
-      metrics,
-    );
-
-    //8. Get quiz details to check what details can be returned back
-    const quiz = await this.quizRepository.getById(quizId);
-
-    //9. Return grading result based on quiz settings
-    return this._buildGradingResult(quiz, gradingResult);
   }
 
   public async save(
-    userId: string,
+    userId: string | ObjectId,
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
   ): Promise<void> {
-    //1. Fetch the attempt by ID
-    const attempt = await this.attemptRepository.getById(attemptId);
-    if (!attempt) {
-      throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
-    }
-    //2. Check if Deadline has passed for the quiz
-    const quiz = await this.quizRepository.getById(quizId);
-    if (!quiz) {
-      throw new NotFoundError(`Quiz with ID ${quizId} not found`);
-    }
-    if (
-      quiz.details.quizType === 'DEADLINE' &&
-      quiz.details.deadline < new Date()
-    ) {
-      throw new BadRequestError('Quiz deadline has passed');
-    }
-    //2. Check if the attempt belongs to the user and quiz
-    if (attempt.userId !== userId || attempt.quizId !== quizId) {
-      throw new BadRequestError('Attempt does not belong to the user or quiz');
-    }
-    //3. Update the attempt with the answers
-    attempt.answers = answers;
-    attempt.updatedAt = new Date();
+    return this._withTransaction(async session => {
+      //1. Fetch the attempt by ID
+      const attempt = await this.attemptRepository.getById(attemptId);
+      if (!attempt) {
+        throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
+      }
+      //2. Check if Deadline has passed for the quiz
+      const quiz = await this.quizRepository.getById(quizId, session);
+      if (!quiz) {
+        throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+      }
+      if (
+        quiz.details.quizType === 'DEADLINE' &&
+        quiz.details.deadline < new Date()
+      ) {
+        throw new BadRequestError('Quiz deadline has passed');
+      }
+      //2. Check if the attempt belongs to the user and quiz
+      if (attempt.userId !== userId || attempt.quizId !== quizId) {
+        throw new BadRequestError(
+          'Attempt does not belong to the user or quiz',
+        );
+      }
+      //3. Update the attempt with the answers
+      attempt.answers = answers;
+      attempt.updatedAt = new Date();
 
-    //4. Save the updated attempt
-    await this.attemptRepository.update(attemptId, attempt);
+      //4. Save the updated attempt
+      await this.attemptRepository.update(attemptId, attempt);
+    });
   }
 }
 

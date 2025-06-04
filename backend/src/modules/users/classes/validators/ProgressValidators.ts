@@ -8,7 +8,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from 'shared/types';
+import {ID} from '../../../../shared/types';
 
 export class GetUserProgressParams {
   @JSONSchema({

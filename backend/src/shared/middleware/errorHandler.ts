@@ -1,4 +1,4 @@
-import {logger} from '@sentry/node';
+import {createLogger, format, transports} from 'winston';
 import {ValidationError} from 'class-validator';
 import {
   Middleware,
@@ -8,6 +8,23 @@ import {
 } from 'routing-controllers';
 import {Request, Response} from 'express';
 import {Service} from 'typedi';
+
+const logger = createLogger({
+  level: 'info',
+  format: format.combine(format.timestamp(), format.prettyPrint()),
+  transports: [
+    //
+    // - Write all logs with importance level of `error` or higher to `error.log`
+    //   (i.e., error, fatal, but not other levels)
+    //
+    new transports.File({filename: 'error.log', level: 'error'}),
+    //
+    // - Write all logs with importance level of `info` or higher to `combined.log`
+    //   (i.e., fatal, error, warn, and info, but not trace)
+    //
+    //new transports.File({filename: 'combined.log'}), "uncomment this line to log all messages to combined.log",
+  ],
+});
 
 export class ErrorResponse<T> {
   message: string;
@@ -115,6 +132,12 @@ class BadRequestErrorResponse {
 @Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {
+    logger.error({
+      message: error.message,
+      errors: error.errors,
+      stack: error.stack,
+      status: error.httpCode || 500,
+    });
     // class CustomValidationError {
     //     errors: ValidationError[];
     // }

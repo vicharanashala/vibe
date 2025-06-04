@@ -1,31 +1,23 @@
 import request from 'supertest';
 import Express from 'express';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
-import {Container} from 'typedi';
+import {RoutingControllersOptions, useContainer, useExpressServer} from 'routing-controllers';
 import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatabase';
-import {authModuleOptions, setupAuthModuleDependencies} from 'modules/auth';
+import {authModuleOptions} from '../../auth';
 import {
   coursesModuleOptions,
-  setupCoursesModuleDependencies,
-} from 'modules/courses';
+} from '../../courses';
 import {
   ResetCourseProgressBody,
-  setupUsersModuleDependencies,
   StartItemBody,
   StopItemBody,
   UpdateProgressBody,
   usersModuleOptions,
 } from '..';
 
-import {de, fa, faker, ne} from '@faker-js/faker/.';
 import {isMongoId} from 'class-validator';
 import {ProgressService} from '../services/ProgressService';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from '../../../config/db';
-import {IUser, IWatchTime} from 'shared/interfaces/Models';
+import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
+import {IUser, IWatchTime} from '../../../shared/interfaces/Models';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,
@@ -34,7 +26,14 @@ import {createUser} from './utils/createUser';
 import {createEnrollment} from './utils/createEnrollment';
 import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress';
 import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase';
-
+import { InversifyAdapter } from '../../../inversify-adapter';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '../../../container';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '../../auth/container';
+import { coursesContainerModule } from '../../courses/container';
+import { usersContainerModule } from '../container';
+jest.setTimeout(300000); // Set timeout to 30 seconds for the tests
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
@@ -45,27 +44,10 @@ describe('Progress Controller Integration Tests', () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
 
-    // Start an in-memory MongoDB servera
-    // mongoServer = await MongoMemoryServer.create();
-    // const uri = mongoServer.getUri();
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-
-    setupAuthModuleDependencies();
-    setupCoursesModuleDependencies();
-    setupUsersModuleDependencies();
-
-    const progressService = new ProgressService(
-      Container.get<ProgressRepository>('ProgressRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-      Container.get<UserRepository>('UserRepo'),
-      Container.get<ItemRepository>('ItemRepo'),
-    );
-
-    // Remove the old ProgressService from the container
-    if (Container.has('ProgressService')) {
-      Container.remove('ProgressService');
-    }
-    Container.set('ProgressService', progressService);
+    const container = new Container();
+    await container.load(sharedContainerModule, authContainerModule, usersContainerModule, coursesContainerModule);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
 
     // Create the Express app with routing-controllers configuration
     const options: RoutingControllersOptions = {
@@ -91,32 +73,25 @@ describe('Progress Controller Integration Tests', () => {
     // Create enrollment
     await createEnrollment(
       app,
-      user.id,
+      user._id as string,
       courseData.courseId,
       courseData.courseVersionId,
       courseData.modules[0].moduleId,
       courseData.modules[0].sections[0].sectionId,
       courseData.modules[0].sections[0].items[0].itemId,
     );
-
-    jest.setTimeout(30000);
-  }, 900000);
-
-  afterAll(async () => {
-    // Stop the in-memory MongoDB server
-    // await mongoServer.stop();
-    await Container.get<MongoDatabase>('Database').disconnect();
-    // Close all containers
-    Container.reset();
   });
 
-  beforeEach(async () => {}, 10000);
+  afterAll(async () => {
+  });
+
+  beforeEach(async () => {});
 
   // ------Tests for Create <ModuleName>------
   describe('Fetch Progress Data', () => {
     it('should fetch the progress', async () => {
       await verifyProgressInDatabase({
-        userId: user.id,
+        userId: user._id as string,
         courseId: courseData.courseId,
         courseVersionId: courseData.courseVersionId,
         expectedModuleId: courseData.modules[0].moduleId,
@@ -142,10 +117,10 @@ describe('Progress Controller Integration Tests', () => {
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors).toBeTruthy();
       expect(response.body.errors[0].constraints).toHaveProperty('isMongoId');
-    }, 10000);
+    });
 
     it('should return 400 if courseId is invalid', async () => {
-      const userId = user.id;
+      const userId = user._id;
       const invalidCourseId = 'invalidCourseId';
       const courseVersionId = courseData.courseVersionId;
 
@@ -162,7 +137,7 @@ describe('Progress Controller Integration Tests', () => {
     });
 
     it('should return 400 if courseVersionId is invalid', async () => {
-      const userId = user.id;
+      const userId = user._id;
       const courseId = courseData.courseId;
 
       const invalidCourseVersionId = 'invalidCourseVersionId';
@@ -179,7 +154,7 @@ describe('Progress Controller Integration Tests', () => {
     });
 
     it('should return 404 if progress not found when courseId and courseVersionId are fake', async () => {
-      const userId = user.id;
+      const userId = user._id;
 
       const courseId = faker.database.mongodbObjectId();
       const courseVersionId = faker.database.mongodbObjectId();
@@ -243,7 +218,7 @@ describe('Progress Controller Integration Tests', () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -265,7 +240,7 @@ describe('Progress Controller Integration Tests', () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -280,7 +255,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -297,14 +272,14 @@ describe('Progress Controller Integration Tests', () => {
       // Create enrollment
       await createEnrollment(
         app,
-        user.id,
+        user._id as string,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
         courseData.modules[0].sections[0].sectionId,
         courseData.modules[0].sections[0].items[0].itemId,
       );
-    }, 50000);
+    });
 
     it('should update the progress, if isValidWatchTime is true', async () => {
       // Start the item progress
@@ -315,7 +290,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -329,7 +304,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const stopItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -348,11 +323,11 @@ describe('Progress Controller Integration Tests', () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody)
         .expect(200);
-    }, 50000);
+    });
     it('should not update the progress, if isValidWatchTime is false', async () => {
       // Start the item progress
       const startItemBody: StartItemBody = {
@@ -362,7 +337,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody);
 
@@ -377,7 +352,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -397,7 +372,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
 
@@ -408,7 +383,7 @@ describe('Progress Controller Integration Tests', () => {
       expect(updateProgressResponse.body.message).toBe(
         'Watch time is not valid, the user did not watch the item long enough',
       );
-    }, 50000);
+    });
 
     it('should update the progress, if watch time is actually greater than or equal to 0.5 times video length', async () => {
       // Start the item progress
@@ -419,7 +394,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -434,7 +409,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -474,7 +449,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
       expect(updateProgressResponse.status).toBe(200);
@@ -482,13 +457,13 @@ describe('Progress Controller Integration Tests', () => {
       // fetch the progress of the user
       const progressResponse = await request(app)
         .get(
-          `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
+          `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
         )
         .expect(200);
 
       // Expect the response to contain the progress data
       expect(progressResponse.body).toHaveProperty('userId');
-      expect(progressResponse.body.userId).toBe(user.id);
+      expect(progressResponse.body.userId).toBe(user._id);
       expect(progressResponse.body).toHaveProperty('courseId');
       expect(progressResponse.body.courseId).toBe(courseData.courseId);
       expect(progressResponse.body).toHaveProperty('courseVersionId');
@@ -500,7 +475,7 @@ describe('Progress Controller Integration Tests', () => {
       expect(progressResponse.body.currentModule).not.toBe(
         courseData.modules[0].sections[0].items[0].itemId,
       );
-    }, 50000);
+    });
   });
 
   describe('Reset Progress', () => {
@@ -514,15 +489,14 @@ describe('Progress Controller Integration Tests', () => {
       // Create enrollment
       await createEnrollment(
         app,
-        user.id,
+        user._id as string,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
         courseData.modules[0].sections[0].sectionId,
         courseData.modules[0].sections[0].items[0].itemId,
       );
-      jest.setTimeout(30000);
-    }, 100000);
+    });
 
     describe('Reset Entire Course Progress', () => {
       describe('Success Scenario', () => {
@@ -530,7 +504,7 @@ describe('Progress Controller Integration Tests', () => {
           // Start Stop and Update Progress
           const {startItemResponse, stopItemResponse, updateProgressResponse} =
             await startStopAndUpdateProgress({
-              userId: user.id,
+              userId: user._id as string,
               courseId: courseData.courseId,
               courseVersionId: courseData.courseVersionId,
               itemId: courseData.modules[0].sections[0].items[0].itemId,
@@ -540,7 +514,7 @@ describe('Progress Controller Integration Tests', () => {
             });
 
           await verifyProgressInDatabase({
-            userId: user.id,
+            userId: user._id as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[0].moduleId,
@@ -552,14 +526,14 @@ describe('Progress Controller Integration Tests', () => {
 
           // Reset the progress
           const resetResponse = await request(app).patch(
-            `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+            `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
           );
 
           expect(resetResponse.status).toBe(200);
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: user.id,
+            userId: user._id as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[0].moduleId,
@@ -568,7 +542,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
     });
 
@@ -582,7 +556,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -590,7 +564,7 @@ describe('Progress Controller Integration Tests', () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: user.id,
+            userId: user._id as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -599,7 +573,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -612,7 +586,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -623,7 +597,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
 
@@ -638,7 +612,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -646,7 +620,7 @@ describe('Progress Controller Integration Tests', () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: user.id,
+            userId: user._id as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -655,7 +629,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -669,7 +643,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -680,7 +654,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if sectionId is not in module', async () => {
           // Reset to module
@@ -692,7 +666,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -703,7 +677,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
 
@@ -719,7 +693,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -727,7 +701,7 @@ describe('Progress Controller Integration Tests', () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: user.id,
+            userId: user._id as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -736,7 +710,7 @@ describe('Progress Controller Integration Tests', () => {
             expectedCompleted: false,
             app,
           });
-        }, 100000);
+        });
       });
 
       describe('Failure Scenarios', () => {
@@ -751,7 +725,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -762,7 +736,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if sectionId is invalid/not in course', async () => {
           // Reset to module
@@ -775,7 +749,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -786,7 +760,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
 
         it('should throw error message if itemId is invalid/not in section', async () => {
           // Reset to module
@@ -799,7 +773,7 @@ describe('Progress Controller Integration Tests', () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${user.id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${user._id}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -810,7 +784,7 @@ describe('Progress Controller Integration Tests', () => {
           };
 
           expect(resetResponse.body).toMatchObject(expectedResponse);
-        }, 100000);
+        });
       });
     });
   });
@@ -826,7 +800,7 @@ describe('Progress Controller Integration Tests', () => {
       // Create enrollment
       await createEnrollment(
         app,
-        user.id,
+        user._id as string,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
@@ -856,7 +830,7 @@ describe('Progress Controller Integration Tests', () => {
           ) {
             const item = section.items[itemIndex];
             await startStopAndUpdateProgress({
-              userId: user.id,
+              userId: user._id as string,
               courseId: courseData.courseId,
               courseVersionId: courseData.courseVersionId,
               itemId: item.itemId,
@@ -870,7 +844,7 @@ describe('Progress Controller Integration Tests', () => {
 
       // After completing all items in the course, verify the course completion
       await verifyProgressInDatabase({
-        userId: user.id,
+        userId: user._id as string,
         courseId: courseData.courseId,
         courseVersionId: courseData.courseVersionId,
         expectedModuleId:
@@ -893,6 +867,6 @@ describe('Progress Controller Integration Tests', () => {
         expectedCompleted: true, // Course is completed after all modules are done
         app,
       });
-    }, 100000);
+    });
   });
 });

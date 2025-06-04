@@ -11,10 +11,14 @@ import {
   Post,
   Put,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {DeleteError, ReadError, UpdateError} from 'shared/errors/errors';
-import {Inject, Service} from 'typedi';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
+import {
+  DeleteError,
+  ReadError,
+  UpdateError,
+} from '../../../shared/errors/errors';
+import {inject, injectable} from 'inversify';
 import {ItemsGroup} from '../classes/transformers/Item';
 import {Section} from '../classes/transformers/Section';
 import {
@@ -31,20 +35,17 @@ import {
 } from '../classes/validators/SectionValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import {SectionService} from '../services/SectionService';
 import {CourseVersion} from '../classes/transformers';
-
-@OpenAPI({
-  tags: ['Course Sections'],
-})
+import TYPES from '../types';
+@injectable()
 @JsonController('/courses')
-@Service()
 export class SectionController {
   constructor(
-    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
-    @Inject('ItemRepo') private readonly itemRepo: ItemRepository,
-    @Inject('SectionService')
+    @inject(TYPES.CourseRepo) private readonly courseRepo: CourseRepository,
+    @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
+    @inject(TYPES.SectionService)
     private readonly sectionService: SectionService,
   ) {
     if (!this.sectionService) {
@@ -68,11 +69,6 @@ export class SectionController {
   @ResponseSchema(SectionNotFoundErrorResponse, {
     description: 'Section not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Create Section',
-    description:
-      'Creates a new section in the specified module and automatically generates an associated items group.',
   })
   async create(
     @Params() params: CreateSectionParams,
@@ -108,11 +104,6 @@ export class SectionController {
   @ResponseSchema(SectionNotFoundErrorResponse, {
     description: 'Section not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Update Section',
-    description:
-      "Updates an existing section's name or description within a module.",
   })
   async update(
     @Params() params: UpdateSectionParams,
@@ -151,11 +142,6 @@ export class SectionController {
   @ResponseSchema(SectionNotFoundErrorResponse, {
     description: 'Section not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Move Section',
-    description:
-      'Reorders a section within its module by placing it before or after another section.',
   })
   async move(
     @Params() params: MoveSectionParams,
@@ -204,10 +190,6 @@ export class SectionController {
   @ResponseSchema(SectionNotFoundErrorResponse, {
     description: 'Section not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Delete Section',
-    description: 'Permanently removes a section from a module.',
   })
   async delete(
     @Params() params: DeleteSectionParams,

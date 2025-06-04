@@ -24,7 +24,7 @@ import {
   IQuizDetails,
   ItemType,
   IVideoDetails,
-} from 'shared/interfaces/Models';
+} from '../../../../shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {CourseVersion, ItemsGroup} from '../transformers';
@@ -725,6 +725,40 @@ class DeleteItemParams {
   @IsString()
   itemId: string;
 }
+class GetItemParams {
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course in which user is enrolled',
+    example: '60d5ec49b3f1c8e4a8f8b8g9',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
+
+  @JSONSchema({
+    title: 'Course Version ID',
+    description: 'ID of the course version containing the item',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  courseVersionId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
 
 class ItemNotFoundErrorResponse {
   @JSONSchema({
@@ -789,4 +823,5 @@ export {
   ItemNotFoundErrorResponse,
   ItemDataResponse,
   DeletedItemResponse,
+  GetItemParams,
 };

@@ -10,7 +10,6 @@ import {CourseRepository} from 'shared/database/providers/mongo/repositories/Cou
 import {NotFoundError} from 'routing-controllers';
 import TYPES from '../types';
 import {inject, injectable} from 'inversify';
-
 import GLOBAL_TYPES from '../../../types';
 import {IQuestionBankRef} from 'shared/interfaces/Models';
 

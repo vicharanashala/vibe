@@ -1,17 +1,18 @@
 import 'reflect-metadata';
 import {Collection, ObjectId} from 'mongodb';
-import {Service, Inject} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase';
-import {IEnrollment, IProgress} from 'shared/interfaces/Models';
-import {CreateError, ReadError} from 'shared/errors/errors';
+import {IEnrollment, IProgress} from '../../../../interfaces/Models';
+import {CreateError, ReadError} from '../../../../errors/errors';
 import {NotFoundError} from 'routing-controllers';
+import GLOBAL_TYPES from '../../../../../types';
 
-@Service()
+@injectable()
 export class EnrollmentRepository {
   private enrollmentCollection: Collection<IEnrollment>;
   private progressCollection: Collection<IProgress>;
 
-  constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
     this.enrollmentCollection =
@@ -138,5 +139,26 @@ export class EnrollmentRepository {
       },
       {session},
     );
+  }
+
+  /**
+   * Get paginated enrollments for a user
+   */
+  async getEnrollments(userId: string, skip: number, limit: number) {
+    await this.init();
+    return this.enrollmentCollection
+      .find({userId})
+      .skip(skip)
+      .limit(limit)
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
+  /**
+   * Count total enrollments for a user
+   */
+  async countEnrollments(userId: string) {
+    await this.init();
+    return this.enrollmentCollection.countDocuments({userId});
   }
 }

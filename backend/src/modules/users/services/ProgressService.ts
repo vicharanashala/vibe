@@ -1,44 +1,50 @@
-import {Inject, Service} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {Progress} from '../classes/transformers';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
+import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
 import {
   BadRequestError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
+import {
+  MongoDatabase,
+  UserRepository,
+} from '../../../shared/database/providers/MongoDatabaseProvider';
 import {
   IBlogDetails,
   ICourseVersion,
   IProgress,
   IVideoDetails,
   IWatchTime,
-} from 'shared/interfaces/Models';
-import {Item} from 'modules/courses';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
+} from '../../../shared/interfaces/Models';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {Item} from '../../../modules/courses';
+import {ReadConcern, ReadPreference, WriteConcern, ObjectId} from 'mongodb';
+import TYPES from '../types';
+import GLOBAL_TYPES from '../../../types';
 
-/**
- * Service for managing user progress in courses.
- *
- * @category Users/Services
- */
-@Service()
-class ProgressService {
+@injectable()
+class ProgressService extends BaseService {
   constructor(
-    @Inject('ProgressRepository')
+    @inject(TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
 
-    @Inject('CourseRepo')
+    @inject(TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
 
-    @Inject('UserRepo')
+    @inject(TYPES.UserRepo)
     private readonly userRepo: UserRepository,
 
-    @Inject('ItemRepo')
+    @inject(TYPES.ItemRepo)
     private readonly itemRepo: ItemRepository,
-  ) {}
+
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase, // inject the database provider
+  ) {
+    super(database);
+  }
 
   /**
    * Initialize student progress tracking to the first item in the course.
@@ -259,7 +265,7 @@ class ProgressService {
   }
 
   private async verifyDetails(
-    userId: string,
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
   ): Promise<void> {
@@ -552,19 +558,11 @@ class ProgressService {
   }
 
   async getUserProgress(
-    userId: string,
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
   ): Promise<Progress> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
 
@@ -577,14 +575,9 @@ class ProgressService {
       if (!progress) {
         throw new NotFoundError('Progress not found');
       }
-      await session.commitTransaction();
+
       return Object.assign(new Progress(), progress);
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async startItem(
@@ -595,15 +588,7 @@ class ProgressService {
     sectionId: string,
     itemId: string,
   ): Promise<string> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -623,14 +608,8 @@ class ProgressService {
         itemId,
       );
 
-      await session.commitTransaction();
       return result;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async stopItem(
@@ -642,15 +621,7 @@ class ProgressService {
     moduleId: string,
     watchItemId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -681,13 +652,7 @@ class ProgressService {
       if (!result) {
         throw new InternalServerError('Failed to stop tracking item');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async updateProgress(
@@ -698,16 +663,8 @@ class ProgressService {
     sectionId: string,
     itemId: string,
     watchItemId: string,
-  ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+  ): Promise<void> {
+    return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
       await this.verifyProgress(
@@ -770,13 +727,7 @@ class ProgressService {
       if (!updatedProgress) {
         throw new InternalServerError('Progress could not be updated');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   // Admin Level Endpoint
@@ -785,15 +736,7 @@ class ProgressService {
     courseId: string,
     courseVersionId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
       // Get Course Version
@@ -821,13 +764,7 @@ class ProgressService {
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async resetCourseProgressToModule(
@@ -836,15 +773,7 @@ class ProgressService {
     courseVersionId: string,
     moduleId: string,
   ): Promise<void> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
       // Get Course Version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
@@ -876,13 +805,7 @@ class ProgressService {
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async resetCourseProgressToSection(
@@ -892,15 +815,7 @@ class ProgressService {
     moduleId: string,
     sectionId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
       // Get Course Version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
@@ -933,13 +848,7 @@ class ProgressService {
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async resetCourseProgressToItem(
@@ -950,15 +859,7 @@ class ProgressService {
     sectionId: string,
     itemId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-    await session.startTransaction(txOptions);
-    try {
+    return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
       // Get Course Version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
@@ -992,13 +893,7 @@ class ProgressService {
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 }
 

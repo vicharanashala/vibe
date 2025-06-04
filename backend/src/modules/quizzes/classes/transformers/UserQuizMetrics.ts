@@ -2,16 +2,17 @@ import {
   IAttemptDetails,
   IUserQuizMetrics,
 } from 'modules/quizzes/interfaces/grading';
+import {ObjectId} from 'mongodb';
 
 class UserQuizMetrics implements IUserQuizMetrics {
-  userId: string;
+  userId: string | ObjectId;
   quizId: string;
   remainingAttempts: number;
   latestAttemptId?: string;
   latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
   attempts: IAttemptDetails[];
 
-  constructor(userId: string, quizId: string, maxAttempts: number) {
+  constructor(userId: string | ObjectId, quizId: string, maxAttempts: number) {
     this.userId = userId;
     this.quizId = quizId;
     this.remainingAttempts = maxAttempts;

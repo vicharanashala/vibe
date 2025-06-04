@@ -10,56 +10,37 @@
  */
 
 import 'reflect-metadata';
-import {Action, RoutingControllersOptions} from 'routing-controllers';
-import {AuthController} from './controllers/AuthController';
-import {Container} from 'typedi';
-import {useContainer} from 'routing-controllers';
-import {IAuthService} from './interfaces/IAuthService';
-import {FirebaseAuthService} from './services/FirebaseAuthService';
-
-import {dbConfig} from '../../config/db';
-import {IDatabase, IUserRepository} from 'shared/database';
 import {
-  MongoDatabase,
-  UserRepository,
-} from 'shared/database/providers/MongoDatabaseProvider';
+  Action,
+  getFromContainer,
+  RoutingControllersOptions,
+} from 'routing-controllers';
+import {AuthController} from './controllers/AuthController';
+import {useContainer} from 'routing-controllers';
+import {FirebaseAuthService} from './services/FirebaseAuthService';
+import {Container} from 'inversify';
+import {sharedContainerModule} from 'container';
+import {authContainerModule} from './container';
+import {InversifyAdapter} from '../../inversify-adapter';
 
-useContainer(Container);
-
-export function setupAuthModuleDependencies(): void {
-  if (!Container.has('Database')) {
-    Container.set<IDatabase>(
-      'Database',
-      new MongoDatabase(dbConfig.url, 'vibe'),
-    );
-  }
-
-  if (!Container.has('UserRepository')) {
-    Container.set<IUserRepository>(
-      'UserRepository',
-      new UserRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('AuthService')) {
-    Container.set<IAuthService>(
-      'AuthService',
-      new FirebaseAuthService(Container.get<IUserRepository>('UserRepository')),
-    );
-  }
+export async function setupAuthContainer(): Promise<void> {
+  const container = new Container();
+  await container.load(sharedContainerModule, authContainerModule);
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
 }
-
-setupAuthModuleDependencies();
 
 export const authModuleOptions: RoutingControllersOptions = {
   controllers: [AuthController],
   authorizationChecker: async function (action: Action, roles: string[]) {
     // Use the auth service to check if the user is authorized
-    const authService = Container.get<IAuthService>('AuthService');
+    const authService =
+      getFromContainer<FirebaseAuthService>(FirebaseAuthService);
     const token = action.request.headers['authorization']?.split(' ')[1];
     if (!token) {
       return false;
     }
+
     try {
       const user = await authService.verifyToken(token);
       action.request.user = user;
@@ -72,6 +53,20 @@ export const authModuleOptions: RoutingControllersOptions = {
       return true;
     } catch (error) {
       return false;
+    }
+  },
+  currentUserChecker: async (action: Action) => {
+    // Use the auth service to get the current user
+    const authService =
+      getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+    const token = action.request.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return null;
+    }
+    try {
+      return await authService.verifyToken(token);
+    } catch (error) {
+      return null;
     }
   },
 };

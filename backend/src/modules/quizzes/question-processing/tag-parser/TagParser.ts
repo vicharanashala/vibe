@@ -1,4 +1,4 @@
-import {IQuestionParameter} from 'shared/interfaces/quiz';
+import {IQuestionParameter} from '../../../../shared/interfaces/quiz';
 import {Tag, ParameterMap} from './tags/Tag';
 
 class TagParser {

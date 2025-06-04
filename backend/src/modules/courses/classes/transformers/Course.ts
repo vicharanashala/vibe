@@ -5,9 +5,9 @@ import {
   StringArrayToObjectIdArray,
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {ICourse} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '../../../../shared/constants/transformerConstants';
+import {ICourse} from '../../../../shared/interfaces/Models';
+import {ID} from '../../../../shared/types';
 import {CreateCourseBody} from '../validators';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -86,7 +86,7 @@ class Course implements ICourse {
     type: 'string',
     format: 'date-time',
   })
-  createdAt?: Date | null;
+  createdAt?: Date;
 
   @Expose()
   @Type(() => Date)
@@ -97,7 +97,7 @@ class Course implements ICourse {
     type: 'string',
     format: 'date-time',
   })
-  updatedAt?: Date | null;
+  updatedAt?: Date;
 
   constructor(courseBody?: CreateCourseBody) {
     if (courseBody) {

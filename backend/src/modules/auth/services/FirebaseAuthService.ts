@@ -11,16 +11,20 @@
 import 'reflect-metadata';
 import {Auth} from 'firebase-admin/lib/auth/auth';
 
-import admin from 'firebase-admin';
+import admin, {database} from 'firebase-admin';
 import {UserRecord} from 'firebase-admin/lib/auth/user-record';
 import {applicationDefault} from 'firebase-admin/app';
 import {Inject, Service} from 'typedi';
-import {IUser} from 'shared/interfaces/Models';
-import {IUserRepository} from 'shared/database';
+import {IUser} from '../../../shared/interfaces/Models';
+import {IUserRepository} from '../../../shared/database';
 import {IAuthService} from '../interfaces/IAuthService';
 import {ChangePasswordBody, SignUpBody} from '../classes/validators';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {CreateError} from 'shared/errors/errors';
+import {BadRequestError, InternalServerError} from 'routing-controllers';
+import {User} from '../classes/transformers/User';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {injectable, inject} from 'inversify';
+import GLOBAL_TYPES from '../../../types';
 
 /**
  * Custom error thrown during password change operations.
@@ -39,76 +43,40 @@ export class ChangePasswordError extends Error {
   }
 }
 
-/**
- * Service that implements authentication functionality using Firebase Auth.
- * Handles user registration, token verification, and password management.
- *
- * @category Auth/Services
- * @implements {IAuthService}
- */
-@Service()
-export class FirebaseAuthService implements IAuthService {
-  /**
-   * Firebase Auth instance used for authentication operations.
-   */
+@injectable()
+export class FirebaseAuthService extends BaseService implements IAuthService {
   private auth: Auth;
-  private readonly transactionOptions = {
-    readPreference: ReadPreference.primary,
-    writeConcern: new WriteConcern('majority'),
-    readConcern: new ReadConcern('majority'),
-  };
-
-  /**
-   * Creates a new Firebase authentication service instance.
-   * Initializes Firebase Admin SDK with application default credentials.
-   *
-   * @param userRepository - Repository for storing and retrieving user data
-   */
   constructor(
-    @Inject('UserRepository') private userRepository: IUserRepository,
+    @inject(GLOBAL_TYPES.UserRepository)
+    private userRepository: IUserRepository,
+
+    @inject(GLOBAL_TYPES.Database)
+    private database: MongoDatabase,
   ) {
+    super(database);
     admin.initializeApp({
       credential: applicationDefault(),
     });
     this.auth = admin.auth();
   }
 
-  /**
-   * Verifies a Firebase authentication token and returns the associated user.
-   *
-   * @param token - The Firebase ID token to verify
-   * @returns A promise that resolves to the user data associated with the token
-   * @throws Error - If the token is invalid or verification fails
-   */
-  async verifyToken(token: string): Promise<IUser> {
-    try {
-      // Decode and verify the Firebase token
-      const decodedToken = await this.auth.verifyIdToken(token);
-      // Retrieve the full user record from Firebase
-      const userRecord = await this.auth.getUser(decodedToken.uid);
+  async verifyToken(token: string): Promise<Partial<IUser>> {
+    // Decode and verify the Firebase token
+    const decodedToken = await this.auth.verifyIdToken(token);
+    // Retrieve the full user record from Firebase
+    const userRecord = await this.auth.getUser(decodedToken.uid);
 
-      // Map Firebase user data to our application user model
-      const user: IUser = {
-        firebaseUID: userRecord.uid,
-        email: userRecord.email || '',
-        firstName: userRecord.displayName?.split(' ')[0] || '',
-        lastName: userRecord.displayName?.split(' ')[1] || '',
-        roles: ['admin', 'student'], // Assuming roles are not stored in Firebase and defaulting to 'student'
-      };
+    // Map Firebase user data to our application user model
+    const user: Partial<IUser> = {
+      firebaseUID: userRecord.uid,
+      email: userRecord.email || '',
+      firstName: userRecord.displayName?.split(' ')[0] || '',
+      lastName: userRecord.displayName?.split(' ')[1] || '',
+    };
 
-      return user;
-    } catch (error) {
-      throw new Error('Invalid token');
-    }
+    return user;
   }
 
-  /**
-   * Registers a new user with Firebase Auth and stores user data in the repository.
-   *
-   * @param body - The validated signup information including email, password, and name
-   * @returns A promise resolving to the newly created user object
-   * @throws Error - If user creation fails in either Firebase or the repository
-   */
   async signup(body: SignUpBody): Promise<IUser> {
     let userRecord: UserRecord;
     try {
@@ -121,97 +89,29 @@ export class FirebaseAuthService implements IAuthService {
         disabled: false,
       });
     } catch (error) {
-      throw new Error('Failed to create user in Firebase');
+      throw new InternalServerError('Failed to create user in Firebase');
     }
 
     // Prepare user object for storage in our database
-    const user: IUser = {
+    const user: Partial<IUser> = {
       firebaseUID: userRecord.uid,
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['student'],
+      roles: ['user'],
     };
 
     let createdUser: IUser;
-    const session = (await this.userRepository.getDBClient()).startSession();
-    try {
-      await session.startTransaction(this.transactionOptions);
-      // Store the user in our application database
-      createdUser = await this.userRepository.create(user, session);
-      if (!createdUser) {
-        throw new CreateError('Failed to create the user');
-      }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw new Error('Failed to create user in the repository');
-    } finally {
-      await session.endSession();
-    }
 
+    await this._withTransaction(async session => {
+      createdUser = await this.userRepository.create(new User(user), session);
+      if (!createdUser) {
+        throw new InternalServerError('Failed to create the user');
+      }
+    });
     return createdUser;
   }
 
-  /**
-   * Verifies a Firebase authentication token and returns the associated user.
-   *
-   * @param token - The Firebase ID token to verify
-   * @returns A promise that resolves to the user data associated with the token
-   * @throws Error - If the token is invalid or verification fails
-   */
-  async verifySignUpProvider(token: string): Promise<IUser> {
-    const session = (await this.userRepository.getDBClient()).startSession();
-    try {
-      // Decode and verify the Firebase token
-      const decodedToken = await this.auth.verifyIdToken(token);
-      // Retrieve the full user record from Firebase
-      const userRecord = await this.auth.getUser(decodedToken.uid);
-      if (!userRecord) {
-        throw new Error('User not found');
-      }
-
-      await session.startTransaction(this.transactionOptions);
-      const user = await this.userRepository.findByEmail(
-        userRecord.email,
-        session,
-      );
-      if (!user) {
-        // Map Firebase user data to our application user model
-        const user: IUser = {
-          firebaseUID: userRecord.uid,
-          email: userRecord.email || '',
-          firstName: userRecord.displayName?.split(' ')[0] || '',
-          lastName: userRecord.displayName?.split(' ')[1] || '',
-          roles: ['student'], // Assuming roles are not stored in Firebase and defaulting to 'student'
-        };
-        const createdUser = await this.userRepository.create(user, session);
-        if (!createdUser) {
-          throw new CreateError('Failed to create the user');
-        }
-        await session.commitTransaction();
-        return createdUser;
-      } else {
-        await session.commitTransaction();
-        return user;
-      }
-    } catch (error) {
-      await session.abortTransaction();
-      throw new Error('Invalid token');
-    } finally {
-      await session.endSession();
-    }
-  }
-
-  /**
-   * Changes a user's password in Firebase Auth.
-   * Verifies that passwords match and the user exists before making changes.
-   *
-   * @param body - Contains the new password and confirmation
-   * @param requestUser - The authenticated user requesting the password change
-   * @returns A promise resolving to a success confirmation object
-   * @throws ChangePasswordError - If passwords don't match or user doesn't exist
-   */
   async changePassword(
     body: ChangePasswordBody,
     requestUser: IUser,

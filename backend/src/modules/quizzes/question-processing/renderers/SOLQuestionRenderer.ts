@@ -1,5 +1,5 @@
-import {SOLQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
+import {SOLQuestion} from '../../classes/transformers';
+import {ILotItem} from '../../../../shared/interfaces/quiz';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer';
 import {SOLQuestionRenderView} from './interfaces/RenderViews';

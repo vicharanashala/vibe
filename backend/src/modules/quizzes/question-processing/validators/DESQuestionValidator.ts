@@ -1,5 +1,5 @@
 import {DESQuestion} from '../../classes/transformers/Question';
-import {TagParser} from 'modules/quizzes/question-processing/tag-parser/TagParser';
+import {TagParser} from '../../question-processing/tag-parser/TagParser';
 import {BaseQuestionValidator} from './BaseQuestionValidator';
 
 export class DESQuestionValidator extends BaseQuestionValidator {

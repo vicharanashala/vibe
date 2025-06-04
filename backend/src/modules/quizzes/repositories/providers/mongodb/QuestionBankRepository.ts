@@ -8,7 +8,7 @@ import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 class QuestionBankRepository {
   private questionBankCollection: Collection<IQuestionBank>;
   constructor(
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

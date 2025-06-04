@@ -3,9 +3,9 @@ import {Expose, Transform, Type} from 'class-transformer';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {ICourseVersion} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '../../../../shared/constants/transformerConstants';
+import {ICourseVersion} from '../../../../shared/interfaces/Models';
+import {ID} from '../../../../shared/types';
 import {Module} from './Module';
 import {CreateCourseVersionBody} from '../validators';
 

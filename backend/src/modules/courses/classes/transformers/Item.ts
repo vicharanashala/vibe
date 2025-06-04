@@ -1,19 +1,19 @@
 import 'reflect-metadata';
 import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from 'modules/courses/utils/calculateNewOrder';
+import {calculateNewOrder} from '../../utils/calculateNewOrder';
 import {ObjectId} from 'mongodb';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
+} from '../../../../shared/constants/transformerConstants';
 import {
   IBaseItem,
   ItemType,
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
-} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '../../../../shared/interfaces/Models';
+import {ID} from '../../../../shared/types';
 import {CreateItemBody} from '../validators/ItemValidators';
 
 export type Item = QuizItem | VideoItem | BlogItem;

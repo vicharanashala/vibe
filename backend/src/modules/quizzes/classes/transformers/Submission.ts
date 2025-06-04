@@ -1,14 +1,14 @@
 import {IGradingResult, ISubmission} from 'modules/quizzes/interfaces/grading';
-
+import {ObjectId} from 'mongodb';
 class Submission implements ISubmission {
-  _id?: string;
+  _id?: string | ObjectId;
   quizId: string;
-  userId: string;
+  userId: string | ObjectId;
   attemptId: string;
   submittedAt: Date;
   gradingResult?: IGradingResult;
 
-  constructor(quizId: string, userId: string, attemptId: string) {
+  constructor(quizId: string, userId: string | ObjectId, attemptId: string) {
     this.quizId = quizId;
     this.userId = userId;
     this.attemptId = attemptId;

@@ -1,5 +1,5 @@
 import {coursesModuleOptions} from 'modules/courses';
-import {useExpressServer} from 'routing-controllers';
+import {useExpressServer, useContainer} from 'routing-controllers';
 import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
@@ -10,34 +10,22 @@ import {ReadError} from 'shared/errors/errors';
 import {CourseVersionService} from '../services';
 import {dbConfig} from '../../../config/db';
 import {SectionService} from '../services/SectionService';
+import { InversifyAdapter } from '../../../inversify-adapter';
+import { Container } from 'inversify';
+import { coursesContainerModule } from '../container';
+import { sharedContainerModule } from '../../../container';
 
+jest.setTimeout(90000); // Set a longer timeout for the tests
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
   let app;
 
   beforeAll(async () => {
-    // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
-    const itemRepo = new ItemRepository(
-      Container.get<MongoDatabase>('Database'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ItemRepo', itemRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    const sectionService = new SectionService(
-      Container.get<ItemRepository>('ItemRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    Container.set('SectionService', sectionService);
-
-    // Create the Express app with the routing controllers configuration
+    process.env.NODE_ENV = 'test';
+    const container = new Container();
+    await container.load(sharedContainerModule, coursesContainerModule);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
     app = useExpressServer(App, coursesModuleOptions);
   });
 

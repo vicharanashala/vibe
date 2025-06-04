@@ -2,14 +2,14 @@ import {
   CourseVersion,
   ItemsGroup,
   Module,
-} from 'modules/courses/classes/transformers/index';
+} from '../../../modules/courses/classes/transformers/index';
 import {
   ICourse,
   ICourseVersion,
   IEnrollment,
   IModule,
   IProgress,
-} from 'shared/interfaces/Models';
+} from '../../interfaces/Models';
 import {
   ClientSession,
   DeleteResult,
@@ -22,13 +22,13 @@ export interface ICourseRepository {
   getDBClient(): Promise<MongoClient>;
 
   create(course: ICourse, session?: ClientSession): Promise<ICourse | null>;
-  read(id: string): Promise<ICourse | null>;
+  read(id: string, session?: ClientSession): Promise<ICourse | null>;
   update(
     id: string,
     course: Partial<ICourse>,
     session?: ClientSession,
   ): Promise<ICourse | null>;
-  delete(id: string): Promise<boolean>;
+  delete(id: string, session?: ClientSession): Promise<boolean>;
 
   createVersion(
     courseVersion: ICourseVersion,

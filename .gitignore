@@ -58,3 +58,4 @@ backend/openapi
 .vibe.json
 
 .venv
+dist/

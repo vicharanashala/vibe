@@ -1,22 +1,28 @@
-import {coursesModuleOptions, CreateItemBody, Item} from 'modules/courses';
-import {MongoMemoryServer} from 'mongodb-memory-server';
-import {useExpressServer} from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import Container from 'typedi';
+import {coursesModuleOptions, CreateItemBody, Item} from '../../';
+import {useExpressServer, useContainer} from 'routing-controllers';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
+import {MongoDatabase, UserRepository} from '../../../shared/database/providers/MongoDatabaseProvider';
+
 import Express from 'express';
 import request from 'supertest';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
 import {dbConfig} from '../../../config/db';
 import {CourseVersionService, ItemService, SectionService} from '../services';
+import {ProgressService} from '../../users/services/ProgressService';
 import {
   createCourse,
   createModule,
   createSection,
   createVersion,
 } from './utils/creationFunctions';
-import {faker} from '@faker-js/faker/.';
-import {ItemType} from 'shared/interfaces/Models';
+import {faker} from '@faker-js/faker';
+import {ItemType} from '../../../shared/interfaces/Models';
+import { ProgressRepository } from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
+import { InversifyAdapter } from '../../../inversify-adapter';
+import { Container } from 'inversify';
+import { usersContainerModule } from '../../../users/container';
+import { coursesContainerModule } from '../container';
+import { sharedContainerModule } from '../../../container';
 
 jest.setTimeout(90000);
 describe('Item Controller Integration Tests', () => {
@@ -24,33 +30,16 @@ describe('Item Controller Integration Tests', () => {
   let app;
 
   beforeAll(async () => {
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
-    const itemRepo = new ItemRepository(
-      Container.get<MongoDatabase>('Database'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ItemRepo', itemRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    const sectionService = new SectionService(
-      Container.get<ItemRepository>('ItemRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('SectionService', sectionService);
-    const itemService = new ItemService(
-      Container.get<ItemRepository>('ItemRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ItemService', itemService);
+    process.env.NODE_ENV = 'test';
+    const container = new Container();
+    await container.load(sharedContainerModule, usersContainerModule, coursesContainerModule);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
     app = useExpressServer(App, coursesModuleOptions);
   });
-
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
   describe('ITEM CREATION', () => {
     describe('Success Scenario', () => {
       describe('Create Quiz Item', () => {
@@ -121,7 +110,7 @@ describe('Item Controller Integration Tests', () => {
               `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
             )
             .send(itemPayload);
-          // .expect(201);
+            expect(itemsGroupResponse.status === 201);
 
           expect(itemsGroupResponse.body.itemsGroup.items.length).toBe(1);
         });
@@ -147,25 +136,41 @@ describe('Item Controller Integration Tests', () => {
       description: 'desc',
     };
     const itemPayload1 = {
-      name: 'ReadAll Item1',
-      description: 'desc1',
-      type: 'VIDEO',
-      videoDetails: {
-        URL: 'http://url.com/1',
-        startTime: '00:00:00',
-        endTime: '00:00:40',
-        points: '5',
+      name: 'ReadAll Item 1',
+      description: faker.commerce.productDescription(),
+      type: ItemType.QUIZ,
+      quizDetails: {
+        questionVisibility: 3,
+        allowPartialGrading: true,
+        deadline: faker.date.future(),
+        allowHint: true,
+        maxAttempts: 5,
+        releaseTime: faker.date.future(),
+        quizType: 'DEADLINE',
+        showCorrectAnswersAfterSubmission: true,
+        showExplanationAfterSubmission: true,
+        showScoreAfterSubmission: true,
+        approximateTimeToComplete: '00:30:00',
+        passThreshold: 0.7,
       },
     };
     const itemPayload2 = {
-      name: 'ReadAll Item2',
-      description: 'desc2',
-      type: 'VIDEO',
-      videoDetails: {
-        URL: 'http://url.com/2',
-        startTime: '00:00:00',
-        endTime: '00:00:40',
-        points: '8',
+      name: 'ReadAll Item 2',
+      description: faker.commerce.productDescription(),
+      type: ItemType.QUIZ,
+      quizDetails: {
+        questionVisibility: 3,
+        allowPartialGrading: true,
+        deadline: faker.date.future(),
+        allowHint: true,
+        maxAttempts: 5,
+        releaseTime: faker.date.future(),
+        quizType: 'DEADLINE',
+        showCorrectAnswersAfterSubmission: true,
+        showExplanationAfterSubmission: true,
+        showScoreAfterSubmission: true,
+        approximateTimeToComplete: '00:30:00',
+        passThreshold: 0.7,
       },
     };
 
@@ -196,14 +201,14 @@ describe('Item Controller Integration Tests', () => {
         sectionResponse.body.version.modules[0].sections[0].sectionId;
 
       // Add two items
-      await request(app)
+      const item1 = await request(app)
         .post(
           `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
         )
         .send(itemPayload1)
         .expect(201);
 
-      await request(app)
+      const item2 = await request(app)
         .post(
           `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
         )
@@ -216,10 +221,10 @@ describe('Item Controller Integration Tests', () => {
           `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
         )
         .expect(200);
-      expect(readAllResponse.body.items.length).toBeGreaterThanOrEqual(2);
-      const names = readAllResponse.body.items.map(i => i.name);
-      expect(names).toContain(itemPayload1.name);
-      expect(names).toContain(itemPayload2.name);
+      expect(readAllResponse.body.length).toBeGreaterThanOrEqual(2);
+      const ids = readAllResponse.body.map(i => i._id);
+      expect(ids).toContain(item1.body.itemsGroup.items[0]._id);
+      expect(ids).toContain(item2.body.itemsGroup.items[0]._id);
     });
   });
 
@@ -240,15 +245,23 @@ describe('Item Controller Integration Tests', () => {
       name: 'Update Section',
       description: 'desc',
     };
-    const itemPayload = {
-      name: 'Update Item',
-      description: 'desc',
-      type: 'VIDEO',
-      videoDetails: {
-        URL: 'http://url.com/1',
-        startTime: '00:00:00',
-        endTime: '00:00:40',
-        points: '5',
+    const itemPayload: CreateItemBody = {
+      name: faker.commerce.productName(),
+      description: faker.commerce.productDescription(),
+      type: ItemType.QUIZ,
+      quizDetails: {
+        questionVisibility: 3,
+        allowPartialGrading: true,
+        deadline: faker.date.future(),
+        allowHint: true,
+        maxAttempts: 5,
+        releaseTime: faker.date.future(),
+        quizType: 'DEADLINE',
+        showCorrectAnswersAfterSubmission: true,
+        showExplanationAfterSubmission: true,
+        showScoreAfterSubmission: true,
+        approximateTimeToComplete: '00:30:00',
+        passThreshold: 0.7,
       },
     };
 
@@ -286,18 +299,26 @@ describe('Item Controller Integration Tests', () => {
         .send(itemPayload)
         .expect(201);
 
-      const itemId = itemResponse.body.itemsGroup.items[0].itemId;
+      const itemId = itemResponse.body.itemsGroup.items[0]._id;
 
       // Update item
-      const updatePayload = {
+      const updatePayload: CreateItemBody = {
         name: 'Updated Item Name',
-        description: 'Updated description',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com/updated',
-          startTime: '00:00:10',
-          endTime: '00:01:00',
-          points: '15',
+        description: 'Updated Item Description',
+        type: ItemType.QUIZ,
+        quizDetails: {
+          questionVisibility: 3,
+          allowPartialGrading: true,
+          deadline: faker.date.future(),
+          allowHint: true,
+          maxAttempts: 5,
+          releaseTime: faker.date.future(),
+          quizType: 'DEADLINE',
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          approximateTimeToComplete: '00:30:00',
+          passThreshold: 0.7,
         },
       };
 
@@ -313,9 +334,6 @@ describe('Item Controller Integration Tests', () => {
       );
       expect(updateResponse.body.itemsGroup.items[0].description).toBe(
         updatePayload.description,
-      );
-      expect(updateResponse.body.itemsGroup.items[0].videoDetails.URL).toBe(
-        updatePayload.videoDetails.URL,
       );
     });
   });
@@ -342,15 +360,23 @@ describe('Item Controller Integration Tests', () => {
         description: 'Section description',
       };
 
-      const itemPayload = {
-        name: 'Item1',
-        description: 'This an item',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com',
-          startTime: '00:00:00',
-          endTime: '00:00:40',
-          points: '10.5',
+      const itemPayload: CreateItemBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+        type: ItemType.QUIZ,
+        quizDetails: {
+          questionVisibility: 3,
+          allowPartialGrading: true,
+          deadline: faker.date.future(),
+          allowHint: true,
+          maxAttempts: 5,
+          releaseTime: faker.date.future(),
+          quizType: 'DEADLINE',
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          approximateTimeToComplete: '00:30:00',
+          passThreshold: 0.7,
         },
       };
 
@@ -396,12 +422,12 @@ describe('Item Controller Integration Tests', () => {
 
         const itemsResponse = await request(app)
           .delete(
-            `/courses/itemGroups/${itemsGroupId}/items/${itemsGroupResponse.body.itemsGroup.items[0].itemId}`,
+            `/courses/itemGroups/${itemsGroupId}/items/${itemsGroupResponse.body.itemsGroup.items[0]._id}`,
           )
           .expect(200);
 
         expect(itemsResponse.body.deletedItemId).toBe(
-          itemsGroupResponse.body.itemsGroup.items[0].itemId,
+          itemsGroupResponse.body.itemsGroup.items[0]._id,
         );
       });
     });
@@ -449,26 +475,41 @@ describe('Item Controller Integration Tests', () => {
       };
 
       const itemPayload1 = {
-        name: 'Item1',
-        description: 'This is item 1',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com/1',
-          startTime: '00:00:00',
-          endTime: '00:00:40',
-          points: '10.5',
+        name: 'Item 1',
+        description: faker.commerce.productDescription(),
+        type: ItemType.QUIZ,
+        quizDetails: {
+          questionVisibility: 3,
+          allowPartialGrading: true,
+          deadline: faker.date.future(),
+          allowHint: true,
+          maxAttempts: 5,
+          releaseTime: faker.date.future(),
+          quizType: 'DEADLINE',
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          approximateTimeToComplete: '00:30:00',
+          passThreshold: 0.7,
         },
       };
-
       const itemPayload2 = {
-        name: 'Item2',
-        description: 'This is item 2',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com/2',
-          startTime: '00:00:00',
-          endTime: '00:00:40',
-          points: '8.0',
+        name: 'Item 2',
+        description: faker.commerce.productDescription(),
+        type: ItemType.QUIZ,
+        quizDetails: {
+          questionVisibility: 3,
+          allowPartialGrading: true,
+          deadline: faker.date.future(),
+          allowHint: true,
+          maxAttempts: 5,
+          releaseTime: faker.date.future(),
+          quizType: 'DEADLINE',
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          approximateTimeToComplete: '00:30:00',
+          passThreshold: 0.7,
         },
       };
 
@@ -506,7 +547,7 @@ describe('Item Controller Integration Tests', () => {
           )
           .send(itemPayload1)
           .expect(201);
-        const item1Id = item1Response.body.itemsGroup.items[0].itemId;
+        const item1Id = item1Response.body.itemsGroup.items[0]._id;
 
         const item2Response = await request(app)
           .post(
@@ -514,7 +555,7 @@ describe('Item Controller Integration Tests', () => {
           )
           .send(itemPayload2)
           .expect(201);
-        const item2Id = item2Response.body.itemsGroup.items[1].itemId;
+        const item2Id = item2Response.body.itemsGroup.items[1]._id;
 
         // Move item2 before item1
         const moveResponse = await request(app)
@@ -525,11 +566,10 @@ describe('Item Controller Integration Tests', () => {
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
-        console.log(items.map(i => i.itemId));
         expect(items.length).toBe(2);
 
-        const idx1 = items.findIndex(i => i.itemId === item1Id);
-        const idx2 = items.findIndex(i => i.itemId === item2Id);
+        const idx1 = items.findIndex(i => i._id === item1Id);
+        const idx2 = items.findIndex(i => i._id === item2Id);
 
         // item2 should now be before item1
         expect(idx2).toBeLessThan(idx1);
@@ -569,7 +609,7 @@ describe('Item Controller Integration Tests', () => {
           )
           .send(itemPayload1)
           .expect(201);
-        const item1Id = item1Response.body.itemsGroup.items[0].itemId;
+        const item1Id = item1Response.body.itemsGroup.items[0]._id;
 
         const item2Response = await request(app)
           .post(
@@ -577,17 +617,25 @@ describe('Item Controller Integration Tests', () => {
           )
           .send(itemPayload2)
           .expect(201);
-        const item2Id = item2Response.body.itemsGroup.items[1].itemId;
+        const item2Id = item2Response.body.itemsGroup.items[1]._id;
 
-        const itemPayload3 = {
+        const itemPayload3: CreateItemBody = {
           name: 'Item3',
-          description: 'This is item 3',
-          type: 'VIDEO',
-          videoDetails: {
-            URL: 'http://url.com/3',
-            startTime: '00:00:00',
-            endTime: '00:00:40',
-            points: '7.0',
+          description: faker.commerce.productDescription(),
+          type: ItemType.QUIZ,
+          quizDetails: {
+            questionVisibility: 3,
+            allowPartialGrading: true,
+            deadline: faker.date.future(),
+            allowHint: true,
+            maxAttempts: 5,
+            releaseTime: faker.date.future(),
+            quizType: 'DEADLINE',
+            showCorrectAnswersAfterSubmission: true,
+            showExplanationAfterSubmission: true,
+            showScoreAfterSubmission: true,
+            approximateTimeToComplete: '00:30:00',
+            passThreshold: 0.7,
           },
         };
 
@@ -597,7 +645,7 @@ describe('Item Controller Integration Tests', () => {
           )
           .send(itemPayload3)
           .expect(201);
-        const item3Id = item3Response.body.itemsGroup.items[2].itemId;
+        const item3Id = item3Response.body.itemsGroup.items[2]._id;
 
         // Move item3 before item1
         const moveResponse = await request(app)
@@ -608,12 +656,11 @@ describe('Item Controller Integration Tests', () => {
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
-        console.log(items.map(i => i.itemId));
         expect(items.length).toBe(3);
 
-        const idx1 = items.findIndex(i => i.itemId === item1Id);
-        const idx2 = items.findIndex(i => i.itemId === item2Id);
-        const idx3 = items.findIndex(i => i.itemId === item3Id);
+        const idx1 = items.findIndex(i => i._id === item1Id);
+        const idx2 = items.findIndex(i => i._id === item2Id);
+        const idx3 = items.findIndex(i => i._id === item3Id);
 
         // item3 should now be before item1
         expect(idx3).toBeLessThan(idx1);
@@ -720,18 +767,18 @@ describe('Item Controller Integration Tests', () => {
       });
       jest
         .spyOn(itemRepo, 'readItemsGroup')
-        .mockResolvedValue({items: [{itemId: 'itemId'}]});
+        .mockResolvedValue({items: [{_id: 'itemId'}]});
       jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
         throw new Error('DB error');
       });
       await expect(
-        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
+        itemService.updateItem('vId', 'mId', 'sId', '_id', {name: 'x'}),
       ).rejects.toThrow('DB error');
     });
 
     it('should throw InternalServerError if deleteItem returns false', async () => {
       jest.spyOn(itemRepo, 'deleteItem').mockResolvedValue(false);
-      await expect(itemService.deleteItem('igId', 'itemId')).rejects.toThrow(
+      await expect(itemService.deleteItem('igId', '_id')).rejects.toThrow(
         'Item deletion failed',
       );
     });

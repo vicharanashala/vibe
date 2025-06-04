@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import {Service, Inject} from 'typedi';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {inject, injectable} from 'inversify';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
 import {
   CreateModuleBody,
   UpdateModuleBody,
@@ -11,28 +11,27 @@ import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {ICourseVersion} from 'shared/interfaces/Models';
-
-@Service()
-export class ModuleService {
+import {BaseService} from 'shared/classes/BaseService';
+import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import TYPES from '../types';
+import GLOBAL_TYPES from '../../../types';
+@injectable()
+export class ModuleService extends BaseService {
   constructor(
-    @Inject('CourseRepo')
+    @inject(TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
-  ) {}
+
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
   public async createModule(
     versionId: string,
     body: CreateModuleBody,
   ): Promise<ICourseVersion> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
@@ -43,16 +42,11 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
 
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async updateModule(
@@ -60,16 +54,7 @@ export class ModuleService {
     moduleId: string,
     body: UpdateModuleBody,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       const module = version.modules.find(m => m.moduleId === moduleId);
       if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
@@ -82,17 +67,11 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
 
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async moveModule(
@@ -100,23 +79,13 @@ export class ModuleService {
     moduleId: string,
     body: MoveModuleBody,
   ) {
-    const {afterModuleId, beforeModuleId} = body;
-    if (!afterModuleId && !beforeModuleId) {
-      throw new InternalServerError(
-        'Either afterModuleId or beforeModuleId is required',
-      );
-    }
-
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
+      const {afterModuleId, beforeModuleId} = body;
+      if (!afterModuleId && !beforeModuleId) {
+        throw new InternalServerError(
+          'Either afterModuleId or beforeModuleId is required',
+        );
+      }
       const version = await this.courseRepo.readVersion(versionId, session);
       const sorted = version.modules
         .slice()
@@ -136,41 +105,21 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
-
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async deleteModule(versionId: string, moduleId: string) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-      const deleted = await this.courseRepo.deleteModule(versionId, moduleId);
+    return this._withTransaction(async session => {
+      const deleted = await this.courseRepo.deleteModule(
+        versionId,
+        moduleId,
+        session,
+      );
       if (!deleted)
         throw new InternalServerError(`Failed to delete module ${moduleId}`);
-
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 }

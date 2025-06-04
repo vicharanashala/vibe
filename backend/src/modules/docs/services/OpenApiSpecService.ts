@@ -9,8 +9,9 @@ import {authModuleOptions} from '../../auth';
 import {coursesModuleOptions} from '../../courses';
 import {usersModuleOptions} from '../../users';
 import {docsModuleOptions} from '../../docs';
+import {injectable} from 'inversify';
 
-@Service()
+@injectable()
 export class OpenApiSpecService {
   generateOpenAPISpec() {
     // Get validation schemas

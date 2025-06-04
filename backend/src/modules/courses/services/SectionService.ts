@@ -6,41 +6,38 @@ import {
   UpdateResult,
   WriteConcern,
 } from 'mongodb';
-import {ICourseRepository} from 'shared/database';
-import {IItemRepository} from 'shared/database/';
-import {Inject, Service} from 'typedi';
+import {ICourseRepository} from '../../../shared/database';
+import {IItemRepository} from '../../../shared/database/';
+import {inject, injectable} from 'inversify';
 import {CourseVersion, ItemsGroup, Section} from '../classes/transformers';
 import {CreateSectionBody, MoveSectionBody} from '../classes/validators';
 import {NotFoundError} from 'routing-controllers';
-import {ReadError, UpdateError} from 'shared/errors/errors';
-import {ICourseVersion} from 'shared/interfaces/Models';
+import {ReadError, UpdateError} from '../../../shared/errors/errors';
+import {ICourseVersion} from '../../../shared/interfaces/Models';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
-@Service()
-export class SectionService {
+import {BaseService} from 'shared/classes/BaseService';
+import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import TYPES from '../types';
+import GLOBAL_TYPES from '../../../types';
+@injectable()
+export class SectionService extends BaseService {
   constructor(
-    @Inject('ItemRepo')
+    @inject(TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @Inject('CourseRepo')
+    @inject(TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) {}
-
-  private readonly transactionOptions = {
-    readPreference: ReadPreference.PRIMARY,
-    readConcern: new ReadConcern('majority'),
-    writeConcern: new WriteConcern('majority'),
-  };
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
   async createSection(
     versionId: string,
     moduleId: string,
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
-      //Fetch Version
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -78,14 +75,8 @@ export class SectionService {
         throw new UpdateError('Failed to update course version');
       }
 
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async updateSection(
@@ -94,12 +85,7 @@ export class SectionService {
     sectionId: string,
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
-      //Fetch Version
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -133,14 +119,8 @@ export class SectionService {
       if (!updatedVersion) {
         throw new UpdateError('Failed to update Section');
       }
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async moveSection(
@@ -150,12 +130,7 @@ export class SectionService {
     afterSectionId: string,
     beforeSectionId: string,
   ): Promise<ICourseVersion> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
-      //Fetch Version
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -202,12 +177,7 @@ export class SectionService {
       }
 
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   async deleteSection(
@@ -215,11 +185,7 @@ export class SectionService {
     moduleId: string,
     sectionId: string,
   ): Promise<UpdateResult | null> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
+    return this._withTransaction(async session => {
       const readCourseVersion = await this.courseRepo.readVersion(
         versionId,
         session,
@@ -231,7 +197,7 @@ export class SectionService {
 
       const modules = readCourseVersion.modules;
       if (!modules) {
-        throw new NotFoundError('Modules not found');
+        throw new NotFoundError('../../../modules not found');
       }
 
       const deleteResult = await this.courseRepo.deleteSection(
@@ -246,13 +212,7 @@ export class SectionService {
         throw new NotFoundError('Section not found');
       }
 
-      await session.commitTransaction();
       return deleteResult;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 }

@@ -1,14 +1,15 @@
-import {coursesModuleOptions} from 'modules/courses';
-import {MongoMemoryServer} from 'mongodb-memory-server';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import Container from 'typedi';
+import {coursesModuleOptions} from '../';
+import {RoutingControllersOptions, useExpressServer, useContainer} from 'routing-controllers';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import Express from 'express';
 import request from 'supertest';
-import {ReadError} from 'shared/errors/errors';
 import {dbConfig} from '../../../config/db';
 import {CourseVersionService, ModuleService} from '../services';
+import { InversifyAdapter } from '../../../inversify-adapter';
+import { Container } from 'inversify';
+import { coursesContainerModule } from '../container';
+import { sharedContainerModule } from '../../../container';
 
 jest.setTimeout(90000);
 describe('Module Controller Integration Tests', () => {
@@ -16,24 +17,11 @@ describe('Module Controller Integration Tests', () => {
   let app;
 
   beforeAll(async () => {
-    // Start an in-memory MongoDB server
-
-    // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    const moduleService = new ModuleService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ModuleService', moduleService);
-
-    // Create the Express app with the routing controllers configuration
+    process.env.NODE_ENV = 'test';
+    const container = new Container();
+    await container.load(sharedContainerModule, coursesContainerModule);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
     app = useExpressServer(App, coursesModuleOptions);
   });
 

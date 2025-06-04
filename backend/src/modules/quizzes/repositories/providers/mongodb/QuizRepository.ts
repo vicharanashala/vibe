@@ -18,7 +18,7 @@ class QuizRepository {
 
   constructor(
     @Inject(() => MongoDatabase)
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

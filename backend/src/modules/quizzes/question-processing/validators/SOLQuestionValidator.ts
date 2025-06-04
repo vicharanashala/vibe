@@ -1,6 +1,6 @@
 import {SOLQuestion} from '../../classes/transformers';
-import {TagParser} from 'modules/quizzes/question-processing/tag-parser/TagParser';
-import {ILotItem} from 'shared/interfaces/quiz';
+import {TagParser} from '../../question-processing/tag-parser/TagParser';
+import {ILotItem} from '../../../../shared/interfaces/quiz';
 import {BaseQuestionValidator} from './BaseQuestionValidator';
 
 export class SOLQuestionValidator extends BaseQuestionValidator {
