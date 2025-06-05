@@ -1,4 +1,4 @@
-import {QuestionBank} from './classes/transformers/QuestionBank';
+import {QuestionBank} from './classes/transformers/QuestionBank.js';
 
 const TYPES = {
   //Controllers

@@ -1,10 +1,10 @@
 import {inject, injectable} from 'inversify';
-import {BaseQuestion} from 'modules/quizzes/classes/transformers';
+import {BaseQuestion} from '#root/modules/quizzes/classes/transformers/index.js';
 import {ClientSession, Collection} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
 import {Service, Inject} from 'typedi';
-import TYPES from '../../../../../types';
+import TYPES from '../../../../../types.js';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
 
 @Service()
 @injectable()

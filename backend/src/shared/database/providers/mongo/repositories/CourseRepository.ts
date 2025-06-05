@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import {instanceToPlain} from 'class-transformer';
-import {Course} from '../../../../../modules/courses/classes/transformers/Course';
-import {CourseVersion} from '../../../../../modules/courses/classes/transformers/CourseVersion';
+import {Course} from '../../../../../modules/courses/classes/transformers/Course.js';
+import {CourseVersion} from '../../../../../modules/courses/classes/transformers/CourseVersion.js';
 import {
   Item,
   ItemsGroup,
-} from '../../../../../modules/courses/classes/transformers/Item';
+} from '../../../../../modules/courses/classes/transformers/Item.js';
 import {
   ClientSession,
   Collection,
@@ -14,13 +14,13 @@ import {
   ObjectId,
   UpdateResult,
 } from 'mongodb';
-import {ICourseRepository} from '../../../interfaces/ICourseRepository';
+import {ICourseRepository} from '../../../interfaces/ICourseRepository.js';
 import {
   CreateError,
   DeleteError,
   ReadError,
   UpdateError,
-} from '../../../../errors/errors';
+} from '../../../../errors/errors.js';
 import {
   ICourse,
   IModule,
@@ -28,12 +28,11 @@ import {
   IProgress,
   ICourseVersion,
   ISection,
-} from '../../../../interfaces/Models';
-import {MongoDatabase} from '../MongoDatabase';
+} from '../../../../interfaces/Models.js';
+import {MongoDatabase} from '../MongoDatabase.js';
 import {NotFoundError} from 'routing-controllers';
-import {Module, Section} from 'modules';
 import {inject, injectable} from 'inversify';
-import GLOBAL_TYPES from '../../../../../types';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {

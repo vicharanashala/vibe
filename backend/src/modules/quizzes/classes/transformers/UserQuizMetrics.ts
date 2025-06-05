@@ -1,7 +1,7 @@
 import {
   IAttemptDetails,
   IUserQuizMetrics,
-} from 'modules/quizzes/interfaces/grading';
+} from '#root/modules/quizzes/interfaces/grading.js';
 import {ObjectId} from 'mongodb';
 
 class UserQuizMetrics implements IUserQuizMetrics {

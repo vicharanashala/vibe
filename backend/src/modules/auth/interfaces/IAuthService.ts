@@ -10,11 +10,11 @@
 
 import 'reflect-metadata';
 import {Request} from 'express';
-import {IUser} from '../../../shared/interfaces/Models';
+import {IUser} from '../../../shared/interfaces/Models.js';
 import {
   ChangePasswordBody,
   SignUpBody,
-} from '../classes/validators/AuthValidators';
+} from '../classes/validators/AuthValidators.js';
 
 /**
  * Interface representing the authentication service.

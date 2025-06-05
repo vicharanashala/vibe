@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 import {ObjectId} from 'mongodb';
-import {IQuestionBank, ID} from 'shared/interfaces/quiz';
+import {IQuestionBank, ID} from '#root/shared/interfaces/quiz.js';
 
 class CreateQuestionBankBody implements Partial<IQuestionBank> {
   @IsMongoId()

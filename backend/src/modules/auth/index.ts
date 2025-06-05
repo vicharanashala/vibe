@@ -15,13 +15,13 @@ import {
   getFromContainer,
   RoutingControllersOptions,
 } from 'routing-controllers';
-import {AuthController} from './controllers/AuthController';
+import {AuthController} from './controllers/AuthController.js';
 import {useContainer} from 'routing-controllers';
-import {FirebaseAuthService} from './services/FirebaseAuthService';
+import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 import {Container} from 'inversify';
-import {sharedContainerModule} from 'container';
-import {authContainerModule} from './container';
-import {InversifyAdapter} from '../../inversify-adapter';
+import {sharedContainerModule} from '#root/container.js';
+import {authContainerModule} from './container.js';
+import {InversifyAdapter} from '../../inversify-adapter.js';
 
 export async function setupAuthContainer(): Promise<void> {
   const container = new Container();
@@ -71,7 +71,7 @@ export const authModuleOptions: RoutingControllersOptions = {
   },
 };
 
-export * from './classes/validators/index';
-export * from './controllers/index';
-export * from './interfaces/index';
-export * from './services/index';
+export * from './classes/validators/index.js';
+export * from './controllers/index.js';
+export * from './interfaces/index.js';
+export * from './services/index.js';

@@ -5,23 +5,23 @@ import {
   useContainer,
 } from 'routing-controllers';
 import {RoutingControllersOptions} from 'routing-controllers';
-import {MongoDatabase} from '../../shared/database/providers/mongo/MongoDatabase';
-import {EnrollmentRepository} from '../../shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from '../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository';
-import {EnrollmentController} from './controllers/EnrollmentController';
-import {EnrollmentService} from './services';
-import {UserRepository} from '../../shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from '../../config/db';
-import {ProgressRepository} from '../../shared/database/providers/mongo/repositories/ProgressRepository';
-import {ProgressController} from './controllers/index';
-import {ProgressService} from './services/ProgressService';
-import {Course} from '../../modules/courses';
-import {sharedContainerModule} from '../../container';
-import {authContainerModule} from '../auth/container';
-import {usersContainerModule} from './container';
+import {MongoDatabase} from '../../shared/database/providers/mongo/MongoDatabase.js';
+import {EnrollmentRepository} from '../../shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {CourseRepository} from '../../shared/database/providers/mongo/repositories/CourseRepository.js';
+import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository.js';
+import {EnrollmentController} from './controllers/EnrollmentController.js';
+import {EnrollmentService} from './services/index.js';
+import {UserRepository} from '../../shared/database/providers/MongoDatabaseProvider.js';
+import {dbConfig} from '../../config/db.js';
+import {ProgressRepository} from '../../shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {ProgressController} from './controllers/index.js';
+import {ProgressService} from './services/ProgressService.js';
+import {Course} from '../../modules/courses/index.js';
+import {sharedContainerModule} from '../../container.js';
+import {authContainerModule} from '../auth/container.js';
+import {usersContainerModule} from './container.js';
 import {Container} from 'inversify';
-import {InversifyAdapter} from '../../inversify-adapter';
+import {InversifyAdapter} from '../../inversify-adapter.js';
 
 export async function setupUsersContainer(): Promise<void> {
   const container = new Container();
@@ -44,8 +44,8 @@ export const usersModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index';
-export * from './classes/transformers/index';
-export * from './controllers/index';
+export * from './classes/validators/index.js';
+export * from './classes/transformers/index.js';
+export * from './controllers/index.js';
 
 export {EnrollmentController};

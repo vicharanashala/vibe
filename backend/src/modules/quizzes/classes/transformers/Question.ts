@@ -15,8 +15,8 @@ import {
   IQuestionParameter,
   IQuestion,
   QuestionType,
-} from '../../../../shared/interfaces/quiz';
-import {QuestionBody} from '../validators/QuestionValidator';
+} from '../../../../shared/interfaces/quiz.js';
+import {QuestionBody} from '../validators/QuestionValidator.js';
 
 abstract class BaseQuestion implements IQuestion {
   _id?: string | ObjectId;

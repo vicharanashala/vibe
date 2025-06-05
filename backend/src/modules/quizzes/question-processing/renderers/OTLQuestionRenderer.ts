@@ -1,8 +1,8 @@
-﻿import {OTLQuestion} from '../../classes/transformers';
-import {ILotItem} from '../../../../shared/interfaces/quiz';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {OTLQuestionRenderView} from './interfaces/RenderViews';
+﻿import {OTLQuestion} from '../../classes/transformers/index.js';
+import {ILotItem} from '../../../../shared/interfaces/quiz.js';
+import {TagParser, ParameterMap} from '../tag-parser/index.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {OTLQuestionRenderView} from './interfaces/RenderViews.js';
 
 class OTLQuestionRenderer extends BaseQuestionRenderer {
   declare question: OTLQuestion;

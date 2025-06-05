@@ -7,8 +7,8 @@ import {
   Params,
   Post,
 } from 'routing-controllers';
-import {AttemptService} from '../services/AttemptService';
-import {IUser} from 'shared/interfaces/Models';
+import {AttemptService} from '../services/AttemptService.js';
+import {IUser} from '#root/shared/interfaces/Models.js';
 import {
   CreateAttemptParams,
   CreateAttemptResponse,
@@ -16,9 +16,9 @@ import {
   SaveAttemptParams,
   SubmitAttemptParams,
   SubmitAttemptResponse,
-} from '../classes/validators/QuizValidator';
+} from '../classes/validators/QuizValidator.js';
 import {inject, injectable} from 'inversify';
-import TYPES from '../types';
+import TYPES from '../types.js';
 
 @injectable()
 @JsonController('/quizzes')

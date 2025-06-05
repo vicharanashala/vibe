@@ -11,9 +11,12 @@ import {
   UseBefore,
 } from 'routing-controllers';
 import {Inject, Service} from 'typedi';
-import {AuthenticatedRequest, IAuthService} from '../interfaces/IAuthService';
+import {
+  AuthenticatedRequest,
+  IAuthService,
+} from '../interfaces/IAuthService.js';
 import {instanceToPlain} from 'class-transformer';
-import {ChangePasswordError} from '../services/FirebaseAuthService';
+import {ChangePasswordError} from '../services/FirebaseAuthService.js';
 import {
   ChangePasswordBody,
   SignUpBody,
@@ -22,13 +25,13 @@ import {
   TokenVerificationResponse,
   AuthErrorResponse,
   VerifySignUpProviderBody,
-} from '../classes/validators';
+} from '../classes/validators/index.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {AuthRateLimiter} from '../../../shared/middleware/rateLimiter';
-import {CreateError} from '../../../shared/errors/errors';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import {AuthRateLimiter} from '../../../shared/middleware/rateLimiter.js';
+import {CreateError} from '../../../shared/errors/errors.js';
 import {inject, injectable} from 'inversify';
-import TYPES from '../types';
+import TYPES from '../types.js';
 
 @JsonController('/auth')
 @injectable()

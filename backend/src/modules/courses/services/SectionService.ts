@@ -6,19 +6,26 @@ import {
   UpdateResult,
   WriteConcern,
 } from 'mongodb';
-import {ICourseRepository} from '../../../shared/database';
-import {IItemRepository} from '../../../shared/database/';
+import {ICourseRepository} from '../../../shared/database/index.js';
+import {IItemRepository} from '../../../shared/database//index.js';
 import {inject, injectable} from 'inversify';
-import {CourseVersion, ItemsGroup, Section} from '../classes/transformers';
-import {CreateSectionBody, MoveSectionBody} from '../classes/validators';
+import {
+  CourseVersion,
+  ItemsGroup,
+  Section,
+} from '../classes/transformers/index.js';
+import {
+  CreateSectionBody,
+  MoveSectionBody,
+} from '../classes/validators/index.js';
 import {NotFoundError} from 'routing-controllers';
-import {ReadError, UpdateError} from '../../../shared/errors/errors';
-import {ICourseVersion} from '../../../shared/interfaces/Models';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+import {ReadError, UpdateError} from '../../../shared/errors/errors.js';
+import {ICourseVersion} from '../../../shared/interfaces/Models.js';
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import TYPES from '../types.js';
+import GLOBAL_TYPES from '../../../types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(

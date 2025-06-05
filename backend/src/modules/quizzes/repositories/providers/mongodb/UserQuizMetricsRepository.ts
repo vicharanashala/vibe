@@ -1,10 +1,10 @@
 import {inject, injectable} from 'inversify';
-import {IUserQuizMetrics} from 'modules/quizzes/interfaces/grading';
+import {IUserQuizMetrics} from '#root/modules/quizzes/interfaces/grading.js';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
 import {Service, Inject} from 'typedi';
-import TYPES from '../../../../../types';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @Service()
 @injectable()

@@ -1,4 +1,4 @@
-﻿import {CourseVersion, Module} from './classes/transformers';
+﻿import {CourseVersion, Module} from './classes/transformers/index.js';
 
 const TYPES = {
   //Services

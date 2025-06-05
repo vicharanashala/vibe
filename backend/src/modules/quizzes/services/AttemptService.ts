@@ -1,31 +1,36 @@
-import {QuizItem} from 'modules/courses';
+import {QuizItem} from '#root/modules/courses/index.js';
 import {NotFoundError, BadRequestError} from 'routing-controllers';
 import {Service, Inject} from 'typedi';
-import {BaseQuestion, UserQuizMetrics, Attempt, Submission} from '../classes';
+import {
+  BaseQuestion,
+  UserQuizMetrics,
+  Attempt,
+  Submission,
+} from '../classes/index.js';
 import {
   IQuestionDetails,
   IGradingResult,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
-} from '../interfaces/grading';
-import {QuestionProcessor} from '../question-processing';
-import {IQuestionRenderView} from '../question-processing/renderers';
+} from '../interfaces/grading.js';
+import {QuestionProcessor} from '../question-processing/index.js';
+import {IQuestionRenderView} from '../question-processing/renderers/index.js';
 import {
   QuizRepository,
   AttemptRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
-} from '../repositories';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
-import {QuestionService} from './QuestionService';
+} from '../repositories/index.js';
+import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap.js';
+import {QuestionService} from './QuestionService.js';
 import {inject, injectable} from 'inversify';
-import TYPES from '../types';
-import {QuestionBankService} from './QuestionBankService';
-import {ID} from 'shared/types';
-import {BaseService} from 'shared/classes/BaseService';
+import TYPES from '../types.js';
+import {QuestionBankService} from './QuestionBankService.js';
+import {ID} from '#root/shared/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ClientSession, ObjectId} from 'mongodb';
-import GLOBAL_TYPES from '../../../types';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import GLOBAL_TYPES from '../../../types.js';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
 
 @injectable()
 class AttemptService extends BaseService {

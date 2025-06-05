@@ -21,12 +21,12 @@ import {
   IQuestionAnswer,
   IQuestionAnswerFeedback,
   IQuestionDetails,
-} from 'modules/quizzes/interfaces/grading';
-import {IQuestionRenderView} from 'modules/quizzes/question-processing/renderers';
+} from '#root/modules/quizzes/interfaces/grading.js';
+import {IQuestionRenderView} from '#root/modules/quizzes/question-processing/renderers/index.js';
 import {ObjectId} from 'mongodb';
-import {IQuizDetails, ItemType} from 'shared/interfaces/Models';
-import {IQuestion, QuestionType} from 'shared/interfaces/quiz';
-import {QuestionBankRef} from '../transformers/QuestionBank';
+import {IQuizDetails, ItemType} from '#root/shared/interfaces/Models.js';
+import {IQuestion, QuestionType} from '#root/shared/interfaces/quiz.js';
+import {QuestionBankRef} from '../transformers/QuestionBank.js';
 
 // Request Schemas
 class CreateAttemptParams {

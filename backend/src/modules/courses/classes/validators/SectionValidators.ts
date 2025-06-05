@@ -7,8 +7,8 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import {ICourseVersion, ISection} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+import {ICourseVersion, ISection} from '#root/shared/interfaces/Models.js';
+import {ID} from '#root/shared/types.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateSectionBody implements Partial<ISection> {

@@ -1,22 +1,22 @@
 import 'reflect-metadata';
 import {NotFoundError} from 'routing-controllers';
 import {inject, injectable} from 'inversify';
-import {EnrollmentRepository} from '../../../shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {UserRepository} from '../../../shared/database/providers/mongo/repositories/UserRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
-import {Enrollment} from '../classes/transformers/Enrollment';
+import {EnrollmentRepository} from '../../../shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
+import {UserRepository} from '../../../shared/database/providers/mongo/repositories/UserRepository.js';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository.js';
+import {Enrollment} from '../classes/transformers/Enrollment.js';
 import {ClientSession, ObjectId} from 'mongodb';
 import {
   EnrollmentRole,
   ICourseVersion,
-} from '../../../shared/interfaces/Models';
-import {BaseService} from '../../../shared/classes/BaseService';
+} from '../../../shared/interfaces/Models.js';
+import {BaseService} from '../../../shared/classes/BaseService.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
 import {re} from 'mathjs';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+import TYPES from '../types.js';
+import GLOBAL_TYPES from '../../../types.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {

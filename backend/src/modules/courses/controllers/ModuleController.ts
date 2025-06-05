@@ -12,7 +12,7 @@ import {
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
 import {instanceToPlain} from 'class-transformer';
-import {ModuleService} from '../services/ModuleService';
+import {ModuleService} from '../services/ModuleService.js';
 import {
   CreateModuleParams,
   CreateModuleBody,
@@ -24,11 +24,11 @@ import {
   ModuleDataResponse,
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
-} from '../classes/validators/ModuleValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
+} from '../classes/validators/ModuleValidators.js';
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import TYPES from '../types';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import TYPES from '../types.js';
 @injectable()
 @JsonController('/courses')
 export class ModuleController {

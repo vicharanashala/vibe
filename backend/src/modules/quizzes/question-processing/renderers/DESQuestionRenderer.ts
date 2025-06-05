@@ -1,7 +1,7 @@
-import {DESQuestion} from '../../classes/transformers';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {DESQuestionRenderView} from './interfaces/RenderViews';
+import {DESQuestion} from '../../classes/transformers/index.js';
+import {TagParser, ParameterMap} from '../tag-parser/index.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {DESQuestionRenderView} from './interfaces/RenderViews.js';
 
 class DESQuestionRenderer extends BaseQuestionRenderer {
   declare question: DESQuestion;

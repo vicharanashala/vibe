@@ -24,23 +24,24 @@ import {
   DeleteItemParams,
   DeletedItemResponse,
   GetItemParams,
-} from '../classes/validators/ItemValidators';
-import {ItemService} from '../services';
+} from '../classes/validators/ItemValidators.js';
+import {ItemService} from '../services/index.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
 import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
-} from '../classes/validators/ItemValidators';
-import {IUser} from 'shared/interfaces/Models';
-import {ProgressService} from 'modules/users/services/ProgressService';
-import TYPES from '../types';
+} from '../classes/validators/ItemValidators.js';
+import {IUser} from '#root/shared/interfaces/Models.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import TYPES from '../types.js';
+import USER_TYPES from '#root/modules/users/types.js';
 @injectable()
 @JsonController('/courses')
 export class ItemController {
   constructor(
     @inject(TYPES.ItemService) private readonly itemService: ItemService,
-    @inject(TYPES.ProgressService)
+    @inject(USER_TYPES.ProgressService)
     private readonly progressService: ProgressService,
   ) {}
 

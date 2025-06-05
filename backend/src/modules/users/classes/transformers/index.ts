@@ -1,11 +1,14 @@
 import {Expose, Type} from 'class-transformer';
-import {Enrollment} from './Enrollment';
-import {Progress} from './Progress';
+import {Enrollment} from './Enrollment.js';
+import {Progress} from './Progress.js';
 import {Token} from 'typedi';
-import {EnrollmentRole, EnrollmentStatus} from 'shared/interfaces/Models';
+import {
+  EnrollmentRole,
+  EnrollmentStatus,
+} from '#root/shared/interfaces/Models.js';
 
-export * from './Enrollment';
-export * from './Progress';
+export * from './Enrollment.js';
+export * from './Progress.js';
 
 @Expose({toPlainOnly: true})
 export class EnrollUserResponse {

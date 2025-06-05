@@ -18,12 +18,12 @@ import {
   QuestionBody,
   QuestionId,
   QuestionResponse,
-} from '../classes/validators/QuestionValidator';
-import {QuestionFactory} from '../classes/transformers/Question';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor';
+} from '../classes/validators/QuestionValidator.js';
+import {QuestionFactory} from '../classes/transformers/Question.js';
+import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
 import {inject, injectable} from 'inversify';
-import TYPES from '../types';
-import {QuestionService} from '../services/QuestionService';
+import TYPES from '../types.js';
+import {QuestionService} from '../services/QuestionService.js';
 
 @JsonController('/questions')
 @Service()

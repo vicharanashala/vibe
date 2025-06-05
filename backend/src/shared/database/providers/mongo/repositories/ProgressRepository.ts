@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {inject, injectable} from 'inversify';
-import {IProgress, IWatchTime} from '../../../../interfaces/Models';
-import {MongoDatabase} from '../MongoDatabase';
-import GLOBAL_TYPES from '../../../../../types';
+import {IProgress, IWatchTime} from '../../../../interfaces/Models.js';
+import {MongoDatabase} from '../MongoDatabase.js';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 type CurrentProgress = Pick<
   IProgress,

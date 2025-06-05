@@ -1,1 +1,1 @@
-export * from './QuestionController';
+export * from './QuestionController.js';

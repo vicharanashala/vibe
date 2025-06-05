@@ -4,14 +4,14 @@ import {
   ItemsGroup,
   QuizItem,
   VideoItem,
-} from 'modules/courses/classes/transformers/index';
+} from '#root/modules/courses/classes/transformers/index.js';
 import {
   IBaseItem,
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
   ICourseVersion,
-} from '../../interfaces/Models';
+} from '../../interfaces/Models.js';
 import {ObjectId, ClientSession} from 'mongodb';
 
 export interface IItemRepository {

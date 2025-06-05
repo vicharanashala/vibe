@@ -1,7 +1,7 @@
 import {ContainerModule} from 'inversify';
-import TYPES from './types';
-import {FirebaseAuthService} from './services';
-import {AuthController} from './controllers';
+import TYPES from './types.js';
+import {FirebaseAuthService} from './services/index.js';
+import {AuthController} from './controllers/index.js';
 
 export const authContainerModule = new ContainerModule(options => {
   // Services

@@ -6,7 +6,7 @@ import {
   Patch,
   Post,
 } from 'routing-controllers';
-import {QuestionBankService} from '../services/QuestionBankService';
+import {QuestionBankService} from '../services/QuestionBankService.js';
 import {inject, injectable} from 'inversify';
 import {
   CreateQuestionBankBody,
@@ -15,10 +15,10 @@ import {
   QuestionBankAndQuestionParams,
   QuestionBankResponse,
   ReplaceQuestionResponse,
-} from '../classes/validators/QuestionBankValidator';
-import {QuestionBank} from '../classes/transformers/QuestionBank';
-import {Question} from '../classes';
-import TYPES from '../types';
+} from '../classes/validators/QuestionBankValidator.js';
+import {QuestionBank} from '../classes/transformers/QuestionBank.js';
+import {Question} from '../classes/index.js';
+import TYPES from '../types.js';
 import {exp} from 'mathjs';
 
 @injectable()

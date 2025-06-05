@@ -1,18 +1,21 @@
 import {inject, injectable} from 'inversify';
-import {BaseService} from '../../../shared/classes/BaseService';
-import GLOBAL_TYPES from '../../../types';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import {IQuestionBankRef} from '../../../shared/interfaces/Models';
-import TYPES from '../types';
+import {BaseService} from '../../../shared/classes/BaseService.js';
+import GLOBAL_TYPES from '../../../types.js';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
+import {IQuestionBankRef} from '../../../shared/interfaces/Models.js';
+import TYPES from '../types.js';
 import {
   AttemptRepository,
   QuizRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
-} from '../repositories';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository';
+} from '../repositories/index.js';
+import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IGradingResult, IQuestionAnswerFeedback} from '../interfaces/grading';
+import {
+  IGradingResult,
+  IQuestionAnswerFeedback,
+} from '../interfaces/grading.js';
 import {ObjectId} from 'mongodb';
 
 @injectable()

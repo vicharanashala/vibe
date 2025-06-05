@@ -5,13 +5,13 @@ import {
   OTLQuestion,
   NATQuestion,
   DESQuestion,
-} from 'modules/quizzes/classes/transformers';
-import {TagParser} from './tag-parser/TagParser';
-import {QParamTag} from './tag-parser/tags/QParamTag';
-import {NumExprTag} from './tag-parser/tags/NumExprTag';
-import {NumExprTexTag} from './tag-parser/tags/NumExprTexTag';
-import {ParameterMap} from './tag-parser/tags/Tag';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
+} from '#root/modules/quizzes/classes/transformers/index.js';
+import {TagParser} from './tag-parser/TagParser.js';
+import {QParamTag} from './tag-parser/tags/QParamTag.js';
+import {NumExprTag} from './tag-parser/tags/NumExprTag.js';
+import {NumExprTexTag} from './tag-parser/tags/NumExprTexTag.js';
+import {ParameterMap} from './tag-parser/tags/Tag.js';
+import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap.js';
 import {
   BaseQuestionRenderer,
   SOLQuestionRenderer,
@@ -20,7 +20,7 @@ import {
   OTLQuestionRenderer,
   NATQuestionRenderer,
   DESQuestionRenderer,
-} from './renderers';
+} from './renderers/index.js';
 import {
   BaseQuestionValidator,
   SOLQuestionValidator,
@@ -28,17 +28,17 @@ import {
   OTLQuestionValidator,
   NATQuestionValidator,
   DESQuestionValidator,
-} from './validators';
-import {IGrader} from './graders/interfaces/IGrader';
-import {SOLQuestionGrader} from './graders/SOLQuestionGrader';
-import {SMLQuestionGrader} from './graders/SMLQuestionGrader';
-import {Answer, IQuestionAnswerFeedback} from '../interfaces/grading';
-import {QuizItem} from 'modules/courses';
+} from './validators/index.js';
+import {IGrader} from './graders/interfaces/IGrader.js';
+import {SOLQuestionGrader} from './graders/SOLQuestionGrader.js';
+import {SMLQuestionGrader} from './graders/SMLQuestionGrader.js';
+import {Answer, IQuestionAnswerFeedback} from '../interfaces/grading.js';
+import {QuizItem} from '#root/modules/courses/index.js';
 import {
   DESQuestionGrader,
   NATQuestionGrader,
   OTLQuestionGrader,
-} from './graders';
+} from './graders/index.js';
 
 class QuestionProcessor {
   private tagParser: TagParser;

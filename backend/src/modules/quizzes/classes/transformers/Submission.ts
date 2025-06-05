@@ -1,4 +1,7 @@
-import {IGradingResult, ISubmission} from 'modules/quizzes/interfaces/grading';
+import {
+  IGradingResult,
+  ISubmission,
+} from '#root/modules/quizzes/interfaces/grading.js';
 import {ObjectId} from 'mongodb';
 class Submission implements ISubmission {
   _id?: string | ObjectId;

@@ -1,8 +1,9 @@
 import {ClientSession, Collection} from 'mongodb';
-import {IQuestionBank} from 'shared/interfaces/quiz';
-import TYPES from '../../../../../types';
+import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import TYPES from '../../../../../types.js';
 import {injectable, inject} from 'inversify';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 class QuestionBankRepository {

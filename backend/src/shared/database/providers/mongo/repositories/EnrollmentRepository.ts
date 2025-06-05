@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import {Collection, ObjectId} from 'mongodb';
 import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase';
-import {IEnrollment, IProgress} from '../../../../interfaces/Models';
-import {CreateError, ReadError} from '../../../../errors/errors';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {IEnrollment, IProgress} from '../../../../interfaces/Models.js';
+import {CreateError, ReadError} from '../../../../errors/errors.js';
 import {NotFoundError} from 'routing-controllers';
-import GLOBAL_TYPES from '../../../../../types';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class EnrollmentRepository {

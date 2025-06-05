@@ -1,8 +1,8 @@
-import {SOLQuestion} from '../../classes/transformers';
-import {ILotItem} from '../../../../shared/interfaces/quiz';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {SOLQuestionRenderView} from './interfaces/RenderViews';
+import {SOLQuestion} from '../../classes/transformers/index.js';
+import {ILotItem} from '../../../../shared/interfaces/quiz.js';
+import {TagParser, ParameterMap} from '../tag-parser/index.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {SOLQuestionRenderView} from './interfaces/RenderViews.js';
 
 class SOLQuestionRenderer extends BaseQuestionRenderer {
   declare question: SOLQuestion;

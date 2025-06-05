@@ -1,13 +1,14 @@
-import {dbConfig} from './config/db';
+import {dbConfig} from './config/db.js';
 import {ContainerModule} from 'inversify';
 import {
   MongoDatabase,
   UserRepository,
   CourseRepository,
-} from './shared/database/providers/MongoDatabaseProvider';
-import TYPES from './types';
-import {appConfig} from 'config/app';
-import {OpenApiSpecService} from 'modules/docs';
+} from './shared/database/providers/MongoDatabaseProvider.js';
+import TYPES from './types.js';
+import {appConfig} from '#root/config/app.js';
+import {OpenApiSpecService} from '#root/modules/docs/index.js';
+import {HttpErrorHandler} from './shared/middleware/errorHandler.js';
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
@@ -23,8 +24,11 @@ export const sharedContainerModule = new ContainerModule(options => {
   options.bind(TYPES.UserRepository).to(UserRepository).inSingletonScope();
   options.bind(TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
 
-  //Services
+  // Services
   if (!appConfig.isProduction) {
     options.bind(OpenApiSpecService).toSelf().inSingletonScope();
   }
+
+  // Other
+  options.bind(HttpErrorHandler).toSelf().inSingletonScope();
 });

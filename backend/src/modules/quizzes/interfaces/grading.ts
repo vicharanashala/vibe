@@ -1,5 +1,5 @@
 import {ObjectId} from 'mongodb';
-import {ParameterMap} from '../question-processing/tag-parser';
+import {ParameterMap} from '../question-processing/tag-parser/index.js';
 
 interface ISOLAnswer {
   lotItemId: string;

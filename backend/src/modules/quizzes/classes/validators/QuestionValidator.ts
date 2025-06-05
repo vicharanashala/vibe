@@ -29,8 +29,8 @@ import {
   ISMLSolution,
   ISOLSolution,
   QuestionType,
-} from '../../../../shared/interfaces/quiz';
-import {NATQuestion} from '../transformers/Question';
+} from '../../../../shared/interfaces/quiz.js';
+import {NATQuestion} from '../transformers/Question.js';
 
 class QuestionParameter implements IQuestionParameter {
   @IsNotEmpty()

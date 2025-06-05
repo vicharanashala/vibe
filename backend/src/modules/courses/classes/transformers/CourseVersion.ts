@@ -3,11 +3,11 @@ import {Expose, Transform, Type} from 'class-transformer';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {ICourseVersion} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {Module} from './Module';
-import {CreateCourseVersionBody} from '../validators';
+} from '../../../../shared/constants/transformerConstants.js';
+import {ICourseVersion} from '../../../../shared/interfaces/Models.js';
+import {ID} from '../../../../shared/types.js';
+import {Module} from './Module.js';
+import {CreateCourseVersionBody} from '../validators/index.js';
 
 /**
  * Course version data transformation.

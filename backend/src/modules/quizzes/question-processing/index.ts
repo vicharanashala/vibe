@@ -1,1 +1,1 @@
-export * from './QuestionProcessor';
+export * from './QuestionProcessor.js';

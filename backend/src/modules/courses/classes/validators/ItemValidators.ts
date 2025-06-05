@@ -24,10 +24,10 @@ import {
   IQuizDetails,
   ItemType,
   IVideoDetails,
-} from '../../../../shared/interfaces/Models';
+} from '../../../../shared/interfaces/Models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
-import {CourseVersion, ItemsGroup} from '../transformers';
+import {CourseVersion, ItemsGroup} from '../transformers/index.js';
 import {isNumeric} from 'mathjs';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {

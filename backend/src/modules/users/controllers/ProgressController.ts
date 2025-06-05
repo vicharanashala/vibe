@@ -10,8 +10,8 @@ import {
   Post,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
-import {Progress} from '../classes/transformers';
-import {ProgressService} from '../services/ProgressService';
+import {Progress} from '../classes/transformers/index.js';
+import {ProgressService} from '../services/ProgressService.js';
 import {
   GetUserProgressParams,
   StartItemParams,
@@ -23,8 +23,8 @@ import {
   UpdateProgressBody,
   ResetCourseProgressParams,
   ResetCourseProgressBody,
-} from '../classes/validators';
-import TYPES from '../types';
+} from '../classes/validators/index.js';
+import TYPES from '../types.js';
 
 @JsonController('/users', {transformResponse: true})
 @injectable()

@@ -1,7 +1,7 @@
 import {inject, injectable} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IItemRepository} from 'shared/database';
-import {ICourseRepository} from 'shared/database/';
+import {IItemRepository} from '#root/shared/database/index.js';
+import {ICourseRepository} from '#root/shared/database/index.js';
 import {
   BlogItem,
   Item,
@@ -10,25 +10,25 @@ import {
   ItemsGroup,
   QuizItem,
   VideoItem,
-} from '../classes/transformers/Item';
+} from '../classes/transformers/Item.js';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
-} from '../classes/validators/ItemValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
+} from '../classes/validators/ItemValidators.js';
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {
   ClientSession,
   ReadConcern,
   ReadPreference,
   WriteConcern,
 } from 'mongodb';
-import {ItemType} from 'shared/interfaces/Models';
-import {CourseVersion, Module, Section} from '../classes/transformers';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+import {ItemType} from '#root/shared/interfaces/Models.js';
+import {CourseVersion, Module, Section} from '../classes/transformers/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import TYPES from '../types.js';
+import GLOBAL_TYPES from '../../../types.js';
 @injectable()
 export class ItemService extends BaseService {
   constructor(

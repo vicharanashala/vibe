@@ -1,4 +1,4 @@
-import {QuestionParameter} from '../../classes/validators';
+import {QuestionParameter} from '../../classes/validators/index.js';
 
 function generate(parameter: QuestionParameter): string | number {
   const values = parameter.possibleValues;

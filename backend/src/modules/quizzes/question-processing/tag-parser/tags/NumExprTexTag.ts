@@ -1,6 +1,6 @@
 import {parse, SymbolNode} from 'mathjs';
-import {Tag, ParameterMap} from './Tag';
-import {IQuestionParameter} from '../../../../../shared/interfaces/quiz';
+import {Tag, ParameterMap} from './Tag.js';
+import {IQuestionParameter} from '../../../../../shared/interfaces/quiz.js';
 
 class NumExprTexTag extends Tag {
   validate(text: string, parameters: IQuestionParameter[]): void {

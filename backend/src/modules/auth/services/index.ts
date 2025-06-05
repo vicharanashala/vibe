@@ -1,1 +1,1 @@
-export * from './FirebaseAuthService';
+export * from './FirebaseAuthService.js';

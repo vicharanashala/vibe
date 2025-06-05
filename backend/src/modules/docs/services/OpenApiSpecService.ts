@@ -5,10 +5,10 @@ import {routingControllersToSpec} from 'routing-controllers-openapi';
 import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
 
 // Import module options
-import {authModuleOptions} from '../../auth';
-import {coursesModuleOptions} from '../../courses';
-import {usersModuleOptions} from '../../users';
-import {docsModuleOptions} from '../../docs';
+import {authModuleOptions} from '../../auth/index.js';
+import {coursesModuleOptions} from '../../courses/index.js';
+import {usersModuleOptions} from '../../users/index.js';
+import {docsModuleOptions} from '../../docs/index.js';
 import {injectable} from 'inversify';
 
 @injectable()

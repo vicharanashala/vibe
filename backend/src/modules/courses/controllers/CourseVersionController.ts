@@ -15,7 +15,7 @@ import {
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {CourseVersionService} from '../services';
+import {CourseVersionService} from '../services/index.js';
 import {
   CreateCourseVersionParams,
   CreateCourseVersionBody,
@@ -24,10 +24,10 @@ import {
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
-} from '../classes/validators/CourseVersionValidators';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {CourseVersion} from '../classes/transformers';
-import TYPES from '../types';
+} from '../classes/validators/CourseVersionValidators.js';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import {CourseVersion} from '../classes/transformers/index.js';
+import TYPES from '../types.js';
 
 @injectable()
 @JsonController('/courses')

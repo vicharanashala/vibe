@@ -11,16 +11,16 @@ import {
   Post,
   Put,
 } from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository.js';
 import {
   DeleteError,
   ReadError,
   UpdateError,
-} from '../../../shared/errors/errors';
+} from '../../../shared/errors/errors.js';
 import {inject, injectable} from 'inversify';
-import {ItemsGroup} from '../classes/transformers/Item';
-import {Section} from '../classes/transformers/Section';
+import {ItemsGroup} from '../classes/transformers/Item.js';
+import {Section} from '../classes/transformers/Section.js';
 import {
   CreateSectionBody,
   CreateSectionParams,
@@ -32,13 +32,13 @@ import {
   SectionNotFoundErrorResponse,
   SectionDeletedResponse,
   DeleteSectionParams,
-} from '../classes/validators/SectionValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
+} from '../classes/validators/SectionValidators.js';
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {SectionService} from '../services/SectionService';
-import {CourseVersion} from '../classes/transformers';
-import TYPES from '../types';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import {SectionService} from '../services/SectionService.js';
+import {CourseVersion} from '../classes/transformers/index.js';
+import TYPES from '../types.js';
 @injectable()
 @JsonController('/courses')
 export class SectionController {

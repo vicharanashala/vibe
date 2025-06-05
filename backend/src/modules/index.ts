@@ -1,2 +1,2 @@
-export * from './courses/index';
-export * from './auth/index';
+export * from './courses/index.js';
+export * from './auth/index.js';

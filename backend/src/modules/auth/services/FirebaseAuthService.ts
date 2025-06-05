@@ -9,22 +9,21 @@
  */
 
 import 'reflect-metadata';
-import {Auth} from 'firebase-admin/lib/auth/auth';
 
 import admin, {database} from 'firebase-admin';
-import {UserRecord} from 'firebase-admin/lib/auth/user-record';
+
 import {applicationDefault} from 'firebase-admin/app';
 import {Inject, Service} from 'typedi';
-import {IUser} from '../../../shared/interfaces/Models';
-import {IUserRepository} from '../../../shared/database';
-import {IAuthService} from '../interfaces/IAuthService';
-import {ChangePasswordBody, SignUpBody} from '../classes/validators';
+import {IUser} from '../../../shared/interfaces/Models.js';
+import {IUserRepository} from '../../../shared/database/index.js';
+import {IAuthService} from '../interfaces/IAuthService.js';
+import {ChangePasswordBody, SignUpBody} from '../classes/validators/index.js';
 import {BadRequestError, InternalServerError} from 'routing-controllers';
-import {User} from '../classes/transformers/User';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {User} from '../classes/transformers/User.js';
+import {BaseService} from '../../../shared/classes/BaseService.js';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
 import {injectable, inject} from 'inversify';
-import GLOBAL_TYPES from '../../../types';
+import GLOBAL_TYPES from '../../../types.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -45,7 +44,7 @@ export class ChangePasswordError extends Error {
 
 @injectable()
 export class FirebaseAuthService extends BaseService implements IAuthService {
-  private auth: Auth;
+  private auth: any;
   constructor(
     @inject(GLOBAL_TYPES.UserRepository)
     private userRepository: IUserRepository,
@@ -78,7 +77,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   }
 
   async signup(body: SignUpBody): Promise<IUser> {
-    let userRecord: UserRecord;
+    let userRecord: any;
     try {
       // Create the user in Firebase Auth
       userRecord = await this.auth.createUser({

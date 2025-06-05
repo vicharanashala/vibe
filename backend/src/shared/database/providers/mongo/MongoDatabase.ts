@@ -7,7 +7,8 @@ import {
   MongoClientOptions,
 } from 'mongodb';
 import {injectable} from 'inversify';
-import TYPES from '../../../../types';
+import TYPES from '../../../../types.js';
+import {IDatabase} from '../../interfaces/IDatabase.js';
 
 /**
  * @class MongoDatabase

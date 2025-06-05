@@ -1,6 +1,6 @@
-import Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node';
 import {nodeProfilingIntegration} from '@sentry/profiling-node';
-import {sentryDSN} from './config/sentry';
+import {sentryDSN} from './config/sentry.js';
 
 // Ensure to call this before importing any other modules!
 if (process.env.NODE_ENV === 'production') {

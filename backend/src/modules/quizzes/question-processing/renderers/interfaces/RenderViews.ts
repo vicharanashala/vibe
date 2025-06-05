@@ -1,6 +1,6 @@
-import {BaseQuestion} from '../../../classes/transformers';
-import {ILotItem} from '../../../../../shared/interfaces/quiz';
-import {ParameterMap} from '../../tag-parser';
+import {BaseQuestion} from '../../../classes/transformers/index.js';
+import {ILotItem} from '../../../../../shared/interfaces/quiz.js';
+import {ParameterMap} from '../../tag-parser/index.js';
 
 interface IQuestionRenderView extends BaseQuestion {
   parameterMap?: ParameterMap;

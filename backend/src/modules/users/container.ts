@@ -1,11 +1,11 @@
 ﻿import {ContainerModule} from 'inversify';
-import TYPES from './types';
+import TYPES from './types.js';
 
-import {EnrollmentService, ProgressService} from './services';
-import {ProgressController, EnrollmentController} from './controllers';
+import {EnrollmentService, ProgressService} from './services/index.js';
+import {ProgressController, EnrollmentController} from './controllers/index.js';
 
-import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
+import {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories

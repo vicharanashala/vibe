@@ -1,16 +1,16 @@
 ﻿import 'reflect-metadata';
 import {instanceToPlain} from 'class-transformer';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {IItemRepository} from '../../../interfaces/IItemRepository';
-import {ICourseRepository} from '../../../interfaces/ICourseRepository';
+import {IItemRepository} from '../../../interfaces/IItemRepository.js';
+import {ICourseRepository} from '../../../interfaces/ICourseRepository.js';
 import {
   CreateError,
   DeleteError,
   ReadError,
   UpdateError,
-} from '../../../../errors/errors';
+} from '../../../../errors/errors.js';
 import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase';
+import {MongoDatabase} from '../MongoDatabase.js';
 import {NotFoundError} from 'routing-controllers';
 import {
   ItemsGroup,
@@ -18,9 +18,9 @@ import {
   QuizItem,
   VideoItem,
   Item,
-} from 'modules/courses/classes/transformers/Item';
-import {ItemType} from 'shared/interfaces/Models';
-import GLOBAL_TYPES from '../../../../../types';
+} from '#root/modules/courses/classes/transformers/Item.js';
+import {ItemType} from '#root/shared/interfaces/Models.js';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {

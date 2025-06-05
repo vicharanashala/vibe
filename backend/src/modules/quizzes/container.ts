@@ -1,20 +1,20 @@
 import {ContainerModule} from 'inversify';
-import TYPES from './types';
+import TYPES from './types.js';
 import {
   AttemptRepository,
   QuizRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
-} from './repositories';
-import {QuestionRepository} from './repositories/providers/mongodb/QuestionRepository';
-import {QuestionService} from './services/QuestionService';
-import {AttemptService} from './services/AttemptService';
-import {QuestionController} from './controllers';
-import {QuestionBankController} from './controllers/QuestionBankController';
-import {AttemptController} from './controllers/AttemptController';
-import {QuestionBankService} from './services/QuestionBankService';
-import {QuestionBank} from './classes/transformers/QuestionBank';
-import {QuestionBankRepository} from './repositories/providers/mongodb/QuestionBankRepository';
+} from './repositories/index.js';
+import {QuestionRepository} from './repositories/providers/mongodb/QuestionRepository.js';
+import {QuestionService} from './services/QuestionService.js';
+import {AttemptService} from './services/AttemptService.js';
+import {QuestionController} from './controllers/index.js';
+import {QuestionBankController} from './controllers/QuestionBankController.js';
+import {AttemptController} from './controllers/AttemptController.js';
+import {QuestionBankService} from './services/QuestionBankService.js';
+import {QuestionBank} from './classes/transformers/QuestionBank.js';
+import {QuestionBankRepository} from './repositories/providers/mongodb/QuestionBankRepository.js';
 
 export const quizzesContainerModule = new ContainerModule(options => {
   // Repositories

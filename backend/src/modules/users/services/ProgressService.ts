@@ -1,29 +1,29 @@
 import {inject, injectable} from 'inversify';
-import {Progress} from '../classes/transformers';
-import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
+import {Progress} from '../classes/transformers/index.js';
+import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository.js';
 import {
   BadRequestError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository.js';
 import {
   MongoDatabase,
   UserRepository,
-} from '../../../shared/database/providers/MongoDatabaseProvider';
+} from '../../../shared/database/providers/MongoDatabaseProvider.js';
 import {
   IBlogDetails,
   ICourseVersion,
   IProgress,
   IVideoDetails,
   IWatchTime,
-} from '../../../shared/interfaces/Models';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {Item} from '../../../modules/courses';
+} from '../../../shared/interfaces/Models.js';
+import {BaseService} from '../../../shared/classes/BaseService.js';
+import {Item} from '../../../modules/courses/index.js';
 import {ReadConcern, ReadPreference, WriteConcern, ObjectId} from 'mongodb';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+import TYPES from '../types.js';
+import GLOBAL_TYPES from '../../../types.js';
 
 @injectable()
 class ProgressService extends BaseService {

@@ -1,18 +1,18 @@
 import {useContainer} from 'routing-controllers';
 import {RoutingControllersOptions} from 'routing-controllers';
-import {HttpErrorHandler} from '../../shared/middleware/errorHandler';
+import {HttpErrorHandler} from '../../shared/middleware/errorHandler.js';
 import {
   CourseController,
   CourseVersionController,
   ModuleController,
   SectionController,
   ItemController,
-} from './controllers';
+} from './controllers/index.js';
 import {Container} from 'inversify';
-import {sharedContainerModule} from '../../container';
-import {authContainerModule} from '../auth/container';
-import {InversifyAdapter} from '../../inversify-adapter';
-import {coursesContainerModule} from './container';
+import {sharedContainerModule} from '../../container.js';
+import {authContainerModule} from '../auth/container.js';
+import {InversifyAdapter} from '../../inversify-adapter.js';
+import {coursesContainerModule} from './container.js';
 
 export async function setupCoursesContainer(): Promise<void> {
   const container = new Container();
@@ -42,6 +42,6 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index';
-export * from './classes/transformers/index';
-export * from './controllers/index';
+export * from './classes/validators/index.js';
+export * from './classes/transformers/index.js';
+export * from './controllers/index.js';

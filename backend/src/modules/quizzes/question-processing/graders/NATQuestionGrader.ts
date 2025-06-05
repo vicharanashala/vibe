@@ -1,12 +1,12 @@
-import {NATQuestion} from 'modules/quizzes/classes';
-import {IGrader} from './interfaces/IGrader';
-import {QuizItem} from 'modules/courses';
+import {NATQuestion} from '#root/modules/quizzes/classes/index.js';
+import {IGrader} from './interfaces/IGrader.js';
+import {QuizItem} from '#root/modules/courses/index.js';
 import {
   Answer,
   INATAnswer,
   IQuestionAnswerFeedback,
-} from 'modules/quizzes/interfaces/grading';
-import {ParameterMap} from '../tag-parser';
+} from '#root/modules/quizzes/interfaces/grading.js';
+import {ParameterMap} from '../tag-parser/index.js';
 
 import {evaluate} from 'mathjs';
 import {ObjectId} from 'mongodb';

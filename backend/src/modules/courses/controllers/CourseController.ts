@@ -11,7 +11,7 @@ import {
   Delete,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
-import {Course} from '../classes/transformers/Course';
+import {Course} from '../classes/transformers/Course.js';
 import {
   CreateCourseBody,
   ReadCourseParams,
@@ -19,8 +19,8 @@ import {
   UpdateCourseBody,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
-} from '../classes/validators/CourseValidators';
-import {CourseService} from '../services';
+} from '../classes/validators/CourseValidators.js';
+import {CourseService} from '../services/index.js';
 import {getMetadataArgsStorage} from 'routing-controllers';
 import {
   OpenAPI,
@@ -28,9 +28,9 @@ import {
   ResponseSchema,
 } from 'routing-controllers-openapi';
 import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-import {coursesModuleOptions} from '..';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import TYPES from '../types';
+import {coursesModuleOptions} from '../index.js';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import TYPES from '../types.js';
 
 @injectable()
 @JsonController('/courses')

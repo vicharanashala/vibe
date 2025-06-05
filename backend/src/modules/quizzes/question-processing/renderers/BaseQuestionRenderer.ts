@@ -1,6 +1,6 @@
-import {BaseQuestion} from '../../classes/transformers';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {IQuestionRenderView} from './interfaces/RenderViews';
+import {BaseQuestion} from '../../classes/transformers/index.js';
+import {TagParser, ParameterMap} from '../tag-parser/index.js';
+import {IQuestionRenderView} from './interfaces/RenderViews.js';
 
 class BaseQuestionRenderer {
   question: BaseQuestion;

@@ -5,13 +5,13 @@ import {
   ObjectId,
   WithId,
 } from 'mongodb';
-import {IUser} from '../../../../interfaces/Models';
+import {IUser} from '../../../../interfaces/Models.js';
 import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase';
-import {IUserRepository} from '../../../interfaces/IUserRepository';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {IUserRepository} from '../../../interfaces/IUserRepository.js';
 import {plainToClass, plainToInstance} from 'class-transformer';
-import {User} from 'modules/auth/classes/transformers/User';
-import GLOBAL_TYPES from '../../../../../types';
+import {User} from '#root/modules/auth/classes/transformers/User.js';
+import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class UserRepository implements IUserRepository {

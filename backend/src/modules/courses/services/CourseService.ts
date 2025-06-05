@@ -1,12 +1,12 @@
-import {ICourseRepository} from '../../../shared/database';
+import {ICourseRepository} from '#root/shared/database/index.js';
 import {inject, injectable} from 'inversify';
-import {Course} from '../classes/transformers';
+import {Course} from '../classes/transformers/index.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import TYPES from '../types.js';
+import GLOBAL_TYPES from '../../../types.js';
 
 @injectable()
 class CourseService extends BaseService {

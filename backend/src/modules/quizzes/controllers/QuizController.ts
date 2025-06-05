@@ -9,7 +9,7 @@ import {
   HttpCode,
   Delete,
 } from 'routing-controllers';
-import {QuizService} from '../services/QuizService';
+import {QuizService} from '../services/QuizService.js';
 import {
   QuizIdParam,
   RemoveQuestionBankParams,
@@ -30,11 +30,11 @@ import {
   EditQuestionBankBody,
   RegradeSubmissionBody,
   AddFeedbackBody,
-} from '../classes/validators/QuizValidator';
-import TYPES from '../types';
-import {QuestionBankService} from '../services/QuestionBankService';
-import {QuestionBankRef} from '../classes/transformers/QuestionBank';
-import {IGradingResult} from '../interfaces/grading';
+} from '../classes/validators/QuizValidator.js';
+import TYPES from '../types.js';
+import {QuestionBankService} from '../services/QuestionBankService.js';
+import {QuestionBankRef} from '../classes/transformers/QuestionBank.js';
+import {IGradingResult} from '../interfaces/grading.js';
 
 @injectable()
 @JsonController('/quiz')

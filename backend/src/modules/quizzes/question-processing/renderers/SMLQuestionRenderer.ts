@@ -1,8 +1,8 @@
-﻿import {SMLQuestion} from '../../classes/transformers';
-import {ILotItem} from '../../../../shared/interfaces/quiz';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {SMLQuestionRenderView} from './interfaces/RenderViews';
+﻿import {SMLQuestion} from '../../classes/transformers/index.js';
+import {ILotItem} from '../../../../shared/interfaces/quiz.js';
+import {TagParser, ParameterMap} from '../tag-parser/index.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {SMLQuestionRenderView} from './interfaces/RenderViews.js';
 
 class SMLQuestionRenderer extends BaseQuestionRenderer {
   declare question: SMLQuestion;

@@ -5,10 +5,10 @@ import {
   StringArrayToObjectIdArray,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {ICourse} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {CreateCourseBody} from '../validators';
+} from '../../../../shared/constants/transformerConstants.js';
+import {ICourse} from '../../../../shared/interfaces/Models.js';
+import {ID} from '../../../../shared/types.js';
+import {CreateCourseBody} from '../validators/index.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 /**

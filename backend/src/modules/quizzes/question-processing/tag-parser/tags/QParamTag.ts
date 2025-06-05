@@ -1,4 +1,4 @@
-import {Tag, ParameterMap} from './Tag';
+import {Tag, ParameterMap} from './Tag.js';
 
 class QParamTag extends Tag {
   validate(text: string): boolean {
