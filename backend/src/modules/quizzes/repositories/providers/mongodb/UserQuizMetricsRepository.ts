@@ -3,17 +3,14 @@ import {IUserQuizMetrics} from 'modules/quizzes/interfaces/grading';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types';
 
-@Service()
 @injectable()
 class UserQuizMetricsRepository {
   private userQuizMetricsCollection: Collection<IUserQuizMetrics>;
 
   constructor(
-    @Inject(() => MongoDatabase)
-    @inject(GLOBAL_TYPES.Database)
+    @inject(TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

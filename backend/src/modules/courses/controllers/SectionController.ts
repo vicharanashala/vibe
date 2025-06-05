@@ -39,11 +39,14 @@ import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import {SectionService} from '../services/SectionService';
 import {CourseVersion} from '../classes/transformers';
 import TYPES from '../types';
+import GLOBAL_TYPES from '../../../types';
+
 @injectable()
 @JsonController('/courses')
 export class SectionController {
   constructor(
-    @inject(TYPES.CourseRepo) private readonly courseRepo: CourseRepository,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: CourseRepository,
     @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
     @inject(TYPES.SectionService)
     private readonly sectionService: SectionService,

@@ -11,6 +11,7 @@ import {
 import {Container} from 'inversify';
 import {sharedContainerModule} from '../../container';
 import {authContainerModule} from '../auth/container';
+import {usersContainerModule} from '../users/container';
 import {InversifyAdapter} from '../../inversify-adapter';
 import {coursesContainerModule} from './container';
 
@@ -20,6 +21,7 @@ export async function setupCoursesContainer(): Promise<void> {
     sharedContainerModule,
     authContainerModule,
     coursesContainerModule,
+    usersContainerModule,
   );
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);

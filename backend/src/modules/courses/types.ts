@@ -1,6 +1,4 @@
-﻿import {CourseVersion, Module} from './classes/transformers';
-
-const TYPES = {
+﻿const TYPES = {
   //Services
   CourseService: Symbol.for('CourseService'),
   CourseVersionService: Symbol.for('CourseVersionService'),
@@ -9,7 +7,6 @@ const TYPES = {
   ItemService: Symbol.for('ItemService'),
 
   //Repositories
-  CourseRepo: Symbol.for('CourseRepo'),
   ItemRepo: Symbol.for('ItemRepo'),
 };
 

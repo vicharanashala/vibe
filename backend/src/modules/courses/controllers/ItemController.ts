@@ -35,12 +35,14 @@ import {
 import {IUser} from 'shared/interfaces/Models';
 import {ProgressService} from 'modules/users/services/ProgressService';
 import TYPES from '../types';
+import USER_TYPES from '../../users/types';
+
 @injectable()
 @JsonController('/courses')
 export class ItemController {
   constructor(
     @inject(TYPES.ItemService) private readonly itemService: ItemService,
-    @inject(TYPES.ProgressService)
+    @inject(USER_TYPES.ProgressService)
     private readonly progressService: ProgressService,
   ) {}
 

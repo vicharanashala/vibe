@@ -15,16 +15,17 @@ import {NotFoundError} from 'routing-controllers';
 import {ReadError, UpdateError} from '../../../shared/errors/errors';
 import {ICourseVersion} from '../../../shared/interfaces/Models';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
+
 @injectable()
 export class SectionService extends BaseService {
   constructor(
     @inject(TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

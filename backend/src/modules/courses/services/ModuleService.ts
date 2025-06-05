@@ -10,15 +10,16 @@ import {Module} from '../classes/transformers/Module';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {ICourseVersion} from 'shared/interfaces/Models';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {ICourseVersion} from '../../../shared/interfaces/Models';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
+
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

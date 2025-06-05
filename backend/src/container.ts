@@ -6,8 +6,10 @@ import {
   CourseRepository,
 } from './shared/database/providers/MongoDatabaseProvider';
 import TYPES from './types';
-import {appConfig} from 'config/app';
-import {OpenApiSpecService} from 'modules/docs';
+import {appConfig} from './config/app';
+import {OpenApiSpecService} from './modules/docs';
+import {Http} from 'winston/lib/winston/transports';
+import {HttpErrorHandler} from 'shared/middleware/errorHandler';
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
@@ -20,11 +22,14 @@ export const sharedContainerModule = new ContainerModule(options => {
   options.bind(TYPES.Database).to(MongoDatabase).inSingletonScope();
 
   // Repositories
-  options.bind(TYPES.UserRepository).to(UserRepository).inSingletonScope();
+  options.bind(TYPES.UserRepo).to(UserRepository).inSingletonScope();
   options.bind(TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
 
   //Services
   if (!appConfig.isProduction) {
     options.bind(OpenApiSpecService).toSelf().inSingletonScope();
   }
+
+  // Other
+  options.bind(HttpErrorHandler).toSelf().inSingletonScope();
 });

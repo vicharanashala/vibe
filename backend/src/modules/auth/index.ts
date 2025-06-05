@@ -19,7 +19,7 @@ import {AuthController} from './controllers/AuthController';
 import {useContainer} from 'routing-controllers';
 import {FirebaseAuthService} from './services/FirebaseAuthService';
 import {Container} from 'inversify';
-import {sharedContainerModule} from 'container';
+import {sharedContainerModule} from '../../container';
 import {authContainerModule} from './container';
 import {InversifyAdapter} from '../../inversify-adapter';
 

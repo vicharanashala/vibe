@@ -7,14 +7,15 @@ import {ObjectId, ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {ICourseVersion} from '../../../shared/interfaces/Models';
 import {DeleteError} from '../../../shared/errors/errors';
 import {instanceToPlain} from 'class-transformer';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
+
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)
@@ -90,7 +91,7 @@ export class CourseVersionService extends BaseService {
   public async deleteCourseVersion(
     courseId: string,
     courseVersionId: string,
-  ): Promise<null> {
+  ): Promise<Boolean> {
     return this._withTransaction(async session => {
       const readCourseVersion = await this.courseRepo.readVersion(
         courseVersionId,
@@ -120,7 +121,7 @@ export class CourseVersionService extends BaseService {
       if (versionDeleteResult.deletedCount !== 1) {
         throw new InternalServerError('Failed to delete course version');
       }
-      return null;
+      return true;
     });
   }
 }

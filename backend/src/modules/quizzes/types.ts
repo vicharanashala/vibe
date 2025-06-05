@@ -17,9 +17,6 @@ const TYPES = {
   AttemptRepo: Symbol.for('AttemptRepo'),
   SubmissionRepo: Symbol.for('SubmissionRepo'),
   UserQuizMetricsRepo: Symbol.for('UserQuizMetricsRepo'),
-
-  //TODO: Remove later, temoporary
-  CourseRepo: Symbol.for('CourseRepo'),
 };
 
 export default TYPES;

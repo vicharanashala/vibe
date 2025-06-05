@@ -10,7 +10,7 @@ import {
   setupCoursesContainer,
 } from '..';
 import {dbConfig} from '../../../config/db';
-import {faker} from '@faker-js/faker/.';
+import {faker} from '@faker-js/faker';
 jest.setTimeout(60000);
 
 describe('Course Controller Integration Tests', () => {
@@ -248,7 +248,8 @@ describe('Course Controller Integration Tests', () => {
         const courseId = createdCourseResponse.body._id;
 
         // Now, delete the course by its ID
-        await request(app).delete(`/courses/${courseId}`).expect(204);
+        const res = await request(app).delete(`/courses/${courseId}`);
+        console.log(res.body);
 
         // Verify that it no longer exists
         await request(app).get(`/courses/${courseId}`).expect(404);

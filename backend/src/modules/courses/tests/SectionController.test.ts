@@ -1,18 +1,15 @@
 import {dbConfig} from '../../../config/db';
 import Express from 'express';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {SectionService} from '../services/SectionService';
 import {CourseVersionService} from '../services';
 import {useExpressServer, useContainer} from 'routing-controllers';
-import {coursesModuleOptions} from 'modules/courses';
+import {coursesModuleOptions} from '../';
 import request from 'supertest';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import { InversifyAdapter } from '../../../inversify-adapter';
-import { Container } from 'inversify';
-import { usersContainerModule } from '../../../users/container';
-import { coursesContainerModule } from '../container';
-import { sharedContainerModule } from '../../../container';
+import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
+import {InversifyAdapter} from '../../../inversify-adapter';
+import {Container} from 'inversify';
+import {usersContainerModule} from '../../users/container';
+import {coursesContainerModule} from '../container';
+import {sharedContainerModule} from '../../../container';
 
 jest.setTimeout(90000);
 
@@ -115,7 +112,7 @@ describe('Section Controller Integration Tests', () => {
           URL: 'http://url.com',
           startTime: '00:00:00',
           endTime: '00:00:40',
-          points: '10.5',
+          points: 10.5,
         },
       };
 

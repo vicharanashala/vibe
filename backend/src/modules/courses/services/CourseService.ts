@@ -3,15 +3,15 @@ import {inject, injectable} from 'inversify';
 import {Course} from '../classes/transformers';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
 
 @injectable()
 class CourseService extends BaseService {
   constructor(
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDate,
+  IsEnum,
   IsInt,
   IsMongoId,
   IsNotEmpty,
@@ -48,15 +49,17 @@ export class EnrollmentParams {
   @IsString()
   @IsNotEmpty()
   courseVersionId: string;
+}
 
+export class EnrollmentBody {
   @JSONSchema({
     description: 'Role of the user',
     example: 'instructor',
     type: 'string',
     enum: ['instructor', 'student'],
   })
+  @IsEnum(['instructor', 'student'])
   @IsNotEmpty()
-  @IsString()
   role: 'instructor' | 'student';
 }
 

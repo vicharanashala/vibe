@@ -29,6 +29,7 @@ import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import TYPES from '../types';
+
 @injectable()
 @JsonController('/courses')
 export class ModuleController {

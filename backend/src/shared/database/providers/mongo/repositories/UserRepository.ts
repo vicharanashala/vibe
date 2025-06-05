@@ -1,6 +1,7 @@
 import {
   ClientSession,
   Collection,
+  ConnectionClosedEvent,
   MongoClient,
   ObjectId,
   WithId,
@@ -9,9 +10,15 @@ import {IUser} from '../../../../interfaces/Models';
 import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase';
 import {IUserRepository} from '../../../interfaces/IUserRepository';
-import {plainToClass, plainToInstance} from 'class-transformer';
+import {
+  instanceToPlain,
+  plainToClass,
+  plainToInstance,
+} from 'class-transformer';
 import {User} from 'modules/auth/classes/transformers/User';
 import GLOBAL_TYPES from '../../../../../types';
+import c from 'config';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
 
 @injectable()
 export class UserRepository implements IUserRepository {
@@ -43,10 +50,13 @@ export class UserRepository implements IUserRepository {
    * Creates a new user in the database.
    * - Generates a MongoDB `_id` internally but uses `firebaseUID` as the external identifier.
    */
-  async create(user: IUser, session?: ClientSession): Promise<IUser> {
+  async create(user: IUser, session?: ClientSession): Promise<string> {
     await this.init();
     const result = await this.usersCollection.insertOne(user, {session});
-    return plainToInstance(User, result);
+    if (!result.acknowledged) {
+      throw new InternalServerError('Failed to create user');
+    }
+    return result.insertedId.toString();
   }
 
   /**
@@ -58,7 +68,10 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({email}, {session});
-    return plainToInstance(User, user);
+    if (!user) {
+      throw new NotFoundError(`User not found`);
+    }
+    return instanceToPlain(new User(user)) as IUser;
   }
 
   /**
@@ -67,7 +80,10 @@ export class UserRepository implements IUserRepository {
   async findById(id: string | ObjectId): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({_id: new ObjectId(id)});
-    return plainToInstance(User, user);
+    if (!user) {
+      throw new NotFoundError(`User not found`);
+    }
+    return instanceToPlain(new User(user)) as IUser;
   }
 
   /**
@@ -76,7 +92,10 @@ export class UserRepository implements IUserRepository {
   async findByFirebaseUID(firebaseUID: string): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({firebaseUID});
-    return plainToInstance(User, user);
+    if (!user) {
+      throw new NotFoundError(`User not found`);
+    }
+    return instanceToPlain(new User(user)) as IUser;
   }
 
   /**
@@ -89,7 +108,7 @@ export class UserRepository implements IUserRepository {
       {$addToSet: {roles: role}},
       {returnDocument: 'after'},
     );
-    return plainToInstance(User, result);
+    return instanceToPlain(new User(result)) as IUser;
   }
 
   /**
@@ -102,7 +121,7 @@ export class UserRepository implements IUserRepository {
       {$pull: {roles: role}},
       {returnDocument: 'after'},
     );
-    return plainToInstance(User, result);
+    return instanceToPlain(new User(result)) as IUser;
   }
 
   /**
@@ -118,6 +137,6 @@ export class UserRepository implements IUserRepository {
       {$set: {password}},
       {returnDocument: 'after'},
     );
-    return plainToInstance(User, result);
+    return instanceToPlain(new User(result)) as IUser;
   }
 }

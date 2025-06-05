@@ -1,4 +1,4 @@
-import {useContainer} from 'class-validator';
+import {useContainer} from 'routing-controllers';
 import {dbConfig} from '../../config/db';
 import {RoutingControllersOptions} from 'routing-controllers';
 import {QuestionController} from './controllers';

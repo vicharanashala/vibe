@@ -8,6 +8,7 @@ import {
 } from 'mongodb';
 import {injectable} from 'inversify';
 import TYPES from '../../../../types';
+import {IDatabase} from '../../../../shared/database/interfaces/IDatabase';
 
 /**
  * @class MongoDatabase

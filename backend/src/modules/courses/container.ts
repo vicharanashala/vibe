@@ -1,7 +1,6 @@
 import {ContainerModule} from 'inversify';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
 import TYPES from './types';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
+import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository';
 import {
   CourseService,
   CourseVersionService,
@@ -19,7 +18,6 @@ import {
 
 export const coursesContainerModule = new ContainerModule(options => {
   // Repositories
-  options.bind(TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
   options.bind(TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
 
   // Services

@@ -8,17 +8,14 @@ import {
 import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types';
 
-@Service()
 @injectable()
 class SubmissionRepository {
   private submissionResultCollection: Collection<ISubmission>;
 
   constructor(
-    @Inject(() => MongoDatabase)
-    @inject(GLOBAL_TYPES.Database)
+    @inject(TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

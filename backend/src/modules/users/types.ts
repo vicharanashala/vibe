@@ -4,7 +4,6 @@
   ProgressService: Symbol.for('ProgressService'),
 
   //Repositories
-  CourseRepo: Symbol.for('CourseRepo'),
   ProgressRepo: Symbol.for('ProgressRepo'),
   EnrollmentRepo: Symbol.for('EnrollmentRepo'),
   UserRepo: Symbol.for('UserRepo'),

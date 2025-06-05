@@ -1,7 +1,7 @@
 import {inject, injectable} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IItemRepository} from 'shared/database';
-import {ICourseRepository} from 'shared/database/';
+import {IItemRepository} from '../../../shared/database';
+import {ICourseRepository} from '../../../shared/database/';
 import {
   BlogItem,
   Item,
@@ -23,18 +23,19 @@ import {
   ReadPreference,
   WriteConcern,
 } from 'mongodb';
-import {ItemType} from 'shared/interfaces/Models';
+import {ItemType} from '../../../shared/interfaces/Models';
 import {CourseVersion, Module, Section} from '../classes/transformers';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
+
 @injectable()
 export class ItemService extends BaseService {
   constructor(
     @inject(TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

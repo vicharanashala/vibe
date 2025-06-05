@@ -34,7 +34,7 @@ export interface IAuthService {
    * @returns A promise that resolves to the newly created user object
    * @throws Error - If user creation fails for any reason
    */
-  signup(body: SignUpBody): Promise<IUser>;
+  signup(body: SignUpBody): Promise<string>;
 
   /**
    * Verifies the validity of an authentication token.

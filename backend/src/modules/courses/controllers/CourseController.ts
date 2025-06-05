@@ -9,6 +9,7 @@ import {
   Params,
   HttpCode,
   Delete,
+  OnUndefined,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
 import {Course} from '../classes/transformers/Course';
@@ -98,7 +99,7 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Delete('/:id', {transformResponse: true})
-  @HttpCode(204)
+  @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -110,7 +111,6 @@ export class CourseController {
   async delete(@Params() params: ReadCourseParams) {
     const {id} = params;
     await this.courseService.deleteCourse(id);
-    return;
   }
 }
 

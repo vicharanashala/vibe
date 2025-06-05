@@ -169,7 +169,6 @@ export class CourseRepository implements ICourseRepository {
     if (deleteCourseResult.deletedCount !== 1) {
       throw new DeleteError('Failed to delete course');
     }
-
     return true;
   }
 

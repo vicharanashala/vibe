@@ -23,7 +23,8 @@ export class EnrollmentService extends BaseService {
   constructor(
     @inject(TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
-    @inject(TYPES.CourseRepo) private readonly courseRepo: CourseRepository,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: CourseRepository,
     @inject(TYPES.UserRepo) private readonly userRepo: UserRepository,
     @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
     @inject(GLOBAL_TYPES.Database)

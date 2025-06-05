@@ -31,7 +31,7 @@ class ProgressService extends BaseService {
     @inject(TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
 
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
 
     @inject(TYPES.UserRepo)
