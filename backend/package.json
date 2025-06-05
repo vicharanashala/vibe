@@ -4,8 +4,17 @@
   "description": "This is ViBe backend.",
   "main": "index.js",
   "type": "module",
-  "imports": {
-    "#root/*.js": "./dist/*.js"
+    "imports": {
+
+    "#root/*.js": "./dist/*.js",
+    "#shared/*.js": "./dist/shared/*.js",
+    "#config/*.js": "./dist/config/*.js",
+
+    "#auth/*.js": "./dist/modules/auth/*.js",
+    "#courses/*.js": "./dist/modules/courses/*.js",
+    "#users/*.js": "./dist/modules/users/*.js",
+    "#quizzes/*.js": "./dist/modules/quizzes/*.js",
+    "#docs/*.js": "./dist/modules/docs/*.js"
   },
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles",
@@ -27,6 +36,19 @@
     "emulators:all": "firebase emulators:start",
     "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
     "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
+  },
+  "bin": "dist/index.js",
+  "pkg": {
+    "scripts": [
+      "dist/**/*.js"
+    ],
+    "assets": [
+    "node_modules/firebase-admin/**/*"
+  ],
+    "targets": [
+      "latest-win-x64"
+    ],
+    "outputPath": "output"
   },
   "keywords": [],
   "author": "",
@@ -54,6 +76,7 @@
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typedoc": "^0.28.2",
     "typedoc-plugin-markdown": "^4.4.2",

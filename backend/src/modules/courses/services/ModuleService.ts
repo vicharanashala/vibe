@@ -10,9 +10,9 @@ import {Module} from '../classes/transformers/Module.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
-import {ICourseVersion} from '#root/shared/interfaces/Models.js';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';
 @injectable()

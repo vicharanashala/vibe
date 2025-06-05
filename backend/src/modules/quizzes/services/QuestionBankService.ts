@@ -6,14 +6,14 @@ import {BaseQuestion} from '../classes/index.js';
 import {
   CourseRepository,
   MongoDatabase,
-} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+} from '#root/shared/database/providers/index.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionBank} from '../classes/transformers/QuestionBank.js';
 import {NotFoundError} from 'routing-controllers';
 import TYPES from '../types.js';
 import {inject, injectable} from 'inversify';
 import GLOBAL_TYPES from '../../../types.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/Models.js';
+import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
 
 @injectable()
 class QuestionBankService extends BaseService {

@@ -1,44 +1,25 @@
 import './instrument.js';
 import Express from 'express';
 import * as Sentry from '@sentry/node';
-import {loggingHandler} from './shared/middleware/loggingHandler.js';
+import {getFromContainer, useContainer} from 'class-validator';
+import {Container} from 'inversify';
+import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
+import {appConfig} from '#config/app.js';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {
-  RoutingControllersOptions,
-  useContainer,
-  useExpressServer,
-} from 'routing-controllers';
-import {IDatabase} from './shared/database/index.js';
-import {MongoDatabase} from './shared/database/providers/MongoDatabaseProvider.js';
-import {dbConfig} from './config/db.js';
-import * as firebase from 'firebase-admin';
-import {app} from 'firebase-admin';
-import {apiReference} from '@scalar/express-api-reference';
-import {OpenApiSpecService} from './modules/docs/index.js';
-
-// Import all module options
-import {authModuleOptions, setupAuthContainer} from './modules/auth/index.js';
-import {
+  coursesContainerModule,
   coursesModuleOptions,
   setupCoursesContainer,
-} from './modules/courses/index.js';
-import {
-  setupUsersContainer,
-  usersModuleOptions,
-} from './modules/users/index.js';
-import {
-  quizzesModuleOptions,
-  setupQuizzesContainer,
-} from './modules/quizzes/index.js';
-import {rateLimiter} from './shared/middleware/rateLimiter.js';
-import {sharedContainerModule} from './container.js';
-import {authContainerModule} from './modules/auth/container.js';
-import {InversifyAdapter} from './inversify-adapter.js';
-import {Container} from 'inversify';
-import {coursesContainerModule} from '#root/modules/courses/container.js';
-import {quizzesContainerModule} from '#root/modules/quizzes/container.js';
-import {usersContainerModule} from '#root/modules/users/container.js';
-import {getFromContainer} from 'class-validator';
-import {appConfig} from '#root/config/app.js';
+} from '#courses/index.js';
+import {rateLimiter, loggingHandler} from '#shared/index.js';
+import {authContainerModule} from '#auth/container.js';
+import {authModuleOptions, setupAuthContainer} from '#auth/index.js';
+import {OpenApiSpecService} from '#docs/index.js';
+import {quizzesContainerModule} from '#quizzes/container.js';
+import {quizzesModuleOptions, setupQuizzesContainer} from '#quizzes/index.js';
+import {usersContainerModule} from '#users/container.js';
+import {usersModuleOptions, setupUsersContainer} from '#users/index.js';
 
 export const application = Express();
 

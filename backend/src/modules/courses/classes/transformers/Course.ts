@@ -6,10 +6,11 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '../../../../shared/constants/transformerConstants.js';
-import {ICourse} from '../../../../shared/interfaces/Models.js';
-import {ID} from '../../../../shared/types.js';
+import {ICourse} from '../../../../shared/interfaces/models.js';
+
 import {CreateCourseBody} from '../validators/index.js';
 import {JSONSchema} from 'class-validator-jsonschema';
+import {ID} from '#root/shared/index.js';
 
 /**
  * Course data transformation.

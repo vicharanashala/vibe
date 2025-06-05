@@ -1,7 +1,7 @@
 import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
-import {IUser} from '../../../../shared/interfaces/Models';
+import {IUser} from '../../../../shared/interfaces/models';
 
 export async function createUser(app: typeof Express): Promise<IUser> {
   // Prepare user sign-up data using Faker

@@ -11,14 +11,14 @@ import {ItemRepository} from '../../../shared/database/providers/mongo/repositor
 import {
   MongoDatabase,
   UserRepository,
-} from '../../../shared/database/providers/MongoDatabaseProvider.js';
+} from '../../../shared/database/providers/index.js';
 import {
   IBlogDetails,
   ICourseVersion,
   IProgress,
   IVideoDetails,
   IWatchTime,
-} from '../../../shared/interfaces/Models.js';
+} from '../../../shared/interfaces/models.js';
 import {BaseService} from '../../../shared/classes/BaseService.js';
 import {Item} from '../../../modules/courses/index.js';
 import {ReadConcern, ReadPreference, WriteConcern, ObjectId} from 'mongodb';

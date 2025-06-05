@@ -1,3 +1,4 @@
+import {ID} from '#shared/index.js';
 import {Expose} from 'class-transformer';
 import {
   IsNotEmpty,
@@ -8,7 +9,6 @@ import {
   IsBoolean,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from '../../../../shared/types.js';
 
 export class GetUserProgressParams {
   @JSONSchema({

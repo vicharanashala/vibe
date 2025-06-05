@@ -9,8 +9,8 @@ import {
   EnrollmentRole,
   EnrollmentStatus,
   IEnrollment,
-} from '../../../../shared/interfaces/Models.js';
-import {ID} from '../../../../shared/types.js';
+} from '../../../../shared/interfaces/models.js';
+import {ID} from '#root/shared/index.js';
 
 @Expose()
 export class Enrollment implements IEnrollment {

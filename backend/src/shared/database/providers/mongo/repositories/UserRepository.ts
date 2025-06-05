@@ -5,7 +5,7 @@ import {
   ObjectId,
   WithId,
 } from 'mongodb';
-import {IUser} from '../../../../interfaces/Models.js';
+import {IUser} from '../../../../interfaces/models.js';
 import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {IUserRepository} from '../../../interfaces/IUserRepository.js';

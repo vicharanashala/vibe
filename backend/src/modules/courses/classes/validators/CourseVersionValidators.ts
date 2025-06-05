@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
-import {ICourseVersion} from '../../../../shared/interfaces/Models.js';
+import {ICourseVersion} from '../../../../shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {

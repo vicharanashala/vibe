@@ -45,7 +45,18 @@
 
     /* Specify the base directory to resolve non-relative module names. */
     "paths": {
-      "#root/*": ["./src/*"]
+
+      //root paths
+      "#root/*": ["./src/*"],
+      "#shared/*": ["./src/shared/*"],
+      "#config": ["./src/config/*"],
+
+      // modules
+      "#auth": ["./src/modules/auth/*"],
+      "#courses": ["./src/modules/courses/*"],
+      "#users": ["./src/modules/users/*"],
+      "#quizzes": ["./src/modules/quizzes/*"],
+      "#docs": ["./src/modules/docs/*"]
       // "@utils/*": ["utils/*"],
       // "@config/*": ["config/*"],
     },
@@ -148,6 +159,14 @@
     // from generated source code references.
     // This improves issue grouping in Sentry.
     "sourceRoot": "/"
+  },
+    "tsc-alias": {
+    "verbose": true,
+    "resolveFullPaths": true,
+    "fileExtensions": {
+      "inputGlob": "{js,jsx,mjs}",
+      "outputCheck": ["js", "json", "jsx", "mjs"]
+    }
   },
   "exclude": [
     ".docusaurus",

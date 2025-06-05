@@ -11,7 +11,7 @@ import {
   ICourseVersion,
   IModule,
   ISection,
-} from '#root/shared/interfaces/Models.js';
+} from '#root/shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateModuleBody implements Partial<IModule> {

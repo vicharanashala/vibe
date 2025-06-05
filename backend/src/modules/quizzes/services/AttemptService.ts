@@ -26,11 +26,10 @@ import {QuestionService} from './QuestionService.js';
 import {inject, injectable} from 'inversify';
 import TYPES from '../types.js';
 import {QuestionBankService} from './QuestionBankService.js';
-import {ID} from '#root/shared/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ClientSession, ObjectId} from 'mongodb';
 import GLOBAL_TYPES from '../../../types.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 
 @injectable()
 class AttemptService extends BaseService {

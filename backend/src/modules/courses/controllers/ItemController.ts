@@ -32,7 +32,7 @@ import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
 } from '../classes/validators/ItemValidators.js';
-import {IUser} from '#root/shared/interfaces/Models.js';
+import {IUser} from '#root/shared/interfaces/models.js';
 import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 import TYPES from '../types.js';
 import USER_TYPES from '#root/modules/users/types.js';

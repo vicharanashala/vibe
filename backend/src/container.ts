@@ -4,7 +4,7 @@ import {
   MongoDatabase,
   UserRepository,
   CourseRepository,
-} from './shared/database/providers/MongoDatabaseProvider.js';
+} from './shared/database/providers/index.js';
 import TYPES from './types.js';
 import {appConfig} from '#root/config/app.js';
 import {OpenApiSpecService} from '#root/modules/docs/index.js';

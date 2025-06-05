@@ -11,7 +11,7 @@ import {
   IQuizDetails,
   IBlogDetails,
   ICourseVersion,
-} from '../../interfaces/Models.js';
+} from '../../interfaces/models.js';
 import {ObjectId, ClientSession} from 'mongodb';
 
 export interface IItemRepository {

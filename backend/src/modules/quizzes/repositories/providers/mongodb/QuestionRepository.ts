@@ -4,7 +4,7 @@ import {ClientSession, Collection} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 
 @Service()
 @injectable()

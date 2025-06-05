@@ -11,7 +11,7 @@ import {CourseRepository} from '../../shared/database/providers/mongo/repositori
 import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository.js';
 import {EnrollmentController} from './controllers/EnrollmentController.js';
 import {EnrollmentService} from './services/index.js';
-import {UserRepository} from '../../shared/database/providers/MongoDatabaseProvider.js';
+import {UserRepository} from '../../shared/database/providers/index.js';
 import {dbConfig} from '../../config/db.js';
 import {ProgressRepository} from '../../shared/database/providers/mongo/repositories/ProgressRepository.js';
 import {ProgressController} from './controllers/index.js';
@@ -44,8 +44,10 @@ export const usersModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index.js';
-export * from './classes/transformers/index.js';
+export * from './classes/index.js';
 export * from './controllers/index.js';
+export * from './services/index.js';
+export * from './types.js';
+export * from './container.js';
 
 export {EnrollmentController};

@@ -6,9 +6,9 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '../../../../shared/constants/transformerConstants.js';
-import {ISection} from '../../../../shared/interfaces/Models.js';
-import {ID} from '../../../../shared/types.js';
+import {ISection} from '../../../../shared/interfaces/models.js';
 import {CreateSectionBody} from '../validators/SectionValidators.js';
+import {ID} from '#shared/index.js';
 
 /**
  * Section data transformation.

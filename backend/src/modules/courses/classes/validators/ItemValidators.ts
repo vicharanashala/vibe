@@ -24,7 +24,7 @@ import {
   IQuizDetails,
   ItemType,
   IVideoDetails,
-} from '../../../../shared/interfaces/Models.js';
+} from '../../../../shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {CourseVersion, ItemsGroup} from '../transformers/index.js';

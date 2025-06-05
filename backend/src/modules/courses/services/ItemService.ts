@@ -23,10 +23,10 @@ import {
   ReadPreference,
   WriteConcern,
 } from 'mongodb';
-import {ItemType} from '#root/shared/interfaces/Models.js';
+import {ItemType} from '#root/shared/interfaces/models.js';
 import {CourseVersion, Module, Section} from '../classes/transformers/index.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';
 @injectable()

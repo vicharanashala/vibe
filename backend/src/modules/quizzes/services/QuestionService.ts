@@ -1,16 +1,16 @@
-import {BadRequestError, NotFoundError} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
-import {BaseQuestion} from '../classes/transformers/index.js';
+import {BaseService, MongoDatabase} from '#root/shared/index.js';
+import {injectable, inject} from 'inversify';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {BaseQuestion} from '../classes/index.js';
+import {
+  ParameterMap,
+  IQuestionRenderView,
+} from '../question-processing/index.js';
 import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
-import {IQuestionRenderView} from '../question-processing/renderers/index.js';
-import {ParameterMap} from '../question-processing/tag-parser/index.js';
-import {inject, injectable} from 'inversify';
+import {QuestionBankRepository} from '../repositories/index.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
-import GLOBAL_TYPES from '../../../types.js';
 import TYPES from '../types.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import GLOBAL_TYPES from '#root/types.js';
 
 @injectable()
 class QuestionService extends BaseService {

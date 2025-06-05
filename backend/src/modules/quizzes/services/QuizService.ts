@@ -1,8 +1,8 @@
 import {inject, injectable} from 'inversify';
 import {BaseService} from '../../../shared/classes/BaseService.js';
 import GLOBAL_TYPES from '../../../types.js';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
-import {IQuestionBankRef} from '../../../shared/interfaces/Models.js';
+import {MongoDatabase} from '../../../shared/database/providers/index.js';
+import {IQuestionBankRef} from '../../../shared/interfaces/models.js';
 import TYPES from '../types.js';
 import {
   AttemptRepository,

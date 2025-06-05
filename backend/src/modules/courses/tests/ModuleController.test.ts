@@ -1,7 +1,7 @@
 import {coursesModuleOptions} from '../';
 import {RoutingControllersOptions, useExpressServer, useContainer} from 'routing-controllers';
 import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {MongoDatabase} from '../../../shared/database/providers';
 import Express from 'express';
 import request from 'supertest';
 import {dbConfig} from '../../../config/db';

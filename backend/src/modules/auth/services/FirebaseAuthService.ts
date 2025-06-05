@@ -12,16 +12,15 @@ import 'reflect-metadata';
 
 import admin, {database} from 'firebase-admin';
 
-import {applicationDefault} from 'firebase-admin/app';
 import {Inject, Service} from 'typedi';
-import {IUser} from '../../../shared/interfaces/Models.js';
+import {IUser} from '../../../shared/interfaces/models.js';
 import {IUserRepository} from '../../../shared/database/index.js';
 import {IAuthService} from '../interfaces/IAuthService.js';
 import {ChangePasswordBody, SignUpBody} from '../classes/validators/index.js';
 import {BadRequestError, InternalServerError} from 'routing-controllers';
 import {User} from '../classes/transformers/User.js';
 import {BaseService} from '../../../shared/classes/BaseService.js';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '../../../shared/database/providers/index.js';
 import {injectable, inject} from 'inversify';
 import GLOBAL_TYPES from '../../../types.js';
 
@@ -54,7 +53,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     admin.initializeApp({
-      credential: applicationDefault(),
+      credential: admin.credential.applicationDefault(),
     });
     this.auth = admin.auth();
   }

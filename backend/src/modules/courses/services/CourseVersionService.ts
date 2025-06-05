@@ -4,11 +4,10 @@ import {inject, injectable} from 'inversify';
 import {CreateCourseVersionBody} from '../classes/validators/index.js';
 import {CourseVersion} from '../classes/transformers/index.js';
 import {ObjectId, ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {ICourseVersion} from '../../../shared/interfaces/Models.js';
-import {DeleteError} from '../../../shared/errors/errors.js';
+import {ICourseVersion} from '../../../shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';
 @injectable()

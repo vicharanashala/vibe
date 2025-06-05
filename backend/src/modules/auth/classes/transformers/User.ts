@@ -4,7 +4,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#root/shared/constants/transformerConstants.js';
-import {IUser} from '#root/shared/interfaces/Models.js';
+import {IUser} from '#root/shared/interfaces/models.js';
 
 class User implements IUser {
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing

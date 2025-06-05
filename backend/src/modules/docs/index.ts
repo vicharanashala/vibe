@@ -11,3 +11,5 @@ export const docsModuleOptions: RoutingControllersOptions = {
 };
 
 export {OpenApiSpecService};
+export * from './services/index.js';
+export * from './DocsController.js';

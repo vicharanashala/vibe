@@ -5,16 +5,16 @@ import {ObjectId} from 'mongodb';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants.js';
+} from '#shared/constants/transformerConstants.js';
 import {
   IBaseItem,
   ItemType,
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
-} from '../../../../shared/interfaces/Models.js';
-import {ID} from '../../../../shared/types.js';
+} from '#shared/interfaces/models.js';
 import {CreateItemBody} from '../validators/ItemValidators.js';
+import {ID} from '#shared/index.js';
 
 export type Item = QuizItem | VideoItem | BlogItem;
 

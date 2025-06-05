@@ -29,7 +29,6 @@ import {
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
 import {AuthRateLimiter} from '../../../shared/middleware/rateLimiter.js';
-import {CreateError} from '../../../shared/errors/errors.js';
 import {inject, injectable} from 'inversify';
 import TYPES from '../types.js';
 

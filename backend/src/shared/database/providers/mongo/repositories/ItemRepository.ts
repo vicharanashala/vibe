@@ -3,15 +3,10 @@ import {instanceToPlain} from 'class-transformer';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {IItemRepository} from '../../../interfaces/IItemRepository.js';
 import {ICourseRepository} from '../../../interfaces/ICourseRepository.js';
-import {
-  CreateError,
-  DeleteError,
-  ReadError,
-  UpdateError,
-} from '../../../../errors/errors.js';
+
 import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {NotFoundError} from 'routing-controllers';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {
   ItemsGroup,
   BlogItem,
@@ -19,7 +14,7 @@ import {
   VideoItem,
   Item,
 } from '#root/modules/courses/classes/transformers/Item.js';
-import {ItemType} from '#root/shared/interfaces/Models.js';
+import {ItemType} from '#root/shared/interfaces/models.js';
 import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
@@ -56,20 +51,22 @@ export class ItemRepository implements IItemRepository {
         session,
       });
       if (!result.insertedId) {
-        throw new CreateError('Failed to create items group.');
+        throw new InternalServerError('Failed to create items group.');
       }
       const newItemsGroup = await this.itemsGroupCollection.findOne(
         {_id: result.insertedId},
         {session},
       );
       if (!newItemsGroup) {
-        throw new ReadError('Failed to fetch newly created items group.');
+        throw new InternalServerError(
+          'Failed to fetch newly created items group.',
+        );
       }
       return instanceToPlain(
         Object.assign(new ItemsGroup(), newItemsGroup),
       ) as ItemsGroup;
     } catch (error) {
-      throw new CreateError('createItemsGroup error: ' + error);
+      throw new InternalServerError('createItemsGroup error: ' + error);
     }
   }
 
@@ -90,7 +87,7 @@ export class ItemRepository implements IItemRepository {
         Object.assign(new ItemsGroup(), itemsGroup),
       ) as ItemsGroup;
     } catch (error) {
-      throw new ReadError('readItemsGroup error: ' + error);
+      throw new InternalServerError('readItemsGroup error: ' + error);
     }
   }
 
@@ -108,14 +105,16 @@ export class ItemRepository implements IItemRepository {
         {session},
       );
       if (result.modifiedCount !== 1) {
-        throw new UpdateError(`Failed to update items group ${itemsGroupId}.`);
+        throw new InternalServerError(
+          `Failed to update items group ${itemsGroupId}.`,
+        );
       }
       const updated = await this.itemsGroupCollection.findOne(
         {_id: new ObjectId(itemsGroupId)},
         {session},
       );
       if (!updated) {
-        throw new ReadError(
+        throw new InternalServerError(
           `Failed to read updated items group ${itemsGroupId}.`,
         );
       }
@@ -123,7 +122,7 @@ export class ItemRepository implements IItemRepository {
         Object.assign(new ItemsGroup(), updated),
       ) as ItemsGroup;
     } catch (error) {
-      throw new UpdateError('updateItemsGroup error: ' + error);
+      throw new InternalServerError('updateItemsGroup error: ' + error);
     }
   }
 
@@ -164,7 +163,7 @@ export class ItemRepository implements IItemRepository {
   ): Promise<Item | null> {
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
     if (!courseVersion) {
-      throw new ReadError(`Version ${courseVersionId} not found.`);
+      throw new InternalServerError(`Version ${courseVersionId} not found.`);
     }
 
     for (const module of courseVersion.modules) {
@@ -194,7 +193,7 @@ export class ItemRepository implements IItemRepository {
               })) as BlogItem;
               break;
             default:
-              throw new ReadError(`Unknown item type: ${found.type}`);
+              throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
 
           return item;
@@ -213,7 +212,7 @@ export class ItemRepository implements IItemRepository {
 
     const {_id, type} = item;
     if (!_id) {
-      throw new UpdateError('Item ID is required for update.');
+      throw new InternalServerError('Item ID is required for update.');
     }
 
     let collection: Collection<any>;
@@ -228,7 +227,9 @@ export class ItemRepository implements IItemRepository {
         collection = this.blogCollection;
         break;
       default:
-        throw new UpdateError(`Unsupported item type: ${(item as any).type}`);
+        throw new InternalServerError(
+          `Unsupported item type: ${(item as any).type}`,
+        );
     }
 
     try {
@@ -245,7 +246,7 @@ export class ItemRepository implements IItemRepository {
       );
 
       if (result.modifiedCount === 0) {
-        throw new UpdateError(`Failed to update item of type ${type}.`);
+        throw new InternalServerError(`Failed to update item of type ${type}.`);
       }
 
       // Also update the embedded item in the itemsGroup (for UI sync, etc.)
@@ -262,7 +263,7 @@ export class ItemRepository implements IItemRepository {
       );
 
       if (updateInGroup.modifiedCount === 0) {
-        throw new UpdateError(
+        throw new InternalServerError(
           `Failed to update item in itemsGroup for ID ${_id}.`,
         );
       }
@@ -273,12 +274,16 @@ export class ItemRepository implements IItemRepository {
       );
 
       if (!updatedItem) {
-        throw new UpdateError(`Failed to fetch updated item with ID ${_id}.`);
+        throw new InternalServerError(
+          `Failed to fetch updated item with ID ${_id}.`,
+        );
       }
 
       return instanceToPlain(updatedItem) as Item;
     } catch (error) {
-      throw new UpdateError(`updateItem error for type ${type}: ${error}`);
+      throw new InternalServerError(
+        `updateItem error for type ${type}: ${error}`,
+      );
     }
   }
 
@@ -292,10 +297,12 @@ export class ItemRepository implements IItemRepository {
       if (result.modifiedCount === 1) {
         return true;
       } else {
-        throw new DeleteError('Failed to delete item');
+        throw new InternalServerError('Failed to delete item');
       }
     } catch (error) {
-      throw new DeleteError('Failed to delete item.\n More Details: ' + error);
+      throw new InternalServerError(
+        'Failed to delete item.\n More Details: ' + error,
+      );
     }
   }
 
@@ -305,14 +312,14 @@ export class ItemRepository implements IItemRepository {
     try {
       const version = await this.courseRepo.readVersion(courseVersionId);
       if (!version || version.modules.length === 0) {
-        throw new ReadError('Course version has no modules');
+        throw new InternalServerError('Course version has no modules');
       }
 
       const firstModule = version.modules
         .slice()
         .sort((a, b) => a.order.localeCompare(b.order))[0];
       if (!firstModule.sections.length) {
-        throw new ReadError('Module has no sections');
+        throw new InternalServerError('Module has no sections');
       }
 
       const firstSection = firstModule.sections
@@ -322,7 +329,7 @@ export class ItemRepository implements IItemRepository {
         firstSection.itemsGroupId.toString(),
       );
       if (!itemsGroup.items.length) {
-        throw new ReadError('Items group has no items');
+        throw new InternalServerError('Items group has no items');
       }
 
       const firstItem = itemsGroup.items
@@ -335,7 +342,7 @@ export class ItemRepository implements IItemRepository {
         itemId: new ObjectId(firstItem._id),
       };
     } catch (error) {
-      throw new ReadError('getFirstOrderItems error: ' + error);
+      throw new InternalServerError('getFirstOrderItems error: ' + error);
     }
   }
 }

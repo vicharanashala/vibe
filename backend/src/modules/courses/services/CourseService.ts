@@ -4,7 +4,7 @@ import {Course} from '../classes/transformers/index.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';
 

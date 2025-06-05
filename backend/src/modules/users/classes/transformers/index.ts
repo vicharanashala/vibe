@@ -5,7 +5,7 @@ import {Token} from 'typedi';
 import {
   EnrollmentRole,
   EnrollmentStatus,
-} from '#root/shared/interfaces/Models.js';
+} from '#root/shared/interfaces/models.js';
 
 export * from './Enrollment.js';
 export * from './Progress.js';

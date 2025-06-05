@@ -7,7 +7,7 @@ import {
 } from '#root/modules/quizzes/interfaces/grading.js';
 import {Collection, ClientSession} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types.js';
 

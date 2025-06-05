@@ -1,7 +1,7 @@
 import {coursesModuleOptions, CreateItemBody, Item} from '../../';
 import {useExpressServer, useContainer} from 'routing-controllers';
 import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase, UserRepository} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {MongoDatabase, UserRepository} from '../../../shared/database/providers';
 
 import Express from 'express';
 import request from 'supertest';
@@ -16,7 +16,7 @@ import {
   createVersion,
 } from './utils/creationFunctions';
 import {faker} from '@faker-js/faker';
-import {ItemType} from '../../../shared/interfaces/Models';
+import {ItemType} from '../../../shared/interfaces/models';
 import { ProgressRepository } from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
 import { InversifyAdapter } from '../../../inversify-adapter';
 import { Container } from 'inversify';

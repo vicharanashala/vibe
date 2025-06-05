@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from '../../utils/calculateNewOrder.js';
-import {ObjectId} from 'mongodb';
 import {
+  IModule,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants.js';
-import {IModule} from '../../../../shared/interfaces/Models.js';
-import {ID} from '../../../../shared/types.js';
+  ID,
+} from '#shared/index.js';
+import {ObjectId} from 'mongodb';
+import {calculateNewOrder} from '../../utils/calculateNewOrder.js';
 import {CreateModuleBody} from '../validators/ModuleValidators.js';
 import {Section} from './Section.js';
 

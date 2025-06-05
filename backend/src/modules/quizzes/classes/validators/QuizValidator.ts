@@ -24,7 +24,7 @@ import {
 } from '#root/modules/quizzes/interfaces/grading.js';
 import {IQuestionRenderView} from '#root/modules/quizzes/question-processing/renderers/index.js';
 import {ObjectId} from 'mongodb';
-import {IQuizDetails, ItemType} from '#root/shared/interfaces/Models.js';
+import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {IQuestion, QuestionType} from '#root/shared/interfaces/quiz.js';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
 

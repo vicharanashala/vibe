@@ -2,7 +2,7 @@ import {inject, injectable} from 'inversify';
 import {IUserQuizMetrics} from '#root/modules/quizzes/interfaces/grading.js';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import {Service, Inject} from 'typedi';
 import GLOBAL_TYPES from '../../../../../types.js';
 

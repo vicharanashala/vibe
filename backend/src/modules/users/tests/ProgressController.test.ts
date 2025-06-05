@@ -17,7 +17,7 @@ import {
 import {isMongoId} from 'class-validator';
 import {ProgressService} from '../services/ProgressService';
 import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
-import {IUser, IWatchTime} from '../../../shared/interfaces/Models';
+import {IUser, IWatchTime} from '../../../shared/interfaces/models';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,

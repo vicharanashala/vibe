@@ -10,10 +10,10 @@ import {ClientSession, ObjectId} from 'mongodb';
 import {
   EnrollmentRole,
   ICourseVersion,
-} from '../../../shared/interfaces/Models.js';
+} from '../../../shared/interfaces/models.js';
 import {BaseService} from '../../../shared/classes/BaseService.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '../../../shared/database/providers/index.js';
 import {re} from 'mathjs';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';

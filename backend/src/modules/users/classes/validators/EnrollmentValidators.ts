@@ -10,13 +10,13 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from '../../../../shared/types.js';
 import {Type} from 'class-transformer';
 import {ProgressDataResponse} from './ProgressValidators.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
-} from '#root/shared/interfaces/Models.js';
+} from '#root/shared/interfaces/models.js';
+import {ID} from '#root/shared/index.js';
 
 export class EnrollmentParams {
   @JSONSchema({

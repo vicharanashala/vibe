@@ -18,12 +18,11 @@ import {
   CreateSectionBody,
   MoveSectionBody,
 } from '../classes/validators/index.js';
-import {NotFoundError} from 'routing-controllers';
-import {ReadError, UpdateError} from '../../../shared/errors/errors.js';
-import {ICourseVersion} from '../../../shared/interfaces/Models.js';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {ICourseVersion} from '../../../shared/interfaces/models.js';
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/MongoDatabaseProvider.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
 import TYPES from '../types.js';
 import GLOBAL_TYPES from '../../../types.js';
 @injectable()
@@ -79,7 +78,7 @@ export class SectionService extends BaseService {
         session,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
 
       return updatedVersion;
@@ -97,11 +96,11 @@ export class SectionService extends BaseService {
 
       //Find Module
       const module = version.modules.find(m => m.moduleId === moduleId);
-      if (!module) throw new ReadError('Module not found');
+      if (!module) throw new InternalServerError('Module not found');
 
       //Find Section
       const section = module.sections.find(s => s.sectionId === sectionId);
-      if (!section) throw new ReadError('Section not found');
+      if (!section) throw new InternalServerError('Section not found');
 
       //Update Section
       Object.assign(section, body.name ? {name: body.name} : {});
@@ -124,7 +123,7 @@ export class SectionService extends BaseService {
         session,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update Section');
+        throw new InternalServerError('Failed to update Section');
       }
       return updatedVersion;
     });
@@ -180,7 +179,7 @@ export class SectionService extends BaseService {
       );
 
       if (!updatedVersion) {
-        throw new UpdateError('Failed to move Section');
+        throw new InternalServerError('Failed to move Section');
       }
 
       return updatedVersion;

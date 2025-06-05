@@ -9,7 +9,7 @@ import {
   IEnrollment,
   IModule,
   IProgress,
-} from '../../interfaces/Models.js';
+} from '../../interfaces/models.js';
 import {
   ClientSession,
   DeleteResult,

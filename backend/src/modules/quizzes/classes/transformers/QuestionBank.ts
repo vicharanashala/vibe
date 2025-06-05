@@ -1,6 +1,6 @@
 import {ObjectId} from 'mongodb';
 import {ID, IQuestionBank} from '#root/shared/interfaces/quiz.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/Models.js';
+import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
 import {CreateQuestionBankBody} from '../validators/QuestionBankValidator.js';
 
 class QuestionBank implements IQuestionBank {

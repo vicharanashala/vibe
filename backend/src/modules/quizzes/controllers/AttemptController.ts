@@ -8,7 +8,7 @@ import {
   Post,
 } from 'routing-controllers';
 import {AttemptService} from '../services/AttemptService.js';
-import {IUser} from '#root/shared/interfaces/Models.js';
+import {IUser} from '#root/shared/interfaces/models.js';
 import {
   CreateAttemptParams,
   CreateAttemptResponse,
