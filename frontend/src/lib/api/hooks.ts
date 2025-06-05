@@ -676,3 +676,38 @@ export function useUserByFirebaseUID(firebaseUID: string): {
     refetch: result.refetch
   };
 }
+
+// Quiz hooks
+// export function useAttemptQuiz(): {
+//   mutate: (variables: { params: { path: { quizId: string } } }) => void,
+//   mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<{
+//     attemptId: string,
+//     questionRenderViews: unknown[]
+//   }>,
+//   data: {
+//     attemptId: string,
+//     questionRenderViews: unknown[]
+//   } | undefined,
+//   error: string | null,
+//   isPending: boolean,
+//   isSuccess: boolean,
+//   isError: boolean,
+//   isIdle: boolean,
+//   reset: () => void,
+//   status: 'idle' | 'pending' | 'success' | 'error'
+// } {
+//   const result = api.useMutation("post", "/quizzes/{quizId}/attempt");
+
+//   return {
+//     mutate: result.mutate,
+//     mutateAsync: result.mutateAsync,
+//     data: result.data,
+//     isPending: result.isPending,
+//     isSuccess: result.isSuccess,
+//     isError: result.isError,
+//     isIdle: result.isIdle,
+//     reset: result.reset,
+//     status: result.status,
+//     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+//   };
+// }

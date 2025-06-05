@@ -1,21 +1,24 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Clock,
-  Trophy,
-  TrendingUp,
-  Target,
   CheckCircle2,
   FileText,
-  PenTool,
-  ListChecks,
   Info,
   ArrowRight,
   Image as ImageIcon,
+  BookOpen,
+  Circle,
+  PlusCircle,
+  X,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { useUserEnrollments, useCourseById } from "@/lib/api/hooks";
+import { useNavigate } from "@tanstack/react-router";
+import { useCourseStore } from "@/lib/store/course-store";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -24,117 +27,98 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-// Sample data for the student dashboard
-const enrolledCourses = [
-  {
-    id: 1,
-    title: "Introduction to React",
-    instructor: "Prof. Johnson",
-    progress: 75,
-    totalLessons: 24,
-    completedLessons: 18,
-    nextLesson: "State Management with Hooks",
-    dueDate: "2024-01-20",
-    image: "https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6",
-    type: "Course",
-  },
-  {
-    id: 2,
-    title: "JavaScript Fundamentals",
-    instructor: "Dr. Smith",
-    progress: 45,
-    totalLessons: 30,
-    completedLessons: 14,
-    nextLesson: "Async/Await Patterns",
-    dueDate: "2024-01-22",
-    image: "/course-2.jpg",
-    type: "Course",
-  },
-  {
-    id: 3,
-    title: "Web Design Principles",
-    instructor: "Ms. Garcia",
-    progress: 90,
-    totalLessons: 20,
-    completedLessons: 18,
-    nextLesson: "Final Project Review",
-    dueDate: "2024-01-18",
-    image: "/course-3.jpg",
-    type: "Course",
-  },
-];
+// Helper function to convert buffer to hex string
+const bufferToHex = (buffer: unknown) => {
+  if (buffer && typeof buffer === 'object' && 'buffer' in buffer) {
+    const bufferObj = buffer as { buffer?: { data: number[] } };
+    if (bufferObj.buffer?.data) {
+      return Array.from(new Uint8Array(bufferObj.buffer.data))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+  }
+  return '';
+};
 
-const upcomingDeadlines = [
-  {
-    course: "Introduction to React",
-    assignment: "Component Architecture Quiz",
-    dueDate: "2025-05-27",
-    type: "Quiz",
-  },
-  {
-    course: "JavaScript Fundamentals",
-    assignment: "Async Programming Project",
-    dueDate: "2026-01-22",
-    type: "Project",
-  },
-  {
-    course: "Web Design Principles",
-    assignment: "Portfolio Presentation",
-    dueDate: "2026-01-25",
-    type: "Presentation",
-  },
-];
+// Todo interface and hook
+interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  createdAt: string;
+}
 
-const achievements = [
-  {
-    title: "First Course Completed",
-    description: "Completed your first course with excellent performance",
-    icon: Trophy,
-    earned: true,
-  },
-  {
-    title: "Quick Learner",
-    description: "Completed 5 lessons in a single day",
-    icon: TrendingUp,
-    earned: true,
-  },
-  {
-    title: "Goal Setter",
-    description: "Set and achieved your first learning goal",
-    icon: Target,
-    earned: false,
-  },
-];
+const useTodos = () => {
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskText, setNewTaskText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const newTaskInputRef = useRef<HTMLInputElement>(null);
 
-const recommendedCourses = [
-  {
-    id: 4,
-    title: "Advanced React Patterns",
-    image: "https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6",
-    materials: 12,
-    tags: ["Frontend", "Advanced"],
-    status: "Not Started",
-    type: "Course",
-  },
-  {
-    id: 5,
-    title: "TypeScript for JavaScript Developers",
-    image: "https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6",
-    materials: 8,
-    tags: ["TypeScript", "Beginner"],
-    status: "Not Started",
-    type: "Course",
-  },
-  {
-    id: 6,
-    title: "Full Stack Development with Node.js",
-    image: "https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6",
-    materials: 15,
-    tags: ["Backend", "Intermediate"],
-    status: "Not Started",
-    type: "Course",
-  },
-];
+  useEffect(() => {
+    // Load todos from localStorage
+    const savedTodos = localStorage.getItem('learningTodos');
+    if (savedTodos) {
+      setTodos(JSON.parse(savedTodos));
+    }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // Save todos to localStorage whenever todos change
+    if (!isLoading) {
+      localStorage.setItem('learningTodos', JSON.stringify(todos));
+    }
+  }, [todos, isLoading]);
+
+  const addNewTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskText.trim()) return;
+
+    const newTodo: TodoItem = {
+      id: Date.now().toString(),
+      text: newTaskText.trim(),
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+
+    setTodos(prev => [newTodo, ...prev]);
+    setNewTaskText('');
+    setIsAddingTask(false);
+  };
+
+  const toggleTodo = (id: string) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  };
+
+  const deleteTask = (id: string) => {
+    setTodos(prev => prev.filter(todo => todo.id !== id));
+  };
+
+  const sortedTasks = [...todos].sort((a, b) => {
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  return {
+    todos,
+    setTodos,
+    isAddingTask,
+    setIsAddingTask,
+    newTaskText,
+    setNewTaskText,
+    newTaskInputRef,
+    isLoading,
+    addNewTask,
+    toggleTodo,
+    deleteTask,
+    sortedTasks
+  };
+};
 
 // Enhanced image handling function
 const ImageWithFallback = ({ src, alt, className, aspectRatio = "aspect-video" }: 
@@ -183,10 +167,150 @@ const ImageWithFallback = ({ src, alt, className, aspectRatio = "aspect-video" }
   );
 };
 
+// Course card component that fetches course details
+const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>; index: number }) => {
+  const courseId = bufferToHex(enrollment.courseId);
+  const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
+  const { setCurrentCourse } = useCourseStore();
+  const navigate = useNavigate();
+  
+  // Mock progress data - replace with actual progress from enrollment
+  const progress = Math.floor(Math.random() * 100);
+  const totalLessons = Math.floor(Math.random() * 30) + 10;
+
+  const handleContinue = () => {
+    // Extract both courseId and versionId from enrollment
+    const versionId = bufferToHex(enrollment.courseVersionId) || "";
+    
+    console.log("Setting course store:", {
+      courseId: courseId,
+      versionId: versionId
+    });
+    
+    // Pass both courseId and versionId to the store
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null
+    });
+    
+    navigate({ to: "/student/learn" });
+  };
+  
+  if (isCourseLoading) {
+    return (
+      <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
+        <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center bg-muted animate-pulse">
+          <div className="w-full h-full bg-muted rounded-l-lg"></div>
+        </div>
+        <CardContent className="p-3 pl-0 flex flex-col flex-1">
+          <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
+            <div className="h-6 bg-muted rounded animate-pulse w-16"></div>
+            <div className="h-4 bg-muted rounded animate-pulse w-32"></div>
+          </div>
+          <div className="h-6 bg-muted rounded animate-pulse mb-2 w-3/4"></div>
+          <div className="h-4 bg-muted rounded animate-pulse mb-3 w-1/2"></div>
+          <div className="h-10 bg-muted rounded animate-pulse w-20"></div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
+      <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
+        <ImageWithFallback
+          src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
+          alt={courseDetails?.name || `Course ${index + 1}`}
+          aspectRatio="aspect-square"
+          className="rounded-l-lg w-full h-full"
+        />
+      </div>
+      <CardContent className="p-3 pl-0 flex flex-col flex-1">
+        <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
+          <div className="flex items-center">
+            <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
+              Course
+            </Badge>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:gap-8">
+              <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                <span>Content</span>
+                <div className="flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  {totalLessons} Lessons
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                <span>Completion</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-secondary p-1">
+                    <div className="h-full w-full rounded-full bg-primary relative">
+                      <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary-foreground text-[8px]">
+                        {progress}%
+                      </span>
+                    </div>
+                  </div>
+                  <span>{progress}%</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Enrolled</span>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4 text-green-500" />
+                  <span className="text-green-500">
+                    {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string' 
+                      ? new Date(enrollment.enrollmentDate).toLocaleDateString() 
+                      : 'Recently'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <h3 className="font-medium text-lg mb-auto">
+          {courseDetails?.name || `Course ${index + 1}`}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Next: Continue Learning
+        </p>
+        <div className="mt-auto">
+          <Button 
+            variant={progress === 0 ? "default" : "outline"}
+            className={progress === 0 ? "" : "border-accent hover:bg-accent/10"}
+            onClick={handleContinue}
+          >
+            {progress === 0 ? 'Start' : 'Continue'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function Page() {
-  const { user, } = useAuthStore();
-  const studentName = user?.name;
+  const { user, isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
+  const studentName = user?.name || user?.firstName || 'Student';
+  const userId = user?.userId;
   const [greeting, setGreeting] = useState(getGreeting());
+
+  // Use todos hook
+  const todoManager = useTodos();
+
+  // Fetch user enrollments
+  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(
+    userId || "",
+    1, // page
+    5  // limit - show only first 5 courses on dashboard
+  );
+
+  const enrollments = enrollmentsData?.enrollments || [];
+  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -196,9 +320,29 @@ export default function Page() {
     return () => clearInterval(intervalId);
   }, []);
 
-  const totalProgress = Math.round(
-    enrolledCourses.reduce((sum, course) => sum + course.progress, 0) / enrolledCourses.length
-  );
+  // Calculate overall progress (mock calculation)
+  const totalProgress = enrollments.length > 0 
+    ? Math.round(Math.random() * 100) // Replace with real progress calculation
+    : 0;
+
+  // Show authentication required message
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              Please log in to view your dashboard
+            </p>
+            <Button onClick={() => window.location.href = '/auth'}>
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -211,7 +355,7 @@ export default function Page() {
           </p>
         </div>
         <div className="ml-0 md:ml-8 flex flex-row gap-4 items-center">
-          <StatCard icon="🏆" value="7 days" label="Study Streak" />
+          <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
           <StatCard icon="⏱️" value="2.5h" label="Study Time" />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
         </div>
@@ -245,84 +389,74 @@ export default function Page() {
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-semibold">
-          In progress learning content
+                  In progress learning content
                 </h2>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <Info className="h-4 w-4" />
+                  <Info className="h-4 w-4" />
                 </Button>
               </div>
-              <Button variant="link" className="text-primary text-sm font-medium flex items-center">
+              <Button 
+                variant="link" 
+                className="text-primary text-sm font-medium flex items-center"
+                onClick={() => navigate({ to: '/student/courses' })}
+              >
                 View all
               </Button>
             </div>
 
-            <div className="space-y-2">
-              {enrolledCourses.map((course) => (
-                <Card
-                  key={course.id}
-                  className="border border-border overflow-hidden flex flex-row student-card-hover p-0"
-                >
-                  <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
-                    <ImageWithFallback
-                      src={course.image}
-                      alt={course.title}
-                      aspectRatio="aspect-square"
-                      className="rounded-l-lg w-full h-full"
-                    />
-                  </div>
-                  <CardContent className="p-3 pl-0 flex flex-col flex-1">
-                    <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
-                      <div className="flex items-center">
-                        <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
-                          {course.type}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <div className="flex flex-col sm:flex-row sm:gap-8">
-                          <div className="flex items-center gap-2 mb-1 sm:mb-0">
-                            <span>Content</span>
-                            <div className="flex items-center gap-1">
-                              <FileText className="h-4 w-4" />
-                              {course.totalLessons} Lessons
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mb-1 sm:mb-0">
-                            <span>Completion</span>
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-secondary p-1">
-                                <div className="h-full w-full rounded-full bg-primary relative">
-                                  <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary-foreground text-[8px]">
-                                    {course.progress}%
-                                  </span>
-                                </div>
-                              </div>
-                              <span>{course.progress}%</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span>Deadline</span>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4 text-destructive" />
-                              <span className="text-destructive">{course.dueDate}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <h3 className="font-medium text-lg mb-auto">{course.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-3">Next: {course.nextLesson}</p>
-                    <div className="mt-auto">
+            {enrollmentsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="border border-border overflow-hidden flex flex-row p-0">
+                    <div className="w-24 h-auto sm:w-32 flex-shrink-0 bg-muted animate-pulse"></div>
+                    <CardContent className="p-3 pl-0 flex flex-col flex-1">
+                      <div className="h-6 bg-muted rounded animate-pulse mb-2 w-3/4"></div>
+                      <div className="h-4 bg-muted rounded animate-pulse mb-3 w-1/2"></div>
+                      <div className="h-10 bg-muted rounded animate-pulse w-20"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : enrollmentsError ? (
+              <Card className="border border-destructive/20 bg-destructive/5">
+                <CardContent className="p-4">
+                  <p className="text-destructive">Failed to load enrolled courses. Please try again.</p>
+                </CardContent>
+              </Card>
+            ) : enrollments.length === 0 ? (
+              <Card className="border border-border">
+                <CardContent className="p-6 text-center">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No courses enrolled yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start your learning journey by enrolling in a course
+                  </p>
+                  <Button onClick={() => navigate({ to: '/student/courses' })}>Browse Courses</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {enrollments.map((enrollment, index) => (
+                  <CourseCard key={bufferToHex(enrollment.courseId) || index} enrollment={enrollment} index={index} />
+                ))}
+                {totalEnrollments > 5 && (
+                  <Card className="border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Showing 5 of {totalEnrollments} enrolled courses
+                      </p>
                       <Button 
-                        variant={course.progress === 0 ? "default" : "outline"}
-                        className={course.progress === 0 ? "" : "border-accent hover:bg-accent/10"}
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate({ to: '/student/courses' })}
                       >
-                        {course.progress === 0 ? 'Start' : 'Continue'}
+                        View All Courses
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Recommended Courses */}
@@ -334,45 +468,25 @@ export default function Page() {
                   <Info className="h-4 w-4" />
                 </Button>
               </div>
-              <Button variant="link" className="text-primary text-sm font-medium flex items-center">
+              <Button 
+                variant="link" 
+                className="text-primary text-sm font-medium flex items-center"
+                onClick={() => navigate({ to: '/student/courses' })}
+              >
                 View all
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendedCourses.map((course) => (
-                <Card key={course.id} className="overflow-hidden flex flex-col student-card-hover">
-                  <div className="h-48 relative">
-                    <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs py-1 px-2 rounded z-10">
-                      {course.materials} lessons
-                    </div>
-                    <ImageWithFallback 
-                      src={course.image} 
-                      alt={course.title}
-                    />
-                  </div>
-                  <CardContent className="p-4 flex-1 flex flex-col">
-                    <div className="flex items-center mb-2">
-                      <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
-                        {course.type}
-                      </Badge>
-                    </div>
-                    <h3 className="font-medium mb-3">{course.title}</h3>
-                    <div className="flex flex-wrap gap-2 mt-auto">
-                      {course.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="bg-accent/10 border border-accent/20 text-accent-foreground text-xs px-2 py-1 rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-4 text-sm text-muted-foreground">{course.status}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Card className="border border-border">
+              <CardContent className="p-6 text-center">
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Discover new courses</h3>
+                <p className="text-muted-foreground mb-4">
+                  Explore our course catalog to find your next learning adventure
+                </p>
+                <Button onClick={() => navigate({ to: '/student/courses' })}>Browse All Courses</Button>
+              </CardContent>
+            </Card>
           </div>
         </main>
 
@@ -422,86 +536,143 @@ export default function Page() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {upcomingDeadlines.map((deadline, index) => {
-                  // Get the appropriate icon based on deadline type
-                  const DeadlineIcon = deadline.type === "Quiz" 
-                    ? ListChecks 
-                    : deadline.type === "Project" 
-                    ? FileText 
-                    : PenTool;
-                  
-                  // Calculate days remaining (simplified for demo)
-                  const daysRemaining = Math.ceil((new Date(deadline.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                  const isUrgent = daysRemaining <= 2;
-                  
-                  return (
-                    <div 
-                      key={index} 
-                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm student-card-hover ${
-                        isUrgent ? 'border-destructive/30 bg-destructive/5' : 'border-primary/20 bg-secondary/10'
-                      }`}
-                    >
-                      <div className={`flex-shrink-0 p-1.5 rounded-full ${
-                        isUrgent 
-                          ? 'bg-destructive/20 text-destructive' 
-                          : 'bg-primary/10 text-primary'
-                      }`}>
-                        <DeadlineIcon className="h-3 w-3" />
-                      </div>
-                      <div className="flex-1 space-y-0.5">
-                        <p className="text-sm font-medium">{deadline.assignment}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground">{deadline.course}</p>
+                {enrollments.length > 0 ? (
+                  enrollments.slice(0, 3).map((enrollment, index) => {
+                    // Calculate mock deadline (replace with real deadline data when available)
+                    const daysRemaining = Math.floor(Math.random() * 30) + 1;
+                    const isUrgent = daysRemaining <= 7;
+                    
+                    return (
+                      <div 
+                        key={bufferToHex(enrollment.courseId) || index} 
+                        className={`flex items-center space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm student-card-hover ${
+                          isUrgent ? 'border-destructive/30 bg-destructive/5' : 'border-primary/20 bg-secondary/10'
+                        }`}
+                      >
+                        <div className={`flex-shrink-0 p-1.5 rounded-full ${
+                          isUrgent 
+                            ? 'bg-destructive/20 text-destructive' 
+                            : 'bg-primary/10 text-primary'
+                        }`}>
+                          <FileText className="h-3 w-3" />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Badge variant={isUrgent ? "destructive" : "outline"} className="text-xs py-0 h-5">
-                            {deadline.type}
-                          </Badge>
-                          <span className={`text-xs ${isUrgent ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                            {deadline.dueDate.split('-')[2]} days left
-                          </span>
+                        <div className="flex-1 space-y-0.5">
+                          <p className="text-sm font-medium">Course Assignment</p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">Course Material</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Badge variant={isUrgent ? "destructive" : "outline"} className="text-xs py-0 h-5">
+                              Assignment
+                            </Badge>
+                            <span className={`text-xs ${isUrgent ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                              {daysRemaining} days left
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-4">
+                    <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border border-sidebar-border bg-secondary/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Achievements</h3>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Info className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {achievements.map((achievement, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center p-2 rounded-md student-card-hover ${
-                      achievement.earned ? 'bg-primary/10' : 'bg-muted/50 opacity-60'
-                    }`}
-                  >
-                    <div className={`flex-shrink-0 p-1.5 rounded-full mr-2 ${
-                      achievement.earned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      <achievement.icon className="h-3 w-3" />
+          <Card className="border border-sidebar-border bg-secondary/50 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">To-Do List</CardTitle>
+              <CardDescription>
+                {todoManager.todos.filter(t => !t.completed).length} tasks remaining
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              {todoManager.isLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent"></div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todoManager.sortedTasks.map(todo => (
+                    <div key={todo.id} 
+                      className={`flex items-start gap-2 group ${todo.completed ? 'opacity-60' : ''}`}
+                    >
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 rounded-full p-0 mt-0.5"
+                        onClick={() => todoManager.toggleTodo(todo.id)}
+                      >
+                        {todo.completed ? 
+                          <CheckCircle2 className="h-5 w-5 text-primary" /> : 
+                          <Circle className="h-5 w-5" />}
+                      </Button>
+                      <span className={`flex-1 text-sm ${todo.completed ? 'line-through' : ''}`}>{todo.text}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => todoManager.deleteTask(todo.id)}
+                      >
+                        <X className="h-3 w-3" />
+                        <span className="sr-only">Delete task</span>
+                      </Button>
                     </div>
-                    <div className="flex-1">
-                      <h3 className={`text-sm font-medium ${achievement.earned ? '' : 'text-muted-foreground'}`}>
-                        {achievement.title}
-                      </h3>
-                    </div>
-                    {achievement.earned && (
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+
+                  {todoManager.isAddingTask ? (
+                    <form onSubmit={todoManager.addNewTask} className="flex items-center gap-2 pt-1">
+                      <Circle className="h-5 w-5 ml-0.5 text-muted-foreground" />
+                      <Input
+                        ref={todoManager.newTaskInputRef}
+                        type="text"
+                        value={todoManager.newTaskText}
+                        onChange={(e) => todoManager.setNewTaskText(e.target.value)}
+                        placeholder="What needs to be done?"
+                        className="h-7 py-1 text-sm border-0 border-b focus-visible:ring-0 rounded-none px-0"
+                        autoFocus
+                        onBlur={() => {
+                          if (!todoManager.newTaskText.trim()) todoManager.setIsAddingTask(false);
+                        }}
+                      />
+                    </form>
+                  ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full mt-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => todoManager.setIsAddingTask(true)}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add new task
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
+            
+            <CardFooter>
+              {todoManager.todos.length > 0 && (
+                <div className="w-full flex justify-between text-xs text-muted-foreground">
+                  <span>{todoManager.todos.filter(t => !t.completed).length} remaining</span>
+                  {todoManager.todos.some(t => t.completed) && (
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 text-xs"
+                      onClick={() => todoManager.setTodos(todoManager.todos.filter(t => !t.completed))}
+                    >
+                      Clear completed
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardFooter>
           </Card>
         </aside>
       </div>

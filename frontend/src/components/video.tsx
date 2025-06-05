@@ -12,6 +12,7 @@ interface VideoProps {
   startTime?: string;
   endTime?: string;
   points?: string;
+  doGesture?: boolean; // Optional prop for gesture detection
 }
 
 // Helper to extract YouTube video ID from URL
@@ -66,7 +67,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, doGesture=false }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -89,6 +90,31 @@ export default function Video({ URL, startTime, endTime, points }: VideoProps) {
   
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
+
+  // Track if video was playing before gesture pause
+  const wasPlayingBeforeGesture = useRef(false);
+
+  // Pause/resume video based on doGesture
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (doGesture) {
+      // Pause and remember if it was playing
+      if (playing) {
+        wasPlayingBeforeGesture.current = true;
+        player.pauseVideo();
+      } else {
+        wasPlayingBeforeGesture.current = false;
+      }
+    } else {
+      // Resume if it was playing before gesture
+      if (wasPlayingBeforeGesture.current) {
+        player.playVideo();
+        wasPlayingBeforeGesture.current = false;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doGesture]);
 
   function handleSendStartItem() {
     if (!userId || !currentCourse?.itemId) return;

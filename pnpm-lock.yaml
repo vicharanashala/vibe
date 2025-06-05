@@ -298,6 +298,9 @@ importers:
       '@emotion/styled':
         specifier: ^11.14.0
         version: 11.14.0(@emotion/react@11.14.0(@types/react@19.1.1)(react@19.1.0))(@types/react@19.1.1)(react@19.1.0)
+      '@mediapipe/tasks-audio':
+        specifier: 0.10.22-rc.20250304
+        version: 0.10.22-rc.20250304
       '@mediapipe/tasks-vision':
         specifier: ^0.10.21
         version: 0.10.21
@@ -3023,6 +3026,9 @@ packages:
 
   '@mediapipe/face_detection@0.4.1646425229':
     resolution: {integrity: sha512-aeCN+fRAojv9ch3NXorP6r5tcGVLR3/gC1HmtqB0WEZBRXrdP6/3W/sGR0dHr1iT6ueiK95G9PVjbzFosf/hrg==}
+
+  '@mediapipe/tasks-audio@0.10.22-rc.20250304':
+    resolution: {integrity: sha512-3rUl/8/+/J7kkoGU2a6mLQnBpw5KktsKmBKtL50GopzBUE0vd8D0dXwGPHAL2tIRYiQ1TMv1UDJSPrRrHTbnPA==}
 
   '@mediapipe/tasks-vision@0.10.21':
     resolution: {integrity: sha512-TuhKH+credq4zLksGbYrnvJ1aLIWMc5r0UHwzxzql4BHECJwIAoBR61ZrqwGOW6ZmSBIzU1t4VtKj8hbxFaKeA==}
@@ -16699,6 +16705,8 @@ snapshots:
 
   '@mediapipe/face_detection@0.4.1646425229': {}
 
+  '@mediapipe/tasks-audio@0.10.22-rc.20250304': {}
+
   '@mediapipe/tasks-vision@0.10.21': {}
 
   '@mermaid-js/parser@0.4.0':
@@ -21556,9 +21564,9 @@ snapshots:
 
   escape-string-regexp@5.0.0: {}
 
-  eslint-config-prettier@9.1.0(eslint@8.57.1):
+  eslint-config-prettier@9.1.0(eslint@9.24.0(jiti@2.4.2)):
     dependencies:
-      eslint: 8.57.1
+      eslint: 9.24.0(jiti@2.4.2)
 
   eslint-plugin-es@4.1.0(eslint@8.57.1):
     dependencies:
@@ -21586,7 +21594,7 @@ snapshots:
       synckit: 0.9.2
     optionalDependencies:
       '@types/eslint': 9.6.1
-      eslint-config-prettier: 9.1.0(eslint@8.57.1)
+      eslint-config-prettier: 9.1.0(eslint@9.24.0(jiti@2.4.2))
 
   eslint-plugin-react-hooks@5.2.0(eslint@9.24.0(jiti@2.4.2)):
     dependencies:
@@ -22609,7 +22617,7 @@ snapshots:
       '@typescript-eslint/parser': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
       chalk: 4.1.2
       eslint: 8.57.1
-      eslint-config-prettier: 9.1.0(eslint@8.57.1)
+      eslint-config-prettier: 9.1.0(eslint@9.24.0(jiti@2.4.2))
       eslint-plugin-n: 15.7.0(eslint@8.57.1)
       eslint-plugin-prettier: 5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@8.57.1))(eslint@8.57.1)(prettier@3.3.3)
       execa: 5.1.1

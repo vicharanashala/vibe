@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress } from "@/lib/api/hooks";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -27,7 +28,7 @@ import {
   Home,
   GraduationCap,
 } from "lucide-react";
-
+import FloatingVideo from "@/components/floating-video";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -85,7 +86,8 @@ export default function CoursePage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});  
+  const [doGesture, setDoGesture] = useState<boolean>(false);
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
@@ -266,6 +268,7 @@ export default function CoursePage() {
 
   return (
     <SidebarProvider defaultOpen={true}>
+
       <div className="flex h-screen w-full">
         {/* Enhanced Course Navigation Sidebar */}
         <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
@@ -424,7 +427,9 @@ export default function CoursePage() {
               </SidebarMenu>
             </ScrollArea>
           </SidebarContent>
-
+            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
+            <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo>
+            </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
             <SidebarMenu className="space-y-1 px-2 py-3">
@@ -441,6 +446,7 @@ export default function CoursePage() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
 
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -488,7 +494,7 @@ export default function CoursePage() {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <div className="text-xl font-medium text-foreground truncate" title={currentItem ? currentItem.name : 'Select content to begin learning'}>
-                {currentItem ? currentItem.name : 'Select content to begin learning'}
+                <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>
               </div>
             </div>
             <div className="flex items-center gap-2 ml-auto">
@@ -500,10 +506,29 @@ export default function CoursePage() {
             {/* Ambient background effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
+            {/* Gesture Popup */}
+            {doGesture && (
+              <Card className="fixed top-8 right-8 z-50 w-90 border-2 border-destructive/40 bg-destructive/95 text-destructive-foreground shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2 duration-300">
+                <CardContent className="flex items-center gap-4 px-6 py-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive-foreground/20 text-3xl">
+                    👍
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Badge variant="outline" className="border-destructive-foreground/30 bg-destructive-foreground/10 text-destructive-foreground font-bold">
+                      Gesture Required
+                    </Badge>
+                    <p className="text-sm font-medium">
+                      Please show a <strong>thumbs up</strong> to continue!
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {currentItem ? (
               <div className="relative z-10 h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto">
-                  <ItemContainer item={currentItem} />
+                  <ItemContainer item={currentItem} doGesture={doGesture} />
                 </div>
 
                 {/* Next Button for Video Content */}

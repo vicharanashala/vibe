@@ -8,7 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle } from "lucide-react";
+import { useAttemptQuiz } from '@/lib/api/hooks';
 
 // Enhanced question types
 interface QuizQuestion {
@@ -25,10 +26,40 @@ interface QuizQuestion {
 }
 
 interface QuizProps {
-  content: string;
+  questionBankRefs: string[]; // question ids
+  passThreshold: number; // 0-1
+  maxAttempts: number; // Maximum number of attempts allowed
+  quizType: 'DEADLINE' | 'NO_DEADLINE' | ''; // Type of quiz
+  releaseTime: Date | undefined; // Release time for the quiz
+  questionVisibility: number; // Number of questions visible to the user at a time
+  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
+  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
+  allowPartialGrading: boolean; // If true, allows partial grading for questions
+  allowHint: boolean; // If true, allows users to use hints for questions
+  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
+  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+  showScoreAfterSubmission: boolean;
+  quizId: string;
+  doGesture?: boolean; // Optional prop to trigger gesture detection
 }
 
-export default function Quiz({ content }: QuizProps) {
+export default function Quiz({
+  questionBankRefs,
+  passThreshold,
+  maxAttempts,
+  quizType,
+  releaseTime,
+  questionVisibility,
+  deadline,
+  approximateTimeToComplete,
+  allowPartialGrading,
+  allowHint,
+  showCorrectAnswersAfterSubmission,
+  showExplanationAfterSubmission,
+  showScoreAfterSubmission,
+  quizId,
+  doGesture = false, // Optional prop to trigger gesture detection
+}: QuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
   const [timeLeft, setTimeLeft] = useState(0);
@@ -36,17 +67,17 @@ export default function Quiz({ content }: QuizProps) {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [score, setScore] = useState(0);
   const [, setCurrentConnecting] = useState<string | null>(null);
-
+  
   // Generate questions based on content
-  const generateQuestionsFromContent = (content: string): QuizQuestion[] => {
+  const generateQuestionsFromContent = (): QuizQuestion[] => {
     // Enhanced question generation with various question types
     const questions: QuizQuestion[] = [];
-    
+
     // Multiple Choice Question
     questions.push({
       id: '1',
       type: 'mcq',
-      question: `Based on the content about "${content.substring(0, 30)}...", which statement is most relevant?`,
+      question: `Based on the content about , which statement is most relevant?`,
       options: [
         'This content is educational',
         'This content is irrelevant',
@@ -84,8 +115,8 @@ export default function Quiz({ content }: QuizProps) {
       id: '4',
       type: 'numerical',
       question: 'How many characters are approximately in this content?',
-      correctAnswer: content.length,
-      tolerance: content.length * 0.1, // 10% tolerance
+      correctAnswer: 1,
+      tolerance: 1 * 0.1, // 10% tolerance
       points: 8,
       timeLimit: 15
     });
@@ -104,7 +135,7 @@ export default function Quiz({ content }: QuizProps) {
     return questions;
   };
 
-  const quizQuestions = generateQuestionsFromContent(content);
+  const quizQuestions = generateQuestionsFromContent();
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   const completeQuiz = useCallback(() => {
@@ -147,7 +178,7 @@ export default function Quiz({ content }: QuizProps) {
 
   // Timer effect
   useEffect(() => {
-    if (!quizStarted || quizCompleted || timeLeft <= 0) return;
+    if (!quizStarted || quizCompleted || timeLeft <= 0 || doGesture) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -160,7 +191,7 @@ export default function Quiz({ content }: QuizProps) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizStarted, quizCompleted, timeLeft, currentQuestionIndex, handleNextQuestion]);
+  }, [quizStarted, quizCompleted, timeLeft, currentQuestionIndex, handleNextQuestion, doGesture]);
 
   // Set timer for current question
   useEffect(() => {
@@ -174,31 +205,31 @@ export default function Quiz({ content }: QuizProps) {
       case 'mcq': {
         return userAnswer === question.correctAnswer;
       }
-      
+
       case 'multi_select': {
         if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) return false;
         const userSet = new Set(userAnswer.map(String));
         const correctSet = new Set((question.correctAnswer as number[]).map(String));
         return userSet.size === correctSet.size && [...userSet].every(x => correctSet.has(x));
       }
-      
+
       case 'short_answer': {
-        return userAnswer?.toString().toLowerCase().trim() === 
-               question.correctAnswer.toString().toLowerCase().trim();
+        return userAnswer?.toString().toLowerCase().trim() ===
+          question.correctAnswer.toString().toLowerCase().trim();
       }
-      
+
       case 'numerical': {
         const numAnswer = typeof userAnswer === 'number' ? userAnswer : parseFloat(userAnswer?.toString() || '');
         const correctNum = typeof question.correctAnswer === 'number' ? question.correctAnswer : parseFloat(question.correctAnswer.toString());
         const tolerance = question.tolerance || 0;
         return Math.abs(numAnswer - correctNum) <= tolerance;
       }
-      
+
       case 'ranking': {
         if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) return false;
         return JSON.stringify(userAnswer) === JSON.stringify(question.correctAnswer);
       }
-      
+
       default:
         return false;
     }
@@ -206,7 +237,7 @@ export default function Quiz({ content }: QuizProps) {
 
   const isAnswerValid = (question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
     if (answer === undefined || answer === null) return false;
-    
+
     switch (question.type) {
       case 'mcq': {
         return answer !== undefined && answer !== null;
@@ -269,58 +300,119 @@ export default function Quiz({ content }: QuizProps) {
   const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
+
     if (dragIndex === dropIndex) return;
-    
+
     const currentRanking = [...((answers[currentQuestion.id] as string[]) || currentQuestion.options || [])];
     const dragItem = currentRanking[dragIndex];
-    
+
     // Remove item from original position
     currentRanking.splice(dragIndex, 1);
     // Insert at new position
     currentRanking.splice(dropIndex, 0, dragItem);
-    
+
     handleAnswer(currentRanking);
   }, [currentQuestion, answers, handleAnswer]);
 
   // Quiz not started
   if (!quizStarted) {
     return (
-      <Card className="mx-auto">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold">Enhanced Quiz</CardTitle>
-          <CardDescription className="text-lg">
-            Test your knowledge with this interactive quiz
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="p-4 bg-muted/50 rounded-lg border border-border">
-            <p className="text-muted-foreground">{content}</p>
-          </div>
-          
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Quiz Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">📊</span>
-                <span>Questions: {quizQuestions.length}</span>
+      <div className="mx-auto space-y-8">
+        {/* Hero Section */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
+          <CardHeader className="pb-8">
+            <div className="flex items-center justify-between gap-8">
+              <div className="flex-1 space-y-4 text-left">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <BookOpen className="w-8 h-8 text-primary" />
+                </div>
+                <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  Ready to Start Your Quiz?
+                </CardTitle>
+                <CardDescription className="text-lg text-muted-foreground max-w-lg">
+                  Test your knowledge and track your progress. Take your time to read through the information below before starting.
+                </CardDescription>
               </div>
-              <div className="flex items-center space-x-2">
-                <Trophy className="h-5 w-5" />
-                <span>Total Points: {getTotalPoints()}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-5 w-5" />
-                <span>Est. Time: {Math.ceil(quizQuestions.reduce((total, q) => total + (q.timeLimit || 30), 0) / 60)} min</span>
+              
+              <div className="flex flex-col items-center space-y-4 min-w-fit">
+                {deadline && quizType !== 'NO_DEADLINE' && (
+                  <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
+                    <CardContent className="flex items-center space-x-3 px-4 py-0">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                          Deadline: {new Date(deadline).toLocaleDateString()} at {new Date(deadline).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                <Button 
+                  onClick={startQuiz} 
+                  size="lg" 
+                  className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
+                  disabled={releaseTime && new Date() < releaseTime}
+                >
+                  <PlayCircle className="mr-3 h-6 w-6" />
+                  {releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
+                </Button>
+                
+                <p className="text-sm text-muted-foreground text-center max-w-[300px]">
+                  Make sure you have a stable internet connection and enough time to complete the quiz.
+                </p>
               </div>
             </div>
-          </div>
+          </CardHeader>
           
-          <Button onClick={startQuiz} className="w-full" size="lg">
-            Start Quiz
-          </Button>
-        </CardContent>
-      </Card>
+          <CardContent className="space-y-8">
+            {/* Key Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-2xl font-bold text-primary">{questionBankRefs.length}</div>
+                  <div className="text-sm text-muted-foreground">Questions</div>
+                </div>
+              </Card>
+              
+              <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="text-2xl font-bold text-primary">{Math.round(passThreshold * 100)}%</div>
+                  <div className="text-sm text-muted-foreground">Pass Score</div>
+                </div>
+              </Card>
+              
+              <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="text-2xl font-bold text-primary">{maxAttempts}</div>
+                  <div className="text-sm text-muted-foreground">Max Attempts</div>
+                </div>
+              </Card>
+              
+              <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                    <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div className="text-2xl font-bold text-primary">{approximateTimeToComplete}</div>
+                  <div className="text-sm text-muted-foreground">Est. Time</div>
+                </div>
+              </Card>
+            </div>
+
+            
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -333,21 +425,21 @@ export default function Quiz({ content }: QuizProps) {
           <CardDescription>Great job! Here are your results.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">            <div className="text-center space-y-4">
-            <div className="text-6xl font-bold text-primary drop-shadow-sm">
-              {score}/{getTotalPoints()}
-            </div>
-            <p className="text-xl text-foreground">
-              You scored {Math.round((score / getTotalPoints()) * 100)}%
-            </p>
-            {score === getTotalPoints() && (
-              <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
-                Perfect Score! 🎉
-              </Badge>
-            )}
+          <div className="text-6xl font-bold text-primary drop-shadow-sm">
+            {score}/{getTotalPoints()}
           </div>
-          
+          <p className="text-xl text-foreground">
+            You scored {Math.round((score / getTotalPoints()) * 100)}%
+          </p>
+          {score === getTotalPoints() && (
+            <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
+              Perfect Score! 🎉
+            </Badge>
+          )}
+        </div>
+
           <Separator />
-          
+
           <div>
             <h3 className="text-xl font-semibold mb-4">Question Details</h3>
             <div className="space-y-3">
@@ -374,9 +466,9 @@ export default function Quiz({ content }: QuizProps) {
               })}
             </div>
           </div>
-          
+
           <div className="text-center">
-            <Button 
+            <Button
               onClick={() => {
                 setQuizStarted(false);
                 setQuizCompleted(false);
@@ -405,8 +497,8 @@ export default function Quiz({ content }: QuizProps) {
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
           {timeLeft > 0 && (
-            <Badge 
-              variant="secondary" 
+            <Badge
+              variant="secondary"
               className={`font-mono text-lg px-3 py-2 ${timeLeft <= 10 ? 'bg-destructive/20 text-destructive animate-pulse border-destructive/50' : ''}`}
             >
               <Clock className="mr-2 h-4 w-4" />
@@ -414,20 +506,20 @@ export default function Quiz({ content }: QuizProps) {
             </Badge>
           )}
         </div>
-        <Progress 
-          value={((currentQuestionIndex + 1) / quizQuestions.length) * 100} 
+        <Progress
+          value={((currentQuestionIndex + 1) / quizQuestions.length) * 100}
           className="w-full h-3"
         />
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Badge variant={currentQuestion.type === 'mcq' ? 'default' : 
-                           currentQuestion.type === 'multi_select' ? 'secondary' :
-                           currentQuestion.type === 'short_answer' ? 'outline' :
-                           currentQuestion.type === 'numerical' ? 'destructive' :
-                           'secondary'}>
+            <Badge variant={currentQuestion.type === 'mcq' ? 'default' :
+              currentQuestion.type === 'multi_select' ? 'secondary' :
+                currentQuestion.type === 'short_answer' ? 'outline' :
+                  currentQuestion.type === 'numerical' ? 'destructive' :
+                    'secondary'}>
               {getQuestionTypeLabel(currentQuestion.type)}
             </Badge>
             <Badge variant="outline">
@@ -441,14 +533,14 @@ export default function Quiz({ content }: QuizProps) {
 
           {/* MCQ Options */}
           {currentQuestion.type === 'mcq' && currentQuestion.options && (
-            <RadioGroup 
-              value={answers[currentQuestion.id]?.toString()} 
+            <RadioGroup
+              value={answers[currentQuestion.id]?.toString()}
               onValueChange={(value) => handleAnswer(parseInt(value))}
               className="space-y-3"
             >
               {currentQuestion.options.map((option, index) => (
-                <Label 
-                  key={index} 
+                <Label
+                  key={index}
                   htmlFor={`option-${index}`}
                   className="quiz-option-hover flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full"
                 >
@@ -464,12 +556,12 @@ export default function Quiz({ content }: QuizProps) {
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Select all that apply:</p>
               {currentQuestion.options.map((option, index) => (
-                <Label 
+                <Label
                   key={index}
                   htmlFor={`multi-${index}`}
                   className="flex items-center space-x-3 rounded-lg border border-border p-4 hover:bg-accent/50 cursor-pointer w-full transition-colors"
                 >
-                  <Checkbox 
+                  <Checkbox
                     id={`multi-${index}`}
                     checked={Array.isArray(answers[currentQuestion.id]) && (answers[currentQuestion.id] as number[]).includes(index)}
                     onCheckedChange={(checked) => {
@@ -528,8 +620,8 @@ export default function Quiz({ content }: QuizProps) {
               <p className="text-sm text-muted-foreground">Drag and drop items to rank them:</p>
               <div className="space-y-2">
                 {((answers[currentQuestion.id] as string[]) || currentQuestion.options).map((item, index) => (
-                  <div 
-                    key={item} 
+                  <div
+                    key={item}
                     className="flex items-center space-x-3 px-4 py-3 bg-card hover:bg-accent/50 cursor-move transition-colors border border-border rounded-lg"
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, index)}
@@ -560,7 +652,7 @@ export default function Quiz({ content }: QuizProps) {
             <ChevronLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
-          
+
           <Button
             onClick={handleNextQuestion}
             disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id])}
