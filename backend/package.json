@@ -4,12 +4,10 @@
   "description": "This is ViBe backend.",
   "main": "index.js",
   "type": "module",
-    "imports": {
-
+  "imports": {
     "#root/*.js": "./dist/*.js",
     "#shared/*.js": "./dist/shared/*.js",
     "#config/*.js": "./dist/config/*.js",
-
     "#auth/*.js": "./dist/modules/auth/*.js",
     "#courses/*.js": "./dist/modules/courses/*.js",
     "#users/*.js": "./dist/modules/users/*.js",
@@ -37,14 +35,11 @@
     "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
     "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
   },
-  "bin": "dist/index.js",
+  "bin": "build/index.js",
   "pkg": {
-    "scripts": [
-      "dist/**/*.js"
-    ],
     "assets": [
-    "node_modules/firebase-admin/**/*"
-  ],
+      "node_modules/firebase-admin/**/*"
+    ],
     "targets": [
       "latest-win-x64"
     ],
@@ -87,7 +82,6 @@
     "@scalar/express-api-reference": "^0.7.6",
     "@sentry/cli": "^2.43.0",
     "@sentry/node": "^9.22.0",
-    "@sentry/profiling-node": "^9.22.0",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
     "class-transformer": "^0.5.1",

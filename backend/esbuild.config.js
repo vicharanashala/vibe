@@ -1,10 +1,9 @@
 import esbuild from 'esbuild';
-import tsConfigPaths from 'esbuild-plugin-tsconfig-paths'
 import pkg from './package.json' with { type: 'json' };
 
 esbuild.build({
   entryPoints: ['src/index.ts'],
-  outfile: 'dist/index.js',
+  outfile: 'build/index.js',
   bundle: true,
   platform: 'node',
   format: 'esm',
@@ -12,12 +11,12 @@ esbuild.build({
     '.node': 'copy', // 👈 this will copy .node files
   },
   external: [
-    ...Object.keys(pkg.dependencies || {}),
+    // ...Object.keys(pkg.dependencies || {}),
     '@koa/cors',
     'perf_hooks',
      // ✅ Prevent esbuild from trying to bundle this unused Koa dependency
   ],
-  plugins: [tsConfigPaths()],
+  plugins: [],
   minify: true,
   sourcemap: true,
   metafile: true

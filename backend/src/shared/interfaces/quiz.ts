@@ -61,7 +61,7 @@ interface IDESSolution {
   solutionText: string;
 }
 
-export type ID = string | ObjectId;
+type ID = string | ObjectId;
 
 interface IQuestionBank {
   _id?: string | ObjectId;

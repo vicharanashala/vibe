@@ -24,7 +24,7 @@ export interface ICourse {
   updatedAt?: Date;
 }
 
-type ID = string | ObjectId | null;
+export type ID = string | ObjectId | null;
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
