@@ -1,55 +1,52 @@
-import {QuizItem} from '#root/modules/courses/index.js';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
+import {QuizItem} from '#courses/index.js';
 import {
   BaseQuestion,
   UserQuizMetrics,
   Attempt,
   Submission,
-} from '../classes/index.js';
+} from '#quizzes/classes/index.js';
 import {
   IQuestionDetails,
   IGradingResult,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
-} from '../interfaces/grading.js';
-import {QuestionProcessor} from '../question-processing/index.js';
-import {IQuestionRenderView} from '../question-processing/renderers/index.js';
+} from '#quizzes/interfaces/grading.js';
+import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import {
   QuizRepository,
   AttemptRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
-} from '../repositories/index.js';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap.js';
-import {QuestionService} from './QuestionService.js';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types.js';
-import {QuestionBankService} from './QuestionBankService.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
+} from '#quizzes/repositories/index.js';
+import {generateRandomParameterMap} from '#quizzes/utils/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import GLOBAL_TYPES from '../../../types.js';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
-
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QuestionBankService} from './QuestionBankService.js';
+import {QuestionService} from './QuestionService.js';
+import {QUIZZES_TYPES} from '../types.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
-    @inject(TYPES.QuizRepo)
+    @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepository: QuizRepository,
 
-    @inject(TYPES.AttemptRepo)
+    @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
 
-    @inject(TYPES.SubmissionRepo)
+    @inject(QUIZZES_TYPES.SubmissionRepo)
     private submissionRepository: SubmissionRepository,
 
-    @inject(TYPES.UserQuizMetricsRepo)
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
 
-    @inject(TYPES.QuestionService)
+    @inject(QUIZZES_TYPES.QuestionService)
     private questionService: QuestionService,
 
-    @inject(TYPES.QuestionBankService)
+    @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
 
     @inject(GLOBAL_TYPES.Database)

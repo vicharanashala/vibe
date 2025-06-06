@@ -1,10 +1,9 @@
-import 'reflect-metadata';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
 import {Collection, ObjectId} from 'mongodb';
-import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {IEnrollment, IProgress} from '../../../../interfaces/models.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import GLOBAL_TYPES from '../../../../../types.js';
+import {MongoDatabase} from '../MongoDatabase.js';
 
 @injectable()
 export class EnrollmentRepository {

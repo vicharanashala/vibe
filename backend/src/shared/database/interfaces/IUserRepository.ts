@@ -1,5 +1,5 @@
-import {ClientSession, MongoClient} from 'mongodb';
-import {IUser} from '../../interfaces/models.js';
+import {IUser} from '#shared/interfaces/models.js';
+import {MongoClient, ClientSession} from 'mongodb';
 
 /**
  * Interface representing a repository for user-related operations.

@@ -1,18 +1,17 @@
-import {useContainer} from 'routing-controllers';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {HttpErrorHandler} from '../../shared/middleware/errorHandler.js';
+import {authContainerModule} from '#auth/container.js';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {HttpErrorHandler} from '#shared/index.js';
+import {Container} from 'inversify';
+import {RoutingControllersOptions, useContainer} from 'routing-controllers';
+import {coursesContainerModule} from './container.js';
 import {
   CourseController,
   CourseVersionController,
+  ItemController,
   ModuleController,
   SectionController,
-  ItemController,
 } from './controllers/index.js';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '../../container.js';
-import {authContainerModule} from '../auth/container.js';
-import {InversifyAdapter} from '../../inversify-adapter.js';
-import {coursesContainerModule} from './container.js';
 
 export async function setupCoursesContainer(): Promise<void> {
   const container = new Container();

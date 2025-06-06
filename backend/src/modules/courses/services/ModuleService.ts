@@ -13,12 +13,12 @@ import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {MongoDatabase} from '#root/shared/database/providers/index.js';
-import TYPES from '../types.js';
-import GLOBAL_TYPES from '../../../types.js';
+import {COURSES_TYPES} from '../types.js';
+import {GLOBAL_TYPES} from '../../../types.js';
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
-    @inject(TYPES.CourseRepo)
+    @inject(COURSES_TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

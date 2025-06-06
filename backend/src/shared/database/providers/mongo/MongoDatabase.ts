@@ -1,14 +1,7 @@
-import {inject} from 'inversify';
-import {
-  Collection,
-  Db,
-  Document,
-  MongoClient,
-  MongoClientOptions,
-} from 'mongodb';
-import {injectable} from 'inversify';
-import TYPES from '../../../../types.js';
-import {IDatabase} from '../../interfaces/IDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IDatabase} from '#shared/database/interfaces/IDatabase.js';
+import {injectable, inject} from 'inversify';
+import {Db, MongoClient, Document, Collection} from 'mongodb';
 
 /**
  * @class MongoDatabase
@@ -31,9 +24,9 @@ export class MongoDatabase implements IDatabase<Db> {
    * @param {string} dbName - The name of the database to connect to.
    */
   constructor(
-    @inject(TYPES.uri)
+    @inject(GLOBAL_TYPES.uri)
     private readonly uri: string,
-    @inject(TYPES.dbName)
+    @inject(GLOBAL_TYPES.dbName)
     private readonly dbName: string,
   ) {
     // Skip database connection if environment variable is set

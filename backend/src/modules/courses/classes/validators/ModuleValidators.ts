@@ -1,17 +1,12 @@
+import {IModule, ICourseVersion} from '#shared/index.js';
 import {
-  IsEmpty,
-  IsMongoId,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
+  IsOptional,
+  IsMongoId,
   ValidateIf,
 } from 'class-validator';
-import {
-  ICourseVersion,
-  IModule,
-  ISection,
-} from '#root/shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateModuleBody implements Partial<IModule> {

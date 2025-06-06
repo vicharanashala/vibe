@@ -1,42 +1,39 @@
-import {inject, injectable} from 'inversify';
-import {BaseService} from '../../../shared/classes/BaseService.js';
-import GLOBAL_TYPES from '../../../types.js';
-import {MongoDatabase} from '../../../shared/database/providers/index.js';
-import {IQuestionBankRef} from '../../../shared/interfaces/models.js';
-import TYPES from '../types.js';
+import {
+  IQuestionAnswerFeedback,
+  IGradingResult,
+} from '#quizzes/interfaces/grading.js';
 import {
   AttemptRepository,
-  QuizRepository,
   SubmissionRepository,
+  QuizRepository,
+  QuestionBankRepository,
   UserQuizMetricsRepository,
-} from '../repositories/index.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {
-  IGradingResult,
-  IQuestionAnswerFeedback,
-} from '../interfaces/grading.js';
+} from '#quizzes/repositories/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase, IQuestionBankRef} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
-
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     public readonly database: MongoDatabase,
 
-    @inject(TYPES.AttemptRepo)
+    @inject(QUIZZES_TYPES.AttemptRepo)
     public readonly attemptRepo: AttemptRepository,
 
-    @inject(TYPES.SubmissionRepo)
+    @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
 
-    @inject(TYPES.QuizRepo)
+    @inject(QUIZZES_TYPES.QuizRepo)
     public readonly quizRepo: QuizRepository,
 
-    @inject(TYPES.QuestionBankRepo)
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
     public readonly questionBankRepo: QuestionBankRepository,
 
-    @inject(TYPES.UserQuizMetricsRepo)
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     public readonly userQuizMetricsRepo: UserQuizMetricsRepository,
   ) {
     super(database);

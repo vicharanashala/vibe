@@ -1,21 +1,19 @@
-﻿import 'reflect-metadata';
-import {instanceToPlain} from 'class-transformer';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {IItemRepository} from '../../../interfaces/IItemRepository.js';
-import {ICourseRepository} from '../../../interfaces/ICourseRepository.js';
-
-import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {
+﻿import {
   ItemsGroup,
-  BlogItem,
-  QuizItem,
   VideoItem,
+  QuizItem,
+  BlogItem,
   Item,
-} from '#root/modules/courses/classes/transformers/Item.js';
-import {ItemType} from '#root/shared/interfaces/models.js';
-import GLOBAL_TYPES from '../../../../../types.js';
+} from '#courses/classes/transformers/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#shared/database/interfaces/IItemRepository.js';
+import {ItemType} from '#shared/interfaces/models.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {

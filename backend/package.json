@@ -5,7 +5,11 @@
   "main": "index.js",
   "type": "module",
   "imports": {
-    "#root/*.js": "./build/*.js",
+    "#root/container.js": "./src/utils/container.js",
+    "#root/inversify.js": "./src/utils/inversify-adapter.js",
+    "#root/instrument.js": "./src/utils/instrument.js",
+    "#root/index.js": "./src/utils/index.js",
+    "#root/types.js": "./src/utils/types.js",
     "#shared/*.js": "./build/shared/*.js",
     "#config/*.js": "./build/config/*.js",
     "#auth/*.js": "./build/modules/auth/*.js",
@@ -14,6 +18,7 @@
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
     "#docs/*.js": "./build/modules/docs/*.js"
   },
+  
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles",
     "test:ci": "jest --runInBand --detectOpenHandles --forceExit",
@@ -70,6 +75,7 @@
     "mongodb-memory-server": "^10.1.4",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",
+    "ts-morph": "^26.0.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",

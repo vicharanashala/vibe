@@ -1,24 +1,26 @@
-import {BaseService, MongoDatabase} from '#root/shared/index.js';
-import {injectable, inject} from 'inversify';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {BaseQuestion} from '../classes/index.js';
+import {BaseQuestion} from '#quizzes/classes/index.js';
 import {
   ParameterMap,
   IQuestionRenderView,
-} from '../question-processing/index.js';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
-import {QuestionBankRepository} from '../repositories/index.js';
-import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import TYPES from '../types.js';
-import GLOBAL_TYPES from '#root/types.js';
+} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+import {
+  QuestionRepository,
+  QuestionBankRepository,
+} from '#quizzes/repositories/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
 
 @injectable()
 class QuestionService extends BaseService {
   constructor(
-    @inject(TYPES.QuestionRepo)
+    @inject(QUIZZES_TYPES.QuestionRepo)
     private questionRepository: QuestionRepository,
 
-    @inject(TYPES.QuestionBankRepo)
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
     private questionBankRepository: QuestionBankRepository,
 
     @inject(GLOBAL_TYPES.Database)

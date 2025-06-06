@@ -1,21 +1,16 @@
-import {ObjectId} from 'mongodb';
 import {
-  ISOLSolution,
-  ISMLSolution,
-  IOTLSolution,
-  INATSolution,
-  IDESSolution,
-  ILotItem,
-  ISOLQuizView,
-  ISMLQuizView,
-  ILotOrder,
-  IOTLQuizView,
-  INATQuizView,
-  IDESQuizView,
-  IQuestionParameter,
   IQuestion,
   QuestionType,
-} from '../../../../shared/interfaces/quiz.js';
+  IQuestionParameter,
+  ISOLSolution,
+  ILotItem,
+  ISMLSolution,
+  IOTLSolution,
+  ILotOrder,
+  INATSolution,
+  IDESSolution,
+} from '#shared/index.js';
+import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
 
 abstract class BaseQuestion implements IQuestion {

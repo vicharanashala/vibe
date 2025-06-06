@@ -1,42 +1,35 @@
-import 'reflect-metadata';
+import {
+  CourseDataResponse,
+  CreateCourseBody,
+  Course,
+  CourseNotFoundErrorResponse,
+  ReadCourseParams,
+  UpdateCourseParams,
+  UpdateCourseBody,
+} from '#courses/classes/index.js';
+import {CourseService} from '#courses/services/CourseService.js';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Authorized,
   Post,
+  HttpCode,
   Body,
   Get,
-  Put,
   Params,
-  HttpCode,
+  Put,
   Delete,
 } from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {Course} from '../classes/transformers/Course.js';
-import {
-  CreateCourseBody,
-  ReadCourseParams,
-  UpdateCourseParams,
-  UpdateCourseBody,
-  CourseDataResponse,
-  CourseNotFoundErrorResponse,
-} from '../classes/validators/CourseValidators.js';
-import {CourseService} from '../services/index.js';
-import {getMetadataArgsStorage} from 'routing-controllers';
-import {
-  OpenAPI,
-  routingControllersToSpec,
-  ResponseSchema,
-} from 'routing-controllers-openapi';
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-import {coursesModuleOptions} from '../index.js';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import TYPES from '../types.js';
-
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/index.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 @injectable()
 @JsonController('/courses')
 export class CourseController {
   constructor(
-    @inject(TYPES.CourseService) private readonly courseService: CourseService,
+    @inject(COURSES_TYPES.CourseService)
+    private readonly courseService: CourseService,
   ) {}
 
   @Authorized(['admin', 'instructor'])

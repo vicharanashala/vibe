@@ -1,10 +1,6 @@
-import {QuizItem} from '#root/modules/courses/index.js';
-import {BaseQuestion} from '#root/modules/quizzes/classes/transformers/index.js';
-import {
-  Answer,
-  IQuestionAnswerFeedback,
-} from '#root/modules/quizzes/interfaces/grading.js';
-import {ParameterMap} from '../../tag-parser/index.js';
+import {QuizItem} from '#courses/index.js';
+import {Answer, IQuestionAnswerFeedback} from '#quizzes/interfaces/grading.js';
+import {ParameterMap} from '#quizzes/question-processing/tag-parser/index.js';
 
 interface IGrader {
   grade(

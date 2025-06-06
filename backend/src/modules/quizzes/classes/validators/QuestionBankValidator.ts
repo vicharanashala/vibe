@@ -1,12 +1,12 @@
+import {IQuestionBank, ID} from '#shared/index.js';
 import {
-  IsArray,
   IsMongoId,
-  IsNotEmpty,
   IsOptional,
   IsString,
+  IsArray,
+  IsNotEmpty,
 } from 'class-validator';
 import {ObjectId} from 'mongodb';
-import {IQuestionBank, ID} from '#root/shared/index.js';
 
 class CreateQuestionBankBody implements Partial<IQuestionBank> {
   @IsMongoId()

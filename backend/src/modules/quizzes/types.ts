@@ -1,5 +1,3 @@
-import {QuestionBank} from './classes/transformers/QuestionBank.js';
-
 const TYPES = {
   //Controllers
   QuestionController: Symbol.for('QuestionController'),
@@ -17,9 +15,6 @@ const TYPES = {
   AttemptRepo: Symbol.for('AttemptRepo'),
   SubmissionRepo: Symbol.for('SubmissionRepo'),
   UserQuizMetricsRepo: Symbol.for('UserQuizMetricsRepo'),
-
-  //TODO: Remove later, temoporary
-  CourseRepo: Symbol.for('CourseRepo'),
 };
 
-export default TYPES;
+export {TYPES as QUIZZES_TYPES};

@@ -1,28 +1,15 @@
-/**
- * @file FirebaseAuthService.ts
- * @description Firebase authentication service implementation.
- *
- * @category Auth/Services
- * @categoryDescription
- * Service implementing authentication logic using Firebase.
- * Handles user creation, token verification, and password updates.
- */
-
-import 'reflect-metadata';
-
-import admin, {database} from 'firebase-admin';
-
-import {Inject, Service} from 'typedi';
-import {IUser} from '../../../shared/interfaces/models.js';
-import {IUserRepository} from '../../../shared/database/index.js';
-import {IAuthService} from '../interfaces/IAuthService.js';
-import {ChangePasswordBody, SignUpBody} from '../classes/validators/index.js';
-import {BadRequestError, InternalServerError} from 'routing-controllers';
-import {User} from '../classes/transformers/User.js';
-import {BaseService} from '../../../shared/classes/BaseService.js';
-import {MongoDatabase} from '../../../shared/database/providers/index.js';
+import {SignUpBody, User, ChangePasswordBody} from '#auth/classes/index.js';
+import {IAuthService} from '#auth/interfaces/IAuthService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {
+  BaseService,
+  IUserRepository,
+  MongoDatabase,
+  IUser,
+} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import GLOBAL_TYPES from '../../../types.js';
+import {InternalServerError} from 'routing-controllers';
+import admin from 'firebase-admin';
 
 /**
  * Custom error thrown during password change operations.

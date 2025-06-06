@@ -1,20 +1,16 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from '../../utils/calculateNewOrder.js';
-import {ObjectId} from 'mongodb';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from '#shared/constants/transformerConstants.js';
-import {
-  IBaseItem,
+  ID,
   ItemType,
-  IVideoDetails,
   IQuizDetails,
+  IVideoDetails,
   IBlogDetails,
-} from '#shared/interfaces/models.js';
+} from '#shared/index.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 import {CreateItemBody} from '../validators/ItemValidators.js';
-import {ID} from '#shared/index.js';
 
 export type Item = QuizItem | VideoItem | BlogItem;
 

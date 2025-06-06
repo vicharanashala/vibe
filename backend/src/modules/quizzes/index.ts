@@ -1,13 +1,18 @@
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {useContainer} from 'class-validator';
 import {Container} from 'inversify';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {QuestionController, quizzesContainerModule} from '#quizzes/index.js';
+import {RoutingControllersOptions, useContainer} from 'routing-controllers';
+import {quizzesContainerModule} from './container.js';
+import {QuestionController} from './controllers/QuestionController.js';
+import {coursesContainerModule} from '#courses/container.js';
 
 export async function setupQuizzesContainer(): Promise<void> {
   const container = new Container();
-  await container.load(sharedContainerModule, quizzesContainerModule);
+  await container.load(
+    sharedContainerModule,
+    quizzesContainerModule,
+    coursesContainerModule,
+  );
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }

@@ -1,30 +1,30 @@
-import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
-import {CreateQuestionBankBody} from '../classes/validators/QuestionBankValidator.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {BaseQuestion} from '../classes/index.js';
+import {QuestionBank} from '#quizzes/classes/transformers/QuestionBank.js';
 import {
+  QuestionBankRepository,
+  QuestionRepository,
+} from '#quizzes/repositories/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {
+  BaseService,
   CourseRepository,
   MongoDatabase,
-} from '#root/shared/database/providers/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {QuestionBank} from '../classes/transformers/QuestionBank.js';
+  IQuestionBank,
+  IQuestionBankRef,
+} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {NotFoundError} from 'routing-controllers';
-import TYPES from '../types.js';
-import {inject, injectable} from 'inversify';
-import GLOBAL_TYPES from '../../../types.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
-
+import {QUIZZES_TYPES} from '../types.js';
+import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 class QuestionBankService extends BaseService {
   constructor(
-    @inject(TYPES.QuestionBankRepo)
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
     private readonly questionBankRepository: QuestionBankRepository,
 
-    @inject(TYPES.QuestionRepo)
+    @inject(QUIZZES_TYPES.QuestionRepo)
     private readonly questionRepository: QuestionRepository,
 
-    @inject(TYPES.CourseRepo)
+    @inject(COURSES_TYPES.CourseRepo)
     private readonly courseRepository: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

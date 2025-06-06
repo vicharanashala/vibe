@@ -1,30 +1,29 @@
 import {
-  Body,
-  CurrentUser,
-  Get,
-  JsonController,
-  OnUndefined,
-  Params,
-  Post,
-} from 'routing-controllers';
-import {AttemptService} from '../services/AttemptService.js';
-import {IUser} from '#root/shared/interfaces/models.js';
-import {
   CreateAttemptParams,
   CreateAttemptResponse,
-  QuestionAnswersBody,
   SaveAttemptParams,
+  QuestionAnswersBody,
   SubmitAttemptParams,
   SubmitAttemptResponse,
-} from '../classes/validators/QuizValidator.js';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types.js';
+} from '#quizzes/classes/validators/QuizValidator.js';
+import {AttemptService} from '#quizzes/services/AttemptService.js';
+import {IUser} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Post,
+  CurrentUser,
+  Params,
+  OnUndefined,
+  Body,
+} from 'routing-controllers';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 
 @injectable()
 @JsonController('/quizzes')
 class AttemptController {
   constructor(
-    @inject(TYPES.AttemptService)
+    @inject(QUIZZES_TYPES.AttemptService)
     private readonly attemptService: AttemptService,
   ) {}
 

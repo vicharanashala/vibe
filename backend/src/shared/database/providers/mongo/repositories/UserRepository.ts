@@ -1,17 +1,11 @@
-import {
-  ClientSession,
-  Collection,
-  MongoClient,
-  ObjectId,
-  WithId,
-} from 'mongodb';
-import {IUser} from '../../../../interfaces/models.js';
-import {inject, injectable} from 'inversify';
+import {User} from '#auth/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {IUser} from '#shared/interfaces/models.js';
+import {plainToInstance} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {Collection, MongoClient, ClientSession, ObjectId} from 'mongodb';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {IUserRepository} from '../../../interfaces/IUserRepository.js';
-import {plainToClass, plainToInstance} from 'class-transformer';
-import {User} from '#root/modules/auth/classes/transformers/User.js';
-import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class UserRepository implements IUserRepository {

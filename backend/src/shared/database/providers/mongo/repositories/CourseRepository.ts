@@ -1,33 +1,19 @@
-import 'reflect-metadata';
+import {Course, CourseVersion, ItemsGroup} from '#courses/classes/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
-import {Course} from '../../../../../modules/courses/classes/transformers/Course.js';
-import {CourseVersion} from '../../../../../modules/courses/classes/transformers/CourseVersion.js';
+import {injectable, inject} from 'inversify';
 import {
-  Item,
-  ItemsGroup,
-} from '../../../../../modules/courses/classes/transformers/Item.js';
-import {
-  ClientSession,
   Collection,
-  DeleteResult,
   MongoClient,
+  ClientSession,
   ObjectId,
+  DeleteResult,
   UpdateResult,
 } from 'mongodb';
-import {ICourseRepository} from '../../../interfaces/ICourseRepository.js';
-
-import {
-  ICourse,
-  IModule,
-  IEnrollment,
-  IProgress,
-  ICourseVersion,
-  ISection,
-} from '../../../../interfaces/models.js';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import GLOBAL_TYPES from '../../../../../types.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {

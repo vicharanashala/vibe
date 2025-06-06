@@ -1,35 +1,32 @@
-import {Type} from 'class-transformer';
 import {
-  ArrayMinSize,
-  IsArray,
-  IsBoolean,
-  IsBooleanString,
-  IsEmpty,
-  IsEnum,
-  IsInt,
-  IsMongoId,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-  Validate,
-  ValidateNested,
-} from 'class-validator';
-import {ObjectId} from 'mongodb';
-import {
-  IDESSolution,
+  IQuestionParameter,
   ILotItem,
   ILotOrder,
-  INATSolution,
-  IOTLSolution,
   IQuestion,
-  IQuestionParameter,
-  ISMLSolution,
-  ISOLSolution,
   QuestionType,
-} from '../../../../shared/interfaces/quiz.js';
+  ISOLSolution,
+  ISMLSolution,
+  IOTLSolution,
+  INATSolution,
+  IDESSolution,
+} from '#shared/index.js';
+import {Type} from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsString,
+  IsArray,
+  ArrayMinSize,
+  IsEnum,
+  ValidateNested,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsMongoId,
+  IsInt,
+  Max,
+  Min,
+} from 'class-validator';
+import {ObjectId} from 'mongodb';
 import {NATQuestion} from '../transformers/Question.js';
 
 class QuestionParameter implements IQuestionParameter {

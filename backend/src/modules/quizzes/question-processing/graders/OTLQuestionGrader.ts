@@ -1,11 +1,10 @@
-import {OTLQuestion} from '#root/modules/quizzes/classes/transformers/index.js';
-import {IGrader} from './interfaces/IGrader.js';
+import {QuizItem} from '#courses/index.js';
+import {OTLQuestion} from '#quizzes/classes/index.js';
 import {
   IOTLAnswer,
   IQuestionAnswerFeedback,
-} from '#root/modules/quizzes/interfaces/grading.js';
-import {QuizItem} from '#root/modules/courses/index.js';
-import {ILotOrder} from '#root/shared/interfaces/quiz.js';
+} from '#quizzes/interfaces/grading.js';
+import {IGrader} from './interfaces/IGrader.js';
 
 class OTLQuestionGrader implements IGrader {
   constructor(readonly question: OTLQuestion) {}

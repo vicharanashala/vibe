@@ -1,48 +1,45 @@
-﻿import {injectable, inject} from 'inversify';
-import {
-  Body,
-  Get,
-  JsonController,
-  Params,
-  Patch,
-  Post,
-  HttpCode,
-  Delete,
-} from 'routing-controllers';
-import {QuizService} from '../services/QuizService.js';
+﻿import {QuestionBankRef} from '#quizzes/classes/transformers/QuestionBank.js';
 import {
   QuizIdParam,
+  AddQuestionBankBody,
   RemoveQuestionBankParams,
+  EditQuestionBankBody,
+  GetUserMatricesParams,
   UserQuizMetricsResponse,
+  QuizAttemptParam,
   QuizAttemptResponse,
+  QuizSubmissionParam,
   QuizSubmissionResponse,
   QuizDetailsResponse,
   QuizAnalyticsResponse,
   QuizPerformanceResponse,
   QuizResultsResponse,
   FlaggedQuestionResponse,
-  GetUserMatricesParams,
-  QuizAttemptParam,
-  QuizSubmissionParam,
   UpdateQuizSubmissionParam,
-  AddFeedbackParams,
-  AddQuestionBankBody,
-  EditQuestionBankBody,
   RegradeSubmissionBody,
+  AddFeedbackParams,
   AddFeedbackBody,
-} from '../classes/validators/QuizValidator.js';
-import TYPES from '../types.js';
-import {QuestionBankService} from '../services/QuestionBankService.js';
-import {QuestionBankRef} from '../classes/transformers/QuestionBank.js';
-import {IGradingResult} from '../interfaces/grading.js';
-
+} from '#quizzes/classes/validators/QuizValidator.js';
+import {QuestionBankService} from '#quizzes/services/QuestionBankService.js';
+import {QuizService} from '#quizzes/services/QuizService.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Post,
+  HttpCode,
+  Params,
+  Body,
+  Delete,
+  Get,
+} from 'routing-controllers';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 @injectable()
 @JsonController('/quiz')
 class QuizController {
   constructor(
-    @inject(TYPES.QuizService)
+    @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-    @inject(TYPES.QuestionBankService)
+    @inject(QUIZZES_TYPES.QuestionBankService)
     private readonly questionBankService: QuestionBankService,
   ) {}
 

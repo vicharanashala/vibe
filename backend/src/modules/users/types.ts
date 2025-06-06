@@ -11,4 +11,4 @@
   ItemRepo: Symbol.for('ItemRepo'),
 };
 
-export default TYPES;
+export {TYPES as USERS_TYPES};

@@ -1,36 +1,27 @@
 import {
-  DeleteResult,
-  ObjectId,
-  ReadConcern,
-  ReadPreference,
-  UpdateResult,
-  WriteConcern,
-} from 'mongodb';
-import {ICourseRepository} from '../../../shared/database/index.js';
-import {IItemRepository} from '../../../shared/database//index.js';
-import {inject, injectable} from 'inversify';
-import {
-  CourseVersion,
-  ItemsGroup,
-  Section,
-} from '../classes/transformers/index.js';
-import {
   CreateSectionBody,
-  MoveSectionBody,
-} from '../classes/validators/index.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {ICourseVersion} from '../../../shared/interfaces/models.js';
-import {calculateNewOrder} from '../utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
-import TYPES from '../types.js';
-import GLOBAL_TYPES from '../../../types.js';
+  Section,
+  ItemsGroup,
+} from '#courses/classes/index.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {
+  BaseService,
+  IItemRepository,
+  ICourseRepository,
+  MongoDatabase,
+  ICourseVersion,
+} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {UpdateResult} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
-    @inject(TYPES.ItemRepo)
+    @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @inject(TYPES.CourseRepo)
+    @inject(COURSES_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

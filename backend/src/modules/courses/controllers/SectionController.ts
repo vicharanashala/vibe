@@ -1,47 +1,46 @@
-import {instanceToPlain} from 'class-transformer';
-import 'reflect-metadata';
 import {
-  Authorized,
-  Body,
-  Delete,
-  HttpCode,
-  HttpError,
-  InternalServerError,
-  JsonController,
-  Params,
-  Post,
-  Put,
-} from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository.js';
-import {inject, injectable} from 'inversify';
-import {ItemsGroup} from '../classes/transformers/Item.js';
-import {Section} from '../classes/transformers/Section.js';
-import {
-  CreateSectionBody,
-  CreateSectionParams,
-  MoveSectionBody,
-  MoveSectionParams,
-  UpdateSectionBody,
-  UpdateSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
+  CreateSectionParams,
+  CreateSectionBody,
+  CourseVersion,
+  UpdateSectionParams,
+  UpdateSectionBody,
+  MoveSectionParams,
+  MoveSectionBody,
   SectionDeletedResponse,
   DeleteSectionParams,
-} from '../classes/validators/SectionValidators.js';
-import {calculateNewOrder} from '../utils/calculateNewOrder.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import {SectionService} from '../services/SectionService.js';
-import {CourseVersion} from '../classes/transformers/index.js';
-import TYPES from '../types.js';
+} from '#courses/classes/index.js';
+import {SectionService} from '#courses/services/SectionService.js';
+import {
+  CourseRepository,
+  ItemRepository,
+  BadRequestErrorResponse,
+} from '#shared/index.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Authorized,
+  Post,
+  HttpCode,
+  Params,
+  Body,
+  InternalServerError,
+  HttpError,
+  Put,
+  Delete,
+} from 'routing-controllers';
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 @JsonController('/courses')
 export class SectionController {
   constructor(
-    @inject(TYPES.CourseRepo) private readonly courseRepo: CourseRepository,
-    @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
-    @inject(TYPES.SectionService)
+    @inject(COURSES_TYPES.CourseRepo)
+    private readonly courseRepo: CourseRepository,
+    @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
+    @inject(COURSES_TYPES.SectionService)
     private readonly sectionService: SectionService,
   ) {
     if (!this.sectionService) {

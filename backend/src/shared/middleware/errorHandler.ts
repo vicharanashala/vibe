@@ -1,5 +1,13 @@
 import {createLogger, format, transports} from 'winston';
-import {ValidationError} from 'class-validator';
+import {
+  IsArray,
+  IsDefined,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  ValidationError,
+} from 'class-validator';
 import {
   Middleware,
   ExpressErrorMiddlewareInterface,
@@ -7,7 +15,7 @@ import {
   UnauthorizedError,
 } from 'routing-controllers';
 import {Request, Response} from 'express';
-import {Service} from 'typedi';
+import {JSONSchema} from 'class-validator-jsonschema';
 
 const logger = createLogger({
   level: 'info',
@@ -35,16 +43,6 @@ export class ErrorResponse<T> {
     this.message = message;
   }
 }
-
-import {
-  IsString,
-  IsOptional,
-  IsObject,
-  IsArray,
-  IsDefined,
-  ValidateNested,
-} from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
 
 class ValidationErrorResponse {
   @JSONSchema({
@@ -128,7 +126,6 @@ class BadRequestErrorResponse {
   errors?: ValidationErrorResponse;
 }
 
-@Service()
 @Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {

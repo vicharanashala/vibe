@@ -1,23 +1,14 @@
-import {inject, injectable} from 'inversify';
-import {QuizItem} from '#root/modules/courses/index.js';
-import {
-  IAttempt,
-  ISubmission,
-  IUserQuizMetrics,
-} from '#root/modules/quizzes/interfaces/grading.js';
+import {QuizItem} from '#courses/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {Collection, ClientSession} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
-import {Service, Inject} from 'typedi';
-import GLOBAL_TYPES from '../../../../../types.js';
 
-@Service()
 @injectable()
 class QuizRepository {
   private quizCollection: Collection<QuizItem>;
 
   constructor(
-    @Inject(() => MongoDatabase)
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}

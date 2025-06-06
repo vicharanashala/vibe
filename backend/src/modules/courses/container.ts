@@ -1,14 +1,5 @@
+import {CourseRepository, ItemRepository} from '#shared/index.js';
 import {ContainerModule} from 'inversify';
-import {CourseRepository} from '#root/shared/database/providers/mongo/repositories/CourseRepository.js';
-import TYPES from './types.js';
-import {ItemRepository} from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
-import {
-  CourseService,
-  CourseVersionService,
-  ItemService,
-  ModuleService,
-  SectionService,
-} from './services/index.js';
 import {
   CourseController,
   CourseVersionController,
@@ -16,21 +7,41 @@ import {
   ModuleController,
   SectionController,
 } from './controllers/index.js';
+import {
+  CourseService,
+  CourseVersionService,
+  ItemService,
+  ModuleService,
+  SectionService,
+} from './services/index.js';
+import {COURSES_TYPES} from './types.js';
 
 export const coursesContainerModule = new ContainerModule(options => {
   // Repositories
-  options.bind(TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
-  options.bind(TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
+  options
+    .bind(COURSES_TYPES.CourseRepo)
+    .to(CourseRepository)
+    .inSingletonScope();
+  options.bind(COURSES_TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
 
   // Services
-  options.bind(TYPES.CourseService).to(CourseService).inSingletonScope();
   options
-    .bind(TYPES.CourseVersionService)
+    .bind(COURSES_TYPES.CourseService)
+    .to(CourseService)
+    .inSingletonScope();
+  options
+    .bind(COURSES_TYPES.CourseVersionService)
     .to(CourseVersionService)
     .inSingletonScope();
-  options.bind(TYPES.ModuleService).to(ModuleService).inSingletonScope();
-  options.bind(TYPES.SectionService).to(SectionService).inSingletonScope();
-  options.bind(TYPES.ItemService).to(ItemService).inSingletonScope();
+  options
+    .bind(COURSES_TYPES.ModuleService)
+    .to(ModuleService)
+    .inSingletonScope();
+  options
+    .bind(COURSES_TYPES.SectionService)
+    .to(SectionService)
+    .inSingletonScope();
+  options.bind(COURSES_TYPES.ItemService).to(ItemService).inSingletonScope();
 
   // Controllers
   options.bind(CourseController).toSelf().inSingletonScope();

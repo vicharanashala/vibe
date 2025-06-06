@@ -1,9 +1,12 @@
-import 'reflect-metadata';
+import {
+  ICourseVersion,
+  ObjectIdToString,
+  StringToObjectId,
+  ID,
+} from '#shared/index.js';
 import {Expose, Transform, Type} from 'class-transformer';
-import {ICourseVersion} from '../../../../shared/interfaces/models.js';
-import {Module} from './Module.js';
-import {CreateCourseVersionBody} from '../validators/index.js';
-import {ObjectIdToString, StringToObjectId, ID} from '#shared/index.js';
+import {CreateCourseVersionBody} from '../validators/CourseVersionValidators.js';
+import {Module} from './index.js';
 
 /**
  * Course version data transformation.

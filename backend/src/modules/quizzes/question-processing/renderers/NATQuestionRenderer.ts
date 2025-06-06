@@ -1,5 +1,6 @@
-﻿import {NATQuestion} from '../../classes/transformers/index.js';
-import {TagParser, ParameterMap} from '../tag-parser/index.js';
+﻿import {NATQuestion} from '#quizzes/classes/index.js';
+import {ParameterMap} from '../tag-parser/index.js';
+import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
 import {NATQuestionRenderView} from './interfaces/RenderViews.js';
 

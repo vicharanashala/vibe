@@ -1,36 +1,28 @@
-import 'reflect-metadata';
-import {
-  JsonController,
-  Authorized,
-  Post,
-  Body,
-  Get,
-  Put,
-  Delete,
-  Params,
-  HttpCode,
-  OnUndefined,
-  BadRequestError,
-  Patch,
-} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
 import {
   QuestionBody,
   QuestionId,
+  QuestionFactory,
   QuestionResponse,
-} from '../classes/validators/QuestionValidator.js';
-import {QuestionFactory} from '../classes/transformers/Question.js';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types.js';
-import {QuestionService} from '../services/QuestionService.js';
-
+} from '#quizzes/classes/index.js';
+import {QuestionService} from '#quizzes/services/QuestionService.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Post,
+  HttpCode,
+  Body,
+  Get,
+  Params,
+  Put,
+  Delete,
+  OnUndefined,
+} from 'routing-controllers';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 @JsonController('/questions')
-@Service()
 @injectable()
 class QuestionController {
   constructor(
-    @inject(TYPES.QuestionService)
+    @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,
   ) {}
 

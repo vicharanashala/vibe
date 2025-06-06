@@ -1,31 +1,28 @@
+import {
+  IQuestionAnswer,
+  Answer,
+  IGradingResult,
+  IQuestionAnswerFeedback,
+  IAttemptDetails,
+  IQuestionDetails,
+} from '#quizzes/interfaces/grading.js';
+import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
+import {QuestionType, ItemType, IQuizDetails} from '#shared/index.js';
 import {Type} from 'class-transformer';
 import {
-  IsArray,
-  IsDate,
-  IsDateString,
-  IsEnum,
   IsMongoId,
   IsNotEmpty,
+  IsArray,
   IsNumber,
-  IsOptional,
-  IsString,
-  Validate,
   ValidateNested,
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsDateString,
+  IsDate,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {
-  Answer,
-  IAttempt,
-  IAttemptDetails,
-  IGradingResult,
-  IQuestionAnswer,
-  IQuestionAnswerFeedback,
-  IQuestionDetails,
-} from '#root/modules/quizzes/interfaces/grading.js';
-import {IQuestionRenderView} from '#root/modules/quizzes/question-processing/renderers/index.js';
 import {ObjectId} from 'mongodb';
-import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
-import {IQuestion, QuestionType} from '#root/shared/interfaces/quiz.js';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
 
 // Request Schemas

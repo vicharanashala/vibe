@@ -1,15 +1,13 @@
-import 'reflect-metadata';
-import {Service} from 'typedi';
+// Import module options
+
+import {authModuleOptions} from '#auth/index.js';
+import {coursesModuleOptions} from '#courses/index.js';
+import {docsModuleOptions} from '#docs/index.js';
+import {usersModuleOptions} from '#users/index.js';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import {injectable} from 'inversify';
 import {getMetadataArgsStorage} from 'routing-controllers';
 import {routingControllersToSpec} from 'routing-controllers-openapi';
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-
-// Import module options
-import {authModuleOptions} from '../../auth/index.js';
-import {coursesModuleOptions} from '../../courses/index.js';
-import {usersModuleOptions} from '../../users/index.js';
-import {docsModuleOptions} from '../../docs/index.js';
-import {injectable} from 'inversify';
 
 @injectable()
 export class OpenApiSpecService {

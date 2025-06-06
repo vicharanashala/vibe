@@ -1,11 +1,10 @@
+import {MongoDatabase} from '#shared/database/index.js';
 import {
   ClientSession,
   ReadPreference,
   ReadConcern,
   WriteConcern,
 } from 'mongodb';
-import {IDatabase} from '#root/shared/database/index.js';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
 
 export abstract class BaseService {
   constructor(private readonly db: MongoDatabase) {}

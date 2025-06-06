@@ -1,4 +1,4 @@
-import 'reflect-metadata';
+import {ICourse, ID} from '#shared/index.js';
 import {
   IsNotEmpty,
   IsString,
@@ -8,16 +8,7 @@ import {
   ValidateIf,
   IsMongoId,
 } from 'class-validator';
-import {ICourse} from '../../../../shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {Exclude, Expose, Transform, Type} from 'class-transformer';
-import {
-  ObjectIdToString,
-  StringToObjectId,
-  ObjectIdArrayToStringArray,
-  StringArrayToObjectIdArray,
-} from '../../../../shared/constants/transformerConstants.js';
-import {ID} from '#shared/index.js';
 
 class CreateCourseBody implements Partial<ICourse> {
   @JSONSchema({

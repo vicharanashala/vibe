@@ -1,6 +1,7 @@
-import {env} from '../utils/env.js';
 // import path from 'path';
 // import {fileURLToPath} from 'url';
+
+import {env} from '#root/utils/env.js';
 
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);

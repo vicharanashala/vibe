@@ -1,39 +1,36 @@
-import 'reflect-metadata';
 import {
-  Authorized,
-  JsonController,
-  Params,
-  Body,
-  Post,
-  Put,
-  Delete,
-  HttpCode,
-  Req,
-} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {instanceToPlain} from 'class-transformer';
-import {ModuleService} from '../services/ModuleService.js';
-import {
+  ModuleDataResponse,
+  ModuleNotFoundErrorResponse,
   CreateModuleParams,
   CreateModuleBody,
   UpdateModuleParams,
   UpdateModuleBody,
   MoveModuleParams,
   MoveModuleBody,
-  DeleteModuleParams,
-  ModuleDataResponse,
-  ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
-} from '../classes/validators/ModuleValidators.js';
-import {calculateNewOrder} from '../utils/calculateNewOrder.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import TYPES from '../types.js';
+  DeleteModuleParams,
+} from '#courses/classes/index.js';
+import {ModuleService} from '#courses/services/ModuleService.js';
+import {BadRequestErrorResponse} from '#shared/index.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Authorized,
+  Post,
+  HttpCode,
+  Params,
+  Body,
+  Put,
+  Delete,
+} from 'routing-controllers';
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/index.js';
 @injectable()
 @JsonController('/courses')
 export class ModuleController {
   constructor(
-    @inject(TYPES.ModuleService)
+    @inject(COURSES_TYPES.ModuleService)
     private service: ModuleService,
   ) {}
 

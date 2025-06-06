@@ -1,11 +1,7 @@
+import {EnrollmentRole, EnrollmentStatus} from '#shared/index.js';
 import {Expose, Type} from 'class-transformer';
 import {Enrollment} from './Enrollment.js';
 import {Progress} from './Progress.js';
-import {Token} from 'typedi';
-import {
-  EnrollmentRole,
-  EnrollmentStatus,
-} from '#root/shared/interfaces/models.js';
 
 export * from './Enrollment.js';
 export * from './Progress.js';

@@ -1,5 +1,5 @@
-import {NATQuestion} from '../../classes/transformers/index.js';
-import {TagParser} from '#root/modules/quizzes/question-processing/tag-parser/index.js';
+import {NATQuestion} from '#quizzes/classes/index.js';
+import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionValidator} from './BaseQuestionValidator.js';
 
 export class NATQuestionValidator extends BaseQuestionValidator {

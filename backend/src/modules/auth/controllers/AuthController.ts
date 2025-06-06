@@ -1,42 +1,29 @@
-import 'reflect-metadata';
+import {SignUpBody, ChangePasswordBody} from '#auth/classes/index.js';
+import {
+  IAuthService,
+  AuthenticatedRequest,
+} from '#auth/interfaces/IAuthService.js';
+import {ChangePasswordError} from '#auth/services/FirebaseAuthService.js';
+import {AuthRateLimiter} from '#shared/index.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Post,
+  UseBefore,
+  HttpCode,
   Body,
   Authorized,
-  Req,
   Patch,
+  Req,
   HttpError,
-  HttpCode,
-  UseBefore,
 } from 'routing-controllers';
-import {Inject, Service} from 'typedi';
-import {
-  AuthenticatedRequest,
-  IAuthService,
-} from '../interfaces/IAuthService.js';
-import {instanceToPlain} from 'class-transformer';
-import {ChangePasswordError} from '../services/FirebaseAuthService.js';
-import {
-  ChangePasswordBody,
-  SignUpBody,
-  SignUpResponse,
-  ChangePasswordResponse,
-  TokenVerificationResponse,
-  AuthErrorResponse,
-  VerifySignUpProviderBody,
-} from '../classes/validators/index.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import {AuthRateLimiter} from '../../../shared/middleware/rateLimiter.js';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types.js';
-
+import {AUTH_TYPES} from '#auth/types.js';
 @JsonController('/auth')
 @injectable()
 export class AuthController {
   constructor(
-    @inject(TYPES.AuthService)
+    @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
   ) {}
 

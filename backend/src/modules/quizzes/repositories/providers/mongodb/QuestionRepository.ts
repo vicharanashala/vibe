@@ -1,19 +1,15 @@
-import {inject, injectable} from 'inversify';
-import {BaseQuestion} from '#root/modules/quizzes/classes/transformers/index.js';
-import {ClientSession, Collection} from 'mongodb';
+import {BaseQuestion} from '#quizzes/classes/index.js';
+import {MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
-import TYPES from '../../../../../types.js';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
-
-@Service()
+import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class QuestionRepository {
   private questionCollection: Collection<BaseQuestion>;
 
   constructor(
-    @Inject(() => MongoDatabase)
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

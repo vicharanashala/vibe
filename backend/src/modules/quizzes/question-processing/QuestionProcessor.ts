@@ -1,44 +1,46 @@
+import {QuizItem} from '#courses/index.js';
 import {
   BaseQuestion,
-  SMLQuestion,
   SOLQuestion,
+  SMLQuestion,
   OTLQuestion,
   NATQuestion,
   DESQuestion,
-} from '#root/modules/quizzes/classes/transformers/index.js';
-import {TagParser} from './tag-parser/TagParser.js';
-import {QParamTag} from './tag-parser/tags/QParamTag.js';
-import {NumExprTag} from './tag-parser/tags/NumExprTag.js';
-import {NumExprTexTag} from './tag-parser/tags/NumExprTexTag.js';
-import {ParameterMap} from './tag-parser/tags/Tag.js';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap.js';
-import {
-  BaseQuestionRenderer,
-  SOLQuestionRenderer,
-  IQuestionRenderView,
-  SMLQuestionRenderer,
-  OTLQuestionRenderer,
-  NATQuestionRenderer,
-  DESQuestionRenderer,
-} from './renderers/index.js';
-import {
-  BaseQuestionValidator,
-  SOLQuestionValidator,
-  SMLQuestionValidator,
-  OTLQuestionValidator,
-  NATQuestionValidator,
-  DESQuestionValidator,
-} from './validators/index.js';
-import {IGrader} from './graders/interfaces/IGrader.js';
-import {SOLQuestionGrader} from './graders/SOLQuestionGrader.js';
-import {SMLQuestionGrader} from './graders/SMLQuestionGrader.js';
-import {Answer, IQuestionAnswerFeedback} from '../interfaces/grading.js';
-import {QuizItem} from '#root/modules/courses/index.js';
+} from '#quizzes/classes/index.js';
+import {Answer, IQuestionAnswerFeedback} from '#quizzes/interfaces/grading.js';
+import {generateRandomParameterMap} from '#quizzes/utils/index.js';
 import {
   DESQuestionGrader,
+  IGrader,
   NATQuestionGrader,
   OTLQuestionGrader,
+  SMLQuestionGrader,
+  SOLQuestionGrader,
 } from './graders/index.js';
+import {
+  BaseQuestionRenderer,
+  DESQuestionRenderer,
+  IQuestionRenderView,
+  NATQuestionRenderer,
+  OTLQuestionRenderer,
+  SMLQuestionRenderer,
+  SOLQuestionRenderer,
+} from './renderers/index.js';
+import {
+  QParamTag,
+  NumExprTag,
+  NumExprTexTag,
+  ParameterMap,
+} from './tag-parser/index.js';
+import {TagParser} from './tag-parser/TagParser.js';
+import {
+  BaseQuestionValidator,
+  DESQuestionValidator,
+  NATQuestionValidator,
+  OTLQuestionValidator,
+  SMLQuestionValidator,
+  SOLQuestionValidator,
+} from './validators/index.js';
 
 class QuestionProcessor {
   private tagParser: TagParser;

@@ -1,6 +1,4 @@
-﻿import {CourseVersion, Module} from './classes/transformers/index.js';
-
-const TYPES = {
+﻿const TYPES = {
   //Services
   CourseService: Symbol.for('CourseService'),
   CourseVersionService: Symbol.for('CourseVersionService'),
@@ -13,4 +11,4 @@ const TYPES = {
   ItemRepo: Symbol.for('ItemRepo'),
 };
 
-export default TYPES;
+export {TYPES as COURSES_TYPES};

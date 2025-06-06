@@ -1,12 +1,11 @@
-import {DESQuestion} from '#root/modules/quizzes/classes/index.js';
-import {IGrader} from './interfaces/index.js';
-import {QuizItem} from '#root/modules/courses/index.js';
+import {QuizItem} from '#courses/index.js';
+import {DESQuestion} from '#quizzes/classes/index.js';
 import {
-  Answer,
   IDESAnswer,
   IQuestionAnswerFeedback,
-} from '#root/modules/quizzes/interfaces/grading.js';
+} from '#quizzes/interfaces/grading.js';
 import {ParameterMap} from '../tag-parser/index.js';
+import {IGrader} from './interfaces/IGrader.js';
 
 class DESQuestionGrader implements IGrader {
   constructor(readonly question: DESQuestion) {}

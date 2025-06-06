@@ -1,18 +1,5 @@
-import {
-  BlogItem,
-  Item,
-  ItemsGroup,
-  QuizItem,
-  VideoItem,
-} from '#root/modules/courses/classes/transformers/index.js';
-import {
-  IBaseItem,
-  IVideoDetails,
-  IQuizDetails,
-  IBlogDetails,
-  ICourseVersion,
-} from '../../interfaces/models.js';
-import {ObjectId, ClientSession} from 'mongodb';
+import {Item, ItemsGroup} from '#courses/classes/transformers/index.js';
+import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
   readItem(

@@ -1,4 +1,4 @@
-import {IQuestionParameter} from '../../../../../shared/interfaces/quiz.js';
+import {IQuestionParameter} from '#shared/index.js';
 
 type ParameterMap = Record<string, string | number>;
 abstract class Tag {

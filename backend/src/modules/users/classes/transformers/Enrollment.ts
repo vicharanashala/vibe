@@ -1,16 +1,13 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
 import {
+  IEnrollment,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants.js';
-import {
+  ID,
   EnrollmentRole,
   EnrollmentStatus,
-  IEnrollment,
-} from '../../../../shared/interfaces/models.js';
-import {ID} from '#root/shared/index.js';
+} from '#shared/index.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 
 @Expose()
 export class Enrollment implements IEnrollment {

@@ -1,47 +1,45 @@
-import 'reflect-metadata';
-import {
-  JsonController,
-  Authorized,
-  Post,
-  Body,
-  Get,
-  Put,
-  Delete,
-  Params,
-  HttpCode,
-  CurrentUser,
-  ForbiddenError,
-} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {
-  CreateItemBody,
-  UpdateItemBody,
-  MoveItemBody,
-  CreateItemParams,
-  ReadAllItemsParams,
-  UpdateItemParams,
-  MoveItemParams,
-  DeleteItemParams,
-  DeletedItemResponse,
-  GetItemParams,
-} from '../classes/validators/ItemValidators.js';
-import {ItemService} from '../services/index.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler.js';
 import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
-} from '../classes/validators/ItemValidators.js';
-import {IUser} from '#root/shared/interfaces/models.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import TYPES from '../types.js';
-import USER_TYPES from '#root/modules/users/types.js';
+  CreateItemParams,
+  CreateItemBody,
+  ReadAllItemsParams,
+  UpdateItemParams,
+  UpdateItemBody,
+  DeletedItemResponse,
+  DeleteItemParams,
+  MoveItemParams,
+  MoveItemBody,
+  GetItemParams,
+} from '#courses/classes/index.js';
+import {ItemService} from '#courses/services/ItemService.js';
+import {ProgressService, USERS_TYPES} from '#users/index.js';
+import {inject, injectable} from 'inversify';
+import {
+  Authorized,
+  Body,
+  CurrentUser,
+  Delete,
+  ForbiddenError,
+  Get,
+  HttpCode,
+  JsonController,
+  Params,
+  Post,
+  Put,
+} from 'routing-controllers';
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {IUser} from '#shared/index.js';
+
 @injectable()
 @JsonController('/courses')
 export class ItemController {
   constructor(
-    @inject(TYPES.ItemService) private readonly itemService: ItemService,
-    @inject(USER_TYPES.ProgressService)
+    @inject(COURSES_TYPES.ItemService)
+    private readonly itemService: ItemService,
+    @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
   ) {}
 

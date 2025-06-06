@@ -1,11 +1,11 @@
-import {QuizItem} from '#root/modules/courses/index.js';
-import {SMLQuestion} from '#root/modules/quizzes/classes/transformers/index.js';
+import {QuizItem} from '#courses/index.js';
+import {SMLQuestion} from '#quizzes/classes/index.js';
 import {
-  IQuestionAnswerFeedback,
   ISMLAnswer,
-} from '#root/modules/quizzes/interfaces/grading.js';
-import {IGrader} from './interfaces/IGrader.js';
+  IQuestionAnswerFeedback,
+} from '#quizzes/interfaces/grading.js';
 import {ParameterMap} from '../tag-parser/index.js';
+import {IGrader} from './interfaces/IGrader.js';
 
 class SMLQuestionGrader implements IGrader {
   constructor(readonly question: SMLQuestion) {}

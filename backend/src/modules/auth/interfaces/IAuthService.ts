@@ -1,20 +1,5 @@
-/**
- * @file IAuthService.ts
- * @description Interface for the authentication service.
- *
- * @category Auth/Interfaces
- * @categoryDescription
- * Interfaces defining the contract for authentication services.
- * Includes methods for user signup, token verification, and password change.
- */
-
-import 'reflect-metadata';
-import {Request} from 'express';
-import {IUser} from '../../../shared/interfaces/models.js';
-import {
-  ChangePasswordBody,
-  SignUpBody,
-} from '../classes/validators/AuthValidators.js';
+import {SignUpBody, ChangePasswordBody} from '#auth/classes/index.js';
+import {IUser} from '#shared/index.js';
 
 /**
  * Interface representing the authentication service.

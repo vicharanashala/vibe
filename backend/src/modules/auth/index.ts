@@ -1,27 +1,15 @@
-/**
- * @file index.ts
- * @description This file exports all the DTOs used in the auth module.
- * @module auth
- *
- * @author Aditya BMV
- * @organization DLED
- * @license MIT
- * @created 2025-03-06
- */
-
-import 'reflect-metadata';
-import {
-  Action,
-  getFromContainer,
-  RoutingControllersOptions,
-} from 'routing-controllers';
-import {AuthController} from './controllers/AuthController.js';
-import {useContainer} from 'routing-controllers';
-import {FirebaseAuthService} from './services/FirebaseAuthService.js';
-import {Container} from 'inversify';
 import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {Container} from 'inversify';
+import {
+  RoutingControllersOptions,
+  Action,
+  useContainer,
+  getFromContainer,
+} from 'routing-controllers';
 import {authContainerModule} from './container.js';
-import {InversifyAdapter} from '../../inversify-adapter.js';
+import {AuthController} from './controllers/AuthController.js';
+import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 
 export async function setupAuthContainer(): Promise<void> {
   const container = new Container();
