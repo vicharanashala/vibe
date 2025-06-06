@@ -3,12 +3,13 @@ import {IQuestionBank} from 'shared/interfaces/quiz';
 import TYPES from '../../../../../types';
 import {injectable, inject} from 'inversify';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
+import GLOBAL_TYPES from '../../../../../types';
 
 @injectable()
 class QuestionBankRepository {
   private questionBankCollection: Collection<IQuestionBank>;
   constructor(
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

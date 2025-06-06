@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from 'modules/courses/utils/calculateNewOrder';
+import {calculateNewOrder} from '../../utils/calculateNewOrder';
 import {ObjectId} from 'mongodb';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {IModule} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '../../../../shared/constants/transformerConstants';
+import {IModule} from '../../../../shared/interfaces/Models';
+import {ID} from '../../../../shared/types';
 import {CreateModuleBody} from '../validators/ModuleValidators';
 import {Section} from './Section';
 

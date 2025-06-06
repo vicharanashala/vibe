@@ -1,15 +1,15 @@
 ﻿import 'reflect-metadata';
 import {instanceToPlain} from 'class-transformer';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {IItemRepository} from 'shared/database/interfaces/IItemRepository';
-import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
+import {IItemRepository} from '../../../interfaces/IItemRepository';
+import {ICourseRepository} from '../../../interfaces/ICourseRepository';
 import {
   CreateError,
   DeleteError,
   ReadError,
   UpdateError,
-} from 'shared/errors/errors';
-import {Service, Inject} from 'typedi';
+} from '../../../../errors/errors';
+import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase';
 import {NotFoundError} from 'routing-controllers';
 import {
@@ -20,8 +20,9 @@ import {
   Item,
 } from 'modules/courses/classes/transformers/Item';
 import {ItemType} from 'shared/interfaces/Models';
+import GLOBAL_TYPES from '../../../../../types';
 
-@Service()
+@injectable()
 export class ItemRepository implements IItemRepository {
   private itemsGroupCollection: Collection<ItemsGroup>;
   private videoCollection: Collection<VideoItem>;
@@ -29,9 +30,9 @@ export class ItemRepository implements IItemRepository {
   private blogCollection: Collection<BlogItem>;
 
   constructor(
-    @Inject(() => MongoDatabase)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-    @Inject('CourseRepo')
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
   ) {}
 

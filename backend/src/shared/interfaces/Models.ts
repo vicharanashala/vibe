@@ -1,7 +1,7 @@
 import {ObjectId} from 'mongodb';
 
 export interface IUser {
-  id?: string;
+  _id?: string | ObjectId | null;
   firebaseUID: string;
   email: string;
   firstName: string;
@@ -321,13 +321,16 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
+export type EnrollmentRole = 'instructor' | 'student' | 'manager' | 'ta';
+export type EnrollmentStatus = 'active' | 'inactive';
 // New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
   courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
-  status: 'active' | 'inactive';
+  role: EnrollmentRole;
+  status: EnrollmentStatus;
   enrollmentDate: Date;
 }
 

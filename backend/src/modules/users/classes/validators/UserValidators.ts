@@ -70,6 +70,17 @@ export class UserByFirebaseUIDResponse {
   })
   @IsString()
   lastName: string;
+
+  @JSONSchema({
+    description: "User's roles",
+    example: ['student'],
+    type: 'array',
+    items: {
+      type: 'string',
+    },
+    readOnly: true,
+  })
+  roles: string[];
 }
 
 /**

@@ -1,5 +1,5 @@
-import {BaseQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
+import {BaseQuestion} from '../../../classes/transformers';
+import {ILotItem} from '../../../../../shared/interfaces/quiz';
 import {ParameterMap} from '../../tag-parser';
 
 interface IQuestionRenderView extends BaseQuestion {

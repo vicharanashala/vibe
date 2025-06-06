@@ -1,5 +1,5 @@
-﻿import {SMLQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
+﻿import {SMLQuestion} from '../../classes/transformers';
+import {ILotItem} from '../../../../shared/interfaces/quiz';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer';
 import {SMLQuestionRenderView} from './interfaces/RenderViews';

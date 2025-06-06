@@ -1,6 +1,6 @@
 import request from 'supertest';
 import Express from 'express';
-import {r} from '@faker-js/faker/dist/airline-BUL6NtOJ';
+import {ObjectId} from 'mongodb';
 
 export interface EnrollmentParams {
   userId: string;
@@ -10,7 +10,7 @@ export interface EnrollmentParams {
 
 export async function createEnrollment(
   app: typeof Express,
-  userId: string,
+  userId: string | ObjectId,
   courseId: string,
   courseVersionId: string,
   firstModuleId: string,
@@ -22,6 +22,7 @@ export async function createEnrollment(
     .post(
       `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
     )
+    .send({role: 'student'})
     .expect(200);
 
   // Build up the expected “shape” of the response

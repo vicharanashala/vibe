@@ -1,7 +1,7 @@
-import {Service, Inject} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IItemRepository} from 'shared/database';
-import {ICourseRepository} from 'shared/database/';
+import {IItemRepository} from '../../../shared/database';
+import {ICourseRepository} from '../../../shared/database/';
 import {
   BlogItem,
   Item,
@@ -23,43 +23,24 @@ import {
   ReadPreference,
   WriteConcern,
 } from 'mongodb';
-import {ItemType} from 'shared/interfaces/Models';
+import {ItemType} from '../../../shared/interfaces/Models';
 import {CourseVersion, Module, Section} from '../classes/transformers';
+import {BaseService} from '../../../shared/classes/BaseService';
+import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import TYPES from '../types';
+import GLOBAL_TYPES from '../../../types';
 
-@Service()
-export class ItemService {
+@injectable()
+export class ItemService extends BaseService {
   constructor(
-    @Inject('ItemRepo')
+    @inject(TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @Inject('CourseRepo')
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) {}
-
-  private async _withTransaction<T>(
-    operation: (session: ClientSession) => Promise<T>,
-  ): Promise<T> {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-      const result = await operation(session);
-      await session.commitTransaction();
-      return result;
-    } catch (error) {
-      // Ensure abort is only called if a transaction is in progress
-      if (session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      throw error; // Re-throw the original error
-    } finally {
-      await session.endSession();
-    }
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
   }
 
   private async _getVersionModuleSectionAndItemsGroup(
@@ -108,7 +89,7 @@ export class ItemService {
     version: CourseVersion,
     module: {updatedAt: Date},
     section: {updatedAt: Date},
-    session?: import('mongodb').ClientSession, // Pass session if version update is part of the transaction
+    session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
     section.updatedAt = now;
@@ -191,12 +172,7 @@ export class ItemService {
     return itemsGroup.items;
   }
 
-  public async readItem(
-    versionId: string,
-    moduleId: string,
-    sectionId: string,
-    itemId: string,
-  ) {
+  public async readItem(versionId: string, itemId: string) {
     const item = await this.itemRepo.readItem(versionId, itemId);
     return item;
   }
@@ -208,17 +184,7 @@ export class ItemService {
     itemId: string,
     body: UpdateItemBody,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
       const module = version.modules.find(m => m.moduleId === moduleId)!;
@@ -244,28 +210,12 @@ export class ItemService {
         version,
       );
 
-      await session.commitTransaction();
       return {itemsGroup: updatedItemsGroup, version: updatedVersion};
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-
+    return this._withTransaction(async session => {
       const deleted = await this.itemRepo.deleteItem(
         itemsGroupId,
         itemId,
@@ -278,14 +228,8 @@ export class ItemService {
         session,
       );
 
-      await session.commitTransaction();
       return {deletedItemId: itemId, itemsGroup: updatedItemsGroup};
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async moveItem(
@@ -295,21 +239,11 @@ export class ItemService {
     itemId: string,
     body: MoveItemBody,
   ) {
-    const {afterItemId, beforeItemId} = body;
-    if (!afterItemId && !beforeItemId) {
-      throw new Error('Either afterItemId or beforeItemId is required');
-    }
-
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
+      const {afterItemId, beforeItemId} = body;
+      if (!afterItemId && !beforeItemId) {
+        throw new Error('Either afterItemId or beforeItemId is required');
+      }
 
       const version = await this.courseRepo.readVersion(versionId, session);
       const module = version.modules.find(m => m.moduleId === moduleId)!;
@@ -348,13 +282,7 @@ export class ItemService {
         version,
       );
 
-      await session.commitTransaction();
       return {itemsGroup: updatedItemsGroup, version: updatedVersion};
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 }

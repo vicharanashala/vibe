@@ -1,4 +1,4 @@
-﻿import {NATQuestion} from 'modules/quizzes/classes/transformers';
+﻿import {NATQuestion} from '../../classes/transformers';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer';
 import {NATQuestionRenderView} from './interfaces/RenderViews';

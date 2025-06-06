@@ -8,8 +8,10 @@ import {
   Put,
   Params,
   HttpCode,
+  Delete,
+  OnUndefined,
 } from 'routing-controllers';
-import {Service, Inject} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {Course} from '../classes/transformers/Course';
 import {
   CreateCourseBody,
@@ -28,16 +30,14 @@ import {
 } from 'routing-controllers-openapi';
 import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
 import {coursesModuleOptions} from '..';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
+import TYPES from '../types';
 
-@OpenAPI({
-  tags: ['Courses'],
-})
+@injectable()
 @JsonController('/courses')
-@Service()
 export class CourseController {
   constructor(
-    @Inject('CourseService') private readonly courseService: CourseService,
+    @inject(TYPES.CourseService) private readonly courseService: CourseService,
   ) {}
 
   @Authorized(['admin', 'instructor'])
@@ -49,10 +49,6 @@ export class CourseController {
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
-  })
-  @OpenAPI({
-    summary: 'Create Course',
-    description: 'Creates a new course with the provided details.',
   })
   async create(@Body() body: CreateCourseBody): Promise<Course> {
     const course = new Course(body);
@@ -73,10 +69,6 @@ export class CourseController {
     description: 'Course not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Get Course',
-    description: 'Retrieves the course details for the specified course ID.',
-  })
   async read(@Params() params: ReadCourseParams) {
     const {id} = params;
     const course = await this.courseService.readCourse(id);
@@ -96,10 +88,6 @@ export class CourseController {
     description: 'Course not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Update Course',
-    description: 'Updates the course details for the specified course ID.',
-  })
   async update(
     @Params() params: UpdateCourseParams,
     @Body() body: UpdateCourseBody,
@@ -107,6 +95,22 @@ export class CourseController {
     const {id} = params;
     const updatedCourse = await this.courseService.updateCourse(id, body);
     return updatedCourse;
+  }
+
+  @Authorized(['admin', 'instructor'])
+  @Delete('/:id', {transformResponse: true})
+  @OnUndefined(204)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  async delete(@Params() params: ReadCourseParams) {
+    const {id} = params;
+    await this.courseService.deleteCourse(id);
   }
 }
 

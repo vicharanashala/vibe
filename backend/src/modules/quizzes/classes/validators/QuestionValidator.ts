@@ -29,7 +29,7 @@ import {
   ISMLSolution,
   ISOLSolution,
   QuestionType,
-} from 'shared/interfaces/quiz';
+} from '../../../../shared/interfaces/quiz';
 import {NATQuestion} from '../transformers/Question';
 
 class QuestionParameter implements IQuestionParameter {

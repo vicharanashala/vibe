@@ -1,5 +1,5 @@
-﻿import {OTLQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
+﻿import {OTLQuestion} from '../../classes/transformers';
+import {ILotItem} from '../../../../shared/interfaces/quiz';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer';
 import {OTLQuestionRenderView} from './interfaces/RenderViews';

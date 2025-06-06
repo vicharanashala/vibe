@@ -6,7 +6,7 @@ import {
   NotFoundError,
   HttpCode,
 } from 'routing-controllers';
-import {Inject, Service} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
   UserByFirebaseUIDParams,
@@ -15,6 +15,7 @@ import {
 } from '../classes/validators/UserValidators';
 import {IUserRepository} from 'shared/database/interfaces/IUserRepository';
 import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import TYPES from '../types';
 
 /**
  * Controller for managing user-related operations.
@@ -25,18 +26,20 @@ import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
   tags: ['Users'],
 })
 @JsonController('/users', {transformResponse: true})
-@Service()
+@injectable()
 export class UserController {
-  constructor(@Inject('UserRepo') private userRepository: IUserRepository) {}
+  constructor(
+    @inject(TYPES.UserRepo) private userRepository: IUserRepository,
+  ) {}
 
   /**
-   * Finds a user ID by Firebase UID.
+   * Finds a user by Firebase UID.
    */
   @Get('/firebase/:firebaseUID')
   @HttpCode(200)
   @OpenAPI({
     summary: 'Get User by Firebase UID',
-    description: 'Retrieves a user ID using their Firebase UID.',
+    description: 'Retrieves a user using their Firebase UID.',
   })
   @ResponseSchema(UserByFirebaseUIDResponse, {
     description: 'User found successfully',
@@ -55,18 +58,13 @@ export class UserController {
     try {
       const user = await this.userRepository.findByFirebaseUID(firebaseUID);
 
-      if (!user) {
-        throw new NotFoundError(
-          'User not found with the provided Firebase UID',
-        );
-      }
-
       return {
-        id: user.id!,
+        id: user._id!.toString(),
         firebaseUID: user.firebaseUID,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        roles: user.roles,
       };
     } catch (error) {
       if (error instanceof NotFoundError) {

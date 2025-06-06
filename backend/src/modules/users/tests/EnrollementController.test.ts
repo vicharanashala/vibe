@@ -1,35 +1,34 @@
-import {MongoMemoryServer} from 'mongodb-memory-server';
 import request from 'supertest';
 import Express from 'express';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
-import {Container} from 'typedi';
-import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatabase';
 import {
-  authModuleOptions,
-  setupAuthModuleDependencies,
-  SignUpBody,
-} from 'modules/auth';
+  RoutingControllersOptions,
+  useContainer,
+  useExpressServer,
+} from 'routing-controllers';
+import {authModuleOptions, SignUpBody} from '../../auth';
 import {
   Course,
   coursesModuleOptions,
   CreateCourseBody,
   CreateCourseVersionBody,
   CreateCourseVersionParams,
+  CreateItemBody,
   CreateItemParams,
   CreateModuleBody,
   CreateModuleParams,
   CreateSectionBody,
   CreateSectionParams,
-  setupCoursesModuleDependencies,
-} from 'modules/courses';
-import {
-  EnrollmentParams,
-  setupUsersModuleDependencies,
-  usersModuleOptions,
-} from '..';
-import {faker} from '@faker-js/faker/.';
-import c from 'config';
-import {dbConfig} from '../../../config/db';
+} from '../../courses';
+import {EnrollmentParams, usersModuleOptions} from '..';
+import {faker} from '@faker-js/faker';
+import {Container} from 'inversify';
+import {sharedContainerModule} from '../../../container';
+import {authContainerModule} from '../../auth/container';
+import {usersContainerModule} from '../container';
+import {coursesContainerModule} from '../../courses/container';
+import {InversifyAdapter} from '../../../inversify-adapter';
+import {ItemType} from '../../../shared/interfaces/Models';
+
 jest.setTimeout(90000);
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
@@ -38,12 +37,15 @@ describe('Enrollment Controller Integration Tests', () => {
   beforeAll(async () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
-
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-
-    setupAuthModuleDependencies();
-    setupCoursesModuleDependencies();
-    setupUsersModuleDependencies();
+    const container = new Container();
+    await container.load(
+      sharedContainerModule,
+      authContainerModule,
+      usersContainerModule,
+      coursesContainerModule,
+    );
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
 
     // Create the Express app with routing-controllers configuration
     const options: RoutingControllersOptions = {
@@ -80,10 +82,8 @@ describe('Enrollment Controller Integration Tests', () => {
         .post('/auth/signup')
         .send(signUpBody)
         .expect(201);
-      // Expect the response to contain the user ID
-      expect(signUpResponse.body).toHaveProperty('id');
       // Extract the user ID from the response
-      const userId = signUpResponse.body.id;
+      const userId = signUpResponse.body;
 
       // 2. Create a course by hitting at endpoint /courses
 
@@ -213,7 +213,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       const itemId = createItemResponse.body.itemsGroup.items[0]._id;
 
-      // 3. Enroll the user in the course version by hitting at endpoint
+      // 3. Enroll the user as a student in the course version by hitting at endpoint
 
       const createEnrollmentParams: EnrollmentParams = {
         userId: userId,
@@ -221,9 +221,13 @@ describe('Enrollment Controller Integration Tests', () => {
         courseVersionId: courseVersionId,
       };
 
-      const enrollmentResponse = await request(app).post(
-        `/users/${createEnrollmentParams.userId}/enrollments/courses/${createEnrollmentParams.courseId}/versions/${createEnrollmentParams.courseVersionId}`,
-      );
+      const enrollmentResponse = await request(app)
+        .post(
+          `/users/${createEnrollmentParams.userId}/enrollments/courses/${createEnrollmentParams.courseId}/versions/${createEnrollmentParams.courseVersionId}`,
+        )
+        .send({
+          role: 'student',
+        });
       //expect status code to be 200
       expect(enrollmentResponse.status).toBe(200);
       //expect response to have property enrollment
@@ -283,7 +287,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post('/auth/signup')
         .send(signUpBody)
         .expect(201);
-      const userId = signUpResponse.body.id;
+      const userId = signUpResponse.body;
 
       // 2. Create a course
       const courseBody: CreateCourseBody = {
@@ -337,15 +341,23 @@ describe('Enrollment Controller Integration Tests', () => {
         createSectionResponse.body.version.modules[0].sections[0].sectionId;
 
       // 6. Create an item
-      const itemPayload = {
-        name: 'Item1',
-        description: 'This an item',
-        type: 'VIDEO',
-        videoDetails: {
-          URL: 'http://url.com',
-          startTime: '00:00:00',
-          endTime: '00:00:40',
-          points: 10.5,
+      const itemPayload: CreateItemBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+        type: ItemType.QUIZ,
+        quizDetails: {
+          questionVisibility: 3,
+          allowPartialGrading: true,
+          deadline: faker.date.future(),
+          allowHint: true,
+          maxAttempts: 5,
+          releaseTime: faker.date.future(),
+          quizType: 'DEADLINE',
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          approximateTimeToComplete: '00:30:00',
+          passThreshold: 0.7,
         },
       };
 
@@ -358,9 +370,13 @@ describe('Enrollment Controller Integration Tests', () => {
       const itemId = createItemResponse.body.itemsGroup.items[0].itemId;
 
       // 7. Enroll the user
-      const enrollmentResponse = await request(app).post(
-        `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
-      );
+      const enrollmentResponse = await request(app)
+        .post(
+          `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+        )
+        .send({
+          role: 'student',
+        });
       expect(enrollmentResponse.status).toBe(200);
       expect(enrollmentResponse.body).toHaveProperty('enrollment');
       expect(enrollmentResponse.body).toHaveProperty('progress');
@@ -374,9 +390,13 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(unenrollResponse.body.progress).toBeNull();
 
       // 9. Try to enroll again (should succeed, since unenrolled)
-      const reEnrollResponse = await request(app).post(
-        `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
-      );
+      const reEnrollResponse = await request(app)
+        .post(
+          `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+        )
+        .send({
+          role: 'student',
+        });
       expect(reEnrollResponse.status).toBe(200);
       expect(reEnrollResponse.body).toHaveProperty('enrollment');
       expect(reEnrollResponse.body).toHaveProperty('progress');
@@ -424,10 +444,10 @@ describe('Enrollment Controller Integration Tests', () => {
         .post('/auth/signup')
         .send(signUpBody)
         .expect(201);
-      const userId = signUpResponse.body.id;
+      const userId = signUpResponse.body;
 
       // 2. Create two courses and enroll user in both
-      const enrollments = [];
+      const enrollments: any[] = [];
       for (let i = 0; i < 2; i++) {
         // Create course
         const courseBody: CreateCourseBody = {
@@ -477,15 +497,23 @@ describe('Enrollment Controller Integration Tests', () => {
           createSectionResponse.body.version.modules[0].sections[0].sectionId;
 
         // Create item
-        const itemPayload = {
-          name: 'Item1',
-          description: 'This an item',
-          type: 'VIDEO',
-          videoDetails: {
-            URL: 'http://url.com',
-            startTime: '00:00:00',
-            endTime: '00:00:40',
-            points: '10.5',
+        const itemPayload: CreateItemBody = {
+          name: faker.commerce.productName(),
+          description: faker.commerce.productDescription(),
+          type: ItemType.QUIZ,
+          quizDetails: {
+            questionVisibility: 3,
+            allowPartialGrading: true,
+            deadline: faker.date.future(),
+            allowHint: true,
+            maxAttempts: 5,
+            releaseTime: faker.date.future(),
+            quizType: 'DEADLINE',
+            showCorrectAnswersAfterSubmission: true,
+            showExplanationAfterSubmission: true,
+            showScoreAfterSubmission: true,
+            approximateTimeToComplete: '00:30:00',
+            passThreshold: 0.7,
           },
         };
         const createItemResponse = await request(app)
@@ -494,12 +522,16 @@ describe('Enrollment Controller Integration Tests', () => {
           )
           .send(itemPayload)
           .expect(201);
-        const itemId = createItemResponse.body.itemsGroup.items[0].itemId;
+        const itemId = createItemResponse.body.itemsGroup.items[0]._id;
 
         // Enroll the user
-        const enrollmentResponse = await request(app).post(
-          `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
-        );
+        const enrollmentResponse = await request(app)
+          .post(
+            `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
+          )
+          .send({
+            role: 'student',
+          });
         expect(enrollmentResponse.status).toBe(200);
         expect(enrollmentResponse.body).toHaveProperty('enrollment');
         expect(enrollmentResponse.body).toHaveProperty('progress');

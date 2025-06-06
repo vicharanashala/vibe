@@ -4,116 +4,60 @@ import {
   Post,
   HttpCode,
   Params,
-  Authorized,
   BadRequestError,
   Get,
   NotFoundError,
   Param,
   QueryParam,
-  InternalServerError,
+  Body,
 } from 'routing-controllers';
-import {Inject, Service} from 'typedi';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {inject, injectable} from 'inversify';
 import {
   EnrollmentParams,
-  EnrollmentNotFoundErrorResponse,
-  EnrollUserResponseData,
   EnrollmentResponse,
+  EnrollmentBody,
 } from '../classes/validators/EnrollmentValidators';
-
 import {EnrollmentService} from '../services';
-import {EnrollUserResponse} from '../classes/transformers';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
-/**
- * Controller for managing student enrollments in courses.
- *
- * @category Users/Controllers
- */
-@OpenAPI({
-  tags: ['User Enrollments'],
-})
+import {
+  EnrolledUserResponse,
+  EnrollUserResponse,
+} from '../classes/transformers';
+import TYPES from '../types';
+
 @JsonController('/users', {transformResponse: true})
-@Service()
+@injectable()
 export class EnrollmentController {
   constructor(
-    @Inject('EnrollmentService')
+    @inject(TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
   ) {}
 
-  @Authorized(['student']) // Or use another role or remove if not required
   @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
-  @OpenAPI({
-    summary: 'Enroll User in Course',
-    description: 'Enrolls a user in a specific version of a course.',
-  })
-  @ResponseSchema(EnrollUserResponseData, {
-    description: 'User successfully enrolled in the course',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    description: 'Enrollment could not be created or found',
-    statusCode: 404,
-  })
   async enrollUser(
     @Params() params: EnrollmentParams,
+    @Body() body: EnrollmentBody,
   ): Promise<EnrollUserResponse> {
     const {userId, courseId, courseVersionId} = params;
-
+    const {role} = body;
     const responseData = await this.enrollmentService.enrollUser(
       userId,
       courseId,
       courseVersionId,
+      role,
     );
 
     return new EnrollUserResponse(
       responseData.enrollment,
       responseData.progress,
+      responseData.role,
     );
   }
-  @Authorized(['student'])
+
   @Post(
     '/:userId/enrollments/courses/:courseId/versions/:courseVersionId/unenroll',
   )
   @HttpCode(200)
-  @OpenAPI({
-    summary: 'Unenroll User from Course',
-    description: 'Unenrolls a user from a specific version of a course.',
-  })
-  @ResponseSchema(EnrollUserResponseData, {
-    description: 'User successfully unenrolled from the course',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    description: 'Enrollment could not be found or already removed',
-    statusCode: 404,
-  })
-  @Authorized(['student'])
-  @Post(
-    '/:userId/enrollments/courses/:courseId/versions/:courseVersionId/unenroll',
-  )
-  @HttpCode(200)
-  @OpenAPI({
-    summary: 'Unenroll User from Course',
-    description: 'Unenrolls a user from a specific version of a course.',
-  })
-  @ResponseSchema(EnrollUserResponseData, {
-    description: 'User successfully unenrolled from the course',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    description: 'Enrollment could not be found or already removed',
-    statusCode: 404,
-  })
   async unenrollUser(
     @Params() params: EnrollmentParams,
   ): Promise<EnrollUserResponse> {
@@ -128,28 +72,12 @@ export class EnrollmentController {
     return new EnrollUserResponse(
       responseData.enrollment,
       responseData.progress,
+      responseData.role,
     );
   }
 
-  @Authorized(['student'])
   @Get('/:userId/enrollments')
   @HttpCode(200)
-  @OpenAPI({
-    summary: 'Get User Enrollments',
-    description:
-      'Retrieves a paginated list of courses and course versions a user is enrolled in.',
-  })
-  @ResponseSchema(EnrollmentResponse, {
-    description: 'List of user enrollments',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    statusCode: 400,
-    description: 'Bad Request',
-  })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    statusCode: 404,
-    description: 'Enrollments Not Found',
-  })
   async getUserEnrollments(
     @Param('userId') userId: string,
     @QueryParam('page') page = 1,
@@ -185,5 +113,23 @@ export class EnrollmentController {
       }
       throw new Error('An unexpected error occurred.');
     }
+  }
+
+  @Get('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
+  @HttpCode(200)
+  async getEnrollment(
+    @Params() params: EnrollmentParams,
+  ): Promise<EnrolledUserResponse> {
+    const {userId, courseId, courseVersionId} = params;
+    const enrollmentData = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    return new EnrolledUserResponse(
+      enrollmentData.role,
+      enrollmentData.status,
+      enrollmentData.enrollmentDate,
+    );
   }
 }

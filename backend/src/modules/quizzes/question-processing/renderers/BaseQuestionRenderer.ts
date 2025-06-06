@@ -1,4 +1,4 @@
-import {BaseQuestion} from 'modules/quizzes/classes/transformers';
+import {BaseQuestion} from '../../classes/transformers';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {IQuestionRenderView} from './interfaces/RenderViews';
 

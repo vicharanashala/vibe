@@ -1,4 +1,3 @@
-import {MongoMemoryServer} from 'mongodb-memory-server';
 import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
@@ -8,41 +7,29 @@ import {CourseRepository} from '../../../shared/database/providers/mongo/reposit
 import {
   coursesModuleOptions,
   CreateCourseBody,
-  setupCoursesModuleDependencies,
+  setupCoursesContainer,
 } from '..';
 import {dbConfig} from '../../../config/db';
-import {faker} from '@faker-js/faker/.';
+import {faker} from '@faker-js/faker';
 jest.setTimeout(60000);
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();
   let app;
-  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
-    // Start an in-memory MongoDB server
-    // mongoServer = await MongoMemoryServer.create();
-    // const mongoUri = mongoServer.getUri();
-
-    // // Set up the real MongoDatabase and CourseRepository
-    // Container.set('Database', new MongoDatabase(mongoUri, 'vibe'));
     Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
 
-    setupCoursesModuleDependencies();
+    setupCoursesContainer();
 
     // Create the Express app with the routing controllers configuration
     app = useExpressServer(App, coursesModuleOptions);
   });
 
-  afterAll(async () => {
-    // Close the in-memory MongoDB server after the tests
-    // await mongoServer.stop();
+  beforeEach(() => {
+    // Ensure mocks are reset before each test to prevent interference
+    jest.restoreAllMocks();
   });
-
-  // beforeEach(() => {
-  //   // Ensure mocks are reset before each test to prevent interference
-  //   jest.restoreAllMocks();
-  // });
 
   // ------Tests for Create Course------
   describe('COURSE CREATION', () => {
@@ -240,6 +227,40 @@ describe('Course Controller Integration Tests', () => {
         expect(response3.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
+      });
+    });
+  });
+  // ------Tests for Delete Course------
+  describe('COURSE DELETION', () => {
+    describe('Success Scenario', () => {
+      it('should delete a course by ID', async () => {
+        // First, create a course
+        const coursePayload = {
+          name: 'Course To Be Deleted',
+          description: 'This course will be deleted',
+        };
+
+        const createdCourseResponse = await request(app)
+          .post('/courses/')
+          .send(coursePayload)
+          .expect(201);
+
+        const courseId = createdCourseResponse.body._id;
+
+        // Now, delete the course by its ID
+        const res = await request(app).delete(`/courses/${courseId}`);
+        console.log(res.body);
+
+        // Verify that it no longer exists
+        await request(app).get(`/courses/${courseId}`).expect(404);
+      });
+    });
+
+    describe('Error Scenarios', () => {
+      it('should return 404 for a non-existing course', async () => {
+        const fakeId = faker.database.mongodbObjectId();
+
+        await request(app).delete(`/courses/${fakeId}`).expect(404);
       });
     });
   });

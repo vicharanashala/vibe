@@ -82,7 +82,6 @@ class ChangePasswordBody {
     minLength: 8,
     writeOnly: true,
   })
-  @IsNotEmpty()
   newPassword: string;
 
   @JSONSchema({
@@ -99,7 +98,6 @@ class ChangePasswordBody {
     minLength: 8,
     writeOnly: true,
   })
-  @IsNotEmpty()
   newPasswordConfirm: string;
 }
 

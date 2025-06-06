@@ -4,9 +4,9 @@ import {ObjectId} from 'mongodb';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {IProgress} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '../../../../shared/constants/transformerConstants';
+import {IProgress} from '../../../../shared/interfaces/Models';
+import {ID} from '../../../../shared/types';
 
 @Expose()
 export class Progress implements IProgress {

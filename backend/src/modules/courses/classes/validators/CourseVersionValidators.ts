@@ -1,12 +1,6 @@
 import 'reflect-metadata';
-import {
-  IsEmpty,
-  IsNotEmpty,
-  IsString,
-  IsMongoId,
-  IsObject,
-} from 'class-validator';
-import {ICourseVersion} from 'shared/interfaces/Models';
+import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
+import {ICourseVersion} from '../../../../shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
@@ -100,8 +94,6 @@ class CourseVersionDataResponse {
     format: 'Mongo Object ID',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   id: string;
 
   @JSONSchema({
@@ -110,8 +102,6 @@ class CourseVersionDataResponse {
     type: 'string',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   name: string;
 
   @JSONSchema({
@@ -120,8 +110,6 @@ class CourseVersionDataResponse {
     type: 'string',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   description: string;
 
   @JSONSchema({
@@ -131,8 +119,6 @@ class CourseVersionDataResponse {
     format: 'Mongo Object ID',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   courseId: string;
 
   @JSONSchema({
@@ -142,7 +128,6 @@ class CourseVersionDataResponse {
     format: 'date-time',
     readOnly: true,
   })
-  @IsNotEmpty()
   createdAt: Date;
 
   @JSONSchema({
@@ -152,7 +137,6 @@ class CourseVersionDataResponse {
     format: 'date-time',
     readOnly: true,
   })
-  @IsNotEmpty()
   updatedAt: Date;
 }
 
@@ -163,7 +147,6 @@ class CourseVersionNotFoundErrorResponse {
     type: 'integer',
     readOnly: true,
   })
-  @IsNotEmpty()
   statusCode: number;
 
   @JSONSchema({
@@ -172,8 +155,6 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   message: string;
 
   @JSONSchema({
@@ -182,8 +163,6 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsString()
   error: string;
 }
 
@@ -193,8 +172,6 @@ class CreateCourseVersionResponse {
     type: 'object',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsObject()
   course: Record<string, any>;
 
   @JSONSchema({
@@ -202,8 +179,6 @@ class CreateCourseVersionResponse {
     type: 'object',
     readOnly: true,
   })
-  @IsNotEmpty()
-  @IsObject()
   version: Record<string, any>;
 }
 

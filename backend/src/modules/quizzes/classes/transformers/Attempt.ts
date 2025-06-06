@@ -3,11 +3,12 @@ import {
   IQuestionDetails,
   IQuestionAnswer,
 } from 'modules/quizzes/interfaces/grading';
+import {ObjectId} from 'mongodb';
 
 class Attempt implements IAttempt {
-  _id?: string;
+  _id?: string | ObjectId;
   quizId: string;
-  userId: string;
+  userId: string | ObjectId;
   questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
   createdAt: Date;
@@ -15,7 +16,7 @@ class Attempt implements IAttempt {
 
   constructor(
     quizId: string,
-    userId: string,
+    userId: string | ObjectId,
     questionDetails: IQuestionDetails[],
   ) {
     this.quizId = quizId;

@@ -2,6 +2,7 @@ import {Expose, Type} from 'class-transformer';
 import {Enrollment} from './Enrollment';
 import {Progress} from './Progress';
 import {Token} from 'typedi';
+import {EnrollmentRole, EnrollmentStatus} from 'shared/interfaces/Models';
 
 export * from './Enrollment';
 export * from './Progress';
@@ -16,8 +17,40 @@ export class EnrollUserResponse {
   @Type(() => Progress)
   progress: Progress;
 
-  constructor(enrollment: Enrollment, progress: Progress) {
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  constructor(
+    enrollment: Enrollment,
+    progress: Progress,
+    role: EnrollmentRole,
+  ) {
     this.enrollment = enrollment;
     this.progress = progress;
+    this.role = role;
+  }
+}
+export class EnrolledUserResponse {
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  @Expose()
+  @Type(() => String)
+  status: EnrollmentStatus;
+
+  @Expose()
+  @Type(() => Date)
+  enrollmentDate: Date;
+
+  constructor(
+    role: EnrollmentRole,
+    status: EnrollmentStatus,
+    enrollmentDate: Date,
+  ) {
+    this.role = role;
+    this.status = status;
+    this.enrollmentDate = enrollmentDate;
   }
 }

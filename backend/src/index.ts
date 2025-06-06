@@ -1,29 +1,36 @@
-if (process.env.NODE_ENV === 'production') {
-  import('./instrument');
-}
+import './instrument';
 import Express from 'express';
 import Sentry from '@sentry/node';
-import {loggingHandler} from 'shared/middleware/loggingHandler';
+import {loggingHandler} from './shared/middleware/loggingHandler';
+import {corsHandler} from './shared/middleware/corsHandler';
 import {
   RoutingControllersOptions,
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
-import Container from 'typedi';
-import {IDatabase} from 'shared/database';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from 'config/db';
+import {IDatabase} from './shared/database';
+import {MongoDatabase} from './shared/database/providers/MongoDatabaseProvider';
+import {dbConfig} from './config/db';
 import * as firebase from 'firebase-admin';
 import {app} from 'firebase-admin';
 import {apiReference} from '@scalar/express-api-reference';
 import {OpenApiSpecService} from './modules/docs';
-import cors from 'cors';
 
 // Import all module options
-import {authModuleOptions} from './modules/auth';
-import {coursesModuleOptions} from './modules/courses';
-import {usersModuleOptions} from './modules/users';
-import {rateLimiter} from 'shared/middleware/rateLimiter';
+import {authModuleOptions, setupAuthContainer} from './modules/auth';
+import {coursesModuleOptions, setupCoursesContainer} from './modules/courses';
+import {setupUsersContainer, usersModuleOptions} from './modules/users';
+import {quizzesModuleOptions, setupQuizzesContainer} from './modules/quizzes';
+import {rateLimiter} from './shared/middleware/rateLimiter';
+import {sharedContainerModule} from './container';
+import {authContainerModule} from './modules/auth/container';
+import {InversifyAdapter} from './inversify-adapter';
+import {Container} from 'inversify';
+import {coursesContainerModule} from 'modules/courses/container';
+import {quizzesContainerModule} from 'modules/quizzes/container';
+import {usersContainerModule} from 'modules/users/container';
+import {getFromContainer} from 'class-validator';
+import {appConfig} from 'config/app';
 
 export const application = Express();
 
@@ -35,9 +42,11 @@ export const ServiceFactory = (
   console.log('Initializing service server');
   console.log('--------------------------------------------------------');
 
-  service.use(cors());
   service.use(Express.urlencoded({extended: true}));
   service.use(Express.json());
+
+  // Enable CORS for cross-origin requests
+  service.use(corsHandler);
 
   if (process.env.NODE_ENV === 'production') {
     service.use(rateLimiter);
@@ -57,79 +66,116 @@ export const ServiceFactory = (
   });
 
   // Set up the API documentation route
-  const openApiSpecService = Container.get(OpenApiSpecService);
+  const openApiSpecService =
+    getFromContainer<OpenApiSpecService>(OpenApiSpecService);
 
   // Register the /docs route before routing-controllers takes over
-  service.get('/docs', (req, res) => {
-    try {
-      const openApiSpec = openApiSpecService.generateOpenAPISpec();
+  if (process.env.NODE_ENV !== 'production') {
+    service.get('/docs', (req, res) => {
+      try {
+        const openApiSpec = openApiSpecService.generateOpenAPISpec();
 
-      const handler = apiReference({
-        spec: {
-          content: openApiSpec,
-        },
-        theme: {
-          title: 'ViBe API Documentation',
-          primaryColor: '#3B82F6',
-          sidebar: {
-            groupStrategy: 'byTagGroup',
-            defaultOpenLevel: 0,
+        const handler = apiReference({
+          spec: {
+            content: openApiSpec,
           },
-        },
-      });
+          theme: {
+            title: 'ViBe API Documentation',
+            primaryColor: '#3B82F6',
+            sidebar: {
+              groupStrategy: 'byTagGroup',
+              defaultOpenLevel: 0,
+            },
+          },
+        });
 
-      // Call the handler to render the documentation
-      handler(req as any, res as any);
-    } catch (error) {
-      console.error('Error serving API documentation:', error);
-      res
-        .status(500)
-        .send(`Failed to load API documentation: ${error.message}`);
-    }
-  });
-
+        // Call the handler to render the documentation
+        handler(req as any, res as any);
+      } catch (error) {
+        console.error('Error serving API documentation:', error);
+        res
+          .status(500)
+          .send(`Failed to load API documentation: ${error.message}`);
+      }
+    });
+  }
   console.log('--------------------------------------------------------');
   console.log('Routes Handler');
   console.log('--------------------------------------------------------');
-  //After Adding Routes
-  if (process.env.NODE_ENV === 'production') {
-    Sentry.setupExpressErrorHandler(service);
-  }
 
   console.log('--------------------------------------------------------');
   console.log('Starting Server');
   console.log('--------------------------------------------------------');
 
-  // Create combined routing controllers options
-  const routingControllersOptions = {
-    ...options,
-    controllers: [
-      ...(authModuleOptions.controllers as Function[]),
-      ...(coursesModuleOptions.controllers as Function[]),
-      ...(usersModuleOptions.controllers as Function[]),
-    ],
-  };
-
-  useExpressServer(service, routingControllersOptions);
-
+  useExpressServer(service, options);
+  if (process.env.NODE_ENV === 'production') {
+    Sentry.setupExpressErrorHandler(service);
+  }
   return service;
 };
 
-// Create a main function where multiple services are created
+const setupAllModulesContainer = async () => {
+  const container = new Container();
+  const modules = [
+    sharedContainerModule,
+    usersContainerModule,
+    authContainerModule,
+    coursesContainerModule,
+    quizzesContainerModule,
+  ];
+  await container.load(...modules);
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
+};
 
-useContainer(Container);
+const allModuleOptions: RoutingControllersOptions = {
+  controllers: [
+    ...(authModuleOptions.controllers as Function[]),
+    ...(coursesModuleOptions.controllers as Function[]),
+    ...(usersModuleOptions.controllers as Function[]),
+    ...(quizzesModuleOptions.controllers as Function[]),
+  ],
+  middlewares: [],
+  defaultErrorHandler: true,
+  authorizationChecker: async function () {
+    return true;
+  },
+  validation: true,
+};
 
-if (!Container.has('Database')) {
-  Container.set<IDatabase>('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-}
-
-export const main = () => {
-  const service = ServiceFactory(application, authModuleOptions);
-  service.listen(4001, () => {
+export const main = async () => {
+  let module;
+  switch (process.env.MODULE) {
+    case 'auth':
+      await setupAuthContainer();
+      module = ServiceFactory(application, authModuleOptions);
+      break;
+    case 'courses':
+      await setupCoursesContainer();
+      module = ServiceFactory(application, coursesModuleOptions);
+      break;
+    case 'users':
+      await setupUsersContainer();
+      module = ServiceFactory(application, usersModuleOptions);
+      break;
+    case 'quizzes':
+      await setupQuizzesContainer();
+      module = ServiceFactory(application, quizzesModuleOptions);
+      break;
+    case 'all':
+      await setupAllModulesContainer();
+      module = ServiceFactory(application, allModuleOptions);
+  }
+  module.listen(appConfig.port, () => {
     console.log('--------------------------------------------------------');
-    console.log('Started Server at http://localhost:' + 4001);
-    console.log('--------------------------------------------------------');
+    console.log(
+      `Started ${process.env.MODULE} Server at http://localhost:` +
+        appConfig.port,
+    );
   });
 };
 
-main();
+main().catch(error => {
+  console.error('Error starting the application:', error);
+  throw error;
+});

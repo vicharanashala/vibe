@@ -10,7 +10,7 @@
 
 import 'reflect-metadata';
 import {Request} from 'express';
-import {IUser} from 'shared/interfaces/Models';
+import {IUser} from '../../../shared/interfaces/Models';
 import {
   ChangePasswordBody,
   SignUpBody,
@@ -34,9 +34,7 @@ export interface IAuthService {
    * @returns A promise that resolves to the newly created user object
    * @throws Error - If user creation fails for any reason
    */
-  signup(body: SignUpBody): Promise<IUser>;
-
-  verifySignUpProvider(token: string): Promise<IUser>;
+  signup(body: SignUpBody): Promise<string>;
 
   /**
    * Verifies the validity of an authentication token.
@@ -46,7 +44,7 @@ export interface IAuthService {
    * @returns A promise that resolves to the user associated with the token
    * @throws Error - If the token is invalid, expired, or cannot be verified
    */
-  verifyToken(token: string): Promise<IUser>;
+  verifyToken(token: string): Promise<Partial<IUser>>;
 
   /**
    * Changes the password for an authenticated user.

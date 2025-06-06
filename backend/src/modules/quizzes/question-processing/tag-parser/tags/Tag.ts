@@ -1,4 +1,4 @@
-import {IQuestionParameter} from 'shared/interfaces/quiz';
+import {IQuestionParameter} from '../../../../../shared/interfaces/quiz';
 
 type ParameterMap = Record<string, string | number>;
 abstract class Tag {

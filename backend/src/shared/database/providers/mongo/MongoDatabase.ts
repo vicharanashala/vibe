@@ -6,9 +6,9 @@ import {
   MongoClient,
   MongoClientOptions,
 } from 'mongodb';
-import {IDatabase} from 'shared/database/interfaces/IDatabase';
-import {Service} from 'typedi';
+import {injectable} from 'inversify';
 import TYPES from '../../../../types';
+import {IDatabase} from '../../../../shared/database/interfaces/IDatabase';
 
 /**
  * @class MongoDatabase
@@ -20,7 +20,7 @@ import TYPES from '../../../../types';
  *
  * @template Db
  */
-@Service()
+@injectable()
 export class MongoDatabase implements IDatabase<Db> {
   private client: MongoClient | null;
   public database: Db | null;

@@ -10,7 +10,6 @@ import {CourseRepository} from 'shared/database/providers/mongo/repositories/Cou
 import {NotFoundError} from 'routing-controllers';
 import TYPES from '../types';
 import {inject, injectable} from 'inversify';
-
 import GLOBAL_TYPES from '../../../types';
 import {IQuestionBankRef} from 'shared/interfaces/Models';
 
@@ -23,7 +22,7 @@ class QuestionBankService extends BaseService {
     @inject(TYPES.QuestionRepo)
     private readonly questionRepository: QuestionRepository,
 
-    @inject(TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepository: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

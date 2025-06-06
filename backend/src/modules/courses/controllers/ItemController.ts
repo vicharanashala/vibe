@@ -9,46 +9,46 @@ import {
   Delete,
   Params,
   HttpCode,
+  CurrentUser,
+  ForbiddenError,
 } from 'routing-controllers';
-import {Service, Inject} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
   CreateItemParams,
   ReadAllItemsParams,
-  ReadItemParams,
   UpdateItemParams,
   MoveItemParams,
   DeleteItemParams,
   DeletedItemResponse,
+  GetItemParams,
 } from '../classes/validators/ItemValidators';
 import {ItemService} from '../services';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
 } from '../classes/validators/ItemValidators';
+import {IUser} from 'shared/interfaces/Models';
+import {ProgressService} from 'modules/users/services/ProgressService';
+import TYPES from '../types';
+import USER_TYPES from '../../users/types';
 
-@OpenAPI({
-  tags: ['Items'],
-})
+@injectable()
 @JsonController('/courses')
-@Service()
 export class ItemController {
   constructor(
-    @Inject('ItemService') private readonly itemService: ItemService,
+    @inject(TYPES.ItemService) private readonly itemService: ItemService,
+    @inject(USER_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
   ) {}
 
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
-  @OpenAPI({
-    summary: 'Create Item',
-    description:
-      'Creates a new item in the specified section with the provided details.',
-  })
   @ResponseSchema(ItemDataResponse, {
     description: 'Item created successfully',
   })
@@ -75,11 +75,6 @@ export class ItemController {
 
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
-  @OpenAPI({
-    summary: 'Get All Items',
-    description:
-      'Retrieves all items from the specified section of a module in a course version.',
-  })
   @ResponseSchema(ItemDataResponse, {
     description: 'Items retrieved successfully',
   })
@@ -96,45 +91,10 @@ export class ItemController {
     return await this.itemService.readAllItems(versionId, moduleId, sectionId);
   }
 
-  @Authorized(['admin', 'instructor', 'student'])
-  @Get(
-    '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
-  )
-  @OpenAPI({
-    summary: 'Get Item',
-    description:
-      'Retrieves a specific item from the specified section of a module in a course version.',
-  })
-  @ResponseSchema(ItemDataResponse, {
-    description: 'Item retrieved successfully',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(ItemNotFoundErrorResponse, {
-    description: 'Item not found',
-    statusCode: 404,
-  })
-  async readItem(@Params() params: ReadItemParams) {
-    const {versionId, moduleId, sectionId, itemId} = params;
-    return await this.itemService.readItem(
-      versionId,
-      moduleId,
-      sectionId,
-      itemId,
-    );
-  }
-
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
-  @OpenAPI({
-    summary: 'Update Item',
-    description:
-      'Updates an existing item in the specified section with the provided details.',
-  })
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
   })
@@ -162,10 +122,6 @@ export class ItemController {
 
   @Authorized(['instructor', 'admin'])
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
-  @OpenAPI({
-    summary: 'Delete Item',
-    description: 'Deletes an item from a course section permanently.',
-  })
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
   })
@@ -186,11 +142,6 @@ export class ItemController {
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
-  @OpenAPI({
-    summary: 'Move Item',
-    description:
-      'Moves an item to a new position within its section by recalculating its order.',
-  })
   @ResponseSchema(ItemDataResponse, {
     description: 'Item moved successfully',
   })
@@ -211,5 +162,32 @@ export class ItemController {
       itemId,
       body,
     );
+  }
+
+  @Authorized(['admin', 'instructor', 'student'])
+  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @HttpCode(201)
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async getItem(@CurrentUser() user: IUser, @Params() params: GetItemParams) {
+    const {courseId, courseVersionId, itemId} = params;
+    const progress = await this.progressService.getUserProgress(
+      user._id,
+      courseId,
+      courseVersionId,
+    );
+    if (progress.currentItem !== itemId) {
+      throw new ForbiddenError('Item does not match current progress');
+    }
+    return await this.itemService.readItem(courseVersionId, itemId);
   }
 }

@@ -13,7 +13,7 @@ export const appConfig = {
   isStaging: env('NODE_ENV') === 'staging',
   isDevelopment: env('NODE_ENV') === 'development',
   name: env('APP_NAME'),
-  port: Number(env('APP_PORT')) || 4000,
+  port: Number(env('APP_PORT')) || 4001,
   routePrefix: env('APP_ROUTE_PREFIX'),
   url: env('APP_URL'),
   appPath: getAppPath(),

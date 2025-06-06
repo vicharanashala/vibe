@@ -5,19 +5,16 @@ import {
   ISubmission,
   IUserQuizMetrics,
 } from 'modules/quizzes/interfaces/grading';
-import {ClientSession, Collection} from 'mongodb';
+import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types';
 
-@Service()
 @injectable()
 class SubmissionRepository {
   private submissionResultCollection: Collection<ISubmission>;
 
   constructor(
-    @Inject(() => MongoDatabase)
     @inject(TYPES.Database)
     private db: MongoDatabase,
   ) {}
@@ -43,7 +40,7 @@ class SubmissionRepository {
   }
   public async get(
     quizId: string,
-    userId: string,
+    userId: string | ObjectId,
     attemptId: string,
     session?: ClientSession,
   ): Promise<ISubmission> {

@@ -5,91 +5,35 @@ import {
   useContainer,
 } from 'routing-controllers';
 import {RoutingControllersOptions} from 'routing-controllers';
-import {Container, Service} from 'typedi';
-import {MongoDatabase} from 'shared/database/providers/mongo/MongoDatabase';
-import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
+import {MongoDatabase} from '../../shared/database/providers/mongo/MongoDatabase';
+import {EnrollmentRepository} from '../../shared/database/providers/mongo/repositories/EnrollmentRepository';
+import {CourseRepository} from '../../shared/database/providers/mongo/repositories/CourseRepository';
+import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository';
 import {EnrollmentController} from './controllers/EnrollmentController';
-import {EnrollmentService} from './services';
-import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from '../../config/db';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
-import {ProgressController} from './controllers/index';
 import {UserController} from './controllers/UserController';
+import {EnrollmentService} from './services';
+import {UserRepository} from '../../shared/database/providers/MongoDatabaseProvider';
+import {dbConfig} from '../../config/db';
+import {ProgressRepository} from '../../shared/database/providers/mongo/repositories/ProgressRepository';
+import {ProgressController} from './controllers/index';
 import {ProgressService} from './services/ProgressService';
-import {Course} from 'modules/courses';
-useContainer(Container);
+import {Course} from '../../modules/courses';
+import {sharedContainerModule} from '../../container';
+import {authContainerModule} from '../auth/container';
+import {usersContainerModule} from './container';
+import {Container} from 'inversify';
+import {InversifyAdapter} from '../../inversify-adapter';
 
-export function setupUsersModuleDependencies(): void {
-  if (!Container.has('Database')) {
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-  }
-
-  if (!Container.has('EnrollmentRepo')) {
-    Container.set(
-      'EnrollmentRepo',
-      new EnrollmentRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('ProgressRepo')) {
-    Container.set(
-      'ProgressRepo',
-      new ProgressRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('CourseRepo')) {
-    Container.set(
-      'CourseRepo',
-      new CourseRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('ItemRepo')) {
-    Container.set(
-      'ItemRepo',
-      new ItemRepository(
-        Container.get<MongoDatabase>('Database'),
-        Container.get<CourseRepository>('CourseRepo'),
-      ),
-    );
-  }
-
-  if (!Container.has('UserRepo')) {
-    Container.set(
-      'UserRepo',
-      new UserRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('EnrollmentService')) {
-    Container.set(
-      'EnrollmentService',
-      new EnrollmentService(
-        Container.get<EnrollmentRepository>('EnrollmentRepo'),
-        Container.get<CourseRepository>('CourseRepo'),
-        Container.get<UserRepository>('UserRepo'),
-        Container.get<ItemRepository>('ItemRepo'),
-      ),
-    );
-  }
-
-  if (!Container.has('ProgressService')) {
-    Container.set(
-      'ProgressService',
-      new ProgressService(
-        Container.get<ProgressRepository>('ProgressRepo'),
-        Container.get<CourseRepository>('CourseRepo'),
-        Container.get<UserRepository>('UserRepo'),
-        Container.get<ItemRepository>('ItemRepo'),
-      ),
-    );
-  }
+export async function setupUsersContainer(): Promise<void> {
+  const container = new Container();
+  await container.load(
+    sharedContainerModule,
+    authContainerModule,
+    usersContainerModule,
+  );
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
 }
-
-setupUsersModuleDependencies();
 
 export const usersModuleOptions: RoutingControllersOptions = {
   controllers: [EnrollmentController, ProgressController, UserController],

@@ -296,6 +296,7 @@ export default function Page() {
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
   const studentName = user?.name || user?.firstName || 'Student';
+  console.log(user);
   const userId = user?.userId;
   const [greeting, setGreeting] = useState(getGreeting());
 

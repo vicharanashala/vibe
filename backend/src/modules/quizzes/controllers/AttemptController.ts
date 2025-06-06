@@ -34,7 +34,7 @@ class AttemptController {
     @Params() params: CreateAttemptParams,
   ): Promise<CreateAttemptResponse> {
     const {quizId} = params;
-    const attempt = await this.attemptService.attempt(quizId, user.id);
+    const attempt = await this.attemptService.attempt(user._id, quizId);
     return attempt as CreateAttemptResponse;
   }
 
@@ -48,7 +48,7 @@ class AttemptController {
     const {quizId, attemptId} = params;
 
     const attempt = await this.attemptService.save(
-      user.id,
+      user._id,
       quizId,
       attemptId,
       body.answers,
@@ -63,7 +63,7 @@ class AttemptController {
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
     const result = await this.attemptService.submit(
-      user.id,
+      user._id,
       quizId,
       attemptId,
       body.answers,

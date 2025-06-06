@@ -2,6 +2,7 @@
 import request from 'supertest';
 import Express from 'express';
 import {ProgressService} from '../../services/ProgressService';
+import {ObjectId} from 'mongodb';
 
 export async function startStopAndUpdateProgress({
   userId,
@@ -12,7 +13,7 @@ export async function startStopAndUpdateProgress({
   sectionId,
   app,
 }: {
-  userId: string;
+  userId: string | ObjectId;
   courseId: string;
   courseVersionId: string;
   itemId: string;

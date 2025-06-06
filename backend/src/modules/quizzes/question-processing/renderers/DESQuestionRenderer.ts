@@ -1,4 +1,4 @@
-import {DESQuestion} from 'modules/quizzes/classes/transformers';
+import {DESQuestion} from '../../classes/transformers';
 import {TagParser, ParameterMap} from '../tag-parser';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer';
 import {DESQuestionRenderView} from './interfaces/RenderViews';

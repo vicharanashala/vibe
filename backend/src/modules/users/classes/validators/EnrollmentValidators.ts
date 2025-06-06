@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDate,
+  IsEnum,
   IsInt,
   IsMongoId,
   IsNotEmpty,
@@ -10,9 +11,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from 'shared/types';
+import {ID} from '../../../../shared/types';
 import {Type} from 'class-transformer';
 import {ProgressDataResponse} from './ProgressValidators';
+import {EnrollmentRole, EnrollmentStatus} from 'shared/interfaces/Models';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -47,6 +49,18 @@ export class EnrollmentParams {
   @IsString()
   @IsNotEmpty()
   courseVersionId: string;
+}
+
+export class EnrollmentBody {
+  @JSONSchema({
+    description: 'Role of the user',
+    example: 'instructor',
+    type: 'string',
+    enum: ['instructor', 'student'],
+  })
+  @IsEnum(['instructor', 'student'])
+  @IsNotEmpty()
+  role: 'instructor' | 'student';
 }
 
 export class EnrollmentDataResponse {
@@ -95,6 +109,16 @@ export class EnrollmentDataResponse {
   courseVersionId: ID;
 
   @JSONSchema({
+    description: 'Role of the user',
+    example: 'instructor',
+    type: 'string',
+    enum: ['instructor', 'student'],
+  })
+  @IsNotEmpty()
+  @IsString()
+  role: EnrollmentRole;
+
+  @JSONSchema({
     description: 'Status of the enrollment',
     example: 'active',
     type: 'string',
@@ -102,7 +126,7 @@ export class EnrollmentDataResponse {
   })
   @IsNotEmpty()
   @IsString()
-  status: 'active' | 'inactive';
+  status: EnrollmentStatus;
 
   @JSONSchema({
     description: 'Date when the user was enrolled',
@@ -130,6 +154,37 @@ export class EnrollUserResponseData {
   })
   @IsNotEmpty()
   progress: ProgressDataResponse;
+}
+
+export class EnrolledUserResponseData {
+  @JSONSchema({
+    description: 'Role of the user in the course',
+    example: 'instructor',
+    type: 'string',
+    enum: ['instructor', 'student'],
+  })
+  @IsNotEmpty()
+  role: EnrollmentRole;
+
+  @JSONSchema({
+    description: 'Status of the enrollment',
+    example: 'active',
+    type: 'string',
+    enum: ['active', 'inactive'],
+  })
+  @IsNotEmpty()
+  status: EnrollmentStatus;
+
+  @JSONSchema({
+    description: 'Date when the user was enrolled',
+    example: '2023-10-01T12:00:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsNotEmpty()
+  @IsDate()
+  @Type(() => Date)
+  enrollmentDate: Date;
 }
 
 export class EnrollmentResponse {

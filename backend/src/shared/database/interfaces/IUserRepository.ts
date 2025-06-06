@@ -1,5 +1,5 @@
 import {ClientSession, MongoClient} from 'mongodb';
-import {IUser} from 'shared/interfaces/Models';
+import {IUser} from '../../interfaces/Models';
 
 /**
  * Interface representing a repository for user-related operations.
@@ -15,7 +15,7 @@ export interface IUserRepository {
    * @param user - The user to create.
    * @returns A promise that resolves to the created user.
    */
-  create(user: IUser, session?: ClientSession): Promise<IUser>;
+  create(user: IUser, session?: ClientSession): Promise<string>;
 
   /**
    * Finds a user by their email.
@@ -23,16 +23,6 @@ export interface IUserRepository {
    * @returns A promise that resolves to the user if found, or null if not found.
    */
   findByEmail(email: string, session?: ClientSession): Promise<IUser | null>;
-
-  /**
-   * Finds a user by their Firebase UID.
-   * @param firebaseUID - The Firebase UID of the user to find.
-   * @returns A promise that resolves to the user if found, or null if not found.
-   */
-  findByFirebaseUID(
-    firebaseUID: string,
-    session?: ClientSession,
-  ): Promise<IUser | null>;
 
   /**
    * Adds a role to a user.
@@ -57,4 +47,18 @@ export interface IUserRepository {
    * @returns A promise that resolves to the updated user if successful, or null if not.
    */
   updatePassword(userId: string, password: string): Promise<IUser | null>;
+
+  /**
+   * Finds a user by their Firebase UID.
+   * @param firebaseUID - The Firebase UID of the user to find.
+   * @returns A promise that resolves to the user if found, or null if not found.
+   */
+  findByFirebaseUID(firebaseUID: string): Promise<IUser | null>;
+
+  /**
+   * Finds a user by their ID.
+   * @param id - The ID of the user to find.
+   * @returns A promise that resolves to the user if found, or null if not found.
+   */
+  findById(id: string): Promise<IUser | null>;
 }

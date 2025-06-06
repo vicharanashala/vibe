@@ -1,18 +1,15 @@
 import {inject, injectable} from 'inversify';
 import {IUserQuizMetrics} from 'modules/quizzes/interfaces/grading';
-import {Collection, ClientSession} from 'mongodb';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {Service, Inject} from 'typedi';
 import TYPES from '../../../../../types';
 
-@Service()
 @injectable()
 class UserQuizMetricsRepository {
   private userQuizMetricsCollection: Collection<IUserQuizMetrics>;
 
   constructor(
-    @Inject(() => MongoDatabase)
     @inject(TYPES.Database)
     private db: MongoDatabase,
   ) {}
@@ -36,7 +33,7 @@ class UserQuizMetricsRepository {
     throw new InternalServerError('Failed to create user quiz metrics');
   }
   public async get(
-    userId: string,
+    userId: string | ObjectId,
     quizId: string,
     session?: ClientSession,
   ): Promise<IUserQuizMetrics | null> {

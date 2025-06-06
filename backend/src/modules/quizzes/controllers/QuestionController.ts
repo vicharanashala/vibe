@@ -13,7 +13,6 @@ import {
   BadRequestError,
   Patch,
 } from 'routing-controllers';
-import {Service, Inject} from 'typedi';
 import {
   QuestionBody,
   QuestionId,
@@ -26,7 +25,6 @@ import TYPES from '../types';
 import {QuestionService} from '../services/QuestionService';
 
 @JsonController('/questions')
-@Service()
 @injectable()
 class QuestionController {
   constructor(
@@ -38,6 +36,9 @@ class QuestionController {
   @HttpCode(201)
   async create(@Body() body: QuestionBody): Promise<QuestionId> {
     const question = QuestionFactory.createQuestion(body);
+    const questionProcessor = new QuestionProcessor(question);
+    questionProcessor.validate();
+    questionProcessor.render();
     const id = await this.questionService.create(question);
     return {questionId: id};
   }

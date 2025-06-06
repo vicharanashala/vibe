@@ -8,8 +8,9 @@ import {
   Put,
   Delete,
   HttpCode,
+  Req,
 } from 'routing-controllers';
-import {Service, Inject} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {instanceToPlain} from 'class-transformer';
 import {ModuleService} from '../services/ModuleService';
 import {
@@ -26,16 +27,14 @@ import {
 } from '../classes/validators/ModuleValidators';
 import {calculateNewOrder} from '../utils/calculateNewOrder';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
+import TYPES from '../types';
 
-@OpenAPI({
-  tags: ['Course Modules'],
-})
+@injectable()
 @JsonController('/courses')
-@Service()
 export class ModuleController {
   constructor(
-    @Inject(() => ModuleService)
+    @inject(TYPES.ModuleService)
     private service: ModuleService,
   ) {}
 
@@ -52,11 +51,6 @@ export class ModuleController {
   @ResponseSchema(ModuleNotFoundErrorResponse, {
     description: 'Module not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Create Module',
-    description:
-      'Creates a new module in the specified course version with the provided details.',
   })
   async create(
     @Params() params: CreateModuleParams,
@@ -78,11 +72,6 @@ export class ModuleController {
   @ResponseSchema(ModuleNotFoundErrorResponse, {
     description: 'Module not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Update Module',
-    description:
-      "Updates an existing module's name or description within a course version.",
   })
   async update(
     @Params() params: UpdateModuleParams,
@@ -109,11 +98,6 @@ export class ModuleController {
     description: 'Module not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Move Module',
-    description:
-      'Reorders a module within its course version by placing it before or after another module.',
-  })
   async move(@Params() params: MoveModuleParams, @Body() body: MoveModuleBody) {
     const updated = await this.service.moveModule(
       params.versionId,
@@ -135,10 +119,6 @@ export class ModuleController {
   @ResponseSchema(ModuleNotFoundErrorResponse, {
     description: 'Module not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Delete Module',
-    description: 'Permanently removes a module from a course version.',
   })
   async delete(@Params() params: DeleteModuleParams) {
     await this.service.deleteModule(params.versionId, params.moduleId);

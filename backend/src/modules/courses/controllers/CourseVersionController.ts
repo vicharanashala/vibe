@@ -13,7 +13,7 @@ import {
   NotFoundError,
   InternalServerError,
 } from 'routing-controllers';
-import {Inject, Service} from 'typedi';
+import {inject, injectable} from 'inversify';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {CourseVersionService} from '../services';
 import {
@@ -25,17 +25,15 @@ import {
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
 } from '../classes/validators/CourseVersionValidators';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
+import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import {CourseVersion} from '../classes/transformers';
+import TYPES from '../types';
 
-@OpenAPI({
-  tags: ['Course Versions'],
-})
+@injectable()
 @JsonController('/courses')
-@Service()
 export class CourseVersionController {
   constructor(
-    @Inject('CourseVersionService')
+    @inject(TYPES.CourseVersionService)
     private readonly courseVersionService: CourseVersionService,
   ) {}
 
@@ -52,10 +50,6 @@ export class CourseVersionController {
   @ResponseSchema(CourseVersionNotFoundErrorResponse, {
     description: 'Course not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Create Course Version',
-    description: 'Creates a new version for a specific course.',
   })
   async create(
     @Params() params: CreateCourseVersionParams,
@@ -80,10 +74,6 @@ export class CourseVersionController {
     description: 'Course version not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Get Course Version',
-    description: 'Retrieves a course version by its ID.',
-  })
   async read(
     @Params() params: ReadCourseVersionParams,
   ): Promise<CourseVersion> {
@@ -106,10 +96,6 @@ export class CourseVersionController {
   @ResponseSchema(CourseVersionNotFoundErrorResponse, {
     description: 'Course or version not found',
     statusCode: 404,
-  })
-  @OpenAPI({
-    summary: 'Delete Course Version',
-    description: 'Deletes a course version by its ID.',
   })
   async delete(
     @Params() params: DeleteCourseVersionParams,
