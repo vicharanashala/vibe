@@ -2,19 +2,18 @@ import esbuild from 'esbuild';
 import pkg from './package.json' with { type: 'json' };
 
 esbuild.build({
-  entryPoints: ['src/index.ts'],
-  outfile: 'build/index.js',
+  entryPoints: ['build/index.js'],
+  outfile: 'build/backend.js',
   bundle: true,
   platform: 'node',
   format: 'esm',
   loader: {
-    '.node': 'copy', // 👈 this will copy .node files
+    '.node': 'copy',
   },
   external: [
-    // ...Object.keys(pkg.dependencies || {}),
+    ...Object.keys(pkg.dependencies || {}),
     '@koa/cors',
     'perf_hooks',
-     // ✅ Prevent esbuild from trying to bundle this unused Koa dependency
   ],
   plugins: [],
   minify: true,

@@ -1,4 +1,4 @@
-import {ID, IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {CreateQuestionBankBody} from '../classes/validators/QuestionBankValidator.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';

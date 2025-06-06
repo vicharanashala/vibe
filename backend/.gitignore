@@ -70,3 +70,5 @@ node_modules/
 
 # Sentry Config File
 .sentryclirc
+
+build/

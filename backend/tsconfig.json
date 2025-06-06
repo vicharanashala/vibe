@@ -39,7 +39,7 @@
 
     /* Specify what module code is generated. */
     "rootDir": "src",
-    "outDir": "dist" /* Specify the root folder within your source files. */,
+    "outDir": "build" /* Specify the root folder within your source files. */,
     "moduleResolution": "nodenext",                     /* Specify how TypeScript looks up a file from a given module specifier. */
     "baseUrl": ".",
 
