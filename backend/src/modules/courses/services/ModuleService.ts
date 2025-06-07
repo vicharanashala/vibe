@@ -18,7 +18,7 @@ import {GLOBAL_TYPES} from '../../../types.js';
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
-    @inject(COURSES_TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

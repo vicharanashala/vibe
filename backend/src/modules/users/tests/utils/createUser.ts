@@ -1,9 +1,9 @@
 import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
-import {IUser} from '../../../../shared/interfaces/models';
+import {jest} from '@jest/globals';
 
-export async function createUser(app: typeof Express): Promise<IUser> {
+export async function createUser(app: typeof Express): Promise<string> {
   // Prepare user sign-up data using Faker
   const signUpBody = {
     email: faker.internet.email(),
@@ -19,5 +19,5 @@ export async function createUser(app: typeof Express): Promise<IUser> {
     .expect(201); // Expecting a 201 created status
 
   // Return the user object
-  return signUpRes.body as IUser; // Assuming the response body contains the user object
+  return signUpRes.body; // Assuming the response body contains the user object
 }

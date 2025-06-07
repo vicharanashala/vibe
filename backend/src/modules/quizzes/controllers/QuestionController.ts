@@ -18,6 +18,7 @@ import {
   OnUndefined,
 } from 'routing-controllers';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 @JsonController('/questions')
 @injectable()
 class QuestionController {
@@ -30,6 +31,9 @@ class QuestionController {
   @HttpCode(201)
   async create(@Body() body: QuestionBody): Promise<QuestionId> {
     const question = QuestionFactory.createQuestion(body);
+    const questionProcessor = new QuestionProcessor(question);
+    questionProcessor.validate();
+    questionProcessor.render();
     const id = await this.questionService.create(question);
     return {questionId: id};
   }

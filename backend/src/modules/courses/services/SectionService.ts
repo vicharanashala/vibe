@@ -21,7 +21,7 @@ export class SectionService extends BaseService {
   constructor(
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
-    @inject(COURSES_TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

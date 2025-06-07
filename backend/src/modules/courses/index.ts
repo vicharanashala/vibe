@@ -5,6 +5,7 @@ import {HttpErrorHandler} from '#shared/index.js';
 import {Container} from 'inversify';
 import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {coursesContainerModule} from './container.js';
+import {usersContainerModule} from '#users/container.js';
 import {
   CourseController,
   CourseVersionController,
@@ -19,6 +20,7 @@ export async function setupCoursesContainer(): Promise<void> {
     sharedContainerModule,
     authContainerModule,
     coursesContainerModule,
+    usersContainerModule,
   );
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);

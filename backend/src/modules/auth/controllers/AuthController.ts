@@ -1,10 +1,13 @@
-import {SignUpBody, ChangePasswordBody} from '#auth/classes/index.js';
+import {
+  SignUpBody,
+  ChangePasswordBody,
+} from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
   AuthenticatedRequest,
 } from '#auth/interfaces/IAuthService.js';
 import {ChangePasswordError} from '#auth/services/FirebaseAuthService.js';
-import {AuthRateLimiter} from '#shared/index.js';
+import {AuthRateLimiter} from '#shared/middleware/rateLimiter.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {

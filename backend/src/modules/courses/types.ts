@@ -7,7 +7,6 @@
   ItemService: Symbol.for('ItemService'),
 
   //Repositories
-  CourseRepo: Symbol.for('CourseRepo'),
   ItemRepo: Symbol.for('ItemRepo'),
 };
 

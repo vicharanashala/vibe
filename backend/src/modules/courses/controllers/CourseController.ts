@@ -20,9 +20,10 @@ import {
   Params,
   Put,
   Delete,
+  OnUndefined,
 } from 'routing-controllers';
 import {ResponseSchema} from 'routing-controllers-openapi';
-import {COURSES_TYPES} from '#courses/index.js';
+import {COURSES_TYPES} from '#courses/types.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 @injectable()
 @JsonController('/courses')
@@ -91,7 +92,7 @@ export class CourseController {
 
   @Authorized(['admin', 'instructor'])
   @Delete('/:id', {transformResponse: true})
-  @HttpCode(204)
+  @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -103,7 +104,6 @@ export class CourseController {
   async delete(@Params() params: ReadCourseParams) {
     const {id} = params;
     await this.courseService.deleteCourse(id);
-    return;
   }
 }
 

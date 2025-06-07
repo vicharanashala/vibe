@@ -8,11 +8,10 @@ import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
-    @inject(COURSES_TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)
@@ -88,7 +87,7 @@ export class CourseVersionService extends BaseService {
   public async deleteCourseVersion(
     courseId: string,
     courseVersionId: string,
-  ): Promise<null> {
+  ): Promise<Boolean> {
     return this._withTransaction(async session => {
       const readCourseVersion = await this.courseRepo.readVersion(
         courseVersionId,
@@ -118,7 +117,7 @@ export class CourseVersionService extends BaseService {
       if (versionDeleteResult.deletedCount !== 1) {
         throw new InternalServerError('Failed to delete course version');
       }
-      return null;
+      return true;
     });
   }
 }

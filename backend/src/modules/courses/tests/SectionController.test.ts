@@ -1,20 +1,13 @@
-import {dbConfig} from '../../../config/db';
 import Express from 'express';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {SectionService} from '../services/SectionService';
-import {CourseVersionService} from '../services';
 import {useExpressServer, useContainer} from 'routing-controllers';
-import {coursesModuleOptions} from 'modules/courses';
+import {coursesModuleOptions} from '../';
 import request from 'supertest';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import { InversifyAdapter } from '../../../inversify-adapter';
-import { Container } from 'inversify';
-import { usersContainerModule } from '../../../users/container';
-import { coursesContainerModule } from '../container';
-import { sharedContainerModule } from '../../../container';
-
-jest.setTimeout(90000);
+import {InversifyAdapter} from '../../../inversify-adapter';
+import {Container} from 'inversify';
+import {coursesContainerModule} from '../container';
+import {sharedContainerModule} from '../../../container';
+import {jest} from '@jest/globals';
+import { usersContainerModule } from '#users/container.js';
 
 describe('Section Controller Integration Tests', () => {
   const App = Express();
@@ -23,7 +16,9 @@ describe('Section Controller Integration Tests', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     const container = new Container();
-    await container.load(sharedContainerModule, coursesContainerModule);
+    await container.load(sharedContainerModule,
+        coursesContainerModule,
+        usersContainerModule,);
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     app = useExpressServer(App, coursesModuleOptions);
@@ -81,7 +76,7 @@ describe('Section Controller Integration Tests', () => {
         expect(sectionResponse.body.version.modules[0].sections[0].name).toBe(
           sectionPayload.name,
         );
-      });
+      }, 90000);
     });
   });
 
@@ -115,7 +110,7 @@ describe('Section Controller Integration Tests', () => {
           URL: 'http://url.com',
           startTime: '00:00:00',
           endTime: '00:00:40',
-          points: '10.5',
+          points: 10.5,
         },
       };
 
@@ -154,7 +149,7 @@ describe('Section Controller Integration Tests', () => {
             `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}`,
           )
           .expect(200);
-      });
+      }, 90000);
     });
 
     describe('Failiure Scenario', () => {
@@ -164,7 +159,7 @@ describe('Section Controller Integration Tests', () => {
         const sectionResponse = await request(app)
           .delete('/courses/versions/123/modules/123/sections/123')
           .expect(400);
-      });
+      }, 90000);
 
       it('should fail to delete an item', async () => {
         // Testing for Not found Case
@@ -173,7 +168,7 @@ describe('Section Controller Integration Tests', () => {
             '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db/sections/62341aeb5be816967d8fc2db',
           )
           .expect(404);
-      });
+      }, 90000);
     });
   });
   describe('SECTION MOVE', () => {
@@ -255,7 +250,7 @@ describe('Section Controller Integration Tests', () => {
 
         // // section2 should now be before section1
         expect(idx2).toBeLessThan(idx1);
-      });
+      }, 90000);
 
       it('should move the third section before the first section in a list of three', async () => {
         // Create course, version, module, section
@@ -323,7 +318,7 @@ describe('Section Controller Integration Tests', () => {
 
         // section3 should now be before section1
         expect(idx3).toBeLessThan(idx1);
-      });
+      }, 90000);
     });
   });
 });

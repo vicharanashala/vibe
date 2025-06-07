@@ -4,5 +4,5 @@ node_modules/
 tests
 scripts
 .prettierrc.cjs
-jest.config.js
+jest.config.ts
 esbuild.config.js

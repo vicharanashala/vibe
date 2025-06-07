@@ -3,6 +3,7 @@ import request from 'supertest';
 import Express from 'express';
 import {ProgressService} from '../../services/ProgressService';
 import {ObjectId} from 'mongodb';
+import {jest} from '@jest/globals';
 
 export async function startStopAndUpdateProgress({
   userId,

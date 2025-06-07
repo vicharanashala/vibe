@@ -12,11 +12,8 @@ import {
   DeleteSectionParams,
 } from '#courses/classes/index.js';
 import {SectionService} from '#courses/services/SectionService.js';
-import {
-  CourseRepository,
-  ItemRepository,
-  BadRequestErrorResponse,
-} from '#shared/index.js';
+import {BadRequestErrorResponse} from '#shared/index.js';
+
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {
@@ -37,17 +34,11 @@ import {COURSES_TYPES} from '#courses/types.js';
 @JsonController('/courses')
 export class SectionController {
   constructor(
-    @inject(COURSES_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
-    @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
     @inject(COURSES_TYPES.SectionService)
     private readonly sectionService: SectionService,
   ) {
     if (!this.sectionService) {
       throw new Error('Course Service is not properly injected');
-    }
-    if (!this.itemRepo) {
-      throw new Error('ItemRepository is not properly injected');
     }
   }
 

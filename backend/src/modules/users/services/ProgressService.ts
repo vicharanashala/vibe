@@ -2,15 +2,15 @@ import {COURSES_TYPES, Item} from '#courses/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   BaseService,
-  ProgressRepository,
-  CourseRepository,
-  UserRepository,
-  ItemRepository,
+  ICourseRepository,
+  IUserRepository,
+  IItemRepository,
   MongoDatabase,
   ICourseVersion,
   IWatchTime,
   IProgress,
 } from '#shared/index.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
 import {Progress} from '#users/classes/index.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
@@ -27,13 +27,13 @@ class ProgressService extends BaseService {
     private readonly progressRepository: ProgressRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
+    private readonly courseRepo: ICourseRepository,
 
     @inject(USERS_TYPES.UserRepo)
-    private readonly userRepo: UserRepository,
+    private readonly userRepo: IUserRepository,
 
     @inject(COURSES_TYPES.ItemRepo)
-    private readonly itemRepo: ItemRepository,
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider

@@ -24,7 +24,7 @@ class QuestionBankService extends BaseService {
     @inject(QUIZZES_TYPES.QuestionRepo)
     private readonly questionRepository: QuestionRepository,
 
-    @inject(COURSES_TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepository: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

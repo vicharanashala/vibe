@@ -3,11 +3,10 @@ import {GLOBAL_TYPES} from '#root/types.js';
 import {BaseService, ICourseRepository, MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 class CourseService extends BaseService {
   constructor(
-    @inject(COURSES_TYPES.CourseRepo)
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)

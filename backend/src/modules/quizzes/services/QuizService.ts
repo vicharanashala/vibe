@@ -368,6 +368,47 @@ class QuizService extends BaseService {
       }
     });
   }
+  getCourseInfo(quizId: string): Promise<Record<string, Set<string>>> {
+    return this._withTransaction(async session => {
+      const quiz = await this.quizRepo.getById(quizId, session);
+      if (!quiz) {
+        throw new NotFoundError('Quiz does not exist.');
+      }
+      const quesBankIds = quiz.details.questionBankRefs.map(qb => qb.bankId);
+      if (quesBankIds.length === 0) {
+        throw new Error('No question banks associated with this quiz.');
+      }
+
+      // Map to group courseVersionIds by courseId
+      const courseMap: Record<string, Set<string>> = {};
+
+      for (const questionBankId of quesBankIds) {
+        const questionBank = await this.questionBankRepo.getById(
+          questionBankId,
+          session,
+        );
+        if (!questionBank) {
+          throw new NotFoundError('Question bank not found');
+        }
+        const courseId = questionBank.courseId;
+        const courseVersionId = questionBank.courseVersionId;
+        if (!courseId && !courseVersionId) {
+          throw new Error(
+            'Question bank does not have a course or course version associated',
+          );
+        }
+        if (courseId) {
+          if (!courseMap[courseId]) {
+            courseMap[courseId] = new Set();
+          }
+          if (courseVersionId) {
+            courseMap[courseId].add(courseVersionId);
+          }
+        }
+      }
+      return courseMap;
+    });
+  }
 }
 
 export {QuizService};

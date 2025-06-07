@@ -9,10 +9,6 @@ export const authContainerModule = new ContainerModule(options => {
     .bind(AUTH_TYPES.AuthService)
     .to(FirebaseAuthService)
     .inSingletonScope();
-  options
-    .bind(AUTH_TYPES.AuthService)
-    .to(FirebaseAuthService)
-    .inSingletonScope();
 
   // Controllers
   options.bind(AuthController).toSelf().inSingletonScope();

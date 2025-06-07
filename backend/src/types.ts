@@ -3,7 +3,7 @@ const TYPES = {
   Database: Symbol.for('Database'),
 
   //Repositories
-  UserRepository: Symbol.for('UserRepository'),
+  UserRepo: Symbol.for('UserRepo'),
   CourseRepo: Symbol.for('CourseRepo'),
 
   //Constants

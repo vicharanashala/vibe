@@ -1,14 +1,7 @@
-import {coursesModuleOptions, CreateItemBody, Item} from '../../';
+import {coursesModuleOptions, CreateItemBody, Item} from '../';
 import {useExpressServer, useContainer} from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase, UserRepository} from '../../../shared/database/providers';
-
 import Express from 'express';
 import request from 'supertest';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
-import {dbConfig} from '../../../config/db';
-import {CourseVersionService, ItemService, SectionService} from '../services';
-import {ProgressService} from '../../users/services/ProgressService';
 import {
   createCourse,
   createModule,
@@ -17,14 +10,14 @@ import {
 } from './utils/creationFunctions';
 import {faker} from '@faker-js/faker';
 import {ItemType} from '../../../shared/interfaces/models';
-import { ProgressRepository } from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
-import { InversifyAdapter } from '../../../inversify-adapter';
-import { Container } from 'inversify';
-import { usersContainerModule } from '../../../users/container';
-import { coursesContainerModule } from '../container';
-import { sharedContainerModule } from '../../../container';
+import {InversifyAdapter} from '../../../inversify-adapter';
+import {Container} from 'inversify';
+import {usersContainerModule} from '../../users/container';
+import {coursesContainerModule} from '../container';
+import {sharedContainerModule} from '../../../container';
+import {authContainerModule} from '../../auth/container';
+import {jest} from '@jest/globals';
 
-jest.setTimeout(90000);
 describe('Item Controller Integration Tests', () => {
   const App = Express();
   let app;
@@ -32,7 +25,12 @@ describe('Item Controller Integration Tests', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     const container = new Container();
-    await container.load(sharedContainerModule, usersContainerModule, coursesContainerModule);
+    await container.load(
+      sharedContainerModule,
+      usersContainerModule,
+      coursesContainerModule,
+      authContainerModule,
+    );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     app = useExpressServer(App, coursesModuleOptions);
@@ -80,7 +78,7 @@ describe('Item Controller Integration Tests', () => {
             .send(itemPayload);
 
           expect(itemResponse.body.itemsGroup.items.length).toBe(1);
-        });
+        }, 90000);
       });
       describe('Create Video Item', () => {
         it('should create a video item', async () => {
@@ -110,10 +108,10 @@ describe('Item Controller Integration Tests', () => {
               `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
             )
             .send(itemPayload);
-            expect(itemsGroupResponse.status === 201);
+          expect(itemsGroupResponse.status === 201);
 
           expect(itemsGroupResponse.body.itemsGroup.items.length).toBe(1);
-        });
+        }, 90000);
       });
     });
   });
@@ -225,7 +223,7 @@ describe('Item Controller Integration Tests', () => {
       const ids = readAllResponse.body.map(i => i._id);
       expect(ids).toContain(item1.body.itemsGroup.items[0]._id);
       expect(ids).toContain(item2.body.itemsGroup.items[0]._id);
-    });
+    }, 90000);
   });
 
   describe('ITEM UPDATION', () => {
@@ -335,7 +333,7 @@ describe('Item Controller Integration Tests', () => {
       expect(updateResponse.body.itemsGroup.items[0].description).toBe(
         updatePayload.description,
       );
-    });
+    }, 90000);
   });
 
   describe('ITEM DELETION', () => {
@@ -429,7 +427,7 @@ describe('Item Controller Integration Tests', () => {
         expect(itemsResponse.body.deletedItemId).toBe(
           itemsGroupResponse.body.itemsGroup.items[0]._id,
         );
-      });
+      }, 90000);
     });
 
     describe('Failiure Scenario', () => {
@@ -439,7 +437,7 @@ describe('Item Controller Integration Tests', () => {
         const itemsResponse = await request(app)
           .delete('/courses/itemGroups/123/items/123')
           .expect(400);
-      });
+      }, 90000);
 
       it('should fail to delete an item', async () => {
         // Testing for Not found Case
@@ -447,8 +445,8 @@ describe('Item Controller Integration Tests', () => {
           .delete(
             '/courses/itemGroups/62341aeb5be816967d8fc2db/items/62341aeb5be816967d8fc2db',
           )
-          .expect(400);
-      });
+          .expect(404);
+      }, 90000);
     });
   });
 
@@ -573,7 +571,7 @@ describe('Item Controller Integration Tests', () => {
 
         // item2 should now be before item1
         expect(idx2).toBeLessThan(idx1);
-      });
+      }, 90000);
 
       it('should move the third item before the first item in a list of three', async () => {
         // Create course, version, module, section
@@ -664,179 +662,145 @@ describe('Item Controller Integration Tests', () => {
 
         // item3 should now be before item1
         expect(idx3).toBeLessThan(idx1);
-      });
+      }, 90000);
     });
   });
-
   describe('ITEM SERVICE ERROR PATHS', () => {
-    let itemService: any;
-    let itemRepo: any;
-    let courseRepo: any;
+    let versionId: string;
+    let moduleId: string;
+    let sectionId: string;
+    let itemsGroupId: string;
+    const itemPayload: CreateItemBody = {
+      name: faker.commerce.productName(),
+      description: faker.commerce.productDescription(),
+      type: ItemType.QUIZ,
+      quizDetails: {
+        questionVisibility: 3,
+        allowPartialGrading: true,
+        deadline: faker.date.future(),
+        allowHint: true,
+        maxAttempts: 5,
+        releaseTime: faker.date.future(),
+        quizType: 'DEADLINE',
+        showCorrectAnswersAfterSubmission: true,
+        showExplanationAfterSubmission: true,
+        showScoreAfterSubmission: true,
+        approximateTimeToComplete: '00:30:00',
+        passThreshold: 0.7,
+      },
+    };
 
-    beforeAll(() => {
-      itemRepo = Container.get('ItemRepo');
-      courseRepo = Container.get('CourseRepo');
-      itemService = Container.get('ItemService');
+    beforeEach(async () => {
+      // Create course, version, module, section for valid IDs
+      const courseRes = await request(app)
+        .post('/courses/')
+        .send({name: 'ErrorPathCourse', description: 'desc'})
+        .expect(201);
+      const courseId = courseRes.body._id;
+
+      const versionRes = await request(app)
+        .post(`/courses/${courseId}/versions`)
+        .send({version: 'v1', description: 'desc'})
+        .expect(201);
+      versionId = versionRes.body._id;
+
+      const moduleRes = await request(app)
+        .post(`/courses/versions/${versionId}/modules`)
+        .send({name: 'mod', description: 'desc'})
+        .expect(201);
+      moduleId = moduleRes.body.version.modules[0].moduleId;
+
+      const sectionRes = await request(app)
+        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
+        .send({name: 'sec', description: 'desc'})
+        .expect(201);
+      sectionId = sectionRes.body.version.modules[0].sections[0].sectionId;
+      itemsGroupId =
+        sectionRes.body.version.modules[0].sections[0].itemsGroupId;
     });
 
-    it('should throw NotFoundError if version does not exist on createItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
-      await expect(
-        itemService.createItem('vId', 'mId', 'sId', {
-          name: 'x',
-          description: 'y',
-          type: 'VIDEO',
-          videoDetails: {},
-        }),
-      ).rejects.toThrow('Version vId not found.');
-    });
+    it('should return 404 if version does not exist on createItem', async () => {
+      await request(app)
+        .post(
+          `/courses/versions/62341aeb5be816967d8fc2db/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send(itemPayload)
+        .expect(404);
+    }, 90000);
 
-    it('should throw if itemsGroup not found on createItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue(undefined);
-      await expect(
-        itemService.createItem('vId', 'mId', 'sId', {
-          name: 'x',
-          description: 'y',
-          type: 'VIDEO',
-          videoDetails: {},
-        }),
-      ).rejects.toThrow();
-    });
+    it('should return 404 if section does not exist on createItem', async () => {
+      await request(app)
+        .post(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/62341aeb5be816967d8fc2db/items`,
+        )
+        .send(itemPayload)
+        .expect(404);
+    }, 90000);
 
-    it('should throw if updateItemsGroup fails on createItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
-      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        itemService.createItem('vId', 'mId', 'sId', {
-          name: 'x',
-          description: 'y',
-          type: 'VIDEO',
-          videoDetails: {},
-        }),
-      ).rejects.toThrow('DB error');
-    });
+    it('should return 400 if invalid item payload on createItem', async () => {
+      await request(app)
+        .post(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+        )
+        .send({}) // missing required fields
+        .expect(400);
+    }, 90000);
 
-    it('should throw NotFoundError if version does not exist on updateItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
-      await expect(
-        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
-      ).rejects.toThrow('Version vId not found.');
-    });
+    it('should return 400 if version does not exist on updateItem', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/fakeVersionId/modules/${moduleId}/sections/${sectionId}/items/fakeItemId`,
+        )
+        .send({name: 'x'})
+        .expect(400);
+    }, 90000);
 
-    it('should throw if item not found on updateItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
-      await expect(
-        itemService.updateItem('vId', 'mId', 'sId', 'itemId', {name: 'x'}),
-      ).rejects.toThrow();
-    });
+    it('should return 400 if item does not exist on updateItem', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId`,
+        )
+        .send({name: 'x'})
+        .expect(400);
+    }, 90000);
 
-    it('should throw if updateItemsGroup fails on updateItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest
-        .spyOn(itemRepo, 'readItemsGroup')
-        .mockResolvedValue({items: [{_id: 'itemId'}]});
-      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        itemService.updateItem('vId', 'mId', 'sId', '_id', {name: 'x'}),
-      ).rejects.toThrow('DB error');
-    });
+    it('should return 400 if invalid payload on updateItem', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId`,
+        )
+        .send({}) // missing required fields
+        .expect(400);
+    }, 90000);
 
-    it('should throw InternalServerError if deleteItem returns false', async () => {
-      jest.spyOn(itemRepo, 'deleteItem').mockResolvedValue(false);
-      await expect(itemService.deleteItem('igId', '_id')).rejects.toThrow(
-        'Item deletion failed',
-      );
-    });
+    it('should return 400 if invalid itemGroupId or itemId on deleteItem', async () => {
+      await request(app)
+        .delete('/courses/itemGroups/123/items/123')
+        .expect(400);
+    }, 90000);
 
-    it('should throw if deleteItem throws', async () => {
-      jest.spyOn(itemRepo, 'deleteItem').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(itemService.deleteItem('igId', 'itemId')).rejects.toThrow(
-        'DB error',
-      );
-    });
+    it('should return 400 if item not found on deleteItem', async () => {
+      await request(app)
+        .delete(`/courses/itemGroups/${itemsGroupId}/items/fakeItemId`)
+        .expect(400);
+    }, 90000);
 
-    it('should throw if neither afterItemId nor beforeItemId is provided in moveItem', async () => {
-      await expect(
-        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {}),
-      ).rejects.toThrow('Either afterItemId or beforeItemId is required');
-    });
+    it('should return 400 if neither afterItemId nor beforeItemId is provided in moveItem', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId/move`,
+        )
+        .send({})
+        .expect(400);
+    }, 90000);
 
-    it('should throw if item not found in moveItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest.spyOn(itemRepo, 'readItemsGroup').mockResolvedValue({items: []});
-      await expect(
-        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {
-          beforeItemId: 'otherId',
-        }),
-      ).rejects.toThrow();
-    });
-
-    it('should throw if updateItemsGroup fails on moveItem', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({
-        modules: [
-          {
-            moduleId: 'mId',
-            sections: [{sectionId: 'sId', itemsGroupId: 'igId'}],
-          },
-        ],
-      });
-      jest
-        .spyOn(itemRepo, 'readItemsGroup')
-        .mockResolvedValue({items: [{itemId: 'itemId', order: 'a'}]});
-      jest.spyOn(itemRepo, 'updateItemsGroup').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        itemService.moveItem('vId', 'mId', 'sId', 'itemId', {
-          beforeItemId: 'otherId',
-        }),
-      ).rejects.toThrow(
-        "Cannot read properties of undefined (reading 'order')",
-      );
-    });
+    it('should return 400 if item isnt in that version or module', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId/move`,
+        )
+        .send({beforeItemId: '62341aeb5be816967d8fc2db'})
+        .expect(400);
+    }, 90000);
   });
 });

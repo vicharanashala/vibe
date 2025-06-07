@@ -32,7 +32,7 @@ export class ChangePasswordError extends Error {
 export class FirebaseAuthService extends BaseService implements IAuthService {
   private auth: any;
   constructor(
-    @inject(GLOBAL_TYPES.UserRepository)
+    @inject(GLOBAL_TYPES.UserRepo)
     private userRepository: IUserRepository,
 
     @inject(GLOBAL_TYPES.Database)
@@ -62,7 +62,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     return user;
   }
 
-  async signup(body: SignUpBody): Promise<IUser> {
+  async signup(body: SignUpBody): Promise<string> {
     let userRecord: any;
     try {
       // Create the user in Firebase Auth
@@ -86,15 +86,16 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       roles: ['user'],
     };
 
-    let createdUser: IUser;
+    let createdUserId: string;
 
     await this._withTransaction(async session => {
-      createdUser = await this.userRepository.create(new User(user), session);
-      if (!createdUser) {
+      const newUser = new User(user);
+      createdUserId = await this.userRepository.create(newUser, session);
+      if (!createdUserId) {
         throw new InternalServerError('Failed to create the user');
       }
     });
-    return createdUser;
+    return createdUserId;
   }
 
   async changePassword(

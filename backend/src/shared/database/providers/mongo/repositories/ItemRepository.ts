@@ -44,28 +44,24 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    try {
-      const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
-        session,
-      });
-      if (!result.insertedId) {
-        throw new InternalServerError('Failed to create items group.');
-      }
-      const newItemsGroup = await this.itemsGroupCollection.findOne(
-        {_id: result.insertedId},
-        {session},
-      );
-      if (!newItemsGroup) {
-        throw new InternalServerError(
-          'Failed to fetch newly created items group.',
-        );
-      }
-      return instanceToPlain(
-        Object.assign(new ItemsGroup(), newItemsGroup),
-      ) as ItemsGroup;
-    } catch (error) {
-      throw new InternalServerError('createItemsGroup error: ' + error);
+    const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
+      session,
+    });
+    if (!result.insertedId) {
+      throw new InternalServerError('Failed to create items group.');
     }
+    const newItemsGroup = await this.itemsGroupCollection.findOne(
+      {_id: result.insertedId},
+      {session},
+    );
+    if (!newItemsGroup) {
+      throw new InternalServerError(
+        'Failed to fetch newly created items group.',
+      );
+    }
+    return instanceToPlain(
+      Object.assign(new ItemsGroup(), newItemsGroup),
+    ) as ItemsGroup;
   }
 
   async readItemsGroup(
@@ -73,20 +69,16 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    try {
-      const itemsGroup = await this.itemsGroupCollection.findOne(
-        {_id: new ObjectId(itemsGroupId)},
-        {session},
-      );
-      if (!itemsGroup) {
-        throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
-      }
-      return instanceToPlain(
-        Object.assign(new ItemsGroup(), itemsGroup),
-      ) as ItemsGroup;
-    } catch (error) {
-      throw new InternalServerError('readItemsGroup error: ' + error);
+    const itemsGroup = await this.itemsGroupCollection.findOne(
+      {_id: new ObjectId(itemsGroupId)},
+      {session},
+    );
+    if (!itemsGroup) {
+      throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
     }
+    return instanceToPlain(
+      Object.assign(new ItemsGroup(), itemsGroup),
+    ) as ItemsGroup;
   }
 
   async updateItemsGroup(
@@ -95,33 +87,29 @@ export class ItemRepository implements IItemRepository {
     session: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    try {
-      const {_id, ...fields} = itemsGroup;
-      const result = await this.itemsGroupCollection.updateOne(
-        {_id: new ObjectId(itemsGroupId)},
-        {$set: fields},
-        {session},
+    const {_id, ...fields} = itemsGroup;
+    const result = await this.itemsGroupCollection.updateOne(
+      {_id: new ObjectId(itemsGroupId)},
+      {$set: fields},
+      {session},
+    );
+    if (result.modifiedCount !== 1) {
+      throw new InternalServerError(
+        `Failed to update items group ${itemsGroupId}.`,
       );
-      if (result.modifiedCount !== 1) {
-        throw new InternalServerError(
-          `Failed to update items group ${itemsGroupId}.`,
-        );
-      }
-      const updated = await this.itemsGroupCollection.findOne(
-        {_id: new ObjectId(itemsGroupId)},
-        {session},
-      );
-      if (!updated) {
-        throw new InternalServerError(
-          `Failed to read updated items group ${itemsGroupId}.`,
-        );
-      }
-      return instanceToPlain(
-        Object.assign(new ItemsGroup(), updated),
-      ) as ItemsGroup;
-    } catch (error) {
-      throw new InternalServerError('updateItemsGroup error: ' + error);
     }
+    const updated = await this.itemsGroupCollection.findOne(
+      {_id: new ObjectId(itemsGroupId)},
+      {session},
+    );
+    if (!updated) {
+      throw new InternalServerError(
+        `Failed to read updated items group ${itemsGroupId}.`,
+      );
+    }
+    return instanceToPlain(
+      Object.assign(new ItemsGroup(), updated),
+    ) as ItemsGroup;
   }
 
   // Methods for Item CRUD operations
@@ -230,117 +218,105 @@ export class ItemRepository implements IItemRepository {
         );
     }
 
-    try {
-      const result = await collection.updateOne(
-        {_id: new ObjectId(_id)},
-        {
-          $set: {
-            name: item.name,
-            description: item.description,
-            details: item.details,
-          },
+    const result = await collection.updateOne(
+      {_id: new ObjectId(_id)},
+      {
+        $set: {
+          name: item.name,
+          description: item.description,
+          details: item.details,
         },
-        {session},
-      );
+      },
+      {session},
+    );
 
-      if (result.modifiedCount === 0) {
-        throw new InternalServerError(`Failed to update item of type ${type}.`);
-      }
+    if (result.modifiedCount === 0) {
+      throw new InternalServerError(`Failed to update item of type ${type}.`);
+    }
 
-      // Also update the embedded item in the itemsGroup (for UI sync, etc.)
-      const updateInGroup = await this.itemsGroupCollection.updateOne(
-        {'items._id': new ObjectId(_id)},
-        {
-          $set: {
-            'items.$.name': item.name,
-            'items.$.description': item.description,
-            'items.$.details': item.details,
-          },
+    // Also update the embedded item in the itemsGroup (for UI sync, etc.)
+    const updateInGroup = await this.itemsGroupCollection.updateOne(
+      {'items._id': new ObjectId(_id)},
+      {
+        $set: {
+          'items.$.name': item.name,
+          'items.$.description': item.description,
+          'items.$.details': item.details,
         },
-        {session},
-      );
+      },
+      {session},
+    );
 
-      if (updateInGroup.modifiedCount === 0) {
-        throw new InternalServerError(
-          `Failed to update item in itemsGroup for ID ${_id}.`,
-        );
-      }
-
-      const updatedItem = await collection.findOne(
-        {_id: new ObjectId(_id)},
-        {session},
-      );
-
-      if (!updatedItem) {
-        throw new InternalServerError(
-          `Failed to fetch updated item with ID ${_id}.`,
-        );
-      }
-
-      return instanceToPlain(updatedItem) as Item;
-    } catch (error) {
+    if (updateInGroup.modifiedCount === 0) {
       throw new InternalServerError(
-        `updateItem error for type ${type}: ${error}`,
+        `Failed to update item in itemsGroup for ID ${_id}.`,
       );
     }
+
+    const updatedItem = await collection.findOne(
+      {_id: new ObjectId(_id)},
+      {session},
+    );
+
+    if (!updatedItem) {
+      throw new InternalServerError(
+        `Failed to fetch updated item with ID ${_id}.`,
+      );
+    }
+
+    return instanceToPlain(updatedItem) as Item;
   }
 
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
     await this.init();
-    try {
-      const result = await this.itemsGroupCollection.updateOne(
-        {_id: new ObjectId(itemGroupsId)},
-        {$pull: {items: {_id: new ObjectId(itemId)}}},
-      );
-      if (result.modifiedCount === 1) {
-        return true;
-      } else {
-        throw new InternalServerError('Failed to delete item');
-      }
-    } catch (error) {
-      throw new InternalServerError(
-        'Failed to delete item.\n More Details: ' + error,
-      );
+    const itemsGroup = await this.readItemsGroup(itemGroupsId);
+    if (!itemsGroup) {
+      throw new NotFoundError('ItemsGroup not found.');
+    }
+    const result = await this.itemsGroupCollection.updateOne(
+      {_id: new ObjectId(itemGroupsId)},
+      {$pull: {items: {_id: new ObjectId(itemId)}}},
+    );
+    if (result.modifiedCount === 1) {
+      return true;
+    } else {
+      throw new NotFoundError('Failed to delete item');
     }
   }
 
   async getFirstOrderItems(
     courseVersionId: string,
   ): Promise<{moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId}> {
-    try {
-      const version = await this.courseRepo.readVersion(courseVersionId);
-      if (!version || version.modules.length === 0) {
-        throw new InternalServerError('Course version has no modules');
-      }
-
-      const firstModule = version.modules
-        .slice()
-        .sort((a, b) => a.order.localeCompare(b.order))[0];
-      if (!firstModule.sections.length) {
-        throw new InternalServerError('Module has no sections');
-      }
-
-      const firstSection = firstModule.sections
-        .slice()
-        .sort((a, b) => a.order.localeCompare(b.order))[0];
-      const itemsGroup = await this.readItemsGroup(
-        firstSection.itemsGroupId.toString(),
-      );
-      if (!itemsGroup.items.length) {
-        throw new InternalServerError('Items group has no items');
-      }
-
-      const firstItem = itemsGroup.items
-        .slice()
-        .sort((a, b) => a.order.localeCompare(b.order))[0];
-
-      return {
-        moduleId: new ObjectId(firstModule.moduleId),
-        sectionId: new ObjectId(firstSection.sectionId),
-        itemId: new ObjectId(firstItem._id),
-      };
-    } catch (error) {
-      throw new InternalServerError('getFirstOrderItems error: ' + error);
+    const version = await this.courseRepo.readVersion(courseVersionId);
+    if (!version || version.modules.length === 0) {
+      throw new InternalServerError('Course version has no modules');
     }
+
+    const firstModule = version.modules
+      .slice()
+      .sort((a, b) => a.order.localeCompare(b.order))[0];
+    if (!firstModule.sections.length) {
+      throw new InternalServerError('Module has no sections');
+    }
+
+    const firstSection = firstModule.sections
+      .slice()
+      .sort((a, b) => a.order.localeCompare(b.order))[0];
+    const itemsGroup = await this.readItemsGroup(
+      firstSection.itemsGroupId.toString(),
+    );
+    if (!itemsGroup.items.length) {
+      throw new InternalServerError('Items group has no items');
+    }
+
+    const firstItem = itemsGroup.items
+      .slice()
+      .sort((a, b) => a.order.localeCompare(b.order))[0];
+
+    return {
+      moduleId: new ObjectId(firstModule.moduleId),
+      sectionId: new ObjectId(firstSection.sectionId),
+      itemId: new ObjectId(firstItem._id),
+    };
   }
 }

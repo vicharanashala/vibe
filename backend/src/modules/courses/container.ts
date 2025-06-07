@@ -1,4 +1,4 @@
-import {CourseRepository, ItemRepository} from '#shared/index.js';
+import {ItemRepository} from '#shared/index.js';
 import {ContainerModule} from 'inversify';
 import {
   CourseController,
@@ -18,10 +18,6 @@ import {COURSES_TYPES} from './types.js';
 
 export const coursesContainerModule = new ContainerModule(options => {
   // Repositories
-  options
-    .bind(COURSES_TYPES.CourseRepo)
-    .to(CourseRepository)
-    .inSingletonScope();
   options.bind(COURSES_TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
 
   // Services

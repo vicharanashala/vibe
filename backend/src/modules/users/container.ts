@@ -14,10 +14,6 @@ export const usersContainerModule = new ContainerModule(options => {
     .to(ProgressRepository)
     .inSingletonScope();
   options
-    .bind(USERS_TYPES.ProgressRepo)
-    .to(ProgressRepository)
-    .inSingletonScope();
-  options
     .bind(USERS_TYPES.EnrollmentRepo)
     .to(EnrollmentRepository)
     .inSingletonScope();
@@ -26,10 +22,6 @@ export const usersContainerModule = new ContainerModule(options => {
   options
     .bind(USERS_TYPES.EnrollmentService)
     .to(EnrollmentService)
-    .inSingletonScope();
-  options
-    .bind(USERS_TYPES.ProgressService)
-    .to(ProgressService)
     .inSingletonScope();
   options
     .bind(USERS_TYPES.ProgressService)

@@ -2,6 +2,7 @@
 import request from 'supertest';
 import Express from 'express';
 import {ObjectId} from 'mongodb';
+import {jest} from '@jest/globals';
 
 export async function verifyProgressInDatabase({
   userId,

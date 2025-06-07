@@ -44,7 +44,6 @@ class CourseVersion implements ICourseVersion {
 
   constructor(courseVersionBody?: CreateCourseVersionBody) {
     if (courseVersionBody) {
-      this.courseId = courseVersionBody.courseId;
       this.version = courseVersionBody.version;
       this.description = courseVersionBody.description;
     }

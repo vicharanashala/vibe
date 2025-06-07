@@ -3,6 +3,7 @@ import {
   EnrollUserResponse,
   EnrollmentResponse,
   EnrolledUserResponse,
+  EnrollmentBody,
 } from '#users/classes/index.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -17,6 +18,7 @@ import {
   QueryParam,
   BadRequestError,
   NotFoundError,
+  Body,
 } from 'routing-controllers';
 
 @JsonController('/users', {transformResponse: true})
@@ -27,14 +29,14 @@ export class EnrollmentController {
     private readonly enrollmentService: EnrollmentService,
   ) {}
 
-  @Post(
-    '/:userId/enrollments/courses/:courseId/versions/:courseVersionId/:role',
-  )
+  @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
   async enrollUser(
     @Params() params: EnrollmentParams,
+    @Body() body: EnrollmentBody,
   ): Promise<EnrollUserResponse> {
-    const {userId, courseId, courseVersionId, role} = params;
+    const {userId, courseId, courseVersionId} = params;
+    const {role} = body;
     const responseData = await this.enrollmentService.enrollUser(
       userId,
       courseId,
@@ -113,10 +115,9 @@ export class EnrollmentController {
   @Get('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
   async getEnrollment(
-    @Param('userId') userId: string,
-    @Param('courseId') courseId: string,
-    @Param('courseVersionId') courseVersionId: string,
+    @Params() params: EnrollmentParams,
   ): Promise<EnrolledUserResponse> {
+    const {userId, courseId, courseVersionId} = params;
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
