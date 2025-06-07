@@ -18,6 +18,7 @@ import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/pages/student/dashboard";
 import StudentCourses from "@/pages/student/courses";
 import StudentProfile from "@/pages/student/profile";
+// import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/pages/student/course-page'
 import { Item } from '@/components/Item-container' // Assuming Item is defined in Item-container
@@ -328,6 +329,12 @@ const quizRoute = new Route({
   component: () => <ItemContainer item={{name:"abc", itemtype:"quiz", content:"This is a sample quiz content."} as Item} courseId="A" courseVersionId="B" userId="C" />
 });
 
+// const parentComponentRoute = new Route({
+//   getParentRoute: () => studentLayoutRoute,
+//   path: '/test-ai',
+//   component: ParentComponent,
+// });
+
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
@@ -375,6 +382,7 @@ const routeTree = rootRoute.addChildren([
     articleRoute,
     videoRoute,
     quizRoute,
+    // parentComponentRoute,
   ]),
   coursePageRoute,
 ]);

@@ -12,6 +12,7 @@ import {
   Body,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
   EnrollmentParams,
   EnrollmentResponse,
@@ -24,6 +25,9 @@ import {
 } from '../classes/transformers';
 import TYPES from '../types';
 
+@OpenAPI({
+  tags: ['User Enrollments'],
+})
 @JsonController('/users', {transformResponse: true})
 @injectable()
 export class EnrollmentController {
@@ -34,6 +38,13 @@ export class EnrollmentController {
 
   @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
+  @OpenAPI({
+    summary: 'Enroll user in course',
+    description: 'Enroll a user in a specific course version with a given role',
+  })
+  @ResponseSchema(EnrollUserResponse, {
+    description: 'User enrolled successfully',
+  })
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
@@ -78,6 +89,14 @@ export class EnrollmentController {
 
   @Get('/:userId/enrollments')
   @HttpCode(200)
+  @OpenAPI({
+    summary: 'Get user enrollments',
+    description: 'Retrieve all enrollments for a specific user',
+  })
+  @ResponseSchema(EnrolledUserResponse, {
+    description: 'User enrollments retrieved successfully',
+    isArray: true,
+  })
   async getUserEnrollments(
     @Param('userId') userId: string,
     @QueryParam('page') page = 1,

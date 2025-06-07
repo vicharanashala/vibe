@@ -30,6 +30,9 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import TYPES from '../types';
 
+@OpenAPI({
+  tags: ['Course Modules'],
+})
 @injectable()
 @JsonController('/courses')
 export class ModuleController {

@@ -24,6 +24,7 @@ const {authModuleOptions} = require('../src/modules/auth');
 const {coursesModuleOptions} = require('../src/modules/courses');
 const {usersModuleOptions} = require('../src/modules/users');
 const {docsModuleOptions} = require('../src/modules/docs');
+const {quizzesModuleOptions} = require('../src/modules/quizzes');
 
 // Create combined metadata for OpenAPI
 const generateOpenAPISpec = () => {
@@ -45,13 +46,13 @@ const generateOpenAPISpec = () => {
     ...(coursesModuleOptions.controllers || []),
     ...(usersModuleOptions.controllers || []),
     ...(docsModuleOptions.controllers || []),
+    ...(quizzesModuleOptions.controllers || []),
   ];
 
   // Create combined routing-controllers options
   const routingControllersOptions = {
     controllers: allControllers,
     validation: true,
-    routePrefix: '/api',
   };
 
   // Create OpenAPI specification
@@ -106,12 +107,34 @@ const generateOpenAPISpec = () => {
 
       // User management section
       {
+        name: 'Users',
+        description: 'Operations for managing user accounts and information',
+      },
+      {
         name: 'User Enrollments',
         description: 'Operations for managing user enrollments in courses',
       },
       {
         name: 'User Progress',
         description: 'Operations for tracking and managing user progress',
+      },
+
+      // Quiz and assessment section
+      {
+        name: 'Quizzes',
+        description: 'Operations for managing quizzes and assessments',
+      },
+      {
+        name: 'Questions',
+        description: 'Operations for managing individual quiz questions',
+      },
+      {
+        name: 'Question Banks',
+        description: 'Operations for managing collections of questions',
+      },
+      {
+        name: 'Quiz Attempts',
+        description: 'Operations for managing quiz attempts and submissions',
       },
     ],
     // Use Scalar's preferred grouping approach
@@ -132,7 +155,11 @@ const generateOpenAPISpec = () => {
       },
       {
         name: 'User Management',
-        tags: ['User Enrollments', 'User Progress'],
+        tags: ['Users', 'User Enrollments', 'User Progress'],
+      },
+      {
+        name: 'Quiz Management',
+        tags: ['Quizzes', 'Questions', 'Question Banks', 'Quiz Attempts'],
       },
       {
         name: 'Data Models',
@@ -151,7 +178,7 @@ const generateOpenAPISpec = () => {
     },
     servers: [
       {
-        url: 'http://localhost:4001/api',
+        url: 'http://localhost:4001',
         description: 'Development server',
       },
       {

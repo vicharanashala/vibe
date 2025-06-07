@@ -10,6 +10,7 @@ import {
   Post,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Progress} from '../classes/transformers';
 import {ProgressService} from '../services/ProgressService';
 import {
@@ -26,6 +27,9 @@ import {
 } from '../classes/validators';
 import TYPES from '../types';
 
+@OpenAPI({
+  tags: ['User Progress'],
+})
 @JsonController('/users', {transformResponse: true})
 @injectable()
 class ProgressController {
@@ -36,6 +40,13 @@ class ProgressController {
 
   @Get('/:userId/progress/courses/:courseId/versions/:courseVersionId/')
   @HttpCode(200)
+  @OpenAPI({
+    summary: 'Get user progress',
+    description: 'Retrieve progress for a user in a specific course version',
+  })
+  @ResponseSchema(Progress, {
+    description: 'User progress retrieved successfully',
+  })
   async getUserProgress(
     @Params() params: GetUserProgressParams,
   ): Promise<Progress> {
@@ -52,6 +63,13 @@ class ProgressController {
 
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/start')
   @HttpCode(200)
+  @OpenAPI({
+    summary: 'Start an item',
+    description: 'Mark an item as started for a user',
+  })
+  @ResponseSchema(StartItemResponse, {
+    description: 'Item started successfully',
+  })
   async startItem(
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
@@ -75,6 +93,10 @@ class ProgressController {
 
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/stop')
   @OnUndefined(200)
+  @OpenAPI({
+    summary: 'Stop an item',
+    description: 'Mark an item as stopped for a user',
+  })
   async stopItem(
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
@@ -95,6 +117,10 @@ class ProgressController {
 
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/update')
   @OnUndefined(200)
+  @OpenAPI({
+    summary: 'Update progress',
+    description: 'Update progress for a user in a specific course version',
+  })
   async updateProgress(
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
@@ -115,6 +141,10 @@ class ProgressController {
 
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/reset')
   @OnUndefined(200)
+  @OpenAPI({
+    summary: 'Reset course progress',
+    description: 'Reset all progress for a user in a specific course version',
+  })
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,

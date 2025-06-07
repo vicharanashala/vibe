@@ -6,6 +6,9 @@ import GestureDetector from '../ai-components/GestureDetector';
 import BlurDetection from '../ai-components/BlurDetector';
 import SpeechDetector from '../ai-components/SpeechDetector';
 import FaceDetectors from '../ai-components/FaceDetectors';
+import FaceRecognitionOverlay from '../ai-components/FaceRecognitionOverlay';
+import { FaceRecognition, FaceRecognitionDebugInfo } from '../ai-components/FaceRecognitionComponent';
+// import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from '../ai-components/useCameraProcessor';
 
 interface FloatingVideoProps {
@@ -43,6 +46,16 @@ function FloatingVideo({
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
   const [isFocused, setIsFocused] = useState(false);
   const [facesCount, setFacesCount] = useState(0);
+  const [recognizedFaces, setRecognizedFaces] = useState<FaceRecognition[]>([]);
+  const [faceRecognitionDebug, setFaceRecognitionDebug] = useState<FaceRecognitionDebugInfo>({
+    knownFacesCount: 0,
+    knownFaceLabels: [],
+    detectedPhotoFaces: 0,
+    currentFrameFaces: 0,
+    recognizedFaces: 0,
+    lastUpdateTime: Date.now(),
+    backendStatus: 'loading'
+  });
   const [penaltyPoints, setPenaltyPoints] = useState(-10);
   const [penaltyType, setPenaltyType] = useState("");
 
@@ -53,6 +66,26 @@ function FloatingVideo({
 
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
+
+  // Handle face recognition results
+  const handleFaceRecognitionResult = useCallback((recognitions: FaceRecognition[]) => {
+    console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
+    setRecognizedFaces(recognitions);
+    
+    // Log additional info about the recognition
+    const knownFaces = recognitions.filter(r => r.isMatch);
+    if (knownFaces.length > 0) {
+      console.log('✅ [FloatingVideo] Known faces detected:', knownFaces.map(f => f.label).join(', '));
+    } else {
+      console.log('❓ [FloatingVideo] No known faces recognized');
+    }
+  }, []);
+
+  // Handle face recognition debug info updates
+  const handleFaceRecognitionDebugUpdate = useCallback((debugInfo: FaceRecognitionDebugInfo) => {
+    console.log('🔍 [FloatingVideo] Face recognition debug update:', debugInfo);
+    setFaceRecognitionDebug(debugInfo);
+  }, []);
 
   // Store current media stream
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
@@ -170,7 +203,7 @@ function FloatingVideo({
 
     return () => clearInterval(interval);
   }, [isSpeaking, facesCount, isBlur, isFocused]);
-  const mul = 1; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
+  const mul = 100; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
   // Random thumbs-up challenge system
   useEffect(() => {
     const checkForChallenge = () => {
@@ -496,6 +529,12 @@ function FloatingVideo({
         <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm">
           <div className="flex items-center space-x-2 flex-1">
             <span className="font-medium">✅ {isCollapsed ? `All Clear (${penaltyPoints})` : 'All Clear'}</span>
+            {/* Face Recognition Status */}
+            {!isCollapsed && recognizedFaces.length > 0 && (
+              <span className="text-xs opacity-90">
+                | Recognized: {recognizedFaces.filter(f => f.isMatch).map(f => f.label).join(', ') || 'Unknown'}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-1">
             <Button
@@ -545,11 +584,114 @@ function FloatingVideo({
           }}
         />
         
+        {/* Enhanced Face Recognition Debug Overlay */}
+        {!isCollapsed && (
+          <div className="absolute top-0 left-0 z-20 bg-black bg-opacity-75 text-white p-3 text-xs font-mono border-r border-b border-gray-600">
+            <div className="space-y-1">
+              {/* Backend Status */}
+              <div className="flex items-center gap-2">
+                <span className="text-gray-300">Backend:</span>
+                <span className={`font-semibold ${
+                  faceRecognitionDebug.backendStatus === 'success' ? 'text-green-400' : 
+                  faceRecognitionDebug.backendStatus === 'error' ? 'text-red-400' : 'text-yellow-400'
+                }`}>
+                  {faceRecognitionDebug.backendStatus.toUpperCase()}
+                </span>
+              </div>
+              
+              {/* Known Faces Info */}
+              <div className="text-blue-300">
+                Known People: {faceRecognitionDebug.knownFacesCount}
+              </div>
+              
+              {/* Photo Faces Info */}
+              <div className="text-purple-300">
+                Photo Faces: {faceRecognitionDebug.detectedPhotoFaces}
+              </div>
+              
+              {/* Current Frame Info */}
+              <div className="text-cyan-300">
+                Frame Faces: {faceRecognitionDebug.currentFrameFaces}
+              </div>
+              
+              {/* Recognition Results */}
+              <div className="text-green-300">
+                Recognized: {faceRecognitionDebug.recognizedFaces}
+              </div>
+              
+              {/* Processing Time */}
+              {faceRecognitionDebug.processingTime && (
+                <div className="text-orange-300">
+                  Process: {faceRecognitionDebug.processingTime.toFixed(1)}ms
+                </div>
+              )}
+              
+              {/* Known Face Labels */}
+              {faceRecognitionDebug.knownFaceLabels.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-600">
+                  <div className="text-gray-300 mb-1">Known:</div>
+                  <div className="text-yellow-300 text-xs">
+                    {faceRecognitionDebug.knownFaceLabels.join(', ')}
+                  </div>
+                </div>
+              )}
+              
+              {/* Current Recognition Results */}
+              {recognizedFaces.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-600">
+                  <div className="text-gray-300 mb-1">Current:</div>
+                  {recognizedFaces.map((face, idx) => (
+                    <div key={idx} className={`text-xs ${face.isMatch ? 'text-green-300' : 'text-red-300'}`}>
+                      {face.label} ({face.distance.toFixed(3)})
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Error Message */}
+              {faceRecognitionDebug.errorMessage && (
+                <div className="mt-2 pt-2 border-t border-gray-600">
+                  <div className="text-red-400 text-xs">Error: {faceRecognitionDebug.errorMessage}</div>
+                </div>
+              )}
+              
+              {/* Last Update Time */}
+              <div className="mt-2 pt-2 border-t border-gray-600 text-gray-400 text-xs">
+                Updated: {new Date(faceRecognitionDebug.lastUpdateTime).toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
+        )}
+        {!isCollapsed && recognizedFaces.length > 0 && (
+          <FaceRecognitionOverlay
+            recognitions={recognizedFaces}
+            videoRef={videoRef}
+            className="z-10"
+          />
+        )}
+        
         {/* Canvas for face detection - Always present */}
         <canvas
           ref={canvasRef}
           className="hidden"
         />
+
+        {/* Face Recognition Overlay
+        {modelReady && (
+          <>
+            {console.log('🔍 [FloatingVideo] Rendering FaceRecognitionIntegrated with:', {
+              facesCount: faces.length,
+              hasVideo: !!videoRef.current,
+              modelReady
+            })}
+            <FaceRecognitionIntegrated
+              faces={faces}
+              videoElement={videoRef.current}
+              modelReady={modelReady}
+              onRecognitionResult={handleFaceRecognitionResult}
+            />
+          </>
+        )} */}
 
         {/* Overlay and UI elements - Only show when not collapsed */}
         {!isCollapsed && (
@@ -595,6 +737,19 @@ function FloatingVideo({
                           <div>Faces: <span className="text-red-400">
                             {facesCount} {facesCount === 0 ? "(None detected)" : facesCount > 1 ? "(Multiple detected)" : ""}
                           </span></div>
+                        )}
+                        
+                        {/* Face Recognition Results */}
+                        {recognizedFaces.length > 0 && (
+                          <div>Recognized: 
+                            {recognizedFaces.map((face, index) => (
+                              <span key={index} className={face.isMatch ? "text-green-400" : "text-yellow-400"}>
+                                {index > 0 ? ", " : " "}
+                                {face.isMatch ? face.label : "Unknown"}
+                                {face.isMatch && ` (${Math.round((1 - face.distance) * 100)}%)`}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </>
                     )}
@@ -645,6 +800,9 @@ function FloatingVideo({
           key={`face-${faceDetectorsKey}`}
           faces={faces} 
           setIsFocused={setIsFocused}
+          videoRef={videoRef}
+          onRecognitionResult={handleFaceRecognitionResult}
+          onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
         />
       </div>
 

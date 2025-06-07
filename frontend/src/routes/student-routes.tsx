@@ -5,6 +5,7 @@ import StudentCourses from "@/pages/student/courses";
 import StudentProfile from "@/pages/student/profile";
 import ItemContainer from "@/components/Item-container";
 import CoursePage from "@/pages/student/course-page";
+// import ParentComponent from "@/ai-components/ParentComponent";
 import { Item } from "@/components/Item-container"; // Assuming Item is defined in Item-container
 
 const studentRoutes: RouteObject = {
@@ -35,6 +36,10 @@ const studentRoutes: RouteObject = {
       path: "quiz",
       element: <ItemContainer item={{name:"abc", itemtype:"quiz", content:"This is a sample quiz content."} as Item} courseId="" courseVersionId="" userId="" />
     },
+    // {
+    //   path: "test-ai",
+    //   element: <ParentComponent />, // AI component for testing
+    // },
     {
       index: true,
       element: <StudentDashboard />, // Default to Dashboard

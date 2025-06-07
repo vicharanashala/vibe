@@ -61,3 +61,4 @@ frontend/openapi.json
 .venv
 
 mcp
+frontend/public/models

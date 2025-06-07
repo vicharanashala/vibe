@@ -1,0 +1,508 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as faceapi from '@vladmandic/face-api';
+import { Face } from '@tensorflow-models/face-detection';
+
+interface FaceRecognitionIntegratedProps {
+  faces: Face[];
+  videoElement: HTMLVideoElement | null;
+  modelReady: boolean;
+  onRecognitionResult?: (recognizedFaces: string[]) => void;
+}
+
+interface RecognitionResult {
+  name: string;
+  confidence: number;
+  box: { x: number; y: number; width: number; height: number };
+}
+
+const FaceRecognitionIntegrated: React.FC<FaceRecognitionIntegratedProps> = ({
+  faces,
+  videoElement,
+  modelReady,
+  onRecognitionResult
+}) => {
+  console.log('🚀 FaceRecognition: Component rendered with props:', {
+    facesCount: faces.length,
+    hasVideoElement: !!videoElement,
+    modelReady,
+    hasCallback: !!onRecognitionResult
+  });
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [faceApiModelsLoaded, setFaceApiModelsLoaded] = useState(false);
+  const [labeledFaceDescriptors, setLabeledFaceDescriptors] = useState<faceapi.LabeledFaceDescriptors[] | null>(null);
+  const [faceMatcher, setFaceMatcher] = useState<faceapi.FaceMatcher | null>(null);
+  const [renderDimensions, setRenderDimensions] = useState({ width: 640, height: 480 });
+  const [recognitionResults, setRecognitionResults] = useState<RecognitionResult[]>([]);
+  
+  const isProcessingRef = useRef(false);
+  const lastProcessTimeRef = useRef(0);
+  const recognitionIntervalRef = useRef<number | null>(null);
+
+  const modelsPath = '/models/face-api/model';
+
+  // Helper function to validate image URLs
+  const isValidImageUrl = (url: string): boolean => {
+    try {
+      if (url.includes('/.keep')) return false;
+      
+      const urlObj = new URL(url);
+      const path = urlObj.pathname.toLowerCase();
+      
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+      return imageExtensions.some(ext => path.endsWith(ext));
+    } catch (error) {
+      console.error('Invalid URL:', url, error);
+      return false;
+    }
+  };
+
+  // Load face-api.js models
+  const loadFaceApiModels = useCallback(async () => {
+    try {
+      await faceapi.nets.ssdMobilenetv1.loadFromUri(modelsPath);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(modelsPath);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(modelsPath);
+      setFaceApiModelsLoaded(true);
+    } catch (error) {
+      console.error('❌ FaceRecognition: Error loading face-api.js models:', error);
+    }
+  }, [modelsPath]);
+
+  // Load labeled face images from API
+  const loadLabeledImagesFromAPI = useCallback(async (): Promise<faceapi.LabeledFaceDescriptors[]> => {
+    try {
+      console.log('🌐 FaceRecognition: Fetching known faces from API...');
+      const response = await fetch('http://localhost:4001/activity/known-faces');
+      const data = await response.json();
+      const peopleData = data.faces || [];
+      const labeledDescriptors: faceapi.LabeledFaceDescriptors[] = [];
+
+      for (const person of peopleData) {
+        const { name, images } = person;
+        const validImages = images.filter(isValidImageUrl);
+        const descriptors: Float32Array[] = [];
+
+        for (const imageUrl of validImages) {
+          try {
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = imageUrl;
+            });
+
+            console.log(`🔍 FaceRecognition: Detecting face in image for ${name}...`);
+            const detections = await faceapi
+              .detectSingleFace(img)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+
+            if (detections) {
+              descriptors.push(detections.descriptor);
+            }
+          } catch (error) {
+            console.error(`❌ FaceRecognition: Error processing image ${imageUrl} for ${name}:`, error);
+          }
+        }
+
+        if (descriptors.length > 0) {
+          const labeledDescriptor = new faceapi.LabeledFaceDescriptors(name, descriptors);
+          labeledDescriptors.push(labeledDescriptor);
+          console.log(`✅ FaceRecognition: Created labeled descriptor for ${name} with ${descriptors.length} face(s)`);
+        } else {
+          console.warn(`⚠️ FaceRecognition: No descriptors extracted for ${name}`);
+        }
+      }
+
+      console.log(`🎯 FaceRecognition: Total labeled descriptors created: ${labeledDescriptors.length}`);
+      return labeledDescriptors;
+    } catch (error) {
+      console.error('❌ FaceRecognition: Error loading labeled images from API:', error);
+      return [];
+    }
+  }, []);
+
+  // Initialize face-api.js models and known faces
+  useEffect(() => {
+    console.log('🔧 FaceRecognition: Initialization check - models loaded:', faceApiModelsLoaded);
+    if (!faceApiModelsLoaded) {
+      loadFaceApiModels();
+    }
+  }, [faceApiModelsLoaded, loadFaceApiModels]);
+
+  useEffect(() => {
+    if (faceApiModelsLoaded && labeledFaceDescriptors === null) {
+      loadLabeledImagesFromAPI().then(descriptors => {
+        setLabeledFaceDescriptors(descriptors);
+      });
+    }
+  }, [faceApiModelsLoaded, labeledFaceDescriptors, loadLabeledImagesFromAPI]);
+
+  // Create face matcher when descriptors are loaded
+  useEffect(() => {
+    if (labeledFaceDescriptors && labeledFaceDescriptors.length > 0) {
+      const matcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+      setFaceMatcher(matcher);
+    } else {
+      setFaceMatcher(null);
+    }
+  }, [labeledFaceDescriptors]);
+
+  // Update canvas dimensions when video dimensions change
+  useEffect(() => {
+    if (!videoElement) return;
+
+    const updateDimensions = () => {
+      const actualVideoWidth = videoElement.clientWidth;
+      const actualVideoHeight = videoElement.clientHeight;
+
+      if (actualVideoWidth > 0 && actualVideoHeight > 0 &&
+          (renderDimensions.width !== actualVideoWidth || renderDimensions.height !== actualVideoHeight)) {
+        setRenderDimensions({ width: actualVideoWidth, height: actualVideoHeight });
+      }
+    };
+
+    updateDimensions();
+    
+    // Use ResizeObserver to track video element size changes
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    resizeObserver.observe(videoElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [videoElement, renderDimensions.width, renderDimensions.height]);
+
+  // Perform face recognition on detected faces
+  const performFaceRecognition = useCallback(async () => {
+    if (!videoElement || !faceApiModelsLoaded || !faceMatcher || 
+        !canvasRef.current || faces.length === 0 || isProcessingRef.current) {
+      console.log('🚫 FaceRecognition: Skipping recognition - prerequisites not met:', {
+        hasVideo: !!videoElement,
+        modelsLoaded: faceApiModelsLoaded,
+        hasMatcher: !!faceMatcher,
+        hasCanvas: !!canvasRef.current,
+        facesDetected: faces.length,
+        isProcessing: isProcessingRef.current
+      });
+      return;
+    }
+
+    // Throttle recognition to avoid overwhelming the system
+    const now = Date.now();
+    if (now - lastProcessTimeRef.current < 10000) { // Process at most once per second
+      console.log('⏱️ FaceRecognition: Throttling - too soon since last recognition');
+      return;
+    }
+
+    console.log('🔍 FaceRecognition: Starting face recognition process...');
+    console.log(`📊 FaceRecognition: ${faces.length} faces detected by MediaPipe`);
+    
+    isProcessingRef.current = true;
+    lastProcessTimeRef.current = now;
+
+    try {
+      console.log('🧠 FaceRecognition: Running face-api.js detection on video element...');
+      
+      // Get face detections with descriptors from the video using face-api.js
+      const detections = await faceapi
+        .detectAllFaces(videoElement, new faceapi.SsdMobilenetv1Options())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+      console.log(`📈 FaceRecognition: face-api.js detected ${detections.length} faces`);
+
+      const results: RecognitionResult[] = [];
+
+      if (detections.length > 0) {
+        console.log('🔬 FaceRecognition: Matching faces with known identities...');
+        
+        // Match each detection with known faces
+        detections.forEach((detection, index) => {
+          console.log(`👤 FaceRecognition: Processing face ${index + 1}/${detections.length}`);
+          
+          const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+          const confidence = 1 - bestMatch.distance; // Convert distance to confidence
+          
+          console.log(`🎯 FaceRecognition: Face ${index + 1} matched as "${bestMatch.label}" with confidence ${(confidence * 100).toFixed(1)}%`);
+          
+          results.push({
+            name: bestMatch.label,
+            confidence: confidence,
+            box: {
+              x: detection.detection.box.x,
+              y: detection.detection.box.y,
+              width: detection.detection.box.width,
+              height: detection.detection.box.height
+            }
+          });
+        });
+
+        console.log('📊 FaceRecognition: Recognition results:', results);
+      } else {
+        console.log('🔍 FaceRecognition: No faces detected by face-api.js for recognition');
+      }
+
+      setRecognitionResults(results);
+      
+      // Notify parent component with recognized names
+      if (onRecognitionResult) {
+        const recognizedNames = results
+          .filter(r => r.name !== 'unknown' && r.confidence > 0.4)
+          .map(r => r.name);
+        
+        console.log('📢 FaceRecognition: Notifying parent with recognized names:', recognizedNames);
+        onRecognitionResult(recognizedNames);
+      }
+
+      console.log('✅ FaceRecognition: Face recognition process completed successfully');
+
+    } catch (error) {
+      console.error('❌ FaceRecognition: Error during face recognition:', error);
+    } finally {
+      isProcessingRef.current = false;
+      console.log('🔓 FaceRecognition: Recognition process lock released');
+    }
+  }, [videoElement, faceApiModelsLoaded, faceMatcher, faces, onRecognitionResult]);
+
+  // Draw recognition results on canvas
+  const drawRecognitionResults = useCallback(() => {
+    console.log('[FaceRecognition] Drawing recognition results, count:', recognitionResults.length);
+    
+    if (!canvasRef.current) {
+      console.log('[FaceRecognition] Canvas ref not available for drawing');
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.log('[FaceRecognition] Canvas context not available');
+      return;
+    }
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    console.log('[FaceRecognition] Canvas cleared, dimensions:', canvas.width, 'x', canvas.height);
+
+    // Match canvas dimensions to display size
+    faceapi.matchDimensions(canvas, renderDimensions);
+    console.log('[FaceRecognition] Canvas dimensions matched to:', renderDimensions);
+
+    // If no recognition results, try to draw boxes for detected faces from MediaPipe
+    if (recognitionResults.length === 0 && faces.length > 0) {
+      console.log('[FaceRecognition] No recognition results, drawing basic detection boxes for', faces.length, 'faces');
+      
+      faces.forEach((face, index) => {
+        if (face.box) {
+          // Calculate scale factors
+          const scaleX = renderDimensions.width / (videoElement?.videoWidth || renderDimensions.width);
+          const scaleY = renderDimensions.height / (videoElement?.videoHeight || renderDimensions.height);
+          
+          const scaledBox = {
+            x: face.box.xMin * scaleX,
+            y: face.box.yMin * scaleY,
+            width: face.box.width * scaleX,
+            height: face.box.height * scaleY
+          };
+
+          // Draw red box for unprocessed faces
+          ctx.strokeStyle = '#ff0000'; // Red for unrecognized/processing
+          ctx.lineWidth = 3;
+          ctx.strokeRect(scaledBox.x, scaledBox.y, scaledBox.width, scaledBox.height);      // Draw "Processing..." label with counter-mirror transform
+      const labelY = scaledBox.y > 30 ? scaledBox.y - 10 : scaledBox.y + scaledBox.height + 20;
+      
+      // Save current context state
+      ctx.save();
+      
+      // Apply counter-mirror transform to keep text readable
+      ctx.scale(-1, 1);
+      
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.font = 'bold 14px Arial';
+      const textMetrics = ctx.measureText('Processing...');
+      
+      // Adjust x coordinate for mirrored canvas
+      const mirroredX = -scaledBox.x - textMetrics.width;
+      ctx.fillRect(mirroredX - 2, labelY - 16, textMetrics.width + 4, 18);
+      
+      ctx.fillStyle = '#ff0000';
+      ctx.fillText('Processing...', mirroredX, labelY);
+      
+      // Restore context state
+      ctx.restore();
+          
+          console.log(`[FaceRecognition] Drew processing box ${index + 1} at:`, scaledBox);
+        }
+      });
+      return;
+    }
+
+    // Draw recognition results
+    recognitionResults.forEach((result, index) => {
+      const { name, confidence, box } = result;
+      console.log(`[FaceRecognition] Drawing result ${index + 1}:`, { name, confidence: confidence.toFixed(2), box });
+      
+      // Create detection-like object for resizing
+      const detectionLike = {
+        detection: {
+          box: {
+            x: box.x,
+            y: box.y,
+            width: box.width,
+            height: box.height
+          }
+        }
+      };
+      
+      const resizedResult = faceapi.resizeResults(detectionLike, renderDimensions);
+      
+      // Determine if face is recognized (confidence threshold and not unknown)
+      const isRecognized = name !== 'unknown' && confidence > 0.4;
+      const color = isRecognized ? '#00ff00' : '#ff0000'; // Green for recognized, Red for unknown
+      const boxLabel = isRecognized ? `✓ ${name} (${(confidence * 100).toFixed(1)}%)` : '✗ Unknown';
+      
+      console.log(`[FaceRecognition] Face ${index + 1} is ${isRecognized ? 'RECOGNIZED' : 'UNKNOWN'}, using color:`, color);
+      
+      // Draw bounding box with thicker line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(
+        resizedResult.detection.box.x,
+        resizedResult.detection.box.y,
+        resizedResult.detection.box.width,
+        resizedResult.detection.box.height
+      );
+
+      // Draw label background and text with counter-mirror transform  
+      const labelY = resizedResult.detection.box.y > 30 ? resizedResult.detection.box.y - 10 : resizedResult.detection.box.y + resizedResult.detection.box.height + 20;
+      const labelX = resizedResult.detection.box.x;
+      
+      // Save current context state
+      ctx.save();
+      
+      // Apply counter-mirror transform to keep text readable
+      ctx.scale(-1, 1);
+      
+      // Measure text to create background
+      ctx.font = 'bold 14px Arial';
+      const textMetrics = ctx.measureText(boxLabel);
+      const textWidth = textMetrics.width;
+      const textHeight = 16;
+      
+      // Adjust x coordinate for mirrored canvas
+      const mirroredX = -labelX - textWidth;
+      
+      // Draw label background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(mirroredX - 2, labelY - textHeight + 2, textWidth + 4, textHeight + 2);
+      
+      // Draw label text
+      ctx.fillStyle = color;
+      ctx.fillText(boxLabel, mirroredX, labelY);
+      
+      // Restore context state
+      ctx.restore();
+      
+      console.log(`[FaceRecognition] Drew label "${boxLabel}" at position:`, { x: labelX, y: labelY });
+    });
+    
+    console.log('[FaceRecognition] Finished drawing all recognition results');
+  }, [recognitionResults, renderDimensions, faces, videoElement]);
+
+  // Start/stop recognition based on face detection and model readiness
+  useEffect(() => {
+    console.log('🔄 FaceRecognition: Evaluating recognition state:', {
+      modelReady,
+      faceApiModelsLoaded,
+      hasMatcher: !!faceMatcher,
+      facesCount: faces.length,
+      currentInterval: !!recognitionIntervalRef.current
+    });
+
+    if (modelReady && faceApiModelsLoaded && faceMatcher && faces.length > 0) {
+      // Start periodic recognition
+      if (!recognitionIntervalRef.current) {
+        console.log('🚀 FaceRecognition: Starting periodic face recognition (every 2 seconds)');
+        recognitionIntervalRef.current = window.setInterval(performFaceRecognition, 2000); // Every 2 seconds
+        console.log('⚡ FaceRecognition: Running immediate recognition');
+        performFaceRecognition(); // Run immediately
+      } else {
+        console.log('⏳ FaceRecognition: Recognition already running, keeping current interval');
+      }
+    } else {
+      // Stop recognition
+      if (recognitionIntervalRef.current) {
+        console.log('⏹️ FaceRecognition: Stopping face recognition - prerequisites not met');
+        clearInterval(recognitionIntervalRef.current);
+        recognitionIntervalRef.current = null;
+      }
+      setRecognitionResults([]);
+    }
+
+    return () => {
+      if (recognitionIntervalRef.current) {
+        console.log('🧹 FaceRecognition: Cleanup - stopping recognition interval');
+        clearInterval(recognitionIntervalRef.current);
+        recognitionIntervalRef.current = null;
+      }
+    };
+  }, [modelReady, faceApiModelsLoaded, faceMatcher, faces.length, performFaceRecognition]);
+
+  // Draw results when they change
+  useEffect(() => {
+    console.log('[FaceRecognition] Drawing trigger - results:', recognitionResults.length, 'faces:', faces.length);
+    drawRecognitionResults();
+  }, [drawRecognitionResults, recognitionResults.length, faces.length]);
+
+  // Show loading state
+  if (!faceApiModelsLoaded || labeledFaceDescriptors === null) {
+    const loadingSteps = [];
+    if (!faceApiModelsLoaded) loadingSteps.push('models');
+    if (labeledFaceDescriptors === null) loadingSteps.push('known faces');
+    
+    console.log('⏳ FaceRecognition: Still loading:', loadingSteps.join(', '));
+    
+    return (
+      <div className="text-xs text-white bg-black bg-opacity-60 px-2 py-1 rounded">
+        Loading face recognition... ({loadingSteps.join(', ')})
+      </div>
+    );
+  }
+
+  console.log('✅ FaceRecognition: Component fully loaded and ready');
+
+  return (
+    <div 
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: `${renderDimensions.width}px`,
+        height: `${renderDimensions.height}px`,
+        pointerEvents: 'none',
+        zIndex: 15,
+        transform: 'scaleX(-1)' // Mirror the overlay to match the video
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={renderDimensions.width}
+        height={renderDimensions.height}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+        }}
+      />
+    </div>
+  );
+};
+
+export default FaceRecognitionIntegrated;

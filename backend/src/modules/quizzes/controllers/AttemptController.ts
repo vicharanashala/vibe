@@ -7,6 +7,7 @@ import {
   Params,
   Post,
 } from 'routing-controllers';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {AttemptService} from '../services/AttemptService';
 import {IUser} from 'shared/interfaces/Models';
 import {
@@ -20,6 +21,9 @@ import {
 import {inject, injectable} from 'inversify';
 import TYPES from '../types';
 
+@OpenAPI({
+  tags: ['Quiz Attempts'],
+})
 @injectable()
 @JsonController('/quizzes')
 class AttemptController {

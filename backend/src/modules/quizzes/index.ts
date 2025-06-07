@@ -1,7 +1,12 @@
 import {useContainer} from 'routing-controllers';
 import {dbConfig} from '../../config/db';
 import {RoutingControllersOptions} from 'routing-controllers';
-import {QuestionController} from './controllers';
+import {
+  QuestionController,
+  QuizController,
+  QuestionBankController,
+  AttemptController,
+} from './controllers';
 import {InversifyAdapter} from '../../inversify-adapter';
 import {Container} from 'inversify';
 import {sharedContainerModule} from '../../container';
@@ -15,7 +20,12 @@ export async function setupQuizzesContainer(): Promise<void> {
 }
 
 export const quizzesModuleOptions: RoutingControllersOptions = {
-  controllers: [QuestionController],
+  controllers: [
+    QuestionController,
+    QuizController,
+    QuestionBankController,
+    AttemptController,
+  ],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {

@@ -9,7 +9,9 @@ import {
 import {QuestionRepository} from './repositories/providers/mongodb/QuestionRepository';
 import {QuestionService} from './services/QuestionService';
 import {AttemptService} from './services/AttemptService';
+import {QuizService} from './services/QuizService';
 import {QuestionController} from './controllers';
+import {QuizController} from './controllers/QuizController';
 import {QuestionBankController} from './controllers/QuestionBankController';
 import {AttemptController} from './controllers/AttemptController';
 import {QuestionBankService} from './services/QuestionBankService';
@@ -36,6 +38,7 @@ export const quizzesContainerModule = new ContainerModule(options => {
 
   // Services
   options.bind(TYPES.QuestionService).to(QuestionService).inSingletonScope();
+  options.bind(TYPES.QuizService).to(QuizService).inSingletonScope();
   options
     .bind(TYPES.QuestionBankService)
     .to(QuestionBankService)
@@ -44,6 +47,7 @@ export const quizzesContainerModule = new ContainerModule(options => {
 
   // Controllers
   options.bind(QuestionController).toSelf().inSingletonScope();
+  options.bind(QuizController).toSelf().inSingletonScope();
   options.bind(QuestionBankController).toSelf().inSingletonScope();
   options.bind(AttemptController).toSelf().inSingletonScope();
 });

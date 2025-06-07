@@ -37,6 +37,9 @@ import {ProgressService} from 'modules/users/services/ProgressService';
 import TYPES from '../types';
 import USER_TYPES from '../../users/types';
 
+@OpenAPI({
+  tags: ['Course Items'],
+})
 @injectable()
 @JsonController('/courses')
 export class ItemController {

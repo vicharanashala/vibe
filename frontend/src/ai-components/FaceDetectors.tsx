@@ -1,9 +1,13 @@
 import React, { useEffect } from "react";
 import { Face, Keypoint } from "@tensorflow-models/face-detection";
+import FaceRecognitionComponent, { FaceRecognition, FaceRecognitionDebugInfo } from "./FaceRecognitionComponentNoWorker";
 
 interface FaceDetectorsProps {
   faces: Face[],
   setIsFocused: (focused: boolean) => void;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
+  onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
 }
 
 const isLookingAway = (face: Face): boolean => {
@@ -33,16 +37,35 @@ const isLookingAway = (face: Face): boolean => {
   return false;
 };
 
-const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces }) => {
+const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate }) => {
 
   useEffect(() => {
-
     const isFocused = !isLookingAway(faces[0]);
     if(faces.length === 0) return setIsFocused(false);
     setIsFocused(isFocused);
   }, [faces, setIsFocused]);
 
-  return null; // No HTML rendering
+  // Debug log
+  useEffect(() => {
+    console.log('🎭 [FaceDetectors] Component rendered with:', {
+      facesCount: faces.length,
+      hasVideoRef: !!videoRef.current,
+      hasCallback: !!onRecognitionResult,
+      hasDebugCallback: !!onDebugInfoUpdate
+    });
+  }, [faces.length, videoRef, onRecognitionResult, onDebugInfoUpdate]);
+
+  return (
+    <>
+      {/* Face Recognition Component */}
+      <FaceRecognitionComponent
+        faces={faces}
+        videoRef={videoRef}
+        onRecognitionResult={onRecognitionResult}
+        onDebugInfoUpdate={onDebugInfoUpdate}
+      />
+    </>
+  );
 };
 
 export default FaceDetectors;

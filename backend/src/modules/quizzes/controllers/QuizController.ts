@@ -9,6 +9,7 @@ import {
   HttpCode,
   Delete,
 } from 'routing-controllers';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QuizService} from '../services/QuizService';
 import {
   QuizIdParam,
@@ -36,6 +37,9 @@ import {QuestionBankService} from '../services/QuestionBankService';
 import {QuestionBankRef} from '../classes/transformers/QuestionBank';
 import {IGradingResult} from '../interfaces/grading';
 
+@OpenAPI({
+  tags: ['Quizzes'],
+})
 @injectable()
 @JsonController('/quiz')
 class QuizController {
@@ -48,6 +52,13 @@ class QuizController {
 
   @Post('/:quizId/bank')
   @HttpCode(201)
+  @OpenAPI({
+    summary: 'Add question bank to quiz',
+    description: 'Associate a question bank with a specific quiz',
+  })
+  @ResponseSchema(QuestionBankRef, {
+    description: 'Question bank added successfully',
+  })
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
@@ -74,6 +85,14 @@ class QuizController {
   }
 
   @Get('/:quizId/bank')
+  @OpenAPI({
+    summary: 'Get all question banks for quiz',
+    description: 'Retrieve all question banks associated with a quiz',
+  })
+  @ResponseSchema(QuestionBankRef, {
+    description: 'Question banks retrieved successfully',
+    isArray: true,
+  })
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
   ): Promise<QuestionBankRef[]> {
@@ -82,6 +101,14 @@ class QuizController {
   }
 
   @Get('/:quizId/user/:userId')
+  @OpenAPI({
+    summary: 'Get user quiz metrics',
+    description:
+      'Retrieve metrics and performance data for a user on a specific quiz',
+  })
+  @ResponseSchema(UserQuizMetricsResponse, {
+    description: 'User quiz metrics retrieved successfully',
+  })
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
   ): Promise<UserQuizMetricsResponse> {
@@ -177,3 +204,5 @@ class QuizController {
     );
   }
 }
+
+export {QuizController};

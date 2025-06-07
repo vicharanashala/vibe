@@ -19,8 +19,11 @@ import {
 import {QuestionBank} from '../classes/transformers/QuestionBank';
 import {Question} from '../classes';
 import TYPES from '../types';
-import {exp} from 'mathjs';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 
+@OpenAPI({
+  tags: ['Question Banks'],
+})
 @injectable()
 @JsonController('/question-bank')
 class QuestionBankController {

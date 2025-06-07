@@ -23,7 +23,11 @@ import {QuestionProcessor} from '../question-processing/QuestionProcessor';
 import {inject, injectable} from 'inversify';
 import TYPES from '../types';
 import {QuestionService} from '../services/QuestionService';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 
+@OpenAPI({
+  tags: ['Questions'],
+})
 @JsonController('/questions')
 @injectable()
 class QuestionController {
@@ -34,6 +38,13 @@ class QuestionController {
 
   @Post('/')
   @HttpCode(201)
+  @OpenAPI({
+    summary: 'Create a new question',
+    description: 'Create a new quiz question with specified type and content',
+  })
+  @ResponseSchema(QuestionId, {
+    description: 'Question created successfully',
+  })
   async create(@Body() body: QuestionBody): Promise<QuestionId> {
     const question = QuestionFactory.createQuestion(body);
     const questionProcessor = new QuestionProcessor(question);
@@ -44,6 +55,13 @@ class QuestionController {
   }
 
   @Get('/:questionId')
+  @OpenAPI({
+    summary: 'Get question by ID',
+    description: 'Retrieve a specific question by its unique identifier',
+  })
+  @ResponseSchema(QuestionResponse, {
+    description: 'Question retrieved successfully',
+  })
   async getById(@Params() params: QuestionId): Promise<QuestionResponse> {
     const {questionId} = params;
     return this.questionService.getById(questionId, true);
@@ -51,6 +69,13 @@ class QuestionController {
 
   @Put('/:questionId')
   @HttpCode(200)
+  @OpenAPI({
+    summary: 'Update question',
+    description: 'Update an existing question with new content or properties',
+  })
+  @ResponseSchema(QuestionResponse, {
+    description: 'Question updated successfully',
+  })
   async update(
     @Params() params: QuestionId,
     @Body() body: QuestionBody,
@@ -62,6 +87,10 @@ class QuestionController {
 
   @Delete('/:questionId')
   @OnUndefined(204)
+  @OpenAPI({
+    summary: 'Delete question',
+    description: 'Remove a question from the system',
+  })
   async delete(@Params() params: QuestionId): Promise<void> {
     const {questionId} = params;
     await this.questionService.delete(questionId);

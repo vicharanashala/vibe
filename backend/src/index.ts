@@ -21,6 +21,10 @@ import {authModuleOptions, setupAuthContainer} from './modules/auth';
 import {coursesModuleOptions, setupCoursesContainer} from './modules/courses';
 import {setupUsersContainer, usersModuleOptions} from './modules/users';
 import {quizzesModuleOptions, setupQuizzesContainer} from './modules/quizzes';
+import {
+  activityModuleOptions,
+  setupActivityContainer,
+} from './modules/activity';
 import {rateLimiter} from './shared/middleware/rateLimiter';
 import {sharedContainerModule} from './container';
 import {authContainerModule} from './modules/auth/container';
@@ -29,6 +33,7 @@ import {Container} from 'inversify';
 import {coursesContainerModule} from 'modules/courses/container';
 import {quizzesContainerModule} from 'modules/quizzes/container';
 import {usersContainerModule} from 'modules/users/container';
+import {activityContainerModule} from './modules/activity/container';
 import {getFromContainer} from 'class-validator';
 import {appConfig} from 'config/app';
 
@@ -122,6 +127,7 @@ const setupAllModulesContainer = async () => {
     authContainerModule,
     coursesContainerModule,
     quizzesContainerModule,
+    activityContainerModule,
   ];
   await container.load(...modules);
   const inversifyAdapter = new InversifyAdapter(container);
@@ -134,6 +140,7 @@ const allModuleOptions: RoutingControllersOptions = {
     ...(coursesModuleOptions.controllers as Function[]),
     ...(usersModuleOptions.controllers as Function[]),
     ...(quizzesModuleOptions.controllers as Function[]),
+    ...(activityModuleOptions.controllers as Function[]),
   ],
   middlewares: [],
   defaultErrorHandler: true,
@@ -161,6 +168,10 @@ export const main = async () => {
     case 'quizzes':
       await setupQuizzesContainer();
       module = ServiceFactory(application, quizzesModuleOptions);
+      break;
+    case 'activity':
+      await setupActivityContainer();
+      module = ServiceFactory(application, activityModuleOptions);
       break;
     case 'all':
       await setupAllModulesContainer();
