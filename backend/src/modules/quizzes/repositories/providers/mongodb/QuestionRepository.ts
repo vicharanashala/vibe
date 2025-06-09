@@ -1,9 +1,10 @@
 import {BaseQuestion} from '#quizzes/classes/index.js';
 import {MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import {Collection, ClientSession} from 'mongodb';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
+import {plainToInstance} from 'class-transformer';
 @injectable()
 class QuestionRepository {
   private questionCollection: Collection<BaseQuestion>;
@@ -34,12 +35,9 @@ class QuestionRepository {
   ): Promise<BaseQuestion | null> {
     await this.init();
     const result = await this.questionCollection.findOne(
-      {_id: questionId},
+      {_id: new ObjectId(questionId)},
       {session},
     );
-    if (!result) {
-      return null;
-    }
     return result;
   }
   public async getByIds(
@@ -47,8 +45,9 @@ class QuestionRepository {
     session?: ClientSession,
   ): Promise<BaseQuestion[]> {
     await this.init();
+    const objectIds = questionIds.map(id => new ObjectId(id));
     const results = await this.questionCollection
-      .find({_id: {$in: questionIds}}, {session})
+      .find({_id: {$in: objectIds}}, {session})
       .toArray();
     return results;
   }
@@ -59,7 +58,7 @@ class QuestionRepository {
   ): Promise<BaseQuestion | null> {
     await this.init();
     const result = await this.questionCollection.findOneAndUpdate(
-      {_id: questionId},
+      {_id: new ObjectId(questionId)},
       {$set: updateData},
       {returnDocument: 'after', session},
     );
@@ -74,7 +73,7 @@ class QuestionRepository {
   ): Promise<boolean> {
     await this.init();
     const result = await this.questionCollection.deleteOne(
-      {_id: questionId},
+      {_id: new ObjectId(questionId)},
       {session},
     );
     return result.deletedCount === 1;

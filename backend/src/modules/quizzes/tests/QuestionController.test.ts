@@ -17,6 +17,7 @@ import {QuestionBody, SOLSolution} from '../classes/validators';
 import request from 'supertest';
 import {jest} from '@jest/globals';
 
+jest.setTimeout(30000);
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
@@ -664,4 +665,147 @@ describe('Progress Controller Integration Tests', () => {
       expect(response.body.message).toMatch(/must be of type 'number'/i);
     });
   });
+
+  describe('Get Question', () => {
+    const questionData: IQuestion = {
+      text: 'Get this question',
+      type: 'NUMERIC_ANSWER_TYPE',
+      points: 2,
+      timeLimitSeconds: 20,
+      isParameterized: false,
+      parameters: [],
+      hint: 'Get hint',
+    };
+    const solution = {
+      decimalPrecision: 0,
+      upperLimit: 10,
+      lowerLimit: 0,
+      value: 5,
+    };
+
+    it('should get a question by ID', async () => {
+      const body: QuestionBody = {question: questionData, solution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      expect(res.body.text).toBe(questionData.text);
+    });
+
+    it('should return 404 for non-existent question', async () => {
+      const res = await request(app).get('/questions/507f1f77bcf86cd799439011');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('Update Question', () => {
+    const originalQuestion: IQuestion = {
+      text: 'Original question',
+      type: 'NUMERIC_ANSWER_TYPE',
+      points: 2,
+      timeLimitSeconds: 20,
+      isParameterized: false,
+      parameters: [],
+      hint: 'Original hint',
+    };
+    const originalSolution = {
+      decimalPrecision: 0,
+      upperLimit: 10,
+      lowerLimit: 0,
+      value: 3,
+    };
+
+    it('should update a question by ID', async () => {
+      // Create a question first
+      const createBody: QuestionBody = {question: originalQuestion, solution: originalSolution};
+      const createRes = await request(app).post('/questions').send(createBody);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      // Now update it
+      const updatedQuestion: IQuestion = {
+        ...originalQuestion,
+        text: 'Updated question',
+        points: 5,
+        hint: 'Updated hint',
+      };
+      const updatedSolution = {...originalSolution, value: 7};
+      const updateBody: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
+      const res = await request(app).put(`/questions/${questionId}`).send(updateBody);
+      expect(res.status).toBe(200);
+      expect(res.body.text).toBe('Updated question');
+      expect(res.body.points).toBe(5);
+    });
+
+    it('should return 404 for non-existent question', async () => {
+      const updatedQuestion = {...originalQuestion, text: 'Does not matter'};
+      const updatedSolution = {...originalSolution, value: 0};
+      const body: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
+      const res = await request(app).put('/questions/507f1f77bcf86cd799439011').send(body);
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('Delete Question', () => {
+    const questionData: IQuestion = {
+      text: 'Delete this question',
+      type: 'NUMERIC_ANSWER_TYPE',
+      points: 2,
+      timeLimitSeconds: 20,
+      isParameterized: false,
+      parameters: [],
+      hint: 'Delete hint',
+    };
+    const solution = {
+      decimalPrecision: 0,
+      upperLimit: 10,
+      lowerLimit: 0,
+      value: 9,
+    };
+
+    it('should delete a question by ID and remove it from all question banks', async () => {
+      // Create a question first
+      const createBody: QuestionBody = {question: questionData, solution};
+      const createRes = await request(app).post('/questions').send(createBody);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      // Create a question bank with the question
+      const bankRes = await request(app).post('/question-bank').send({
+        questions: [questionId],
+        title: 'Bank for Delete Test',
+        description: 'Bank for delete question test',
+      });
+      expect(bankRes.status).toBe(200);
+      const questionBankId = bankRes.body.questionBankId;
+
+      // Confirm the question is in the bank
+      const bankGetRes = await request(app).get(`/question-bank/${questionBankId}`);
+      expect(bankGetRes.status).toBe(200);
+      expect(bankGetRes.body.questions).toContain(questionId);
+
+      // Now delete the question
+      const res = await request(app).delete(`/questions/${questionId}`);
+      expect(res.status).toBe(204);
+
+      // Confirm deletion
+      const getRes = await request(app).get(`/questions/${questionId}`);
+      expect(getRes.status).toBe(404);
+
+      // Confirm the question is removed from the bank
+      const bankGetResAfter = await request(app).get(`/question-bank/${questionBankId}`);
+      expect(bankGetResAfter.status).toBe(200);
+      expect(bankGetResAfter.body.questions).not.toContain(questionId);
+    });
+
+    it('should return 404 for non-existent question', async () => {
+      const res = await request(app).delete('/questions/507f1f77bcf86cd799439011');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  
 });
