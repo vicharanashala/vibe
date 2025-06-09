@@ -6,7 +6,9 @@ import {quizzesContainerModule} from './container.js';
 import {QuestionController} from './controllers/QuestionController.js';
 import {QuestionBankController} from './controllers/QuestionBankController.js';
 import {coursesContainerModule} from '#courses/container.js';
-import {Question} from './classes/index.js';
+import {Attempt, Question} from './classes/index.js';
+import {AttemptController} from './controllers/AttemptController.js';
+import {QuizController} from './controllers/QuizController.js';
 
 export async function setupQuizzesContainer(): Promise<void> {
   const container = new Container();
@@ -20,7 +22,12 @@ export async function setupQuizzesContainer(): Promise<void> {
 }
 
 export const quizzesModuleOptions: RoutingControllersOptions = {
-  controllers: [QuestionController, QuestionBankController],
+  controllers: [
+    QuestionController,
+    QuestionBankController,
+    AttemptController,
+    QuizController,
+  ],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {

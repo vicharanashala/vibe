@@ -226,7 +226,7 @@ class AttemptService extends BaseService {
       metrics.latestAttemptId = attemptId;
       metrics.remainingAttempts--;
       metrics.attempts.push({attemptId});
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
@@ -294,7 +294,7 @@ class AttemptService extends BaseService {
         }
         return attempt;
       });
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );

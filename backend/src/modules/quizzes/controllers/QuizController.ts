@@ -174,3 +174,5 @@ class QuizController {
     );
   }
 }
+
+export {QuizController};
