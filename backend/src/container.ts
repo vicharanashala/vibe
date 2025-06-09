@@ -2,6 +2,7 @@ import {dbConfig} from './config/db';
 import {ContainerModule} from 'inversify';
 import {
   MongoDatabase,
+  UserRepository,
   CourseRepository,
 } from './shared/database/providers/MongoDatabaseProvider';
 import TYPES from './types';
@@ -21,6 +22,7 @@ export const sharedContainerModule = new ContainerModule(options => {
   options.bind(TYPES.Database).to(MongoDatabase).inSingletonScope();
 
   // Repositories
+  options.bind(TYPES.UserRepo).to(UserRepository).inSingletonScope();
   options.bind(TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
 
   //Services

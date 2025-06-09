@@ -29,9 +29,6 @@ import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import {CourseVersion} from '../classes/transformers';
 import TYPES from '../types';
 
-@OpenAPI({
-  tags: ['Course Versions'],
-})
 @injectable()
 @JsonController('/courses')
 export class CourseVersionController {

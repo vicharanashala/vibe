@@ -2,15 +2,10 @@
 import TYPES from './types';
 
 import {EnrollmentService, ProgressService} from './services';
-import {
-  ProgressController,
-  EnrollmentController,
-  UserController,
-} from './controllers';
+import {ProgressController, EnrollmentController} from './controllers';
 
 import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
 import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
-import {UserRepository} from 'shared/database/providers/mongo/repositories/UserRepository';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
@@ -19,7 +14,6 @@ export const usersContainerModule = new ContainerModule(options => {
     .bind(TYPES.EnrollmentRepo)
     .to(EnrollmentRepository)
     .inSingletonScope();
-  options.bind(TYPES.UserRepo).to(UserRepository).inSingletonScope();
 
   // Services
   options
@@ -31,5 +25,4 @@ export const usersContainerModule = new ContainerModule(options => {
   // Controllers
   options.bind(ProgressController).toSelf().inSingletonScope();
   options.bind(EnrollmentController).toSelf().inSingletonScope();
-  options.bind(UserController).toSelf().inSingletonScope();
 });

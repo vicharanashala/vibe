@@ -69,7 +69,7 @@ export class UserRepository implements IUserRepository {
     await this.init();
     const user = await this.usersCollection.findOne({email}, {session});
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(`User not found`);
     }
     return instanceToPlain(new User(user)) as IUser;
   }
@@ -81,7 +81,7 @@ export class UserRepository implements IUserRepository {
     await this.init();
     const user = await this.usersCollection.findOne({_id: new ObjectId(id)});
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(`User not found`);
     }
     return instanceToPlain(new User(user)) as IUser;
   }
@@ -93,7 +93,7 @@ export class UserRepository implements IUserRepository {
     await this.init();
     const user = await this.usersCollection.findOne({firebaseUID});
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(`User not found`);
     }
     return instanceToPlain(new User(user)) as IUser;
   }

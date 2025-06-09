@@ -33,9 +33,6 @@ import {coursesModuleOptions} from '..';
 import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
 import TYPES from '../types';
 
-@OpenAPI({
-  tags: ['Courses'],
-})
 @injectable()
 @JsonController('/courses')
 export class CourseController {

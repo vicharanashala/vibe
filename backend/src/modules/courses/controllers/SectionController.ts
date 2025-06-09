@@ -40,11 +40,6 @@ import {SectionService} from '../services/SectionService';
 import {CourseVersion} from '../classes/transformers';
 import TYPES from '../types';
 import GLOBAL_TYPES from '../../../types';
-import USER_TYPES from '../../users/types';
-
-@OpenAPI({
-  tags: ['Course Sections'],
-})
 @injectable()
 @JsonController('/courses')
 export class SectionController {
