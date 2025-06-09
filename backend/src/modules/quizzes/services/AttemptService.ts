@@ -205,7 +205,7 @@ class AttemptService extends BaseService {
       }
 
       //3. Check if available attempts > 0
-      if (metrics.remainingAttempts <= 0 || metrics.remainingAttempts !== -1) {
+      if (metrics.remainingAttempts <= 0 && metrics.remainingAttempts !== -1) {
         throw new BadRequestError('No available attempts left for this quiz');
       }
 
