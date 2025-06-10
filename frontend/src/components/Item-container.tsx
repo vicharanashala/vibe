@@ -4,12 +4,12 @@ import Quiz from './quiz';
 import Article from './article';
 
 export interface Item {
-  itemId: string;
+  _id: string;
   name: string;
   description?: string;
   type: string;
   order?: string;
-  itemDetails?: {
+  details?: {
     points?: string;
 
     // For Video
@@ -52,39 +52,39 @@ const ItemContainer: React.FC<ItemContainerProps> = ({ item, doGesture}) => {
     switch (itemType) {
       case 'video':
         return <Video
-          URL={item.itemDetails?.URL ? item.itemDetails.URL : ''}
-          startTime={item.itemDetails?.startTime ? item.itemDetails.startTime : ''}
-          endTime={item.itemDetails?.endTime ? item.itemDetails.endTime : ''}
-          points={item.itemDetails?.points ? item.itemDetails.points : ''}
+          URL={item.details?.URL ? item.details.URL : ''}
+          startTime={item.details?.startTime ? item.details.startTime : ''}
+          endTime={item.details?.endTime ? item.details.endTime : ''}
+          points={item.details?.points ? item.details.points : ''}
           doGesture={doGesture}
         />;
 
       case 'quiz':
         return <Quiz
-          questionBankRefs={item.itemDetails?.questionBankRefs || []}
-          passThreshold={item.itemDetails?.passThreshold || 0}
-          maxAttempts={item.itemDetails?.maxAttempts || 1}
-          quizType={item.itemDetails?.quizType || ''}
-          releaseTime={item.itemDetails?.releaseTime}
-          questionVisibility={item.itemDetails?.questionVisibility || 0}
-          deadline={item.itemDetails?.deadline}
-          approximateTimeToComplete={item.itemDetails?.approximateTimeToComplete || ''}
-          allowPartialGrading={item.itemDetails?.allowPartialGrading || false}
-          allowHint={item.itemDetails?.allowHint || false}
-          showCorrectAnswersAfterSubmission={item.itemDetails?.showCorrectAnswersAfterSubmission || false}
-          showExplanationAfterSubmission={item.itemDetails?.showExplanationAfterSubmission || false}
-          showScoreAfterSubmission={item.itemDetails?.showScoreAfterSubmission || false}
-          quizId={item.itemId || ''}
+          questionBankRefs={item.details?.questionBankRefs || []}
+          passThreshold={item.details?.passThreshold || 0}
+          maxAttempts={item.details?.maxAttempts || 1}
+          quizType={item.details?.quizType || ''}
+          releaseTime={item.details?.releaseTime}
+          questionVisibility={item.details?.questionVisibility || 0}
+          deadline={item.details?.deadline}
+          approximateTimeToComplete={item.details?.approximateTimeToComplete || ''}
+          allowPartialGrading={item.details?.allowPartialGrading || false}
+          allowHint={item.details?.allowHint || false}
+          showCorrectAnswersAfterSubmission={item.details?.showCorrectAnswersAfterSubmission || false}
+          showExplanationAfterSubmission={item.details?.showExplanationAfterSubmission || false}
+          showScoreAfterSubmission={item.details?.showScoreAfterSubmission || false}
+          quizId={item._id || ''}
           doGesture={doGesture}
         />;
 
       case 'article':
       case 'blog':
         return <Article
-          content={item.blogDetails?.content || item.itemDetails?.content || ''}
-          estimatedReadTimeInMinutes={item.itemDetails?.estimatedReadTimeInMinutes || ''}
-          tags={item.itemDetails?.tags || []}
-          points={item.itemDetails?.points || ''}
+          content={item.blogDetails?.content || item.details?.content || ''}
+          estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
+          tags={item.details?.tags || []}
+          points={item.details?.points || ''}
         />;
 
       default:

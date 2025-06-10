@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/store/auth-store";
-import { useUserEnrollments, useCourseById } from "@/lib/api/hooks";
+import { useUserEnrollments, useCourseById, useUserByFirebaseUID } from "@/lib/api/hooks";
 import { useNavigate } from "@tanstack/react-router";
 import { useCourseStore } from "@/lib/store/course-store";
+import { redirect } from "react-router-dom";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -298,6 +299,15 @@ export default function Page() {
   const studentName = user?.name || user?.firstName || 'Student';
   console.log(user);
   const userId = user?.userId;
+  if (!userId || userId === "") {
+    // redirect to login if no userId is found
+    console.log(userId, "User ID not found, redirecting to auth page");
+    redirect({ to: '/auth' });
+  }
+
+  const token = localStorage.getItem('firebase-auth-token');
+  console.log("Firebase Auth Token:", token);
+
   const [greeting, setGreeting] = useState(getGreeting());
 
   // Use todos hook

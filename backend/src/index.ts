@@ -4,12 +4,16 @@ import Sentry from '@sentry/node';
 import {loggingHandler} from './shared/middleware/loggingHandler';
 import {corsHandler} from './shared/middleware/corsHandler';
 import {
+  Action,
   RoutingControllersOptions,
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
 import {IDatabase} from './shared/database';
-import {MongoDatabase} from './shared/database/providers/MongoDatabaseProvider';
+import {
+  MongoDatabase,
+  UserRepository,
+} from './shared/database/providers/MongoDatabaseProvider';
 import {dbConfig} from './config/db';
 import * as firebase from 'firebase-admin';
 import {app} from 'firebase-admin';
@@ -17,7 +21,11 @@ import {apiReference} from '@scalar/express-api-reference';
 import {OpenApiSpecService} from './modules/docs';
 
 // Import all module options
-import {authModuleOptions, setupAuthContainer} from './modules/auth';
+import {
+  authModuleOptions,
+  FirebaseAuthService,
+  setupAuthContainer,
+} from './modules/auth';
 import {coursesModuleOptions, setupCoursesContainer} from './modules/courses';
 import {setupUsersContainer, usersModuleOptions} from './modules/users';
 import {quizzesModuleOptions, setupQuizzesContainer} from './modules/quizzes';
@@ -36,6 +44,8 @@ import {usersContainerModule} from 'modules/users/container';
 import {activityContainerModule} from './modules/activity/container';
 import {getFromContainer} from 'class-validator';
 import {appConfig} from 'config/app';
+
+import GLOBAL_TYPES from './types';
 
 export const application = Express();
 
@@ -147,6 +157,13 @@ const allModuleOptions: RoutingControllersOptions = {
   authorizationChecker: async function () {
     return true;
   },
+  // currentUserChecker:  async function (action: Action) {
+  //   // Use the auth service to check if the user is authorized
+  //   const authService =
+  //     getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+  //   const firebaseUID = action.request.headers.authorization?.split(' ')[1];
+  //   return await authService.verifyToken(firebaseUID);
+  // },
   validation: true,
 };
 

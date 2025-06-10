@@ -11,6 +11,7 @@ import {
   HttpCode,
   CurrentUser,
   ForbiddenError,
+  Req,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
 import {
@@ -24,6 +25,7 @@ import {
   DeleteItemParams,
   DeletedItemResponse,
   GetItemParams,
+  GetItemResponse,
 } from '../classes/validators/ItemValidators';
 import {ItemService} from '../services';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
@@ -165,9 +167,9 @@ export class ItemController {
   }
 
   @Authorized(['admin', 'instructor', 'student'])
-  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @Get('/:courseId/versions/:courseVersionId/item/:itemId')
   @HttpCode(201)
-  @ResponseSchema(ItemDataResponse, {
+  @ResponseSchema(GetItemResponse, {
     description: 'Item retrieved successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
@@ -178,16 +180,22 @@ export class ItemController {
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@CurrentUser() user: IUser, @Params() params: GetItemParams) {
+  async getItem(@Params() params: GetItemParams, @Req() req: any) {
+    // console.log(req.headers.authorization)
     const {courseId, courseVersionId, itemId} = params;
-    const progress = await this.progressService.getUserProgress(
-      user._id,
-      courseId,
-      courseVersionId,
-    );
-    if (progress.currentItem !== itemId) {
-      throw new ForbiddenError('Item does not match current progress');
-    }
-    return await this.itemService.readItem(courseVersionId, itemId);
+    // console.log('Current user:', user);
+    // console.log('User ID:', user._id);
+    // console.log('User Firebase UID:', user.firebaseUID);
+    // const progress = await this.progressService.getUserProgress(
+    //   user._id,
+    //   courseId,
+    //   courseVersionId,
+    // );
+    // if (progress.currentItem !== itemId) {
+    //   throw new ForbiddenError('Item does not match current progress');
+    // }
+    return {
+      item: await this.itemService.readItem(courseVersionId, itemId),
+    };
   }
 }

@@ -27,14 +27,20 @@ import {
 } from '../../../../shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
-import {CourseVersion, ItemsGroup} from '../transformers';
+import {
+  CourseVersion,
+  ItemsGroup,
+  QuizItem,
+  BlogItem,
+  VideoItem,
+} from '../transformers';
 import {isNumeric} from 'mathjs';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
     title: 'Video URL',
     description: 'Public video URL (e.g., YouTube or Vimeo link)',
-    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    example: 'https://youtu.be/ta99S6Fh53c',
     type: 'string',
     format: 'uri',
   })
@@ -808,6 +814,16 @@ class DeletedItemResponse {
   updatedItemsGroup: Record<string, any>;
 }
 
+class GetItemResponse {
+  @JSONSchema({
+    description: 'The item data',
+    type: 'object',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  item: VideoItem | QuizItem | BlogItem;
+}
+
 export {
   CreateItemBody,
   UpdateItemBody,
@@ -824,4 +840,5 @@ export {
   ItemDataResponse,
   DeletedItemResponse,
   GetItemParams,
+  GetItemResponse,
 };

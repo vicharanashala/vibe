@@ -41,6 +41,15 @@ class QuestionController {
   @OpenAPI({
     summary: 'Create a new question',
     description: 'Create a new quiz question with specified type and content',
+    requestBody: {
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/QuestionBody',
+          },
+        },
+      },
+    },
   })
   @ResponseSchema(QuestionId, {
     description: 'Question created successfully',
@@ -72,6 +81,15 @@ class QuestionController {
   @OpenAPI({
     summary: 'Update question',
     description: 'Update an existing question with new content or properties',
+    requestBody: {
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/QuestionBody',
+          },
+        },
+      },
+    },
   })
   @ResponseSchema(QuestionResponse, {
     description: 'Question updated successfully',

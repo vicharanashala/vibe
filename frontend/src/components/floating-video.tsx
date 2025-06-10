@@ -203,7 +203,7 @@ function FloatingVideo({
 
     return () => clearInterval(interval);
   }, [isSpeaking, facesCount, isBlur, isFocused]);
-  const mul = 100; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
+  const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
   // Random thumbs-up challenge system
   useEffect(() => {
     const checkForChallenge = () => {
@@ -585,83 +585,84 @@ function FloatingVideo({
         />
         
         {/* Enhanced Face Recognition Debug Overlay */}
-        {!isCollapsed && (
+        {/* {!isCollapsed && (
           <div className="absolute top-0 left-0 z-20 bg-black bg-opacity-75 text-white p-3 text-xs font-mono border-r border-b border-gray-600">
-            <div className="space-y-1">
-              {/* Backend Status */}
-              <div className="flex items-center gap-2">
-                <span className="text-gray-300">Backend:</span>
-                <span className={`font-semibold ${
-                  faceRecognitionDebug.backendStatus === 'success' ? 'text-green-400' : 
-                  faceRecognitionDebug.backendStatus === 'error' ? 'text-red-400' : 'text-yellow-400'
-                }`}>
-                  {faceRecognitionDebug.backendStatus.toUpperCase()}
-                </span>
-              </div>
-              
-              {/* Known Faces Info */}
-              <div className="text-blue-300">
-                Known People: {faceRecognitionDebug.knownFacesCount}
-              </div>
-              
-              {/* Photo Faces Info */}
-              <div className="text-purple-300">
-                Photo Faces: {faceRecognitionDebug.detectedPhotoFaces}
-              </div>
-              
-              {/* Current Frame Info */}
-              <div className="text-cyan-300">
-                Frame Faces: {faceRecognitionDebug.currentFrameFaces}
-              </div>
-              
-              {/* Recognition Results */}
-              <div className="text-green-300">
-                Recognized: {faceRecognitionDebug.recognizedFaces}
-              </div>
-              
-              {/* Processing Time */}
-              {faceRecognitionDebug.processingTime && (
-                <div className="text-orange-300">
-                  Process: {faceRecognitionDebug.processingTime.toFixed(1)}ms
-                </div>
-              )}
-              
-              {/* Known Face Labels */}
-              {faceRecognitionDebug.knownFaceLabels.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-600">
-                  <div className="text-gray-300 mb-1">Known:</div>
-                  <div className="text-yellow-300 text-xs">
-                    {faceRecognitionDebug.knownFaceLabels.join(', ')}
-                  </div>
-                </div>
-              )}
-              
-              {/* Current Recognition Results */}
-              {recognizedFaces.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-600">
-                  <div className="text-gray-300 mb-1">Current:</div>
-                  {recognizedFaces.map((face, idx) => (
-                    <div key={idx} className={`text-xs ${face.isMatch ? 'text-green-300' : 'text-red-300'}`}>
-                      {face.label} ({face.distance.toFixed(3)})
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Error Message */}
-              {faceRecognitionDebug.errorMessage && (
-                <div className="mt-2 pt-2 border-t border-gray-600">
-                  <div className="text-red-400 text-xs">Error: {faceRecognitionDebug.errorMessage}</div>
-                </div>
-              )}
-              
-              {/* Last Update Time */}
-              <div className="mt-2 pt-2 border-t border-gray-600 text-gray-400 text-xs">
-                Updated: {new Date(faceRecognitionDebug.lastUpdateTime).toLocaleTimeString()}
+          <div className="space-y-1">
+            {/* Backend Status */}
+            {/* <div className="flex items-center gap-2">
+            <span className="text-gray-300">Backend:</span>
+            <span className={`font-semibold ${
+              faceRecognitionDebug.backendStatus === 'success' ? 'text-green-400' : 
+              faceRecognitionDebug.backendStatus === 'error' ? 'text-red-400' : 'text-yellow-400'
+            }`}>
+              {faceRecognitionDebug.backendStatus.toUpperCase()}
+            </span>
+            </div>
+            
+            {/* Known Faces Info */}
+            {/* <div className="text-blue-300">
+            Known People: {faceRecognitionDebug.knownFacesCount}
+            </div>
+            
+            {/* Photo Faces Info */}
+            {/* <div className="text-purple-300">
+            Photo Faces: {faceRecognitionDebug.detectedPhotoFaces}
+            </div>
+            
+            {/* Current Frame Info */}
+            {/* <div className="text-cyan-300">
+            Frame Faces: {faceRecognitionDebug.currentFrameFaces}
+            </div>
+            
+            {/* Recognition Results */}
+            {/* <div className="text-green-300">
+            Recognized: {faceRecognitionDebug.recognizedFaces}
+            </div>
+            
+            {/* Processing Time */}
+            {/* {faceRecognitionDebug.processingTime && (
+            <div className="text-orange-300">
+              Process: {faceRecognitionDebug.processingTime.toFixed(1)}ms
+            </div>
+            )}
+            
+            {/* Known Face Labels */}
+            {/* {faceRecognitionDebug.knownFaceLabels.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <div className="text-gray-300 mb-1">Known:</div>
+              <div className="text-yellow-300 text-xs">
+              {faceRecognitionDebug.knownFaceLabels.join(', ')}
               </div>
             </div>
+            )}
+            
+            {/* Current Recognition Results */}
+            {/* {recognizedFaces.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <div className="text-gray-300 mb-1">Current:</div>
+              {recognizedFaces.map((face, idx) => (
+              <div key={idx} className={`text-xs ${face.isMatch ? 'text-green-300' : 'text-red-300'}`}>
+                {face.label} ({face.distance.toFixed(3)})
+              </div>
+              ))}
+            </div>
+            )}
+            
+            {/* Error Message */}
+            {/* {faceRecognitionDebug.errorMessage && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <div className="text-red-400 text-xs">Error: {faceRecognitionDebug.errorMessage}</div>
+            </div>
+            )}
+            
+            {/* Last Update Time */}
+            {/* <div className="mt-2 pt-2 border-t border-gray-600 text-gray-400 text-xs">
+            Updated: {new Date(faceRecognitionDebug.lastUpdateTime).toLocaleTimeString()}
+            </div>
           </div>
-        )}
+          </div>
+        )} */}
+        {/* )} */}
         {!isCollapsed && recognizedFaces.length > 0 && (
           <FaceRecognitionOverlay
             recognitions={recognizedFaces}

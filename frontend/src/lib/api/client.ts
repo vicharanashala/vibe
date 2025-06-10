@@ -14,7 +14,7 @@ export const queryClient = new QueryClient({
 });
 
 // Base API URL - this should point to your backend
-const BASE_URL = 'https://localhost:4001/api';
+const BASE_URL = 'https://localhost:4001/';
 
 // Create API client
 export const apiClient = createClient({
@@ -63,6 +63,7 @@ apiClient.use({
     const token = getAuthToken();
     if (token && req instanceof Request) {
       req.headers.set('Authorization', `Bearer ${token}`);
+      console.log('Adding auth token to request:', token);
       return req; // Return the modified Request object
     }
     return undefined; // Return undefined if we can't modify the request

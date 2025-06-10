@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, use } from "react";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress } from "@/lib/api/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress, useItemById } from "@/lib/api/hooks";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useCourseStore } from "@/lib/store/course-store";
 import { Link } from "@tanstack/react-router";
@@ -48,6 +48,12 @@ const getItemIcon = (type: string) => {
       return <FileText className="h-3 w-3" />;
   }
 };
+
+interface itemref {
+  order?: string;
+  type?: string;
+  _id?: string;
+}
 
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
@@ -90,7 +96,7 @@ export default function CoursePage() {
   const [doGesture, setDoGesture] = useState<boolean>(false);
 
   // State to store all fetched section items
-  const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+  const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
 
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{
@@ -119,6 +125,22 @@ export default function CoursePage() {
     shouldFetchItems ? sectionModuleId : '6831b98e1f79c52d445c5db5',
     shouldFetchItems ? sectionId : '6831b98e1f79c52d445c5db6',
   );
+
+  // Fetch individual item details when an item is selected
+  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID);
+  const {
+    data: itemData,
+    isLoading: itemLoading,
+    error: itemError
+  } = useItemById(
+    shouldFetchItem ? COURSE_ID : '',
+    shouldFetchItem ? VERSION_ID : '',
+    shouldFetchItem ? selectedItemId : ''
+  );
+
+  useEffect(() => {
+    console.log('Current section items:', itemData);
+  }, [itemData]);
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -164,26 +186,21 @@ export default function CoursePage() {
     }
   }, [progressData, updateCourseNavigation]);
 
-  // Effect to set current item when selection changes
+  // Effect to set current item when item data is fetched
   useEffect(() => {
-    if (selectedSectionId && selectedItemId && sectionItems[selectedSectionId]) {
-      const items = sectionItems[selectedSectionId] || [];
-      const found = items.find((item: any) => item.itemId === selectedItemId);
-
-      if (found) {
-        setCurrentItem(found);
-      }
+    if (itemData?.item && !itemLoading) {
+      setCurrentItem(itemData.item);
     }
-  }, [selectedItemId, sectionItems, selectedSectionId]);
+  }, [itemData, itemLoading]);
 
   // Handle item selection
-  const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
+  const handleSelectItem = (moduleId: string, sectionId: string, _id: string) => {
     setSelectedModuleId(moduleId);
     setSelectedSectionId(sectionId);
-    setSelectedItemId(itemId);
+    setSelectedItemId(_id);
 
     // Update the course store with the new navigation state
-    updateCourseNavigation(moduleId, sectionId, itemId);
+    updateCourseNavigation(moduleId, sectionId, _id);
   };
 
   // Toggle module expansion
@@ -381,7 +398,7 @@ export default function CoursePage() {
                                     ) : sectionItems[sectionId] ? (
                                       // Ensure items are sorted by "order" property before rendering
                                       sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
-                                        const itemId = item.itemId;
+                                        const itemId = item._id;
                                         const isCurrentItem = itemId === selectedItemId;
 
                                         return (
@@ -399,7 +416,11 @@ export default function CoursePage() {
                                                   {getItemIcon(item.type)}
                                                 </div>
                                                 <div className="flex-1 text-left min-w-0">
-                                                  <div className="text-xs font-medium truncate" title={item.name}>{item.name}</div>
+                                                  <div className="text-xs font-medium truncate" title={currentItem?.name || 'Loading...'}>
+                                                    {selectedItemId === itemId && itemLoading ? 'Loading...' : 
+                                                     selectedItemId === itemId && currentItem?.name ? currentItem.name : 
+                                                     `Item ${item.order || ''}`}
+                                                  </div>
                                                 </div>
                                                 {isCurrentItem && (
                                                   <CheckCircle className="h-3 w-3 text-primary flex-shrink-0" />
@@ -428,7 +449,7 @@ export default function CoursePage() {
             </ScrollArea>
           </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-            <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo>
+            {/* <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo> */}
             </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">

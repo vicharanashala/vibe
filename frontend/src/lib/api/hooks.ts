@@ -414,14 +414,14 @@ export function useCreateItem(): {
 }
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
-export function useItemById(versionId: string, moduleId: string, sectionId: string, itemId: string): {
+export function useItemById(courseId: string, versionId: string, itemId: string): {
   data: components['schemas']['ItemDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}", {
-    params: { path: { versionId, moduleId, sectionId, itemId } }
+  const result = api.useQuery("get", "/courses/{courseId}/versions/{versionId}/item/{itemId}", {
+    params: { path: { courseId, versionId, itemId } }
   });
 
   return {

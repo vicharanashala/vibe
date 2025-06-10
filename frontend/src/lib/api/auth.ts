@@ -16,7 +16,7 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
   if (!firebaseUser) return null;
   try {
     // Get token for backend API calls
-    const token = await firebaseUser.getIdToken();
+    const token = await firebaseUser.getIdToken(true);
     useAuthStore.getState().setToken(token);
 
     // Fetch backend user info directly using fetch
@@ -31,8 +31,11 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
           },
         }
       );
+      console.log('Fetching backend user:', firebaseUser.uid);
+      console.log(res);
       if (res.ok) {
         backendUser = await res.json();
+        console.log('Fetched backend user:', backendUser);
       }
     } catch (error) {
       console.error('Failed to fetch backend user:', error);

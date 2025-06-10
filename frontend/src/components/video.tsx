@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
@@ -68,6 +68,7 @@ function parseTimeToSeconds(timeStr: string): number {
 }
 
 export default function Video({ URL, startTime, endTime, points, doGesture=false }: VideoProps) {
+  console.log('Video component mounted with URL:', URL);
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -93,6 +94,24 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
+
+  // Control handlers
+  const handlePlayPause = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || typeof player.pauseVideo !== 'function') return; 
+    if (playing) {
+      player.pauseVideo();
+    } else {
+      player.playVideo();
+    }
+  }, [playing]);
+
+  const handleBackward = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    const newTime = Math.max(startTimeSeconds, currentTime - 10);
+    player.seekTo(newTime, true);
+  };
 
   // Pause/resume video based on doGesture
   useEffect(() => {
@@ -135,7 +154,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
     if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId)
   }
 
-  function handleStopProgress() {
+  const handleStopProgress = useCallback(() => {
     if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId) return;
     stopItem.mutate({
       params: {
@@ -152,7 +171,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
         sectionId: currentCourse.sectionId ?? '',
       }
     });
-  }
+  }, [userId, currentCourse, stopItem]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -219,11 +238,19 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
     };
   }, [videoId, startTimeSeconds]);
 
-  // Block keyboard shortcuts globally when component is mounted
+  // Handle keyboard events including space for play/pause
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Handle space key for play/pause
+      if (e.code === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePlayPause();
+        return;
+      }
+
       const blockedKeys = [
-        'Space', 'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
         'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
         'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
         'Period', 'Comma', 'KeyI', 'KeyO',
@@ -239,7 +266,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, []);
+  }, [handlePlayPause]);
 
   // Poll current time and enforce time constraints
   useEffect(() => {
@@ -285,25 +312,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds]);
-
-  // Control handlers
-  const handlePlayPause = () => {
-    const player = playerRef.current;
-    if (!player || typeof player.pauseVideo !== 'function') return; 
-    if (playing) {
-      player.pauseVideo();
-    } else {
-      player.playVideo();
-    }
-  };
-
-  const handleBackward = () => {
-    const player = playerRef.current;
-    if (!player) return;
-    const newTime = Math.max(startTimeSeconds, currentTime - 10);
-    player.seekTo(newTime, true);
-  };
+  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, handleStopProgress]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

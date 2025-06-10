@@ -9,10 +9,11 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 export function App() {
   // Initialize Firebase auth listener
-  useEffect(() => {
-    const unsubscribe = initAuth();
-    return () => unsubscribe();
-  }, []);
+  // useEffect(() => {
+  //   const unsubscribe = initAuth();
+  //   return () => unsubscribe();
+  // }, []);
+  initAuth();
 
   return (
     <QueryClientProvider client={queryClient}>
