@@ -1,10 +1,6 @@
+import {IUser, ObjectIdToString, StringToObjectId} from '#shared/index.js';
 import {Expose, Transform} from 'class-transformer';
 import {ObjectId} from 'mongodb';
-import {
-  ObjectIdToString,
-  StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {IUser} from 'shared/interfaces/Models';
 
 class User implements IUser {
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing

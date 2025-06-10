@@ -1,39 +1,39 @@
-import {inject, injectable} from 'inversify';
-import {BaseService} from '../../../shared/classes/BaseService';
-import GLOBAL_TYPES from '../../../types';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import {IQuestionBankRef} from '../../../shared/interfaces/Models';
-import TYPES from '../types';
+import {
+  IQuestionAnswerFeedback,
+  IGradingResult,
+} from '#quizzes/interfaces/grading.js';
 import {
   AttemptRepository,
-  QuizRepository,
   SubmissionRepository,
+  QuizRepository,
+  QuestionBankRepository,
   UserQuizMetricsRepository,
-} from '../repositories';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IGradingResult, IQuestionAnswerFeedback} from '../interfaces/grading';
+} from '#quizzes/repositories/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase, IQuestionBankRef} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
-
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     public readonly database: MongoDatabase,
 
-    @inject(TYPES.AttemptRepo)
+    @inject(QUIZZES_TYPES.AttemptRepo)
     public readonly attemptRepo: AttemptRepository,
 
-    @inject(TYPES.SubmissionRepo)
+    @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
 
-    @inject(TYPES.QuizRepo)
+    @inject(QUIZZES_TYPES.QuizRepo)
     public readonly quizRepo: QuizRepository,
 
-    @inject(TYPES.QuestionBankRepo)
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
     public readonly questionBankRepo: QuestionBankRepository,
 
-    @inject(TYPES.UserQuizMetricsRepo)
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     public readonly userQuizMetricsRepo: UserQuizMetricsRepository,
   ) {
     super(database);
@@ -366,6 +366,47 @@ class QuizService extends BaseService {
       if (!result) {
         throw new InternalServerError('Failed to add feedback to answer.');
       }
+    });
+  }
+  getCourseInfo(quizId: string): Promise<Record<string, Set<string>>> {
+    return this._withTransaction(async session => {
+      const quiz = await this.quizRepo.getById(quizId, session);
+      if (!quiz) {
+        throw new NotFoundError('Quiz does not exist.');
+      }
+      const quesBankIds = quiz.details.questionBankRefs.map(qb => qb.bankId);
+      if (quesBankIds.length === 0) {
+        throw new Error('No question banks associated with this quiz.');
+      }
+
+      // Map to group courseVersionIds by courseId
+      const courseMap: Record<string, Set<string>> = {};
+
+      for (const questionBankId of quesBankIds) {
+        const questionBank = await this.questionBankRepo.getById(
+          questionBankId,
+          session,
+        );
+        if (!questionBank) {
+          throw new NotFoundError('Question bank not found');
+        }
+        const courseId = questionBank.courseId;
+        const courseVersionId = questionBank.courseVersionId;
+        if (!courseId && !courseVersionId) {
+          throw new Error(
+            'Question bank does not have a course or course version associated',
+          );
+        }
+        if (courseId) {
+          if (!courseMap[courseId]) {
+            courseMap[courseId] = new Set();
+          }
+          if (courseVersionId) {
+            courseMap[courseId].add(courseVersionId);
+          }
+        }
+      }
+      return courseMap;
     });
   }
 }

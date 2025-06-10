@@ -1,7 +1,7 @@
-import {SMLQuestion} from '../../classes/transformers';
-import {TagParser} from '../../question-processing/tag-parser/TagParser';
-import {ILotItem} from '../../../../shared/interfaces/quiz';
-import {BaseQuestionValidator} from './BaseQuestionValidator';
+import {SMLQuestion} from '#quizzes/classes/index.js';
+import {ILotItem} from '#shared/index.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {BaseQuestionValidator} from './BaseQuestionValidator.js';
 
 export class SMLQuestionValidator extends BaseQuestionValidator {
   declare tagStatus: {

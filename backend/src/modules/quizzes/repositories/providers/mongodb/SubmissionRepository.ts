@@ -1,21 +1,16 @@
+import {ISubmission} from '#quizzes/interfaces/grading.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import {QuizItem} from 'modules/courses';
-import {
-  IAttempt,
-  ISubmission,
-  IUserQuizMetrics,
-} from 'modules/quizzes/interfaces/grading';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../../../../../types';
 
 @injectable()
 class SubmissionRepository {
   private submissionResultCollection: Collection<ISubmission>;
 
   constructor(
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 

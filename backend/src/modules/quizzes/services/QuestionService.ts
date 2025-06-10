@@ -1,24 +1,26 @@
-import {BadRequestError, NotFoundError} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
-import {BaseQuestion} from '../classes/transformers';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor';
-import {IQuestionRenderView} from '../question-processing/renderers';
-import {ParameterMap} from '../question-processing/tag-parser';
-import {inject, injectable} from 'inversify';
-import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository';
-import {BaseService} from 'shared/classes/BaseService';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import GLOBAL_TYPES from '../../../types';
-import TYPES from '../types';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository';
+import {BaseQuestion} from '#quizzes/classes/index.js';
+import {
+  ParameterMap,
+  IQuestionRenderView,
+} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+import {
+  QuestionRepository,
+  QuestionBankRepository,
+} from '#quizzes/repositories/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
 
 @injectable()
 class QuestionService extends BaseService {
   constructor(
-    @inject(TYPES.QuestionRepo)
+    @inject(QUIZZES_TYPES.QuestionRepo)
     private questionRepository: QuestionRepository,
 
-    @inject(TYPES.QuestionBankRepo)
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
     private questionBankRepository: QuestionBankRepository,
 
     @inject(GLOBAL_TYPES.Database)
@@ -75,10 +77,10 @@ class QuestionService extends BaseService {
           `Cannot change question type from ${question.type} to ${updatedQuestion.type}`,
         );
       }
-
+      const {_id, ...questionData} = updatedQuestion;
       const updated = await this.questionRepository.update(
         questionId,
-        updatedQuestion,
+        questionData,
         session,
       );
       return updated;

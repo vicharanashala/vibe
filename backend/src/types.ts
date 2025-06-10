@@ -11,4 +11,4 @@ const TYPES = {
   dbName: Symbol.for('dbName'),
 };
 
-export default TYPES;
+export {TYPES as GLOBAL_TYPES};

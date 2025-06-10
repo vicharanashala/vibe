@@ -1,5 +1,5 @@
+import {ParameterMap} from '#quizzes/question-processing/index.js';
 import {ObjectId} from 'mongodb';
-import {ParameterMap} from '../question-processing/tag-parser';
 
 interface ISOLAnswer {
   lotItemId: string;

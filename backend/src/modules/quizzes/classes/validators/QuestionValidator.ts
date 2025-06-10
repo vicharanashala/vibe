@@ -1,37 +1,34 @@
-import {Type} from 'class-transformer';
 import {
-  ArrayMinSize,
-  IsArray,
-  IsBoolean,
-  IsBooleanString,
-  IsEmpty,
-  IsEnum,
-  IsInt,
-  IsMongoId,
   IsNotEmpty,
-  IsNumber,
-  IsOptional,
   IsString,
+  IsArray,
+  ArrayMinSize,
+  IsEnum,
+  ValidateNested,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsMongoId,
+  IsInt,
   Max,
   Min,
-  Validate,
-  ValidateNested,
 } from 'class-validator';
+import {Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {
-  IDESSolution,
+  IQuestionParameter,
   ILotItem,
   ILotOrder,
-  INATSolution,
-  IOTLSolution,
   IQuestion,
-  IQuestionParameter,
-  ISMLSolution,
-  ISOLSolution,
   QuestionType,
-} from '../../../../shared/interfaces/quiz';
-import {NATQuestion} from '../transformers/Question';
+  ISOLSolution,
+  ISMLSolution,
+  IOTLSolution,
+  INATSolution,
+  IDESSolution,
+} from '#shared/index.js';
+import {NATQuestion} from '../transformers/Question.js';
 
 class QuestionParameter implements IQuestionParameter {
   @JSONSchema({

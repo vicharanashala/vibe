@@ -24,7 +24,7 @@ export interface ICourse {
   updatedAt?: Date;
 }
 
-type ID = string | ObjectId | null;
+export type ID = string | ObjectId | null;
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
@@ -95,7 +95,7 @@ export interface IBlogItem {
   points: number;
 }
 
-export interface IQuestion {
+interface IQuestion {
   _id: string;
   questionText: string;
   questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
@@ -109,7 +109,7 @@ export interface IQuestion {
   updatedAt: Date;
 }
 
-export interface IQuestionParameter {
+interface IQuestionParameter {
   name: string;
   possibleValues: string[];
   type: 'number' | 'string';

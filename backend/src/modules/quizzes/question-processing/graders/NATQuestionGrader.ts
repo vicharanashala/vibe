@@ -1,15 +1,11 @@
-import {NATQuestion} from 'modules/quizzes/classes';
-import {IGrader} from './interfaces/IGrader';
-import {QuizItem} from 'modules/courses';
+import {QuizItem} from '#courses/index.js';
+import {NATQuestion} from '#quizzes/classes/index.js';
 import {
-  Answer,
   INATAnswer,
   IQuestionAnswerFeedback,
-} from 'modules/quizzes/interfaces/grading';
-import {ParameterMap} from '../tag-parser';
-
+} from '#quizzes/interfaces/grading.js';
+import {IGrader} from './interfaces/IGrader.js';
 import {evaluate} from 'mathjs';
-import {ObjectId} from 'mongodb';
 
 class NATQuestionGrader implements IGrader {
   constructor(readonly question: NATQuestion) {}

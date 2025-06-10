@@ -1,27 +1,15 @@
-/**
- * @file index.ts
- * @description This file exports all the DTOs used in the auth module.
- * @module auth
- *
- * @author Aditya BMV
- * @organization DLED
- * @license MIT
- * @created 2025-03-06
- */
-
-import 'reflect-metadata';
-import {
-  Action,
-  getFromContainer,
-  RoutingControllersOptions,
-} from 'routing-controllers';
-import {AuthController} from './controllers/AuthController';
-import {useContainer} from 'routing-controllers';
-import {FirebaseAuthService} from './services/FirebaseAuthService';
 import {Container} from 'inversify';
-import {sharedContainerModule} from '../../container';
-import {authContainerModule} from './container';
-import {InversifyAdapter} from '../../inversify-adapter';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {
+  RoutingControllersOptions,
+  Action,
+  useContainer,
+  getFromContainer,
+} from 'routing-controllers';
+import {authContainerModule} from './container.js';
+import {AuthController} from './controllers/AuthController.js';
+import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 
 export async function setupAuthContainer(): Promise<void> {
   const container = new Container();
@@ -71,7 +59,9 @@ export const authModuleOptions: RoutingControllersOptions = {
   },
 };
 
-export * from './classes/validators/index';
-export * from './controllers/index';
-export * from './interfaces/index';
-export * from './services/index';
+export * from './classes/index.js';
+export * from './controllers/index.js';
+export * from './interfaces/index.js';
+export * from './services/index.js';
+export * from './container.js';
+export * from './types.js';

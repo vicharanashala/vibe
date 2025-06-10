@@ -3,4 +3,4 @@ const TYPES = {
   AuthService: Symbol.for('AuthService'),
 };
 
-export default TYPES;
+export {TYPES as AUTH_TYPES};

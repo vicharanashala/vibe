@@ -9,8 +9,6 @@ import {
   Delete,
   Params,
   HttpCode,
-  CurrentUser,
-  ForbiddenError,
   Req,
 } from 'routing-controllers';
 import {inject, injectable} from 'inversify';
@@ -26,25 +24,22 @@ import {
   DeletedItemResponse,
   GetItemParams,
   GetItemResponse,
-} from '../classes/validators/ItemValidators';
-import {ItemService} from '../services';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
-} from '../classes/validators/ItemValidators';
-import {IUser} from 'shared/interfaces/Models';
-import {ProgressService} from 'modules/users/services/ProgressService';
-import TYPES from '../types';
-import USER_TYPES from '../../users/types';
+} from '#courses/classes/index.js';
+import {ItemService} from '#courses/services/ItemService.js';
+import {ProgressService, USERS_TYPES} from '#users/index.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {ResponseSchema} from 'routing-controllers-openapi';
 
 @injectable()
 @JsonController('/courses')
 export class ItemController {
   constructor(
-    @inject(TYPES.ItemService) private readonly itemService: ItemService,
-    @inject(USER_TYPES.ProgressService)
+    @inject(COURSES_TYPES.ItemService)
+    private readonly itemService: ItemService,
+    @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
   ) {}
 

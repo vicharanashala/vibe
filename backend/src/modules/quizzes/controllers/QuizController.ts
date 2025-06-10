@@ -1,4 +1,4 @@
-﻿import {injectable, inject} from 'inversify';
+import {injectable, inject} from 'inversify';
 import {
   Body,
   Get,
@@ -8,34 +8,35 @@ import {
   Post,
   HttpCode,
   Delete,
+  OnUndefined,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {QuizService} from '../services/QuizService';
+import {QuizService} from '#quizzes/services/QuizService.js';
+import {QuestionBankService} from '#quizzes/services/QuestionBankService.js';
+import {QuestionBankRef} from '#quizzes/classes/transformers/QuestionBank.js';
 import {
   QuizIdParam,
+  AddQuestionBankBody,
   RemoveQuestionBankParams,
+  EditQuestionBankBody,
+  GetUserMatricesParams,
   UserQuizMetricsResponse,
+  QuizAttemptParam,
   QuizAttemptResponse,
+  QuizSubmissionParam,
   QuizSubmissionResponse,
   QuizDetailsResponse,
   QuizAnalyticsResponse,
   QuizPerformanceResponse,
   QuizResultsResponse,
   FlaggedQuestionResponse,
-  GetUserMatricesParams,
-  QuizAttemptParam,
-  QuizSubmissionParam,
   UpdateQuizSubmissionParam,
-  AddFeedbackParams,
-  AddQuestionBankBody,
-  EditQuestionBankBody,
   RegradeSubmissionBody,
+  AddFeedbackParams,
   AddFeedbackBody,
-} from '../classes/validators/QuizValidator';
-import TYPES from '../types';
-import {QuestionBankService} from '../services/QuestionBankService';
-import {QuestionBankRef} from '../classes/transformers/QuestionBank';
-import {IGradingResult} from '../interfaces/grading';
+} from '#quizzes/classes/validators/QuizValidator.js';
+import {IGradingResult} from '#quizzes/interfaces/grading.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 
 @OpenAPI({
   tags: ['Quizzes'],
@@ -44,9 +45,9 @@ import {IGradingResult} from '../interfaces/grading';
 @JsonController('/quiz')
 class QuizController {
   constructor(
-    @inject(TYPES.QuizService)
+    @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-    @inject(TYPES.QuestionBankService)
+    @inject(QUIZZES_TYPES.QuestionBankService)
     private readonly questionBankService: QuestionBankService,
   ) {}
 
@@ -59,6 +60,7 @@ class QuizController {
   @ResponseSchema(QuestionBankRef, {
     description: 'Question bank added successfully',
   })
+  @OnUndefined(201)
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
@@ -73,6 +75,7 @@ class QuizController {
     summary: 'Remove question bank from quiz',
     description: 'Remove a question bank association from a specific quiz',
   })
+  @OnUndefined(204)
   async removeQuestionBank(@Params() params: RemoveQuestionBankParams) {
     const {quizId, questionBankId} = params;
     await this.quizService.removeQuestionBank(quizId, questionBankId);
@@ -85,6 +88,8 @@ class QuizController {
     description:
       'Update the configuration of a question bank associated with a quiz',
   })
+  @Post('/:quizId/bank')
+  @OnUndefined(201)
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
@@ -102,6 +107,7 @@ class QuizController {
     description: 'Question banks retrieved successfully',
     isArray: true,
   })
+  @HttpCode(201)
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
   ): Promise<QuestionBankRef[]> {
@@ -118,6 +124,7 @@ class QuizController {
   @ResponseSchema(UserQuizMetricsResponse, {
     description: 'User quiz metrics retrieved successfully',
   })
+  @HttpCode(201)
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
   ): Promise<UserQuizMetricsResponse> {
@@ -133,6 +140,7 @@ class QuizController {
   @ResponseSchema(QuizAttemptResponse, {
     description: 'Quiz attempt details retrieved successfully',
   })
+  @HttpCode(201)
   async getQuizAttempt(
     @Params() params: QuizAttemptParam,
   ): Promise<QuizAttemptResponse> {
@@ -149,6 +157,7 @@ class QuizController {
   @ResponseSchema(QuizSubmissionResponse, {
     description: 'Quiz submission details retrieved successfully',
   })
+  @HttpCode(201)
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
   ): Promise<QuizSubmissionResponse> {
@@ -164,6 +173,7 @@ class QuizController {
   @ResponseSchema(QuizDetailsResponse, {
     description: 'Quiz details retrieved successfully',
   })
+  @HttpCode(201)
   async getQuizDetails(
     @Params() params: QuizIdParam,
   ): Promise<QuizDetailsResponse> {
@@ -179,6 +189,7 @@ class QuizController {
   @ResponseSchema(QuizAnalyticsResponse, {
     description: 'Quiz analytics retrieved successfully',
   })
+  @HttpCode(201)
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
   ): Promise<QuizAnalyticsResponse> {
@@ -195,6 +206,7 @@ class QuizController {
     description: 'Quiz performance statistics retrieved successfully',
     isArray: true,
   })
+  @HttpCode(201)
   async getQuizPerformance(
     @Params() params: QuizIdParam,
   ): Promise<QuizPerformanceResponse[]> {
@@ -211,6 +223,7 @@ class QuizController {
     description: 'Quiz results retrieved successfully',
     isArray: true,
   })
+  @HttpCode(201)
   async getQuizResults(
     @Params() params: QuizIdParam,
   ): Promise<QuizResultsResponse[]> {
@@ -226,6 +239,7 @@ class QuizController {
   @ResponseSchema(FlaggedQuestionResponse, {
     description: 'Flagged questions retrieved successfully',
   })
+  @HttpCode(201)
   async getFlaggedQues(
     @Params() params: QuizIdParam,
   ): Promise<FlaggedQuestionResponse> {
@@ -239,6 +253,7 @@ class QuizController {
     summary: 'Update quiz submission score',
     description: 'update the score for a specific quiz submission',
   })
+  @OnUndefined(201)
   async updateQuizSubmissionScore(@Params() params: UpdateQuizSubmissionParam) {
     const {submissionId, score} = params;
     await this.quizService.overrideSubmissionScore(submissionId, score);
@@ -250,6 +265,7 @@ class QuizController {
     summary: 'Regrade quiz submission',
     description: 'Regrade a quiz submission',
   })
+  @OnUndefined(201)
   async regradeSubmission(
     @Params() params: QuizSubmissionParam,
     @Body() body: RegradeSubmissionBody,
@@ -265,6 +281,7 @@ class QuizController {
     description:
       'Add instructor feedback to a specific question answer in a submission',
   })
+  @OnUndefined(201)
   async addFeedbackToQuestion(
     @Params() params: AddFeedbackParams,
     @Body() body: AddFeedbackBody,

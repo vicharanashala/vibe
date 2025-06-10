@@ -2,7 +2,7 @@ import {
   IAttempt,
   IQuestionDetails,
   IQuestionAnswer,
-} from 'modules/quizzes/interfaces/grading';
+} from '#quizzes/interfaces/grading.js';
 import {ObjectId} from 'mongodb';
 
 class Attempt implements IAttempt {

@@ -1,12 +1,11 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
 import {
+  IProgress,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {IProgress} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
+  ID,
+} from '#shared/index.js';
+import {Expose, Transform} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 
 @Expose()
 export class Progress implements IProgress {

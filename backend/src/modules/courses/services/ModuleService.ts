@@ -1,21 +1,20 @@
 import 'reflect-metadata';
 import {inject, injectable} from 'inversify';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
+import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
 import {
   CreateModuleBody,
   UpdateModuleBody,
   MoveModuleBody,
-} from '../classes/validators/ModuleValidators';
-import {Module} from '../classes/transformers/Module';
+} from '../classes/validators/ModuleValidators.js';
+import {Module} from '../classes/transformers/Module.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {ICourseVersion} from '../../../shared/interfaces/Models';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
-
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/index.js';
+import {COURSES_TYPES} from '../types.js';
+import {GLOBAL_TYPES} from '../../../types.js';
 @injectable()
 export class ModuleService extends BaseService {
   constructor(

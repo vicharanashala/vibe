@@ -10,4 +10,4 @@
   ItemRepo: Symbol.for('ItemRepo'),
 };
 
-export default TYPES;
+export {TYPES as COURSES_TYPES};

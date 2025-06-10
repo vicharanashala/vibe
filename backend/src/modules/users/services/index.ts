@@ -1,2 +1,2 @@
-export * from './EnrollmentService';
-export * from './ProgressService';
+export * from './EnrollmentService.js';
+export * from './ProgressService.js';

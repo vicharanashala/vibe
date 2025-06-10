@@ -1,3 +1,3 @@
-export * from './EnrollmentValidators';
-export * from './ProgressValidators';
-export * from './UserValidators';
+export * from './EnrollmentValidators.js';
+export * from './ProgressValidators.js';
+export * from './UserValidators.js';

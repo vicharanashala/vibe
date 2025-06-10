@@ -1,11 +1,9 @@
-import 'reflect-metadata';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
 import {Collection, ObjectId} from 'mongodb';
-import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase';
-import {IEnrollment, IProgress} from '../../../../interfaces/Models';
-import {CreateError, ReadError} from '../../../../errors/errors';
-import {NotFoundError} from 'routing-controllers';
-import GLOBAL_TYPES from '../../../../../types';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -29,7 +27,9 @@ export class EnrollmentRepository {
     try {
       return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
     } catch (error) {
-      throw new ReadError(`Failed to find enrollment by ID: ${error.message}`);
+      throw new InternalServerError(
+        `Failed to find enrollment by ID: ${error.message}`,
+      );
     }
   }
 
@@ -58,7 +58,7 @@ export class EnrollmentRepository {
     try {
       const result = await this.enrollmentCollection.insertOne(enrollment);
       if (!result.acknowledged) {
-        throw new CreateError('Failed to create enrollment record');
+        throw new InternalServerError('Failed to create enrollment record');
       }
 
       const newEnrollment = await this.enrollmentCollection.findOne({
@@ -71,7 +71,9 @@ export class EnrollmentRepository {
 
       return newEnrollment;
     } catch (error) {
-      throw new CreateError(`Failed to create enrollment: ${error.message}`);
+      throw new InternalServerError(
+        `Failed to create enrollment: ${error.message}`,
+      );
     }
   }
   /**
@@ -105,7 +107,7 @@ export class EnrollmentRepository {
     try {
       const result = await this.progressCollection.insertOne(progress);
       if (!result.acknowledged) {
-        throw new CreateError('Failed to create progress record');
+        throw new InternalServerError('Failed to create progress record');
       }
 
       const newProgress = await this.progressCollection.findOne({
@@ -118,7 +120,7 @@ export class EnrollmentRepository {
 
       return newProgress;
     } catch (error) {
-      throw new CreateError(
+      throw new InternalServerError(
         `Failed to create progress tracking: ${error.message}`,
       );
     }

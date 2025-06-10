@@ -1,17 +1,13 @@
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {ICourseRepository} from '../../../shared/database';
-import {inject, injectable} from 'inversify';
-import {CreateCourseVersionBody} from '../classes/validators';
-import {CourseVersion} from '../classes/transformers';
-import {ObjectId, ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {ICourseVersion} from '../../../shared/interfaces/Models';
-import {DeleteError} from '../../../shared/errors/errors';
+import {
+  CreateCourseVersionBody,
+  CourseVersion,
+} from '#courses/classes/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, ICourseRepository, MongoDatabase} from '#shared/index.js';
 import {instanceToPlain} from 'class-transformer';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
-
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(

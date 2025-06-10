@@ -14,9 +14,9 @@ import {
   ItemDataResponse,
   ModuleDataResponse,
   SectionDataResponse,
-} from 'modules/courses/classes/validators';
-import {Course, CourseVersion} from 'modules/courses/classes/transformers';
-import {ItemType} from 'shared/interfaces/Models';
+} from '../../../courses/classes/validators/index.js';
+import {Course, CourseVersion} from '#courses/classes/transformers/index.js';
+import {ItemType} from '#root/shared/interfaces/models.js';
 
 async function createCourse(app: typeof Express): Promise<Course> {
   const body: CreateCourseBody = {

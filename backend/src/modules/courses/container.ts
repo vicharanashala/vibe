@@ -1,34 +1,43 @@
+import {ItemRepository} from '#shared/index.js';
 import {ContainerModule} from 'inversify';
-import TYPES from './types';
-import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository';
-import {
-  CourseService,
-  CourseVersionService,
-  ItemService,
-  ModuleService,
-  SectionService,
-} from './services';
 import {
   CourseController,
   CourseVersionController,
   ItemController,
   ModuleController,
   SectionController,
-} from './controllers';
+} from './controllers/index.js';
+import {
+  CourseService,
+  CourseVersionService,
+  ItemService,
+  ModuleService,
+  SectionService,
+} from './services/index.js';
+import {COURSES_TYPES} from './types.js';
 
 export const coursesContainerModule = new ContainerModule(options => {
   // Repositories
-  options.bind(TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
+  options.bind(COURSES_TYPES.ItemRepo).to(ItemRepository).inSingletonScope();
 
   // Services
-  options.bind(TYPES.CourseService).to(CourseService).inSingletonScope();
   options
-    .bind(TYPES.CourseVersionService)
+    .bind(COURSES_TYPES.CourseService)
+    .to(CourseService)
+    .inSingletonScope();
+  options
+    .bind(COURSES_TYPES.CourseVersionService)
     .to(CourseVersionService)
     .inSingletonScope();
-  options.bind(TYPES.ModuleService).to(ModuleService).inSingletonScope();
-  options.bind(TYPES.SectionService).to(SectionService).inSingletonScope();
-  options.bind(TYPES.ItemService).to(ItemService).inSingletonScope();
+  options
+    .bind(COURSES_TYPES.ModuleService)
+    .to(ModuleService)
+    .inSingletonScope();
+  options
+    .bind(COURSES_TYPES.SectionService)
+    .to(SectionService)
+    .inSingletonScope();
+  options.bind(COURSES_TYPES.ItemService).to(ItemService).inSingletonScope();
 
   // Controllers
   options.bind(CourseController).toSelf().inSingletonScope();

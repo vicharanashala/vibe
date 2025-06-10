@@ -1,1 +1,1 @@
-export * from './FaceRecognitionService';
+export * from './FaceRecognitionService.js';

@@ -1,60 +1,43 @@
-import {instanceToPlain} from 'class-transformer';
-import 'reflect-metadata';
 import {
-  Authorized,
-  Body,
-  Delete,
-  HttpCode,
-  HttpError,
-  JsonController,
-  Params,
-  Post,
-  Put,
-} from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
-import {
-  DeleteError,
-  ReadError,
-  UpdateError,
-} from '../../../shared/errors/errors';
-import {inject, injectable} from 'inversify';
-import {ItemsGroup} from '../classes/transformers/Item';
-import {Section} from '../classes/transformers/Section';
-import {
-  CreateSectionBody,
-  CreateSectionParams,
-  MoveSectionBody,
-  MoveSectionParams,
-  UpdateSectionBody,
-  UpdateSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
+  CreateSectionParams,
+  CreateSectionBody,
+  CourseVersion,
+  UpdateSectionParams,
+  UpdateSectionBody,
+  MoveSectionParams,
+  MoveSectionBody,
   SectionDeletedResponse,
   DeleteSectionParams,
-} from '../classes/validators/SectionValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {SectionService} from '../services/SectionService';
-import {CourseVersion} from '../classes/transformers';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+} from '#courses/classes/index.js';
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {BadRequestErrorResponse} from '#shared/index.js';
+import {SectionService} from '#courses/services/SectionService.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController as JsonController,
+  Authorized,
+  Post,
+  HttpCode,
+  Params,
+  Body,
+  InternalServerError,
+  HttpError,
+  Put,
+  Delete,
+} from 'routing-controllers';
+import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 @JsonController('/courses')
 export class SectionController {
   constructor(
-    @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
-    @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
-    @inject(TYPES.SectionService)
+    @inject(COURSES_TYPES.SectionService)
     private readonly sectionService: SectionService,
   ) {
     if (!this.sectionService) {
       throw new Error('Course Service is not properly injected');
-    }
-    if (!this.itemRepo) {
-      throw new Error('ItemRepository is not properly injected');
     }
   }
 
@@ -84,7 +67,7 @@ export class SectionController {
         body,
       );
       if (!createdVersion) {
-        throw new UpdateError('Failed to create section');
+        throw new InternalServerError('Failed to create section');
       }
       return {version: instanceToPlain(createdVersion)} as any;
     } catch (error) {
@@ -120,7 +103,7 @@ export class SectionController {
         body,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update section');
+        throw new InternalServerError('Failed to update section');
       }
       return instanceToPlain(
         Object.assign(new CourseVersion(), updatedVersion),
@@ -154,7 +137,7 @@ export class SectionController {
       const {afterSectionId, beforeSectionId} = body;
 
       if (!afterSectionId && !beforeSectionId) {
-        throw new UpdateError(
+        throw new InternalServerError(
           'Either afterModuleId or beforeModuleId is required',
         );
       }
@@ -167,7 +150,7 @@ export class SectionController {
         beforeSectionId,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to move section');
+        throw new InternalServerError('Failed to move section');
       }
 
       return instanceToPlain(
@@ -203,7 +186,7 @@ export class SectionController {
       sectionId,
     );
     if (!deletedSection) {
-      throw new DeleteError('Failed to delete section');
+      throw new InternalServerError('Failed to delete section');
     }
     return {
       message: `Section ${params.sectionId} deleted in module ${params.moduleId}`,

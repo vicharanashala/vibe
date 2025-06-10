@@ -1,19 +1,6 @@
-import 'reflect-metadata';
-import {
-  Body,
-  Get,
-  HttpCode,
-  JsonController,
-  OnUndefined,
-  Params,
-  Patch,
-  Post,
-} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {Progress} from '../classes/transformers';
-import {ProgressService} from '../services/ProgressService';
 import {
   GetUserProgressParams,
+  Progress,
   StartItemParams,
   StartItemBody,
   StartItemResponse,
@@ -23,14 +10,26 @@ import {
   UpdateProgressBody,
   ResetCourseProgressParams,
   ResetCourseProgressBody,
-} from '../classes/validators';
-import TYPES from '../types';
+} from '#users/classes/index.js';
+import {ProgressService} from '#users/services/ProgressService.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Get,
+  HttpCode,
+  Params,
+  Post,
+  Body,
+  OnUndefined,
+  Patch,
+} from 'routing-controllers';
 
 @JsonController('/users', {transformResponse: true})
 @injectable()
 class ProgressController {
   constructor(
-    @inject(TYPES.ProgressService)
+    @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
   ) {}
 

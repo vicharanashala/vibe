@@ -1,14 +1,12 @@
+import {ISection, ICourseVersion} from '#shared/index.js';
 import {
-  IsEmpty,
-  IsMongoId,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
+  IsOptional,
+  IsMongoId,
   ValidateIf,
 } from 'class-validator';
-import {ICourseVersion, ISection} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateSectionBody implements Partial<ISection> {

@@ -1,34 +1,31 @@
-import 'reflect-metadata';
+import {
+  EnrollmentParams,
+  EnrollUserResponse,
+  EnrollmentResponse,
+  EnrolledUserResponse,
+  EnrollmentBody,
+} from '#users/classes/index.js';
+import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Post,
   HttpCode,
   Params,
-  BadRequestError,
   Get,
-  NotFoundError,
   Param,
   QueryParam,
+  BadRequestError,
+  NotFoundError,
   Body,
 } from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {
-  EnrollmentParams,
-  EnrollmentResponse,
-  EnrollmentBody,
-} from '../classes/validators/EnrollmentValidators';
-import {EnrollmentService} from '../services';
-import {
-  EnrolledUserResponse,
-  EnrollUserResponse,
-} from '../classes/transformers';
-import TYPES from '../types';
 
 @JsonController('/users', {transformResponse: true})
 @injectable()
 export class EnrollmentController {
   constructor(
-    @inject(TYPES.EnrollmentService)
+    @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
   ) {}
 

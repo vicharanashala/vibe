@@ -1,30 +1,15 @@
-/**
- * @file FirebaseAuthService.ts
- * @description Firebase authentication service implementation.
- *
- * @category Auth/Services
- * @categoryDescription
- * Service implementing authentication logic using Firebase.
- * Handles user creation, token verification, and password updates.
- */
-
-import 'reflect-metadata';
-import {Auth} from 'firebase-admin/lib/auth/auth';
-
-import admin, {database} from 'firebase-admin';
-import {UserRecord} from 'firebase-admin/lib/auth/user-record';
-import {applicationDefault} from 'firebase-admin/app';
-import {Inject, Service} from 'typedi';
-import {IUser} from '../../../shared/interfaces/Models';
-import {IUserRepository} from '../../../shared/database';
-import {IAuthService} from '../interfaces/IAuthService';
-import {ChangePasswordBody, SignUpBody} from '../classes/validators';
-import {BadRequestError, InternalServerError} from 'routing-controllers';
-import {User} from '../classes/transformers/User';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
+import {SignUpBody, User, ChangePasswordBody} from '#auth/classes/index.js';
+import {IAuthService} from '#auth/interfaces/IAuthService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {
+  BaseService,
+  IUserRepository,
+  MongoDatabase,
+  IUser,
+} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import GLOBAL_TYPES from '../../../types';
+import {InternalServerError} from 'routing-controllers';
+import admin from 'firebase-admin';
 
 /**
  * Custom error thrown during password change operations.
@@ -45,7 +30,7 @@ export class ChangePasswordError extends Error {
 
 @injectable()
 export class FirebaseAuthService extends BaseService implements IAuthService {
-  private auth: Auth;
+  private auth: any;
   constructor(
     @inject(GLOBAL_TYPES.UserRepo)
     private userRepository: IUserRepository,
@@ -55,7 +40,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     admin.initializeApp({
-      credential: applicationDefault(),
+      credential: admin.credential.applicationDefault(),
     });
     this.auth = admin.auth();
   }
@@ -81,7 +66,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   }
 
   async signup(body: SignUpBody): Promise<string> {
-    let userRecord: UserRecord;
+    let userRecord: any;
     try {
       // Create the user in Firebase Auth
       userRecord = await this.auth.createUser({

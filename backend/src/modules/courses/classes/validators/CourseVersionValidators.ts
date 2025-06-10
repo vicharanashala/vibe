@@ -1,20 +1,8 @@
-import 'reflect-metadata';
+import {ICourseVersion} from '#shared/index.js';
 import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
-import {ICourseVersion} from '../../../../shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
-  @JSONSchema({
-    title: 'Course ID',
-    description: 'ID of the course this version belongs to (auto-managed)',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  courseId?: string;
-
   @JSONSchema({
     title: 'Version Label',
     description: 'The version label or identifier (e.g., v1.0, Fall 2025)',

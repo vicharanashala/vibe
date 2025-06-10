@@ -25,6 +25,13 @@ export class UploadFaceResponse {
   @IsString()
   @IsNotEmpty()
   path!: string;
+
+  details?: {
+    personName: string;
+    filename: string;
+    filesize: number;
+    mimetype: string;
+  };
 }
 
 export class AddPersonResponse {

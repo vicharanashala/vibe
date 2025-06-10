@@ -1,20 +1,17 @@
-import 'reflect-metadata';
+import {ID, EnrollmentRole, EnrollmentStatus} from '#shared/index.js';
+import {Type} from 'class-transformer';
 import {
-  IsArray,
-  IsBoolean,
+  IsMongoId,
+  IsString,
+  IsNotEmpty,
   IsDate,
   IsEnum,
   IsInt,
-  IsMongoId,
-  IsNotEmpty,
-  IsString,
+  IsArray,
   ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from '../../../../shared/types';
-import {Type} from 'class-transformer';
-import {ProgressDataResponse} from './ProgressValidators';
-import {EnrollmentRole, EnrollmentStatus} from 'shared/interfaces/Models';
+import {ProgressDataResponse} from './ProgressValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({

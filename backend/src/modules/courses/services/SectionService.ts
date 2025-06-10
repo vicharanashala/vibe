@@ -1,29 +1,25 @@
 import {
-  DeleteResult,
-  ObjectId,
-  ReadConcern,
-  ReadPreference,
-  UpdateResult,
-  WriteConcern,
-} from 'mongodb';
-import {ICourseRepository} from '../../../shared/database';
-import {IItemRepository} from '../../../shared/database/';
-import {inject, injectable} from 'inversify';
-import {CourseVersion, ItemsGroup, Section} from '../classes/transformers';
-import {CreateSectionBody, MoveSectionBody} from '../classes/validators';
-import {NotFoundError} from 'routing-controllers';
-import {ReadError, UpdateError} from '../../../shared/errors/errors';
-import {ICourseVersion} from '../../../shared/interfaces/Models';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
-
+  CreateSectionBody,
+  Section,
+  ItemsGroup,
+} from '#courses/classes/index.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {
+  BaseService,
+  IItemRepository,
+  ICourseRepository,
+  MongoDatabase,
+  ICourseVersion,
+} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {UpdateResult} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
-    @inject(TYPES.ItemRepo)
+    @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -73,7 +69,7 @@ export class SectionService extends BaseService {
         session,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
 
       return updatedVersion;
@@ -91,11 +87,11 @@ export class SectionService extends BaseService {
 
       //Find Module
       const module = version.modules.find(m => m.moduleId === moduleId);
-      if (!module) throw new ReadError('Module not found');
+      if (!module) throw new InternalServerError('Module not found');
 
       //Find Section
       const section = module.sections.find(s => s.sectionId === sectionId);
-      if (!section) throw new ReadError('Section not found');
+      if (!section) throw new InternalServerError('Section not found');
 
       //Update Section
       Object.assign(section, body.name ? {name: body.name} : {});
@@ -118,7 +114,7 @@ export class SectionService extends BaseService {
         session,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update Section');
+        throw new InternalServerError('Failed to update Section');
       }
       return updatedVersion;
     });
@@ -174,7 +170,7 @@ export class SectionService extends BaseService {
       );
 
       if (!updatedVersion) {
-        throw new UpdateError('Failed to move Section');
+        throw new InternalServerError('Failed to move Section');
       }
 
       return updatedVersion;

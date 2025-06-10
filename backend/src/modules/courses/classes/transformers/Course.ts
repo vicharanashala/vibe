@@ -1,14 +1,13 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
 import {
-  ObjectIdArrayToStringArray,
-  StringArrayToObjectIdArray,
+  ICourse,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {ICourse} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {CreateCourseBody} from '../validators';
+  ID,
+  ObjectIdArrayToStringArray,
+  StringArrayToObjectIdArray,
+} from '#shared/index.js';
+import {CreateCourseBody} from '../validators/CourseValidators.js';
+import {Expose, Type, Transform} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 /**

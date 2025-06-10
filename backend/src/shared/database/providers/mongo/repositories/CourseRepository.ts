@@ -1,39 +1,19 @@
-import 'reflect-metadata';
+import {Course, CourseVersion, ItemsGroup} from '#courses/classes/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
-import {Course} from '../../../../../modules/courses/classes/transformers/Course';
-import {CourseVersion} from '../../../../../modules/courses/classes/transformers/CourseVersion';
+import {injectable, inject} from 'inversify';
 import {
-  Item,
-  ItemsGroup,
-} from '../../../../../modules/courses/classes/transformers/Item';
-import {
-  ClientSession,
   Collection,
-  DeleteResult,
   MongoClient,
+  ClientSession,
   ObjectId,
+  DeleteResult,
   UpdateResult,
 } from 'mongodb';
-import {ICourseRepository} from '../../../interfaces/ICourseRepository';
-import {
-  CreateError,
-  DeleteError,
-  ReadError,
-  UpdateError,
-} from '../../../../errors/errors';
-import {
-  ICourse,
-  IModule,
-  IEnrollment,
-  IProgress,
-  ICourseVersion,
-  ISection,
-} from '../../../../interfaces/Models';
-import {MongoDatabase} from '../MongoDatabase';
-import {NotFoundError} from 'routing-controllers';
-import {Module, Section} from 'modules';
-import {inject, injectable} from 'inversify';
-import GLOBAL_TYPES from '../../../../../types';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -167,7 +147,7 @@ export class CourseRepository implements ICourseRepository {
       {session},
     );
     if (deleteCourseResult.deletedCount !== 1) {
-      throw new DeleteError('Failed to delete course');
+      throw new InternalServerError('Failed to delete course');
     }
     return true;
   }
@@ -194,10 +174,10 @@ export class CourseRepository implements ICourseRepository {
           Object.assign(new CourseVersion(), newCourseVersion),
         ) as CourseVersion;
       } else {
-        throw new CreateError('Failed to create course version');
+        throw new InternalServerError('Failed to create course version');
       }
     } catch (error) {
-      throw new CreateError(
+      throw new InternalServerError(
         'Failed to create course version.\n More Details: ' + error,
       );
     }
@@ -226,7 +206,7 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      throw new ReadError(
+      throw new InternalServerError(
         'Failed to read course version.\n More Details: ' + error,
       );
     }
@@ -255,10 +235,10 @@ export class CourseRepository implements ICourseRepository {
           Object.assign(new CourseVersion(), updatedCourseVersion),
         ) as CourseVersion;
       } else {
-        throw new UpdateError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
     } catch (error) {
-      throw new UpdateError(
+      throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
       );
     }
@@ -280,7 +260,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (versionDeleteResult.deletedCount !== 1) {
-        throw new DeleteError('Failed to delete course version');
+        throw new InternalServerError('Failed to delete course version');
       }
 
       // 2. Remove courseVersionId from the course
@@ -291,7 +271,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update course');
+        throw new InternalServerError('Failed to update course');
       }
 
       // 3. Cascade Delete item groups
@@ -303,7 +283,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (itemDeletionResult.deletedCount === 0) {
-        throw new DeleteError('Failed to delete item groups');
+        throw new InternalServerError('Failed to delete item groups');
       }
 
       // 4. Return the deleted course version
@@ -312,7 +292,7 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete course version.\n More Details: ' + error,
       );
     }
@@ -355,10 +335,10 @@ export class CourseRepository implements ICourseRepository {
           );
 
           if (!itemDeletionResult.acknowledged) {
-            throw new DeleteError('Failed to delete item groups');
+            throw new InternalServerError('Failed to delete item groups');
           }
         } catch (error) {
-          throw new DeleteError('Item deletion failed');
+          throw new InternalServerError('Item deletion failed');
         }
       } else {
         throw new NotFoundError('Section not found');
@@ -384,7 +364,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (updateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update Section');
+        throw new InternalServerError('Failed to update Section');
       }
 
       return updateResult;
@@ -392,10 +372,10 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      if (error instanceof DeleteError) {
+      if (error instanceof InternalServerError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete Section.\n More Details: ' + error,
       );
     }
@@ -448,10 +428,10 @@ export class CourseRepository implements ICourseRepository {
           );
 
           if (itemDeletionResult.deletedCount === 0) {
-            throw new DeleteError('Failed to delete item groups');
+            throw new InternalServerError('Failed to delete item groups');
           }
         } catch (error) {
-          throw new DeleteError('Item deletion failed');
+          throw new InternalServerError('Item deletion failed');
         }
       }
 
@@ -466,7 +446,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (updateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
 
       return true;
@@ -474,10 +454,10 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      if (error instanceof DeleteError) {
+      if (error instanceof InternalServerError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete module.\n More Details: ' + error,
       );
     }

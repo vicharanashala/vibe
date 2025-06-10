@@ -1,13 +1,13 @@
+import {IQuestionBank, ID} from '#shared/index.js';
 import {
-  IsArray,
   IsMongoId,
-  IsNotEmpty,
   IsOptional,
   IsString,
+  IsArray,
+  IsNotEmpty,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
-import {IQuestionBank, ID} from 'shared/interfaces/quiz';
 
 class CreateQuestionBankBody implements Partial<IQuestionBank> {
   @JSONSchema({
@@ -71,7 +71,6 @@ class CreateQuestionBankBody implements Partial<IQuestionBank> {
     minLength: 1,
   })
   @IsString()
-  @IsOptional()
   @IsNotEmpty()
   title: string;
 

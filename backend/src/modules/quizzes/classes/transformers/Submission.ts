@@ -1,5 +1,16 @@
-import {IGradingResult, ISubmission} from 'modules/quizzes/interfaces/grading';
+import {
+  ISubmission,
+  IGradingResult,
+  IQuestionAnswer,
+  IQuestionAnswerFeedback,
+} from '#quizzes/interfaces/grading.js';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from '#root/shared/constants/transformerConstants.js';
+import {Expose, Transform} from 'class-transformer';
 import {ObjectId} from 'mongodb';
+
 class Submission implements ISubmission {
   _id?: string | ObjectId;
   quizId: string;
@@ -16,4 +27,32 @@ class Submission implements ISubmission {
   }
 }
 
-export {Submission};
+class QuestionAnswerFeedback implements IQuestionAnswerFeedback {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
+  @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
+  questionId: string | ObjectId;
+
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string; // Optional feedback for the answer
+
+  constructor({
+    questionId,
+    status,
+    score,
+    answerFeedback,
+  }: {
+    questionId: string | ObjectId;
+    status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+    score: number;
+    answerFeedback?: string;
+  }) {
+    this.questionId = questionId;
+    this.status = status;
+    this.score = score;
+    this.answerFeedback = answerFeedback;
+  }
+}
+
+export {Submission, QuestionAnswerFeedback};

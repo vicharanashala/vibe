@@ -1,7 +1,5 @@
-import {Middleware, ExpressMiddlewareInterface} from 'routing-controllers';
-import {Request, Response, NextFunction} from 'express';
-import {Service} from 'typedi';
 import rateLimit from 'express-rate-limit';
+import {Request, Response, NextFunction} from 'express';
 
 export const rateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute

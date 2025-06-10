@@ -1,12 +1,11 @@
-import {SOLQuestion} from 'modules/quizzes/classes/transformers';
-import {IGrader} from './interfaces/IGrader';
+import {QuizItem} from '#courses/index.js';
+import {SOLQuestion} from '#quizzes/classes/index.js';
 import {
-  IQuestionAnswerFeedback,
   ISOLAnswer,
-} from 'modules/quizzes/interfaces/grading';
-import {IQuestion} from 'shared/interfaces/quiz';
-import {QuizItem} from 'modules/courses';
-import {ParameterMap} from '../tag-parser';
+  IQuestionAnswerFeedback,
+} from '#quizzes/interfaces/grading.js';
+import {ParameterMap} from '../tag-parser/index.js';
+import {IGrader} from './interfaces/IGrader.js';
 
 class SOLQuestionGrader implements IGrader {
   constructor(readonly question: SOLQuestion) {}

@@ -1,22 +1,17 @@
 import {coursesModuleOptions, CreateItemBody} from '../';
 import {useExpressServer, useContainer} from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
 import Express from 'express';
 import request from 'supertest';
-import {ReadError} from '../../../shared/errors/errors';
-import {CourseVersionService} from '../services';
-import {dbConfig} from '../../../config/db';
-import {SectionService} from '../services/SectionService';
 import {InversifyAdapter} from '../../../inversify-adapter';
 import {Container} from 'inversify';
 import {coursesContainerModule} from '../container';
 import {sharedContainerModule} from '../../../container';
-import {ItemType} from '../../../shared/interfaces/Models';
+import {ItemType} from '../../../shared/interfaces/models';
 import {faker} from '@faker-js/faker';
 import {usersContainerModule} from '../../users/container';
 import {authContainerModule} from '../../auth/container';
+import {jest} from '@jest/globals';
 
-jest.setTimeout(90000); // Set a longer timeout for the tests
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
   let app;
@@ -30,7 +25,6 @@ describe('Course Version Controller Integration Tests', () => {
       sharedContainerModule,
       usersContainerModule,
       coursesContainerModule,
-      authContainerModule,
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -41,6 +35,7 @@ describe('Course Version Controller Integration Tests', () => {
     // Close the in-memory MongoDB server after the tests
     // await mongoServer.stop();
   });
+
   // Create course version
   describe('COURSE VERSION CREATION', () => {
     describe('Success Scenario', () => {
@@ -84,7 +79,7 @@ describe('Course Version Controller Integration Tests', () => {
         // expect(versionResponse.body.course.versions).toContain(
         //   versionResponse.body.version._id,
         // );
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -104,7 +99,7 @@ describe('Course Version Controller Integration Tests', () => {
           .expect(404);
 
         expect(versionResponse.body.message).toContain('Course not found');
-      });
+      }, 90000);
 
       it('should return 400 if invalid course version data', async () => {
         // Create course
@@ -139,7 +134,7 @@ describe('Course Version Controller Integration Tests', () => {
         );
 
         // expect(versionResponse.body.message).toContain("Invalid course version data");
-      });
+      }, 90000);
 
       it('should return 400 if no course version data', async () => {
         // Create course
@@ -168,7 +163,7 @@ describe('Course Version Controller Integration Tests', () => {
         );
 
         // expect(versionResponse.body.message).toContain("Invalid course version data");
-      });
+      }, 90000);
     });
   });
 
@@ -214,7 +209,7 @@ describe('Course Version Controller Integration Tests', () => {
         expect(readResponse.body.description).toBe(
           'Course version description',
         );
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -227,7 +222,7 @@ describe('Course Version Controller Integration Tests', () => {
         const readResponse = await request(app).get(endPoint2).expect(404);
 
         // expect(readResponse.body.message).toContain("Course version not found");
-      });
+      }, 90000);
     });
   });
 
@@ -315,7 +310,7 @@ describe('Course Version Controller Integration Tests', () => {
           .delete(`/courses/${courseId}/versions/${versionId}`)
           .expect(200);
         expect(deleteVersion.body.deletedItem);
-      });
+      }, 90000);
     });
     describe('Failure Scenario', () => {
       it('should not delete a course version', async () => {
@@ -328,7 +323,7 @@ describe('Course Version Controller Integration Tests', () => {
             '/courses/5f9b1b3c9d1f1f1f1f1f1f1f/versions/5f9b1b3c9d1f1f1f1f1f1f1f',
           )
           .expect(404);
-      });
+      }, 90000);
     });
   });
 
@@ -342,7 +337,7 @@ describe('Course Version Controller Integration Tests', () => {
         .expect(res => {
           expect(res.body.message).toContain('Course not found');
         });
-    });
+    }, 90000);
 
     it('should return 400 if invalid course version data', async () => {
       // Valid course, but invalid version payload
@@ -360,13 +355,13 @@ describe('Course Version Controller Integration Tests', () => {
         .expect(res => {
           expect(res.body.message).toContain('Invalid body');
         });
-    });
+    }, 90000);
 
     it('should return 404 if course version not found on readCourseVersion', async () => {
       await request(app)
         .get('/courses/versions/62341aeb5be816967d8fc2db')
         .expect(404);
-    });
+    }, 90000);
 
     it('should return 404 if course version not found on deleteCourseVersion', async () => {
       await request(app)
@@ -374,6 +369,6 @@ describe('Course Version Controller Integration Tests', () => {
           '/courses/62341aeb5be816967d8fc2db/versions/62341aeb5be816967d8fc2db',
         )
         .expect(404);
-    });
+    }, 90000);
   });
 });

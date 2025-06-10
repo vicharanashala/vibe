@@ -1,1 +1,1 @@
-export {IAuthService} from './IAuthService';
+export * from './IAuthService.js';

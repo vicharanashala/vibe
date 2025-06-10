@@ -1,11 +1,17 @@
-import {env} from '../utils/env';
+// import path from 'path';
+// import {fileURLToPath} from 'url';
 
-function getAppPath() {
-  let currentDir = __dirname;
-  currentDir = currentDir.replace('/config', '');
+import {env} from '#root/utils/env.js';
 
-  return currentDir;
-}
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+
+// function getAppPath() {
+//   let currentDir = __dirname;
+//   currentDir = currentDir.replace('/config', '');
+
+//   return currentDir;
+// }
 
 export const appConfig = {
   node: env('NODE_ENV') || 'development',
@@ -16,5 +22,5 @@ export const appConfig = {
   port: Number(env('APP_PORT')) || 4001,
   routePrefix: env('APP_ROUTE_PREFIX'),
   url: env('APP_URL'),
-  appPath: getAppPath(),
+  // appPath: getAppPath(),
 };

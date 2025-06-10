@@ -1,15 +1,14 @@
-import {RoutingControllersOptions, useContainer} from 'routing-controllers';
-import {Container} from 'typedi';
-import {OpenApiSpecService} from './services/OpenApiSpecService';
-
-// Set up TypeDI container
-useContainer(Container);
+import {RoutingControllersOptions} from 'routing-controllers';
+import {DocsController} from './DocsController.js';
+import {OpenApiSpecService} from './services/OpenApiSpecService.js';
 
 // Export empty array for controllers since we're handling docs differently
 export const docsModuleOptions: RoutingControllersOptions = {
-  controllers: [],
+  controllers: [DocsController],
   routePrefix: '',
   defaultErrorHandler: true,
 };
 
-export * from './services/OpenApiSpecService';
+export {OpenApiSpecService};
+export * from './services/index.js';
+export * from './DocsController.js';

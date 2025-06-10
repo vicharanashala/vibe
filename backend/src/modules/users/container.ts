@@ -1,30 +1,36 @@
-﻿import {ContainerModule} from 'inversify';
-import TYPES from './types';
-
-import {EnrollmentService, ProgressService} from './services';
+﻿import {
+  EnrollmentRepository,
+  ProgressRepository,
+} from '#shared/database/index.js';
+import {ContainerModule} from 'inversify';
 import {
-  ProgressController,
   EnrollmentController,
+  ProgressController,
   UserController,
-} from './controllers';
-
-import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
+} from './controllers/index.js';
+import {EnrollmentService, ProgressService} from './services/index.js';
+import {USERS_TYPES} from './types.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
-  options.bind(TYPES.ProgressRepo).to(ProgressRepository).inSingletonScope();
   options
-    .bind(TYPES.EnrollmentRepo)
+    .bind(USERS_TYPES.ProgressRepo)
+    .to(ProgressRepository)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.EnrollmentRepo)
     .to(EnrollmentRepository)
     .inSingletonScope();
 
   // Services
   options
-    .bind(TYPES.EnrollmentService)
+    .bind(USERS_TYPES.EnrollmentService)
     .to(EnrollmentService)
     .inSingletonScope();
-  options.bind(TYPES.ProgressService).to(ProgressService).inSingletonScope();
+  options
+    .bind(USERS_TYPES.ProgressService)
+    .to(ProgressService)
+    .inSingletonScope();
 
   // Controllers
   options.bind(ProgressController).toSelf().inSingletonScope();

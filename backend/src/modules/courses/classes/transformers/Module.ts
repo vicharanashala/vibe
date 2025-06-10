@@ -1,15 +1,15 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from '../../utils/calculateNewOrder';
-import {ObjectId} from 'mongodb';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {
+  IModule,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {IModule} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {CreateModuleBody} from '../validators/ModuleValidators';
-import {Section} from './Section';
+  ID,
+} from '#shared/index.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
+
+import {CreateModuleBody} from '../validators/ModuleValidators.js';
+import {Section} from './Section.js';
 
 /**
  * Module data transformation.

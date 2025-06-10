@@ -1,32 +1,30 @@
-import 'reflect-metadata';
-import {NotFoundError} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {EnrollmentRepository} from '../../../shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {UserRepository} from '../../../shared/database/providers/mongo/repositories/UserRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
-import {Enrollment} from '../classes/transformers/Enrollment';
-import {ClientSession, ObjectId} from 'mongodb';
+import {COURSES_TYPES} from '#courses/types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {
+  BaseService,
+  ICourseRepository,
+  IUserRepository,
+  IItemRepository,
+  MongoDatabase,
   EnrollmentRole,
   ICourseVersion,
-} from '../../../shared/interfaces/Models';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
-import {re} from 'mathjs';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
+} from '#shared/index.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/index.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {NotFoundError} from 'routing-controllers';
 
 @injectable()
 export class EnrollmentService extends BaseService {
   constructor(
-    @inject(TYPES.EnrollmentRepo)
+    @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
-    @inject(TYPES.UserRepo) private readonly userRepo: UserRepository,
-    @inject(TYPES.ItemRepo) private readonly itemRepo: ItemRepository,
+    private readonly courseRepo: ICourseRepository,
+    @inject(USERS_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+    @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {

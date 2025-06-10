@@ -1,9 +1,7 @@
-import {ClientSession, Collection} from 'mongodb';
-import {IQuestionBank} from 'shared/interfaces/quiz';
-import TYPES from '../../../../../types';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IQuestionBank, MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import GLOBAL_TYPES from '../../../../../types';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
 
 @injectable()
 class QuestionBankRepository {
@@ -38,7 +36,7 @@ class QuestionBankRepository {
   ): Promise<IQuestionBank | null> {
     await this.init();
     const result = await this.questionBankCollection.findOne(
-      {_id: questionBankId},
+      {_id: new ObjectId(questionBankId)},
       {session},
     );
     if (!result) {
@@ -69,7 +67,7 @@ class QuestionBankRepository {
   ): Promise<IQuestionBank | null> {
     await this.init();
     const result = await this.questionBankCollection.findOneAndUpdate(
-      {_id: questionBankId},
+      {_id: new ObjectId(questionBankId)},
       {$set: updateData},
       {returnDocument: 'after', session},
     );
@@ -85,7 +83,7 @@ class QuestionBankRepository {
   ): Promise<boolean> {
     await this.init();
     const result = await this.questionBankCollection.deleteOne(
-      {_id: questionBankId},
+      {_id: new ObjectId(questionBankId)},
       {session},
     );
     return result.deletedCount === 0;

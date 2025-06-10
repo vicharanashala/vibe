@@ -1,21 +1,24 @@
-import {Action, getFromContainer, useContainer} from 'routing-controllers';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {HttpErrorHandler} from '../../shared/middleware/errorHandler';
+import {
+  Action,
+  getFromContainer,
+  useContainer,
+  RoutingControllersOptions,
+} from 'routing-controllers';
+import {HttpErrorHandler} from '#shared/index.js';
+import {Container} from 'inversify';
+import {sharedContainerModule} from '#root/container.js';
+import {authContainerModule} from '#auth/container.js';
+import {usersContainerModule} from '#users/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {coursesContainerModule} from './container.js';
 import {
   CourseController,
   CourseVersionController,
   ModuleController,
   SectionController,
   ItemController,
-} from './controllers';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '../../container';
-import {authContainerModule} from '../auth/container';
-import {usersContainerModule} from '../users/container';
-import {InversifyAdapter} from '../../inversify-adapter';
-import {coursesContainerModule} from './container';
-import {FirebaseAuthService} from 'modules/auth/services/FirebaseAuthService';
-import {UserRepository} from 'shared/database/providers/mongo/repositories/UserRepository';
+} from './controllers/index.js';
+import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 
 export async function setupCoursesContainer(): Promise<void> {
   const container = new Container();
@@ -61,6 +64,9 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index';
-export * from './classes/transformers/index';
-export * from './controllers/index';
+export * from './classes/index.js';
+export * from './controllers/index.js';
+export * from './services/index.js';
+export * from './utils/index.js';
+export * from './container.js';
+export * from './types.js';

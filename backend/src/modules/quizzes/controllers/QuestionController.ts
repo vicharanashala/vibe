@@ -10,20 +10,19 @@ import {
   Params,
   HttpCode,
   OnUndefined,
-  BadRequestError,
   Patch,
 } from 'routing-controllers';
 import {
   QuestionBody,
   QuestionId,
+  QuestionFactory,
   QuestionResponse,
-} from '../classes/validators/QuestionValidator';
-import {QuestionFactory} from '../classes/transformers/Question';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor';
+} from '#quizzes/classes/index.js';
+import {QuestionService} from '#quizzes/services/QuestionService.js';
 import {inject, injectable} from 'inversify';
-import TYPES from '../types';
-import {QuestionService} from '../services/QuestionService';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 
 @OpenAPI({
   tags: ['Questions'],
@@ -32,7 +31,7 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 @injectable()
 class QuestionController {
   constructor(
-    @inject(TYPES.QuestionService)
+    @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,
   ) {}
 
@@ -73,7 +72,10 @@ class QuestionController {
   })
   async getById(@Params() params: QuestionId): Promise<QuestionResponse> {
     const {questionId} = params;
-    return this.questionService.getById(questionId, true);
+    const ques = await this.questionService.getById(questionId, true);
+    const questionProcessor = new QuestionProcessor(ques);
+    const renderedQues = questionProcessor.render();
+    return renderedQues;
   }
 
   @Put('/:questionId')

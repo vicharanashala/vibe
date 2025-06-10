@@ -1,25 +1,24 @@
-import {
-  Body,
-  Get,
-  JsonController,
-  Params,
-  Patch,
-  Post,
-} from 'routing-controllers';
-import {QuestionBankService} from '../services/QuestionBankService';
-import {inject, injectable} from 'inversify';
+import {QuestionBank} from '#quizzes/classes/transformers/QuestionBank.js';
 import {
   CreateQuestionBankBody,
   CreateQuestionBankResponse,
   GetQuestionBankByIdParams,
-  QuestionBankAndQuestionParams,
   QuestionBankResponse,
+  QuestionBankAndQuestionParams,
   ReplaceQuestionResponse,
-} from '../classes/validators/QuestionBankValidator';
-import {QuestionBank} from '../classes/transformers/QuestionBank';
-import {Question} from '../classes';
-import TYPES from '../types';
+} from '#quizzes/classes/validators/QuestionBankValidator.js';
+import {QuestionBankService} from '#quizzes/services/QuestionBankService.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Post,
+  Body,
+  Get,
+  Patch,
+  Params,
+} from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 
 @OpenAPI({
   tags: ['Question Banks'],
@@ -28,7 +27,7 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 @JsonController('/question-bank')
 class QuestionBankController {
   constructor(
-    @inject(TYPES.QuestionBankService)
+    @inject(QUIZZES_TYPES.QuestionBankService)
     private readonly questionBankService: QuestionBankService,
   ) {}
 

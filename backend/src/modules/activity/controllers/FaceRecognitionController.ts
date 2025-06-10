@@ -9,13 +9,13 @@ import {
   BadRequestError,
 } from 'routing-controllers';
 import {injectable, inject} from 'inversify';
-import {FaceRecognitionService} from '../services/FaceRecognitionService';
-import TYPES from '../types';
+import {FaceRecognitionService} from '../services/FaceRecognitionService.js';
+import TYPES from '../types.js';
 import {
   KnownFacesResponse,
   UploadFaceResponse,
   AddPersonResponse,
-} from '../classes/validators/FaceRecognitionValidators';
+} from '../classes/validators/FaceRecognitionValidators.js';
 
 /**
  * Face Recognition Controller

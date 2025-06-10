@@ -1,1 +1,1 @@
-export * from './QuestionValidator';
+export * from './QuestionValidator.js';

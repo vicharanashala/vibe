@@ -1,40 +1,37 @@
+import {
+  IVideoDetails,
+  IQuizDetails,
+  IBlogDetails,
+  IBaseItem,
+  ItemType,
+} from '#shared/index.js';
 import {Type} from 'class-transformer';
 import {
-  IsBoolean,
-  IsDateString,
-  IsDecimal,
-  IsEmpty,
-  IsEnum,
-  IsMongoId,
   IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsPositive,
   IsString,
   IsUrl,
   Matches,
-  Max,
+  IsNumber,
+  IsPositive,
   Min,
+  Max,
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsEmpty,
+  IsDecimal,
+  IsMongoId,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import {
-  IBaseItem,
-  IBlogDetails,
-  IQuizDetails,
-  ItemType,
-  IVideoDetails,
-} from '../../../../shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ObjectId} from 'mongodb';
+import {CourseVersion} from '../transformers/CourseVersion.js';
 import {
-  CourseVersion,
   ItemsGroup,
   QuizItem,
   BlogItem,
   VideoItem,
-} from '../transformers';
-import {isNumeric} from 'mathjs';
+} from '../transformers/Item.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -324,10 +321,9 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: Object.values(ItemType),
+    enum: ['VIDEO', 'BLOG', 'QUIZ'],
   })
   @IsNotEmpty()
-  @IsEnum(ItemType)
   type: ItemType;
 
   @JSONSchema({
@@ -430,10 +426,9 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Updated type of the item: VIDEO, BLOG, or QUIZ',
     example: 'BLOG',
     type: 'string',
-    enum: Object.values(ItemType),
+    enum: ['VIDEO', 'BLOG', 'QUIZ'],
   })
   @IsOptional()
-  @IsEnum(ItemType)
   type: ItemType;
 
   @JSONSchema({

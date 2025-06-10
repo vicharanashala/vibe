@@ -1,51 +1,34 @@
-import './instrument';
+import './instrument.js';
 import Express from 'express';
-import Sentry from '@sentry/node';
-import {loggingHandler} from './shared/middleware/loggingHandler';
-import {corsHandler} from './shared/middleware/corsHandler';
+import * as Sentry from '@sentry/node';
+import {loggingHandler, corsHandler} from '#shared/index.js';
 import {
-  Action,
   RoutingControllersOptions,
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
-import {IDatabase} from './shared/database';
-import {
-  MongoDatabase,
-  UserRepository,
-} from './shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from './config/db';
-import * as firebase from 'firebase-admin';
-import {app} from 'firebase-admin';
-import {apiReference} from '@scalar/express-api-reference';
-import {OpenApiSpecService} from './modules/docs';
+import {OpenApiSpecService} from '#docs/index.js';
 
 // Import all module options
-import {
-  authModuleOptions,
-  FirebaseAuthService,
-  setupAuthContainer,
-} from './modules/auth';
-import {coursesModuleOptions, setupCoursesContainer} from './modules/courses';
-import {setupUsersContainer, usersModuleOptions} from './modules/users';
-import {quizzesModuleOptions, setupQuizzesContainer} from './modules/quizzes';
+import {authModuleOptions, setupAuthContainer} from '#auth/index.js';
+import {coursesModuleOptions, setupCoursesContainer} from '#courses/index.js';
+import {setupUsersContainer, usersModuleOptions} from '#users/index.js';
+import {quizzesModuleOptions, setupQuizzesContainer} from '#quizzes/index.js';
 import {
   activityModuleOptions,
   setupActivityContainer,
-} from './modules/activity';
-import {rateLimiter} from './shared/middleware/rateLimiter';
-import {sharedContainerModule} from './container';
-import {authContainerModule} from './modules/auth/container';
-import {InversifyAdapter} from './inversify-adapter';
+} from '#activity/index.js';
+import {rateLimiter} from '#shared/index.js';
+import {sharedContainerModule} from '#root/container.js';
+import {authContainerModule} from '#auth/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {Container} from 'inversify';
-import {coursesContainerModule} from 'modules/courses/container';
-import {quizzesContainerModule} from 'modules/quizzes/container';
-import {usersContainerModule} from 'modules/users/container';
-import {activityContainerModule} from './modules/activity/container';
+import {coursesContainerModule} from '#courses/container.js';
+import {quizzesContainerModule} from '#quizzes/container.js';
+import {usersContainerModule} from '#users/container.js';
+import {activityContainerModule} from '#activity/container.js';
 import {getFromContainer} from 'class-validator';
-import {appConfig} from 'config/app';
-
-import GLOBAL_TYPES from './types';
+import {appConfig} from '#config/app.js';
 
 export const application = Express();
 
@@ -86,11 +69,11 @@ export const ServiceFactory = (
 
   // Register the /docs route before routing-controllers takes over
   if (process.env.NODE_ENV !== 'production') {
-    service.get('/docs', (req, res) => {
+    service.get('/docs', async (req, res) => {
       try {
+        const scalar = await import('@scalar/express-api-reference');
         const openApiSpec = openApiSpecService.generateOpenAPISpec();
-
-        const handler = apiReference({
+        const handler = scalar.apiReference({
           spec: {
             content: openApiSpec,
           },
@@ -103,7 +86,6 @@ export const ServiceFactory = (
             },
           },
         });
-
         // Call the handler to render the documentation
         handler(req as any, res as any);
       } catch (error) {

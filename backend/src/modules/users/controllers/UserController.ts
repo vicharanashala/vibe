@@ -12,10 +12,10 @@ import {
   UserByFirebaseUIDParams,
   UserByFirebaseUIDResponse,
   UserNotFoundErrorResponse,
-} from '../classes/validators/UserValidators';
-import {IUserRepository} from 'shared/database/interfaces/IUserRepository';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
-import TYPES from '../types';
+} from '../classes/validators/UserValidators.js';
+import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {USERS_TYPES} from '../types.js';
 
 /**
  * Controller for managing user-related operations.
@@ -29,7 +29,7 @@ import TYPES from '../types';
 @injectable()
 export class UserController {
   constructor(
-    @inject(TYPES.UserRepo) private userRepository: IUserRepository,
+    @inject(USERS_TYPES.UserRepo) private userRepository: IUserRepository,
   ) {}
 
   /**

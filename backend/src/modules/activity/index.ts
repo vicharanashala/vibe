@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import {Container} from 'inversify';
 import {useContainer, RoutingControllersOptions} from 'routing-controllers';
-import {FaceRecognitionController} from './controllers/FaceRecognitionController';
-import {activityContainerModule} from './container';
-import {InversifyAdapter} from '../../inversify-adapter';
+import {FaceRecognitionController} from './controllers/FaceRecognitionController.js';
+import {activityContainerModule} from './container.js';
+import {InversifyAdapter} from '../../inversify-adapter.js';
 
 // Setup function for the activity module container
 export async function setupActivityContainer(): Promise<void> {
@@ -25,10 +25,10 @@ export const activityModuleOptions: RoutingControllersOptions = {
 };
 
 // Export service
-export {FaceRecognitionService} from './services/FaceRecognitionService';
+export {FaceRecognitionService} from './services/FaceRecognitionService.js';
 
 // Export controller
-export {FaceRecognitionController} from './controllers/FaceRecognitionController';
+export {FaceRecognitionController} from './controllers/FaceRecognitionController.js';
 
 // Export validators
-export * from './classes/validators/FaceRecognitionValidators';
+export * from './classes/validators/FaceRecognitionValidators.js';

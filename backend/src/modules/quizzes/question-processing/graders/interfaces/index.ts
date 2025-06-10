@@ -1,1 +1,1 @@
-export * from './IGrader';
+export * from './IGrader.js';

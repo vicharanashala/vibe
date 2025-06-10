@@ -1,20 +1,9 @@
+import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
 import {
-  CourseVersion,
-  ItemsGroup,
-  Module,
-} from '../../../modules/courses/classes/transformers/index';
-import {
-  ICourse,
-  ICourseVersion,
-  IEnrollment,
-  IModule,
-  IProgress,
-} from '../../interfaces/Models';
-import {
-  ClientSession,
-  DeleteResult,
   MongoClient,
+  ClientSession,
   ObjectId,
+  DeleteResult,
   UpdateResult,
 } from 'mongodb';
 

@@ -1,6 +1,8 @@
 // src/core/inversify-adapter.ts
-import {IocAdapter, Action, ClassConstructor} from 'routing-controllers';
+
+import {ClassConstructor} from 'class-transformer';
 import {Container} from 'inversify';
+import {IocAdapter, Action} from 'routing-controllers';
 
 export class InversifyAdapter implements IocAdapter {
   constructor(private readonly container: Container) {}

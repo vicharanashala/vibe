@@ -1,44 +1,46 @@
+import {QuizItem} from '#courses/index.js';
 import {
   BaseQuestion,
-  SMLQuestion,
   SOLQuestion,
+  SMLQuestion,
   OTLQuestion,
   NATQuestion,
   DESQuestion,
-} from 'modules/quizzes/classes/transformers';
-import {TagParser} from './tag-parser/TagParser';
-import {QParamTag} from './tag-parser/tags/QParamTag';
-import {NumExprTag} from './tag-parser/tags/NumExprTag';
-import {NumExprTexTag} from './tag-parser/tags/NumExprTexTag';
-import {ParameterMap} from './tag-parser/tags/Tag';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
-import {
-  BaseQuestionRenderer,
-  SOLQuestionRenderer,
-  IQuestionRenderView,
-  SMLQuestionRenderer,
-  OTLQuestionRenderer,
-  NATQuestionRenderer,
-  DESQuestionRenderer,
-} from './renderers';
-import {
-  BaseQuestionValidator,
-  SOLQuestionValidator,
-  SMLQuestionValidator,
-  OTLQuestionValidator,
-  NATQuestionValidator,
-  DESQuestionValidator,
-} from './validators';
-import {IGrader} from './graders/interfaces/IGrader';
-import {SOLQuestionGrader} from './graders/SOLQuestionGrader';
-import {SMLQuestionGrader} from './graders/SMLQuestionGrader';
-import {Answer, IQuestionAnswerFeedback} from '../interfaces/grading';
-import {QuizItem} from 'modules/courses';
+} from '#quizzes/classes/index.js';
+import {Answer, IQuestionAnswerFeedback} from '#quizzes/interfaces/grading.js';
+import {generateRandomParameterMap} from '#quizzes/utils/index.js';
 import {
   DESQuestionGrader,
+  IGrader,
   NATQuestionGrader,
   OTLQuestionGrader,
-} from './graders';
+  SMLQuestionGrader,
+  SOLQuestionGrader,
+} from './graders/index.js';
+import {
+  BaseQuestionRenderer,
+  DESQuestionRenderer,
+  IQuestionRenderView,
+  NATQuestionRenderer,
+  OTLQuestionRenderer,
+  SMLQuestionRenderer,
+  SOLQuestionRenderer,
+} from './renderers/index.js';
+import {
+  QParamTag,
+  NumExprTag,
+  NumExprTexTag,
+  ParameterMap,
+} from './tag-parser/index.js';
+import {TagParser} from './tag-parser/TagParser.js';
+import {
+  BaseQuestionValidator,
+  DESQuestionValidator,
+  NATQuestionValidator,
+  OTLQuestionValidator,
+  SMLQuestionValidator,
+  SOLQuestionValidator,
+} from './validators/index.js';
 
 class QuestionProcessor {
   private tagParser: TagParser;
@@ -169,7 +171,7 @@ class QuestionProcessor {
     quiz: QuizItem,
     parameterMap?: ParameterMap,
   ): Promise<IQuestionAnswerFeedback> {
-    return this.grader.grade(answer, quiz);
+    return this.grader.grade(answer, quiz, parameterMap);
   }
 }
 

@@ -1,39 +1,35 @@
-import 'reflect-metadata';
 import {
-  Authorized,
-  Body,
-  Get,
-  HttpError,
-  JsonController,
-  Params,
-  Post,
-  Delete,
-  BadRequestError,
-  HttpCode,
-  NotFoundError,
-  InternalServerError,
-} from 'routing-controllers';
-import {inject, injectable} from 'inversify';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {CourseVersionService} from '../services';
-import {
+  CreateCourseVersionResponse,
+  CourseVersionNotFoundErrorResponse,
   CreateCourseVersionParams,
   CreateCourseVersionBody,
+  CourseVersion,
+  CourseVersionDataResponse,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
-  CourseVersionDataResponse,
-  CourseVersionNotFoundErrorResponse,
-  CreateCourseVersionResponse,
-} from '../classes/validators/CourseVersionValidators';
-import {BadRequestErrorResponse} from '../../../shared/middleware/errorHandler';
-import {CourseVersion} from '../classes/transformers';
-import TYPES from '../types';
-
+} from '#courses/classes/index.js';
+import {CourseVersionService} from '#courses/services/CourseVersionService.js';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Authorized,
+  Post,
+  HttpCode,
+  Params,
+  Body,
+  Get,
+  Delete,
+  BadRequestError,
+  InternalServerError,
+} from 'routing-controllers';
+import {ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 @injectable()
 @JsonController('/courses')
 export class CourseVersionController {
   constructor(
-    @inject(TYPES.CourseVersionService)
+    @inject(COURSES_TYPES.CourseVersionService)
     private readonly courseVersionService: CourseVersionService,
   ) {}
 

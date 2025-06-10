@@ -1,44 +1,39 @@
-import {inject, injectable} from 'inversify';
-import {Progress} from '../classes/transformers';
-import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
+import {COURSES_TYPES, Item} from '#courses/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {
+  BaseService,
+  ICourseRepository,
+  IUserRepository,
+  IItemRepository,
+  MongoDatabase,
+  ICourseVersion,
+  IWatchTime,
+  IProgress,
+} from '#shared/index.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {Progress} from '#users/classes/index.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {
+  NotFoundError,
   BadRequestError,
   InternalServerError,
-  NotFoundError,
 } from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../../shared/database/providers/mongo/repositories/ItemRepository';
-import {
-  MongoDatabase,
-  UserRepository,
-} from '../../../shared/database/providers/MongoDatabaseProvider';
-import {
-  IBlogDetails,
-  ICourseVersion,
-  IProgress,
-  IVideoDetails,
-  IWatchTime,
-} from '../../../shared/interfaces/Models';
-import {BaseService} from '../../../shared/classes/BaseService';
-import {Item} from '../../../modules/courses';
-import {ReadConcern, ReadPreference, WriteConcern, ObjectId} from 'mongodb';
-import TYPES from '../types';
-import GLOBAL_TYPES from '../../../types';
-
 @injectable()
 class ProgressService extends BaseService {
   constructor(
-    @inject(TYPES.ProgressRepo)
+    @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
+    private readonly courseRepo: ICourseRepository,
 
-    @inject(TYPES.UserRepo)
-    private readonly userRepo: UserRepository,
+    @inject(USERS_TYPES.UserRepo)
+    private readonly userRepo: IUserRepository,
 
-    @inject(TYPES.ItemRepo)
-    private readonly itemRepo: ItemRepository,
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider

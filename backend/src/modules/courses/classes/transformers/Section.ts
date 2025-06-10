@@ -1,14 +1,13 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {calculateNewOrder} from '../../utils/calculateNewOrder';
-import {ObjectId} from 'mongodb';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {
+  ID,
+  ISection,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {ISection} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {CreateSectionBody} from '../validators/SectionValidators';
+} from '#shared/index.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {CreateSectionBody} from '../validators/SectionValidators.js';
 
 /**
  * Section data transformation.

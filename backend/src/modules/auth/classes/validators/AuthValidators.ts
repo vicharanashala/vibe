@@ -1,9 +1,8 @@
 import {
-  IsAlpha,
   IsEmail,
   IsNotEmpty,
-  Matches,
   MinLength,
+  IsAlpha,
   IsString,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';

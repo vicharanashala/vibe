@@ -1,16 +1,16 @@
-import {inject, injectable} from 'inversify';
-import {IUserQuizMetrics} from 'modules/quizzes/interfaces/grading';
+import {IUserQuizMetrics} from '#quizzes/interfaces/grading.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import TYPES from '../../../../../types';
 
 @injectable()
 class UserQuizMetricsRepository {
   private userQuizMetricsCollection: Collection<IUserQuizMetrics>;
 
   constructor(
-    @inject(TYPES.Database)
+    @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 
@@ -47,13 +47,13 @@ class UserQuizMetricsRepository {
     }
     return result;
   }
-  public async udpate(
+  public async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
   ): Promise<IUserQuizMetrics> {
     await this.init();
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      {_id: metricsId},
+      {_id: new ObjectId(metricsId)},
       {$set: updateData},
       {returnDocument: 'after'},
     );

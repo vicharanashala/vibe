@@ -19,7 +19,7 @@ import {
 import {isMongoId} from 'class-validator';
 import {ProgressService} from '../services/ProgressService';
 import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
-import {IUser, IWatchTime} from '../../../shared/interfaces/Models';
+import {IUser, IWatchTime} from '../../../shared/interfaces/models';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,
@@ -35,6 +35,8 @@ import {faker} from '@faker-js/faker';
 import {authContainerModule} from '../../auth/container';
 import {coursesContainerModule} from '../../courses/container';
 import {usersContainerModule} from '../container';
+import {jest} from '@jest/globals';
+
 jest.setTimeout(300000); // Set timeout to 30 seconds for the tests
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();

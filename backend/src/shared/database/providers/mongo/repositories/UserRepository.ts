@@ -1,23 +1,11 @@
-import {
-  ClientSession,
-  Collection,
-  ConnectionClosedEvent,
-  MongoClient,
-  ObjectId,
-  WithId,
-} from 'mongodb';
-import {IUser} from '../../../../interfaces/Models';
-import {inject, injectable} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase';
-import {IUserRepository} from '../../../interfaces/IUserRepository';
-import {
-  instanceToPlain,
-  plainToClass,
-  plainToInstance,
-} from 'class-transformer';
-import {User} from 'modules/auth/classes/transformers/User';
-import GLOBAL_TYPES from '../../../../../types';
-import c from 'config';
+import {User} from '#auth/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {IUser} from '#shared/interfaces/models.js';
+import {instanceToPlain, plainToInstance} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {Collection, MongoClient, ClientSession, ObjectId} from 'mongodb';
+import {MongoDatabase} from '../MongoDatabase.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 
 @injectable()

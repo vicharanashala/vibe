@@ -1,13 +1,12 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
 import {
+  ICourseVersion,
   ObjectIdToString,
   StringToObjectId,
-} from '../../../../shared/constants/transformerConstants';
-import {ICourseVersion} from '../../../../shared/interfaces/Models';
-import {ID} from '../../../../shared/types';
-import {Module} from './Module';
-import {CreateCourseVersionBody} from '../validators';
+  ID,
+} from '#shared/index.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {CreateCourseVersionBody} from '../validators/CourseVersionValidators.js';
+import {Module} from './index.js';
 
 /**
  * Course version data transformation.
@@ -45,7 +44,6 @@ class CourseVersion implements ICourseVersion {
 
   constructor(courseVersionBody?: CreateCourseVersionBody) {
     if (courseVersionBody) {
-      this.courseId = courseVersionBody.courseId;
       this.version = courseVersionBody.version;
       this.description = courseVersionBody.description;
     }

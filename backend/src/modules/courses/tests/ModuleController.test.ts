@@ -1,21 +1,16 @@
 import {coursesModuleOptions} from '../';
 import {
-  RoutingControllersOptions,
   useExpressServer,
   useContainer,
 } from 'routing-controllers';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from '../../../shared/database/providers/MongoDatabaseProvider';
 import Express from 'express';
 import request from 'supertest';
-import {dbConfig} from '../../../config/db';
-import {CourseVersionService, ModuleService} from '../services';
 import {InversifyAdapter} from '../../../inversify-adapter';
 import {Container} from 'inversify';
 import {coursesContainerModule} from '../container';
 import {sharedContainerModule} from '../../../container';
+import {jest} from '@jest/globals';
 
-jest.setTimeout(90000);
 describe('Module Controller Integration Tests', () => {
   const App = Express();
   let app;
@@ -94,7 +89,7 @@ describe('Module Controller Integration Tests', () => {
         // Optionally, check if the moduleId and other properties match
         expect(createdModule.moduleId).toBeDefined();
         expect(createdModule.order).toBeDefined(); // Check if order exists
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -114,7 +109,7 @@ describe('Module Controller Integration Tests', () => {
           .expect(400);
 
         // expect(moduleResponse.body.message).toContain("Version not found");
-      });
+      }, 90000);
 
       it('should return 400 for invalid module data', async () => {
         // Create a course
@@ -158,7 +153,7 @@ describe('Module Controller Integration Tests', () => {
         expect(moduleResponse.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
-      });
+      }, 90000);
 
       it('should return 400 if module name is missing', async () => {
         const coursePayload = {
@@ -181,7 +176,7 @@ describe('Module Controller Integration Tests', () => {
           .post(`/courses/versions/${versionId}/modules`)
           .send(modulePayload)
           .expect(400);
-      });
+      }, 90000);
     });
   });
 
@@ -246,7 +241,7 @@ describe('Module Controller Integration Tests', () => {
         const idx1 = movedModules.findIndex(m => m.moduleId === moduleId1);
         const idx2 = movedModules.findIndex(m => m.moduleId === moduleId2);
         expect(idx2).toBeLessThan(idx1);
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -257,7 +252,7 @@ describe('Module Controller Integration Tests', () => {
           .put('/courses/versions/invalidVersion/modules/invalidModule/move')
           .send(movePayload)
           .expect(400);
-      });
+      }, 90000);
 
       it('should return 404 if module to move does not exist', async () => {
         const fakeVersionId = '60d21b4667d0d8992e610c85';
@@ -268,7 +263,7 @@ describe('Module Controller Integration Tests', () => {
           )
           .send({beforeModuleId: '60d21b4967d0d8992e610c87'})
           .expect(404);
-      });
+      }, 90000);
 
       it('should return 400 if beforeModuleId is missing', async () => {
         const coursePayload = {name: 'Move Error Course', description: 'desc'};
@@ -293,7 +288,7 @@ describe('Module Controller Integration Tests', () => {
           .put(`/courses/versions/${versionId}/modules/${moduleId}/move`)
           .send({})
           .expect(400);
-      });
+      }, 90000);
     });
   });
 
@@ -341,7 +336,7 @@ describe('Module Controller Integration Tests', () => {
           .expect(200);
 
         expect(deleteRes.body.message).toContain(`Module ${moduleId} deleted`);
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -349,14 +344,14 @@ describe('Module Controller Integration Tests', () => {
         await request(app)
           .delete('/courses/versions/invalidVersion/modules/invalidModule')
           .expect(400);
-      });
+      }, 90000);
       it('should return 404 if module does not exist', async () => {
         const fakeVersionId = '60d21b4667d0d8992e610c85';
         const fakeModuleId = '60d21b4967d0d8992e610c86';
         await request(app)
           .delete(`/courses/versions/${fakeVersionId}/modules/${fakeModuleId}`)
           .expect(404);
-      });
+      }, 90000);
     });
   });
 
@@ -414,7 +409,7 @@ describe('Module Controller Integration Tests', () => {
         expect(updatedModule).toBeDefined();
         expect(updatedModule.name).toBe('Updated Module');
         expect(updatedModule.description).toBe('Updated Desc');
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -423,7 +418,7 @@ describe('Module Controller Integration Tests', () => {
           .put('/courses/versions/invalidVersion/modules/invalidModule')
           .send({name: 'x'})
           .expect(400);
-      });
+      }, 90000);
       it('should return 404 if module to update does not exist', async () => {
         const fakeVersionId = '60d21b4667d0d8992e610c85';
         const fakeModuleId = '60d21b4967d0d8992e610c86';
@@ -431,7 +426,7 @@ describe('Module Controller Integration Tests', () => {
           .put(`/courses/versions/${fakeVersionId}/modules/${fakeModuleId}`)
           .send({name: 'x'})
           .expect(404);
-      });
+      }, 90000);
 
       it('should return 400 if update payload is invalid', async () => {
         const coursePayload = {
@@ -462,7 +457,7 @@ describe('Module Controller Integration Tests', () => {
           .put(`/courses/versions/${versionId}/modules/${moduleId}`)
           .send({name: ''})
           .expect(400);
-      });
+      }, 90000);
     });
   });
 
@@ -500,7 +495,7 @@ describe('Module Controller Integration Tests', () => {
         .put(`/courses/versions/${versionId}/modules/${moduleId}/move`)
         .send({})
         .expect(400);
-    });
+    }, 90000);
 
     it('should return 404 if module does not exist on moveModule', async () => {
       await request(app)
@@ -509,7 +504,7 @@ describe('Module Controller Integration Tests', () => {
         )
         .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
         .expect(404);
-    });
+    }, 90000);
 
     it('should return 404 if module does not exist on moveModule', async () => {
       await request(app)
@@ -518,7 +513,7 @@ describe('Module Controller Integration Tests', () => {
         )
         .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
         .expect(404);
-    });
+    }, 90000);
 
     it('should return 404 for non existant course version', async () => {
       await request(app)
@@ -526,7 +521,7 @@ describe('Module Controller Integration Tests', () => {
           '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db',
         )
         .expect(404);
-    });
+    }, 90000);
 
     it('should return 404 if module does not exist on deleteModule', async () => {
       await request(app)
@@ -534,6 +529,6 @@ describe('Module Controller Integration Tests', () => {
           `/courses/versions/${versionId}/modules/62341aeb5be816967d8fc2db`,
         )
         .expect(404);
-    });
+    }, 90000);
   });
 });

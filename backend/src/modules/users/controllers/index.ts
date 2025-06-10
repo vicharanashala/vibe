@@ -1,3 +1,3 @@
-export * from './EnrollmentController';
-export * from './ProgressController';
-export * from './UserController';
+export * from './UserController.js';
+export * from './EnrollmentController.js';
+export * from './ProgressController.js';

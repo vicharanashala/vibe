@@ -1,28 +1,12 @@
-import {
-  ExpressErrorMiddlewareInterface,
-  HttpError,
-  Middleware,
-  useContainer,
-} from 'routing-controllers';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {MongoDatabase} from '../../shared/database/providers/mongo/MongoDatabase';
-import {EnrollmentRepository} from '../../shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from '../../shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from '../../shared/database/providers/mongo/repositories/ItemRepository';
-import {EnrollmentController} from './controllers/EnrollmentController';
-import {UserController} from './controllers/UserController';
-import {EnrollmentService} from './services';
-import {UserRepository} from '../../shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from '../../config/db';
-import {ProgressRepository} from '../../shared/database/providers/mongo/repositories/ProgressRepository';
-import {ProgressController} from './controllers/index';
-import {ProgressService} from './services/ProgressService';
-import {Course} from '../../modules/courses';
-import {sharedContainerModule} from '../../container';
-import {authContainerModule} from '../auth/container';
-import {usersContainerModule} from './container';
+import {authContainerModule} from '#auth/container.js';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {Container} from 'inversify';
-import {InversifyAdapter} from '../../inversify-adapter';
+import {RoutingControllersOptions, useContainer} from 'routing-controllers';
+import {usersContainerModule} from './container.js';
+import {EnrollmentController} from './controllers/EnrollmentController.js';
+import {ProgressController} from './controllers/ProgressController.js';
+import {UserController} from './controllers/UserController.js';
 
 export async function setupUsersContainer(): Promise<void> {
   const container = new Container();
@@ -45,8 +29,8 @@ export const usersModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index';
-export * from './classes/transformers/index';
-export * from './controllers/index';
-
-export {EnrollmentController};
+export * from './classes/index.js';
+export * from './controllers/index.js';
+export * from './services/index.js';
+export * from './types.js';
+export * from './container.js';

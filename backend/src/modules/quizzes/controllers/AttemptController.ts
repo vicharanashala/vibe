@@ -8,18 +8,19 @@ import {
   Post,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {AttemptService} from '../services/AttemptService';
-import {IUser} from 'shared/interfaces/Models';
+import {AttemptService} from '#quizzes/services/AttemptService.js';
+import {IUser} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {
   CreateAttemptParams,
   CreateAttemptResponse,
-  QuestionAnswersBody,
   SaveAttemptParams,
+  QuestionAnswersBody,
   SubmitAttemptParams,
   SubmitAttemptResponse,
-} from '../classes/validators/QuizValidator';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types';
+} from '#quizzes/classes/validators/QuizValidator.js';
+
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -28,7 +29,7 @@ import TYPES from '../types';
 @JsonController('/quizzes')
 class AttemptController {
   constructor(
-    @inject(TYPES.AttemptService)
+    @inject(QUIZZES_TYPES.AttemptService)
     private readonly attemptService: AttemptService,
   ) {}
 

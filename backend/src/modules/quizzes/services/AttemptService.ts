@@ -1,51 +1,54 @@
-import {QuizItem} from 'modules/courses';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {Service, Inject} from 'typedi';
-import {BaseQuestion, UserQuizMetrics, Attempt, Submission} from '../classes';
+import {QuizItem} from '#courses/index.js';
+import {
+  BaseQuestion,
+  UserQuizMetrics,
+  Attempt,
+  Submission,
+} from '#quizzes/classes/index.js';
 import {
   IQuestionDetails,
   IGradingResult,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
-} from '../interfaces/grading';
-import {QuestionProcessor} from '../question-processing';
-import {IQuestionRenderView} from '../question-processing/renderers';
+} from '#quizzes/interfaces/grading.js';
+import {QuestionAnswerFeedback} from '#quizzes/classes/transformers/Submission.js';
+import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import {
   QuizRepository,
   AttemptRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
-} from '../repositories';
-import {generateRandomParameterMap} from '../utils/functions/generateRandomParameterMap';
-import {QuestionService} from './QuestionService';
-import {inject, injectable} from 'inversify';
-import TYPES from '../types';
-import {QuestionBankService} from './QuestionBankService';
-import {ID} from 'shared/types';
-import {BaseService} from 'shared/classes/BaseService';
+} from '#quizzes/repositories/index.js';
+import {generateRandomParameterMap} from '#quizzes/utils/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import GLOBAL_TYPES from '../../../types';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QuestionBankService} from './QuestionBankService.js';
+import {QuestionService} from './QuestionService.js';
+import {QUIZZES_TYPES} from '../types.js';
+import {instanceToPlain} from 'class-transformer';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
-    @inject(TYPES.QuizRepo)
+    @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepository: QuizRepository,
 
-    @inject(TYPES.AttemptRepo)
+    @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
 
-    @inject(TYPES.SubmissionRepo)
+    @inject(QUIZZES_TYPES.SubmissionRepo)
     private submissionRepository: SubmissionRepository,
 
-    @inject(TYPES.UserQuizMetricsRepo)
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
 
-    @inject(TYPES.QuestionService)
+    @inject(QUIZZES_TYPES.QuestionService)
     private questionService: QuestionService,
 
-    @inject(TYPES.QuestionBankService)
+    @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
 
     @inject(GLOBAL_TYPES.Database)
@@ -94,8 +97,7 @@ class AttemptService extends BaseService {
     quiz: QuizItem,
     grading: IGradingResult,
   ): Partial<IGradingResult> {
-    let result: Partial<IGradingResult>;
-
+    const result: Partial<IGradingResult> = {};
     if (quiz.details.showScoreAfterSubmission) {
       result.totalScore = grading.totalScore;
       result.totalMaxScore = grading.totalMaxScore;
@@ -124,7 +126,7 @@ class AttemptService extends BaseService {
       session,
     );
     const feedbacks: IQuestionAnswerFeedback[] = [];
-    let totalScore;
+    let totalScore = 0;
     let totalMaxScore = 0;
 
     for (const answer of answers) {
@@ -137,10 +139,12 @@ class AttemptService extends BaseService {
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
       );
+      const parameterMap = questionDetail?.parameterMap;
       const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
         question,
-      ).grade(answer.answer, quiz, questionDetail.parameterMap);
-      feedbacks.push(feedback);
+      ).grade(answer.answer, quiz, parameterMap);
+      const res = instanceToPlain(new QuestionAnswerFeedback(feedback));
+      feedbacks.push(res as IQuestionAnswerFeedback);
       totalScore += feedback.score;
     }
 
@@ -204,7 +208,7 @@ class AttemptService extends BaseService {
       }
 
       //3. Check if available attempts > 0
-      if (metrics.remainingAttempts <= 0 || metrics.remainingAttempts !== -1) {
+      if (metrics.remainingAttempts <= 0 && metrics.remainingAttempts !== -1) {
         throw new BadRequestError('No available attempts left for this quiz');
       }
 
@@ -225,7 +229,7 @@ class AttemptService extends BaseService {
       metrics.latestAttemptId = attemptId;
       metrics.remainingAttempts--;
       metrics.attempts.push({attemptId});
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
@@ -293,7 +297,7 @@ class AttemptService extends BaseService {
         }
         return attempt;
       });
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );

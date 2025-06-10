@@ -1,2 +1,2 @@
-export * from './TagParser';
-export * from './tags/index';
+export * from './TagParser.js';
+export * from './tags/index.js';
