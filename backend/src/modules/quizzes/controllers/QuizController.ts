@@ -31,6 +31,7 @@ import {
   Body,
   Delete,
   Get,
+  OnUndefined,
 } from 'routing-controllers';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 @injectable()
@@ -44,7 +45,7 @@ class QuizController {
   ) {}
 
   @Post('/:quizId/bank')
-  @HttpCode(201)
+  @OnUndefined(201)
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
@@ -54,14 +55,14 @@ class QuizController {
   }
 
   @Delete('/:quizId/bank/:questionBankId')
-  @HttpCode(204)
+  @OnUndefined(204)
   async removeQuestionBank(@Params() params: RemoveQuestionBankParams) {
     const {quizId, questionBankId} = params;
     await this.quizService.removeQuestionBank(quizId, questionBankId);
   }
 
   @Post('/:quizId/bank')
-  @HttpCode(200)
+  @OnUndefined(201)
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
@@ -71,6 +72,7 @@ class QuizController {
   }
 
   @Get('/:quizId/bank')
+  @HttpCode(201)
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
   ): Promise<QuestionBankRef[]> {
@@ -79,6 +81,7 @@ class QuizController {
   }
 
   @Get('/:quizId/user/:userId')
+  @HttpCode(201)
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
   ): Promise<UserQuizMetricsResponse> {
@@ -87,6 +90,7 @@ class QuizController {
   }
 
   @Get('/attempts/:attemptId')
+  @HttpCode(201)
   async getQuizAttempt(
     @Params() params: QuizAttemptParam,
   ): Promise<QuizAttemptResponse> {
@@ -95,6 +99,7 @@ class QuizController {
   }
 
   @Get('/submissions/:submissionId')
+  @HttpCode(201)
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
   ): Promise<QuizSubmissionResponse> {
@@ -103,6 +108,7 @@ class QuizController {
   }
 
   @Get('/:quizId/details')
+  @HttpCode(201)
   async getQuizDetails(
     @Params() params: QuizIdParam,
   ): Promise<QuizDetailsResponse> {
@@ -111,6 +117,7 @@ class QuizController {
   }
 
   @Get('/:quizId/analytics')
+  @HttpCode(201)
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
   ): Promise<QuizAnalyticsResponse> {
@@ -119,6 +126,7 @@ class QuizController {
   }
 
   @Get('/:quizId/performance')
+  @HttpCode(201)
   async getQuizPerformance(
     @Params() params: QuizIdParam,
   ): Promise<QuizPerformanceResponse[]> {
@@ -127,6 +135,7 @@ class QuizController {
   }
 
   @Get('/:quizId/results')
+  @HttpCode(201)
   async getQuizResults(
     @Params() params: QuizIdParam,
   ): Promise<QuizResultsResponse[]> {
@@ -135,6 +144,7 @@ class QuizController {
   }
 
   @Get('/:quizId/flagged')
+  @HttpCode(201)
   async getFlaggedQues(
     @Params() params: QuizIdParam,
   ): Promise<FlaggedQuestionResponse> {
@@ -143,14 +153,14 @@ class QuizController {
   }
 
   @Post('/submission/:submissionId/score/:score')
-  @HttpCode(201)
+  @OnUndefined(201)
   async updateQuizSubmissionScore(@Params() params: UpdateQuizSubmissionParam) {
     const {submissionId, score} = params;
     await this.quizService.overrideSubmissionScore(submissionId, score);
   }
 
   @Post('/submission/:submissionId/regrade')
-  @HttpCode(201)
+  @OnUndefined(201)
   async regradeSubmission(
     @Params() params: QuizSubmissionParam,
     @Body() body: RegradeSubmissionBody,
@@ -160,7 +170,7 @@ class QuizController {
   }
 
   @Post('/submission/:submissionId/question/:questionId/feedback')
-  @HttpCode(201)
+  @OnUndefined(201)
   async addFeedbackToQuestion(
     @Params() params: AddFeedbackParams,
     @Body() body: AddFeedbackBody,

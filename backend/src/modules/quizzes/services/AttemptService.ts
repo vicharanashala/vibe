@@ -11,6 +11,7 @@ import {
   IQuestionAnswer,
   IQuestionAnswerFeedback,
 } from '#quizzes/interfaces/grading.js';
+import {QuestionAnswerFeedback} from '#quizzes/classes/transformers/Submission.js';
 import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import {
@@ -28,6 +29,7 @@ import {NotFoundError, BadRequestError} from 'routing-controllers';
 import {QuestionBankService} from './QuestionBankService.js';
 import {QuestionService} from './QuestionService.js';
 import {QUIZZES_TYPES} from '../types.js';
+import {instanceToPlain} from 'class-transformer';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -95,8 +97,7 @@ class AttemptService extends BaseService {
     quiz: QuizItem,
     grading: IGradingResult,
   ): Partial<IGradingResult> {
-    let result: Partial<IGradingResult>;
-
+    const result: Partial<IGradingResult> = {};
     if (quiz.details.showScoreAfterSubmission) {
       result.totalScore = grading.totalScore;
       result.totalMaxScore = grading.totalMaxScore;
@@ -125,7 +126,7 @@ class AttemptService extends BaseService {
       session,
     );
     const feedbacks: IQuestionAnswerFeedback[] = [];
-    let totalScore;
+    let totalScore = 0;
     let totalMaxScore = 0;
 
     for (const answer of answers) {
@@ -138,10 +139,12 @@ class AttemptService extends BaseService {
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
       );
+      const parameterMap = questionDetail?.parameterMap;
       const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
         question,
-      ).grade(answer.answer, quiz, questionDetail.parameterMap);
-      feedbacks.push(feedback);
+      ).grade(answer.answer, quiz, parameterMap);
+      const res = instanceToPlain(new QuestionAnswerFeedback(feedback));
+      feedbacks.push(res as IQuestionAnswerFeedback);
       totalScore += feedback.score;
     }
 

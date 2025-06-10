@@ -3,6 +3,7 @@ import {
   AttemptController,
   QuestionBankController,
   QuestionController,
+  QuizController,
 } from './controllers/index.js';
 import {
   AttemptRepository,
@@ -12,7 +13,11 @@ import {
   QuestionBankRepository,
   QuestionRepository,
 } from './repositories/index.js';
-import {AttemptService, QuestionBankService} from './services/index.js';
+import {
+  AttemptService,
+  QuestionBankService,
+  QuizService,
+} from './services/index.js';
 import {QUIZZES_TYPES} from './types.js';
 import {QuestionService} from './services/QuestionService.js';
 
@@ -53,9 +58,11 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .bind(QUIZZES_TYPES.AttemptService)
     .to(AttemptService)
     .inSingletonScope();
+  options.bind(QUIZZES_TYPES.QuizService).to(QuizService).inSingletonScope();
 
   // Controllers
   options.bind(QuestionController).toSelf().inSingletonScope();
   options.bind(QuestionBankController).toSelf().inSingletonScope();
   options.bind(AttemptController).toSelf().inSingletonScope();
+  options.bind(QuizController).toSelf().inSingletonScope();
 });
