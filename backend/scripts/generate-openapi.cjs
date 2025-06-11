@@ -1,9 +1,9 @@
-import 'reflect-metadata';
-import {getMetadataArgsStorage} from 'routing-controllers';
-import {routingControllersToSpec} from 'routing-controllers-openapi';
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-import * as fs from 'fs';
-import * as path from 'path';
+require('reflect-metadata');
+const {getMetadataArgsStorage} = require('routing-controllers');
+const {routingControllersToSpec} = require('routing-controllers-openapi');
+const {validationMetadatasToSchemas} = require('class-validator-jsonschema');
+const fs = require('fs');
+const path = require('path');
 
 // Set environment variable to skip database initialization
 process.env.SKIP_DB_CONNECTION = 'true';
@@ -19,12 +19,13 @@ const outputFile =
   outputFileIndex !== -1 && outputFileIndex + 1 < args.length
     ? args[outputFileIndex + 1]
     : null;
-// Import module options using ES modules
-import {authModuleOptions} from '../src/modules/auth/index.ts';
-import {coursesModuleOptions} from '../src/modules/courses/index.ts';
-import {usersModuleOptions} from '../src/modules/users/index.ts';
-import {docsModuleOptions} from '../src/modules/docs/index.ts';
-import {quizzesModuleOptions} from '../src/modules/quizzes/index.ts';
+
+// Import module options using require
+const {authModuleOptions} = require('../build/modules/auth');
+const {coursesModuleOptions} = require('../build/modules/courses');
+const {usersModuleOptions} = require('../build/modules/users');
+const {docsModuleOptions} = require('../build/modules/docs');
+const {quizzesModuleOptions} = require('../build/modules/quizzes');
 
 // Create combined metadata for OpenAPI
 const generateOpenAPISpec = () => {

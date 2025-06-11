@@ -3,6 +3,7 @@ import Express from 'express';
 import * as Sentry from '@sentry/node';
 import {loggingHandler, corsHandler} from '#shared/index.js';
 import {
+  Action,
   RoutingControllersOptions,
   useContainer,
   useExpressServer,
@@ -29,6 +30,7 @@ import {usersContainerModule} from '#users/container.js';
 import {activityContainerModule} from '#activity/container.js';
 import {getFromContainer} from 'class-validator';
 import {appConfig} from '#config/app.js';
+import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 
 export const application = Express();
 
@@ -138,6 +140,21 @@ const allModuleOptions: RoutingControllersOptions = {
   defaultErrorHandler: true,
   authorizationChecker: async function () {
     return true;
+  },
+  currentUserChecker: async function (action: Action) {
+    // Use the auth service to check if the user is authorized
+    const authService =
+      getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+    const token = action.request.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return false;
+    }
+
+    try {
+      return await authService.verifyToken(token);
+    } catch (error) {
+      return false;
+    }
   },
   // currentUserChecker:  async function (action: Action) {
   //   // Use the auth service to check if the user is authorized

@@ -60,5 +60,5 @@ export interface IUserRepository {
    * @param id - The ID of the user to find.
    * @returns A promise that resolves to the user if found, or null if not found.
    */
-  findById(id: string): Promise<IUser | null>;
+  findById(id: string | ObjectId): Promise<IUser | null>;
 }

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "copy": "cd ../backend && pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --output ../../frontend/openapi.json",
+    "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
     "gen-schema": "pnpm copy && pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
     "build": "tsc -b && vite build",
     "lint": "gts lint",

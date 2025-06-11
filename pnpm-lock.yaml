@@ -152,7 +152,7 @@ importers:
         specifier: ^1.4.12
         version: 1.4.12
       '@types/node':
-        specifier: ^22.7.5
+        specifier: ^22.15.21
         version: 22.15.21
       '@types/supertest':
         specifier: ^6.0.2

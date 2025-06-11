@@ -1,5 +1,10 @@
 import {Container} from 'inversify';
-import {useContainer, RoutingControllersOptions} from 'routing-controllers';
+import {
+  Action,
+  getFromContainer,
+  useContainer,
+  RoutingControllersOptions,
+} from 'routing-controllers';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {quizzesContainerModule} from './container.js';
@@ -9,6 +14,7 @@ import {QuestionBankController} from './controllers/QuestionBankController.js';
 import {AttemptController} from './controllers/AttemptController.js';
 import {QuizController} from './controllers/QuizController.js';
 import {Attempt, Question} from './classes/index.js';
+import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 
 export async function setupQuizzesContainer(): Promise<void> {
   const container = new Container();
@@ -32,6 +38,21 @@ export const quizzesModuleOptions: RoutingControllersOptions = {
   defaultErrorHandler: true,
   authorizationChecker: async function () {
     return true;
+  },
+  currentUserChecker: async function (action: Action) {
+    // Use the auth service to check if the user is authorized
+    const authService =
+      getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+    const token = action.request.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return false;
+    }
+
+    try {
+      return await authService.verifyToken(token);
+    } catch (error) {
+      return false;
+    }
   },
   validation: true,
 };

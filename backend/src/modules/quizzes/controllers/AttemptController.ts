@@ -106,6 +106,12 @@ class AttemptController {
     @Body() body: QuestionAnswersBody,
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
+    console.log('Submitting attempt', {
+      userId: user,
+      quizId,
+      attemptId,
+      answers: body.answers,
+    });
     const result = await this.attemptService.submit(
       user._id,
       quizId,

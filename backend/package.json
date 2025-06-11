@@ -40,8 +40,8 @@
     "emulators:auth": "firebase emulators:start --only auth",
     "emulators:functions": "firebase emulators:start --only functions",
     "emulators:all": "firebase emulators:start",
-    "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
-    "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
+    "exp-openapi": "node scripts/generate-openapi.cjs --stdout",
+    "gen-openapi": "node scripts/generate-openapi.cjs"
   },
   "bin": "build/index.js",
   "pkg": {
@@ -69,7 +69,7 @@
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/multer": "^1.4.12",
-    "@types/node": "^22.7.5",
+    "@types/node": "^22.15.21",
     "@types/supertest": "^6.0.2",
     "docusaurus-plugin-typedoc": "^1.2.3",
     "esbuild-plugin-tsconfig-paths": "^1.0.1",

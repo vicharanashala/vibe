@@ -8,21 +8,36 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle } from "lucide-react";
-import { useAttemptQuiz } from '@/lib/api/hooks';
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
+import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse } from '@/lib/api/hooks';
 
-// Enhanced question types
+// Utility function to convert buffer to hex string
+const bufferToHex = (buffer: Buffer) => {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+// Enhanced question types based on backend QuestionRenderView
 interface QuizQuestion {
   id: string;
-  type: 'mcq' | 'multi_select' | 'numerical' | 'short_answer' | 'ranking';
+  type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE' | 'ORDER_THE_LOTS';
   question: string;
-  options?: string[]; // For MCQ, multi-select, ranking questions
-  correctAnswer: string | number | number[] | string[]; // Different types for different question types
+  options?: string[]; // For lot items
   points: number;
-  timeLimit?: number; // in seconds
-  tolerance?: number; // For numerical questions
-  minAnswer?: number; // For numerical questions
-  maxAnswer?: number; // For numerical questions
+  timeLimit?: number; // in seconds (timeLimitSeconds from backend)
+  hint?: string;
+  // Additional properties for different question types
+  decimalPrecision?: number;
+  expression?: string;
+  lotItems?: Array<{ text: string; explaination: string; _id: { buffer: { type: string; data: number[] } } | string }>;
+}
+
+interface BufferLike {
+  buffer: {
+    type: string;
+    data: number[];
+  };
 }
 
 interface QuizProps {
@@ -39,7 +54,7 @@ interface QuizProps {
   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
   showScoreAfterSubmission: boolean;
-  quizId: string;
+  quizId: string | BufferLike; // Can be string or buffer object
   doGesture?: boolean; // Optional prop to trigger gesture detection
 }
 
@@ -49,10 +64,8 @@ export default function Quiz({
   maxAttempts,
   quizType,
   releaseTime,
-  questionVisibility,
   deadline,
   approximateTimeToComplete,
-  allowPartialGrading,
   allowHint,
   showCorrectAnswersAfterSubmission,
   showExplanationAfterSubmission,
@@ -67,90 +80,235 @@ export default function Quiz({
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [score, setScore] = useState(0);
   const [, setCurrentConnecting] = useState<string | null>(null);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
+  const processedQuizId = bufferToHex(quizId.buffer.data);
+  console.log('Quiz ID:', quizId);
+  // Use the quiz attempt hook
+  const { mutateAsync: attemptQuiz, isPending, error } = useAttemptQuiz();
   
-  // Generate questions based on content
-  const generateQuestionsFromContent = (): QuizQuestion[] => {
-    // Enhanced question generation with various question types
-    const questions: QuizQuestion[] = [];
+  // Use the quiz submit hook
+  const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
+  
+  // Add submission results state
+  const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
 
-    // Multiple Choice Question
-    questions.push({
-      id: '1',
-      type: 'mcq',
-      question: `Based on the content about , which statement is most relevant?`,
-      options: [
-        'This content is educational',
-        'This content is irrelevant',
-        'This content needs more detail',
-        'This content is perfect as is'
-      ],
-      correctAnswer: 0,
-      points: 10,
-      timeLimit: 30
+  // Convert backend QuestionRenderView to frontend QuizQuestion format
+  const convertBackendQuestions = (questionRenderViews: QuestionRenderView[]): QuizQuestion[] => {
+    return questionRenderViews.map((question) => {
+      // Convert BufferId to string using the bufferToHex utility
+      let questionId: string;
+      if (question._id && typeof question._id === 'object' && 'buffer' in question._id) {
+        // Handle BufferId type - convert buffer data to hex string
+        questionId = bufferToHex((question._id.buffer.data));
+      } else {
+        // Handle direct string/ObjectId
+        questionId = String(question._id);
+      }
+
+      const baseQuestion: QuizQuestion = {
+        id: questionId,
+        type: question.type as QuizQuestion['type'],
+        question: question.text,
+        points: question.points,
+        timeLimit: question.timeLimitSeconds,
+        hint: question.hint
+      };
+
+      // Add type-specific properties
+      switch (question.type) {
+        case 'SELECT_ONE_IN_LOT':
+        case 'SELECT_MANY_IN_LOT':
+        case 'ORDER_THE_LOTS':
+          if ('lotItems' in question) {
+            // Map the backend lotItems to frontend format
+            baseQuestion.lotItems = question.lotItems.map(item => ({
+              text: item.text,
+              explaination: '', // This field doesn't exist in LotItem from API
+              _id: typeof item._id === 'string' ? item._id : item._id
+            }));
+            baseQuestion.options = question.lotItems.map(item => item.text);
+          }
+          break;
+        case 'NUMERIC_ANSWER_TYPE':
+          if ('decimalPrecision' in question) {
+            baseQuestion.decimalPrecision = question.decimalPrecision;
+          }
+          if ('expression' in question) {
+            baseQuestion.expression = question.expression;
+          }
+          break;
+        case 'DESCRIPTIVE':
+          // No additional properties needed for descriptive
+          break;
+        default:
+          break;
+      }
+
+      return baseQuestion;
     });
-
-    // Multiple Select Question
-    questions.push({
-      id: '2',
-      type: 'multi_select',
-      question: 'Which of the following best describe this content? (Select all that apply)',
-      options: ['Educational', 'Informative', 'Complex', 'Well-structured', 'Outdated'],
-      correctAnswer: [0, 1, 3], // Educational, Informative, Well-structured
-      points: 15,
-      timeLimit: 45
-    });
-
-    // Short Answer Question
-    questions.push({
-      id: '3',
-      type: 'short_answer',
-      question: 'What is the main topic of this content?',
-      correctAnswer: 'education',
-      points: 5,
-      timeLimit: 20
-    });
-
-    // Numerical Question
-    questions.push({
-      id: '4',
-      type: 'numerical',
-      question: 'How many characters are approximately in this content?',
-      correctAnswer: 1,
-      tolerance: 1 * 0.1, // 10% tolerance
-      points: 8,
-      timeLimit: 15
-    });
-
-    // Ranking Question
-    questions.push({
-      id: '5',
-      type: 'ranking',
-      question: 'Rank the following learning methods from most effective to least effective:',
-      options: ['Active Practice', 'Passive Reading', 'Interactive Quizzes', 'Group Discussion'],
-      correctAnswer: ['Active Practice', 'Interactive Quizzes', 'Group Discussion', 'Passive Reading'],
-      points: 10,
-      timeLimit: 40
-    });
-
-    return questions;
   };
 
-  const quizQuestions = generateQuestionsFromContent();
+  // Get stored attempt ID or fetch from API
+  useEffect(() => {
+    const storedAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
+    if (storedAttemptId) {
+      setAttemptId(storedAttemptId);
+    }
+  }, [processedQuizId]);
+
+  // Convert frontend answers to backend SaveQuestion format
+  const convertAnswersToSaveFormat = useCallback((): Array<{
+    questionId: string;
+    questionType: "DESCRIPTIVE" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "SELECT_ONE_IN_LOT";
+    answer: {
+      lotItemId?: string;
+      lotItemIds?: string[];
+      text?: string;
+      numericAnswer?: string;
+      order?: string[];
+    }
+  }> => {
+    return quizQuestions.map(question => {
+      const userAnswer = answers[question.id];
+      const saveAnswer: {
+        answerText: string;
+        lotItemId?: string;
+        lotItemIds?: string[];
+        text?: string;
+        value?: string;
+        orders?: string[];
+      } = {
+        answerText: ''
+      };
+
+      switch (question.type) {
+        case 'SELECT_ONE_IN_LOT':
+          if (typeof userAnswer === 'number' && question.lotItems) {
+            // Get the lot item ID from the selected index
+            const selectedLotItem = question.lotItems[userAnswer];
+            if (selectedLotItem && selectedLotItem._id) {
+              if (typeof selectedLotItem._id === 'string') {
+                saveAnswer.lotItemId = selectedLotItem._id;
+              } else if (selectedLotItem._id.buffer && selectedLotItem._id.buffer.data) {
+                // Convert buffer data to hex string
+                const buffer = selectedLotItem._id.buffer.data;
+                saveAnswer.lotItemId = bufferToHex(buffer);
+              }
+            }
+          }
+          break;
+        
+        case 'SELECT_MANY_IN_LOT':
+          if (Array.isArray(userAnswer) && question.lotItems) {
+            // Convert indices to lot item IDs
+            saveAnswer.lotItemIds = (userAnswer as number[]).map((index: number) => {
+              const lotItem = question.lotItems?.[index];
+              if (lotItem && lotItem._id) {
+                if (typeof lotItem._id === 'string') {
+                  return lotItem._id;
+                } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                  // Convert buffer data to hex string
+                  const buffer = lotItem._id.buffer.data;
+                  return bufferToHex(buffer);
+                }
+              }
+              return index.toString();
+            }).filter(id => !id.match(/^\d+$/)); // Filter out failed conversions (pure numbers)
+          }
+          break;
+        
+        case 'DESCRIPTIVE':
+          if (typeof userAnswer === 'string') {
+            saveAnswer.answerText = userAnswer;
+          }
+          break;
+        
+        case 'NUMERIC_ANSWER_TYPE':
+          if (typeof userAnswer === 'number') {
+            saveAnswer.value = userAnswer;
+          }
+          break;
+        
+        case 'ORDER_THE_LOTS':
+          if (Array.isArray(userAnswer)) {
+            // For ordering, we need to map the ordered items back to their IDs
+            saveAnswer.orders = [(userAnswer as string[]).map((item: string) => {
+              // Find the corresponding lot item for this text
+              const lotItem = question.lotItems?.find(lotItem => lotItem.text === item);
+              if (lotItem && lotItem._id) {
+                if (typeof lotItem._id === 'string') {
+                  return lotItem._id;
+                } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                  // Convert buffer data to hex string
+                  const buffer = lotItem._id.buffer.data;
+                  return bufferToHex(buffer);
+                }
+              }
+              return item.toString();
+            })];
+          }
+          break;
+      }
+
+      return {
+        questionId: question.id,
+        questionType: question.type,
+        answer: saveAnswer
+      };
+    });
+  }, [quizQuestions, answers]);
+
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
-  const completeQuiz = useCallback(() => {
-    // Calculate score
-    let totalScore = 0;
-    quizQuestions.forEach(question => {
-      const userAnswer = answers[question.id];
-      if (isCorrectAnswer(question, userAnswer)) {
-        totalScore += question.points;
-      }
-    });
+  const completeQuiz = useCallback(async () => {
+    if (!attemptId) {
+      console.error('No attempt ID available for submission');
+      return;
+    }
 
-    setScore(totalScore);
-    setQuizCompleted(true);
-  }, [quizQuestions, answers]);
+    try {
+      // Convert answers to the format expected by the API
+      const answersForSubmission = convertAnswersToSaveFormat();
+      
+      // Submit the quiz
+      const response = await submitQuiz({
+        params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+        body: { answers: answersForSubmission }
+      });
+      
+      console.log('Quiz submitted successfully:', response);
+      
+      // Store submission results
+      setSubmissionResults(response);
+      
+      // Update score from server response if available
+      if (showScoreAfterSubmission && response.totalScore !== undefined) {
+        setScore(response.totalScore);
+      } else {
+        // Calculate local score as fallback
+        let totalScore = 0;
+        quizQuestions.forEach(question => {
+          const userAnswer = answers[question.id];
+          if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
+            totalScore += question.points;
+          }
+        });
+        setScore(totalScore);
+      }
+      
+      setQuizCompleted(true);
+      
+      // Clear attempt ID from localStorage since quiz is completed
+      localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
+      
+    } catch (err) {
+      console.error('Failed to submit quiz:', err);
+      // Still mark as completed for now, but could show error state
+      setQuizCompleted(true);
+    }
+  }, [quizQuestions, answers, attemptId, processedQuizId, submitQuiz, convertAnswersToSaveFormat, showScoreAfterSubmission]);
 
   const handleNextQuestion = useCallback(() => {
     if (currentQuestionIndex < quizQuestions.length - 1) {
@@ -160,21 +318,52 @@ export default function Quiz({
     }
   }, [currentQuestionIndex, quizQuestions.length, completeQuiz]);
 
-  const startQuiz = () => {
-    setQuizStarted(true);
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    if (currentQuestion?.timeLimit) {
-      setTimeLeft(currentQuestion.timeLimit);
+  const startQuiz = async () => {
+    try {
+      // Check if we already have an attempt ID stored
+      let currentAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
+      let questionsToUse = quizQuestions;
+      
+      if (!currentAttemptId) {
+        // Call the API to create a new quiz attempt (only once)
+        const response = await attemptQuiz({
+          params: { path: { quizId: processedQuizId } }
+        });
+        console.log('Quiz attempt response:', response);
+        currentAttemptId = response.attemptId;
+        // Store attempt ID in localStorage
+        localStorage.setItem(`quiz-attempt-${processedQuizId}`, currentAttemptId);
+        
+        // Convert backend questions to frontend format
+        const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
+        setQuizQuestions(convertedQuestions);
+        questionsToUse = convertedQuestions;
+      }
+      
+      setAttemptId(currentAttemptId);
+      console.log('Quiz attempt started with ID:', currentAttemptId);
+      setQuizStarted(true);
+      setCurrentQuestionIndex(0);
+      setAnswers({});
+      
+      // Set timer for first question if available
+      if (questionsToUse.length > 0 && questionsToUse[0]?.timeLimit) {
+        setTimeLeft(questionsToUse[0].timeLimit);
+      }
+    } catch (err) {
+      console.error('Failed to start quiz:', err);
+      // Handle error - maybe show a toast or alert
     }
   };
 
-  const handleAnswer = (answer: string | number | number[] | string[]) => {
-    setAnswers(prev => ({
-      ...prev,
-      [currentQuestion.id]: answer
-    }));
-  };
+  const handleAnswer = useCallback((answer: string | number | number[] | string[]) => {
+    if (currentQuestion) {
+      setAnswers(prev => ({
+        ...prev,
+        [currentQuestion.id]: answer
+      }));
+    }
+  }, [currentQuestion]);
 
   // Timer effect
   useEffect(() => {
@@ -200,58 +389,23 @@ export default function Quiz({
     }
   }, [currentQuestionIndex, quizStarted, currentQuestion?.timeLimit]);
 
-  const isCorrectAnswer = (question: QuizQuestion, userAnswer: string | number | number[] | string[]): boolean => {
-    switch (question.type) {
-      case 'mcq': {
-        return userAnswer === question.correctAnswer;
-      }
-
-      case 'multi_select': {
-        if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) return false;
-        const userSet = new Set(userAnswer.map(String));
-        const correctSet = new Set((question.correctAnswer as number[]).map(String));
-        return userSet.size === correctSet.size && [...userSet].every(x => correctSet.has(x));
-      }
-
-      case 'short_answer': {
-        return userAnswer?.toString().toLowerCase().trim() ===
-          question.correctAnswer.toString().toLowerCase().trim();
-      }
-
-      case 'numerical': {
-        const numAnswer = typeof userAnswer === 'number' ? userAnswer : parseFloat(userAnswer?.toString() || '');
-        const correctNum = typeof question.correctAnswer === 'number' ? question.correctAnswer : parseFloat(question.correctAnswer.toString());
-        const tolerance = question.tolerance || 0;
-        return Math.abs(numAnswer - correctNum) <= tolerance;
-      }
-
-      case 'ranking': {
-        if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) return false;
-        return JSON.stringify(userAnswer) === JSON.stringify(question.correctAnswer);
-      }
-
-      default:
-        return false;
-    }
-  };
-
   const isAnswerValid = (question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
     if (answer === undefined || answer === null) return false;
 
     switch (question.type) {
-      case 'mcq': {
+      case 'SELECT_ONE_IN_LOT': {
         return answer !== undefined && answer !== null;
       }
-      case 'multi_select': {
+      case 'SELECT_MANY_IN_LOT': {
         return Array.isArray(answer) && answer.length > 0;
       }
-      case 'short_answer': {
+      case 'DESCRIPTIVE': {
         return typeof answer === 'string' && answer.trim().length > 0;
       }
-      case 'numerical': {
+      case 'NUMERIC_ANSWER_TYPE': {
         return typeof answer === 'number' && !isNaN(answer);
       }
-      case 'ranking': {
+      case 'ORDER_THE_LOTS': {
         return Array.isArray(answer) && answer.length === (question.options?.length || 0);
       }
       default:
@@ -271,17 +425,49 @@ export default function Quiz({
 
   const getQuestionTypeLabel = (type: string): string => {
     switch (type) {
-      case 'mcq': return 'Multiple Choice';
-      case 'multi_select': return 'Multiple Select';
-      case 'short_answer': return 'Short Answer';
-      case 'numerical': return 'Numerical';
-      case 'ranking': return 'Ranking';
+      case 'SELECT_ONE_IN_LOT': return 'Single Select';
+      case 'SELECT_MANY_IN_LOT': return 'Multiple Select';
+      case 'DESCRIPTIVE': return 'Descriptive';
+      case 'NUMERIC_ANSWER_TYPE': return 'Numerical';
+      case 'ORDER_THE_LOTS': return 'Ranking';
       default: return 'Question';
     }
   };
-  // Reset connection when changing questions
+
+  const formatUserAnswer = (question: QuizQuestion, answer: string | number | number[] | string[]): string => {
+    switch (question.type) {
+      case 'SELECT_ONE_IN_LOT':
+        if (typeof answer === 'number' && question.options) {
+          return question.options[answer] || 'Invalid selection';
+        }
+        return String(answer);
+      
+      case 'SELECT_MANY_IN_LOT':
+        if (Array.isArray(answer) && question.options) {
+          return (answer as number[]).map((index: number) => question.options?.[index] || 'Invalid').join(', ');
+        }
+        return String(answer);
+      
+      case 'DESCRIPTIVE':
+        return String(answer);
+      
+      case 'NUMERIC_ANSWER_TYPE':
+        return String(answer);
+      
+      case 'ORDER_THE_LOTS':
+        if (Array.isArray(answer)) {
+          return answer.join(' → ');
+        }
+        return String(answer);
+      
+      default:
+        return String(answer);
+    }
+  };
+  // Reset connection and hint visibility when changing questions
   useEffect(() => {
     setCurrentConnecting(null);
+    setShowHint(false);
   }, [currentQuestionIndex]);
 
   // Handle drag start for ranking items
@@ -352,11 +538,18 @@ export default function Quiz({
                   onClick={startQuiz} 
                   size="lg" 
                   className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
-                  disabled={releaseTime && new Date() < releaseTime}
+                  disabled={releaseTime && new Date() < releaseTime || isPending}
                 >
                   <PlayCircle className="mr-3 h-6 w-6" />
-                  {releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
+                  {isPending ? 'Starting Quiz...' : 
+                   releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
                 </Button>
+                
+                {error && (
+                  <div className="text-sm text-red-600 text-center max-w-[300px]">
+                    Failed to start quiz. Please try again.
+                  </div>
+                )}
                 
                 <p className="text-sm text-muted-foreground text-center max-w-[300px]">
                   Make sure you have a stable internet connection and enough time to complete the quiz.
@@ -373,7 +566,7 @@ export default function Quiz({
                   <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
                     <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="text-2xl font-bold text-primary">{questionBankRefs.length}</div>
+                  <div className="text-2xl font-bold text-primary">{quizQuestions.length || questionBankRefs.length}</div>
                   <div className="text-sm text-muted-foreground">Questions</div>
                 </div>
               </Card>
@@ -424,19 +617,46 @@ export default function Quiz({
           <CardTitle className="text-3xl font-bold">Quiz Completed!</CardTitle>
           <CardDescription>Great job! Here are your results.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">            <div className="text-center space-y-4">
-          <div className="text-6xl font-bold text-primary drop-shadow-sm">
-            {score}/{getTotalPoints()}
-          </div>
-          <p className="text-xl text-foreground">
-            You scored {Math.round((score / getTotalPoints()) * 100)}%
-          </p>
-          {score === getTotalPoints() && (
-            <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
-              Perfect Score! 🎉
-            </Badge>
+        <CardContent className="space-y-6">
+          {/* Score Display - only show if allowed */}
+          {showScoreAfterSubmission && (
+            <div className="text-center space-y-4">
+              <div className="text-6xl font-bold text-primary drop-shadow-sm">
+                {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined 
+                  ? `${submissionResults.totalScore}/${submissionResults.totalMaxScore}`
+                  : `${score}/${getTotalPoints()}`
+                }
+              </div>
+              <p className="text-xl text-foreground">
+                You scored {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined
+                  ? Math.round((submissionResults.totalScore / submissionResults.totalMaxScore) * 100)
+                  : Math.round((score / getTotalPoints()) * 100)
+                }%
+              </p>
+              
+              {/* Grading Status Badge */}
+              {submissionResults?.gradingStatus && (
+                <Badge 
+                  variant={
+                    submissionResults.gradingStatus === 'PASSED' ? 'default' : 
+                    submissionResults.gradingStatus === 'FAILED' ? 'destructive' : 
+                    'secondary'
+                  }
+                  className="text-lg px-4 py-2"
+                >
+                  {submissionResults.gradingStatus === 'PASSED' && '🎉 Passed!'}
+                  {submissionResults.gradingStatus === 'FAILED' && 'Failed - Try Again'}
+                  {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
+                </Badge>
+              )}
+              
+              {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
+                <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
+                  Perfect Score! 🎉
+                </Badge>
+              )}
+            </div>
           )}
-        </div>
 
           <Separator />
 
@@ -445,21 +665,85 @@ export default function Quiz({
             <div className="space-y-3">
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
-                const correct = isCorrectAnswer(question, userAnswer);
+                const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
+                
+                // Find feedback for this question if available
+                const questionFeedback = submissionResults?.overallFeedback?.find(
+                  feedback => feedback.questionId === question.id
+                );
+                
                 return (
-                  <Card key={question.id} className={correct ? 'quiz-success-card' : 'quiz-error-card'}>
+                  <Card 
+                    key={question.id} 
+                    className={
+                      questionFeedback 
+                        ? questionFeedback.status === 'CORRECT' 
+                          ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
+                          : questionFeedback.status === 'PARTIAL'
+                          ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
+                          : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+                        : hasAnswer 
+                        ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20' 
+                        : 'border-gray-200'
+                    }
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <Badge variant="outline">
                             Q{index + 1}: {getQuestionTypeLabel(question.type)}
                           </Badge>
+                          {questionFeedback && (
+                            <Badge variant={
+                              questionFeedback.status === 'CORRECT' ? 'default' :
+                              questionFeedback.status === 'PARTIAL' ? 'secondary' :
+                              'destructive'
+                            }>
+                              {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
+                               questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
+                               '✗ Incorrect'}
+                            </Badge>
+                          )}
                         </div>
-                        <Badge variant={correct ? 'default' : 'destructive'}>
-                          {correct ? `+${question.points}` : '0'} / {question.points} points
+                        <Badge variant={
+                          questionFeedback 
+                            ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
+                            : hasAnswer ? 'default' : 'destructive'
+                        }>
+                          {showScoreAfterSubmission && questionFeedback 
+                            ? `${questionFeedback.score}/${question.points}` 
+                            : hasAnswer ? `+${question.points}` : '0'
+                          } / {question.points} points
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">{question.question}</p>
+                      
+                      {/* Show user's answer if any */}
+                      {hasAnswer && (
+                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            Your Answer: {formatUserAnswer(question, userAnswer)}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Show correct answers if enabled and available */}
+                      {showCorrectAnswersAfterSubmission && questionFeedback && (
+                        <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                            Status: {questionFeedback.status}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Show explanation if enabled and available */}
+                      {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
+                        <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                            <strong>Explanation:</strong> {questionFeedback.answerFeedback}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -470,11 +754,16 @@ export default function Quiz({
           <div className="text-center">
             <Button
               onClick={() => {
+                // Clear localStorage when retaking quiz
+                localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
                 setQuizStarted(false);
                 setQuizCompleted(false);
                 setCurrentQuestionIndex(0);
                 setAnswers({});
                 setScore(0);
+                setQuizQuestions([]);
+                setAttemptId(null);
+                setSubmissionResults(null);
               }}
               variant="outline"
               size="lg"
@@ -489,6 +778,16 @@ export default function Quiz({
   }
 
   // Quiz in progress
+  if (!currentQuestion) {
+    return (
+      <Card className="mx-auto">
+        <CardContent className="p-8 text-center">
+          <p className="text-lg text-muted-foreground">Loading questions...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="mx-auto">
       <CardHeader>
@@ -515,10 +814,10 @@ export default function Quiz({
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Badge variant={currentQuestion.type === 'mcq' ? 'default' :
-              currentQuestion.type === 'multi_select' ? 'secondary' :
-                currentQuestion.type === 'short_answer' ? 'outline' :
-                  currentQuestion.type === 'numerical' ? 'destructive' :
+            <Badge variant={currentQuestion.type === 'SELECT_ONE_IN_LOT' ? 'default' :
+              currentQuestion.type === 'SELECT_MANY_IN_LOT' ? 'secondary' :
+                currentQuestion.type === 'DESCRIPTIVE' ? 'outline' :
+                  currentQuestion.type === 'NUMERIC_ANSWER_TYPE' ? 'destructive' :
                     'secondary'}>
               {getQuestionTypeLabel(currentQuestion.type)}
             </Badge>
@@ -530,9 +829,32 @@ export default function Quiz({
           <h2 className="text-2xl font-semibold leading-tight">
             {currentQuestion.question}
           </h2>
+          
+          {/* Hint section with reveal button */}
+          {allowHint && currentQuestion.hint && (
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHint(!showHint)}
+                className="w-fit"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                {showHint ? 'Hide Hint' : 'Reveal Hint'}
+              </Button>
+              
+              {showHint && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Hint:</strong> {currentQuestion.hint}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* MCQ Options */}
-          {currentQuestion.type === 'mcq' && currentQuestion.options && (
+          {/* Single Select (SELECT_ONE_IN_LOT) */}
+          {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
               value={answers[currentQuestion.id]?.toString()}
               onValueChange={(value) => handleAnswer(parseInt(value))}
@@ -542,7 +864,7 @@ export default function Quiz({
                 <Label
                   key={index}
                   htmlFor={`option-${index}`}
-                  className="quiz-option-hover flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full"
+                  className="flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
                 >
                   <RadioGroupItem value={index.toString()} id={`option-${index}`} />
                   <span className="flex-1">{option}</span>
@@ -551,8 +873,8 @@ export default function Quiz({
             </RadioGroup>
           )}
 
-          {/* Multi-Select Options */}
-          {currentQuestion.type === 'multi_select' && currentQuestion.options && (
+          {/* Multi-Select (SELECT_MANY_IN_LOT) */}
+          {currentQuestion.type === 'SELECT_MANY_IN_LOT' && currentQuestion.options && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Select all that apply:</p>
               {currentQuestion.options.map((option, index) => (
@@ -579,12 +901,12 @@ export default function Quiz({
             </div>
           )}
 
-          {/* Short Answer Input */}
-          {currentQuestion.type === 'short_answer' && (
+          {/* Descriptive Answer */}
+          {currentQuestion.type === 'DESCRIPTIVE' && (
             <div className="space-y-2">
-              <Label htmlFor="short-answer">Your Answer</Label>
+              <Label htmlFor="descriptive-answer">Your Answer</Label>
               <Input
-                id="short-answer"
+                id="descriptive-answer"
                 type="text"
                 value={(answers[currentQuestion.id] as string) || ''}
                 onChange={(e) => handleAnswer(e.target.value)}
@@ -594,28 +916,34 @@ export default function Quiz({
             </div>
           )}
 
-          {/* Numerical Input */}
-          {currentQuestion.type === 'numerical' && (
+          {/* Numerical Input (NUMERIC_ANSWER_TYPE) */}
+          {currentQuestion.type === 'NUMERIC_ANSWER_TYPE' && (
             <div className="space-y-2">
               <Label htmlFor="numerical-answer">Enter a number</Label>
               <Input
                 id="numerical-answer"
                 type="number"
+                step={currentQuestion.decimalPrecision ? `0.${'0'.repeat(currentQuestion.decimalPrecision - 1)}1` : 'any'}
                 value={(answers[currentQuestion.id] as number) || ''}
                 onChange={(e) => handleAnswer(parseFloat(e.target.value) || 0)}
                 placeholder="Enter a number"
                 className="text-lg"
               />
-              {currentQuestion.tolerance && (
+              {currentQuestion.decimalPrecision && (
                 <p className="text-xs text-muted-foreground">
-                  Tolerance: ±{currentQuestion.tolerance}
+                  Decimal precision: {currentQuestion.decimalPrecision} places
+                </p>
+              )}
+              {currentQuestion.expression && (
+                <p className="text-xs text-muted-foreground">
+                  Expression: {currentQuestion.expression}
                 </p>
               )}
             </div>
           )}
 
-          {/* Ranking Questions */}
-          {currentQuestion.type === 'ranking' && currentQuestion.options && (
+          {/* Ranking Questions (ORDER_THE_LOTS) */}
+          {currentQuestion.type === 'ORDER_THE_LOTS' && currentQuestion.options && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">Drag and drop items to rank them:</p>
               <div className="space-y-2">
@@ -655,12 +983,30 @@ export default function Quiz({
 
           <Button
             onClick={handleNextQuestion}
-            disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id])}
+            disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
           >
-            {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
-            <ChevronRight className="ml-2 h-4 w-4" />
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
+
+        {/* Show submission error if any */}
+        {submitError && currentQuestionIndex === quizQuestions.length - 1 && (
+          <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-700 dark:text-red-300">
+              <strong>Submission Error:</strong> {submitError}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

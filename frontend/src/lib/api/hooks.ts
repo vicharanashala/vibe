@@ -677,37 +677,174 @@ export function useUserByFirebaseUID(firebaseUID: string): {
   };
 }
 
-// Quiz hooks
-// export function useAttemptQuiz(): {
-//   mutate: (variables: { params: { path: { quizId: string } } }) => void,
-//   mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<{
-//     attemptId: string,
-//     questionRenderViews: unknown[]
-//   }>,
-//   data: {
-//     attemptId: string,
-//     questionRenderViews: unknown[]
-//   } | undefined,
-//   error: string | null,
-//   isPending: boolean,
-//   isSuccess: boolean,
-//   isError: boolean,
-//   isIdle: boolean,
-//   reset: () => void,
-//   status: 'idle' | 'pending' | 'success' | 'error'
-// } {
-//   const result = api.useMutation("post", "/quizzes/{quizId}/attempt");
+// Types for quiz questions
+export interface BufferId {
+  buffer: {
+    type: "Buffer";
+    data: number[];
+  };
+}
 
-//   return {
-//     mutate: result.mutate,
-//     mutateAsync: result.mutateAsync,
-//     data: result.data,
-//     isPending: result.isPending,
-//     isSuccess: result.isSuccess,
-//     isError: result.isError,
-//     isIdle: result.isIdle,
-//     reset: result.reset,
-//     status: result.status,
-//     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
-//   };
-// }
+export interface LotItem {
+  text: string; 
+  _id: BufferId;
+}
+
+export interface BaseQuestionRenderView {
+  _id: BufferId;
+  type: string;
+  isParameterized: boolean;
+  text: string;
+  hint: string;
+  points: number;
+  timeLimitSeconds: number;
+  parameterMap: Record<string, unknown>;
+}
+
+export interface DescriptiveQuestionRenderView extends BaseQuestionRenderView {
+  type: "DESCRIPTIVE";
+}
+
+export interface SelectManyInLotQuestionRenderView extends BaseQuestionRenderView {
+  type: "SELECT_MANY_IN_LOT";
+  lotItems: LotItem[];
+}
+
+export interface OrderTheLotsQuestionRenderView extends BaseQuestionRenderView {
+  type: "ORDER_THE_LOTS";
+  lotItems: LotItem[];
+}
+
+export interface NumericAnswerQuestionRenderView extends BaseQuestionRenderView {
+  type: "NUMERIC_ANSWER_TYPE";
+  decimalPrecision: number;
+  expression: string;
+}
+
+export interface SelectOneInLotQuestionRenderView extends BaseQuestionRenderView {
+  type: "SELECT_ONE_IN_LOT";
+  lotItems: LotItem[];
+}
+
+export type QuestionRenderView = 
+  | DescriptiveQuestionRenderView
+  | SelectManyInLotQuestionRenderView
+  | OrderTheLotsQuestionRenderView
+  | NumericAnswerQuestionRenderView
+  | SelectOneInLotQuestionRenderView;
+
+// Quiz hooks
+export function useAttemptQuiz(): {
+  mutate: (variables: { params: { path: { quizId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<{
+    attemptId: string,
+    questionRenderViews: QuestionRenderView[]
+  }>,
+  data: {
+    attemptId: string,
+    questionRenderViews: QuestionRenderView[]
+  } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/{quizId}/attempt")
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+  };
+}
+
+type SaveQuestion = {
+  questionId: string;
+  questionType: "DESCRIPTIVE" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "SELECT_ONE_IN_LOT";
+  answer: {
+    lotItemId?: string;
+    lotItemIds?: string[];
+    text?: string;
+    numericAnswer?: string;
+    order?: string[];
+  }
+};
+
+export function useSaveQuiz(): {
+  mutate: (variables: { params: { path: { quizId: string } }, body:{answers: SaveQuestion[]} }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string } }, body:{answers: SaveQuestion[]} }) => Promise<void>,
+  data: undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/save");
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+  };
+}
+
+export interface IQuestionAnswerFeedback {
+  questionId: string;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string;
+}
+
+export interface SubmitQuizResponse {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED';
+  gradedAt?: string;
+  gradedBy?: string;
+}
+
+export function useSubmitQuiz(): {
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => SubmitQuizResponse,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => Promise<SubmitQuizResponse>,
+  data: SubmitQuizResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/submit");
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+  };
+}
