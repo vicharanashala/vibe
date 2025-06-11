@@ -10,7 +10,9 @@ import {
   IGradingResult,
   IQuestionAnswer,
   IQuestionAnswerFeedback,
+  IAttempt,
 } from '#quizzes/interfaces/grading.js';
+import {QuestionAnswerFeedback} from '#quizzes/classes/transformers/Submission.js';
 import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import {
@@ -28,6 +30,7 @@ import {NotFoundError, BadRequestError} from 'routing-controllers';
 import {QuestionBankService} from './QuestionBankService.js';
 import {QuestionService} from './QuestionService.js';
 import {QUIZZES_TYPES} from '../types.js';
+import {instanceToPlain} from 'class-transformer';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -95,8 +98,7 @@ class AttemptService extends BaseService {
     quiz: QuizItem,
     grading: IGradingResult,
   ): Partial<IGradingResult> {
-    let result: Partial<IGradingResult>;
-
+    const result: Partial<IGradingResult> = {};
     if (quiz.details.showScoreAfterSubmission) {
       result.totalScore = grading.totalScore;
       result.totalMaxScore = grading.totalMaxScore;
@@ -125,7 +127,7 @@ class AttemptService extends BaseService {
       session,
     );
     const feedbacks: IQuestionAnswerFeedback[] = [];
-    let totalScore;
+    let totalScore = 0;
     let totalMaxScore = 0;
 
     for (const answer of answers) {
@@ -138,10 +140,12 @@ class AttemptService extends BaseService {
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
       );
+      const parameterMap = questionDetail?.parameterMap;
       const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
         question,
-      ).grade(answer.answer, quiz, questionDetail.parameterMap);
-      feedbacks.push(feedback);
+      ).grade(answer.answer, quiz, parameterMap);
+      const res = instanceToPlain(new QuestionAnswerFeedback(feedback));
+      feedbacks.push(res as IQuestionAnswerFeedback);
       totalScore += feedback.score;
     }
 
@@ -205,7 +209,7 @@ class AttemptService extends BaseService {
       }
 
       //3. Check if available attempts > 0
-      if (metrics.remainingAttempts <= 0 || metrics.remainingAttempts !== -1) {
+      if (metrics.remainingAttempts <= 0 && metrics.remainingAttempts !== -1) {
         throw new BadRequestError('No available attempts left for this quiz');
       }
 
@@ -226,7 +230,7 @@ class AttemptService extends BaseService {
       metrics.latestAttemptId = attemptId;
       metrics.remainingAttempts--;
       metrics.attempts.push({attemptId});
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
@@ -294,7 +298,7 @@ class AttemptService extends BaseService {
         }
         return attempt;
       });
-      await this.userQuizMetricsRepository.udpate(
+      await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
@@ -343,6 +347,23 @@ class AttemptService extends BaseService {
       //4. Save the updated attempt
       await this.attemptRepository.update(attemptId, attempt);
     });
+  }
+
+  public async getAttempt(
+    userId: string | ObjectId,
+    quizId: string,
+    attemptId: string,
+  ): Promise<IAttempt> {
+    //1. Fetch the attempt by ID
+    const attempt = await this.attemptRepository.getById(attemptId);
+    if (!attempt) {
+      throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
+    }
+    //2. Check if the attempt belongs to the user and quiz
+    if (attempt.userId !== userId || attempt.quizId !== quizId) {
+      throw new BadRequestError('Attempt does not belong to the user or quiz');
+    }
+    return attempt as IAttempt;
   }
 }
 

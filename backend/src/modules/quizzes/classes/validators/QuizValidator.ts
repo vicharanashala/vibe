@@ -108,10 +108,7 @@ class QuestionAnswer implements IQuestionAnswer {
   @IsNotEmpty()
   questionId: string;
 
-  @IsNotEmpty()
-  @IsEnum(QuestionTypeEnum)
   @IsString()
-  @ValidateNested()
   questionType: QuestionType;
 
   @JSONSchema({

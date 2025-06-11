@@ -27,10 +27,6 @@ class NATQuestionRenderer extends BaseQuestionRenderer {
       points: renderedQuestion.points,
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       decimalPrecision: renderedQuestion.decimalPrecision,
-      upperLimit: renderedQuestion.upperLimit,
-      lowerLimit: renderedQuestion.lowerLimit,
-      value: renderedQuestion.value,
-      expression: renderedQuestion.expression,
       parameterMap: parameterMap,
     };
 

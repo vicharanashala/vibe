@@ -77,10 +77,10 @@ class QuestionService extends BaseService {
           `Cannot change question type from ${question.type} to ${updatedQuestion.type}`,
         );
       }
-
+      const {_id, ...questionData} = updatedQuestion;
       const updated = await this.questionRepository.update(
         questionId,
-        updatedQuestion,
+        questionData,
         session,
       );
       return updated;

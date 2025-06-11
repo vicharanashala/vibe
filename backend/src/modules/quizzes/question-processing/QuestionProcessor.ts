@@ -171,7 +171,7 @@ class QuestionProcessor {
     quiz: QuizItem,
     parameterMap?: ParameterMap,
   ): Promise<IQuestionAnswerFeedback> {
-    return this.grader.grade(answer, quiz);
+    return this.grader.grade(answer, quiz, parameterMap);
   }
 }
 

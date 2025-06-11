@@ -1,7 +1,6 @@
 import Express from 'express';
 import {
   CourseData,
-  createCourseWithModulesSectionsAndItems,
 } from '../../users/tests/utils/createCourse';
 import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
 import {IUser} from '../../../shared/interfaces/models';
@@ -12,11 +11,12 @@ import {
   ISMLSolution,
   ISOLSolution,
 } from '../../../shared/interfaces/quiz';
-import {SOLQuestion} from '../classes/transformers';
-import {QuestionBody, SOLSolution} from '../classes/validators';
+import {QuestionBody} from '../classes/validators';
 import request from 'supertest';
 import {jest} from '@jest/globals';
+import {NATquestionData, NATsolution, SOLquestionData, SOLsolution, SMLquestionData, SMLsolution, OTLquestionData, OTLsolution, DESquestionData, DESsolution} from './SamleQuestionBody.js';
 
+jest.setTimeout(30000);
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
@@ -46,220 +46,27 @@ describe('Progress Controller Integration Tests', () => {
 
   describe('Create Question', () => {
     it('should create a question', async () => {
-      const questionData: IQuestion = {
-        text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-        type: 'SELECT_ONE_IN_LOT',
-        points: 10,
-        timeLimitSeconds: 60,
-        isParameterized: true,
-        parameters: [
-          {name: 'a', possibleValues: ['20', '10'], type: 'number'},
-          {
-            name: 'b',
-            possibleValues: ['1', '2', '3', '4.5', '7'],
-            type: 'number',
-          },
-          {name: 'name', possibleValues: ['John', 'Doe'], type: 'string'},
-          {name: 'name2', possibleValues: ['Kalix', 'Danny'], type: 'string'},
-        ],
-        hint: 'This is a hint for <QParam>name</QParam> and <QParam>name2</QParam>',
-      };
-
-      const solution: ISOLSolution = {
-        correctLotItem: {
-          text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-          explaination:
-            'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-        },
-        incorrectLotItems: [
-          {
-            text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-            explaination:
-              'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-          },
-          {
-            text: 'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-            explaination:
-              'NumExprTex: <NumExprTex>a^b</NumExprTex>, NumExpr: <NumExpr>(a^b)</NumExpr>, NumExpr: <NumExpr>a</NumExpr>, QParam: <QParam>name</QParam>, QParam: <QParam>name2</QParam>',
-          },
-        ],
-      };
-
-      const body: QuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: SOLquestionData, solution: SOLsolution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create an SML question', async () => {
-      const questionData: IQuestion = {
-        text: 'Select all correct options: <QParam>animal</QParam>, <QParam>color</QParam>',
-        type: 'SELECT_MANY_IN_LOT',
-        points: 15,
-        timeLimitSeconds: 90,
-        isParameterized: true,
-        parameters: [
-          {name: 'animal', possibleValues: ['Dog', 'Cat'], type: 'string'},
-          {name: 'color', possibleValues: ['Red', 'Blue'], type: 'string'},
-        ],
-        hint: 'Pick all that apply to <QParam>animal</QParam> and <QParam>color</QParam>',
-      };
-
-      const solution: ISMLSolution = {
-        correctLotItems: [
-          {
-            text: 'Correct: <QParam>animal</QParam>',
-            explaination: 'This is a correct animal: <QParam>animal</QParam>',
-          },
-          {
-            text: 'Correct color: <QParam>color</QParam>',
-            explaination: 'This is a correct color: <QParam>color</QParam>',
-          },
-        ],
-        incorrectLotItems: [
-          {
-            text: 'Incorrect option',
-            explaination: 'This is not correct',
-          },
-        ],
-      };
-
-      const body: QuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: SMLquestionData, solution: SMLsolution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create an OTL question', async () => {
-      const questionData: IQuestion = {
-        text: 'Arrange the following in correct order: <QParam>step1</QParam>, <QParam>step2</QParam>, <QParam>step3</QParam>, <QParam>step4</QParam>, <QParam>step5</QParam>',
-        type: 'ORDER_THE_LOTS',
-        points: 25,
-        timeLimitSeconds: 180,
-        isParameterized: true,
-        parameters: [
-          {
-            name: 'step1',
-            possibleValues: ['Wake up', 'Alarm Sounds'],
-            type: 'string',
-          },
-          {
-            name: 'step2',
-            possibleValues: ['Brush teeth', 'Rinse mouth'],
-            type: 'string',
-          },
-          {
-            name: 'step3',
-            possibleValues: ['Take a shower', 'Wash hair'],
-            type: 'string',
-          },
-          {
-            name: 'step4',
-            possibleValues: ['Eat breakfast', 'Drink coffee'],
-            type: 'string',
-          },
-          {
-            name: 'step5',
-            possibleValues: ['Go to school', 'Leave home'],
-            type: 'string',
-          },
-        ],
-        hint: 'Put all the steps in the correct order: <QParam>step1</QParam> to <QParam>step5</QParam>',
-      };
-
-      const solution: IOTLSolution = {
-        ordering: [
-          {
-            lotItem: {
-              text: 'Step 1: <QParam>step1</QParam>',
-              explaination: 'This is the first step: <QParam>step1</QParam>',
-            },
-            order: 1,
-          },
-          {
-            lotItem: {
-              text: 'Step 2: <QParam>step2</QParam>',
-              explaination: 'This is the second step: <QParam>step2</QParam>',
-            },
-            order: 2,
-          },
-          {
-            lotItem: {
-              text: 'Step 3: <QParam>step3</QParam>',
-              explaination: 'This is the third step: <QParam>step3</QParam>',
-            },
-            order: 3,
-          },
-          {
-            lotItem: {
-              text: 'Step 4: <QParam>step4</QParam>',
-              explaination: 'This is the fourth step: <QParam>step4</QParam>',
-            },
-            order: 4,
-          },
-          {
-            lotItem: {
-              text: 'Step 5: <QParam>step5</QParam>',
-              explaination: 'This is the fifth step: <QParam>step5</QParam>',
-            },
-            order: 5,
-          },
-        ],
-      };
-
-      const body: QuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: OTLquestionData, solution: OTLsolution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create a NAT question', async () => {
-      const questionData: IQuestion = {
-        text: 'What is the value of <QParam>x</QParam> + <QParam>y</QParam>?',
-        type: 'NUMERIC_ANSWER_TYPE',
-        points: 5,
-        timeLimitSeconds: 30,
-        isParameterized: true,
-        parameters: [
-          {name: 'x', possibleValues: ['2', '3'], type: 'number'},
-          {name: 'y', possibleValues: ['5', '7'], type: 'number'},
-        ],
-        hint: 'Add <QParam>x</QParam> and <QParam>y</QParam>.',
-      };
-
-      const solution = {
-        decimalPrecision: 0,
-        upperLimit: 20,
-        lowerLimit: 0,
-        expression: '<QParam>x</QParam> + <QParam>y</QParam>',
-      };
-
-      const body: QuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: NATquestionData, solution: NATsolution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create a DES question', async () => {
-      const questionData: IQuestion = {
-        text: 'Describe the process of <QParam>process</QParam> in <QParam>subject</QParam>.',
-        type: 'DESCRIPTIVE',
-        points: 8,
-        timeLimitSeconds: 120,
-        isParameterized: true,
-        parameters: [
-          {
-            name: 'process',
-            possibleValues: ['compiling', 'generating machine code'],
-            type: 'string',
-          },
-          {
-            name: 'subject',
-            possibleValues: ['coding', 'programming'],
-            type: 'string',
-          },
-        ],
-        hint: 'Focus on <QParam>process</QParam> and <QParam>subject</QParam>.',
-      };
-
-      const solution = {
-        solutionText:
-          'The process of <QParam>process</QParam> in <QParam>subject</QParam> involves several steps...',
-      };
-
-      const body: QuestionBody = {question: questionData, solution};
+      const body: QuestionBody = {question: DESquestionData, solution: DESsolution};
       const response = await request(app).post('/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -664,4 +471,179 @@ describe('Progress Controller Integration Tests', () => {
       expect(response.body.message).toMatch(/must be of type 'number'/i);
     });
   });
+
+  describe('Get Question', () => {
+    // NAT
+    it('should get a NAT question by ID', async () => {
+      const body: QuestionBody = {question: NATquestionData, solution: NATsolution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      console.log(res.body);
+    });
+    // SOL
+    it('should get a SOL question by ID', async () => {
+      const body: QuestionBody = {question: SOLquestionData, solution: SOLsolution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      console.log(res.body);
+    });
+    // SML
+    it('should get a SML question by ID', async () => {
+      const body: QuestionBody = {question: SMLquestionData, solution: SMLsolution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      console.log(res.body);
+    });
+    // OTL
+    it('should get an OTL question by ID', async () => {
+      const body: QuestionBody = {question: OTLquestionData, solution: OTLsolution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      console.log(res.body);
+    });
+    // DES
+    it('should get a DES question by ID', async () => {
+      const body: QuestionBody = {question: DESquestionData, solution: DESsolution};
+      const createRes = await request(app).post('/questions').send(body);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      const res = await request(app).get(`/questions/${questionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('text');
+      console.log(res.body);
+    });
+    it('should return 404 for non-existent question', async () => {
+      const res = await request(app).get('/questions/507f1f77bcf86cd799439011');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('Update Question', () => {
+    const originalQuestion: IQuestion = {
+      text: 'Original question',
+      type: 'NUMERIC_ANSWER_TYPE',
+      points: 2,
+      timeLimitSeconds: 20,
+      isParameterized: false,
+      parameters: [],
+      hint: 'Original hint',
+    };
+    const originalSolution = {
+      decimalPrecision: 0,
+      upperLimit: 10,
+      lowerLimit: 0,
+      value: 3,
+    };
+
+    it('should update a question by ID', async () => {
+      // Create a question first
+      const createBody: QuestionBody = {question: originalQuestion, solution: originalSolution};
+      const createRes = await request(app).post('/questions').send(createBody);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      // Now update it
+      const updatedQuestion: IQuestion = {
+        ...originalQuestion,
+        text: 'Updated question',
+        points: 5,
+        hint: 'Updated hint',
+      };
+      const updatedSolution = {...originalSolution, value: 7};
+      const updateBody: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
+      const res = await request(app).put(`/questions/${questionId}`).send(updateBody);
+      expect(res.status).toBe(200);
+      expect(res.body.text).toBe('Updated question');
+      expect(res.body.points).toBe(5);
+    });
+
+    it('should return 404 for non-existent question', async () => {
+      const updatedQuestion = {...originalQuestion, text: 'Does not matter'};
+      const updatedSolution = {...originalSolution, value: 0};
+      const body: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
+      const res = await request(app).put('/questions/507f1f77bcf86cd799439011').send(body);
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('Delete Question', () => {
+    const questionData: IQuestion = {
+      text: 'Delete this question',
+      type: 'NUMERIC_ANSWER_TYPE',
+      points: 2,
+      timeLimitSeconds: 20,
+      isParameterized: false,
+      parameters: [],
+      hint: 'Delete hint',
+    };
+    const solution = {
+      decimalPrecision: 0,
+      upperLimit: 10,
+      lowerLimit: 0,
+      value: 9,
+    };
+
+    it('should delete a question by ID and remove it from all question banks', async () => {
+      // Create a question first
+      const createBody: QuestionBody = {question: questionData, solution};
+      const createRes = await request(app).post('/questions').send(createBody);
+      expect(createRes.status).toBe(201);
+      const questionId = createRes.body.questionId;
+
+      // Create a question bank with the question
+      const bankRes = await request(app).post('/question-bank').send({
+        questions: [questionId],
+        title: 'Bank for Delete Test',
+        description: 'Bank for delete question test',
+      });
+      expect(bankRes.status).toBe(200);
+      const questionBankId = bankRes.body.questionBankId;
+
+      // Confirm the question is in the bank
+      const bankGetRes = await request(app).get(`/question-bank/${questionBankId}`);
+      expect(bankGetRes.status).toBe(200);
+      expect(bankGetRes.body.questions).toContain(questionId);
+
+      // Now delete the question
+      const res = await request(app).delete(`/questions/${questionId}`);
+      expect(res.status).toBe(204);
+
+      // Confirm deletion
+      const getRes = await request(app).get(`/questions/${questionId}`);
+      expect(getRes.status).toBe(404);
+
+      // Confirm the question is removed from the bank
+      const bankGetResAfter = await request(app).get(`/question-bank/${questionBankId}`);
+      expect(bankGetResAfter.status).toBe(200);
+      expect(bankGetResAfter.body.questions).not.toContain(questionId);
+    });
+
+    it('should return 404 for non-existent question', async () => {
+      const res = await request(app).delete('/questions/507f1f77bcf86cd799439011');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  
 });

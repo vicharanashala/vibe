@@ -15,7 +15,8 @@ class SOLQuestionGrader implements IGrader {
     parameterMap?: ParameterMap,
   ): Promise<any> {
     const correctLotItemId = this.question.correctLotItem._id;
-    const isCorrect = answer.lotItemId === correctLotItemId;
+    const isCorrect =
+      answer.lotItemId.toString() === correctLotItemId.toString();
     const feedback: IQuestionAnswerFeedback = {
       questionId: this.question._id,
       status: isCorrect ? 'CORRECT' : 'INCORRECT',

@@ -125,5 +125,8 @@
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
     "typedi": "^0.10.0",
     "winston": "^3.17.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

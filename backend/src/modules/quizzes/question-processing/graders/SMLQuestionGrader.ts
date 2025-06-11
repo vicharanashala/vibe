@@ -4,6 +4,7 @@ import {
   ISMLAnswer,
   IQuestionAnswerFeedback,
 } from '#quizzes/interfaces/grading.js';
+import {ObjectId} from 'mongodb';
 import {ParameterMap} from '../tag-parser/index.js';
 import {IGrader} from './interfaces/IGrader.js';
 
@@ -15,8 +16,8 @@ class SMLQuestionGrader implements IGrader {
     quiz: QuizItem,
     parameterMap?: ParameterMap,
   ): Promise<IQuestionAnswerFeedback> {
-    const correctLotItemIds = this.question.correctLotItems.map(
-      item => item._id,
+    const correctLotItemIds = this.question.correctLotItems.map(item =>
+      item._id.toString(),
     );
     if (quiz.details.allowPartialGrading) {
       // Partial grading logic

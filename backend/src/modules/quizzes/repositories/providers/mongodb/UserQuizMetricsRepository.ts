@@ -47,13 +47,13 @@ class UserQuizMetricsRepository {
     }
     return result;
   }
-  public async udpate(
+  public async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
   ): Promise<IUserQuizMetrics> {
     await this.init();
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      {_id: metricsId},
+      {_id: new ObjectId(metricsId)},
       {$set: updateData},
       {returnDocument: 'after'},
     );

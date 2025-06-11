@@ -1,9 +1,14 @@
 import {SOLQuestion} from '#quizzes/classes/index.js';
-import {ILotItem} from '#shared/index.js';
+import {ILotItem, ILotItemRenderView} from '#shared/index.js';
 import {ParameterMap} from '../tag-parser/index.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
 import {SOLQuestionRenderView} from './interfaces/RenderViews.js';
+
+function toLotItemRenderView(item: ILotItem): ILotItemRenderView {
+  const {explaination, ...rest} = item;
+  return rest;
+}
 
 class SOLQuestionRenderer extends BaseQuestionRenderer {
   declare question: SOLQuestion;
@@ -17,9 +22,9 @@ class SOLQuestionRenderer extends BaseQuestionRenderer {
       parameterMap,
     ) as SOLQuestion;
 
-    const lotItems: ILotItem[] = [
-      renderedQuestion.correctLotItem,
-      ...renderedQuestion.incorrectLotItems,
+    const lotItems: ILotItemRenderView[] = [
+      toLotItemRenderView(renderedQuestion.correctLotItem),
+      ...renderedQuestion.incorrectLotItems.map(toLotItemRenderView),
     ];
 
     //Shuffle lot items
@@ -30,10 +35,6 @@ class SOLQuestionRenderer extends BaseQuestionRenderer {
       shuffledLotItems = lotItems.map(item => ({
         ...item,
         text: this.tagParser.processText(item.text, parameterMap),
-        explaination: this.tagParser.processText(
-          item.explaination,
-          parameterMap,
-        ),
       }));
     }
 

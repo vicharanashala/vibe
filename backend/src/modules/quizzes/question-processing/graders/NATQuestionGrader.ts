@@ -5,7 +5,7 @@ import {
   IQuestionAnswerFeedback,
 } from '#quizzes/interfaces/grading.js';
 import {IGrader} from './interfaces/IGrader.js';
-import {evaluate} from 'mathjs';
+import {evaluate, round} from 'mathjs';
 
 class NATQuestionGrader implements IGrader {
   constructor(readonly question: NATQuestion) {}
@@ -37,7 +37,7 @@ class NATQuestionGrader implements IGrader {
       score: isCorrect ? this.question.points : 0,
       answerFeedback: isCorrect
         ? 'Correct answer.'
-        : `Incorrect. Expected a value near ${expectedValue} ± ${this.question.upperLimit}`,
+        : `Incorrect. Expected a value between ${this.round(expectedValue, this.question.decimalPrecision) - this.question.lowerLimit} and ${this.round(expectedValue, this.question.decimalPrecision) + this.question.upperLimit}.`,
     };
   }
 
