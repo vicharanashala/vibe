@@ -15,6 +15,8 @@ import {jest} from '@jest/globals';
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let courseRepo: CourseRepository;
+  let courseVersionService: CourseVersionService;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';

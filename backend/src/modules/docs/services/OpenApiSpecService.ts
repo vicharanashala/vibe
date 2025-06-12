@@ -1,9 +1,8 @@
-// Import module options
-
 import {authModuleOptions} from '#auth/index.js';
 import {coursesModuleOptions} from '#courses/index.js';
 import {docsModuleOptions} from '#docs/index.js';
 import {usersModuleOptions} from '#users/index.js';
+import {quizzesModuleOptions} from '#quizzes/index.js';
 import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
 import {injectable} from 'inversify';
 import {getMetadataArgsStorage} from 'routing-controllers';
@@ -30,6 +29,7 @@ export class OpenApiSpecService {
       ...(coursesModuleOptions.controllers || []),
       ...(usersModuleOptions.controllers || []),
       ...(docsModuleOptions.controllers || []),
+      ...(quizzesModuleOptions.controllers || []),
     ];
 
     // Create combined routing-controllers options
@@ -93,12 +93,34 @@ export class OpenApiSpecService {
 
         // User management section
         {
+          name: 'Users',
+          description: 'Operations for managing user accounts and information',
+        },
+        {
           name: 'User Enrollments',
           description: 'Operations for managing user enrollments in courses',
         },
         {
           name: 'User Progress',
           description: 'Operations for tracking and managing user progress',
+        },
+
+        // Quiz and assessment section
+        {
+          name: 'Quizzes',
+          description: 'Operations for managing quizzes and assessments',
+        },
+        {
+          name: 'Questions',
+          description: 'Operations for managing individual quiz questions',
+        },
+        {
+          name: 'Question Banks',
+          description: 'Operations for managing collections of questions',
+        },
+        {
+          name: 'Quiz Attempts',
+          description: 'Operations for managing quiz attempts and submissions',
         },
       ],
       // Use Scalar's preferred grouping approach
@@ -119,7 +141,11 @@ export class OpenApiSpecService {
         },
         {
           name: 'User Management',
-          tags: ['User Enrollments', 'User Progress'],
+          tags: ['Users', 'User Enrollments', 'User Progress'],
+        },
+        {
+          name: 'Quiz Management',
+          tags: ['Quizzes', 'Questions', 'Question Banks', 'Quiz Attempts'],
         },
         {
           name: 'Data Models',

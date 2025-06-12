@@ -1,6 +1,6 @@
+import {Container} from 'inversify';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {Container} from 'inversify';
 import {
   RoutingControllersOptions,
   Action,

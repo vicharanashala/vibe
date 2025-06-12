@@ -4,8 +4,8 @@ import {OpenApiSpecService} from '#docs/index.js';
 import {ContainerModule} from 'inversify';
 import {
   MongoDatabase,
-  UserRepository,
   CourseRepository,
+  UserRepository,
   HttpErrorHandler,
 } from '#shared/index.js';
 import {GLOBAL_TYPES} from './types.js';

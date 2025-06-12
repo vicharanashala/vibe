@@ -62,6 +62,7 @@ export const quizzesContainerModule = new ContainerModule(options => {
 
   // Controllers
   options.bind(QuestionController).toSelf().inSingletonScope();
+  options.bind(QuizController).toSelf().inSingletonScope();
   options.bind(QuestionBankController).toSelf().inSingletonScope();
   options.bind(AttemptController).toSelf().inSingletonScope();
   options.bind(QuizController).toSelf().inSingletonScope();

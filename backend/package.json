@@ -18,7 +18,8 @@
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
-    "#docs/*.js": "./build/modules/docs/*.js"
+    "#docs/*.js": "./build/modules/docs/*.js",
+    "#activity/*.js": "./build/modules/activity/*.js"
   },
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --detectOpenHandles",
@@ -39,8 +40,8 @@
     "emulators:auth": "firebase emulators:start --only auth",
     "emulators:functions": "firebase emulators:start --only functions",
     "emulators:all": "firebase emulators:start",
-    "exp-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --stdout",
-    "gen-openapi": "pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
+    "exp-openapi": "node scripts/generate-openapi.cjs --stdout",
+    "gen-openapi": "node scripts/generate-openapi.cjs"
   },
   "bin": "build/index.js",
   "pkg": {
@@ -66,6 +67,7 @@
     "@types/body-parser": "^1.19.5",
     "@types/config": "^3.3.5",
     "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.18",
     "@types/express": "^5.0.0",
     "@types/fluent-ffmpeg": "^2.1.25",
     "@types/jest": "^29.5.14",
@@ -87,12 +89,14 @@
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.4",
     "typedoc": "^0.28.2",
     "typedoc-plugin-markdown": "^4.4.2",
     "typescript": "^5.8.2"
   },
   "dependencies": {
     "@casl/ability": "^6.7.3",
+    "@google-cloud/storage": "^7.16.0",
     "@scalar/express-api-reference": "^0.7.6",
     "@sentry/cli": "^2.43.0",
     "@sentry/node": "^9.27.0",
@@ -104,6 +108,7 @@
     "class-validator-jsonschema": "^5.0.2",
     "config": "^3.3.12",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.5",
     "express": "^4.21.2",
@@ -125,8 +130,5 @@
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
     "typedi": "^0.10.0",
     "winston": "^3.17.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
   }
 }

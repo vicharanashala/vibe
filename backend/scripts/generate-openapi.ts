@@ -1,9 +1,9 @@
-require('reflect-metadata');
-const {getMetadataArgsStorage} = require('routing-controllers');
-const {routingControllersToSpec} = require('routing-controllers-openapi');
-const {validationMetadatasToSchemas} = require('class-validator-jsonschema');
-const fs = require('fs');
-const path = require('path');
+import 'reflect-metadata';
+import {getMetadataArgsStorage} from 'routing-controllers';
+import {routingControllersToSpec} from 'routing-controllers-openapi';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Set environment variable to skip database initialization
 process.env.SKIP_DB_CONNECTION = 'true';
@@ -19,11 +19,12 @@ const outputFile =
   outputFileIndex !== -1 && outputFileIndex + 1 < args.length
     ? args[outputFileIndex + 1]
     : null;
-// Import module options using require
-const {authModuleOptions} = require('../src/modules/auth');
-const {coursesModuleOptions} = require('../src/modules/courses');
-const {usersModuleOptions} = require('../src/modules/users');
-const {docsModuleOptions} = require('../src/modules/docs');
+// Import module options using ES modules
+import {authModuleOptions} from '../src/modules/auth/index.ts';
+import {coursesModuleOptions} from '../src/modules/courses/index.ts';
+import {usersModuleOptions} from '../src/modules/users/index.ts';
+import {docsModuleOptions} from '../src/modules/docs/index.ts';
+import {quizzesModuleOptions} from '../src/modules/quizzes/index.ts';
 
 // Create combined metadata for OpenAPI
 const generateOpenAPISpec = () => {
@@ -45,13 +46,13 @@ const generateOpenAPISpec = () => {
     ...(coursesModuleOptions.controllers || []),
     ...(usersModuleOptions.controllers || []),
     ...(docsModuleOptions.controllers || []),
+    ...(quizzesModuleOptions.controllers || []),
   ];
 
   // Create combined routing-controllers options
   const routingControllersOptions = {
     controllers: allControllers,
     validation: true,
-    routePrefix: '/api',
   };
 
   // Create OpenAPI specification
@@ -106,12 +107,34 @@ const generateOpenAPISpec = () => {
 
       // User management section
       {
+        name: 'Users',
+        description: 'Operations for managing user accounts and information',
+      },
+      {
         name: 'User Enrollments',
         description: 'Operations for managing user enrollments in courses',
       },
       {
         name: 'User Progress',
         description: 'Operations for tracking and managing user progress',
+      },
+
+      // Quiz and assessment section
+      {
+        name: 'Quizzes',
+        description: 'Operations for managing quizzes and assessments',
+      },
+      {
+        name: 'Questions',
+        description: 'Operations for managing individual quiz questions',
+      },
+      {
+        name: 'Question Banks',
+        description: 'Operations for managing collections of questions',
+      },
+      {
+        name: 'Quiz Attempts',
+        description: 'Operations for managing quiz attempts and submissions',
       },
     ],
     // Use Scalar's preferred grouping approach
@@ -132,7 +155,11 @@ const generateOpenAPISpec = () => {
       },
       {
         name: 'User Management',
-        tags: ['User Enrollments', 'User Progress'],
+        tags: ['Users', 'User Enrollments', 'User Progress'],
+      },
+      {
+        name: 'Quiz Management',
+        tags: ['Quizzes', 'Questions', 'Question Banks', 'Quiz Attempts'],
       },
       {
         name: 'Data Models',
@@ -151,7 +178,7 @@ const generateOpenAPISpec = () => {
     },
     servers: [
       {
-        url: 'http://localhost:4001/api',
+        url: 'http://localhost:4001',
         description: 'Development server',
       },
       {
