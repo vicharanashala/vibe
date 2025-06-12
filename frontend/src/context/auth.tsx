@@ -1,34 +1,60 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext } from 'react';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { logout, loginWithGoogle, loginWithEmail } from '@/lib/api/auth';
 
-type Role = 'teacher' | 'student' | null;
+type Role = 'teacher' | 'student' | 'admin' | null;
 
-const AuthContext = createContext({
-  role: null as Role,
-  login: (_role: Role) => {},
+interface AuthContextType {
+  role: Role;
+  isAuthenticated: boolean;
+  login: (selectedRole: Role, uid: string, email: string, name?: string) => void;
+  loginWithGoogle: () => Promise<any>;
+  loginWithEmail: (email: string, password: string) => Promise<any>;
+  logout: () => void;
+}
+
+// Create a context with default values
+export const AuthContext = createContext<AuthContextType>({
+  role: null,
+  isAuthenticated: false,
+  login: () => {},
+  loginWithGoogle: async () => {},
+  loginWithEmail: async () => {},
   logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<Role>(() => {
-    return localStorage.getItem('lms-role') as Role || null;
-  });
+  // Use the Zustand store
+  const { user, isAuthenticated, setUser, clearUser } = useAuthStore();
 
-  useEffect(() => {
-    if (role) {
-      localStorage.setItem('lms-role', role);
-    } else {
-      localStorage.removeItem('lms-role');
+  // Login function that sets the user in the store
+  const login = (selectedRole: Role, uid: string, email: string, name?: string) => {
+    if (selectedRole) {
+      setUser({
+        uid,
+        email,
+        name,
+        role: selectedRole,
+      });
     }
-  }, [role]);
-
-  const login = (selectedRole: Role) => setRole(selectedRole);
-  const logout = () => setRole(null);
+  };
+  
+  // Logout function that clears the user from the store
+  const handleLogout = () => {
+    logout();
+    clearUser();
+  };
 
   return (
-    <AuthContext.Provider value={{ role, login, logout }}>
+    <AuthContext.Provider value={{ 
+      role: user?.role || null,
+      isAuthenticated,
+      login, 
+      loginWithGoogle,
+      loginWithEmail,
+      logout: handleLogout
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
-
-export const useAuth = () => useContext(AuthContext);

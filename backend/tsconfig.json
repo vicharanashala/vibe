@@ -56,7 +56,8 @@
       "#courses": ["./src/modules/courses/*"],
       "#users": ["./src/modules/users/*"],
       "#quizzes": ["./src/modules/quizzes/*"],
-      "#docs": ["./src/modules/docs/*"]
+      "#docs": ["./src/modules/docs/*"],
+      "#activity": ["./src/modules/activity/*"],
       // "@utils/*": ["utils/*"],
       // "@config/*": ["config/*"],
     },

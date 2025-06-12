@@ -1,8 +1,8 @@
-import {SOLSchema} from './SOL';
-import {SMLSchema} from './SML';
-import {OTLSchema} from './OTL';
-import {NATSchema} from './NAT';
-import {DESSchema} from './DES';
+import {SOLSchema} from './SOL.js';
+import {SMLSchema} from './SML.js';
+import {OTLSchema} from './OTL.js';
+import {NATSchema} from './NAT.js';
+import {DESSchema} from './DES.js';
 
 // Re-export individual schemas
 export {SOLSchema, SMLSchema, OTLSchema, NATSchema, DESSchema};

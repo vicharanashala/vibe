@@ -182,6 +182,9 @@ class ItemRef {
   _id?: ID;
 
   @Expose()
+  name: string;
+
+  @Expose()
   type: ItemType;
 
   @Expose()
@@ -189,6 +192,7 @@ class ItemRef {
 
   constructor(item: ItemBase) {
     this._id = item.itemId;
+    this.name = item.itemDetails.name;
     this.type = item.type;
     this.order = item.order;
   }

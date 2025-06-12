@@ -10,11 +10,11 @@ import {
 import {Service} from 'typedi';
 import {Request, Response} from 'express';
 
-import {VideoService} from './services/VideoService';
-import {AudioService} from './services/AudioService';
-import {TranscriptionService} from './services/TranscriptionService';
-import {AIContentService} from './services/AIContentService';
-import {CleanupService} from './services/CleanupService';
+import {VideoService} from './services/VideoService.js';
+import {AudioService} from './services/AudioService.js';
+import {TranscriptionService} from './services/TranscriptionService.js';
+import {AIContentService} from './services/AIContentService.js';
+import {CleanupService} from './services/CleanupService.js';
 
 @Service()
 @JsonController('/genai')

@@ -4,6 +4,7 @@ import Dashboard from "@/pages/teacher/dashboard";
 import CreateCourse from "@/pages/teacher/create-course";
 import Editor from "@/pages/teacher/create-article";
 import FaceDetectors from "@/pages/testing-proctoring/face-detectors";
+import GetCourse from "@/pages/teacher/get-course";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -12,6 +13,10 @@ const teacherRoutes: RouteObject = {
     {
       path: "dashboard",
       element: <Dashboard />,
+    },
+    {
+      path: "courses/get",
+      element: <GetCourse />
     },
     {
       path: "courses/create",

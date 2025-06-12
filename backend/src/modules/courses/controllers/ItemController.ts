@@ -1,37 +1,37 @@
+import 'reflect-metadata';
 import {
-  ItemDataResponse,
-  ItemNotFoundErrorResponse,
-  CreateItemParams,
+  JsonController,
+  Authorized,
+  Post,
+  Body,
+  Get,
+  Put,
+  Delete,
+  Params,
+  HttpCode,
+  Req,
+} from 'routing-controllers';
+import {inject, injectable} from 'inversify';
+import {
   CreateItemBody,
+  UpdateItemBody,
+  MoveItemBody,
+  CreateItemParams,
   ReadAllItemsParams,
   UpdateItemParams,
-  UpdateItemBody,
-  DeletedItemResponse,
-  DeleteItemParams,
   MoveItemParams,
-  MoveItemBody,
+  DeleteItemParams,
+  DeletedItemResponse,
   GetItemParams,
+  GetItemResponse,
+  ItemDataResponse,
+  ItemNotFoundErrorResponse,
 } from '#courses/classes/index.js';
 import {ItemService} from '#courses/services/ItemService.js';
 import {ProgressService, USERS_TYPES} from '#users/index.js';
-import {inject, injectable} from 'inversify';
-import {
-  Authorized,
-  Body,
-  CurrentUser,
-  Delete,
-  ForbiddenError,
-  Get,
-  HttpCode,
-  JsonController,
-  Params,
-  Post,
-  Put,
-} from 'routing-controllers';
-import {ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
-import {IUser} from '#shared/index.js';
+import {ResponseSchema} from 'routing-controllers-openapi';
 
 @injectable()
 @JsonController('/courses')
@@ -162,9 +162,9 @@ export class ItemController {
   }
 
   @Authorized(['admin', 'instructor', 'student'])
-  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @Get('/:courseId/versions/:courseVersionId/item/:itemId')
   @HttpCode(201)
-  @ResponseSchema(ItemDataResponse, {
+  @ResponseSchema(GetItemResponse, {
     description: 'Item retrieved successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
@@ -175,16 +175,22 @@ export class ItemController {
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@CurrentUser() user: IUser, @Params() params: GetItemParams) {
+  async getItem(@Params() params: GetItemParams, @Req() req: any) {
+    // console.log(req.headers.authorization)
     const {courseId, courseVersionId, itemId} = params;
-    const progress = await this.progressService.getUserProgress(
-      user._id,
-      courseId,
-      courseVersionId,
-    );
-    if (progress.currentItem !== itemId) {
-      throw new ForbiddenError('Item does not match current progress');
-    }
-    return await this.itemService.readItem(courseVersionId, itemId);
+    // console.log('Current user:', user);
+    // console.log('User ID:', user._id);
+    // console.log('User Firebase UID:', user.firebaseUID);
+    // const progress = await this.progressService.getUserProgress(
+    //   user._id,
+    //   courseId,
+    //   courseVersionId,
+    // );
+    // if (progress.currentItem !== itemId) {
+    //   throw new ForbiddenError('Item does not match current progress');
+    // }
+    return {
+      item: await this.itemService.readItem(courseVersionId, itemId),
+    };
   }
 }

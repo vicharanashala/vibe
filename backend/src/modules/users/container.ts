@@ -3,7 +3,11 @@
   ProgressRepository,
 } from '#shared/database/index.js';
 import {ContainerModule} from 'inversify';
-import {EnrollmentController, ProgressController} from './controllers/index.js';
+import {
+  EnrollmentController,
+  ProgressController,
+  UserController,
+} from './controllers/index.js';
 import {EnrollmentService, ProgressService} from './services/index.js';
 import {USERS_TYPES} from './types.js';
 
@@ -31,4 +35,5 @@ export const usersContainerModule = new ContainerModule(options => {
   // Controllers
   options.bind(ProgressController).toSelf().inSingletonScope();
   options.bind(EnrollmentController).toSelf().inSingletonScope();
+  options.bind(UserController).toSelf().inSingletonScope();
 });

@@ -206,6 +206,7 @@ describe('Course Controller Integration Tests', () => {
 
         const courseId = createdCourseResponse.body._id;
 
+        // Now, delete the course by its ID
         const res = await request(app).delete(`/courses/${courseId}`);
         console.log(res.body);
 

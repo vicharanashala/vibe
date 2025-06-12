@@ -11,13 +11,13 @@ import {
   SectionDeletedResponse,
   DeleteSectionParams,
 } from '#courses/classes/index.js';
-import {SectionService} from '#courses/services/SectionService.js';
+import {ResponseSchema} from 'routing-controllers-openapi';
 import {BadRequestErrorResponse} from '#shared/index.js';
-
+import {SectionService} from '#courses/services/SectionService.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {
-  JsonController,
+  JsonController as JsonController,
   Authorized,
   Post,
   HttpCode,
@@ -28,7 +28,6 @@ import {
   Put,
   Delete,
 } from 'routing-controllers';
-import {ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
 @injectable()
 @JsonController('/courses')

@@ -51,6 +51,7 @@ node_modules/
 
 docs/static/openapi
 backend/openapi
+frontend/openapi.json
 
 # ignore sentry files
 .sentryclirc
@@ -58,4 +59,7 @@ backend/openapi
 .vibe.json
 
 .venv
+
+mcp
+frontend/public/models
 dist/

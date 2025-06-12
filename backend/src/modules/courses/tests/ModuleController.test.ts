@@ -14,6 +14,7 @@ import {jest} from '@jest/globals';
 describe('Module Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let moduleRepo;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';

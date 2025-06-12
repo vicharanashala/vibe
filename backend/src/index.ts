@@ -1,25 +1,36 @@
 import './instrument.js';
 import Express from 'express';
 import * as Sentry from '@sentry/node';
-import {getFromContainer, useContainer} from 'class-validator';
-import {Container} from 'inversify';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
-import {appConfig} from '#config/app.js';
-import {sharedContainerModule} from '#root/container.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {loggingHandler, corsHandler} from '#shared/index.js';
 import {
-  coursesContainerModule,
-  coursesModuleOptions,
-  setupCoursesContainer,
-} from '#courses/index.js';
-import {rateLimiter, loggingHandler} from '#shared/index.js';
-import {authContainerModule} from '#auth/container.js';
-import {authModuleOptions, setupAuthContainer} from '#auth/index.js';
+  Action,
+  RoutingControllersOptions,
+  useContainer,
+  useExpressServer,
+} from 'routing-controllers';
 import {OpenApiSpecService} from '#docs/index.js';
-import {quizzesContainerModule} from '#quizzes/container.js';
+
+// Import all module options
+import {authModuleOptions, setupAuthContainer} from '#auth/index.js';
+import {coursesModuleOptions, setupCoursesContainer} from '#courses/index.js';
+import {setupUsersContainer, usersModuleOptions} from '#users/index.js';
 import {quizzesModuleOptions, setupQuizzesContainer} from '#quizzes/index.js';
+import {
+  activityModuleOptions,
+  setupActivityContainer,
+} from '#activity/index.js';
+import {rateLimiter} from '#shared/index.js';
+import {sharedContainerModule} from '#root/container.js';
+import {authContainerModule} from '#auth/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {Container} from 'inversify';
+import {coursesContainerModule} from '#courses/container.js';
+import {quizzesContainerModule} from '#quizzes/container.js';
 import {usersContainerModule} from '#users/container.js';
-import {usersModuleOptions, setupUsersContainer} from '#users/index.js';
+import {activityContainerModule} from '#activity/container.js';
+import {getFromContainer} from 'class-validator';
+import {appConfig} from '#config/app.js';
+import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 
 export const application = Express();
 
@@ -33,6 +44,10 @@ export const ServiceFactory = (
 
   service.use(Express.urlencoded({extended: true}));
   service.use(Express.json());
+
+  // Enable CORS for cross-origin requests
+  service.use(corsHandler);
+
   if (process.env.NODE_ENV === 'production') {
     service.use(rateLimiter);
   }
@@ -106,6 +121,7 @@ const setupAllModulesContainer = async () => {
     authContainerModule,
     coursesContainerModule,
     quizzesContainerModule,
+    activityContainerModule,
   ];
   await container.load(...modules);
   const inversifyAdapter = new InversifyAdapter(container);
@@ -118,12 +134,35 @@ const allModuleOptions: RoutingControllersOptions = {
     ...(coursesModuleOptions.controllers as Function[]),
     ...(usersModuleOptions.controllers as Function[]),
     ...(quizzesModuleOptions.controllers as Function[]),
+    ...(activityModuleOptions.controllers as Function[]),
   ],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {
     return true;
   },
+  currentUserChecker: async function (action: Action) {
+    // Use the auth service to check if the user is authorized
+    const authService =
+      getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+    const token = action.request.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return false;
+    }
+
+    try {
+      return await authService.verifyToken(token);
+    } catch (error) {
+      return false;
+    }
+  },
+  // currentUserChecker:  async function (action: Action) {
+  //   // Use the auth service to check if the user is authorized
+  //   const authService =
+  //     getFromContainer<FirebaseAuthService>(FirebaseAuthService);
+  //   const firebaseUID = action.request.headers.authorization?.split(' ')[1];
+  //   return await authService.verifyToken(firebaseUID);
+  // },
   validation: true,
 };
 
@@ -145,6 +184,10 @@ export const main = async () => {
     case 'quizzes':
       await setupQuizzesContainer();
       module = ServiceFactory(application, quizzesModuleOptions);
+      break;
+    case 'activity':
+      await setupActivityContainer();
+      module = ServiceFactory(application, activityModuleOptions);
       break;
     case 'all':
       await setupAllModulesContainer();
