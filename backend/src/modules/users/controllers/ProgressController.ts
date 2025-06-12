@@ -99,7 +99,7 @@ class ProgressController {
     @Body() body: UpdateProgressBody,
   ): Promise<void> {
     const {userId, courseId, courseVersionId} = params;
-    const {itemId, moduleId, sectionId, watchItemId} = body;
+    const {itemId, moduleId, sectionId, watchItemId, attemptId} = body;
 
     await this.progressService.updateProgress(
       userId,
@@ -109,6 +109,7 @@ class ProgressController {
       sectionId,
       itemId,
       watchItemId,
+      attemptId,
     );
   }
 

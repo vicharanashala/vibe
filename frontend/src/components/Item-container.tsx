@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
-import Quiz from './quiz';
+import Quiz, { questionBankRef } from './quiz';
 import Article, { ArticleRef } from './article';
 
 export interface Item {
@@ -23,7 +23,7 @@ export interface Item {
     estimatedReadTimeInMinutes?: string;
 
     // For Quiz
-    questionBankRefs?: string[];
+    questionBankRefs?: questionBankRef[];
     passThreshold?: number;
     maxAttempts?: number;
     quizType?: 'DEADLINE' | 'NO_DEADLINE';
@@ -45,13 +45,15 @@ interface ItemContainerProps {
   doGesture: boolean;
   onNext: () => void;
   isProgressUpdating: boolean;
+  attemptId?: string;
+  setAttemptId?: (attemptId: string) => void;
 }
 
 export interface ItemContainerRef {
   stopCurrentItem: () => void;
 }
 
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, isProgressUpdating }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, isProgressUpdating, attemptId, setAttemptId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
 
   // ✅ Expose stop function to parent
@@ -97,6 +99,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           doGesture={doGesture}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
+          attemptId={attemptId}
+          setAttemptId={setAttemptId}
         />;
 
       case 'article':
