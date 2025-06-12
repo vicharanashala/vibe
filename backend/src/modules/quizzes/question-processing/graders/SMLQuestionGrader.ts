@@ -27,10 +27,12 @@ class SMLQuestionGrader implements IGrader {
       const incorrectAnswers = answer.lotItemIds.filter(
         id => !correctLotItemIds.includes(id),
       );
-
-      const score =
-        (correctAnswers.length / correctLotItemIds.length) *
-        this.question.points;
+      let score = 0;
+      if (incorrectAnswers.length <= 0) {
+        score =
+          (correctAnswers.length / correctLotItemIds.length) *
+          this.question.points;
+      }
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,
         status:
@@ -40,7 +42,10 @@ class SMLQuestionGrader implements IGrader {
               : 'PARTIAL'
             : 'INCORRECT',
         score: score,
-        answerFeedback: `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`,
+        answerFeedback:
+          incorrectAnswers.length <= 0
+            ? `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`
+            : `You answered ${correctAnswers.length} correctly, but ${incorrectAnswers.length} incorrectly.`,
       };
       return feedback;
     } else {
