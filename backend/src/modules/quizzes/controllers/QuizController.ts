@@ -36,6 +36,7 @@ import {
   AddFeedbackBody,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {ISubmission} from '#quizzes/interfaces/grading.js';
 
 @OpenAPI({
   tags: ['Quizzes'],
