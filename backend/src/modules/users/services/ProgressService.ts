@@ -683,10 +683,10 @@ class ProgressService extends BaseService {
       if (!item) {
         throw new NotFoundError('Item not found in Course Version');
       }
-      if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
-        // TODO: Handle other item types
-        throw new BadRequestError('Item type is not supported');
-      }
+      // if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
+      //   // TODO: Handle other item types
+      //   throw new BadRequestError('Item type is not supported');
+      // }
       if (!item) {
         throw new NotFoundError('Item not found');
       }

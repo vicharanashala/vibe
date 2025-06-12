@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz } from '@/lib/api/hooks';
+import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/lib/api/hooks';
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useCourseStore } from "@/lib/store/course-store";
 
 // Utility function to convert buffer to hex string
 const bufferToHex = (buffer: number[]) => {
@@ -68,7 +70,11 @@ interface QuizProps {
   isProgressUpdating?: boolean;
 }
 
-export default function Quiz({
+export interface QuizRef {
+  stopItem: () => void;
+}
+
+const Quiz = forwardRef<QuizRef, QuizProps>(({
   questionBankRefs,
   passThreshold,
   maxAttempts,
@@ -84,7 +90,7 @@ export default function Quiz({
   doGesture = false,
   onNext,
   isProgressUpdating,
-}: QuizProps) {
+}, ref) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
   const [timeLeft, setTimeLeft] = useState(0);
@@ -311,6 +317,89 @@ export default function Quiz({
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
+  function handleSendStartItem() {
+    if (!userId || !currentCourse?.itemId) return;
+    console.log({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    startItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId);
+    itemStartedRef.current = true;
+  }
+
+  function handleStopItem() {
+    if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+    console.log({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    stopItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    itemStartedRef.current = false;
+  }
+
+  // ✅ Expose stop function to parent component
+  useImperativeHandle(ref, () => ({
+    stopItem: handleStopItem
+  }));
+
+  // Get user and course data from stores
+  const userId = useAuthStore((state) => state.user?.userId);
+  const { currentCourse, setWatchItemId } = useCourseStore();
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
+  
+  // ✅ Track if item has been started
+  const itemStartedRef = useRef(false);
+
   const completeQuiz = useCallback(async () => {
     if (!attemptId) {
       console.error('No attempt ID available for submission');
@@ -348,7 +437,10 @@ export default function Quiz({
       }
 
       setQuizCompleted(true);
-
+      
+      // ✅ Stop tracking item when quiz completes
+      handleStopItem();
+      
       // Clear attempt ID from localStorage since quiz is completed
       localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
 
@@ -360,6 +452,8 @@ export default function Quiz({
       console.error('Failed to submit quiz:', err);
       // Still mark as completed for now, but could show error state
       setQuizCompleted(true);
+      // ✅ Stop tracking item even if submission fails
+      handleStopItem();
     }
   }, [quizQuestions, answers, attemptId, processedQuizId, submitQuiz, convertAnswersToSaveFormat, showScoreAfterSubmission]);
 
@@ -471,6 +565,9 @@ export default function Quiz({
       if (questionsToUse.length > 0 && questionsToUse[0]?.timeLimit) {
         setTimeLeft(questionsToUse[0].timeLimit);
       }
+
+      // ✅ Start tracking item when quiz begins
+      handleSendStartItem();
     } catch (err) {
       console.error('Failed to start quiz:', err);
       // Handle error - maybe show a toast or alert
@@ -1085,13 +1182,8 @@ export default function Quiz({
                 className="text-lg"
               />
               {currentQuestion.decimalPrecision && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs">
                   Decimal precision: {currentQuestion.decimalPrecision} places
-                </p>
-              )}
-              {currentQuestion.expression && (
-                <p className="text-xs text-muted-foreground">
-                  Expression: {currentQuestion.expression}
                 </p>
               )}
             </div>
@@ -1191,4 +1283,8 @@ export default function Quiz({
       </CardContent>
     </Card>
   );
-}
+});
+
+Quiz.displayName = "Quiz";
+
+export default Quiz;

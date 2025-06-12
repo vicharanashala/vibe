@@ -256,7 +256,7 @@ export default function CoursePage() {
         setSelectedItemId(currentItem);
         updateCourseNavigation(currentModule, currentSection, currentItem);
       }
-        }, 200);
+        }, 500);
         
     refetchProgress();
     if (progressData) {
