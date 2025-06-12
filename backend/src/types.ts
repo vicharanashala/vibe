@@ -5,6 +5,7 @@ const TYPES = {
   //Repositories
   UserRepo: Symbol.for('UserRepo'),
   CourseRepo: Symbol.for('CourseRepo'),
+  SettingsRepo: Symbol.for('SettingsRepo'),
 
   //Constants
   uri: Symbol.for('dbURI'),
