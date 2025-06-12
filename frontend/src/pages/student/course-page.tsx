@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use, useRef } from "react";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -15,7 +15,7 @@ import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdatePr
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useCourseStore } from "@/lib/store/course-store";
 import { Link } from "@tanstack/react-router";
-import ItemContainer, { Item } from "@/components/Item-container";
+import ItemContainer, { Item, ItemContainerRef } from "@/components/Item-container";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronRight,
@@ -72,6 +72,9 @@ export default function CoursePage() {
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
+
+  // ✅ Add the missing ref declaration
+  const itemContainerRef = useRef<ItemContainerRef>(null);
 
   // Helper function to update course store navigation state
   const updateCourseNavigation = useCallback((moduleId: string, sectionId: string, itemId: string) => {
@@ -220,7 +223,12 @@ export default function CoursePage() {
 
   const updateProgress = useUpdateProgress();
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
+    // ✅ Stop current item before moving to next
+    if (itemContainerRef.current) {
+      itemContainerRef.current.stopCurrentItem();
+    }
+
     updateProgress.mutate(
       {
         params: {
@@ -239,16 +247,15 @@ export default function CoursePage() {
       }
     );
         
-          refetchProgress();
-          if (progressData) {
-            const { currentModule, currentSection, currentItem } = progressData;
-            setSelectedModuleId(currentModule);
-            setSelectedSectionId(currentSection);
-            setSelectedItemId(currentItem);
-            updateCourseNavigation(currentModule, currentSection, currentItem);
-          }
-  };
-
+    refetchProgress();
+    if (progressData) {
+      const { currentModule, currentSection, currentItem } = progressData;
+      setSelectedModuleId(currentModule);
+      setSelectedSectionId(currentSection);
+      setSelectedItemId(currentItem);
+      updateCourseNavigation(currentModule, currentSection, currentItem);
+    }
+  }, [itemContainerRef, updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress, progressData, updateCourseNavigation]);
 
   if (versionLoading || progressLoading) {
     return (
@@ -281,17 +288,15 @@ export default function CoursePage() {
   }
 
   const modules = courseVersionData?.modules || [];
-  const isCurrentItemVideo = currentItem?.type?.toLowerCase() === 'video';
 
   return (
     <SidebarProvider defaultOpen={true}>
-
       <div className="flex h-screen w-full">
         {/* Enhanced Course Navigation Sidebar */}
         <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
           <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
             {/* Vibe Logo and Brand */}
-            <div className="flex items-center gap-3 px-2 py-0">
+            <div className="flex items-center gap-3 px-0 py-0">
               <div className="relative p-1">
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 transition-all duration-300" />
                 <svg
@@ -333,9 +338,9 @@ export default function CoursePage() {
             </div> */}
           </SidebarHeader>
 
-          <SidebarContent className="rounded-lg bg-card/50 p-3 shadow-sm border border-border/30">
-            <ScrollArea className="flex-1 px-2 transition-colors">
-              <SidebarMenu className="space-y-1 text-sm">
+          <SidebarContent className="bg-card/50 pl-2 shadow-sm border border-border/30">
+            <ScrollArea className="flex-1 transition-colors">
+              <SidebarMenu className="space-y-1 text-sm pr-0">
                 {modules.map((module: any) => {
                   const moduleId = module.moduleId;
                   const isModuleExpanded = expandedModules[moduleId];
@@ -346,28 +351,24 @@ export default function CoursePage() {
                       <SidebarMenuButton
                         onClick={() => toggleModule(moduleId)}
                         isActive={isCurrentModule}
-                        className="group relative h-10 px-3 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
+                        className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
                       >
-                        <div className={`p-1.5 rounded-md transition-colors ${isCurrentModule
-                            ? "bg-primary/20 text-primary"
-                            : "bg-accent/20 text-accent-foreground group-hover:bg-accent/30"
-                          }`}>
-                          <BookOpen className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <div className="font-medium text-xs truncate" title={module.name}>{module.name}</div>
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 transition-transform duration-200 flex-shrink-0 ${isModuleExpanded ? 'rotate-90' : ''
+                            }`}
+                        />
+                        <div className="flex-1 text-left min-w-0 ml-2">
+                          <div className="font-medium text-xs truncate" title={module.name}>
+                            {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                          </div>
                           <div className="text-[10px] text-muted-foreground truncate">
                             {module.sections?.length || 0} sections
                           </div>
                         </div>
-                        <ChevronRight
-                          className={`h-3.5 w-3.5 transition-transform duration-200 ${isModuleExpanded ? 'rotate-90' : ''
-                            }`}
-                        />
                       </SidebarMenuButton>
 
                       {isModuleExpanded && module.sections && (
-                        <SidebarMenuSub className="ml-4 mt-1 space-y-1">
+                        <SidebarMenuSub className="ml-0 mt-1 space-y-1">
                           {module.sections.map((section: any) => {
                             const sectionId = section.sectionId;
                             const isSectionExpanded = expandedSections[sectionId];
@@ -379,24 +380,25 @@ export default function CoursePage() {
                                 <SidebarMenuSubButton
                                   onClick={() => toggleSection(moduleId, sectionId)}
                                   isActive={isCurrentSection}
-                                  className="group relative h-8 px-2 rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
+                                  className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
                                 >
-                                  <div className="font-medium truncate flex-1 min-w-0" title={section.name}>{section.name}</div>
                                   <ChevronRight
-                                    className={`h-3 w-3 ml-auto flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
+                                    className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
                                       }`}
                                   />
+                                  <div className="font-medium truncate flex-1 min-w-0 ml-2" title={section.name}>
+                                    {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                  </div>
                                 </SidebarMenuSubButton>
 
                                 {isSectionExpanded && (
-                                  <SidebarMenuSub className="ml-3 mt-1 space-y-0.5">
+                                  <SidebarMenuSub className="ml-0 mt-1 space-y-0.5">
                                     {isLoadingItems ? (
                                       <div className="space-y-1 p-2">
                                         <Skeleton className="h-4 w-full rounded" />
                                         <Skeleton className="h-4 w-4/5 rounded" />
                                       </div>
                                     ) : sectionItems[sectionId] ? (
-                                      // Ensure items are sorted by "order" property before rendering
                                       sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
                                         const itemId = item._id;
                                         const isCurrentItem = itemId === selectedItemId;
@@ -406,7 +408,7 @@ export default function CoursePage() {
                                             <SidebarMenuSubButton
                                               onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                               isActive={isCurrentItem}
-                                              className="group relative h-8 px-2 rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                                              className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
                                             >
                                               <div className="flex items-center gap-2 w-full min-w-0">
                                                 <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
@@ -416,15 +418,13 @@ export default function CoursePage() {
                                                   {getItemIcon(item.type)}
                                                 </div>
                                                 <div className="flex-1 text-left min-w-0">
-                                                  <div className="text-xs font-medium truncate" title={currentItem?.name || 'Loading...'}>
+                                                  <div className="text-xs font-medium truncate w-full" title={currentItem?.name || 'Loading...'}>
                                                     {selectedItemId === itemId && itemLoading ? 'Loading...' : 
-                                                     selectedItemId === itemId && currentItem?.name ? currentItem.name : 
+                                                     selectedItemId === itemId && currentItem?.name ? 
+                                                     (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) : 
                                                      `Item ${item.order || ''}`}
                                                   </div>
                                                 </div>
-                                                {isCurrentItem && (
-                                                  <CheckCircle className="h-3 w-3 text-primary flex-shrink-0" />
-                                                )}
                                               </div>
                                             </SidebarMenuSubButton>
                                           </SidebarMenuSubItem>
@@ -453,11 +453,11 @@ export default function CoursePage() {
             </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-            <SidebarMenu className="space-y-1 px-2 py-3">
+            <SidebarMenu className="space-y-1 pl-2 py-3">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  className="h-9 px-3 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
                   <Link to="/student" className="flex items-center gap-3">
                     <div className="p-1 rounded-md bg-accent/15">
@@ -468,11 +468,10 @@ export default function CoursePage() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  className="h-9 px-3 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
                   <Link to="/student/courses" className="flex items-center gap-3">
                     <div className="p-1 rounded-md bg-accent/15">
@@ -488,7 +487,7 @@ export default function CoursePage() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  className="h-10 px-3 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
                   <Link to="/student/profile" className="flex items-center gap-3">
                     <Avatar className="h-6 w-6 border border-border/20">
@@ -547,36 +546,14 @@ export default function CoursePage() {
             )}
 
             {currentItem ? (
-              <div className="relative z-10 h-full flex flex-col">
-                <div className="flex-1 overflow-y-auto">
-                  <ItemContainer item={currentItem} doGesture={doGesture} />
-                </div>
-
-                {/* Next Button for Video Content */}
-                {isCurrentItemVideo && (
-                  <div className="pb-4 pr-3 border-t border-border/20 bg-background/50 backdrop-blur-sm">
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleNext}
-                        disabled={updateProgress.isPending}
-                        className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                        size="lg"
-                      >
-                        {updateProgress.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                            Processing
-                          </>
-                        ) : (
-                          <>
-                            Next Lesson
-                            <ChevronRight className="h-4 w-4 ml-2" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
+              <div className="relative z-10 h-full">
+                <ItemContainer 
+                  ref={itemContainerRef} 
+                  item={currentItem} 
+                  doGesture={doGesture}
+                  onNext={handleNext}
+                  isProgressUpdating={updateProgress.isPending}
+                />
               </div>
             ) : (
               <div className="h-full flex items-center justify-center relative z-10">
@@ -605,30 +582,6 @@ export default function CoursePage() {
             )}
           </div>
         </SidebarInset>
-
-        {/* Enhanced Next Button - Only for non-video content */}
-        {currentItem && !isCurrentItemVideo && (
-          <div className="fixed bottom-6 right-6 z-50">
-            <Button
-              onClick={handleNext}
-              disabled={updateProgress.isPending}
-              className="shadow-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-              size="lg"
-            >
-              {updateProgress.isPending ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                  Processing
-                </>
-              ) : (
-                <>
-                  Next Lesson
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
     </SidebarProvider>
   );

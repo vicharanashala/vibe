@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef } from "react";
 import MathRenderer from "./math-renderer";
 
 // Import Yoopta Editor Core
@@ -20,7 +20,11 @@ import { markdown } from '@yoopta/exports';
 
 // Import ShadCN UI Components
 import { Badge } from "@/components/ui/badge";
-import { Clock, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, Star, ChevronRight } from "lucide-react";
+import { useStartItem, useStopItem } from "@/lib/api/hooks";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useCourseStore } from "@/lib/store/course-store";
 
 
 
@@ -45,12 +49,72 @@ interface ArticleProps {
     estimatedReadTimeInMinutes?: string;
     points?: string;
     tags?: string[];
+    onNext?: () => void;
+    isProgressUpdating?: boolean;
 }
 
-const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleProps) => {
+export interface ArticleRef {
+    stopItem: () => void;
+}
+
+const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
+    
+    // ✅ Get user and course data from stores
+    const userId = useAuthStore((state) => state.user?.userId);
+    const { currentCourse, setWatchItemId } = useCourseStore();
+    const startItem = useStartItem();
+    const stopItem = useStopItem();
+    
+    // ✅ Track if item has been started
+    const itemStartedRef = useRef(false);
+
+    function handleSendStartItem() {
+        if (!userId || !currentCourse?.itemId) return;
+        startItem.mutate({
+            params: {
+                path: {
+                    userId,
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                },
+            },
+            body: {
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+            }
+        });
+        if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId);
+        itemStartedRef.current = true;
+    }
+
+    function handleStopItem() {
+        if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+        stopItem.mutate({
+            params: {
+                path: {
+                    userId,
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                },
+            },
+            body: {
+                watchItemId: currentCourse.watchItemId,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+            }
+        });
+        itemStartedRef.current = false;
+    }
+
+    // ✅ Expose stop function to parent component
+    useImperativeHandle(ref, () => ({
+        stopItem: handleStopItem
+    }));
 
     // ✅ Load content from prop when component mounts or content changes
     useEffect(() => {
@@ -75,8 +139,20 @@ const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleP
             const deserializedValue = markdown.deserialize(editor, processedContent);
             setValue(deserializedValue);
             editor.setEditorValue(deserializedValue);
+
+            // ✅ Start tracking item when content is loaded
+            handleSendStartItem();
         }
     }, [editor, content]);
+
+    // ✅ Stop item when component unmounts
+    useEffect(() => {
+        return () => {
+            if (itemStartedRef.current) {
+                handleStopItem();
+            }
+        };
+    }, []);
 
     // ✅ Add dark mode styles for Yoopta Editor
     useEffect(() => {
@@ -103,7 +179,7 @@ const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleP
 
     return (
         <MathRenderer className="h-full w-full bg-background">
-            <div className="h-full w-full">
+            <div className="h-full w-full flex flex-col">
                 {/* Article Metadata Topbar */}
                 {(estimatedReadTimeInMinutes || points || tags?.length) && (
                     <div className="border-b bg-muted/50 px-4 py-3">
@@ -137,7 +213,7 @@ const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleP
                 )}
                 
                 {/* Article Content */}
-                <div className="h-full w-full p-4">
+                <div className="flex-1 w-full p-4 overflow-y-auto">
                     <YooptaEditor
                         width="100%"
                         value={value}
@@ -148,9 +224,37 @@ const Article = ({ content, estimatedReadTimeInMinutes, points, tags }: ArticleP
                         className="prose prose-lg max-w-none w-full"
                     />
                 </div>
+
+                {/* Next Lesson Button */}
+                {onNext && (
+                    <div className="p-4 border-t border-border/20 bg-background/50 backdrop-blur-sm">
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={onNext}
+                                disabled={isProgressUpdating}
+                                className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                                size="lg"
+                            >
+                                {isProgressUpdating ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                                        Processing
+                                    </>
+                                ) : (
+                                    <>
+                                        Next Lesson
+                                        <ChevronRight className="h-4 w-4 ml-2" />
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
         </MathRenderer>
     );
-}
+})
+
+Article.displayName = "Article";
 
 export default Article;

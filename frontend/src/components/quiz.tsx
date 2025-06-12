@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse } from '@/lib/api/hooks';
+import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz } from '@/lib/api/hooks';
 
 // Utility function to convert buffer to hex string
-const bufferToHex = (buffer: Buffer) => {
+const bufferToHex = (buffer: number[]) => {
   return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
@@ -41,21 +41,23 @@ interface BufferLike {
 }
 
 interface QuizProps {
-  questionBankRefs: string[]; // question ids
-  passThreshold: number; // 0-1
-  maxAttempts: number; // Maximum number of attempts allowed
-  quizType: 'DEADLINE' | 'NO_DEADLINE' | ''; // Type of quiz
-  releaseTime: Date | undefined; // Release time for the quiz
-  questionVisibility: number; // Number of questions visible to the user at a time
-  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
-  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
-  allowPartialGrading: boolean; // If true, allows partial grading for questions
-  allowHint: boolean; // If true, allows users to use hints for questions
-  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
-  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+  questionBankRefs: string[];
+  passThreshold: number;
+  maxAttempts: number;
+  quizType: 'DEADLINE' | 'NO_DEADLINE' | '';
+  releaseTime: Date | undefined;
+  questionVisibility: number;
+  deadline?: Date;
+  approximateTimeToComplete: string;
+  allowPartialGrading: boolean;
+  allowHint: boolean;
+  showCorrectAnswersAfterSubmission: boolean;
+  showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;
-  quizId: string | BufferLike; // Can be string or buffer object
-  doGesture?: boolean; // Optional prop to trigger gesture detection
+  quizId: string | BufferLike;
+  doGesture?: boolean;
+  onNext?: () => void;
+  isProgressUpdating?: boolean;
 }
 
 export default function Quiz({
@@ -71,7 +73,9 @@ export default function Quiz({
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
   quizId,
-  doGesture = false, // Optional prop to trigger gesture detection
+  doGesture = false,
+  onNext,
+  isProgressUpdating,
 }: QuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
@@ -90,6 +94,9 @@ export default function Quiz({
   
   // Use the quiz submit hook
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
+  
+  // Use the save quiz hook for progress saving
+  const { mutateAsync: saveQuiz, isPending: isSaving, error: saveError } = useSaveQuiz();
   
   // Add submission results state
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
@@ -155,6 +162,28 @@ export default function Quiz({
     const storedAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
     if (storedAttemptId) {
       setAttemptId(storedAttemptId);
+      
+      // Also restore saved answers if they exist
+      const storedAnswers = localStorage.getItem(`quiz-answers-${processedQuizId}`);
+      if (storedAnswers) {
+        try {
+          const parsedAnswers = JSON.parse(storedAnswers);
+          setAnswers(parsedAnswers);
+        } catch (error) {
+          console.error('Failed to parse stored answers:', error);
+        }
+      }
+
+      // Also restore saved questions if they exist
+      const storedQuestions = localStorage.getItem(`quiz-questions-${processedQuizId}`);
+      if (storedQuestions) {
+        try {
+          const parsedQuestions = JSON.parse(storedQuestions);
+          setQuizQuestions(parsedQuestions);
+        } catch (error) {
+          console.error('Failed to parse stored questions:', error);
+        }
+      }
     }
   }, [processedQuizId]);
 
@@ -165,99 +194,111 @@ export default function Quiz({
     answer: {
       lotItemId?: string;
       lotItemIds?: string[];
-      text?: string;
-      numericAnswer?: string;
-      order?: string[];
+      answerText?: string;
+      value?: number;
+      orders?: string[];
     }
   }> => {
-    return quizQuestions.map(question => {
-      const userAnswer = answers[question.id];
-      const saveAnswer: {
-        answerText: string;
-        lotItemId?: string;
-        lotItemIds?: string[];
-        text?: string;
-        value?: string;
-        orders?: string[];
-      } = {
-        answerText: ''
-      };
+    return quizQuestions
+      .filter(question => {
+        const userAnswer = answers[question.id];
+        // Only include questions that have actual answers
+        return userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
+      })
+      .map(question => {
+        const userAnswer = answers[question.id];
+        const saveAnswer: {
+          lotItemId?: string;
+          lotItemIds?: string[];
+          answerText?: string;
+          value?: number;
+          orders?: string[];
+        } = {};
 
-      switch (question.type) {
-        case 'SELECT_ONE_IN_LOT':
-          if (typeof userAnswer === 'number' && question.lotItems) {
-            // Get the lot item ID from the selected index
-            const selectedLotItem = question.lotItems[userAnswer];
-            if (selectedLotItem && selectedLotItem._id) {
-              if (typeof selectedLotItem._id === 'string') {
-                saveAnswer.lotItemId = selectedLotItem._id;
-              } else if (selectedLotItem._id.buffer && selectedLotItem._id.buffer.data) {
-                // Convert buffer data to hex string
-                const buffer = selectedLotItem._id.buffer.data;
-                saveAnswer.lotItemId = bufferToHex(buffer);
+        switch (question.type) {
+          case 'SELECT_ONE_IN_LOT':
+            if (typeof userAnswer === 'number' && question.lotItems) {
+              // Get the lot item ID from the selected index
+              const selectedLotItem = question.lotItems[userAnswer];
+              if (selectedLotItem && selectedLotItem._id) {
+                if (typeof selectedLotItem._id === 'string') {
+                  saveAnswer.lotItemId = selectedLotItem._id;
+                } else if (selectedLotItem._id.buffer && selectedLotItem._id.buffer.data) {
+                  // Convert buffer data to hex string
+                  const buffer = selectedLotItem._id.buffer.data;
+                  saveAnswer.lotItemId = bufferToHex(buffer);
+                }
               }
             }
-          }
-          break;
-        
-        case 'SELECT_MANY_IN_LOT':
-          if (Array.isArray(userAnswer) && question.lotItems) {
-            // Convert indices to lot item IDs
-            saveAnswer.lotItemIds = (userAnswer as number[]).map((index: number) => {
-              const lotItem = question.lotItems?.[index];
-              if (lotItem && lotItem._id) {
-                if (typeof lotItem._id === 'string') {
-                  return lotItem._id;
-                } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
-                  // Convert buffer data to hex string
-                  const buffer = lotItem._id.buffer.data;
-                  return bufferToHex(buffer);
+            break;
+          
+          case 'SELECT_MANY_IN_LOT':
+            if (Array.isArray(userAnswer) && userAnswer.length > 0 && question.lotItems) {
+              // Convert indices to lot item IDs
+              saveAnswer.lotItemIds = (userAnswer as number[]).map((index: number) => {
+                const lotItem = question.lotItems?.[index];
+                if (lotItem && lotItem._id) {
+                  if (typeof lotItem._id === 'string') {
+                    return lotItem._id;
+                  } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                    // Convert buffer data to hex string
+                    const buffer = lotItem._id.buffer.data;
+                    return bufferToHex(buffer);
+                  }
                 }
-              }
-              return index.toString();
-            }).filter(id => !id.match(/^\d+$/)); // Filter out failed conversions (pure numbers)
-          }
-          break;
-        
-        case 'DESCRIPTIVE':
-          if (typeof userAnswer === 'string') {
-            saveAnswer.answerText = userAnswer;
-          }
-          break;
-        
-        case 'NUMERIC_ANSWER_TYPE':
-          if (typeof userAnswer === 'number') {
-            saveAnswer.value = userAnswer;
-          }
-          break;
-        
-        case 'ORDER_THE_LOTS':
-          if (Array.isArray(userAnswer)) {
-            // For ordering, we need to map the ordered items back to their IDs
-            saveAnswer.orders = [(userAnswer as string[]).map((item: string) => {
-              // Find the corresponding lot item for this text
-              const lotItem = question.lotItems?.find(lotItem => lotItem.text === item);
-              if (lotItem && lotItem._id) {
-                if (typeof lotItem._id === 'string') {
-                  return lotItem._id;
-                } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
-                  // Convert buffer data to hex string
-                  const buffer = lotItem._id.buffer.data;
-                  return bufferToHex(buffer);
+                return index.toString();
+              }).filter(id => !id.match(/^\d+$/)); // Filter out failed conversions (pure numbers)
+            }
+            break;
+          
+          case 'DESCRIPTIVE':
+            if (typeof userAnswer === 'string' && userAnswer.trim().length > 0) {
+              saveAnswer.answerText = userAnswer;
+            }
+            break;
+          
+          case 'NUMERIC_ANSWER_TYPE':
+            if (typeof userAnswer === 'number' && !isNaN(userAnswer)) {
+              saveAnswer.value = userAnswer;
+            }
+            break;
+          
+          case 'ORDER_THE_LOTS':
+            if (Array.isArray(userAnswer) && userAnswer.length > 0) {
+              // For ordering, we need to map the ordered items back to their IDs
+              const orderIds = (userAnswer as string[]).map((item: string) => {
+                // Find the corresponding lot item for this text
+                const lotItem = question.lotItems?.find(lotItem => lotItem.text === item);
+                if (lotItem && lotItem._id) {
+                  if (typeof lotItem._id === 'string') {
+                    return lotItem._id;
+                  } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                    // Convert buffer data to hex string
+                    const buffer = lotItem._id.buffer.data;
+                    return bufferToHex(buffer);
+                  }
                 }
-              }
-              return item.toString();
-            })];
-          }
-          break;
-      }
+                return item.toString();
+              });
+              saveAnswer.orders = orderIds;
+            }
+            break;
+        }
 
-      return {
-        questionId: question.id,
-        questionType: question.type,
-        answer: saveAnswer
-      };
-    });
+        return {
+          questionId: question.id,
+          questionType: question.type,
+          answer: saveAnswer
+        };
+      })
+      .filter(questionAnswer => {
+        // Only include questions that have valid answer data
+        const answer = questionAnswer.answer;
+        return Object.keys(answer).length > 0 && Object.values(answer).some(value => 
+          value !== undefined && value !== null && value !== '' && 
+          (!Array.isArray(value) || value.length > 0)
+        );
+      });
   }, [quizQuestions, answers]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
@@ -303,6 +344,10 @@ export default function Quiz({
       // Clear attempt ID from localStorage since quiz is completed
       localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
       
+      // Also clear saved answers and questions
+      localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+      localStorage.removeItem(`quiz-questions-${processedQuizId}`);
+      
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // Still mark as completed for now, but could show error state
@@ -310,13 +355,47 @@ export default function Quiz({
     }
   }, [quizQuestions, answers, attemptId, processedQuizId, submitQuiz, convertAnswersToSaveFormat, showScoreAfterSubmission]);
 
-  const handleNextQuestion = useCallback(() => {
+  const handleNextQuestion = useCallback(async () => {
+    // Auto-save progress before moving to next question
+    if (attemptId && quizQuestions.length > 0) {
+      try {
+        const answersForSaving = convertAnswersToSaveFormat();
+        await saveQuiz({
+          params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+          body: { answers: answersForSaving }
+        });
+        console.log('Progress auto-saved successfully');
+      } catch (err) {
+        console.error('Failed to auto-save progress:', err);
+        // Continue with navigation even if save fails
+      }
+    }
+
     if (currentQuestionIndex < quizQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       completeQuiz();
     }
-  }, [currentQuestionIndex, quizQuestions.length, completeQuiz]);
+  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, attemptId, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
+
+  // Manual save progress function
+  const saveProgress = useCallback(async () => {
+    if (!attemptId || quizQuestions.length === 0) {
+      console.error('No attempt ID or questions available for saving');
+      return;
+    }
+
+    try {
+      const answersForSaving = convertAnswersToSaveFormat();
+      await saveQuiz({
+        params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+        body: { answers: answersForSaving }
+      });
+      console.log('Progress saved successfully');
+    } catch (err) {
+      console.error('Failed to save progress:', err);
+    }
+  }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const startQuiz = async () => {
     try {
@@ -338,13 +417,47 @@ export default function Quiz({
         const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
         setQuizQuestions(convertedQuestions);
         questionsToUse = convertedQuestions;
+        
+        // Store questions in localStorage
+        localStorage.setItem(`quiz-questions-${processedQuizId}`, JSON.stringify(convertedQuestions));
+        
+        // Clear any previous answers since this is a new attempt
+        setAnswers({});
+        localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+      } else {
+        // If we have an attempt ID but no questions loaded, try to load from localStorage
+        if (quizQuestions.length === 0) {
+          const storedQuestions = localStorage.getItem(`quiz-questions-${processedQuizId}`);
+          if (storedQuestions) {
+            try {
+              const parsedQuestions = JSON.parse(storedQuestions);
+              setQuizQuestions(parsedQuestions);
+              questionsToUse = parsedQuestions;
+            } catch (error) {
+              console.error('Failed to parse stored questions:', error);
+              // If we can't load questions from storage, we need to restart
+              localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
+              localStorage.removeItem(`quiz-questions-${processedQuizId}`);
+              localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+              // Restart the function
+              return startQuiz();
+            }
+          } else {
+            // No stored questions, need to restart
+            localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
+            localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+            // Restart the function
+            return startQuiz();
+          }
+        } else {
+          questionsToUse = quizQuestions;
+        }
       }
       
       setAttemptId(currentAttemptId);
       console.log('Quiz attempt started with ID:', currentAttemptId);
       setQuizStarted(true);
       setCurrentQuestionIndex(0);
-      setAnswers({});
       
       // Set timer for first question if available
       if (questionsToUse.length > 0 && questionsToUse[0]?.timeLimit) {
@@ -358,12 +471,16 @@ export default function Quiz({
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[]) => {
     if (currentQuestion) {
-      setAnswers(prev => ({
-        ...prev,
+      const newAnswers = {
+        ...answers,
         [currentQuestion.id]: answer
-      }));
+      };
+      setAnswers(newAnswers);
+      
+      // Save answers to localStorage
+      localStorage.setItem(`quiz-answers-${processedQuizId}`, JSON.stringify(newAnswers));
     }
-  }, [currentQuestion]);
+  }, [currentQuestion, answers, processedQuizId]);
 
   // Timer effect
   useEffect(() => {
@@ -711,9 +828,9 @@ export default function Quiz({
                             : hasAnswer ? 'default' : 'destructive'
                         }>
                           {showScoreAfterSubmission && questionFeedback 
-                            ? `${questionFeedback.score}/${question.points}` 
+                            ? `${questionFeedback.score}/${question.points} Points` 
                             : hasAnswer ? `+${question.points}` : '0'
-                          } / {question.points} points
+                          }
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">{question.question}</p>
@@ -756,6 +873,8 @@ export default function Quiz({
               onClick={() => {
                 // Clear localStorage when retaking quiz
                 localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
+                localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+                localStorage.removeItem(`quiz-questions-${processedQuizId}`);
                 setQuizStarted(false);
                 setQuizCompleted(false);
                 setCurrentQuestionIndex(0);
@@ -771,6 +890,28 @@ export default function Quiz({
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake Quiz
             </Button>
+
+            {/* Next Lesson Button for completed quiz */}
+            {onNext && (
+              <Button
+                onClick={onNext}
+                disabled={isProgressUpdating}
+                className="ml-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                size="lg"
+              >
+                {isProgressUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                    Processing
+                  </>
+                ) : (
+                  <>
+                    Next Lesson
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -981,23 +1122,49 @@ export default function Quiz({
             Previous
           </Button>
 
-          <Button
-            onClick={handleNextQuestion}
-            disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={saveProgress}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  Saving...
+                </>
+              ) : (
+                'Save Progress'
+              )}
+            </Button>
+
+            <Button
+              onClick={handleNextQuestion}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
+
+        {/* Show save error if any */}
+        {saveError && (
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              <strong>Save Error:</strong> {saveError}
+            </p>
+          </div>
+        )}
 
         {/* Show submission error if any */}
         {submitError && currentQuestionIndex === quizQuestions.length - 1 && (

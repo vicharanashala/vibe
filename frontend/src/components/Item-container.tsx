@@ -1,7 +1,7 @@
-import React from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
 import Quiz from './quiz';
-import Article from './article';
+import Article, { ArticleRef } from './article';
 
 export interface Item {
   _id: string;
@@ -43,9 +43,26 @@ export interface Item {
 interface ItemContainerProps {
   item: Item;
   doGesture: boolean;
+  onNext: () => void;
+  isProgressUpdating: boolean;
 }
 
-const ItemContainer: React.FC<ItemContainerProps> = ({ item, doGesture}) => {
+export interface ItemContainerRef {
+  stopCurrentItem: () => void;
+}
+
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, isProgressUpdating }, ref) => {
+  const articleRef = useRef<ArticleRef>(null);
+
+  // ✅ Expose stop function to parent
+  useImperativeHandle(ref, () => ({
+    stopCurrentItem: () => {
+      if (articleRef.current) {
+        articleRef.current.stopItem();
+      }
+    }
+  }));
+
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
 
@@ -57,6 +74,8 @@ const ItemContainer: React.FC<ItemContainerProps> = ({ item, doGesture}) => {
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}
           doGesture={doGesture}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
         />;
 
       case 'quiz':
@@ -76,15 +95,20 @@ const ItemContainer: React.FC<ItemContainerProps> = ({ item, doGesture}) => {
           showScoreAfterSubmission={item.details?.showScoreAfterSubmission || false}
           quizId={item._id || ''}
           doGesture={doGesture}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
         />;
 
       case 'article':
       case 'blog':
         return <Article
-          content={item.blogDetails?.content || item.details?.content || ''}
+          ref={articleRef}
+          content={item.details?.content || ''}
           estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
           tags={item.details?.tags || []}
           points={item.details?.points || ''}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
         />;
 
       default:
@@ -101,6 +125,8 @@ const ItemContainer: React.FC<ItemContainerProps> = ({ item, doGesture}) => {
       {renderContent()}
     </div>
   );
-};
+});
+
+ItemContainer.displayName = 'ItemContainer';
 
 export default ItemContainer;

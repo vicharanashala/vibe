@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2 } from 'lucide-react';
+import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
 import { useStartItem, useStopItem } from '../lib/api/hooks';
 import { useAuthStore } from '../lib/store/auth-store';
 import { useCourseStore } from '../lib/store/course-store';
@@ -12,7 +12,9 @@ interface VideoProps {
   startTime?: string;
   endTime?: string;
   points?: string;
-  doGesture?: boolean; // Optional prop for gesture detection
+  doGesture?: boolean;
+  onNext?: () => void;
+  isProgressUpdating?: boolean;
 }
 
 // Helper to extract YouTube video ID from URL
@@ -67,8 +69,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, doGesture=false }: VideoProps) {
-  console.log('Video component mounted with URL:', URL);
+export default function Video({ URL, startTime, endTime, points, doGesture = false, onNext, isProgressUpdating }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -84,13 +85,14 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
-  
+
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
   const endTimeSeconds = parseTimeToSeconds(endTime || '');
-  
+
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
+  const watchItemIdRef = useRef<string | null>(null);
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
@@ -98,7 +100,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
   // Control handlers
   const handlePlayPause = useCallback(() => {
     const player = playerRef.current;
-    if (!player || typeof player.pauseVideo !== 'function') return; 
+    if (!player || typeof player.pauseVideo !== 'function') return;
     if (playing) {
       player.pauseVideo();
     } else {
@@ -151,27 +153,15 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
         sectionId: currentCourse.sectionId ?? '',
       }
     });
-    if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId)
   }
 
-  const handleStopProgress = useCallback(() => {
-    if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId) return;
-    stopItem.mutate({
-      params: {
-        path: {
-          userId,
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: currentCourse.watchItemId,
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
-  }, [userId, currentCourse, stopItem]);
+  // Update watchItemId when startItem succeeds
+  useEffect(() => {
+    if (startItem.data?.watchItemId) {
+      watchItemIdRef.current = startItem.data.watchItemId;
+      setWatchItemId(startItem.data.watchItemId);
+    }
+  }, [startItem.data?.watchItemId, setWatchItemId]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -256,9 +246,9 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
         'Period', 'Comma', 'KeyI', 'KeyO',
       ];
 
-      if (blockedKeys.includes(e.code) || 
-          (e.shiftKey && e.code === 'Period') || 
-          (e.shiftKey && e.code === 'Comma')) {
+      if (blockedKeys.includes(e.code) ||
+        (e.shiftKey && e.code === 'Period') ||
+        (e.shiftKey && e.code === 'Comma')) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -279,30 +269,61 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
           setCurrentTime(time);
           setDuration(player.getDuration());
           setVolume(player.getVolume());
-          
+
           // Enforce startTime constraint
           if (time < startTimeSeconds) {
             player.seekTo(startTimeSeconds, true);
             setMaxTime(startTimeSeconds);
             return;
           }
-          
+
           // Enforce endTime constraint
-          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
-            if (!progressStoppedRef.current) {
-              handleStopProgress();
-              progressStoppedRef.current = true;
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1) {
+            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+            console.log({params: {
+                  path: {
+                    userId,
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId,
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                }});
+
+            if (watchItemId && userId) {
+              stopItem.mutate({
+                params: {
+                  path: {
+                    userId,
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId,
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                }
+              });
             }
+            progressStoppedRef.current = true;
+          }
+          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
             player.pauseVideo();
             player.seekTo(endTimeSeconds, true);
             setMaxTime(endTimeSeconds);
             return;
           }
-          
+
           // Prevent forward seeking beyond what they've already watched
           const speedTolerance = playbackRate * 1.0;
           const timeDifference = time - maxTime;
-          
+
           if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
             player.seekTo(maxTime, true);
           } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
@@ -312,7 +333,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, handleStopProgress]);
+  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -321,12 +342,12 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
   };
 
   return (
-    <div 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        position: 'relative', 
-        display: 'flex', 
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
@@ -368,7 +389,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
               msUserSelect: 'none',
             }}
           />
-          
+
           {/* Multiple overlay layers to block YouTube controls */}
           <div
             style={{
@@ -426,7 +447,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
             onTouchEnd={(e) => e.preventDefault()}
           />
         </div>
-        
+
         {/* Custom Controls Below Video */}
         <div
           style={{
@@ -458,9 +479,9 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
           </div>
 
           {/* Control Bar */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             gap: 12,
             flexWrap: 'wrap'
@@ -479,7 +500,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
               >
                 {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
-              
+
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -493,9 +514,9 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
                 <SkipBack className="h-3 w-3" />
               </Button>
 
-              <span style={{ 
-                color: 'hsl(var(--foreground))', 
-                fontFamily: 'var(--font-sans)', 
+              <span style={{
+                color: 'hsl(var(--foreground))',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 12,
                 fontWeight: 500,
                 minWidth: 80,
@@ -561,6 +582,39 @@ export default function Video({ URL, startTime, endTime, points, doGesture=false
               </Card>
             </div>
           </div>
+
+          {/* Next Lesson Button */}
+          {onNext && (
+            <div style={{
+              borderTop: '1px solid hsl(var(--border))',
+              paddingTop: '12px',
+              marginTop: '12px',
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNext();
+                }}
+                disabled={isProgressUpdating}
+                className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                size="lg"
+              >
+                {isProgressUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                    Processing
+                  </>
+                ) : (
+                  <>
+                    Next Lesson
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
