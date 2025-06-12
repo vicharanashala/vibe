@@ -68,6 +68,11 @@ interface QuizProps {
   isProgressUpdating?: boolean;
 }
 
+interface Order {
+  order: number;
+  lotItemId: string;
+}
+
 export default function Quiz({
   questionBankRefs,
   passThreshold,
@@ -204,7 +209,7 @@ export default function Quiz({
       lotItemIds?: string[];
       answerText?: string;
       value?: number;
-      orders?: string[];
+      orders?: Order[];
     }
   }> => {
     return quizQuestions
@@ -220,7 +225,7 @@ export default function Quiz({
           lotItemIds?: string[];
           answerText?: string;
           value?: number;
-          orders?: string[];
+          orders?: Order[];
         } = {};
 
         switch (question.type) {
@@ -274,21 +279,25 @@ export default function Quiz({
           case 'ORDER_THE_LOTS':
             if (Array.isArray(userAnswer) && userAnswer.length > 0) {
               // For ordering, we need to map the ordered items back to their IDs
-              const orderIds = (userAnswer as string[]).map((item: string) => {
+              const orders = (userAnswer as string[]).map((item: string, idx: number) => {
                 // Find the corresponding lot item for this text
                 const lotItem = question.lotItems?.find(lotItem => lotItem.text === item);
+                let lotItemId: string = item.toString();
                 if (lotItem && lotItem._id) {
                   if (typeof lotItem._id === 'string') {
-                    return lotItem._id;
+                    lotItemId = lotItem._id;
                   } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
                     // Convert buffer data to hex string
                     const buffer = lotItem._id.buffer.data;
-                    return bufferToHex(buffer);
+                    lotItemId = bufferToHex(buffer);
                   }
                 }
-                return item.toString();
+                return {
+                  order: idx + 1,
+                  lotItemId
+                };
               });
-              saveAnswer.orders = orderIds;
+              saveAnswer.orders = orders;
             }
             break;
         }
