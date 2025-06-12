@@ -780,9 +780,9 @@ type SaveQuestion = {
 };
 
 export function useSaveQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string } }, body:{answers: SaveQuestion[]} }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string } }, body:{answers: SaveQuestion[]} }) => Promise<void>,
-  data: undefined,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => Promise<void>,
+  data: void,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
