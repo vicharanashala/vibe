@@ -1,9 +1,9 @@
 import axios, {AxiosError} from 'axios';
 import {Service} from 'typedi';
 import {InternalServerError, HttpError} from 'routing-controllers'; // HttpError for input validation if needed
-import {questionSchemas} from '../schemas';
-import {extractJSONFromMarkdown} from '../utils/extractJSONFromMarkdown';
-import {cleanTranscriptLines} from '../utils/cleanTranscriptLines';
+import {questionSchemas} from '../schemas/index.js';
+import {extractJSONFromMarkdown} from '../utils/extractJSONFromMarkdown.js';
+import {cleanTranscriptLines} from '../utils/cleanTranscriptLines.js';
 // --- Type Definitions (Inferred or to be replaced by actual imports if available) ---
 
 export interface TranscriptSegment {

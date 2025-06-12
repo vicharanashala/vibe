@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import {RoutingControllersOptions} from 'routing-controllers';
 import {Container} from 'typedi';
 import {useContainer} from 'routing-controllers';
-import GenAIVideoController from './GenAIVideoController'; // Remove .ts extension
+import GenAIVideoController from './GenAIVideoController.js'; // Remove .ts extension
 
 useContainer(Container);
 
@@ -17,4 +17,4 @@ export const genaiModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './GenAIVideoController';
+export * from './GenAIVideoController.js';
