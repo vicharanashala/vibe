@@ -246,6 +246,17 @@ export default function CoursePage() {
         },
       }
     );
+    // Delay to ensure progress is updated before refetching
+    setTimeout(() => {
+      refetchProgress();
+      if (progressData) {
+        const { currentModule, currentSection, currentItem } = progressData;
+        setSelectedModuleId(currentModule);
+        setSelectedSectionId(currentSection);
+        setSelectedItemId(currentItem);
+        updateCourseNavigation(currentModule, currentSection, currentItem);
+      }
+        }, 200);
         
     refetchProgress();
     if (progressData) {
@@ -422,7 +433,7 @@ export default function CoursePage() {
                                                     {selectedItemId === itemId && itemLoading ? 'Loading...' : 
                                                      selectedItemId === itemId && currentItem?.name ? 
                                                      (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) : 
-                                                     `Item ${item.order || ''}`}
+                                                     `${item.name||item.type[0] + item.type.slice(1).toLowerCase() || ''} Item `}
                                                   </div>
                                                 </div>
                                               </div>
