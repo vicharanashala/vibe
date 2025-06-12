@@ -65,6 +65,7 @@ const sortItemsByOrder = (items: any[]) => {
 };
 
 export default function CoursePage() {
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const { user } = useAuthStore();
   const USER_ID = useAuthStore.getState().user?.userId || "";
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
@@ -72,7 +73,7 @@ export default function CoursePage() {
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
-
+ 
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
@@ -243,6 +244,7 @@ export default function CoursePage() {
           sectionId: selectedSectionId ? selectedSectionId : '',
           itemId: selectedItemId ? selectedItemId : '',
           watchItemId: useCourseStore.getState().currentCourse?.watchItemId || '',
+          attemptId: attemptId,
         },
       }
     );
@@ -256,7 +258,7 @@ export default function CoursePage() {
         setSelectedItemId(currentItem);
         updateCourseNavigation(currentModule, currentSection, currentItem);
       }
-        }, 500);
+        }, 1000);
         
     refetchProgress();
     if (progressData) {
@@ -564,6 +566,8 @@ export default function CoursePage() {
                   doGesture={doGesture}
                   onNext={handleNext}
                   isProgressUpdating={updateProgress.isPending}
+                  attemptId={attemptId}
+                  setAttemptId={setAttemptId}
                 />
               </div>
             ) : (

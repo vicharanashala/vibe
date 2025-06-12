@@ -20,11 +20,16 @@ import {
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
+import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
 @injectable()
 class ProgressService extends BaseService {
   constructor(
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
+
+    @inject(QUIZZES_TYPES.SubmissionRepo)
+    private readonly submissionRepository: SubmissionRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -658,6 +663,7 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
     watchItemId: string,
+    attemptId?: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
@@ -671,31 +677,43 @@ class ProgressService extends BaseService {
         itemId,
       );
 
-      // Get WatchTime of the item
-      const watchTime =
-        await this.progressRepository.getWatchTimeById(watchItemId);
-      if (!watchTime) {
-        throw new NotFoundError('Watch time not found');
-      }
-
       // Check if the watch time is greater than the item duration
       const item = await this.itemRepo.readItem(courseVersionId, itemId);
       if (!item) {
         throw new NotFoundError('Item not found in Course Version');
       }
-      // if (item.type !== 'VIDEO' && item.type !== 'BLOG') {
-      //   // TODO: Handle other item types
-      //   throw new BadRequestError('Item type is not supported');
-      // }
-      if (!item) {
-        throw new NotFoundError('Item not found');
-      }
 
-      const isValid = this.isValidWatchTime(watchTime, item);
-      if (!isValid) {
-        throw new BadRequestError(
-          'Watch time is not valid, the user did not watch the item long enough',
+      // Get WatchTime of the item if VIDEO or BLOG item
+      if (item.type === 'VIDEO' || item.type === 'BLOG') {
+        const watchTime =
+          await this.progressRepository.getWatchTimeById(watchItemId);
+        if (!watchTime) {
+          throw new NotFoundError('Watch time not found');
+        }
+        const isValid = this.isValidWatchTime(watchTime, item);
+        if (!isValid) {
+          throw new BadRequestError(
+            'Watch time is not valid, the user did not watch the item long enough',
+          );
+        }
+      } else {
+        // Verify if the user has submitted the QUIZ
+        const submittedQuiz = await this.submissionRepository.get(
+          itemId,
+          userId,
+          attemptId,
+          session,
         );
+        if (!submittedQuiz) {
+          throw new BadRequestError(
+            'Quiz not submitted or attemptId is invalid',
+          );
+        }
+        if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
+          throw new BadRequestError(
+            'Quiz not passed, user cannot proceed to the next item',
+          );
+        }
       }
 
       // Get the course version

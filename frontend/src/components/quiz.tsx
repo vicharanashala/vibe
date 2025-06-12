@@ -42,7 +42,7 @@ interface BufferLike {
   };
 }
 
-interface questionBankRef {
+export interface questionBankRef {
   bankId: string; // ObjectId as string
   count: number; // How many questions to pick
   difficulty?: string[]; // Optional filter
@@ -68,6 +68,8 @@ interface QuizProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  attemptId?: string;
+  setAttemptId?: (attemptId: string) => void;
 }
 
 export interface QuizRef {
@@ -90,6 +92,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   doGesture = false,
   onNext,
   isProgressUpdating,
+  attemptId,
+  setAttemptId,
 }, ref) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
@@ -99,7 +103,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [score, setScore] = useState(0);
   const [, setCurrentConnecting] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const processedQuizId = bufferToHex(quizId.buffer.data);
   console.log('Quiz ID:', quizId);
