@@ -73,7 +73,7 @@ function FloatingVideo({
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
 
   // Add the hooks
-  const { mutate: reportAnomaly } = useReportAnomaly();
+  const { data, error, mutate: reportAnomaly } = useReportAnomaly();
   const authStore = useAuthStore();
   const courseStore = useCourseStore();
 
@@ -209,8 +209,18 @@ function FloatingVideo({
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
 
-        const anomalyType = newPenaltyType === "Focus" ? newPenaltyType: newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition";
+        const anomalyType = newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition";
         // here to add the hook
+
+        console.log({body: {
+            userId: authStore.user?.userId || "", 
+            courseId: courseStore.currentCourse?.courseId || "", 
+            courseVersionId: courseStore.currentCourse?.versionId || "",
+            moduleId: courseStore.currentCourse?.moduleId || "",
+            sectionId: courseStore.currentCourse?.sectionId || "",
+            itemId: courseStore.currentCourse?.itemId || "",
+            anomalyType: anomalyType
+        }});
         reportAnomaly({
           body: {
             userId: authStore.user?.userId || "", 
@@ -221,6 +231,7 @@ function FloatingVideo({
             itemId: courseStore.currentCourse?.itemId || "",
             anomalyType: anomalyType
         }})
+        console.log(data, error)
       }
     }, 1000); // Update every second
 

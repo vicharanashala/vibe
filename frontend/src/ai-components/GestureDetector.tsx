@@ -14,7 +14,7 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
   useEffect(() => {
     const loadModel = async () => {
       try {
-        console.log("[GestureDetector] 🔄 Loading MediaPipe GestureRecognizer...");
+        // console.log("[GestureDetector] 🔄 Loading MediaPipe GestureRecognizer...");
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
@@ -33,9 +33,9 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
         });
 
         setGestureRecognizer(recognizer);
-        console.log("[GestureDetector] ✅ GestureRecognizer Model Loaded!");
+        // console.log("[GestureDetector] ✅ GestureRecognizer Model Loaded!");
       } catch (error) {
-        console.error("[GestureDetector] ❌ Failed to load Gesture Recognizer:", error);
+        // console.error("[GestureDetector] ❌ Failed to load Gesture Recognizer:", error);
       }
     };
 
@@ -54,7 +54,7 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
       return;
     }
 
-    console.log("[GestureDetector] 🎥 Starting gesture recognition...");
+    // console.log("[GestureDetector] 🎥 Starting gesture recognition...");
     
     // Wait for video to be properly ready before starting recognition
     const startRecognition = () => {
@@ -73,7 +73,7 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
             const gestureName = detectedGesture.categoryName;
             const confidence = detectedGesture.score;
             
-            console.log(`[GestureDetector] ✋ Gesture: ${gestureName} (confidence: ${confidence.toFixed(2)})`);
+            // console.log(`[GestureDetector] ✋ Gesture: ${gestureName} (confidence: ${confidence.toFixed(2)})`);
             
             // Only report gestures with reasonable confidence
             if (confidence > 0.6) {

@@ -68,7 +68,7 @@ const useCameraProcessor = (frameRate = 3) => {
 
     workerRef.current.onmessage = (event) => {
       if (event.data.type === "MODEL_READY") {
-        console.log("[useCameraProcessor] Face detection model ready");
+        // console.log("[useCameraProcessor] Face detection model ready");
         setModelReady(true);
       } else if (event.data.type === "DETECTION_RESULT") {
         //   console.log("Face Detection Result:", event.data.faces);
@@ -79,7 +79,7 @@ const useCameraProcessor = (frameRate = 3) => {
     };
 
     workerRef.current.onerror = (error) => {
-      console.error("[useCameraProcessor] Worker error:", error);
+      // console.error("[useCameraProcessor] Worker error:", error);
     };
 
     workerRef.current.postMessage({ type: "INIT" });

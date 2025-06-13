@@ -894,6 +894,6 @@ export function useReportAnomaly(): {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
-    error: result.error ? (result.error.message || 'Failed to report anomaly') : null
+    error: result.error ? (result.error || 'Failed to report anomaly') : null
   };
 }
