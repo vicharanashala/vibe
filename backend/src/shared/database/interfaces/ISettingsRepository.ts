@@ -25,6 +25,7 @@ export enum ProctoringComponent {
   VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection', // virtualBackgroundDetection
   RIGHTCLICKDISABLED = 'rightClickDisabled', // rightClickDisabled
   FACERECOGNITION = 'faceRecognition', // faceRecognition
+  FOCUS = 'focus',
 }
 
 /**

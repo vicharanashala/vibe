@@ -24,7 +24,7 @@ const CALM: React.FC = () => {
     }
   }, []);
 
-  console.log("Hello g",localStorage.getItem("penaltyPoints"))
+  // console.log("Hello g",localStorage.getItem("penaltyPoints"))
 
   // Store penalty points in local storage whenever it changes
   useEffect(() => {

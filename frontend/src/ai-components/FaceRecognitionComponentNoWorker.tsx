@@ -156,7 +156,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
     const initializeModels = async () => {
       try {
-        console.log('[FaceRecognitionComponent] Initializing face-api models...');
+        // console.log('[FaceRecognitionComponent] Initializing face-api models...');
         updateDebugInfo({ backendStatus: 'loading' });
         
         const modelUrl = '/models/face-api/model';
@@ -167,7 +167,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
         ]);
         
-        console.log('[FaceRecognitionComponent] Face-api models loaded successfully');
+        // console.log('[FaceRecognitionComponent] Face-api models loaded successfully');
         
         if (isMounted) {
           await loadKnownFaces();

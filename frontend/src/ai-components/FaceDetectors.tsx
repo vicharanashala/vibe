@@ -47,12 +47,12 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
 
   // Debug log
   useEffect(() => {
-    console.log('🎭 [FaceDetectors] Component rendered with:', {
-      facesCount: faces.length,
-      hasVideoRef: !!videoRef.current,
-      hasCallback: !!onRecognitionResult,
-      hasDebugCallback: !!onDebugInfoUpdate
-    });
+    // console.log('🎭 [FaceDetectors] Component rendered with:', {
+    //   facesCount: faces.length,
+    //   hasVideoRef: !!videoRef.current,
+    //   hasCallback: !!onRecognitionResult,
+    //   hasDebugCallback: !!onDebugInfoUpdate
+    // });
   }, [faces.length, videoRef, onRecognitionResult, onDebugInfoUpdate]);
 
   return (

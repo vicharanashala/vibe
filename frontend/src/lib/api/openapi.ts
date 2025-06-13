@@ -2,16 +2,24 @@ import createFetchClient from 'openapi-fetch';
 import createClient from 'openapi-react-query';
 import type { paths } from './schema';
 
-const customFetch: typeof fetch = (input, init = {}) => {
-  const headers = new Headers(init.headers || {});
-  const token = localStorage.getItem('firebase-auth-token');
-  headers.set('Authorization', 'Bearer '+token); // Replace with dynamic token if needed
-  // Add more headers as needed
-  return fetch(input, { ...init, headers });
+// Helper function to get auth token from localStorage
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('firebase-auth-token');
 };
 
 const fetchClient = createFetchClient<paths>({
   baseUrl: "http://localhost:4001",
-  fetch: customFetch,
 });
+
+// Add middleware to automatically include Authorization header
+fetchClient.use({
+  onRequest({ request }) {
+    const token = getAuthToken();
+    if (token) {
+      request.headers.set('Authorization', `Bearer ${token}`);
+    }
+    return request;
+  },
+});
+
 export const api = createClient(fetchClient);

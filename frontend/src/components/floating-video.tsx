@@ -208,6 +208,8 @@ function FloatingVideo({
       if (newPenaltyPoints > 0) {
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
+
+        const anomalyType = newPenaltyType === "Focus" ? newPenaltyType: newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition";
         // here to add the hook
         reportAnomaly({
           body: {
@@ -217,7 +219,7 @@ function FloatingVideo({
             moduleId: courseStore.currentCourse?.moduleId || "",
             sectionId: courseStore.currentCourse?.sectionId || "",
             itemId: courseStore.currentCourse?.itemId || "",
-            anomalyType: newPenaltyType
+            anomalyType: anomalyType
         }})
       }
     }, 1000); // Update every second
