@@ -146,13 +146,17 @@ const allModuleOptions: RoutingControllersOptions = {
     const authService =
       getFromContainer<FirebaseAuthService>(FirebaseAuthService);
     const token = action.request.headers['authorization']?.split(' ')[1];
+    console.log('Checking token:', token);
     if (!token) {
       return false;
     }
 
     try {
-      return await authService.verifyToken(token);
+      const user = await authService.verifyToken(token);
+      console.log('Authenticated user:', user);
+      return user;
     } catch (error) {
+      console.log('Error verifying token:', error);
       return false;
     }
   },

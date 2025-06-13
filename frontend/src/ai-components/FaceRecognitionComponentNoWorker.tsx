@@ -130,7 +130,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   const [recognitions, setRecognitions] = useState<FaceRecognition[]>([]);
   const [trackedFaces, setTrackedFaces] = useState<TrackedFace[]>([]);
   const lastProcessTime = useRef<number>(0);
-  const processingInterval = 10; // Process every 1 second for faster testing
+  const processingInterval = 10000; // Process every 1 second for faster testing
   const labeledDescriptorsRef = useRef<faceapi.LabeledFaceDescriptors[]>([]);
   
   // IOU tracking configuration

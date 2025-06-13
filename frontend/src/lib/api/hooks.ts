@@ -848,3 +848,52 @@ export function useSubmitQuiz(): {
     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
   };
 }
+
+interface ReportAnomalyBody {
+  userId: string;
+  courseId: string;
+  courseVersionId: string;
+  moduleId?: string;
+  sectionId?: string;
+  itemId?: string;
+  anomalyType: string;
+}
+
+interface ReportAnomalyResponse {
+  // Define the structure of the response here
+  _id: string;
+  userId: string;
+  courseId: string;
+  courseVersionId: string;
+  moduleId?: string;
+  sectionId?: string;
+  itemId?: string;
+  anomalyType: string;
+}
+
+export function useReportAnomaly(): {
+  mutate: (variables: { body: ReportAnomalyBody }) => void,
+  mutateAsync: (variables: { body: ReportAnomalyBody }) => Promise<ReportAnomalyResponse>,
+  data: ReportAnomalyResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/users/anomaly/");
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error ? (result.error.message || 'Failed to report anomaly') : null
+  };
+}
