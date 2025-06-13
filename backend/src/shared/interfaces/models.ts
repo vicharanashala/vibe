@@ -1,4 +1,5 @@
 import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -353,4 +354,57 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+}
+
+// Interface for proctoring settings.
+/*export interface IProctoringSettings {
+  components: ProctoringComponent[];
+}*/
+
+export interface IDetectorOptions {
+  enabled: boolean;
+  options?: Record<string, any>;
+}
+
+export interface IDetectorSettings {
+  detectorName: ProctoringComponent;
+  settings: IDetectorOptions;
+}
+
+export interface IProctoringSettings {
+  detectors: IDetectorSettings[];
+}
+
+// Common settings interface for both user and course settings.
+export interface ISettings {
+  proctors: IProctoringSettings;
+}
+
+// Interface for user-specific settings.
+export interface IUserSettings {
+  _id?: string | ObjectId | null;
+  studentId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  courseId: string | ObjectId;
+  settings: ISettings;
+}
+
+// Interface for course-specific settings.
+export interface ICourseSettings {
+  courseVersionId: string | ObjectId;
+  courseId: string | ObjectId;
+  settings: ISettings;
+}
+
+// Interface for User Specific Anomalies
+
+export interface IUserAnomaly {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  moduleId?: string | ObjectId;
+  sectionId?: string | ObjectId;
+  itemId?: string | ObjectId;
+  anomalyType: string;
 }

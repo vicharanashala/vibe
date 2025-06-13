@@ -3,30 +3,23 @@ import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {Container} from 'inversify';
 import {RoutingControllersOptions, useContainer} from 'routing-controllers';
-import {usersContainerModule} from './container.js';
-import {EnrollmentController} from './controllers/EnrollmentController.js';
-import {ProgressController} from './controllers/ProgressController.js';
-import {UserController} from './controllers/UserController.js';
-import {AnamolyController} from './controllers/AnamolyController.js';
+import {settingsContainerModule} from './container.js';
+import {CourseSettingsController} from './controllers/index.js';
+import {UserSettingsController} from './controllers/UserSettingsController.js';
 
-export async function setupUsersContainer(): Promise<void> {
+export async function setupSettingsContainer(): Promise<void> {
   const container = new Container();
   await container.load(
     sharedContainerModule,
     authContainerModule,
-    usersContainerModule,
+    settingsContainerModule,
   );
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
 
-export const usersModuleOptions: RoutingControllersOptions = {
-  controllers: [
-    EnrollmentController,
-    ProgressController,
-    UserController,
-    AnamolyController,
-  ],
+export const settingsModuleOptions: RoutingControllersOptions = {
+  controllers: [CourseSettingsController, UserSettingsController],
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {

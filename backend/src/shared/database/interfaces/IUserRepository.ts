@@ -1,4 +1,4 @@
-import {IUser} from '#shared/interfaces/models.js';
+import {IUser, IUserAnomaly} from '#shared/interfaces/models.js';
 import {MongoClient, ClientSession, ObjectId} from 'mongodb';
 
 /**
@@ -61,4 +61,14 @@ export interface IUserRepository {
    * @returns A promise that resolves to the user if found, or null if not found.
    */
   findById(id: string | ObjectId): Promise<IUser | null>;
+
+  /**
+   * Creates a User Anomaly Document to the database.
+   * @param anamoly - The anomaly document to create.
+   */
+
+  createUserAnomaly(
+    anamoly: IUserAnomaly,
+    session?: ClientSession,
+  ): Promise<IUserAnomaly | null>;
 }

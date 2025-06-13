@@ -1,6 +1,7 @@
 import {EnrollmentRole, EnrollmentStatus} from '#shared/index.js';
 import {Expose, Type} from 'class-transformer';
 import {Enrollment} from './Enrollment.js';
+import {Anomaly} from './Anamoly.js';
 import {Progress} from './Progress.js';
 
 export * from './Enrollment.js';
@@ -51,5 +52,14 @@ export class EnrolledUserResponse {
     this.role = role;
     this.status = status;
     this.enrollmentDate = enrollmentDate;
+  }
+}
+export class AnomalyResponse {
+  @Expose()
+  @Type(() => Anomaly)
+  anomaly: Anomaly;
+
+  constructor(anamoly: Anomaly) {
+    this.anomaly = anamoly;
   }
 }
