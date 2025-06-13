@@ -462,7 +462,7 @@ export default function CoursePage() {
             </ScrollArea>
           </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-              <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo>
+              {/* <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo> */}
             </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
