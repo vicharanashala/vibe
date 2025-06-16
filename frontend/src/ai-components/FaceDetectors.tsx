@@ -8,6 +8,11 @@ interface FaceDetectorsProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  settings:{
+    isFaceCountDetectionEnabled:boolean, 
+    isFaceRecognitionEnabled:boolean, 
+    isFocusEnabled: boolean
+  }
 }
 
 const isLookingAway = (face: Face): boolean => {

@@ -94,7 +94,7 @@ export default function AuthPage() {
   
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
-  const [activeRole, setActiveRole] = useState<"teacher" | "student">("teacher");
+  const [activeRole, setActiveRole] = useState<"teacher" | "student">("student");
   const [fullName, setFullName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formErrors, setFormErrors] = useState<{
@@ -419,14 +419,15 @@ export default function AuthPage() {
                   {/* Role Selection Tabs */}
                   <CardHeader className="pb-4">
                     <Tabs 
-                      defaultValue="teacher" 
+                      defaultValue="student" 
                       className="w-full" 
-                      onValueChange={(v: string) => setActiveRole(v as "teacher" | "student")}
+                      onValueChange={(v: string) => setActiveRole(v as "student" | "teacher")}
                       value={activeRole}
                     >
                       <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="teacher">Teacher</TabsTrigger>
                         <TabsTrigger value="student">Student</TabsTrigger>
+                        <TabsTrigger value="teacher">Teacher</TabsTrigger>
+                        
                       </TabsList>
                     </Tabs>
                   </CardHeader>

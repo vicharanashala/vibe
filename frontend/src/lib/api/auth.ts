@@ -113,7 +113,8 @@ export const loginWithEmail = async (email: string, password: string) => {
 export function logout() {
   // Clear token
   localStorage.removeItem('firebase-auth-token');
-  
+  localStorage.removeItem('isAuth'); // Clear auth flag  
+  localStorage.removeItem('auth-store'); // Clear user data
   // Sign out from Firebase
   firebaseSignOut(auth).catch(err => console.error('Firebase logout error:', err));
   

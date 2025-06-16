@@ -916,7 +916,7 @@ function FloatingVideo({
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
             onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
-            settings={isFaceCountDetectionEnabled, }
+            settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
           />
         )}
       </div>

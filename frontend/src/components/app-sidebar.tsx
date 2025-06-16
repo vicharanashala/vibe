@@ -26,6 +26,17 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+// Custom Vibe logo component for the sidebar
+const VibeLogo = ({ className }: { className?: string }) => (
+  <div className={`h-8 w-8 rounded-lg overflow-hidden ${className}`}>
+    <img 
+      src="https://continuousactivelearning.github.io/vibe/img/logo.png" 
+      alt="Vibe Logo" 
+      className="h-8 w-8 object-contain"
+    />
+  </div>
+);
+
 // This is sample data.
 const data = {
   user: {
@@ -35,9 +46,9 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
+      name: "Vibe",
+      logo: VibeLogo,
+      plan: "Learning Platform",
     },
     {
       name: "Acme Corp.",
