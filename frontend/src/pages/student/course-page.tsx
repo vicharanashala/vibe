@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress, useItemById } from "@/lib/api/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress, useItemById, useProctoringSettings } from "@/lib/api/hooks";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useCourseStore } from "@/lib/store/course-store";
 import { Link } from "@tanstack/react-router";
@@ -116,6 +116,10 @@ export default function CoursePage() {
   const { data: progressData, isLoading: progressLoading, error: progressError, refetch: refetchProgress } =
     useUserProgress(USER_ID, COURSE_ID, VERSION_ID);
 
+  // Fetch proctoring settings for the course (fetched once when component loads)
+  const { data: proctoringData, isLoading: proctoringLoading, error: proctoringError } =
+    useProctoringSettings(USER_ID, COURSE_ID, VERSION_ID);
+
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
   const sectionId = activeSectionInfo?.sectionId ?? '';
@@ -127,7 +131,7 @@ export default function CoursePage() {
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? sectionModuleId : '6831b98e1f79c52d445c5db5',
-    shouldFetchItems ? sectionId : '6831b98e1f79c52d445c5db6',
+    shouldFetchItems ? sectionId : '6831b98e1f79c52d445c5db6'
   );
 
   // Fetch individual item details when an item is selected
@@ -145,6 +149,13 @@ export default function CoursePage() {
   useEffect(() => {
     console.log('Current section items:', itemData);
   }, [itemData]);
+
+  // Log proctoring settings when loaded (only logs once when data is available)
+  useEffect(() => {
+    if (proctoringData) {
+      console.log('Proctoring settings loaded:', proctoringData);
+    }
+  }, [proctoringData]);
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -258,7 +269,7 @@ export default function CoursePage() {
         setSelectedItemId(currentItem);
         updateCourseNavigation(currentModule, currentSection, currentItem);
       }
-        }, 1000);
+        }, 200);
         
     refetchProgress();
     if (progressData) {
@@ -268,9 +279,9 @@ export default function CoursePage() {
       setSelectedItemId(currentItem);
       updateCourseNavigation(currentModule, currentSection, currentItem);
     }
-  }, [itemContainerRef, updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress, progressData, updateCourseNavigation]);
+  }, [itemContainerRef, updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress,updateCourseNavigation]);
 
-  if (versionLoading || progressLoading) {
+  if (versionLoading || progressLoading || proctoringLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex items-center space-x-4">
@@ -284,13 +295,13 @@ export default function CoursePage() {
     );
   }
 
-  if (versionError || progressError) {
+  if (versionError || progressError || proctoringError) {
     return (
       <Card className="mx-auto max-w-md">
         <CardContent className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="text-destructive mb-2">
-              <Target className="h-8 w-8 mx-auto" />
+              <Target className="h-8 w-8 mx-auto"></Target>
             </div>
             <p className="text-destructive font-medium">Error loading course data</p>
             <p className="text-muted-foreground text-sm mt-1">Please try again later</p>
@@ -462,7 +473,7 @@ export default function CoursePage() {
             </ScrollArea>
           </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-              {/* <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo> */}
+              <FloatingVideo setDoGesture={setDoGesture} settings={proctoringData}></FloatingVideo>
             </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">

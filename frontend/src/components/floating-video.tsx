@@ -15,11 +15,32 @@ import { useReportAnomaly } from '@/lib/api/hooks';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useCourseStore } from '@/lib/store/course-store';
 
+// Proctoring settings interface based on the backend structure
+interface IDetectorSettings {
+  detectorName: string;
+  settings: {
+    enabled: boolean;
+  };
+}
+
+interface ProctoringSettings {
+  _id: string;
+  studentId: string;
+  versionId: string;
+  courseId: string;
+  settings: {
+    proctors: {
+      detectors: IDetectorSettings[];
+    };
+  };
+}
+
 interface FloatingVideoProps {
   isVisible?: boolean;
   onClose?: () => void;
   onAnomalyDetected?: (hasAnomaly: boolean) => void;
   setDoGesture: (value: boolean) => void;
+  settings?: ProctoringSettings;
 }
 
 let flag = 0;
@@ -27,7 +48,8 @@ function FloatingVideo({
   isVisible = true, 
   onClose,
   onAnomalyDetected,
-  setDoGesture
+  setDoGesture,
+  settings
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,6 +93,39 @@ function FloatingVideo({
 
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
+
+  // Helper function to check if a specific proctoring component is enabled
+  const isComponentEnabled = useCallback((componentName: string): boolean => {
+    if (!settings?.settings?.proctors?.detectors) return false;
+    
+    const detector = settings.settings.proctors.detectors.find(
+      (detector) => detector.detectorName === componentName
+    );
+    
+    return detector?.settings?.enabled ?? false;
+  }, [settings]);
+
+  // Check which components are enabled
+  const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
+  const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
+  const isHandGestureDetectionEnabled = isComponentEnabled('handGestureDetection');
+  const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
+  const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
+  const isFocusEnabled = isComponentEnabled('focus');
+
+  // Log enabled components for debugging
+  useEffect(() => {
+    if (settings) {
+      console.log('🔧 [FloatingVideo] Proctoring settings loaded:', {
+        blurDetection: isBlurDetectionEnabled,
+        faceCountDetection: isFaceCountDetectionEnabled,
+        handGestureDetection: isHandGestureDetectionEnabled,
+        voiceDetection: isVoiceDetectionEnabled,
+        faceRecognition: isFaceRecognitionEnabled,
+        focus: isFocusEnabled
+      });
+    }
+  }, [settings, isBlurDetectionEnabled, isFaceCountDetectionEnabled, isHandGestureDetectionEnabled, isVoiceDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled]);
 
   // Add the hooks
   const { data, error, mutate: reportAnomaly } = useReportAnomaly();
@@ -180,26 +235,26 @@ function FloatingVideo({
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
 
-      // Condition 1: If speaking is detected
-      if (isSpeaking === "Yes") {
+      // Condition 1: If speaking is detected (only if voice detection is enabled)
+      if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
-      // Condition 2: If faces count is not exactly 1
-      if (facesCount !== 1) {
+      // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
+      if (facesCount !== 1 && isFaceCountDetectionEnabled) {
         newPenaltyType = "Faces Count";
         newPenaltyPoints += 1;
       }
 
-      // Condition 3: If the screen is blurred
-      if (isBlur === "Yes") {
+      // Condition 3: If the screen is blurred (only if blur detection is enabled)
+      if (isBlur === "Yes" && isBlurDetectionEnabled) {
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
       }
 
-      // Condition 4: If not focused
-      if (!isFocused) {
+      // Condition 4: If not focused (only if focus tracking is enabled)
+      if (!isFocused && isFocusEnabled) {
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
@@ -236,10 +291,26 @@ function FloatingVideo({
     }, 1000); // Update every second
 
     return () => clearInterval(interval);
-  }, [isSpeaking, facesCount, isBlur, isFocused, reportAnomaly, authStore.user?.userId, courseStore.currentCourse]);
+  }, [
+    isSpeaking, 
+    facesCount, 
+    isBlur, 
+    isFocused, 
+    reportAnomaly, 
+    authStore.user?.userId, 
+    courseStore.currentCourse,
+    isVoiceDetectionEnabled,
+    isFaceCountDetectionEnabled,
+    isBlurDetectionEnabled,
+    isFocusEnabled,
+    data,
+    error
+  ]);
   const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
-  // Random thumbs-up challenge system
+  // Random thumbs-up challenge system - only run if gesture detection is enabled
   useEffect(() => {
+    if (!isHandGestureDetectionEnabled) return;
+    
     const checkForChallenge = () => {
       const now = Date.now();
       const timeSinceLastChallenge = now - lastChallengeTime;
@@ -273,11 +344,11 @@ function FloatingVideo({
 
     const interval = setInterval(checkForChallenge, 1000);
     return () => clearInterval(interval);
-  }, [isThumbsUpChallenge, lastChallengeTime, gesture]);
+  }, [isThumbsUpChallenge, lastChallengeTime, gesture, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Thumbs-up countdown timer
+  // Thumbs-up countdown timer - only run if gesture detection is enabled
   useEffect(() => {
-    if (!isThumbsUpChallenge || thumbsUpCountdown <= 0) return;
+    if (!isHandGestureDetectionEnabled || !isThumbsUpChallenge || thumbsUpCountdown <= 0) return;
 
     const timer = setTimeout(() => {
       setThumbsUpCountdown(prev => {
@@ -294,33 +365,33 @@ function FloatingVideo({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isThumbsUpChallenge, thumbsUpCountdown]);
+  }, [isThumbsUpChallenge, thumbsUpCountdown, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Check for thumbs-up gesture during challenge
+  // Check for thumbs-up gesture during challenge - only run if gesture detection is enabled
   useEffect(() => {
-    if (isThumbsUpChallenge && gesture) {
-      const gestureText = gesture.toLowerCase();
-      console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
-      
-      // Check for various thumbs-up patterns that MediaPipe might return
-      const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
-      
-      if (isThumbsUp) {
-        console.log("[Challenge] ✅ Thumbs-up detected! Challenge passed.");
-        setDoGesture(false);
-        // Success - end challenge without penalty
-        setIsThumbsUpChallenge(false);
-        setThumbsUpCountdown(0);
-      }
+    if (!isHandGestureDetectionEnabled || !isThumbsUpChallenge || !gesture) return;
+    
+    const gestureText = gesture.toLowerCase();
+    console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
+    
+    // Check for various thumbs-up patterns that MediaPipe might return
+    const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
+    
+    if (isThumbsUp) {
+      console.log("[Challenge] ✅ Thumbs-up detected! Challenge passed.");
+      setDoGesture(false);
+      // Success - end challenge without penalty
+      setIsThumbsUpChallenge(false);
+      setThumbsUpCountdown(0);
     }
-  }, [gesture, isThumbsUpChallenge]);
+  }, [gesture, isThumbsUpChallenge, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Check if any anomalies are detected (removed gesture condition)
-  const isAnomaliesDetected = isSpeaking === "Yes" || 
-                              facesCount !== 1 || 
-                              isBlur === "Yes" || 
-                              !isFocused ||
-                              isThumbsUpChallenge;
+  // Check if any anomalies are detected - only consider enabled detectors
+  const isAnomaliesDetected = (isSpeaking === "Yes" && isVoiceDetectionEnabled) || 
+                              (facesCount !== 1 && isFaceCountDetectionEnabled) || 
+                              (isBlur === "Yes" && isBlurDetectionEnabled) || 
+                              (!isFocused && isFocusEnabled) ||
+                              (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
   // Notify parent component about anomaly status
   useEffect(() => {
@@ -814,31 +885,40 @@ function FloatingVideo({
         )}
       </div>
 
-      {/* AI Components - Use key to force re-initialization when isPoppedOut changes */}
+      {/* AI Components - Only render if enabled in proctoring settings */}
       <div className="hidden">
-        <BlurDetection 
-          key={`blur-${aiComponentsKey}`}
-          videoRef={videoRef} 
-          setIsBlur={setIsBlur}
-        />
-        <SpeechDetector 
-          key={`speech-${aiComponentsKey}`}
-          setIsSpeaking={setIsSpeaking}
-        />
-        <GestureDetector 
-          key={`gesture-${aiComponentsKey}`}
-          videoRef={videoRef} 
-          setGesture={setGesture}
-          trigger={true}
-        />
-        <FaceDetectors 
-          key={`face-${faceDetectorsKey}`}
-          faces={faces} 
-          setIsFocused={setIsFocused}
-          videoRef={videoRef}
-          onRecognitionResult={handleFaceRecognitionResult}
-          onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
-        />
+        {isBlurDetectionEnabled && (
+          <BlurDetection 
+            key={`blur-${aiComponentsKey}`}
+            videoRef={videoRef} 
+            setIsBlur={setIsBlur}
+          />
+        )}
+        {isVoiceDetectionEnabled && (
+          <SpeechDetector 
+            key={`speech-${aiComponentsKey}`}
+            setIsSpeaking={setIsSpeaking}
+          />
+        )}
+        {isHandGestureDetectionEnabled && (
+          <GestureDetector 
+            key={`gesture-${aiComponentsKey}`}
+            videoRef={videoRef} 
+            setGesture={setGesture}
+            trigger={true}
+          />
+        )}
+        {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled) && (
+          <FaceDetectors 
+            key={`face-${faceDetectorsKey}`}
+            faces={faces} 
+            setIsFocused={setIsFocused}
+            videoRef={videoRef}
+            onRecognitionResult={handleFaceRecognitionResult}
+            onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
+            settings={isFaceCountDetectionEnabled, }
+          />
+        )}
       </div>
 
       {/* Resize Handle - Only show when not collapsed and popped out */}

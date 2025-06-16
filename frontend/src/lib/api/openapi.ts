@@ -8,8 +8,7 @@ const getAuthToken = (): string | null => {
 };
 
 const fetchClient = createFetchClient<paths>({
-  baseUrl: "http://localhost:4001",
-  fetch: customFetch,
+  baseUrl: "http://localhost:4001"
 });
 
 // Add middleware to automatically include Authorization header

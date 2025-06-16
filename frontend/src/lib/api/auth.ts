@@ -69,6 +69,7 @@ export const initAuth = () => {
       const user = await mapFirebaseUserToAppUser(firebaseUser);
       if (user) {
         console.log('User authenticated:', user);
+        localStorage.setItem('isAuth', 'true'); // Set auth flag in localStorage
         setUser(user);
       }
     } else {

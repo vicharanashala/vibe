@@ -897,3 +897,38 @@ export function useReportAnomaly(): {
     error: result.error ? (result.error || 'Failed to report anomaly') : null
   };
 }
+
+export interface ProctoringSettings {
+  _id: string;
+  userId: string;
+  versionId: string;
+  courseId: string;
+  settings: {
+    proctors: {
+      detectors: {
+        detectorName: string;
+        settings: {
+          enabled: boolean;
+        }
+      }[]
+    }
+}
+}
+
+export function useProctoringSettings(userId: string, courseId: string, versionId: string ): {
+  data:  | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/settings/users/{userId}/{courseId}/{versionId}", {
+    params: { path: { userId, courseId, versionId } }
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user by Firebase UID') : null,
+    refetch: result.refetch
+  };
+}

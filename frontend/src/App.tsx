@@ -13,7 +13,10 @@ export function App() {
   //   const unsubscribe = initAuth();
   //   return () => unsubscribe();
   // }, []);
-  initAuth();
+  if (localStorage.getItem('isAuth') !== 'true'){
+    initAuth();
+  }
+   
 
   return (
     <QueryClientProvider client={queryClient}>
