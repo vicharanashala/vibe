@@ -1,10 +1,3 @@
-import {
-  IVideoDetails,
-  IQuizDetails,
-  IBlogDetails,
-  IBaseItem,
-  ItemType,
-} from '#shared/index.js';
 import {Type} from 'class-transformer';
 import {
   IsNotEmpty,
@@ -23,21 +16,25 @@ import {
   IsMongoId,
   ValidateIf,
   ValidateNested,
+  IsEnum,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {CourseVersion} from '../transformers/CourseVersion.js';
+import {ItemsGroup} from '../transformers/Item.js';
 import {
-  ItemsGroup,
-  QuizItem,
-  BlogItem,
-  VideoItem,
-} from '../transformers/Item.js';
+  IVideoDetails,
+  IQuizDetails,
+  IBlogDetails,
+  IBaseItem,
+  ItemType,
+} from '#root/shared/interfaces/models.js';
+import { OnlyOneId } from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
     title: 'Video URL',
     description: 'Public video URL (e.g., YouTube or Vimeo link)',
-    example: 'https://youtu.be/ta99S6Fh53c',
+    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     type: 'string',
     format: 'uri',
   })
@@ -323,6 +320,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     type: 'string',
     enum: ['VIDEO', 'BLOG', 'QUIZ'],
   })
+  @IsEnum(ItemType)
   @IsNotEmpty()
   type: ItemType;
 
@@ -396,8 +394,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
     type: 'object',
     readOnly: true,
   })
-  @IsEmpty()
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
 
   @JSONSchema({
     title: 'Created At',
@@ -407,9 +403,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
     format: 'date-time',
     readOnly: true,
   })
-  @IsEmpty()
-  createdAt: Date;
-
   @JSONSchema({
     title: 'Updated At',
     description: 'Item update timestamp (auto-managed)',
@@ -418,18 +411,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
     format: 'date-time',
     readOnly: true,
   })
-  @IsEmpty()
-  updatedAt: Date;
-
-  @JSONSchema({
-    title: 'Item Type',
-    description: 'Updated type of the item: VIDEO, BLOG, or QUIZ',
-    example: 'BLOG',
-    type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ'],
-  })
-  @IsOptional()
-  type: ItemType;
 
   @JSONSchema({
     title: 'After Item ID',
@@ -441,6 +422,10 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterItemId',
+    beforeIdPropertyName: 'beforeItemId',
+  })
   afterItemId?: string;
 
   @JSONSchema({
@@ -500,6 +485,10 @@ class MoveItemBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterItemId',
+    beforeIdPropertyName: 'beforeItemId',
+  })
   afterItemId?: string;
 
   @JSONSchema({
@@ -513,39 +502,13 @@ class MoveItemBody {
   @IsMongoId()
   @IsString()
   beforeItemId?: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Either afterItemId or beforeItemId must be provided.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.afterItemId && !o.beforeItemId)
-  @IsNotEmpty({
-    message: 'At least one of "afterItemId" or "beforeItemId" must be provided',
-  })
-  onlyOneAllowed: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Both afterItemId and beforeItemId should not be provided together.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => o.afterItemId && o.beforeItemId)
-  @IsNotEmpty({
-    message: 'Only one of "afterItemId" or "beforeItemId" must be provided',
-  })
-  bothNotAllowed: string;
 }
 
-class CreateItemParams {
+
+class VersionModuleSectionItemParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -555,8 +518,7 @@ class CreateItemParams {
 
   @JSONSchema({
     title: 'Module ID',
-    description: 'ID of the module inside the version',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
+    description: 'ID of the module',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -566,78 +528,7 @@ class CreateItemParams {
 
   @JSONSchema({
     title: 'Section ID',
-    description: 'ID of the section inside the module',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  sectionId: string;
-}
-
-class ReadAllItemsParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the items',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module containing the section',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'ID of the section containing the items',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  sectionId: string;
-}
-
-class UpdateItemParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the item',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module containing the section',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'ID of the section containing the item',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
+    description: 'ID of the section',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -647,54 +538,7 @@ class UpdateItemParams {
 
   @JSONSchema({
     title: 'Item ID',
-    description: 'ID of the item to be updated',
-    example: '60d5ec49b3f1c8e4a8f8b8f8',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  itemId: string;
-}
-
-class MoveItemParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the item',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module containing the section',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'ID of the section containing the item',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  sectionId: string;
-
-  @JSONSchema({
-    title: 'Item ID',
-    description: 'ID of the item to be moved',
-    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    description: 'ID of the item',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -809,16 +653,6 @@ class DeletedItemResponse {
   updatedItemsGroup: Record<string, any>;
 }
 
-class GetItemResponse {
-  @JSONSchema({
-    description: 'The item data',
-    type: 'object',
-    readOnly: true,
-  })
-  @IsNotEmpty()
-  item: VideoItem | QuizItem | BlogItem;
-}
-
 export {
   CreateItemBody,
   UpdateItemBody,
@@ -826,14 +660,10 @@ export {
   VideoDetailsPayloadValidator,
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
-  CreateItemParams,
-  ReadAllItemsParams,
-  UpdateItemParams,
-  MoveItemParams,
+  VersionModuleSectionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
   DeletedItemResponse,
   GetItemParams,
-  GetItemResponse,
 };

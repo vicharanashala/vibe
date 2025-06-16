@@ -1,4 +1,4 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/index.js';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {

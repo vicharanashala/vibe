@@ -1,4 +1,4 @@
-import {IModule, ICourseVersion} from '#shared/index.js';
+import {IModule, ICourseVersion} from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,
@@ -8,6 +8,9 @@ import {
   ValidateIf,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
+import { OnlyOneId } from './customValidators.js';
+
+
 
 class CreateModuleBody implements Partial<IModule> {
   @JSONSchema({
@@ -37,7 +40,7 @@ class CreateModuleBody implements Partial<IModule> {
 
   @JSONSchema({
     title: 'After Module ID',
-    description: 'Optional: Position the new module after this module ID',
+    description: 'Position the new module after this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
     format: 'Mongo Object ID',
@@ -45,11 +48,12 @@ class CreateModuleBody implements Partial<IModule> {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({ afterIdPropertyName: 'afterModuleId', beforeIdPropertyName: 'beforeModuleId' })
   afterModuleId?: string;
 
   @JSONSchema({
     title: 'Before Module ID',
-    description: 'Optional: Position the new module before this module ID',
+    description: 'Position the new module before this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
     format: 'Mongo Object ID',
@@ -68,7 +72,7 @@ class UpdateModuleBody implements Partial<IModule> {
     type: 'string',
     maxLength: 255,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
@@ -81,24 +85,10 @@ class UpdateModuleBody implements Partial<IModule> {
     type: 'string',
     maxLength: 1000,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] This is a virtual field used only for validation. Do not include this field in requests.\nEither "name" or "description" must be provided.',
-    readOnly: true,
-    writeOnly: false,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.name && !o.description)
-  @IsNotEmpty({
-    message: 'At least one of "name" or "description" must be provided',
-  })
-  nameOrDescription: string;
 }
 
 class MoveModuleBody {
@@ -112,6 +102,7 @@ class MoveModuleBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({ afterIdPropertyName: 'afterModuleId', beforeIdPropertyName: 'beforeModuleId' })
   afterModuleId?: string;
 
   @JSONSchema({
@@ -125,40 +116,12 @@ class MoveModuleBody {
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Either afterModuleId or beforeModuleId must be provided.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.afterModuleId && !o.beforeModuleId)
-  @IsNotEmpty({
-    message:
-      'At least one of "afterModuleId" or "beforeModuleId" must be provided',
-  })
-  onlyOneAllowed: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Both afterModuleId and beforeModuleId should not be provided together.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => o.afterModuleId && o.beforeModuleId)
-  @IsNotEmpty({
-    message: 'Only one of "afterModuleId" or "beforeModuleId" must be provided',
-  })
-  bothNotAllowed: string;
 }
 
 class CreateModuleParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to which the module will be added',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -167,11 +130,10 @@ class CreateModuleParams {
   versionId: string;
 }
 
-class UpdateModuleParams {
+class VersionModuleParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -182,55 +144,6 @@ class UpdateModuleParams {
   @JSONSchema({
     title: 'Module ID',
     description: 'ID of the module to be updated',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-}
-
-class MoveModuleParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module to move',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-}
-
-class DeleteModuleParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module to delete',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -252,8 +165,6 @@ class ModuleDataResponse {
 class ModuleNotFoundErrorResponse {
   @JSONSchema({
     description: 'The error message',
-    example:
-      'No module found with the specified ID. Please verify the ID and try again.',
     type: 'string',
     readOnly: true,
   })
@@ -264,8 +175,6 @@ class ModuleNotFoundErrorResponse {
 class ModuleDeletedResponse {
   @JSONSchema({
     description: 'Deletion confirmation message',
-    example:
-      'Module with the ID 60d5ec49b3f1c8e4a8f8b8e6 in Version 60d5ec49b3f1c8e4a8f8b8d5 has been deleted successfully.',
     type: 'string',
     readOnly: true,
   })
@@ -277,10 +186,8 @@ export {
   CreateModuleBody,
   UpdateModuleBody,
   CreateModuleParams,
-  UpdateModuleParams,
-  MoveModuleParams,
+  VersionModuleParams,
   MoveModuleBody,
-  DeleteModuleParams,
   ModuleDataResponse,
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,

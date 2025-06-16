@@ -1,20 +1,17 @@
 import {QuestionBank} from '#quizzes/classes/transformers/QuestionBank.js';
-import {
-  QuestionBankRepository,
-  QuestionRepository,
-} from '#quizzes/repositories/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  BaseService,
-  CourseRepository,
-  MongoDatabase,
-  IQuestionBank,
-  IQuestionBankRef,
-} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {NotFoundError} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
 import {COURSES_TYPES} from '#courses/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import { QuestionRepository } from '../repositories/providers/mongodb/QuestionRepository.js';
+import { CourseRepository } from '#root/shared/database/providers/mongo/repositories/CourseRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
+import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
+
 @injectable()
 class QuestionBankService extends BaseService {
   constructor(

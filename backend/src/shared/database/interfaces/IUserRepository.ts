@@ -1,4 +1,4 @@
-import {IUser, IUserAnomaly} from '#shared/interfaces/models.js';
+import {IUser} from '#shared/interfaces/models.js';
 import {MongoClient, ClientSession, ObjectId} from 'mongodb';
 
 /**
@@ -23,7 +23,8 @@ export interface IUserRepository {
    * @returns A promise that resolves to the user if found, or null if not found.
    */
   findByEmail(email: string, session?: ClientSession): Promise<IUser | null>;
-
+  findById(id: string | ObjectId): Promise<IUser | null>;
+  findByFirebaseUID(firebaseUID: string): Promise<IUser | null>;
   /**
    * Adds a role to a user.
    * @param userId - The ID of the user to add the role to.
@@ -47,28 +48,4 @@ export interface IUserRepository {
    * @returns A promise that resolves to the updated user if successful, or null if not.
    */
   updatePassword(userId: string, password: string): Promise<IUser | null>;
-
-  /**
-   * Finds a user by their Firebase UID.
-   * @param firebaseUID - The Firebase UID of the user to find.
-   * @returns A promise that resolves to the user if found, or null if not found.
-   */
-  findByFirebaseUID(firebaseUID: string): Promise<IUser | null>;
-
-  /**
-   * Finds a user by their ID.
-   * @param id - The ID of the user to find.
-   * @returns A promise that resolves to the user if found, or null if not found.
-   */
-  findById(id: string | ObjectId): Promise<IUser | null>;
-
-  /**
-   * Creates a User Anomaly Document to the database.
-   * @param anamoly - The anomaly document to create.
-   */
-
-  createUserAnomaly(
-    anamoly: IUserAnomaly,
-    session?: ClientSession,
-  ): Promise<IUserAnomaly | null>;
 }

@@ -1,21 +1,17 @@
-import {
-  CreateSectionBody,
-  Section,
-  ItemsGroup,
-} from '#courses/classes/index.js';
 import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  BaseService,
-  IItemRepository,
-  ICourseRepository,
-  MongoDatabase,
-  ICourseVersion,
-} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {UpdateResult} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
+import {ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {Section} from '#courses/classes/transformers/Section.js';
+import {CreateSectionBody} from '#courses/classes/validators/SectionValidators.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -194,7 +190,7 @@ export class SectionService extends BaseService {
 
       const modules = readCourseVersion.modules;
       if (!modules) {
-        throw new NotFoundError('Modules not found');
+        throw new NotFoundError('../../../modules not found');
       }
 
       const deleteResult = await this.courseRepo.deleteSection(

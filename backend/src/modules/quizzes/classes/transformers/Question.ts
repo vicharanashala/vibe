@@ -9,7 +9,7 @@ import {
   ILotOrder,
   INATSolution,
   IDESSolution,
-} from '#shared/index.js';
+} from '#shared/interfaces/quiz.js';
 import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
 

@@ -1,17 +1,18 @@
-import {COURSES_TYPES, Item} from '#courses/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import {Item} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
-  BaseService,
-  ICourseRepository,
-  IUserRepository,
-  IItemRepository,
-  MongoDatabase,
   ICourseVersion,
   IWatchTime,
   IProgress,
-} from '#shared/index.js';
+} from '#root/shared/interfaces/models.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {Progress} from '#users/classes/index.js';
+import {Progress} from '#users/classes/transformers/Progress.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';

@@ -1,6 +1,6 @@
-import {Container} from 'inversify';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {Container, ContainerModule} from 'inversify';
 import {
   RoutingControllersOptions,
   Action,
@@ -11,15 +11,23 @@ import {authContainerModule} from './container.js';
 import {AuthController} from './controllers/AuthController.js';
 import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 
+
+export const authContainerModules: ContainerModule[] = [
+  authContainerModule,
+  sharedContainerModule,
+];
+
+export const authModuleControllers: Function[] = [AuthController];
+
 export async function setupAuthContainer(): Promise<void> {
   const container = new Container();
-  await container.load(sharedContainerModule, authContainerModule);
+  await container.load(...authContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
 
 export const authModuleOptions: RoutingControllersOptions = {
-  controllers: [AuthController],
+  controllers: authModuleControllers,
   authorizationChecker: async function (action: Action, roles: string[]) {
     // Use the auth service to check if the user is authorized
     const authService =
@@ -57,11 +65,12 @@ export const authModuleOptions: RoutingControllersOptions = {
       return null;
     }
   },
+  validation: true,
 };
 
-export * from './classes/index.js';
-export * from './controllers/index.js';
-export * from './interfaces/index.js';
-export * from './services/index.js';
-export * from './container.js';
-export * from './types.js';
+// export * from './classes/index.js';
+// export * from './controllers/index.js';
+// export * from './interfaces/index.js';
+// export * from './services/index.js';
+// export * from './container.js';
+// export * from './types.js';

@@ -1,27 +1,29 @@
+import 'reflect-metadata';
 import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
-// TODO: Update the import paths below to your project's structure
-import {authModuleOptions, setupAuthContainer, SignUpBody} from '../index';
 import {faker} from '@faker-js/faker';
-import {jest} from '@jest/globals';
+import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
+import {setupAuthContainer} from '#auth/index.js';
+import {describe, it,expect,beforeAll, beforeEach} from 'vitest';
+import { HttpErrorHandler } from '#shared/index.js';
+import { AuthController } from '../controllers/AuthController.js';
 
 describe('Auth Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
 
   beforeAll(async () => {
-    // Set up the real MongoDatabase and Repository
     await setupAuthContainer();
-    // Create the Express app with routing-controllers configuration
-    app = useExpressServer(appInstance, authModuleOptions);
-  }, 30000); // <-- timeout for beforeAll
+    app = useExpressServer(appInstance, {
+      controllers: [AuthController],
+      validation: true,
+      defaultErrorHandler: false,
+      middlewares: [HttpErrorHandler]
 
-  beforeEach(async () => {
-    // TODO: Optionally reset database state before each test
-  }, 30000); // <-- timeout for beforeEach
+    });
+  }, 30000); 
 
-  // ------Tests for Create <ModuleName>------
   describe('Sign Up Test', () => {
     it('should sign up a new user successfully', async () => {
       const signUpBody: SignUpBody = {
@@ -30,7 +32,7 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app).post('/auth/signup/').send(signUpBody);
       expect(response.status).toBe(201);
     }, 30000); // <-- timeout for this test
 
@@ -41,7 +43,7 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app).post('/auth/signup/').send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors[0].constraints.isEmail).toBeDefined();
@@ -57,7 +59,7 @@ describe('Auth Controller Integration Tests', () => {
         firstName: '',
         lastName: '',
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app).post('/auth/signup/').send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
     }, 30000);
@@ -69,7 +71,7 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app).post('/auth/signup/').send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
     }, 30000);

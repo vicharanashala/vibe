@@ -1,15 +1,6 @@
-import {
-  CourseDataResponse,
-  CreateCourseBody,
-  Course,
-  CourseNotFoundErrorResponse,
-  ReadCourseParams,
-  UpdateCourseParams,
-  UpdateCourseBody,
-} from '#courses/classes/index.js';
-import {CourseService} from '#courses/services/CourseService.js';
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-import {injectable, inject} from 'inversify';
+import { CourseService } from '#courses/services/CourseService.js';
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Authorized,
@@ -22,19 +13,34 @@ import {
   Delete,
   OnUndefined,
 } from 'routing-controllers';
-import {ResponseSchema} from 'routing-controllers-openapi';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { Course } from '#courses/classes/transformers/Course.js';
+import {
+  CourseDataResponse,
+  CourseBody,
+  CourseNotFoundErrorResponse,
+  CourseIdParams,
+} from '#courses/classes/validators/CourseValidators.js';
+
+@OpenAPI({
+  tags: ['Courses'],
+})
 @injectable()
 @JsonController('/courses')
 export class CourseController {
   constructor(
     @inject(COURSES_TYPES.CourseService)
     private readonly courseService: CourseService,
-  ) {}
+  ) { }
 
+  @OpenAPI({
+    summary: 'Create a new course',
+    description: `Creates a new course in the system.<br/>.`,
+  })
   @Authorized(['admin', 'instructor'])
-  @Post('/', {transformResponse: true})
+  @Post('/', { transformResponse: true })
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
@@ -43,14 +49,21 @@ export class CourseController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async create(@Body() body: CreateCourseBody): Promise<Course> {
+  async create(@Body() body: CourseBody): Promise<Course> {
     const course = new Course(body);
     const createdCourse = await this.courseService.createCourse(course);
     return createdCourse;
   }
 
+  @OpenAPI({
+    summary: 'Get course details',
+    description: `Retrieves course information by ID.<br/>
+Accessible to:
+- Users who are part of the course (students, teaching assistants, instructors, or managers)
+`,
+  })
   @Authorized(['admin', 'instructor'])
-  @Get('/:id', {transformResponse: true})
+  @Get('/:id', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -62,14 +75,20 @@ export class CourseController {
     description: 'Course not found',
     statusCode: 404,
   })
-  async read(@Params() params: ReadCourseParams) {
-    const {id} = params;
+  async read(@Params() params: CourseIdParams) {
+    const { id } = params;
     const course = await this.courseService.readCourse(id);
     return course;
   }
 
+  @OpenAPI({
+    summary: 'Update a course',
+    description: `Updates course metadata such as title or description.<br/>
+Accessible to:
+- Instructor or manager for the course.`,
+  })
   @Authorized(['admin', 'instructor'])
-  @Put('/:id', {transformResponse: true})
+  @Put('/:id', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -82,16 +101,20 @@ export class CourseController {
     statusCode: 404,
   })
   async update(
-    @Params() params: UpdateCourseParams,
-    @Body() body: UpdateCourseBody,
+    @Params() params: CourseIdParams,
+    @Body() body: CourseBody,
   ) {
-    const {id} = params;
+    const { id } = params;
     const updatedCourse = await this.courseService.updateCourse(id, body);
     return updatedCourse;
   }
 
+@OpenAPI({
+  summary: 'Delete a course',
+  description: `Deletes a course by ID.`,
+})
   @Authorized(['admin', 'instructor'])
-  @Delete('/:id', {transformResponse: true})
+  @Delete('/:id', { transformResponse: true })
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -101,8 +124,8 @@ export class CourseController {
     description: 'Course not found',
     statusCode: 404,
   })
-  async delete(@Params() params: ReadCourseParams) {
-    const {id} = params;
+  async delete(@Params() params: CourseIdParams) {
+    const { id } = params;
     await this.courseService.deleteCourse(id);
   }
 }

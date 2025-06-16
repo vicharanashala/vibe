@@ -1,4 +1,4 @@
-import {IQuestionParameter} from '#shared/index.js';
+import {IQuestionParameter} from '#shared/interfaces/quiz.js';
 import {Tag, ParameterMap} from './tags/Tag.js';
 
 class TagParser {

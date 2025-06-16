@@ -1,4 +1,4 @@
-import {ISection, ICourseVersion} from '#shared/index.js';
+import {ICourseVersion, ISection} from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,
@@ -8,6 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
+import { AtLeastOne, OnlyOneId } from './customValidators.js';
 
 class CreateSectionBody implements Partial<ISection> {
   @JSONSchema({
@@ -45,6 +46,7 @@ class CreateSectionBody implements Partial<ISection> {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({ afterIdPropertyName: 'afterSectionId', beforeIdPropertyName: 'beforeSectionId' })
   afterSectionId?: string;
 
   @JSONSchema({
@@ -68,7 +70,7 @@ class UpdateSectionBody implements Partial<ISection> {
     type: 'string',
     maxLength: 255,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
@@ -81,24 +83,10 @@ class UpdateSectionBody implements Partial<ISection> {
     type: 'string',
     maxLength: 1000,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] This is a virtual field used only for validation. Do not include this field in requests.\nEither "name" or "description" must be provided.',
-    readOnly: true,
-    writeOnly: false,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.name && !o.description)
-  @IsNotEmpty({
-    message: 'At least one of "name" or "description" must be provided',
-  })
-  nameOrDescription: string;
 }
 
 class MoveSectionBody {
@@ -112,6 +100,7 @@ class MoveSectionBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({ afterIdPropertyName: 'afterSectionId', beforeIdPropertyName: 'beforeSectionId' })
   afterSectionId?: string;
 
   @JSONSchema({
@@ -125,67 +114,12 @@ class MoveSectionBody {
   @IsMongoId()
   @IsString()
   beforeSectionId?: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Either afterSectionId or beforeSectionId must be provided.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.afterSectionId && !o.beforeSectionId)
-  @IsNotEmpty({
-    message:
-      'At least one of "afterSectionId" or "beforeSectionId" must be provided',
-  })
-  onlyOneAllowed: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] Validation helper. Both afterSectionId and beforeSectionId should not be provided together.',
-    readOnly: true,
-    type: 'string',
-  })
-  @ValidateIf(o => o.afterSectionId && o.beforeSectionId)
-  @IsNotEmpty({
-    message:
-      'Only one of "afterSectionId" or "beforeSectionId" must be provided',
-  })
-  bothNotAllowed: string;
 }
 
-class CreateSectionParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version to which the module belongs',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module where the new section will be added',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  moduleId: string;
-}
-
-class MoveSectionParams {
+class VersionModuleSectionParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -197,7 +131,6 @@ class MoveSectionParams {
   @JSONSchema({
     title: 'Module ID',
     description: 'ID of the module containing the section',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -208,46 +141,7 @@ class MoveSectionParams {
 
   @JSONSchema({
     title: 'Section ID',
-    description: 'ID of the section to be moved',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  sectionId: string;
-}
-
-class UpdateSectionParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module containing the section',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  moduleId: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'ID of the section to be updated',
-    example: '60d5ec49b3f1c8e4a8f8b8f7',
+    description: 'ID of the section',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -291,50 +185,13 @@ class SectionDeletedResponse {
   message: string;
 }
 
-class DeleteSectionParams {
-  @JSONSchema({
-    title: 'Version ID',
-    description: 'ID of the course version containing the module',
-    example: '60d5ec49b3f1c8e4a8f8b8d5',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  @JSONSchema({
-    title: 'Module ID',
-    description: 'ID of the module to delete',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
-
-  @JSONSchema({
-    title: 'Section ID',
-    description: 'ID of the section to delete',
-    example: '60d5ec49b3f1c8e4a8f8b8e6',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  sectionId: string;
-}
 
 export {
   CreateSectionBody,
   UpdateSectionBody,
   MoveSectionBody,
-  CreateSectionParams,
-  MoveSectionParams,
-  UpdateSectionParams,
+  VersionModuleSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
-  SectionDeletedResponse,
-  DeleteSectionParams,
+  SectionDeletedResponse
 };

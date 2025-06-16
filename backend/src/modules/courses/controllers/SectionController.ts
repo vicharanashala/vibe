@@ -1,23 +1,7 @@
-import {
-  SectionDataResponse,
-  SectionNotFoundErrorResponse,
-  CreateSectionParams,
-  CreateSectionBody,
-  CourseVersion,
-  UpdateSectionParams,
-  UpdateSectionBody,
-  MoveSectionParams,
-  MoveSectionBody,
-  SectionDeletedResponse,
-  DeleteSectionParams,
-} from '#courses/classes/index.js';
-import {ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from '#shared/index.js';
-import {SectionService} from '#courses/services/SectionService.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {
-  JsonController as JsonController,
+  JsonController,
   Authorized,
   Post,
   HttpCode,
@@ -27,8 +11,26 @@ import {
   HttpError,
   Put,
   Delete,
+  BadRequestError,
 } from 'routing-controllers';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {
+  SectionDataResponse,
+  SectionNotFoundErrorResponse,
+  CreateSectionBody,
+  VersionModuleSectionParams,
+  UpdateSectionBody,
+  MoveSectionBody,
+  SectionDeletedResponse,
+} from '#courses/classes/validators/SectionValidators.js';
+import {SectionService} from '#courses/services/SectionService.js';
+import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
+import { VersionModuleParams } from '../classes/validators/ModuleValidators.js';
+@OpenAPI({
+  tags: ['Course Sections'],
+})
 @injectable()
 @JsonController('/courses')
 export class SectionController {
@@ -41,6 +43,12 @@ export class SectionController {
     }
   }
 
+  @OpenAPI({
+  summary: 'Create a section',
+  description: `Creates a new section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+})
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections')
   @HttpCode(201)
@@ -56,7 +64,7 @@ export class SectionController {
     statusCode: 404,
   })
   async create(
-    @Params() params: CreateSectionParams,
+    @Params() params: VersionModuleParams,
     @Body() body: CreateSectionBody,
   ): Promise<CourseVersion> {
     try {
@@ -77,6 +85,13 @@ export class SectionController {
     }
   }
 
+  @OpenAPI({
+  summary: 'Update a section',
+  description: `Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+})
+
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDataResponse, {
@@ -91,7 +106,7 @@ export class SectionController {
     statusCode: 404,
   })
   async update(
-    @Params() params: UpdateSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: UpdateSectionBody,
   ): Promise<CourseVersion> {
     try {
@@ -115,6 +130,12 @@ export class SectionController {
     }
   }
 
+  @OpenAPI({
+  summary: 'Reorder a section',
+  description: `Changes the position of a section within its module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+})
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
   @ResponseSchema(SectionDataResponse, {
@@ -129,7 +150,7 @@ export class SectionController {
     statusCode: 404,
   })
   async move(
-    @Params() params: MoveSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: MoveSectionBody,
   ): Promise<CourseVersion> {
     try {
@@ -137,8 +158,8 @@ export class SectionController {
       const {afterSectionId, beforeSectionId} = body;
 
       if (!afterSectionId && !beforeSectionId) {
-        throw new InternalServerError(
-          'Either afterModuleId or beforeModuleId is required',
+        throw new BadRequestError(
+          'Either afterSectionId or beforeSectionId is required',
         );
       }
 
@@ -163,6 +184,12 @@ export class SectionController {
     }
   }
 
+  @OpenAPI({
+  summary: 'Delete a section',
+  description: `Deletes a section from a module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+})
   @Authorized(['admin'])
   @Delete('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDeletedResponse, {
@@ -177,7 +204,7 @@ export class SectionController {
     statusCode: 404,
   })
   async delete(
-    @Params() params: DeleteSectionParams,
+    @Params() params: VersionModuleSectionParams,
   ): Promise<SectionDeletedResponse> {
     const {versionId, moduleId, sectionId} = params;
     const deletedSection = await this.sectionService.deleteSection(

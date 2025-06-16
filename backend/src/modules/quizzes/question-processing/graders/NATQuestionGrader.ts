@@ -1,11 +1,11 @@
-import {QuizItem} from '#courses/index.js';
-import {NATQuestion} from '#quizzes/classes/index.js';
+import {QuizItem} from '#courses/classes/transformers/Item.js';
+import {NATQuestion} from '#quizzes/classes/transformers/Question.js';
 import {
   INATAnswer,
   IQuestionAnswerFeedback,
 } from '#quizzes/interfaces/grading.js';
 import {IGrader} from './interfaces/IGrader.js';
-import {evaluate, round} from 'mathjs';
+import {evaluate} from 'mathjs';
 
 class NATQuestionGrader implements IGrader {
   constructor(readonly question: NATQuestion) {}

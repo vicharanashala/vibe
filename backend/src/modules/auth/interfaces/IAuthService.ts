@@ -1,5 +1,5 @@
 import {SignUpBody, ChangePasswordBody} from '#auth/classes/index.js';
-import {IUser} from '#shared/index.js';
+import {IUser} from '#shared/interfaces/models.js';
 
 /**
  * Interface representing the authentication service.

@@ -1,14 +1,15 @@
-import {GLOBAL_TYPES} from '#root/types.js';
+
 import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ObjectId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class EnrollmentRepository {
-  private enrollmentCollection: Collection<IEnrollment>;
-  private progressCollection: Collection<IProgress>;
+  private enrollmentCollection!: Collection<IEnrollment>;
+  private progressCollection!: Collection<IProgress>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 

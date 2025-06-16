@@ -2,24 +2,26 @@ import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
 import {
-  CreateCourseBody,
+  CourseBody,
   CreateCourseVersionBody,
   CreateCourseVersionParams,
   CreateItemBody,
-  CreateItemParams,
+  VersionModuleSectionParams,
   CreateModuleBody,
   CreateModuleParams,
   CreateSectionBody,
-  CreateSectionParams,
+  VersionModuleParams,
   ItemDataResponse,
   ModuleDataResponse,
   SectionDataResponse,
 } from '../../../courses/classes/validators/index.js';
-import {Course, CourseVersion} from '#courses/classes/transformers/index.js';
-import {ItemType} from '#root/shared/interfaces/models.js';
+import {Course, CourseVersion} from '../../../courses/classes/transformers/index.js';
+import {ItemType} from '../../../../shared/interfaces/models.js';
+import {expect} from 'vitest'
+
 
 async function createCourse(app: typeof Express): Promise<Course> {
-  const body: CreateCourseBody = {
+  const body: CourseBody = {
     name: faker.commerce.productName(),
     description: faker.commerce.productDescription(),
   };
@@ -78,7 +80,7 @@ async function createSection(
     description: faker.commerce.productDescription(),
   };
 
-  const params: CreateSectionParams = {
+  const params: VersionModuleParams = {
     versionId: versionId,
     moduleId: moduleId,
   };
@@ -117,7 +119,7 @@ async function createQuizItem(
       passThreshold: 0.7,
     },
   };
-  const params: CreateItemParams = {
+  const params: VersionModuleSectionParams = {
     versionId: versionId,
     moduleId: moduleId,
     sectionId: sectionId,
@@ -151,7 +153,7 @@ async function createVideoItem(
       points: 27,
     },
   };
-  const params: CreateItemParams = {
+  const params: VersionModuleSectionParams = {
     versionId: versionId,
     moduleId: moduleId,
     sectionId: sectionId,
@@ -186,7 +188,7 @@ async function createBlogItem(
     },
   };
 
-  const params: CreateItemParams = {
+  const params: VersionModuleSectionParams = {
     versionId: versionId,
     moduleId: moduleId,
     sectionId: sectionId,

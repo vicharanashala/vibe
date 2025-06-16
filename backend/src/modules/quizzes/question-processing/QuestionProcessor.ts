@@ -1,4 +1,4 @@
-import {QuizItem} from '#courses/index.js';
+import {QuizItem} from '#courses/classes/transformers/Item.js';
 import {
   BaseQuestion,
   SOLQuestion,
@@ -6,41 +6,33 @@ import {
   OTLQuestion,
   NATQuestion,
   DESQuestion,
-} from '#quizzes/classes/index.js';
+} from '#quizzes/classes/transformers/Question.js';
 import {Answer, IQuestionAnswerFeedback} from '#quizzes/interfaces/grading.js';
-import {generateRandomParameterMap} from '#quizzes/utils/index.js';
-import {
-  DESQuestionGrader,
-  IGrader,
-  NATQuestionGrader,
-  OTLQuestionGrader,
-  SMLQuestionGrader,
-  SOLQuestionGrader,
-} from './graders/index.js';
-import {
-  BaseQuestionRenderer,
-  DESQuestionRenderer,
-  IQuestionRenderView,
-  NATQuestionRenderer,
-  OTLQuestionRenderer,
-  SMLQuestionRenderer,
-  SOLQuestionRenderer,
-} from './renderers/index.js';
-import {
-  QParamTag,
-  NumExprTag,
-  NumExprTexTag,
-  ParameterMap,
-} from './tag-parser/index.js';
+import {generateRandomParameterMap} from '#quizzes/utils/functions/generateRandomParameterMap.js';
+import {DESQuestionGrader} from './graders/DESQuestionGrader.js';
+import {IGrader} from './graders/interfaces/IGrader.js';
+import {NATQuestionGrader} from './graders/NATQuestionGrader.js';
+import {OTLQuestionGrader} from './graders/OTLQuestionGrader.js';
+import {SMLQuestionGrader} from './graders/SMLQuestionGrader.js';
+import {SOLQuestionGrader} from './graders/SOLQuestionGrader.js';
+import {BaseQuestionRenderer} from './renderers/BaseQuestionRenderer.js';
+import {DESQuestionRenderer} from './renderers/DESQuestionRenderer.js';
+import {IQuestionRenderView} from './renderers/interfaces/RenderViews.js';
+import {NATQuestionRenderer} from './renderers/NATQuestionRenderer.js';
+import {OTLQuestionRenderer} from './renderers/OTLQuestionRenderer.js';
+import {SMLQuestionRenderer} from './renderers/SMLQuestionRenderer.js';
+import {SOLQuestionRenderer} from './renderers/SOLQuestionRenderer.js';
 import {TagParser} from './tag-parser/TagParser.js';
-import {
-  BaseQuestionValidator,
-  DESQuestionValidator,
-  NATQuestionValidator,
-  OTLQuestionValidator,
-  SMLQuestionValidator,
-  SOLQuestionValidator,
-} from './validators/index.js';
+import {NumExprTag} from './tag-parser/tags/NumExprTag.js';
+import {NumExprTexTag} from './tag-parser/tags/NumExprTexTag.js';
+import {QParamTag} from './tag-parser/tags/QParamTag.js';
+import {ParameterMap} from './tag-parser/tags/Tag.js';
+import {BaseQuestionValidator} from './validators/BaseQuestionValidator.js';
+import {DESQuestionValidator} from './validators/DESQuestionValidator.js';
+import {NATQuestionValidator} from './validators/NATQuestionValidator.js';
+import {OTLQuestionValidator} from './validators/OTLQuestionValidator.js';
+import {SMLQuestionValidator} from './validators/SMLQuestionValidator.js';
+import {SOLQuestionValidator} from './validators/SOLQuestionValidator.js';
 
 class QuestionProcessor {
   private tagParser: TagParser;

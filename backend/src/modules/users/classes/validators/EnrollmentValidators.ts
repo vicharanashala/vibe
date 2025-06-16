@@ -1,4 +1,3 @@
-import {ID, EnrollmentRole, EnrollmentStatus} from '#shared/index.js';
 import {Type} from 'class-transformer';
 import {
   IsMongoId,
@@ -12,11 +11,15 @@ import {
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ProgressDataResponse} from './ProgressValidators.js';
+import {
+  EnrollmentRole,
+  EnrollmentStatus,
+  ID,
+} from '#root/shared/interfaces/models.js';
 
 export class EnrollmentParams {
   @JSONSchema({
     description: 'User ID of the student to enroll',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -27,7 +30,6 @@ export class EnrollmentParams {
 
   @JSONSchema({
     description: 'ID of the course to enroll in',
-    example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -38,7 +40,6 @@ export class EnrollmentParams {
 
   @JSONSchema({
     description: 'ID of the specific course version to enroll in',
-    example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
     format: 'Mongo Object ID',
   })

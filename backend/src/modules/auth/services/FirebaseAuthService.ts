@@ -1,15 +1,13 @@
 import {SignUpBody, User, ChangePasswordBody} from '#auth/classes/index.js';
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  BaseService,
-  IUserRepository,
-  MongoDatabase,
-  IUser,
-} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
+import { IUser } from '#root/shared/interfaces/models.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -47,22 +45,19 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
   async verifyToken(token: string): Promise<Partial<IUser>> {
     // Decode and verify the Firebase token
-    // const decodedToken = await this.auth.verifyIdToken(token);
-    // // Retrieve the full user record from Firebase
-    // const userRecord = await this.auth.getUser(decodedToken.uid);
+    const decodedToken = await this.auth.verifyIdToken(token);
+    // Retrieve the full user record from Firebase
+    const userRecord = await this.auth.getUser(decodedToken.uid);
 
-    // // Map Firebase user data to our application user model
-    // const user: Partial<IUser> = {
-    //   firebaseUID: userRecord.uid,
-    //   email: userRecord.email || '',
-    //   firstName: userRecord.displayName?.split(' ')[0] || '',
-    //   lastName: userRecord.displayName?.split(' ')[1] || '',
-    // };
-    // console.log('Decoded user:', user);
+    // Map Firebase user data to our application user model
+    const user: Partial<IUser> = {
+      firebaseUID: userRecord.uid,
+      email: userRecord.email || '',
+      firstName: userRecord.displayName?.split(' ')[0] || '',
+      lastName: userRecord.displayName?.split(' ')[1] || '',
+    };
 
-    const result = await this.userRepository.findByFirebaseUID(token);
-
-    return result;
+    return user;
   }
 
   async signup(body: SignUpBody): Promise<string> {

@@ -1,4 +1,4 @@
-import {ICourse, ID} from '#shared/index.js';
+import {ICourse, ID} from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,
@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
-class CreateCourseBody implements Partial<ICourse> {
+class CourseBody implements Partial<ICourse> {
   @JSONSchema({
     title: 'Course Name',
     description: 'Name of the course',
@@ -35,60 +35,10 @@ class CreateCourseBody implements Partial<ICourse> {
   description: string;
 }
 
-class UpdateCourseBody implements Partial<ICourse> {
-  @JSONSchema({
-    description: 'Name of the course',
-    example: 'Introduction to Programming',
-    type: 'string',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  @MinLength(3)
-  name: string;
 
+class CourseIdParams {
   @JSONSchema({
-    description: 'Description of the course',
-    example: 'This course covers the basics of programming.',
-    type: 'string',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  @MinLength(3)
-  description: string;
-
-  @JSONSchema({
-    deprecated: true,
-    description:
-      '[READONLY] This is a virtual field used only for validation. Do not include this field in requests.\nEither "name" or "description" must be provided.',
-    readOnly: true,
-    writeOnly: false,
-    type: 'string',
-  })
-  @ValidateIf(o => !o.name && !o.description)
-  @IsNotEmpty({
-    message: 'At least one of "name" or "description" must be provided',
-  })
-  nameOrDescription: string;
-}
-
-class ReadCourseParams {
-  @JSONSchema({
-    description: 'Object ID of the course to read',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsMongoId()
-  @IsString()
-  id: string;
-}
-
-class UpdateCourseParams {
-  @JSONSchema({
-    description: 'Object ID of the course to update',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
+    description: 'Object ID of the course',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -100,7 +50,6 @@ class UpdateCourseParams {
 class CourseDataResponse implements ICourse {
   @JSONSchema({
     description: 'Unique identifier for the course',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
     format: 'Mongo Object ID',
     readOnly: true,
@@ -186,10 +135,8 @@ class CourseNotFoundErrorResponse {
 }
 
 export {
-  CreateCourseBody,
-  UpdateCourseBody,
-  ReadCourseParams,
-  UpdateCourseParams,
+  CourseBody,
+  CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
 };

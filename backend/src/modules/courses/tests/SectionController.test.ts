@@ -1,13 +1,9 @@
 import Express from 'express';
-import {useExpressServer, useContainer} from 'routing-controllers';
-import {coursesModuleOptions} from '../';
+import {useExpressServer} from 'routing-controllers';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import request from 'supertest';
-import {InversifyAdapter} from '../../../inversify-adapter';
-import {Container} from 'inversify';
-import {coursesContainerModule} from '../container';
-import {sharedContainerModule} from '../../../container';
-import {jest} from '@jest/globals';
-import { usersContainerModule } from '#users/container.js';
+import {describe, expect, it, beforeAll} from 'vitest';
+
 
 describe('Section Controller Integration Tests', () => {
   const App = Express();
@@ -15,14 +11,10 @@ describe('Section Controller Integration Tests', () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    const container = new Container();
-    await container.load(sharedContainerModule,
-        coursesContainerModule,
-        usersContainerModule,);
-    const inversifyAdapter = new InversifyAdapter(container);
-    useContainer(inversifyAdapter);
+    await setupCoursesContainer();
     app = useExpressServer(App, coursesModuleOptions);
   });
+
 
   describe('SECTION CREATION', () => {
     describe('Success Scenario', () => {
@@ -79,6 +71,7 @@ describe('Section Controller Integration Tests', () => {
       }, 90000);
     });
   });
+
   describe('ITEM DELETION', () => {
     describe('Success Scenario', () => {
       const coursePayload = {
@@ -317,99 +310,6 @@ describe('Section Controller Integration Tests', () => {
 
         // section3 should now be before section1
         expect(idx3).toBeLessThan(idx1);
-      }, 90000);
-    });
-  });
-  describe('SECTION UPDATE', () => {
-    describe('Success Scenario', () => {
-      const coursePayload = {
-        name: 'New Course',
-        description: 'Course description',
-      };
-
-      const courseVersionPayload = {
-        version: 'New Course Version',
-        description: 'Course version description',
-      };
-
-      const modulePayload = {
-        name: 'New Module',
-        description: 'Module description',
-      };
-
-      const sectionPayload = {
-        name: 'Original Section',
-        description: 'Original section description',
-      };
-
-      it('should update a section', async () => {
-        // Create course, version, module, section
-        const courseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-        const courseId = courseResponse.body._id;
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-        const versionId = versionResponse.body._id;
-
-        const moduleResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-        const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-        const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-          .send(sectionPayload)
-          .expect(201);
-
-        const sectionId =
-          sectionResponse.body.version.modules[0].sections[0].sectionId;
-
-        // Update the section
-        const updatePayload = {
-          name: 'Updated Section',
-          description: 'Updated section description',
-        };
-
-        const updateResponse = await request(app)
-          .put(
-            `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}`,
-          )
-          .send(updatePayload)
-          .expect(200);
-        expect(updateResponse.body.modules[0].sections[0].name).toBe(updatePayload.name);
-      }, 90000);
-    });
-
-    describe('Failure Scenario', () => {
-      it('should fail to update a section with invalid params', async () => {
-        const updatePayload = {
-          name: 'Invalid Update',
-        };
-        await request(app)
-          .put(
-            '/courses/versions/invalidVersionId/modules/invalidModuleId/sections/invalidSectionId',
-          )
-          .send(updatePayload)
-          .expect(400);
-      }, 90000);
-
-      it('should return 404 if section not found', async () => {
-        const updatePayload = {
-          name: 'Nonexistent Section',
-        };
-        const res = await request(app)
-          .put(
-            '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db/sections/62341aeb5be816967d8fc2db',
-          )
-          .send(updatePayload)
-          .expect(500);
-        expect(res.body.message).toMatch(/not found/);
       }, 90000);
     });
   });

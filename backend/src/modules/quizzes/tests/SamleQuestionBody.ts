@@ -1,4 +1,4 @@
-﻿import { IQuestion, ISOLSolution, ISMLSolution, IOTLSolution } from "../../../shared/interfaces/quiz";
+﻿import { IQuestion, ISOLSolution, ISMLSolution, IOTLSolution } from "#shared/interfaces/quiz.js";
 
 const NATquestionData: IQuestion = {
 	text: 'What is the value of <QParam>x</QParam> + <QParam>y</QParam>?',

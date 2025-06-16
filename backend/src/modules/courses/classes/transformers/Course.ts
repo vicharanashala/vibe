@@ -1,12 +1,11 @@
 import {
-  ICourse,
   ObjectIdToString,
   StringToObjectId,
-  ID,
   ObjectIdArrayToStringArray,
   StringArrayToObjectIdArray,
-} from '#shared/index.js';
-import {CreateCourseBody} from '../validators/CourseValidators.js';
+} from '#root/shared/constants/transformerConstants.js';
+import {ICourse, ID} from '#root/shared/interfaces/models.js';
+import {CourseBody} from '../validators/CourseValidators.js';
 import {Expose, Type, Transform} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -98,7 +97,7 @@ class Course implements ICourse {
   })
   updatedAt?: Date;
 
-  constructor(courseBody?: CreateCourseBody) {
+  constructor(courseBody?: CourseBody) {
     if (courseBody) {
       this.name = courseBody.name;
       this.description = courseBody.description;

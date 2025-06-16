@@ -1,0 +1,224 @@
+import { validationMetadatasToSchemas } from "class-validator-jsonschema";
+import { getMetadataArgsStorage, RoutingControllersOptions } from "routing-controllers";
+import { routingControllersToSpec } from "routing-controllers-openapi";
+
+
+import { appConfig } from '../../config/app.js'; // adjust path as needed
+
+
+const getOpenApiServers = () => {
+  const servers = [];
+
+  const isDev = appConfig.isDevelopment;
+  const isStaging = appConfig.isStaging;
+  const isProd = appConfig.isProduction;
+
+  const appUrl = appConfig.url || 'https://vibe.vicharanashala.ai';
+  const parsedUrl = new URL(appUrl);
+
+  if (isDev) {
+    // Localhost server
+    servers.push({
+      url: 'http://{host}:{port}',
+      description: 'Local Development Server',
+      variables: {
+        host: {
+          default: 'localhost',
+          description: 'Localhost for API server',
+        },
+        port: {
+          default: String(appConfig.port),
+          description: 'Port for the API server',
+        },
+      },
+    });
+
+    // Configured dev/staging server
+    servers.push({
+      url: `https://${parsedUrl.hostname}`,
+      description: 'Dev Server (Remote)',
+    });
+  }
+
+  if (isStaging) {
+    servers.push({
+      url: `https://${parsedUrl.hostname}`,
+      description: 'Staging Server',
+    });
+  }
+
+  if (isProd) {
+    servers.push({
+      url: `https://${parsedUrl.hostname}`,
+      description: 'Production Server',
+    });
+  }
+
+  return servers;
+};
+
+export function filterMetadataByModulePrefix(modulePrefix: string) {
+  const storage = getMetadataArgsStorage();
+  const normalizedPrefix = `/${modulePrefix.toLowerCase()}`;
+
+  // Filter controllers by prefix
+  storage.controllers = storage.controllers.filter((ctrl) =>
+    typeof ctrl.route === 'string' &&
+    ctrl.route.toLowerCase().startsWith(normalizedPrefix)
+  );
+
+  // Collect valid targets (class references)
+  const validTargets = new Set(storage.controllers.map((c) => c.target));
+
+  // Filter all associated metadata by controller target
+  storage.actions = storage.actions.filter((a) => validTargets.has(a.target));
+}
+
+
+export function generateOpenAPISpec(routingControllersOptions: RoutingControllersOptions) {
+  // Get validation schemas
+  const schemas = validationMetadatasToSchemas({
+    refPointerPrefix: '#/components/schemas/',
+    validationError: {
+      target: true,
+      value: true,
+    },
+  });
+
+  // Get metadata storage
+  const storage = getMetadataArgsStorage();
+
+  if (appConfig.module !== 'all') {
+    filterMetadataByModulePrefix(appConfig.module);
+  }
+
+  console.log(storage.controllers[0].route);
+
+  // Create OpenAPI specification
+  const spec = routingControllersToSpec(storage, routingControllersOptions, {
+    info: {
+      title: 'ViBe API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for the ViBe platform',
+      contact: {
+        name: 'ViBe Team',
+        email: 'support@vibe.com',
+      },
+    },
+
+    // tags: [
+    //   {
+    //     name: 'Authentication',
+    //     description: 'Operations for user authentication and authorization',
+    //   },
+    // ],
+    // 'x-tagGroups': [{
+    //   name: 'Auth Module',
+    //   tags: ['Authentication'],
+    // }, {
+    //   name: 'Courses Module',
+    //   tags: [
+    //     'Courses',
+    //     'Course Versions',
+    //     'Course Modules',
+    //     'Course Sections',
+    //     'Course Items',
+    //   ],
+    // }],
+
+    //   tags: [
+    //     // Authentication section
+    //     {
+    //       name: 'Authentication',
+    //       description: 'Operations for user authentication and authorization',
+    //     },
+
+    //     // Course section and sub-components
+    //     {
+    //       name: 'Courses',
+    //       description: 'Operations related to courses management',
+    //       'x-displayName': 'Courses',
+    //     },
+    //     {
+    //       name: 'Course Versions',
+    //       description: 'Operations for managing different versions of a course',
+    //       'x-displayName': 'Versions',
+    //       'x-resourceGroup': 'Courses',
+    //     },
+    //     {
+    //       name: 'Course Modules',
+    //       description:
+    //         'Operations for managing modules within a course version',
+    //       'x-displayName': 'Modules',
+    //       'x-resourceGroup': 'Courses',
+    //     },
+    //     {
+    //       name: 'Course Sections',
+    //       description:
+    //         'Operations for managing sections within a course module',
+    //       'x-displayName': 'Sections',
+    //       'x-resourceGroup': 'Courses',
+    //     },
+    //     {
+    //       name: 'Course Items',
+    //       description:
+    //         'Operations for managing individual items within a section',
+    //       'x-displayName': 'Items',
+    //       'x-resourceGroup': 'Courses',
+    //     },
+
+    //     // User management section
+    //     {
+    //       name: 'User Enrollments',
+    //       description: 'Operations for managing user enrollments in courses',
+    //     },
+    //     {
+    //       name: 'User Progress',
+    //       description: 'Operations for tracking and managing user progress',
+    //     },
+    //   ],
+    //   // Use Scalar's preferred grouping approach
+    //   'x-tagGroups': [
+    //     {
+    //       name: 'Authentication',
+    //       tags: ['Authentication'],
+    //     },
+    //     {
+    //       name: 'Course Management',
+    //       tags: [
+    //         'Courses',
+    //         'Course Versions',
+    //         'Course Modules',
+    //         'Course Sections',
+    //         'Course Items',
+    //       ],
+    //     },
+    //     {
+    //       name: 'User Management',
+    //       tags: ['User Enrollments', 'User Progress'],
+    //     },
+    //     {
+    //       name: 'Data Models',
+    //       tags: ['Models'],
+    //     },
+    //   ],
+    components: {
+      schemas,
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    servers: getOpenApiServers(),
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+  });
+
+  return spec;
+}

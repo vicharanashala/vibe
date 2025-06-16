@@ -1,4 +1,4 @@
-import {BaseQuestion} from '#quizzes/index.js';
+import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 
 export class BaseQuestionValidator {

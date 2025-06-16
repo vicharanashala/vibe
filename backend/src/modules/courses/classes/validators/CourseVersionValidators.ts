@@ -1,4 +1,4 @@
-import {ICourseVersion} from '#shared/index.js';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -28,7 +28,6 @@ class CreateCourseVersionParams {
   @JSONSchema({
     title: 'Course ID',
     description: 'ID of the course to attach the new version to',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -41,7 +40,6 @@ class ReadCourseVersionParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to retrieve',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -54,7 +52,6 @@ class DeleteCourseVersionParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to delete',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
     format: 'Mongo Object ID',
   })
@@ -65,7 +62,6 @@ class DeleteCourseVersionParams {
   @JSONSchema({
     title: 'Course ID',
     description: 'ID of the course to which the version belongs',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
     format: 'Mongo Object ID',
   })

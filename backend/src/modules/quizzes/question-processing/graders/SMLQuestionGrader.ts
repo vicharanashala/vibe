@@ -1,11 +1,11 @@
-import {QuizItem} from '#courses/index.js';
-import {SMLQuestion} from '#quizzes/classes/index.js';
+import {QuizItem} from '#courses/classes/transformers/Item.js';
+import {SMLQuestion} from '#quizzes/classes/transformers/Question.js';
 import {
   ISMLAnswer,
   IQuestionAnswerFeedback,
 } from '#quizzes/interfaces/grading.js';
-import {ObjectId} from 'mongodb';
-import {ParameterMap} from '../tag-parser/index.js';
+import {ParameterMap} from '../tag-parser/tags/Tag.js';
+
 import {IGrader} from './interfaces/IGrader.js';
 
 class SMLQuestionGrader implements IGrader {
@@ -27,12 +27,10 @@ class SMLQuestionGrader implements IGrader {
       const incorrectAnswers = answer.lotItemIds.filter(
         id => !correctLotItemIds.includes(id),
       );
-      let score = 0;
-      if (incorrectAnswers.length <= 0) {
-        score =
-          (correctAnswers.length / correctLotItemIds.length) *
-          this.question.points;
-      }
+
+      const score =
+        (correctAnswers.length / correctLotItemIds.length) *
+        this.question.points;
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,
         status:
@@ -42,10 +40,7 @@ class SMLQuestionGrader implements IGrader {
               : 'PARTIAL'
             : 'INCORRECT',
         score: score,
-        answerFeedback:
-          incorrectAnswers.length <= 0
-            ? `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`
-            : `You answered ${correctAnswers.length} correctly, but ${incorrectAnswers.length} incorrectly.`,
+        answerFeedback: `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`,
       };
       return feedback;
     } else {

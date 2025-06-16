@@ -1,5 +1,6 @@
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { IQuestionBank } from '#shared/interfaces/quiz.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {IQuestionBank, MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 
@@ -52,8 +53,8 @@ class QuestionBankRepository {
     await this.init();
 
     const result = await this.questionBankCollection.updateMany(
-      {questions: questionId},
-      {$pull: {questions: questionId}},
+      {questions: new ObjectId(questionId)},
+      {$pull: {questions: new ObjectId(questionId)}},
       {session},
     );
 

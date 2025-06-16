@@ -1,9 +1,10 @@
 // utils/testProgressTracking.ts
 import request from 'supertest';
 import Express from 'express';
-import {ProgressService} from '../../services/ProgressService';
+import {ProgressService} from '../../services/ProgressService.js';
 import {ObjectId} from 'mongodb';
-import {jest} from '@jest/globals';
+import {vi} from 'vitest';
+
 
 export async function startStopAndUpdateProgress({
   userId,
@@ -53,7 +54,7 @@ export async function startStopAndUpdateProgress({
     watchItemId: startItemResponse.body.watchItemId,
   };
 
-  jest
+  vi
     .spyOn(ProgressService.prototype as any, 'isValidWatchTime')
     .mockReturnValueOnce(true);
 
