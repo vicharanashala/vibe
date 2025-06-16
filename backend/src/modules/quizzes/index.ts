@@ -9,12 +9,11 @@ import {coursesContainerModule} from '#courses/container.js';
 import {AttemptController} from './controllers/AttemptController.js';
 import {QuizController} from './controllers/QuizController.js';
 
-
 export const quizzesContainerModules: ContainerModule[] = [
   quizzesContainerModule,
   sharedContainerModule,
   coursesContainerModule,
-]
+];
 
 export const quizzesModuleControllers: Function[] = [
   QuestionController,
@@ -23,12 +22,9 @@ export const quizzesModuleControllers: Function[] = [
   QuizController,
 ];
 
-
 export async function setupQuizzesContainer(): Promise<void> {
   const container = new Container();
-  await container.load(
-    ...quizzesContainerModules,
-  );
+  await container.load(...quizzesContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
@@ -42,4 +38,3 @@ export const quizzesModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
-

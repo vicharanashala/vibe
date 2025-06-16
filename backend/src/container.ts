@@ -5,8 +5,8 @@ import {
   HttpErrorHandler,
 } from '#shared/index.js';
 import {GLOBAL_TYPES} from './types.js';
-import { dbConfig } from './config/db.js';
-import { CourseRepository } from '#shared/database/providers/mongo/repositories/CourseRepository.js';
+import {dbConfig} from './config/db.js';
+import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;

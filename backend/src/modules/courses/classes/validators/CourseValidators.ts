@@ -35,7 +35,6 @@ class CourseBody implements Partial<ICourse> {
   description: string;
 }
 
-
 class CourseIdParams {
   @JSONSchema({
     description: 'Object ID of the course',

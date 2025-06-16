@@ -24,7 +24,7 @@ import {
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
-import { QuestionType } from '#root/shared/interfaces/quiz.js';
+import {QuestionType} from '#root/shared/interfaces/quiz.js';
 
 // Request Schemas
 class CreateAttemptParams {

@@ -65,6 +65,7 @@ const sortItemsByOrder = (items: any[]) => {
 };
 
 export default function CoursePage() {
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const { user } = useAuthStore();
   const USER_ID = useAuthStore.getState().user?.userId || "";
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
@@ -72,7 +73,7 @@ export default function CoursePage() {
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
-
+ 
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
@@ -242,10 +243,22 @@ export default function CoursePage() {
           moduleId: selectedModuleId ? selectedModuleId : '',
           sectionId: selectedSectionId ? selectedSectionId : '',
           itemId: selectedItemId ? selectedItemId : '',
-          watchItemId: useCourseStore.getState().currentCourse?.watchItemId || '',
+          watchItemId: useCourseStore.getState().currentCourse?.watchItemId,
+          attemptId: attemptId,
         },
       }
     );
+    // Delay to ensure progress is updated before refetching
+    setTimeout(() => {
+      refetchProgress();
+      if (progressData) {
+        const { currentModule, currentSection, currentItem } = progressData;
+        setSelectedModuleId(currentModule);
+        setSelectedSectionId(currentSection);
+        setSelectedItemId(currentItem);
+        updateCourseNavigation(currentModule, currentSection, currentItem);
+      }
+        }, 1000);
         
     refetchProgress();
     if (progressData) {
@@ -422,7 +435,7 @@ export default function CoursePage() {
                                                     {selectedItemId === itemId && itemLoading ? 'Loading...' : 
                                                      selectedItemId === itemId && currentItem?.name ? 
                                                      (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) : 
-                                                     `Item ${item.order || ''}`}
+                                                     `${item.name||item.type[0] + item.type.slice(1).toLowerCase() || ''} Item `}
                                                   </div>
                                                 </div>
                                               </div>
@@ -449,7 +462,7 @@ export default function CoursePage() {
             </ScrollArea>
           </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-            {/* <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo> */}
+              <FloatingVideo setDoGesture={setDoGesture}></FloatingVideo>
             </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
@@ -553,6 +566,8 @@ export default function CoursePage() {
                   doGesture={doGesture}
                   onNext={handleNext}
                   isProgressUpdating={updateProgress.isPending}
+                  attemptId={attemptId}
+                  setAttemptId={setAttemptId}
                 />
               </div>
             ) : (

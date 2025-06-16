@@ -8,7 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import { AtLeastOne, OnlyOneId } from './customValidators.js';
+import {AtLeastOne, OnlyOneId} from './customValidators.js';
 
 class CreateSectionBody implements Partial<ISection> {
   @JSONSchema({
@@ -46,7 +46,10 @@ class CreateSectionBody implements Partial<ISection> {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  @OnlyOneId({ afterIdPropertyName: 'afterSectionId', beforeIdPropertyName: 'beforeSectionId' })
+  @OnlyOneId({
+    afterIdPropertyName: 'afterSectionId',
+    beforeIdPropertyName: 'beforeSectionId',
+  })
   afterSectionId?: string;
 
   @JSONSchema({
@@ -100,7 +103,10 @@ class MoveSectionBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  @OnlyOneId({ afterIdPropertyName: 'afterSectionId', beforeIdPropertyName: 'beforeSectionId' })
+  @OnlyOneId({
+    afterIdPropertyName: 'afterSectionId',
+    beforeIdPropertyName: 'beforeSectionId',
+  })
   afterSectionId?: string;
 
   @JSONSchema({
@@ -185,7 +191,6 @@ class SectionDeletedResponse {
   message: string;
 }
 
-
 export {
   CreateSectionBody,
   UpdateSectionBody,
@@ -193,5 +198,5 @@ export {
   VersionModuleSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
-  SectionDeletedResponse
+  SectionDeletedResponse,
 };

@@ -8,9 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import { OnlyOneId } from './customValidators.js';
-
-
+import {OnlyOneId} from './customValidators.js';
 
 class CreateModuleBody implements Partial<IModule> {
   @JSONSchema({
@@ -48,7 +46,10 @@ class CreateModuleBody implements Partial<IModule> {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  @OnlyOneId({ afterIdPropertyName: 'afterModuleId', beforeIdPropertyName: 'beforeModuleId' })
+  @OnlyOneId({
+    afterIdPropertyName: 'afterModuleId',
+    beforeIdPropertyName: 'beforeModuleId',
+  })
   afterModuleId?: string;
 
   @JSONSchema({
@@ -102,7 +103,10 @@ class MoveModuleBody {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  @OnlyOneId({ afterIdPropertyName: 'afterModuleId', beforeIdPropertyName: 'beforeModuleId' })
+  @OnlyOneId({
+    afterIdPropertyName: 'afterModuleId',
+    beforeIdPropertyName: 'beforeModuleId',
+  })
   afterModuleId?: string;
 
   @JSONSchema({

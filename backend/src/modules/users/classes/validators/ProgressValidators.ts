@@ -245,10 +245,21 @@ export class UpdateProgressBody {
     type: 'string',
     format: 'Mongo Object ID',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @IsMongoId()
-  watchItemId: string;
+  watchItemId?: string;
+
+  @JSONSchema({
+    description: 'ID of the attempt for quiz',
+    example: '60d5ec49b3f1c8e4a8f8b8c6',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  attemptId?: string;
 }
 
 export class UpdateProgressParams {

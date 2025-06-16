@@ -17,7 +17,7 @@ RUN pnpm install
 ARG SENTRY_AUTH_TOKEN
 RUN pnpm tsc
 RUN pnpm sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
-RUN pnpm sentry-cli sourcemaps inject --org dled --project backend-users ./dist && pnpm sentry-cli sourcemaps upload --org dled --project backend-users ./dist
+RUN pnpm sentry-cli sourcemaps inject --org dled --project backend-users ./build && pnpm sentry-cli sourcemaps upload --org dled --project backend-users ./build
 
 # ---- Production image ----
 FROM node:22-alpine
@@ -31,7 +31,7 @@ RUN apk add --no-cache git bash \
 
 # Copy only production dependencies and compiled code
 COPY package.json pnpm-lock.yaml ./
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/build ./build
 RUN pnpm install 
 
 # Set environment and port

@@ -27,7 +27,7 @@ import {
 } from '#courses/classes/validators/SectionValidators.js';
 import {SectionService} from '#courses/services/SectionService.js';
 import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
-import { VersionModuleParams } from '../classes/validators/ModuleValidators.js';
+import {VersionModuleParams} from '../classes/validators/ModuleValidators.js';
 @OpenAPI({
   tags: ['Course Sections'],
 })
@@ -44,11 +44,11 @@ export class SectionController {
   }
 
   @OpenAPI({
-  summary: 'Create a section',
-  description: `Creates a new section within a module of a specific course version.<br/>
+    summary: 'Create a section',
+    description: `Creates a new section within a module of a specific course version.<br/>
 Accessible to:
 - Instructors or managers of the course.`,
-})
+  })
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections')
   @HttpCode(201)
@@ -86,12 +86,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Update a section',
-  description: `Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
+    summary: 'Update a section',
+    description: `Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
 Accessible to:
 - Instructors or managers of the course.`,
-})
-
+  })
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDataResponse, {
@@ -131,11 +130,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Reorder a section',
-  description: `Changes the position of a section within its module in a specific course version.<br/>
+    summary: 'Reorder a section',
+    description: `Changes the position of a section within its module in a specific course version.<br/>
 Accessible to:
 - Instructors or managers of the course.`,
-})
+  })
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
   @ResponseSchema(SectionDataResponse, {
@@ -185,11 +184,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Delete a section',
-  description: `Deletes a section from a module in a specific course version.<br/>
+    summary: 'Delete a section',
+    description: `Deletes a section from a module in a specific course version.<br/>
 Accessible to:
 - Instructors or managers of the course.`,
-})
+  })
   @Authorized(['admin'])
   @Delete('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDeletedResponse, {

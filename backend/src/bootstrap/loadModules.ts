@@ -1,20 +1,22 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Container, ContainerModule } from 'inversify';
-import { useContainer } from 'routing-controllers';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
+import {Container, ContainerModule} from 'inversify';
+import {useContainer} from 'routing-controllers';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
 
 interface LoadedModuleResult {
   controllers: Function[];
 }
 
-export async function loadAppModules(moduleName: string): Promise<LoadedModuleResult> {
+export async function loadAppModules(
+  moduleName: string,
+): Promise<LoadedModuleResult> {
   const isAll = moduleName === 'all';
   const modulesDir = path.resolve('./src/modules');
   const files = await fs.readdir(modulesDir);
 
   let controllers: Function[] = [];
-  let allContainerModules: ContainerModule[] = [];
+  const allContainerModules: ContainerModule[] = [];
 
   for (const file of files) {
     const modulePath = `../modules/${file}/index.js`;
@@ -46,5 +48,5 @@ export async function loadAppModules(moduleName: string): Promise<LoadedModuleRe
     useContainer(inversifyAdapter);
   }
 
-  return { controllers };
+  return {controllers};
 }

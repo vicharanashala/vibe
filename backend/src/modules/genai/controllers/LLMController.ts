@@ -1,16 +1,14 @@
 import {JsonController, Post, HttpCode, Body} from 'routing-controllers';
-import { injectable } from 'inversify';
+import {injectable} from 'inversify';
 
 @JsonController('/genai/llm')
 @injectable()
 export class LLMController {
-  constructor(
-    
-  ) {}
+  constructor() {}
 
   @Post('/')
   @HttpCode(201)
   async create(@Body() body: any) {
-    return { message: 'Not implemented' };
+    return {message: 'Not implemented'};
   }
 }

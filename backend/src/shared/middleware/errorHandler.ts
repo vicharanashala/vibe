@@ -135,10 +135,10 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
       stack: error.stack,
       status: error.httpCode || 500,
     });
-  if (response.headersSent) {
-    // If the response is already sent, don't try to send again
-    return;
-  }
+    if (response.headersSent) {
+      // If the response is already sent, don't try to send again
+      return;
+    }
     // class CustomValidationError {
     //     errors: ValidationError[];
     // }
@@ -205,7 +205,10 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
           ),
         );
     } else if (error instanceof HttpError) {
-      if ('errors' in error && (error.errors as any)[0] instanceof ValidationError) {
+      if (
+        'errors' in error &&
+        (error.errors as any)[0] instanceof ValidationError
+      ) {
         response
           .status(400)
           .json(

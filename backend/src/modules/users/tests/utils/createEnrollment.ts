@@ -1,7 +1,7 @@
 import request from 'supertest';
 import Express from 'express';
 import {ObjectId} from 'mongodb';
-import {expect } from 'vitest';
+import {expect} from 'vitest';
 
 export interface EnrollmentParams {
   userId: string;

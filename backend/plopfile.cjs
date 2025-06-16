@@ -1,113 +1,113 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 module.exports = function (plop) {
-  plop.setGenerator("module-asset", {
-    description: "Generate controller/service/repository and update DI setup",
+  plop.setGenerator('module-asset', {
+    description: 'Generate controller/service/repository and update DI setup',
     prompts: [
       {
-        type: "input",
-        name: "module",
-        message: "Module name (e.g., quizzes, courses):",
+        type: 'input',
+        name: 'module',
+        message: 'Module name (e.g., quizzes, courses):',
       },
       {
-        type: "checkbox",
-        name: "components",
-        message: "What would you like to generate?",
-        choices: ["controller", "service", "repository"],
+        type: 'checkbox',
+        name: 'components',
+        message: 'What would you like to generate?',
+        choices: ['controller', 'service', 'repository'],
       },
       {
-        type: "input",
-        name: "name",
-        message: "Base name (e.g., Question):",
+        type: 'input',
+        name: 'name',
+        message: 'Base name (e.g., Question):',
       },
     ],
     actions: function (data) {
       const actions = [];
 
-      const { module, name, components } = data;
+      const {module, name, components} = data;
       const basePath = `src/modules/${module}`;
 
       // ✅ Create missing base files if needed
-      ["index.ts", "container.ts", "types.ts"].forEach((file) => {
+      ['index.ts', 'container.ts', 'types.ts'].forEach(file => {
         const filePath = `${basePath}/${file}`;
         if (!fs.existsSync(filePath)) {
           actions.push({
-            type: "add",
+            type: 'add',
             path: filePath,
             templateFile: `plop-templates/module-base/${file}.hbs`,
-            data: { module },
+            data: {module},
           });
         }
       });
 
       // ✅ Add component files
-      if (components.includes("controller")) {
+      if (components.includes('controller')) {
         actions.push({
-          type: "add",
+          type: 'add',
           path: `${basePath}/controllers/{{name}}Controller.ts`,
-          templateFile: "plop-templates/controller.hbs",
+          templateFile: 'plop-templates/controller.hbs',
         });
       }
 
-      if (components.includes("service")) {
+      if (components.includes('service')) {
         actions.push({
-          type: "add",
+          type: 'add',
           path: `${basePath}/services/{{name}}Service.ts`,
-          templateFile: "plop-templates/service.hbs",
+          templateFile: 'plop-templates/service.hbs',
           data: {
-            service: components.includes("service"),
-            repository: components.includes("repository"),
+            service: components.includes('service'),
+            repository: components.includes('repository'),
           },
         });
       }
 
-      if (components.includes("repository")) {
+      if (components.includes('repository')) {
         actions.push({
-          type: "add",
+          type: 'add',
           path: `${basePath}/repositories/providers/mongodb/{{name}}Repository.ts`,
-          templateFile: "plop-templates/repository.hbs",
+          templateFile: 'plop-templates/repository.hbs',
         });
       }
 
-      if (components.includes("controller")) {
+      if (components.includes('controller')) {
         actions.push({
-          type: "append",
+          type: 'append',
           path: `${basePath}/index.ts`,
           pattern: /^(import .*?;[\r\n]+)/m,
           template: `import { {{name}}Controller } from './controllers/{{name}}Controller.js';`,
-          separator: "",
+          separator: '',
         });
         actions.push({
-          type: "append",
+          type: 'append',
           path: `${basePath}/container.ts`,
           pattern: /^(import .*?;[\r\n]+)/m,
           template: `import { {{name}}Controller } from './controllers/{{name}}Controller.js';`,
-          separator: "",
+          separator: '',
         });
       }
-      if (components.includes("service")) {
+      if (components.includes('service')) {
         actions.push({
-          type: "append",
+          type: 'append',
           path: `${basePath}/container.ts`,
           pattern: /^(import .*?;[\r\n]+)/m,
           template: `import { {{name}}Service } from './services/{{name}}Service.js';`,
-          separator: "",
+          separator: '',
         });
       }
-      if (components.includes("repository")) {
+      if (components.includes('repository')) {
         actions.push({
-          type: "append",
+          type: 'append',
           path: `${basePath}/container.ts`,
           pattern: /^(import .*?;[\r\n]+)/m,
           template: `import { {{name}}Repository } from './repositories/providers/mongodb/{{name}}Repository.js';`,
-          separator: "",
+          separator: '',
         });
       }
 
       // ✅ Modify types.ts
       actions.push({
-        type: "modify",
+        type: 'modify',
         path: `${basePath}/types.ts`,
         pattern: /(const TYPES = {)/,
         template: `$1
@@ -119,7 +119,7 @@ module.exports = function (plop) {
 
       // ✅ Modify container.ts
       actions.push({
-        type: "modify",
+        type: 'modify',
         path: `${basePath}/container.ts`,
         pattern:
           /(export const .*ContainerModule = new ContainerModule\(options => {)/,
@@ -132,7 +132,7 @@ module.exports = function (plop) {
 
       // ✅ Modify index.ts
       actions.push({
-        type: "modify",
+        type: 'modify',
         path: `${basePath}/index.ts`,
         pattern: /(export const .*ModuleControllers: Function\[] = \[)/,
         template: `$1
@@ -145,16 +145,16 @@ module.exports = function (plop) {
   });
 
   // ✅ FIXED: Inline helper (returns Boolean)
-  plop.setHelper("includes", function (array, value) {
+  plop.setHelper('includes', function (array, value) {
     return array.includes(value);
   });
 
-  plop.setHelper("injects", function (base, hasInject) {
+  plop.setHelper('injects', function (base, hasInject) {
     return hasInject ? `${base}, inject` : base;
   });
 
   // Helper to convert to CONSTANT_CASE
-  plop.setHelper("constantCase", function (str) {
-    return str.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+  plop.setHelper('constantCase', function (str) {
+    return str.toUpperCase().replace(/[^A-Z0-9]/g, '_');
   });
 };

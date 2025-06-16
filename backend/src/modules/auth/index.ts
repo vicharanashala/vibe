@@ -11,7 +11,6 @@ import {authContainerModule} from './container.js';
 import {AuthController} from './controllers/AuthController.js';
 import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 
-
 export const authContainerModules: ContainerModule[] = [
   authContainerModule,
   sharedContainerModule,
@@ -38,15 +37,14 @@ export const authModuleOptions: RoutingControllersOptions = {
     }
 
     try {
-      const user = await authService.verifyToken(token);
-      action.request.user = user;
+      return await authService.verifyToken(token);
+      // const user = await authService.getUserFromToken(token);
+      // action.request.user = user;
 
       // Check if the user's roles match the required roles
-      if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
-        return false;
-      }
-
-      return true;
+      // if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
+      //   return false;
+      // }
     } catch (error) {
       return false;
     }

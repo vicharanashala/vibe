@@ -15,10 +15,12 @@ import {
   ModuleDataResponse,
   SectionDataResponse,
 } from '../../../courses/classes/validators/index.js';
-import {Course, CourseVersion} from '../../../courses/classes/transformers/index.js';
+import {
+  Course,
+  CourseVersion,
+} from '../../../courses/classes/transformers/index.js';
 import {ItemType} from '../../../../shared/interfaces/models.js';
-import {expect} from 'vitest'
-
+import {expect} from 'vitest';
 
 async function createCourse(app: typeof Express): Promise<Course> {
   const body: CourseBody = {

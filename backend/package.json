@@ -37,6 +37,7 @@
     "config": "^4.0.0",
     "console-table-printer": "^2.14.3",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
@@ -70,5 +71,8 @@
     "unplugin-swc": "^1.5.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz } from '@/lib/api/hooks';
+import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/lib/api/hooks';
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useCourseStore } from "@/lib/store/course-store";
 
 // Utility function to convert buffer to hex string
 const bufferToHex = (buffer: number[]) => {
@@ -40,8 +42,16 @@ interface BufferLike {
   };
 }
 
+export interface questionBankRef {
+  bankId: string; // ObjectId as string
+  count: number; // How many questions to pick
+  difficulty?: string[]; // Optional filter
+  tags?: string[]; // Optional filter
+  type?: string; // Optional question type filter
+}
+
 interface QuizProps {
-  questionBankRefs: string[];
+  questionBankRefs: questionBankRef[];
   passThreshold: number;
   maxAttempts: number;
   quizType: 'DEADLINE' | 'NO_DEADLINE' | '';
@@ -58,9 +68,15 @@ interface QuizProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  attemptId?: string;
+  setAttemptId?: (attemptId: string) => void;
 }
 
-export default function Quiz({
+export interface QuizRef {
+  stopItem: () => void;
+}
+
+const Quiz = forwardRef<QuizRef, QuizProps>(({
   questionBankRefs,
   passThreshold,
   maxAttempts,
@@ -76,7 +92,9 @@ export default function Quiz({
   doGesture = false,
   onNext,
   isProgressUpdating,
-}: QuizProps) {
+  attemptId,
+  setAttemptId,
+}, ref) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
   const [timeLeft, setTimeLeft] = useState(0);
@@ -85,19 +103,18 @@ export default function Quiz({
   const [score, setScore] = useState(0);
   const [, setCurrentConnecting] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const processedQuizId = bufferToHex(quizId.buffer.data);
   console.log('Quiz ID:', quizId);
   // Use the quiz attempt hook
   const { mutateAsync: attemptQuiz, isPending, error } = useAttemptQuiz();
-  
+
   // Use the quiz submit hook
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
-  
+
   // Use the save quiz hook for progress saving
   const { mutateAsync: saveQuiz, isPending: isSaving, error: saveError } = useSaveQuiz();
-  
+
   // Add submission results state
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
 
@@ -162,7 +179,6 @@ export default function Quiz({
     const storedAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
     if (storedAttemptId) {
       setAttemptId(storedAttemptId);
-      
       // Also restore saved answers if they exist
       const storedAnswers = localStorage.getItem(`quiz-answers-${processedQuizId}`);
       if (storedAnswers) {
@@ -196,7 +212,7 @@ export default function Quiz({
       lotItemIds?: string[];
       answerText?: string;
       value?: number;
-      orders?: string[];
+      orders?: Order[];
     }
   }> => {
     return quizQuestions
@@ -212,7 +228,7 @@ export default function Quiz({
           lotItemIds?: string[];
           answerText?: string;
           value?: number;
-          orders?: string[];
+          orders?: Order[];
         } = {};
 
         switch (question.type) {
@@ -231,7 +247,6 @@ export default function Quiz({
               }
             }
             break;
-          
           case 'SELECT_MANY_IN_LOT':
             if (Array.isArray(userAnswer) && userAnswer.length > 0 && question.lotItems) {
               // Convert indices to lot item IDs
@@ -250,37 +265,39 @@ export default function Quiz({
               }).filter(id => !id.match(/^\d+$/)); // Filter out failed conversions (pure numbers)
             }
             break;
-          
           case 'DESCRIPTIVE':
             if (typeof userAnswer === 'string' && userAnswer.trim().length > 0) {
               saveAnswer.answerText = userAnswer;
             }
             break;
-          
           case 'NUMERIC_ANSWER_TYPE':
             if (typeof userAnswer === 'number' && !isNaN(userAnswer)) {
               saveAnswer.value = userAnswer;
             }
             break;
-          
+
           case 'ORDER_THE_LOTS':
             if (Array.isArray(userAnswer) && userAnswer.length > 0) {
               // For ordering, we need to map the ordered items back to their IDs
-              const orderIds = (userAnswer as string[]).map((item: string) => {
+              const orders = (userAnswer as string[]).map((item: string, idx: number) => {
                 // Find the corresponding lot item for this text
                 const lotItem = question.lotItems?.find(lotItem => lotItem.text === item);
+                let lotItemId: string = item.toString();
                 if (lotItem && lotItem._id) {
                   if (typeof lotItem._id === 'string') {
-                    return lotItem._id;
+                    lotItemId = lotItem._id;
                   } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
                     // Convert buffer data to hex string
                     const buffer = lotItem._id.buffer.data;
-                    return bufferToHex(buffer);
+                    lotItemId = bufferToHex(buffer);
                   }
                 }
-                return item.toString();
+                return {
+                  order: idx + 1,
+                  lotItemId
+                };
               });
-              saveAnswer.orders = orderIds;
+              saveAnswer.orders = orders;
             }
             break;
         }
@@ -294,14 +311,97 @@ export default function Quiz({
       .filter(questionAnswer => {
         // Only include questions that have valid answer data
         const answer = questionAnswer.answer;
-        return Object.keys(answer).length > 0 && Object.values(answer).some(value => 
-          value !== undefined && value !== null && value !== '' && 
+        return Object.keys(answer).length > 0 && Object.values(answer).some(value =>
+          value !== undefined && value !== null && value !== '' &&
           (!Array.isArray(value) || value.length > 0)
         );
       });
   }, [quizQuestions, answers]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
+
+  function handleSendStartItem() {
+    if (!userId || !currentCourse?.itemId) return;
+    console.log({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    startItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId);
+    itemStartedRef.current = true;
+  }
+
+  function handleStopItem() {
+    if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+    console.log({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    stopItem.mutate({
+      params: {
+        path: {
+          userId,
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+    itemStartedRef.current = false;
+  }
+
+  // ✅ Expose stop function to parent component
+  useImperativeHandle(ref, () => ({
+    stopItem: handleStopItem
+  }));
+
+  // Get user and course data from stores
+  const userId = useAuthStore((state) => state.user?.userId);
+  const { currentCourse, setWatchItemId } = useCourseStore();
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
+  
+  // ✅ Track if item has been started
+  const itemStartedRef = useRef(false);
 
   const completeQuiz = useCallback(async () => {
     if (!attemptId) {
@@ -312,18 +412,17 @@ export default function Quiz({
     try {
       // Convert answers to the format expected by the API
       const answersForSubmission = convertAnswersToSaveFormat();
-      
       // Submit the quiz
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: { answers: answersForSubmission }
       });
-      
+
       console.log('Quiz submitted successfully:', response);
-      
+
       // Store submission results
       setSubmissionResults(response);
-      
+
       // Update score from server response if available
       if (showScoreAfterSubmission && response.totalScore !== undefined) {
         setScore(response.totalScore);
@@ -338,20 +437,25 @@ export default function Quiz({
         });
         setScore(totalScore);
       }
-      
+
       setQuizCompleted(true);
+      
+      // ✅ Stop tracking item when quiz completes
+      handleStopItem();
       
       // Clear attempt ID from localStorage since quiz is completed
       localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
-      
+
       // Also clear saved answers and questions
       localStorage.removeItem(`quiz-answers-${processedQuizId}`);
       localStorage.removeItem(`quiz-questions-${processedQuizId}`);
-      
+
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // Still mark as completed for now, but could show error state
       setQuizCompleted(true);
+      // ✅ Stop tracking item even if submission fails
+      handleStopItem();
     }
   }, [quizQuestions, answers, attemptId, processedQuizId, submitQuiz, convertAnswersToSaveFormat, showScoreAfterSubmission]);
 
@@ -402,7 +506,6 @@ export default function Quiz({
       // Check if we already have an attempt ID stored
       let currentAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
       let questionsToUse = quizQuestions;
-      
       if (!currentAttemptId) {
         // Call the API to create a new quiz attempt (only once)
         const response = await attemptQuiz({
@@ -412,15 +515,14 @@ export default function Quiz({
         currentAttemptId = response.attemptId;
         // Store attempt ID in localStorage
         localStorage.setItem(`quiz-attempt-${processedQuizId}`, currentAttemptId);
-        
         // Convert backend questions to frontend format
         const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
         setQuizQuestions(convertedQuestions);
         questionsToUse = convertedQuestions;
-        
+
         // Store questions in localStorage
         localStorage.setItem(`quiz-questions-${processedQuizId}`, JSON.stringify(convertedQuestions));
-        
+
         // Clear any previous answers since this is a new attempt
         setAnswers({});
         localStorage.removeItem(`quiz-answers-${processedQuizId}`);
@@ -453,16 +555,17 @@ export default function Quiz({
           questionsToUse = quizQuestions;
         }
       }
-      
       setAttemptId(currentAttemptId);
       console.log('Quiz attempt started with ID:', currentAttemptId);
       setQuizStarted(true);
       setCurrentQuestionIndex(0);
-      
       // Set timer for first question if available
       if (questionsToUse.length > 0 && questionsToUse[0]?.timeLimit) {
         setTimeLeft(questionsToUse[0].timeLimit);
       }
+
+      // ✅ Start tracking item when quiz begins
+      handleSendStartItem();
     } catch (err) {
       console.error('Failed to start quiz:', err);
       // Handle error - maybe show a toast or alert
@@ -476,7 +579,6 @@ export default function Quiz({
         [currentQuestion.id]: answer
       };
       setAnswers(newAnswers);
-      
       // Save answers to localStorage
       localStorage.setItem(`quiz-answers-${processedQuizId}`, JSON.stringify(newAnswers));
     }
@@ -558,25 +660,23 @@ export default function Quiz({
           return question.options[answer] || 'Invalid selection';
         }
         return String(answer);
-      
       case 'SELECT_MANY_IN_LOT':
         if (Array.isArray(answer) && question.options) {
           return (answer as number[]).map((index: number) => question.options?.[index] || 'Invalid').join(', ');
         }
         return String(answer);
-      
+
       case 'DESCRIPTIVE':
         return String(answer);
-      
+
       case 'NUMERIC_ANSWER_TYPE':
         return String(answer);
-      
+
       case 'ORDER_THE_LOTS':
         if (Array.isArray(answer)) {
           return answer.join(' → ');
         }
         return String(answer);
-      
       default:
         return String(answer);
     }
@@ -636,7 +736,6 @@ export default function Quiz({
                   Test your knowledge and track your progress. Take your time to read through the information below before starting.
                 </CardDescription>
               </div>
-              
               <div className="flex flex-col items-center space-y-4 min-w-fit">
                 {deadline && quizType !== 'NO_DEADLINE' && (
                   <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
@@ -650,31 +749,29 @@ export default function Quiz({
                     </CardContent>
                   </Card>
                 )}
-                
-                <Button 
-                  onClick={startQuiz} 
-                  size="lg" 
+
+                <Button
+                  onClick={startQuiz}
+                  size="lg"
                   className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
                   disabled={releaseTime && new Date() < releaseTime || isPending}
                 >
                   <PlayCircle className="mr-3 h-6 w-6" />
-                  {isPending ? 'Starting Quiz...' : 
-                   releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
+                  {isPending ? 'Starting Quiz...' :
+                    releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
                 </Button>
-                
+
                 {error && (
                   <div className="text-sm text-red-600 text-center max-w-[300px]">
                     Failed to start quiz. Please try again.
                   </div>
                 )}
-                
                 <p className="text-sm text-muted-foreground text-center max-w-[300px]">
                   Make sure you have a stable internet connection and enough time to complete the quiz.
                 </p>
               </div>
             </div>
           </CardHeader>
-          
           <CardContent className="space-y-8">
             {/* Key Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -683,11 +780,17 @@ export default function Quiz({
                   <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
                     <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="text-2xl font-bold text-primary">{quizQuestions.length || questionBankRefs.length}</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {
+                      Array.isArray(questionBankRefs)
+                        ? questionBankRefs.reduce((sum, ref) => sum + (typeof ref === 'object' && ref !== null && 'count' in ref ? (ref as questionBankRef).count || 0 : 1), 0)
+                        : 0
+                    }
+                  </div>
                   <div className="text-sm text-muted-foreground">Questions</div>
                 </div>
               </Card>
-              
+
               <Card className="text-center p-4 hover:shadow-md transition-shadow">
                 <div className="flex flex-col items-center space-y-2">
                   <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
@@ -697,7 +800,6 @@ export default function Quiz({
                   <div className="text-sm text-muted-foreground">Pass Score</div>
                 </div>
               </Card>
-              
               <Card className="text-center p-4 hover:shadow-md transition-shadow">
                 <div className="flex flex-col items-center space-y-2">
                   <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
@@ -707,7 +809,6 @@ export default function Quiz({
                   <div className="text-sm text-muted-foreground">Max Attempts</div>
                 </div>
               </Card>
-              
               <Card className="text-center p-4 hover:shadow-md transition-shadow">
                 <div className="flex flex-col items-center space-y-2">
                   <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
@@ -719,7 +820,6 @@ export default function Quiz({
               </Card>
             </div>
 
-            
           </CardContent>
         </Card>
       </div>
@@ -739,7 +839,7 @@ export default function Quiz({
           {showScoreAfterSubmission && (
             <div className="text-center space-y-4">
               <div className="text-6xl font-bold text-primary drop-shadow-sm">
-                {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined 
+                {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined
                   ? `${submissionResults.totalScore}/${submissionResults.totalMaxScore}`
                   : `${score}/${getTotalPoints()}`
                 }
@@ -750,14 +850,14 @@ export default function Quiz({
                   : Math.round((score / getTotalPoints()) * 100)
                 }%
               </p>
-              
+
               {/* Grading Status Badge */}
               {submissionResults?.gradingStatus && (
-                <Badge 
+                <Badge
                   variant={
-                    submissionResults.gradingStatus === 'PASSED' ? 'default' : 
-                    submissionResults.gradingStatus === 'FAILED' ? 'destructive' : 
-                    'secondary'
+                    submissionResults.gradingStatus === 'PASSED' ? 'default' :
+                      submissionResults.gradingStatus === 'FAILED' ? 'destructive' :
+                        'secondary'
                   }
                   className="text-lg px-4 py-2"
                 >
@@ -766,7 +866,6 @@ export default function Quiz({
                   {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
                 </Badge>
               )}
-              
               {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
                 <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
                   Perfect Score! 🎉
@@ -783,25 +882,24 @@ export default function Quiz({
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
-                
                 // Find feedback for this question if available
                 const questionFeedback = submissionResults?.overallFeedback?.find(
                   feedback => feedback.questionId === question.id
                 );
-                
+
                 return (
-                  <Card 
-                    key={question.id} 
+                  <Card
+                    key={question.id}
                     className={
-                      questionFeedback 
-                        ? questionFeedback.status === 'CORRECT' 
+                      questionFeedback
+                        ? questionFeedback.status === 'CORRECT'
                           ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
                           : questionFeedback.status === 'PARTIAL'
-                          ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
-                          : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
-                        : hasAnswer 
-                        ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20' 
-                        : 'border-gray-200'
+                            ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
+                            : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+                        : hasAnswer
+                          ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
+                          : 'border-gray-200'
                     }
                   >
                     <CardContent className="p-4">
@@ -813,28 +911,27 @@ export default function Quiz({
                           {questionFeedback && (
                             <Badge variant={
                               questionFeedback.status === 'CORRECT' ? 'default' :
-                              questionFeedback.status === 'PARTIAL' ? 'secondary' :
-                              'destructive'
+                                questionFeedback.status === 'PARTIAL' ? 'secondary' :
+                                  'destructive'
                             }>
                               {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
-                               questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
-                               '✗ Incorrect'}
+                                questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
+                                  '✗ Incorrect'}
                             </Badge>
                           )}
                         </div>
                         <Badge variant={
-                          questionFeedback 
+                          questionFeedback
                             ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
                             : hasAnswer ? 'default' : 'destructive'
                         }>
-                          {showScoreAfterSubmission && questionFeedback 
-                            ? `${questionFeedback.score}/${question.points} Points` 
+                          {showScoreAfterSubmission && questionFeedback
+                            ? `${questionFeedback.score}/${question.points} Points`
                             : hasAnswer ? `+${question.points}` : '0'
                           }
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">{question.question}</p>
-                      
                       {/* Show user's answer if any */}
                       {hasAnswer && (
                         <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
@@ -843,7 +940,6 @@ export default function Quiz({
                           </p>
                         </div>
                       )}
-                      
                       {/* Show correct answers if enabled and available */}
                       {showCorrectAnswersAfterSubmission && questionFeedback && (
                         <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
@@ -852,7 +948,6 @@ export default function Quiz({
                           </p>
                         </div>
                       )}
-                      
                       {/* Show explanation if enabled and available */}
                       {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
                         <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
@@ -970,7 +1065,6 @@ export default function Quiz({
           <h2 className="text-2xl font-semibold leading-tight">
             {currentQuestion.question}
           </h2>
-          
           {/* Hint section with reveal button */}
           {allowHint && currentQuestion.hint && (
             <div className="space-y-3">
@@ -983,7 +1077,6 @@ export default function Quiz({
                 <Eye className="mr-2 h-4 w-4" />
                 {showHint ? 'Hide Hint' : 'Reveal Hint'}
               </Button>
-              
               {showHint && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -1071,13 +1164,8 @@ export default function Quiz({
                 className="text-lg"
               />
               {currentQuestion.decimalPrecision && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs">
                   Decimal precision: {currentQuestion.decimalPrecision} places
-                </p>
-              )}
-              {currentQuestion.expression && (
-                <p className="text-xs text-muted-foreground">
-                  Expression: {currentQuestion.expression}
                 </p>
               )}
             </div>
@@ -1177,4 +1265,8 @@ export default function Quiz({
       </CardContent>
     </Card>
   );
-}
+});
+
+Quiz.displayName = "Quiz";
+
+export default Quiz;

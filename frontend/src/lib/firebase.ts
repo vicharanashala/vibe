@@ -9,13 +9,13 @@ import { useAuthStore } from "./store/auth-store";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCdPuD02drDUsjMB0QytSo2YF9Ytsx1RnQ",
-  authDomain: "new-front-58c0b.firebaseapp.com",
-  projectId: "new-front-58c0b",
-  storageBucket: "new-front-58c0b.firebasestorage.app",
-  messagingSenderId: "253149589560",
-  appId: "1:253149589560:web:7d0c2fe1acb39578c8f6cd",
-  measurementId: "G-K4WCX1XWRS"
+  apiKey: "AIzaSyBF36YXhR791AdLHx5_A2QYd51bBFiHV1E",
+  authDomain: "vibe-5b35a.firebaseapp.com",
+  projectId: "vibe-5b35a",
+  storageBucket: "vibe-5b35a.firebasestorage.app",
+  messagingSenderId: "239934307367",
+  appId: "1:239934307367:web:8a66deaf3eba7db9856202",
+  measurementId: "G-MWJ5X88RNZ"
 };
 
 // Initialize Firebase

@@ -1,6 +1,5 @@
 import {env} from '#root/utils/env.js';
 
-
 // src/constants/AppModule.ts (or a shared constants directory)
 
 export enum AppModule {
@@ -10,7 +9,6 @@ export enum AppModule {
   Courses = 'courses',
   Quizzes = 'quizzes',
 }
-
 
 export const appConfig = {
   isProduction: env('NODE_ENV') === 'production',

@@ -1,4 +1,8 @@
-import { registerDecorator, ValidationOptions, ValidationArguments } from "class-validator";
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
+} from 'class-validator';
 
 type IdPropertyNames = {
   afterIdPropertyName: string;
@@ -11,7 +15,7 @@ export function OnlyOneId(
 ) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
-      name: "onlyOneId",
+      name: 'onlyOneId',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
@@ -24,15 +28,15 @@ export function OnlyOneId(
         },
         defaultMessage(args: ValidationArguments) {
           return `Provide either "${idProps.afterIdPropertyName}" or "${idProps.beforeIdPropertyName}", but not both`;
-        }
-      }
+        },
+      },
     });
   };
 }
 
 export function AtLeastOne(
   fields: string[],
-  validationOptions?: ValidationOptions
+  validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
@@ -44,7 +48,9 @@ export function AtLeastOne(
       validator: {
         validate(_value: any, args: ValidationArguments) {
           const obj = args.object as Record<string, any>;
-          return fields.some(f => obj[f] !== undefined && obj[f] !== null && obj[f] !== '');
+          return fields.some(
+            f => obj[f] !== undefined && obj[f] !== null && obj[f] !== '',
+          );
         },
         defaultMessage(args: ValidationArguments) {
           const fields = args.constraints[0] as string[];
@@ -52,8 +58,8 @@ export function AtLeastOne(
             args?.constraints?.[1]?.message ||
             `At least one of [${fields.join(', ')}] must be provided`
           );
-        }
-      }
+        },
+      },
     });
   };
 }

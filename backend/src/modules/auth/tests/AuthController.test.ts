@@ -5,9 +5,9 @@ import {useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
 import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
 import {setupAuthContainer} from '#auth/index.js';
-import {describe, it,expect,beforeAll, beforeEach} from 'vitest';
-import { HttpErrorHandler } from '#shared/index.js';
-import { AuthController } from '../controllers/AuthController.js';
+import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
+import {HttpErrorHandler} from '#shared/index.js';
+import {AuthController} from '../controllers/AuthController.js';
 
 describe('Auth Controller Integration Tests', () => {
   const appInstance = Express();
@@ -19,10 +19,9 @@ describe('Auth Controller Integration Tests', () => {
       controllers: [AuthController],
       validation: true,
       defaultErrorHandler: false,
-      middlewares: [HttpErrorHandler]
-
+      middlewares: [HttpErrorHandler],
     });
-  }, 30000); 
+  }, 30000);
 
   describe('Sign Up Test', () => {
     it('should sign up a new user successfully', async () => {
@@ -32,7 +31,9 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup/').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(201);
     }, 30000); // <-- timeout for this test
 
@@ -43,7 +44,9 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup/').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors[0].constraints.isEmail).toBeDefined();
@@ -59,7 +62,9 @@ describe('Auth Controller Integration Tests', () => {
         firstName: '',
         lastName: '',
       };
-      const response = await request(app).post('/auth/signup/').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
     }, 30000);
@@ -71,7 +76,9 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup/').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
     }, 30000);

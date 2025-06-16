@@ -23,18 +23,12 @@ export default function StudentLayout() {
             <div className="flex items-center gap-3">
               <div className="relative p-1">
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3" />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="relative h-8 w-8 text-primary transition-all duration-300 group-hover:scale-110 drop-shadow-sm"
-                >
-                  <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-                </svg>
+                <img
+                  src="https://www.iitrpr.ac.in/iitrpr-conclave/images/iitrpr_white.png"
+                  alt="IIT Ropar Logo"
+                  className="relative h-8 w-8 object-contain bg-white rounded"
+                  style={{ background: 'white' }}
+                />
               </div>
               <span className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent drop-shadow-sm transition-all duration-300 group-hover:from-primary group-hover:to-primary/80">
                 Vibe

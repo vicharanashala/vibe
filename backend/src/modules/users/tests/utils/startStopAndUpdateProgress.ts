@@ -5,7 +5,6 @@ import {ProgressService} from '../../services/ProgressService.js';
 import {ObjectId} from 'mongodb';
 import {vi} from 'vitest';
 
-
 export async function startStopAndUpdateProgress({
   userId,
   courseId,
@@ -54,9 +53,10 @@ export async function startStopAndUpdateProgress({
     watchItemId: startItemResponse.body.watchItemId,
   };
 
-  vi
-    .spyOn(ProgressService.prototype as any, 'isValidWatchTime')
-    .mockReturnValueOnce(true);
+  vi.spyOn(
+    ProgressService.prototype as any,
+    'isValidWatchTime',
+  ).mockReturnValueOnce(true);
 
   const updateProgressResponse = await request(app)
     .patch(
