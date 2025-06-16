@@ -1,17 +1,3 @@
-import 'reflect-metadata';
-import {
-  JsonController,
-  Authorized,
-  Post,
-  Body,
-  Get,
-  Put,
-  Delete,
-  Params,
-  HttpCode,
-  OnUndefined,
-  Patch,
-} from 'routing-controllers';
 import {
   QuestionBody,
   QuestionId,
@@ -19,15 +5,21 @@ import {
   QuestionResponse,
 } from '#quizzes/classes/index.js';
 import {QuestionService} from '#quizzes/services/QuestionService.js';
-import {inject, injectable} from 'inversify';
-import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {injectable, inject} from 'inversify';
+import {
+  JsonController,
+  Post,
+  HttpCode,
+  Body,
+  Get,
+  Params,
+  Put,
+  Delete,
+  OnUndefined,
+} from 'routing-controllers';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
-
-@OpenAPI({
-  tags: ['Questions'],
-})
-@JsonController('/questions')
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+@JsonController('/quizzes/questions')
 @injectable()
 class QuestionController {
   constructor(
@@ -37,22 +29,6 @@ class QuestionController {
 
   @Post('/')
   @HttpCode(201)
-  @OpenAPI({
-    summary: 'Create a new question',
-    description: 'Create a new quiz question with specified type and content',
-    requestBody: {
-      content: {
-        'application/json': {
-          schema: {
-            $ref: '#/components/schemas/QuestionBody',
-          },
-        },
-      },
-    },
-  })
-  @ResponseSchema(QuestionId, {
-    description: 'Question created successfully',
-  })
   async create(@Body() body: QuestionBody): Promise<QuestionId> {
     const question = QuestionFactory.createQuestion(body);
     const questionProcessor = new QuestionProcessor(question);
@@ -63,13 +39,6 @@ class QuestionController {
   }
 
   @Get('/:questionId')
-  @OpenAPI({
-    summary: 'Get question by ID',
-    description: 'Retrieve a specific question by its unique identifier',
-  })
-  @ResponseSchema(QuestionResponse, {
-    description: 'Question retrieved successfully',
-  })
   async getById(@Params() params: QuestionId): Promise<QuestionResponse> {
     const {questionId} = params;
     const ques = await this.questionService.getById(questionId, true);
@@ -80,22 +49,6 @@ class QuestionController {
 
   @Put('/:questionId')
   @HttpCode(200)
-  @OpenAPI({
-    summary: 'Update question',
-    description: 'Update an existing question with new content or properties',
-    requestBody: {
-      content: {
-        'application/json': {
-          schema: {
-            $ref: '#/components/schemas/QuestionBody',
-          },
-        },
-      },
-    },
-  })
-  @ResponseSchema(QuestionResponse, {
-    description: 'Question updated successfully',
-  })
   async update(
     @Params() params: QuestionId,
     @Body() body: QuestionBody,
@@ -107,10 +60,6 @@ class QuestionController {
 
   @Delete('/:questionId')
   @OnUndefined(204)
-  @OpenAPI({
-    summary: 'Delete question',
-    description: 'Remove a question from the system',
-  })
   async delete(@Params() params: QuestionId): Promise<void> {
     const {questionId} = params;
     await this.questionService.delete(questionId);

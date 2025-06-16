@@ -1,5 +1,5 @@
-import {SMLQuestion} from '#quizzes/classes/index.js';
-import {ILotItem} from '#shared/index.js';
+import {SMLQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ILotItem} from '#shared/interfaces/quiz.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionValidator} from './BaseQuestionValidator.js';
 

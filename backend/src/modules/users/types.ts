@@ -2,7 +2,6 @@
   //Services
   EnrollmentService: Symbol.for('EnrollmentService'),
   ProgressService: Symbol.for('ProgressService'),
-  AnamolyService: Symbol.for('AnomalyService'),
 
   //Repositories
   ProgressRepo: Symbol.for('ProgressRepo'),

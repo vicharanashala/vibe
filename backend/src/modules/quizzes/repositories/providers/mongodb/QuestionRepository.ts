@@ -1,10 +1,10 @@
-import {BaseQuestion} from '#quizzes/classes/index.js';
+import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
 import {MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {plainToInstance} from 'class-transformer';
+
 @injectable()
 class QuestionRepository {
   private questionCollection: Collection<BaseQuestion>;

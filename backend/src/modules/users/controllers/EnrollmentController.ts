@@ -1,10 +1,12 @@
 import {
-  EnrollmentParams,
-  EnrollUserResponse,
-  EnrollmentResponse,
   EnrolledUserResponse,
+  EnrollUserResponse,
+} from '#users/classes/transformers/Enrollment.js';
+import {
+  EnrollmentParams,
   EnrollmentBody,
-} from '#users/classes/index.js';
+  EnrollmentResponse,
+} from '#users/classes/validators/EnrollmentValidators.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
@@ -81,6 +83,10 @@ export class EnrollmentController {
     @QueryParam('limit') limit = 10,
   ): Promise<EnrollmentResponse> {
     try {
+      //convert page and limit to integers
+      page = parseInt(page as unknown as string, 10);
+      limit = parseInt(limit as unknown as string, 10);
+
       if (page < 1 || limit < 1) {
         throw new BadRequestError('Page and limit must be positive integers.');
       }

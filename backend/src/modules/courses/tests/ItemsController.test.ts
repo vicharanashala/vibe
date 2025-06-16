@@ -1,4 +1,4 @@
-import {coursesModuleOptions, CreateItemBody, Item} from '../';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import {useExpressServer, useContainer} from 'routing-controllers';
 import Express from 'express';
 import request from 'supertest';
@@ -7,37 +7,26 @@ import {
   createModule,
   createSection,
   createVersion,
-} from './utils/creationFunctions';
+} from './utils/creationFunctions.js';
 import {faker} from '@faker-js/faker';
-import {ItemType} from '../../../shared/interfaces/models';
-import {InversifyAdapter} from '../../../inversify-adapter';
-import {Container} from 'inversify';
-import {usersContainerModule} from '../../users/container';
-import {coursesContainerModule} from '../container';
-import {sharedContainerModule} from '../../../container';
-import {authContainerModule} from '../../auth/container';
-import {jest} from '@jest/globals';
+import {ItemType} from '#shared/interfaces/models.js';
+import { CreateItemBody } from '../classes/validators/ItemValidators.js';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi  } from 'vitest';
 
 describe('Item Controller Integration Tests', () => {
   const App = Express();
   let app;
 
-  beforeAll(async () => {
+    beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    const container = new Container();
-    await container.load(
-      sharedContainerModule,
-      usersContainerModule,
-      coursesContainerModule,
-      authContainerModule,
-    );
-    const inversifyAdapter = new InversifyAdapter(container);
-    useContainer(inversifyAdapter);
+    await setupCoursesContainer()
     app = useExpressServer(App, coursesModuleOptions);
   });
-  afterEach(() => {
-    jest.restoreAllMocks();
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
   });
+
   describe('ITEM CREATION', () => {
     describe('Success Scenario', () => {
       describe('Create Quiz Item', () => {

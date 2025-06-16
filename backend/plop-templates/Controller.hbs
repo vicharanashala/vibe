@@ -1,0 +1,22 @@
+import {JsonController, Post, HttpCode, Body} from 'routing-controllers';
+import { injectable } from 'inversify';
+{{#if service}}
+import { inject } from 'inversify';
+import { {{name}}Service } from '../services/{{name}}Service.js';
+import { {{constantCase module}}_TYPES } from '../types.js';
+{{/if}}
+
+@JsonController('/{{kebabCase module}}/{{kebabCase name}}')
+@injectable()
+export class {{name}}Controller {
+  constructor(
+    {{#if service}}@inject({{constantCase module}}_TYPES.{{name}}Service)
+    private readonly service: {{name}}Service{{/if}}
+  ) {}
+
+  @Post('/')
+  @HttpCode(201)
+  async create(@Body() body: any) {
+    {{#if service}}return this.service.create(body);{{else}}return { message: 'Not implemented' };{{/if}}
+  }
+}

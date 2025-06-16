@@ -1,6 +1,6 @@
-import {QuizItem} from '#courses/index.js';
+import {QuizItem} from '#courses/classes/transformers/Item.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {MongoDatabase} from '#shared/index.js';
+import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 

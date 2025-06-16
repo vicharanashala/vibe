@@ -1,9 +1,9 @@
 ﻿import {SMLQuestion} from '#quizzes/classes/index.js';
-import {ILotItem, ILotItemRenderView} from '#shared/index.js';
+import {ILotItem} from '#shared/interfaces/quiz.js';
 import {ParameterMap} from '../tag-parser/index.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
-import {SMLQuestionRenderView} from './interfaces/RenderViews.js';
+import {ILotItemRenderView, SMLQuestionRenderView} from './interfaces/RenderViews.js';
 
 function toLotItemRenderView(item: ILotItem): ILotItemRenderView {
   const {explaination, ...rest} = item;

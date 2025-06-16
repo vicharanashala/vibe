@@ -1,5 +1,5 @@
 import {IAttempt} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#shared/index.js';
+import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
@@ -41,7 +41,7 @@ class AttemptRepository {
   ): Promise<number | null> {
     await this.init();
     const result = await this.attemptCollection.countDocuments(
-      {quizId: quizId},
+      {quizId: new ObjectId(quizId)},
       {session},
     );
     if (!result) {

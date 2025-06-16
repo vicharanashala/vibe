@@ -1,13 +1,13 @@
 import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {
-  ID,
-  ISection,
-  ObjectIdToString,
-  StringToObjectId,
-} from '#shared/index.js';
+
 import {Expose, Transform, Type} from 'class-transformer';
 import {ObjectId} from 'mongodb';
 import {CreateSectionBody} from '../validators/SectionValidators.js';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from '#root/shared/constants/transformerConstants.js';
+import {ISection, ID} from '#root/shared/interfaces/models.js';
 
 /**
  * Section data transformation.

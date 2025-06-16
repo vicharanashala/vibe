@@ -57,8 +57,8 @@ class SignUpBody {
 
 class VerifySignUpProviderBody {
   @JSONSchema({
-    title: 'Token',
-    description: 'Token used for signup verification',
+    title: 'Firebase Auth Token',
+    description: 'Firebase Auth Token',
     example: '43jdlsaksla;f328e9fjhsda',
     type: 'string',
   })

@@ -1,5 +1,3 @@
-// src/core/inversify-adapter.ts
-
 import {ClassConstructor} from 'class-transformer';
 import {Container} from 'inversify';
 import {IocAdapter, Action} from 'routing-controllers';

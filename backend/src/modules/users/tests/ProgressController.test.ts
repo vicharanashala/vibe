@@ -1,43 +1,38 @@
 import request from 'supertest';
 import Express from 'express';
 import {
-  RoutingControllersOptions,
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
-import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatabase';
-import {authModuleOptions} from '../../auth';
-import {coursesModuleOptions} from '../../courses';
+import {authModuleOptions} from '#auth/index.js';
+import {coursesModuleOptions} from '#courses/index.js';
 import {
-  ResetCourseProgressBody,
-  StartItemBody,
-  StopItemBody,
-  UpdateProgressBody,
   usersModuleOptions,
-} from '..';
+} from '../index.js';
 
 import {isMongoId} from 'class-validator';
-import {ProgressService} from '../services/ProgressService';
-import {ProgressRepository} from '../../../shared/database/providers/mongo/repositories/ProgressRepository';
-import {IUser, IWatchTime} from '../../../shared/interfaces/models';
+import {ProgressService} from '../services/ProgressService.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {IUser, IWatchTime} from '#shared/interfaces/models.js';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,
-} from './utils/createCourse';
-import {createUser} from './utils/createUser';
-import {createEnrollment} from './utils/createEnrollment';
-import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress';
-import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase';
-import {InversifyAdapter} from '../../../inversify-adapter';
+} from './utils/createCourse.js';
+import {createUser} from './utils/createUser.js';
+import {createEnrollment} from './utils/createEnrollment.js';
+import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress.js';
+import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {Container} from 'inversify';
-import {sharedContainerModule} from '../../../container';
+import {sharedContainerModule} from '#root/container.js';
 import {faker} from '@faker-js/faker';
-import {authContainerModule} from '../../auth/container';
-import {coursesContainerModule} from '../../courses/container';
-import {usersContainerModule} from '../container';
-import {jest} from '@jest/globals';
+import {authContainerModule} from '#auth/container.js';
+import {coursesContainerModule} from '#courses/container.js';
+import {usersContainerModule} from '../container.js';
+import { ResetCourseProgressBody, StartItemBody, StopItemBody, UpdateProgressBody } from '../classes/validators/ProgressValidators.js';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
-jest.setTimeout(300000); // Set timeout to 30 seconds for the tests
+
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
@@ -53,26 +48,20 @@ describe('Progress Controller Integration Tests', () => {
       sharedContainerModule,
       authContainerModule,
       usersContainerModule,
-      coursesContainerModule,
+      coursesContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
-
-    // Create the Express app with routing-controllers configuration
-    const options: RoutingControllersOptions = {
+    app = useExpressServer(appInstance, {
       controllers: [
-        ...(authModuleOptions.controllers as Function[]),
-        ...(coursesModuleOptions.controllers as Function[]),
-        ...(usersModuleOptions.controllers as Function[]),
+        ...usersModuleOptions.controllers as Function[],
+        ...authModuleOptions.controllers as Function[],
+        ...coursesModuleOptions.controllers as Function[]
       ],
-      authorizationChecker: async (action, roles) => {
-        return true;
-      },
+      authorizationChecker: async () => true,
       defaultErrorHandler: true,
       validation: true,
-    };
-
-    app = useExpressServer(appInstance, options);
+    });
 
     courseData = await createCourseWithModulesSectionsAndItems(2, 2, 3, app);
 
@@ -90,10 +79,6 @@ describe('Progress Controller Integration Tests', () => {
       courseData.modules[0].sections[0].items[0].itemId,
     );
   });
-
-  afterAll(async () => {});
-
-  beforeEach(async () => {});
 
   // ------Tests for Create <ModuleName>------
   describe('Fetch Progress Data', () => {
@@ -321,7 +306,7 @@ describe('Progress Controller Integration Tests', () => {
         watchItemId: startItemResponse.body.watchItemId,
       };
 
-      jest
+      vi
         .spyOn(ProgressService.prototype as any, 'isValidWatchTime')
         .mockReturnValueOnce(true);
 
@@ -370,7 +355,7 @@ describe('Progress Controller Integration Tests', () => {
         watchItemId: startItemResponse.body.watchItemId,
       };
 
-      jest
+      vi
         .spyOn(ProgressService.prototype as any, 'isValidWatchTime')
         .mockReturnValueOnce(false);
 
@@ -432,7 +417,7 @@ describe('Progress Controller Integration Tests', () => {
 
       const originalGet = ProgressRepository.prototype.getWatchTimeById;
 
-      jest
+      vi
         .spyOn(ProgressRepository.prototype, 'getWatchTimeById')
         .mockImplementation(async function (id: string) {
           // 1. Call the real implementation:
@@ -795,6 +780,7 @@ describe('Progress Controller Integration Tests', () => {
 
   describe('Student Progress Simulation', () => {
     it('should simulate student completing the course item by item, section by section, and module by module', async () => {
+      
       // Create a course with modules, sections, and items
       courseData = await createCourseWithModulesSectionsAndItems(3, 2, 3, app);
 
@@ -871,6 +857,6 @@ describe('Progress Controller Integration Tests', () => {
         expectedCompleted: true, // Course is completed after all modules are done
         app,
       });
-    });
-  });
+    }); // Increased timeout for this test
+  },600000);
 });

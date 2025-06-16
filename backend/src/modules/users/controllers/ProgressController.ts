@@ -1,6 +1,6 @@
+import {Progress} from '#users/classes/transformers/Progress.js';
 import {
   GetUserProgressParams,
-  Progress,
   StartItemParams,
   StartItemBody,
   StartItemResponse,
@@ -10,7 +10,7 @@ import {
   UpdateProgressBody,
   ResetCourseProgressParams,
   ResetCourseProgressBody,
-} from '#users/classes/index.js';
+} from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';

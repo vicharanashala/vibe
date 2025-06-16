@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import {inject, injectable} from 'inversify';
-import {CourseRepository} from '../../../shared/database/providers/mongo/repositories/CourseRepository.js';
+import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import {
   CreateModuleBody,
   UpdateModuleBody,
@@ -8,13 +8,14 @@ import {
 } from '../classes/validators/ModuleValidators.js';
 import {Module} from '../classes/transformers/Module.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {NotFoundError, InternalServerError, BadRequestError} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/index.js';
+
 import {COURSES_TYPES} from '../types.js';
 import {GLOBAL_TYPES} from '../../../types.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
@@ -82,7 +83,7 @@ export class ModuleService extends BaseService {
     return this._withTransaction(async session => {
       const {afterModuleId, beforeModuleId} = body;
       if (!afterModuleId && !beforeModuleId) {
-        throw new InternalServerError(
+        throw new BadRequestError(
           'Either afterModuleId or beforeModuleId is required',
         );
       }

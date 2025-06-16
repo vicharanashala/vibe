@@ -1,21 +1,18 @@
-import {
-  IQuestionAnswerFeedback,
-  IGradingResult,
-  ISubmission,
-} from '#quizzes/interfaces/grading.js';
-import {
-  AttemptRepository,
-  SubmissionRepository,
-  QuizRepository,
-  QuestionBankRepository,
-  UserQuizMetricsRepository,
-} from '#quizzes/repositories/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {BaseService, MongoDatabase, IQuestionBankRef} from '#shared/index.js';
+
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
+import { IGradingResult, IQuestionAnswerFeedback, ISubmission } from '../interfaces/grading.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(

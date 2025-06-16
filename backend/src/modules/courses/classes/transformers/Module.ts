@@ -1,15 +1,15 @@
 import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {
-  IModule,
-  ObjectIdToString,
-  StringToObjectId,
-  ID,
-} from '#shared/index.js';
+
 import {Expose, Transform, Type} from 'class-transformer';
 import {ObjectId} from 'mongodb';
 
 import {CreateModuleBody} from '../validators/ModuleValidators.js';
 import {Section} from './Section.js';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from '#root/shared/constants/transformerConstants.js';
+import {IModule, ID} from '#root/shared/interfaces/models.js';
 
 /**
  * Module data transformation.

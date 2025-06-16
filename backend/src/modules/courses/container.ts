@@ -1,20 +1,16 @@
-import {ItemRepository} from '#shared/index.js';
 import {ContainerModule} from 'inversify';
-import {
-  CourseController,
-  CourseVersionController,
-  ItemController,
-  ModuleController,
-  SectionController,
-} from './controllers/index.js';
-import {
-  CourseService,
-  CourseVersionService,
-  ItemService,
-  ModuleService,
-  SectionService,
-} from './services/index.js';
 import {COURSES_TYPES} from './types.js';
+import {ItemRepository} from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
+import {CourseController} from './controllers/CourseController.js';
+import {CourseVersionController} from './controllers/CourseVersionController.js';
+import {ItemController} from './controllers/ItemController.js';
+import {ModuleController} from './controllers/ModuleController.js';
+import {SectionController} from './controllers/SectionController.js';
+import {CourseService} from './services/CourseService.js';
+import {CourseVersionService} from './services/CourseVersionService.js';
+import {ItemService} from './services/ItemService.js';
+import {ModuleService} from './services/ModuleService.js';
+import {SectionService} from './services/SectionService.js';
 
 export const coursesContainerModule = new ContainerModule(options => {
   // Repositories

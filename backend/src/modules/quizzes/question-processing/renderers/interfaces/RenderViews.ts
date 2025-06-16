@@ -1,6 +1,9 @@
-import {BaseQuestion} from '#quizzes/classes/index.js';
-import {ParameterMap} from '#quizzes/question-processing/tag-parser/index.js';
-import {ILotItemRenderView} from '#shared/index.js';
+import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
+import { ILotItem } from '#root/shared/interfaces/quiz.js';
+
+import { ParameterMap } from '../../tag-parser/tags/Tag.js';
+
+export type ILotItemRenderView  = Omit<ILotItem, 'explaination'>
 
 interface IQuestionRenderView extends BaseQuestion {
   parameterMap?: ParameterMap;

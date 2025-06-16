@@ -1,10 +1,5 @@
-import {QuizItem} from '#courses/index.js';
-import {
-  BaseQuestion,
-  UserQuizMetrics,
-  Attempt,
-  Submission,
-} from '#quizzes/classes/index.js';
+
+
 import {
   IQuestionDetails,
   IGradingResult,
@@ -12,15 +7,10 @@ import {
   IQuestionAnswerFeedback,
   IAttempt,
 } from '#quizzes/interfaces/grading.js';
-import {QuestionAnswerFeedback} from '#quizzes/classes/transformers/Submission.js';
+import {QuestionAnswerFeedback, Submission} from '#quizzes/classes/transformers/Submission.js';
 import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
-import {
-  QuizRepository,
-  AttemptRepository,
-  SubmissionRepository,
-  UserQuizMetricsRepository,
-} from '#quizzes/repositories/index.js';
+
 import {generateRandomParameterMap} from '#quizzes/utils/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {BaseService, MongoDatabase} from '#shared/index.js';
@@ -31,6 +21,14 @@ import {QuestionBankService} from './QuestionBankService.js';
 import {QuestionService} from './QuestionService.js';
 import {QUIZZES_TYPES} from '../types.js';
 import {instanceToPlain} from 'class-transformer';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { BaseQuestion } from '../classes/transformers/Question.js';
+import { UserQuizMetrics } from '../classes/transformers/UserQuizMetrics.js';
+import { Attempt } from '../classes/transformers/Attempt.js';
+import { QuizItem } from '#root/modules/courses/classes/transformers/Item.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -336,12 +334,8 @@ class AttemptService extends BaseService {
       }
       //2. Check if the attempt belongs to the user and quiz
       if (attempt.userId !== userId || attempt.quizId !== quizId) {
-        // TEMPORARY
-        // throw new BadRequestError(
-        //   'Attempt does not belong to the user or quiz',
-        // );
-        console.warn(
-          `Attempt with ID ${attemptId} does not belong to user ${userId} or quiz ${quizId}`,
+        throw new BadRequestError(
+          'Attempt does not belong to the user or quiz',
         );
       }
       //3. Update the attempt with the answers

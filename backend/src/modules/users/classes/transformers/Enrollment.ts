@@ -1,13 +1,16 @@
 import {
-  IEnrollment,
   ObjectIdToString,
   StringToObjectId,
-  ID,
+} from '#root/shared/constants/transformerConstants.js';
+import {
   EnrollmentRole,
   EnrollmentStatus,
-} from '#shared/index.js';
+  ID,
+  IEnrollment,
+} from '#root/shared/interfaces/models.js';
 import {Expose, Transform, Type} from 'class-transformer';
 import {ObjectId} from 'mongodb';
+import {Progress} from './Progress.js';
 
 @Expose()
 export class Enrollment implements IEnrollment {
@@ -49,5 +52,53 @@ export class Enrollment implements IEnrollment {
       this.status = 'active';
       this.enrollmentDate = new Date();
     }
+  }
+}
+
+@Expose({toPlainOnly: true})
+export class EnrollUserResponse {
+  @Expose()
+  @Type(() => Enrollment)
+  enrollment: Enrollment;
+
+  @Expose()
+  @Type(() => Progress)
+  progress: Progress;
+
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  constructor(
+    enrollment: Enrollment,
+    progress: Progress,
+    role: EnrollmentRole,
+  ) {
+    this.enrollment = enrollment;
+    this.progress = progress;
+    this.role = role;
+  }
+}
+export class EnrolledUserResponse {
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  @Expose()
+  @Type(() => String)
+  status: EnrollmentStatus;
+
+  @Expose()
+  @Type(() => Date)
+  enrollmentDate: Date;
+
+  constructor(
+    role: EnrollmentRole,
+    status: EnrollmentStatus,
+    enrollmentDate: Date,
+  ) {
+    this.role = role;
+    this.status = status;
+    this.enrollmentDate = enrollmentDate;
   }
 }

@@ -1,20 +1,31 @@
-import 'reflect-metadata';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {Container} from 'typedi';
-import {useContainer} from 'routing-controllers';
-import GenAIVideoController from './GenAIVideoController.js'; // Remove .ts extension
+import { Container, ContainerModule } from 'inversify';
+import { LLMController } from './controllers/LLMController.js';import { sharedContainerModule } from '#root/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { useContainer, RoutingControllersOptions } from 'routing-controllers';
+import { genaiContainerModule } from './container.js';
 
-useContainer(Container);
+export const genaiContainerModules: ContainerModule[] = [
+  genaiContainerModule,
+  sharedContainerModule,
+];
+
+export const genaiModuleControllers: Function[] = [
+  LLMController,
+];
+
+export async function setupGenaiContainer(): Promise<void> {
+  const container = new Container();
+  await container.load(...genaiContainerModules);
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
+}
 
 export const genaiModuleOptions: RoutingControllersOptions = {
-  controllers: [GenAIVideoController],
+  controllers: genaiModuleControllers,
+  middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {
-    // For now, allow all requests to GenAI endpoints
-    // You can add authentication logic here if needed
     return true;
   },
   validation: true,
 };
-
-export * from './GenAIVideoController.js';

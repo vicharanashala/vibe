@@ -1,0 +1,29 @@
+import { Container, ContainerModule } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { useContainer, RoutingControllersOptions } from 'routing-controllers';
+import { {{module}}ContainerModule } from './container.js';
+
+export const {{module}}ContainerModules: ContainerModule[] = [
+  {{module}}ContainerModule,
+  sharedContainerModule,
+];
+
+export const {{module}}ModuleControllers: Function[] = [];
+
+export async function setup{{pascalCase module}}Container(): Promise<void> {
+  const container = new Container();
+  await container.load(...{{module}}ContainerModules);
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
+}
+
+export const {{module}}ModuleOptions: RoutingControllersOptions = {
+  controllers: {{module}}ModuleControllers,
+  middlewares: [],
+  defaultErrorHandler: true,
+  authorizationChecker: async function () {
+    return true;
+  },
+  validation: true,
+};

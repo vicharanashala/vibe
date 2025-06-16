@@ -1,4 +1,4 @@
-import {IQuestionParameter} from '#shared/index.js';
+import {IQuestionParameter} from '#shared/interfaces/quiz.js';
 import {SymbolNode, evaluate, parse} from 'mathjs';
 import {Tag, ParameterMap} from './Tag.js';
 

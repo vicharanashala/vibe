@@ -1,26 +1,26 @@
-import {
-  CourseVersion,
-  Section,
-  ItemsGroup,
-  CreateItemBody,
-  ItemBase,
-  ItemRef,
-  UpdateItemBody,
-  MoveItemBody,
-  Module,
-} from '#courses/classes/index.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  BaseService,
-  IItemRepository,
-  ICourseRepository,
-  MongoDatabase,
-} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {
+  ItemsGroup,
+  ItemBase,
+  ItemRef,
+} from '#courses/classes/transformers/Item.js';
+import {Section} from '#courses/classes/transformers/Section.js';
+import {
+  CreateItemBody,
+  UpdateItemBody,
+  MoveItemBody,
+} from '#courses/classes/validators/ItemValidators.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {Module} from '#courses/classes/transformers/Module.js';
 
 @injectable()
 export class ItemService extends BaseService {

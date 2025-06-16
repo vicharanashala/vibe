@@ -1,20 +1,21 @@
 import Express from 'express';
 import { RoutingControllersOptions, useContainer, useExpressServer } from 'routing-controllers';
-import { quizzesContainerModule, quizzesModuleOptions } from '..';
-import { coursesContainerModule, coursesModuleOptions } from '#courses/index.js';
-import { authContainerModule } from '#auth/container.js';
-import { authModuleOptions } from '#auth/index.js';
-import request from 'supertest';
-import { jest } from '@jest/globals';
 import { sharedContainerModule } from '#root/container.js';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { Container } from 'inversify';
-import { faker } from '@faker-js/faker';
-import { ItemType } from '../../../shared/interfaces/models';
+import { quizzesContainerModule } from '../container.js';
+import { coursesContainerModule } from '#courses/container.js';
 import { usersContainerModule } from '#users/container.js';
-import {NATquestionData, NATsolution, SOLquestionData, SOLsolution, SMLquestionData, SMLsolution, OTLquestionData, OTLsolution, DESquestionData, DESsolution} from './SamleQuestionBody.js';
+import { authContainerModule } from '#auth/container.js';
+import { Container } from 'inversify';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import request from 'supertest';
+import { quizzesModuleOptions } from '../index.js';
+import { coursesModuleOptions } from '#courses/index.js';
+import { authModuleOptions } from '#auth/index.js';
+import { faker } from '@faker-js/faker';
+import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
+import { ItemType } from '#root/shared/interfaces/models.js';
+import { DESquestionData, DESsolution, NATquestionData, NATsolution, OTLquestionData, OTLsolution, SMLquestionData, SMLsolution, SOLquestionData, SOLsolution } from './SamleQuestionBody.js';
 
-jest.setTimeout(30000);
 
 describe('AttemptController', () => {
   const appInstance = Express();
@@ -182,7 +183,7 @@ describe('AttemptController', () => {
       expect(sectionRes.status).toBe(201);
       const sectionId = sectionRes.body.version.modules[0].sections[0].sectionId;
 
-      const questionRes = await request(app).post('/questions').send({
+      const questionRes = await request(app).post('/quizzes/questions').send({
         question: NATquestionData,
         solution: NATsolution,
       });
@@ -190,7 +191,7 @@ describe('AttemptController', () => {
       const questionId = questionRes.body.questionId;
 
       // 6. Create question bank with the question
-      const bankRes = await request(app).post('/question-bank').send({
+      const bankRes = await request(app).post('/quizzes/question-bank').send({
         courseId,
         courseVersionId: versionId,
         questions: [questionId],
@@ -315,7 +316,7 @@ describe('AttemptController', () => {
         lowerLimit: 0,
         value: 6,
       };
-      const questionRes = await request(app).post('/questions').send({
+      const questionRes = await request(app).post('/quizzes/questions').send({
         question: questionData,
         solution,
       });
@@ -323,7 +324,7 @@ describe('AttemptController', () => {
       const questionId = questionRes.body.questionId;
   
       // 6. Create question bank with the question
-      const bankRes = await request(app).post('/question-bank').send({
+      const bankRes = await request(app).post('/quizzes/question-bank').send({
         courseId,
         courseVersionId: versionId,
         questions: [questionId],
@@ -363,7 +364,7 @@ describe('AttemptController', () => {
       const quizId = itemRes.body.createdItem._id;
 
       // Add question bank to quiz item
-      const updateQuizRes = await request(app).post(`/quiz/${quizId}/bank`).send({
+      const updateQuizRes = await request(app).post(`/quizzes/quiz/${quizId}/bank`).send({
         bankId: questionBankId,
         count: 1,
       });
@@ -436,28 +437,28 @@ describe('AttemptController', () => {
       const sectionId = sectionRes.body.version.modules[0].sections[0].sectionId;
 
       // 5. Create questions of each type
-      const natRes = await request(app).post('/questions').send({ question: NATquestionData, solution: NATsolution });
+      const natRes = await request(app).post('/quizzes/questions').send({ question: NATquestionData, solution: NATsolution });
       expect(natRes.status).toBe(201);
       const natId = natRes.body.questionId;
 
-      const solRes = await request(app).post('/questions').send({ question: SOLquestionData, solution: SOLsolution });
+      const solRes = await request(app).post('/quizzes/questions').send({ question: SOLquestionData, solution: SOLsolution });
       expect(solRes.status).toBe(201);
       const solId = solRes.body.questionId;
 
-      const smlRes = await request(app).post('/questions').send({ question: SMLquestionData, solution: SMLsolution });
+      const smlRes = await request(app).post('/quizzes/questions').send({ question: SMLquestionData, solution: SMLsolution });
       expect(smlRes.status).toBe(201);
       const smlId = smlRes.body.questionId;
 
-      const otlRes = await request(app).post('/questions').send({ question: OTLquestionData, solution: OTLsolution });
+      const otlRes = await request(app).post('/quizzes/questions').send({ question: OTLquestionData, solution: OTLsolution });
       expect(otlRes.status).toBe(201);
       const otlId = otlRes.body.questionId;
 
-      const desRes = await request(app).post('/questions').send({ question: DESquestionData, solution: DESsolution });
+      const desRes = await request(app).post('/quizzes/questions').send({ question: DESquestionData, solution: DESsolution });
       expect(desRes.status).toBe(201);
       const desId = desRes.body.questionId;
 
       // 6. Create only two question banks
-      const mainBankRes = await request(app).post('/question-bank').send({
+      const mainBankRes = await request(app).post('/quizzes/question-bank').send({
         courseId,
         courseVersionId: versionId,
         questions: [natId, solId, smlId, otlId],
@@ -467,7 +468,7 @@ describe('AttemptController', () => {
       expect(mainBankRes.status).toBe(200);
       const mainBankId = mainBankRes.body.questionBankId;
 
-      const desBankRes = await request(app).post('/question-bank').send({
+      const desBankRes = await request(app).post('/quizzes/question-bank').send({
         courseId,
         courseVersionId: versionId,
         questions: [desId],
@@ -509,11 +510,11 @@ describe('AttemptController', () => {
       // Add only the two banks to the quiz
       
       const updateQuizRes = await request(app)
-          .post(`/quiz/${quizId}/bank`)
+          .post(`/quizzes/quiz/${quizId}/bank`)
           .send({ bankId: mainBankId, count: 4 });
         expect(updateQuizRes.status).toBe(201);
       const updateDesQuizRes = await request(app)
-        .post(`/quiz/${quizId}/bank`)
+        .post(`/quizzes/quiz/${quizId}/bank`)
         .send({ bankId: desBankId, count: 1 });
       expect(updateDesQuizRes.status).toBe(201);
 
@@ -524,9 +525,9 @@ describe('AttemptController', () => {
       expect(attemptRes.status).toBe(200);
       const attemptId = attemptRes.body.attemptId;
 
-      const solDetails = await request(app).get(`/questions/${solId}`);
-      const smlDetails = await request(app).get(`/questions/${smlId}`);
-      const otlDetails = await request(app).get(`/questions/${otlId}`);
+      const solDetails = await request(app).get(`/quizzes/questions/${solId}`);
+      const smlDetails = await request(app).get(`/quizzes/questions/${smlId}`);
+      const otlDetails = await request(app).get(`/quizzes/questions/${otlId}`);
 
       // For SOL (SELECT_ONE_IN_LOT)
       // Only the correct lot item will have the value of 'name' in its text

@@ -1,5 +1,5 @@
-import {QuizItem} from '#courses/index.js';
-import {OTLQuestion} from '#quizzes/classes/index.js';
+import {QuizItem} from '#courses/classes/transformers/Item.js';
+import {OTLQuestion} from '#quizzes/classes/transformers/Question.js';
 import {
   IOTLAnswer,
   IQuestionAnswerFeedback,

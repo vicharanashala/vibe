@@ -37,10 +37,6 @@ interface ILotItem {
   text: string;
   explaination: string;
 }
-interface ILotItemRenderView {
-  _id?: string | ObjectId;
-  text: string;
-}
 
 interface ILotOrder {
   lotItem: ILotItem;
@@ -106,7 +102,6 @@ export {
   INATSolution,
   IDESSolution,
   ILotItem,
-  ILotItemRenderView,
   ILotOrder,
   IQuestionBank,
   ISOLQuizView,

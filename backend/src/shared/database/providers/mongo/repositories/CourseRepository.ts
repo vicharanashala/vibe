@@ -1,4 +1,3 @@
-import {Course, CourseVersion, ItemsGroup} from '#courses/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
 import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
@@ -14,6 +13,9 @@ import {
 } from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
+import {Course} from '#courses/classes/transformers/Course.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {

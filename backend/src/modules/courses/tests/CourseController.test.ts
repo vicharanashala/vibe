@@ -1,13 +1,10 @@
 import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
-import {
-  coursesModuleOptions,
-  CreateCourseBody,
-  setupCoursesContainer,
-} from '..';
 import {faker} from '@faker-js/faker';
-import {jest} from '@jest/globals';
+import { CourseBody } from '../classes/validators/CourseValidators.js';
+import { describe, it, beforeEach, beforeAll, expect, vi } from 'vitest';
+import { coursesModuleOptions, setupCoursesContainer } from '../index.js';
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();
@@ -19,13 +16,13 @@ describe('Course Controller Integration Tests', () => {
   });
 
   beforeEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('COURSE CREATION', () => {
     describe('Success Scenario', () => {
       it('should create a course', async () => {
-        const coursePayload: CreateCourseBody = {
+        const coursePayload: CourseBody = {
           name: 'New Course',
           description: 'Course description',
         };
@@ -134,11 +131,11 @@ describe('Course Controller Integration Tests', () => {
     });
     describe('Error Scenarios', () => {
       it('should return 404 for a non-existing course', async () => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
 
         const response = await request(app)
           .put('/courses/67dd98f025dd87ebf639851c')
-          .send({name: 'Updated Course'})
+          .send({name: 'Updated Course', description: 'Updated course description'})
           .expect(404);
       }, 60000);
 
@@ -206,7 +203,6 @@ describe('Course Controller Integration Tests', () => {
 
         const courseId = createdCourseResponse.body._id;
 
-        // Now, delete the course by its ID
         const res = await request(app).delete(`/courses/${courseId}`);
         console.log(res.body);
 

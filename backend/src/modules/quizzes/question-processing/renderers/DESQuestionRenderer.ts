@@ -1,4 +1,4 @@
-import {DESQuestion} from '#quizzes/classes/index.js';
+import {DESQuestion} from '#quizzes/classes/transformers/Question.js';
 import {ParameterMap} from '../tag-parser/index.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';

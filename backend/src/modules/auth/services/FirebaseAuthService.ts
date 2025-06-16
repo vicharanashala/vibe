@@ -1,15 +1,13 @@
 import {SignUpBody, User, ChangePasswordBody} from '#auth/classes/index.js';
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  BaseService,
-  IUserRepository,
-  MongoDatabase,
-  IUser,
-} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
+import { IUser } from '#root/shared/interfaces/models.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -64,11 +62,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       firstName: userRecord.displayName?.split(' ')[0] || '',
       lastName: userRecord.displayName?.split(' ')[1] || '',
     };
-    console.log('Decoded user:', user);
-    console.log(this, this.userRepository);
-    const result = await this.userRepository.findByFirebaseUID(token);
 
-    return result;
+    return user;
   }
 
   async signup(body: SignUpBody): Promise<string> {

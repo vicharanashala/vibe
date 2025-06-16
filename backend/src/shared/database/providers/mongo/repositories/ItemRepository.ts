@@ -1,11 +1,4 @@
-﻿import {
-  ItemsGroup,
-  VideoItem,
-  QuizItem,
-  BlogItem,
-  Item,
-} from '#courses/classes/transformers/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+﻿import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
 import {IItemRepository} from '#shared/database/interfaces/IItemRepository.js';
 import {ItemType} from '#shared/interfaces/models.js';
@@ -14,6 +7,13 @@ import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
+import {
+  ItemsGroup,
+  VideoItem,
+  QuizItem,
+  BlogItem,
+  Item,
+} from '#courses/classes/transformers/Item.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {

@@ -1,9 +1,8 @@
 import {
-  IProgress,
   ObjectIdToString,
   StringToObjectId,
-  ID,
-} from '#shared/index.js';
+} from '#root/shared/constants/transformerConstants.js';
+import {ID, IProgress} from '#root/shared/interfaces/models.js';
 import {Expose, Transform} from 'class-transformer';
 import {ObjectId} from 'mongodb';
 

@@ -1,34 +1,30 @@
 import request from 'supertest';
 import Express from 'express';
 import {
-  RoutingControllersOptions,
   useContainer,
   useExpressServer,
 } from 'routing-controllers';
-import {authModuleOptions, SignUpBody} from '../../auth';
-import {
-  Course,
-  coursesModuleOptions,
-  CreateCourseBody,
-  CreateCourseVersionBody,
-  CreateCourseVersionParams,
-  CreateItemBody,
-  CreateItemParams,
-  CreateModuleBody,
-  CreateModuleParams,
-  CreateSectionBody,
-  CreateSectionParams,
-} from '../../courses';
-import {EnrollmentParams, usersModuleOptions} from '..';
-import {faker} from '@faker-js/faker';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '../../../container';
-import {authContainerModule} from '../../auth/container';
-import {usersContainerModule} from '../container';
-import {coursesContainerModule} from '../../courses/container';
-import {InversifyAdapter} from '../../../inversify-adapter';
-import {ItemType} from '../../../shared/interfaces/models';
-import {jest} from '@jest/globals';
+
+import { usersModuleOptions } from '../index.js';
+import { ItemType } from '#shared/interfaces/models.js';
+import { CreateCourseVersionBody, CreateCourseVersionParams } from '#courses/classes/validators/CourseVersionValidators.js';
+import { Course } from '#courses/classes/transformers/index.js';
+import { CourseBody } from '#courses/classes/validators/CourseValidators.js';
+import { SignUpBody } from '#auth/classes/validators/AuthValidators.js';
+import { CreateModuleBody, CreateModuleParams, VersionModuleParams } from '#courses/classes/validators/ModuleValidators.js';
+import { CreateSectionBody, VersionModuleSectionParams} from '#courses/classes/validators/SectionValidators.js';
+import { CreateItemBody } from '#courses/classes/validators/ItemValidators.js';
+import { EnrollmentParams } from './utils/createEnrollment.js';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '#root/modules/auth/container.js';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { usersContainerModule } from '../container.js';
+import { coursesContainerModule } from '#root/modules/courses/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { coursesModuleControllers } from '#root/modules/courses/index.js';
+import { authModuleControllers } from '#root/modules/auth/index.js';
 
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
@@ -37,30 +33,26 @@ describe('Enrollment Controller Integration Tests', () => {
   beforeAll(async () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
+
     const container = new Container();
     await container.load(
       sharedContainerModule,
       authContainerModule,
       usersContainerModule,
-      coursesContainerModule,
+      coursesContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
-
-    // Create the Express app with routing-controllers configuration
-    const options: RoutingControllersOptions = {
+    app = useExpressServer(appInstance, {
       controllers: [
-        ...(authModuleOptions.controllers as Function[]),
-        ...(coursesModuleOptions.controllers as Function[]),
-        ...(usersModuleOptions.controllers as Function[]),
+        ...usersModuleOptions.controllers as Function[],
+        ...authModuleControllers as Function[],
+        ...coursesModuleControllers as Function[]
       ],
-      authorizationChecker: async (action, roles) => {
-        return true;
-      },
+      authorizationChecker: async () => true,
       defaultErrorHandler: true,
-    };
-
-    app = useExpressServer(appInstance, options);
+      validation: true,
+    });
   });
 
   beforeEach(async () => {
@@ -81,21 +73,21 @@ describe('Enrollment Controller Integration Tests', () => {
       const signUpResponse = await request(app)
         .post('/auth/signup')
         .send(signUpBody)
-        .expect(201);
+
+
       // Extract the user ID from the response
       const userId = signUpResponse.body;
 
       // 2. Create a course by hitting at endpoint /courses
 
-      const courseBody: CreateCourseBody = {
+      const courseBody: CourseBody = {
         name: faker.commerce.productName(),
         description: faker.commerce.productDescription(),
       };
 
       const courseResponse = await request(app)
         .post('/courses')
-        .send(courseBody)
-        .expect(201);
+        .send(courseBody);
 
       // Expect the response to contain the course ID
       expect(courseResponse.body).toHaveProperty('_id');
@@ -151,7 +143,7 @@ describe('Enrollment Controller Integration Tests', () => {
         description: faker.commerce.productDescription(),
       };
 
-      const sectionParams: CreateSectionParams = {
+      const sectionParams: VersionModuleParams = {
         versionId: courseVersionId,
         moduleId: moduleId,
       };
@@ -193,7 +185,7 @@ describe('Enrollment Controller Integration Tests', () => {
         },
       };
 
-      const itemParams: CreateItemParams = {
+      const itemParams: VersionModuleSectionParams = {
         versionId: courseVersionId,
         moduleId: moduleId,
         sectionId: sectionId,
@@ -290,7 +282,7 @@ describe('Enrollment Controller Integration Tests', () => {
       const userId = signUpResponse.body;
 
       // 2. Create a course
-      const courseBody: CreateCourseBody = {
+      const courseBody: CourseBody = {
         name: faker.commerce.productName(),
         description: faker.commerce.productDescription(),
       };
@@ -407,28 +399,7 @@ describe('Enrollment Controller Integration Tests', () => {
       );
     }, 90000);
   });
-
-  // ------Tests for Read <ModuleName>------
-  describe('READ <ModuleName>', () => {
-    // it('should ...', async () => {
-    //   // Write your test here
-    // });
-  });
-
-  // ------Tests for Update <ModuleName>------
-  describe('UPDATE <ModuleName>', () => {
-    // it('should ...', async () => {
-    //   // Write your test here
-    // });
-  });
-
-  // ------Tests for Delete <ModuleName>------
-  describe('DELETE <ModuleName>', () => {
-    // it('should ...', async () => {
-    //   // Write your test here
-    // });
-  });
-
+  
   // ------Tests for Get User Enrollments with Pagination------
   describe('GET User Enrollments (Pagination)', () => {
     it('should fetch paginated enrollments for a user', async () => {
@@ -450,7 +421,7 @@ describe('Enrollment Controller Integration Tests', () => {
       const enrollments: any[] = [];
       for (let i = 0; i < 2; i++) {
         // Create course
-        const courseBody: CreateCourseBody = {
+        const courseBody: CourseBody = {
           name: faker.commerce.productName(),
           description: faker.commerce.productDescription(),
         };
@@ -540,8 +511,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       // 3. Fetch enrollments with pagination (limit 1, page 1)
       const getEnrollmentsResponse = await request(app)
-        .get(`/users/${userId}/enrollments?page=1&limit=1`)
-        .expect(200);
+        .get(`/users/${userId}/enrollments?page=1&limit=1`);
 
       expect(getEnrollmentsResponse.body).toHaveProperty('totalDocuments', 2);
       expect(getEnrollmentsResponse.body).toHaveProperty('totalPages', 2);

@@ -1,12 +1,11 @@
-import {
-  ICourseVersion,
-  ObjectIdToString,
-  StringToObjectId,
-  ID,
-} from '#shared/index.js';
 import {Expose, Transform, Type} from 'class-transformer';
 import {CreateCourseVersionBody} from '../validators/CourseVersionValidators.js';
-import {Module} from './index.js';
+import {
+  ObjectIdToString,
+  StringToObjectId,
+} from '#root/shared/constants/transformerConstants.js';
+import {ICourseVersion, ID} from '#root/shared/interfaces/models.js';
+import {Module} from './Module.js';
 
 /**
  * Course version data transformation.

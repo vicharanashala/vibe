@@ -1,18 +1,17 @@
-import {User} from '#auth/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+
 import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
-import {IUser, IUserAnomaly} from '#shared/interfaces/models.js';
+import {IUser} from '#shared/interfaces/models.js';
 import {instanceToPlain, plainToInstance} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {Collection, MongoClient, ClientSession, ObjectId} from 'mongodb';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { User } from '#auth/classes/transformers/User.js';
 
 @injectable()
 export class UserRepository implements IUserRepository {
   private usersCollection!: Collection<IUser>;
-
-  private usersAnomalyCollection!: Collection<IUserAnomaly>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -25,10 +24,6 @@ export class UserRepository implements IUserRepository {
   private async init(): Promise<void> {
     if (!this.usersCollection) {
       this.usersCollection = await this.db.getCollection<IUser>('users');
-    }
-    if (!this.usersAnomalyCollection) {
-      this.usersAnomalyCollection =
-        await this.db.getCollection<IUserAnomaly>('userAnomalies');
     }
   }
 
@@ -85,7 +80,6 @@ export class UserRepository implements IUserRepository {
    */
   async findByFirebaseUID(firebaseUID: string): Promise<IUser | null> {
     await this.init();
-    console.log('Finding user by Firebase UID:', firebaseUID);
     const user = await this.usersCollection.findOne({firebaseUID});
     if (!user) {
       throw new NotFoundError('User not found');
@@ -133,35 +127,5 @@ export class UserRepository implements IUserRepository {
       {returnDocument: 'after'},
     );
     return instanceToPlain(new User(result)) as IUser;
-  }
-
-  /**
-   * Creates a User Anomaly Document in the database.
-   */
-
-  async createUserAnomaly(
-    anamoly: IUserAnomaly,
-    session?: ClientSession,
-  ): Promise<IUserAnomaly | null> {
-    await this.init();
-    const result = await this.usersAnomalyCollection.insertOne(anamoly, {
-      session,
-    });
-    if (!result.acknowledged) {
-      throw new InternalServerError('Failed to create user anomaly');
-    } else {
-      const createdAnomaly = await this.usersAnomalyCollection.findOne(
-        {
-          _id: result.insertedId,
-        },
-        {session},
-      );
-
-      if (!createdAnomaly) {
-        throw new NotFoundError('User anomaly not found after creation');
-      }
-
-      return createdAnomaly;
-    }
   }
 }

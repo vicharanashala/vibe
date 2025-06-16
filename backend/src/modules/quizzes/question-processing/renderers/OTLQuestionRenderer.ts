@@ -1,9 +1,9 @@
-﻿import {OTLQuestion} from '#quizzes/classes/index.js';
-import {ILotItem, ILotItemRenderView} from '#shared/index.js';
+﻿import {OTLQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ILotItem} from '#shared/interfaces/quiz.js';
 import {ParameterMap} from '../tag-parser/index.js';
 import {TagParser} from '../tag-parser/TagParser.js';
 import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
-import {OTLQuestionRenderView} from './interfaces/RenderViews.js';
+import {ILotItemRenderView, OTLQuestionRenderView} from './interfaces/RenderViews.js';
 
 function toLotItemRenderView(item: ILotItem): ILotItemRenderView {
   const {explaination, ...rest} = item;
