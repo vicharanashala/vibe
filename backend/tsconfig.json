@@ -13,14 +13,14 @@
         "sourceRoot": "C:\\Users\\Aditya\\OneDrive\\Desktop\\vibe-jest-fix\\vibe\\backend\\src",
         "resolveJsonModule": true,
         "allowArbitraryExtensions": false,
-        "incremental": false,
+        "incremental": true,
         "paths": {
             "#root/*": ["./*"],
             "#shared/*": ["./shared/*"],
             "#auth/*": ["./modules/auth/*"],
             "#courses/*": ["./modules/courses/*"],
             "#users/*": ["./modules/users/*"],
-            "#quizzes/*": ["./modules/quizzes/*"],
+            "#quizzes/*": ["./modules/quizzes/*"]
         },
         "types": ["node", "express"],
         "experimentalDecorators": true,
