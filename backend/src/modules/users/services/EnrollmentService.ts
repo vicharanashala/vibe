@@ -14,7 +14,7 @@ import {Enrollment} from '#users/classes/transformers/Enrollment.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError} from 'routing-controllers';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -60,7 +60,7 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
       );
       if (existingEnrollment) {
-        throw new Error('User is already enrolled in this course version');
+        throw new BadRequestError('User is already enrolled in this course version');
       }
 
       const enrollment = new Enrollment(userId, courseId, courseVersionId);

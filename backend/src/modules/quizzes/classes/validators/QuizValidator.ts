@@ -5,9 +5,11 @@ import {
   IQuestionAnswerFeedback,
   IAttemptDetails,
   IQuestionDetails,
+  IAttempt,
+  ISubmission,
 } from '#quizzes/interfaces/grading.js';
-import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
-import {ItemType, IQuizDetails} from '#shared/interfaces/models.js';
+import {IQuestionRenderView, ParameterMap} from '#quizzes/question-processing/index.js';
+import {ItemType, IQuizDetails, IQuestionBankRef} from '#shared/interfaces/models.js';
 import {Type} from 'class-transformer';
 import {
   IsMongoId,
@@ -25,6 +27,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
 import {QuestionType} from '#root/shared/interfaces/quiz.js';
+import { Param } from 'routing-controllers';
 
 // Request Schemas
 class CreateAttemptParams {
@@ -51,6 +54,37 @@ class SubmitAttemptParams {
   @IsMongoId()
   @IsNotEmpty()
   attemptId: string;
+}
+
+class GetAttemptResponse implements IAttempt {
+  @IsMongoId()
+  _id?: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string | ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string | ObjectId;
+
+  @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => QuestionDetails)
+  questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
+
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => QuestionAnswer)
+  answers?: IQuestionAnswer[];
+
+  @IsDate()
+  @IsNotEmpty()
+  createdAt: Date;
+
+  @IsDate()
+  @IsNotEmpty()
+  updatedAt: Date;
 }
 
 class SOLAnswer {
@@ -150,6 +184,15 @@ class QuestionAnswer implements IQuestionAnswer {
   })
   @IsNotEmpty()
   answer: Answer;
+}
+
+class QuestionDetails implements IQuestionDetails {
+  @IsMongoId()
+  @IsNotEmpty()
+  questionId: string | ObjectId;
+
+  @IsOptional()
+  parameterMap?: ParameterMap;
 }
 
 class QuestionAnswersBody {
@@ -491,12 +534,102 @@ class FlaggedQuestionResponse {
   //not yet implemented
 }
 
+class AttemptNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example:
+      'No attempt found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class SubmissionResponse implements ISubmission {
+  @IsMongoId()
+  @IsNotEmpty()
+  _id: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  userId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  attemptId: string;
+
+  @IsDate()
+  @IsNotEmpty()
+  @Type(() => Date)
+  submittedAt: Date;
+
+  @IsOptional()
+  gradingResult?: IGradingResult;
+}
+
+class GetAllSubmissionsResponse {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubmissionResponse)
+  submissions: SubmissionResponse[];
+}
+
+class QuizNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example: 'Quiz not found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class GetAllQuestionBanksResponse {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionBankRefResponse)
+  questionBanks: IQuestionBankRef[];
+}
+
+class QuestionBankRefResponse implements IQuestionBankRef {
+  @IsMongoId()
+  @IsNotEmpty()
+  bankId: string; // ObjectId as string
+
+  @IsNumber()
+  @IsNotEmpty()
+  count: number; // How many questions to pick
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  difficulty?: string[]; // Optional filter
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[]; // Optional filter
+
+  @IsOptional()
+  @IsString()
+  type?: string; // Optional question type filter
+}
+
 export {
   CreateAttemptParams,
   SaveAttemptParams,
   SubmitAttemptParams,
   CreateAttemptResponse,
   SubmitAttemptResponse,
+  GetAttemptResponse,
   QuestionAnswersBody,
   AddQuestionBankBody,
   EditQuestionBankBody,
@@ -517,4 +650,8 @@ export {
   QuizPerformanceResponse,
   QuizResultsResponse,
   FlaggedQuestionResponse,
+  AttemptNotFoundErrorResponse,
+  GetAllSubmissionsResponse,
+  QuizNotFoundErrorResponse,
+  GetAllQuestionBanksResponse
 };

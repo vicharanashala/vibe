@@ -109,7 +109,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/must have a valid tag/i);
     });
     it('should fail if not parameterized but parameters are defined', async () => {
@@ -131,7 +131,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
         /not parameterized, but has parameters/i,
       );
@@ -155,7 +155,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
         /parameterized, but has no parameters/i,
       );
