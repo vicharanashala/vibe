@@ -140,6 +140,44 @@ module.exports = function (plop) {
   {{/if}}`,
       });
 
+      // ✅ Update package.json imports
+actions.push(() => {
+  const pkgPath = path.resolve('package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+
+  const importKey = `#${module}/*.js`;
+  const importValue = `./build/modules/${module}/*.js`;
+
+  if (!pkg.imports) pkg.imports = {};
+  if (!pkg.imports[importKey]) {
+    pkg.imports[importKey] = importValue;
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+    return `✅ Updated package.json imports with module '${module}'`;
+  }
+
+  return `ℹ️ package.json already contains import for module '${module}'`;
+});
+
+// ✅ Update tsconfig.json paths
+actions.push(() => {
+  const tsconfigPath = path.resolve('tsconfig.json');
+  const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
+
+  const pathsKey = `#${module}/*`;
+  const pathsValue = [`./modules/${module}/*`];
+
+  if (!tsconfig.compilerOptions) tsconfig.compilerOptions = {};
+  if (!tsconfig.compilerOptions.paths) tsconfig.compilerOptions.paths = {};
+  if (!tsconfig.compilerOptions.paths[pathsKey]) {
+    tsconfig.compilerOptions.paths[pathsKey] = pathsValue;
+    fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
+    return `✅ Updated tsconfig.json paths with module '${module}'`;
+  }
+
+  return `ℹ️ tsconfig.json already contains path for module '${module}'`;
+});
+
+
       return actions;
     },
   });

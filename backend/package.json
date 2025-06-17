@@ -7,7 +7,7 @@
     "start": "tsc && node build/index.js",
     "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
     "watch:compile": "tsc --watch",
-    "watch:build": "nodemon --watch build --ext js --exec \"node build/index.js\"",
+    "watch:build": "nodemon --watch .env build --ext js --exec \"node build/index.js\"",
     "build": "tsc",
     "generate": "plop",
     "test": "vitest --ui",
