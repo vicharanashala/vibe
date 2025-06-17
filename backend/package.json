@@ -5,9 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "tsc && node build/index.js",
-    "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
-    "watch:compile": "tsc --watch",
-    "watch:build": "nodemon --watch .env build --ext js --exec \"node build/index.js\"",
+    "build:run": "tsc --incremental && node build/index.js",
+    "dev": "nodemon --watch src --watch .env --ext ts,env --exec \"pnpm run build:run\"",
     "build": "tsc",
     "generate": "plop",
     "test": "vitest --ui",
@@ -20,7 +19,8 @@
     "#auth/*.js": "./build/modules/auth/*.js",
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
-    "#quizzes/*.js": "./build/modules/quizzes/*.js"
+    "#quizzes/*.js": "./build/modules/quizzes/*.js",
+    "#temp/*.js": "./build/modules/temp/*.js"
   },
   "type": "module",
   "keywords": [],

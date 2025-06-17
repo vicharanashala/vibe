@@ -8,6 +8,7 @@ import {apiReference} from '@scalar/express-api-reference';
 import {loadAppModules} from './bootstrap/loadModules.js';
 import {printStartupSummary} from './utils/logDetails.js';
 import type { CorsOptions } from 'cors';
+import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 
 const app = express();
 app.use(loggingHandler);
@@ -27,7 +28,7 @@ const moduleOptions: RoutingControllersOptions = {
   middlewares: [HttpErrorHandler],
   routePrefix: '/api',
   authorizationChecker: async () => true,
-  currentUserChecker: async () => true,
+  currentUserChecker: currentUserChecker,
   defaultErrorHandler: true,
   development: appConfig.isDevelopment,
   validation: true,

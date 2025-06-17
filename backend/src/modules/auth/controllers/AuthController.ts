@@ -1,15 +1,16 @@
 import {
   SignUpBody,
   ChangePasswordBody,
+  LoginBody,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
   AuthenticatedRequest,
 } from '#auth/interfaces/IAuthService.js';
-import {ChangePasswordError} from '#auth/services/FirebaseAuthService.js';
-import {AuthRateLimiter} from '#shared/middleware/rateLimiter.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
+import { ChangePasswordError } from '#auth/services/FirebaseAuthService.js';
+import { AuthRateLimiter } from '#shared/middleware/rateLimiter.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
@@ -21,8 +22,9 @@ import {
   Req,
   HttpError,
 } from 'routing-controllers';
-import {AUTH_TYPES} from '#auth/types.js';
-import {OpenAPI} from 'routing-controllers-openapi';
+import { AUTH_TYPES } from '#auth/types.js';
+import { OpenAPI } from 'routing-controllers-openapi';
+import { appConfig } from '#root/config/app.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -33,7 +35,7 @@ export class AuthController {
   constructor(
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Register a new user account',
@@ -61,7 +63,7 @@ export class AuthController {
   ) {
     try {
       const result = await this.authService.changePassword(body, request.user);
-      return {success: true, message: result.message};
+      return { success: true, message: result.message };
     } catch (error) {
       if (error instanceof ChangePasswordError) {
         throw new HttpError(400, error.message);
@@ -83,5 +85,23 @@ export class AuthController {
     return {
       message: 'Token is valid',
     };
+  }
+
+  @Post('/login')
+  async login(@Body() body: LoginBody) {
+    const { email, password } = body;
+    const data = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true
+      })
+    });
+
+    const result = await data.json();
+
+    return result;
   }
 }
