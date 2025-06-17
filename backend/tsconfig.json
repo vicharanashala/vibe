@@ -13,6 +13,7 @@
         "sourceRoot": "C:\\Users\\Aditya\\OneDrive\\Desktop\\vibe-jest-fix\\vibe\\backend\\src",
         "resolveJsonModule": true,
         "allowArbitraryExtensions": false,
+        "incremental": false,
         "paths": {
             "#root/*": ["./*"],
             "#shared/*": ["./shared/*"],

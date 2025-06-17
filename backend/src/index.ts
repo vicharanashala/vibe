@@ -7,11 +7,20 @@ import {generateOpenAPISpec} from './shared/functions/generateOpenApiSpec.js';
 import {apiReference} from '@scalar/express-api-reference';
 import {loadAppModules} from './bootstrap/loadModules.js';
 import {printStartupSummary} from './utils/logDetails.js';
+import type { CorsOptions } from 'cors';
 
 const app = express();
 app.use(loggingHandler);
 
-const {controllers} = await loadAppModules(appConfig.module.toLowerCase());
+const {controllers, validators} = await loadAppModules(appConfig.module.toLowerCase());
+
+const corsOptions: CorsOptions = {
+  origin: appConfig.origins,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 204
+};
 
 const moduleOptions: RoutingControllersOptions = {
   controllers: controllers,
@@ -22,9 +31,10 @@ const moduleOptions: RoutingControllersOptions = {
   defaultErrorHandler: true,
   development: appConfig.isDevelopment,
   validation: true,
+  cors: corsOptions,
 };
 
-const openApiSpec = await generateOpenAPISpec(moduleOptions);
+const openApiSpec = await generateOpenAPISpec(moduleOptions, validators);
 app.use(
   '/reference',
   apiReference({

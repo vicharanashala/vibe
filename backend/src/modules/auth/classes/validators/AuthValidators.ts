@@ -183,6 +183,17 @@ class AuthErrorResponse {
   message: string;
 }
 
+
+export const AUTH_VALIDATORS = [
+  SignUpBody,
+  ChangePasswordBody,
+  SignUpResponse,
+  VerifySignUpProviderBody,
+  ChangePasswordResponse,
+  TokenVerificationResponse,
+  AuthErrorResponse,
+];
+
 export {
   SignUpBody,
   ChangePasswordBody,

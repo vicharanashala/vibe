@@ -10,6 +10,7 @@ import {
 import {authContainerModule} from './container.js';
 import {AuthController} from './controllers/AuthController.js';
 import {FirebaseAuthService} from './services/FirebaseAuthService.js';
+import { AUTH_VALIDATORS, SignUpBody, SignUpResponse } from './classes/index.js';
 
 export const authContainerModules: ContainerModule[] = [
   authContainerModule,
@@ -65,6 +66,10 @@ export const authModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
+
+export const authModuleValidators: Function[] = [
+...AUTH_VALIDATORS
+];
 
 // export * from './classes/index.js';
 // export * from './controllers/index.js';
