@@ -12,14 +12,16 @@ import {
   ModuleController,
   SectionController,
 } from './controllers/index.js';
-
+import { usersContainerModule } from '../users/container.js';
+import { quizzesContainerModule } from '../quizzes/container.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
   sharedContainerModule,
   authContainerModule,
+  usersContainerModule,
+  quizzesContainerModule
 ];
-
 
 export const coursesModuleControllers: Function[] = [
   CourseController,
@@ -27,13 +29,11 @@ export const coursesModuleControllers: Function[] = [
   ModuleController,
   SectionController,
   ItemController,
-]
+];
 
 export async function setupCoursesContainer(): Promise<void> {
   const container = new Container();
-  await container.load(
-    ...coursesContainerModules,
-  );
+  await container.load(...coursesContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
@@ -47,4 +47,3 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
-

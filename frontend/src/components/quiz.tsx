@@ -1096,7 +1096,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {preprocessMathContent(currentQuestion.question)}
             </MathRenderer>
           </h2>
-
           {/* Hint section with reveal button */}
           {allowHint && currentQuestion.hint && (
             <div className="space-y-3">
@@ -1109,7 +1108,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 <Eye className="mr-2 h-4 w-4" />
                 {showHint ? 'Hide Hint' : 'Reveal Hint'}
               </Button>
-
               {showHint && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-700 dark:text-blue-300">

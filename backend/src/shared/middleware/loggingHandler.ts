@@ -22,8 +22,8 @@ export function loggingHandler(
       res.statusCode < 300
         ? chalk.green(res.statusCode)
         : res.statusCode < 400
-        ? chalk.yellow(res.statusCode)
-        : chalk.red(res.statusCode);
+          ? chalk.yellow(res.statusCode)
+          : chalk.red(res.statusCode);
 
     console.log(
       `${timestamp} ${method} ${url} from ${ip} - Status: ${status} (${duration})`,

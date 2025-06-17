@@ -1,14 +1,22 @@
-import { coursesModuleOptions, setupCoursesContainer } from '../index.js';
-import {
-  useExpressServer
-} from 'routing-controllers';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
+import {useExpressServer} from 'routing-controllers';
 import Express from 'express';
 import request from 'supertest';
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
-import { CourseData, createCourseWithModulesSectionsAndItems } from '#root/modules/users/tests/utils/createCourse.js';
-import { faker } from '@faker-js/faker';
-import { before } from 'node:test';
-
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from 'vitest';
+import {
+  CourseData,
+  createCourseWithModulesSectionsAndItems,
+} from '#root/modules/users/tests/utils/createCourse.js';
+import {faker} from '@faker-js/faker';
+import {before} from 'node:test';
 
 describe('Module Controller Integration Tests', () => {
   const App = Express();
@@ -138,7 +146,7 @@ describe('Module Controller Integration Tests', () => {
         const versionId = versionResponse.body.version._id;
 
         // Missing name field
-        const invalidPayload = { name: '' }; // Missing required fields
+        const invalidPayload = {name: ''}; // Missing required fields
 
         const moduleResponse = await request(app)
           .post(`/courses/versions/${versionId}/modules`)
@@ -160,13 +168,13 @@ describe('Module Controller Integration Tests', () => {
           .send(coursePayload)
           .expect(201);
         const courseId = courseRes.body._id;
-        const versionPayload = { version: 'v1', description: 'desc' };
+        const versionPayload = {version: 'v1', description: 'desc'};
         const versionRes = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(versionPayload)
           .expect(201);
         const versionId = versionRes.body._id;
-        const modulePayload = { description: 'desc' }; // missing name
+        const modulePayload = {description: 'desc'}; // missing name
         await request(app)
           .post(`/courses/versions/${versionId}/modules`)
           .send(modulePayload)
@@ -186,22 +194,29 @@ describe('Module Controller Integration Tests', () => {
         // Arrange: Get two modules to work with
         const modules = data.modules;
         const moduleIdToMove = modules[1].moduleId; // Module we will move
-        const targetModuleId = modules[0].moduleId;  // Module before which we'll move
+        const targetModuleId = modules[0].moduleId; // Module before which we'll move
 
         // Act: Request to move `moduleIdToMove` before `targetModuleId`
-        const movePayload = { beforeModuleId: targetModuleId };
+        const movePayload = {beforeModuleId: targetModuleId};
         const response = await request(app)
-          .put(`/courses/versions/${data.courseVersionId}/modules/${moduleIdToMove}/move`)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${moduleIdToMove}/move`,
+          )
           .send(movePayload)
           .expect(200);
 
         // Assert: Fetch the new order of modules
-        const reorderedModules = response.body.version.modules
-          .sort((a, b) => a.order.localeCompare(b.order));
+        const reorderedModules = response.body.version.modules.sort((a, b) =>
+          a.order.localeCompare(b.order),
+        );
 
         // Find new indices of both modules
-        const targetIdx = reorderedModules.findIndex(m => m.moduleId === targetModuleId);
-        const movedIdx = reorderedModules.findIndex(m => m.moduleId === moduleIdToMove);
+        const targetIdx = reorderedModules.findIndex(
+          m => m.moduleId === targetModuleId,
+        );
+        const movedIdx = reorderedModules.findIndex(
+          m => m.moduleId === moduleIdToMove,
+        );
 
         // The moved module should now be before the target module
         expect(movedIdx).toBeLessThan(targetIdx);
@@ -211,7 +226,7 @@ describe('Module Controller Integration Tests', () => {
     describe('Error Scenarios', () => {
       it('should return 400 for invalid move parameters', async () => {
         // Arrange: Use clearly invalid IDs
-        const movePayload = { beforeModuleId: 'invalid' };
+        const movePayload = {beforeModuleId: 'invalid'};
 
         // Act & Assert: Should return 400 Bad Request
         await request(app)
@@ -226,8 +241,10 @@ describe('Module Controller Integration Tests', () => {
 
         // Act & Assert: Should return 404 Not Found
         await request(app)
-          .put(`/courses/versions/${data.courseVersionId}/modules/${nonExistentModuleId}/move`)
-          .send({ beforeModuleId: faker.database.mongodbObjectId() })
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${nonExistentModuleId}/move`,
+          )
+          .send({beforeModuleId: faker.database.mongodbObjectId()})
           .expect(404);
       });
 
@@ -237,7 +254,9 @@ describe('Module Controller Integration Tests', () => {
 
         // Act & Assert: Should return 400 Bad Request
         const response = await request(app)
-          .put(`/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`,
+          )
           .send({})
           .expect(400);
       });
@@ -248,14 +267,15 @@ describe('Module Controller Integration Tests', () => {
 
         // Act & Assert: Should return 400 Bad Request
         await request(app)
-          .put(`/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`,
+          )
           .send({
             beforeModuleId: faker.database.mongodbObjectId(),
             afterModuleId: faker.database.mongodbObjectId(),
           })
           .expect(400);
       });
-
     });
   });
 
@@ -383,7 +403,7 @@ describe('Module Controller Integration Tests', () => {
       it('should return 400 for invalid update params', async () => {
         await request(app)
           .put('/courses/versions/invalidVersion/modules/invalidModule')
-          .send({ name: 'x' })
+          .send({name: 'x'})
           .expect(400);
       }, 90000);
       it('should return 404 if module to update does not exist', async () => {
@@ -391,7 +411,7 @@ describe('Module Controller Integration Tests', () => {
         const fakeModuleId = '60d21b4967d0d8992e610c86';
         await request(app)
           .put(`/courses/versions/${fakeVersionId}/modules/${fakeModuleId}`)
-          .send({ name: 'x', description: 'y' })
+          .send({name: 'x', description: 'y'})
           .expect(404);
       }, 90000);
 
@@ -405,7 +425,7 @@ describe('Module Controller Integration Tests', () => {
           .send(coursePayload)
           .expect(201);
         const courseId = courseRes.body._id;
-        const versionPayload = { version: 'v1', description: 'desc' };
+        const versionPayload = {version: 'v1', description: 'desc'};
         const versionRes = await request(app)
           .post(`/courses/${courseId}/versions`)
           .send(versionPayload)
@@ -422,7 +442,7 @@ describe('Module Controller Integration Tests', () => {
         const moduleId = moduleRes.body.version.modules[0].moduleId;
         await request(app)
           .put(`/courses/versions/${versionId}/modules/${moduleId}`)
-          .send({ name: '' })
+          .send({name: ''})
           .expect(400);
       }, 90000);
     });
@@ -435,21 +455,21 @@ describe('Module Controller Integration Tests', () => {
 
     beforeEach(async () => {
       // Create a course and version for each test
-      const coursePayload = { name: 'Error Path Course', description: 'desc' };
+      const coursePayload = {name: 'Error Path Course', description: 'desc'};
       const courseRes = await request(app)
         .post('/courses/')
         .send(coursePayload)
         .expect(201);
       courseId = courseRes.body._id;
 
-      const versionPayload = { version: 'v1', description: 'desc' };
+      const versionPayload = {version: 'v1', description: 'desc'};
       const versionRes = await request(app)
         .post(`/courses/${courseId}/versions`)
         .send(versionPayload)
         .expect(201);
       versionId = versionRes.body._id || versionRes.body.version._id;
 
-      const modulePayload = { name: 'mod', description: 'desc' };
+      const modulePayload = {name: 'mod', description: 'desc'};
       const moduleRes = await request(app)
         .post(`/courses/versions/${versionId}/modules`)
         .send(modulePayload)
@@ -469,7 +489,7 @@ describe('Module Controller Integration Tests', () => {
         .put(
           `/courses/versions/${versionId}/modules/62341aeb5be816967d8fc2db/move`,
         )
-        .send({ beforeModuleId: '62341aeb5be816967d8fc2db' })
+        .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
         .expect(404);
     }, 90000);
 
@@ -478,7 +498,7 @@ describe('Module Controller Integration Tests', () => {
         .put(
           '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db/move',
         )
-        .send({ beforeModuleId: '62341aeb5be816967d8fc2db' })
+        .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
         .expect(404);
     }, 90000);
 

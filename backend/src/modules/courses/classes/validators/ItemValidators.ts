@@ -28,7 +28,7 @@ import {
   IBaseItem,
   ItemType,
 } from '#root/shared/interfaces/models.js';
-import { OnlyOneId } from './customValidators.js';
+import {OnlyOneId} from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -394,7 +394,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
     type: 'object',
     readOnly: true,
   })
-
   @JSONSchema({
     title: 'Created At',
     description: 'Item creation timestamp (auto-managed)',
@@ -411,7 +410,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
     format: 'date-time',
     readOnly: true,
   })
-
   @JSONSchema({
     title: 'After Item ID',
     description: 'Place item after this item ID',
@@ -503,7 +501,6 @@ class MoveItemBody {
   @IsString()
   beforeItemId?: string;
 }
-
 
 class VersionModuleSectionItemParams {
   @JSONSchema({

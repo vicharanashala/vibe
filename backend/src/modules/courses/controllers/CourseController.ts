@@ -1,6 +1,6 @@
-import { CourseService } from '#courses/services/CourseService.js';
-import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
-import { injectable, inject } from 'inversify';
+import {CourseService} from '#courses/services/CourseService.js';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Authorized,
@@ -13,10 +13,10 @@ import {
   Delete,
   OnUndefined,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { Course } from '#courses/classes/transformers/Course.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {Course} from '#courses/classes/transformers/Course.js';
 import {
   CourseDataResponse,
   CourseBody,
@@ -33,14 +33,14 @@ export class CourseController {
   constructor(
     @inject(COURSES_TYPES.CourseService)
     private readonly courseService: CourseService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Create a new course',
-    description: `Creates a new course in the system.<br/>.`,
+    description: 'Creates a new course in the system.<br/>.',
   })
   @Authorized(['admin', 'instructor'])
-  @Post('/', { transformResponse: true })
+  @Post('/', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
@@ -63,7 +63,7 @@ Accessible to:
 `,
   })
   @Authorized(['admin', 'instructor'])
-  @Get('/:id', { transformResponse: true })
+  @Get('/:id', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -76,7 +76,7 @@ Accessible to:
     statusCode: 404,
   })
   async read(@Params() params: CourseIdParams) {
-    const { id } = params;
+    const {id} = params;
     const course = await this.courseService.readCourse(id);
     return course;
   }
@@ -88,7 +88,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized(['admin', 'instructor'])
-  @Put('/:id', { transformResponse: true })
+  @Put('/:id', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -100,21 +100,18 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async update(
-    @Params() params: CourseIdParams,
-    @Body() body: CourseBody,
-  ) {
-    const { id } = params;
+  async update(@Params() params: CourseIdParams, @Body() body: CourseBody) {
+    const {id} = params;
     const updatedCourse = await this.courseService.updateCourse(id, body);
     return updatedCourse;
   }
 
-@OpenAPI({
-  summary: 'Delete a course',
-  description: `Deletes a course by ID.`,
-})
+  @OpenAPI({
+    summary: 'Delete a course',
+    description: 'Deletes a course by ID.',
+  })
   @Authorized(['admin', 'instructor'])
-  @Delete('/:id', { transformResponse: true })
+  @Delete('/:id', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -125,7 +122,7 @@ Accessible to:
     statusCode: 404,
   })
   async delete(@Params() params: CourseIdParams) {
-    const { id } = params;
+    const {id} = params;
     await this.courseService.deleteCourse(id);
   }
 }

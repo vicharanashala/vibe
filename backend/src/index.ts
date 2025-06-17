@@ -21,7 +21,7 @@ app.use(cors({
 
 app.use(loggingHandler);
 
-const { controllers } = await loadAppModules(appConfig.module.toLowerCase());
+const {controllers} = await loadAppModules(appConfig.module.toLowerCase());
 
 const moduleOptions: RoutingControllersOptions = {
   controllers: controllers,
@@ -40,7 +40,7 @@ app.use(
   apiReference({
     content: openApiSpec,
     theme: 'elysiajs',
-  })
+  }),
 );
 
 // Start server

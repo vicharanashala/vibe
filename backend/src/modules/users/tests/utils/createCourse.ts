@@ -2,7 +2,7 @@
 import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
-import {expect} from 'vitest'
+import {expect} from 'vitest';
 
 interface ItemData {
   name: string;

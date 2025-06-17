@@ -8,11 +8,11 @@ import {
   MoveModuleBody,
   ModuleDeletedResponse,
 } from '#courses/classes/validators/ModuleValidators.js';
-import { ModuleService } from '#courses/services/ModuleService.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#root/shared/middleware/errorHandler.js';
-import { instanceToPlain } from 'class-transformer';
-import { injectable, inject } from 'inversify';
+import {ModuleService} from '#courses/services/ModuleService.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Authorized,
@@ -23,7 +23,7 @@ import {
   Put,
   Delete,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 
 @OpenAPI({
   tags: ['Course Modules'],
@@ -34,7 +34,7 @@ export class ModuleController {
   constructor(
     @inject(COURSES_TYPES.ModuleService)
     private service: ModuleService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Create a module',
@@ -61,9 +61,8 @@ Accessible to:
     @Body() body: CreateModuleBody,
   ) {
     const updated = await this.service.createModule(params.versionId, body);
-    return { version: instanceToPlain(updated) };
+    return {version: instanceToPlain(updated)};
   }
-
 
   @OpenAPI({
     summary: 'Update a module',
@@ -93,7 +92,7 @@ Accessible to:
       params.moduleId,
       body,
     );
-    return { version: instanceToPlain(updated) };
+    return {version: instanceToPlain(updated)};
   }
 
   @OpenAPI({
@@ -102,7 +101,6 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/move')
   @ResponseSchema(ModuleDataResponse, {
@@ -116,13 +114,16 @@ Accessible to:
     description: 'Module not found',
     statusCode: 404,
   })
-  async move(@Params() params: VersionModuleParams, @Body() body: MoveModuleBody) {
+  async move(
+    @Params() params: VersionModuleParams,
+    @Body() body: MoveModuleBody,
+  ) {
     const updated = await this.service.moveModule(
       params.versionId,
       params.moduleId,
       body,
     );
-    return { version: instanceToPlain(updated) };
+    return {version: instanceToPlain(updated)};
   }
 
   @OpenAPI({

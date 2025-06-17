@@ -4,9 +4,8 @@ import Express from 'express';
 import request from 'supertest';
 import {ItemType} from '#shared/interfaces/models.js';
 import {faker} from '@faker-js/faker';
-import { CreateItemBody } from '../classes/validators/ItemValidators.js';
-import { describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
-
+import {CreateItemBody} from '../classes/validators/ItemValidators.js';
+import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
 
 describe('Course Version Controller Integration Tests', () => {
   const App = Express();
@@ -14,7 +13,7 @@ describe('Course Version Controller Integration Tests', () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    await setupCoursesContainer()
+    await setupCoursesContainer();
     app = useExpressServer(App, coursesModuleOptions);
   });
 

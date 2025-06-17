@@ -2,7 +2,6 @@ import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
 
-
 export async function createUser(app: typeof Express): Promise<string> {
   // Prepare user sign-up data using Faker
   const signUpBody = {

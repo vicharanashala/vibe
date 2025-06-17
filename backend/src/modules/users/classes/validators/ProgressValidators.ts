@@ -245,10 +245,10 @@ export class UpdateProgressBody {
     type: 'string',
     format: 'Mongo Object ID',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @IsMongoId()
-  watchItemId: string;
+  watchItemId?: string;
 
   @JSONSchema({
     description: 'ID of the attempt for quiz',

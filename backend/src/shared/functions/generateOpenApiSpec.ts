@@ -1,10 +1,11 @@
-import { validationMetadatasToSchemas } from "class-validator-jsonschema";
-import { getMetadataArgsStorage, RoutingControllersOptions } from "routing-controllers";
-import { routingControllersToSpec } from "routing-controllers-openapi";
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import {
+  getMetadataArgsStorage,
+  RoutingControllersOptions,
+} from 'routing-controllers';
+import {routingControllersToSpec} from 'routing-controllers-openapi';
 
-
-import { appConfig } from '../../config/app.js'; // adjust path as needed
-
+import {appConfig} from '../../config/app.js'; // adjust path as needed
 
 const getOpenApiServers = () => {
   const servers = [];
@@ -62,20 +63,22 @@ export function filterMetadataByModulePrefix(modulePrefix: string) {
   const normalizedPrefix = `/${modulePrefix.toLowerCase()}`;
 
   // Filter controllers by prefix
-  storage.controllers = storage.controllers.filter((ctrl) =>
-    typeof ctrl.route === 'string' &&
-    ctrl.route.toLowerCase().startsWith(normalizedPrefix)
+  storage.controllers = storage.controllers.filter(
+    ctrl =>
+      typeof ctrl.route === 'string' &&
+      ctrl.route.toLowerCase().startsWith(normalizedPrefix),
   );
 
   // Collect valid targets (class references)
-  const validTargets = new Set(storage.controllers.map((c) => c.target));
+  const validTargets = new Set(storage.controllers.map(c => c.target));
 
   // Filter all associated metadata by controller target
-  storage.actions = storage.actions.filter((a) => validTargets.has(a.target));
+  storage.actions = storage.actions.filter(a => validTargets.has(a.target));
 }
 
-
-export function generateOpenAPISpec(routingControllersOptions: RoutingControllersOptions) {
+export function generateOpenAPISpec(
+  routingControllersOptions: RoutingControllersOptions,
+) {
   // Get validation schemas
   const schemas = validationMetadatasToSchemas({
     refPointerPrefix: '#/components/schemas/',

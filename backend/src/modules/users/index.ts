@@ -27,9 +27,7 @@ export const usersModuleControllers: Function[] = [
 
 export async function setupUsersContainer(): Promise<void> {
   const container = new Container();
-  await container.load(
-    ...usersContainerModules,
-  );
+  await container.load(...usersContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
@@ -43,4 +41,3 @@ export const usersModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
-

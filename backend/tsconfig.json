@@ -1,38 +1,31 @@
 {
-    "compilerOptions": {
-        "baseUrl": "src",
-        "target": "esnext",
-        "module": "nodenext",
-        "moduleResolution": "nodenext",
-        "lib": ["ESNext"],
-        "outDir": "build",
-        "rootDir": "src",
-        "sourceMap": true,
-        "strict": false,
-        "esModuleInterop": true,
-        "sourceRoot": "c:/Users/Aditya/OneDrive/Documents/vitest-vibe/src",
-        "resolveJsonModule": true,
-        "allowArbitraryExtensions": false,
-        "paths": {
-            "#root/*": ["./*"],
-            "#shared/*": ["./shared/*"],
-            "#auth/*": ["./modules/auth/*"],
-            "#courses/*": ["./modules/courses/*"],
-            "#users/*": ["./modules/users/*"],
-            "#quizzes/*": ["./modules/quizzes/*"],
-        },
-        "types": ["node", "express"],
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "noEmitOnError": true,
-        "skipLibCheck": true,
-        
+  "compilerOptions": {
+    "baseUrl": "src",
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ESNext"],
+    "outDir": "build",
+    "rootDir": "src",
+    "sourceMap": true,
+    "strict": false,
+    "esModuleInterop": true,
+    "sourceRoot": "c:/Users/Aditya/OneDrive/Documents/vitest-vibe/src",
+    "resolveJsonModule": true,
+    "allowArbitraryExtensions": false,
+    "paths": {
+      "#root/*": ["./*"],
+      "#shared/*": ["./shared/*"],
+      "#auth/*": ["./modules/auth/*"],
+      "#courses/*": ["./modules/courses/*"],
+      "#users/*": ["./modules/users/*"],
+      "#quizzes/*": ["./modules/quizzes/*"]
     },
-    "exclude": [
-        "build",
-        "dist",
-        "**/*.spec.ts",
-        "**/*.d.ts",
-        "vite.config.ts"
-    ]
+    "types": ["node", "express"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["build", "dist", "**/*.spec.ts", "**/*.d.ts", "vite.config.ts"]
 }

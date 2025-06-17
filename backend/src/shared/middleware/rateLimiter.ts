@@ -11,7 +11,7 @@ export const rateLimiter = rateLimit({
 
 export const authRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  limit: 3, // Limit each IP to 5 requests per window
+  limit: 3, // Limit each IP to 3 requests per window
   standardHeaders: true, // Use `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
   message: {error: 'Too many requests, please try again later.'},

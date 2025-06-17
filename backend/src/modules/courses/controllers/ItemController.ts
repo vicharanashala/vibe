@@ -1,4 +1,4 @@
-import {inject, injectable} from 'inversify';
+import 'reflect-metadata';
 import {
   Authorized,
   Body,
@@ -11,6 +11,7 @@ import {
   Params,
   Post,
   Put,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -27,26 +28,30 @@ import {
   VersionModuleSectionItemParams,
 } from '#courses/classes/validators/ItemValidators.js';
 import {ItemService} from '#courses/services/ItemService.js';
-import {IUser} from '#root/shared/interfaces/models.js';
-import { VersionModuleSectionParams } from '../classes/index.js';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {AUTH_TYPES} from '#root/modules/auth/types.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {injectable, inject} from 'inversify';
+import {VersionModuleSectionParams} from '../classes/index.js';
 
-@OpenAPI({
-  tags: ['Course Items']
-})
 @injectable()
 @JsonController('/courses')
 export class ItemController {
   constructor(
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: FirebaseAuthService,
   ) {}
-
   @OpenAPI({
-  summary: 'Create an item',
-  description: `Creates a new item within a section.
-Accessible to:
-- Instructors, managers or teaching assistants of the course.`,
-})
+    summary: 'Create an item',
+    description: `Creates a new item within a section.
+  Accessible to:
+  - Instructors, managers or teaching assistants of the course.`,
+  })
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
@@ -74,12 +79,12 @@ Accessible to:
     );
   }
 
-@OpenAPI({
-  summary: 'Get all item references in a section',
-  description: `Retrieves a list of item references from a specific section. Each reference includes only the item's \`_id\`, \`type\`, and \`order\`, without full item details.<br/>
-Accessible to:
-- All users who are part of the course.`,
-})
+  @OpenAPI({
+    summary: 'Get all item references in a section',
+    description: `Retrieves a list of item references from a specific section. Each reference includes only the item's \`_id\`, \`type\`, and \`order\`, without full item details.<br/>
+  Accessible to:
+  - All users who are part of the course.`,
+  })
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @ResponseSchema(ItemDataResponse, {
@@ -99,11 +104,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Update an item',
-  description: `Updates the configuration or content of a specific item within a section.<br/>
-Accessible to:
-- Instructors, managers, and teaching assistants of the course.`,
-})
+    summary: 'Update an item',
+    description: `Updates the configuration or content of a specific item within a section.<br/>
+  Accessible to:
+  - Instructors, managers, and teaching assistants of the course.`,
+  })
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
@@ -134,11 +139,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Delete an item',
-  description: `Deletes a specific item from a section.<br/>
-Accessible to:
-- Instructors or managers of the course.`,
-})
+    summary: 'Delete an item',
+    description: `Deletes a specific item from a section.<br/>
+  Accessible to:
+  - Instructors or managers of the course.`,
+  })
   @Authorized(['instructor', 'admin'])
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
   @ResponseSchema(DeletedItemResponse, {
@@ -158,11 +163,11 @@ Accessible to:
   }
 
   @OpenAPI({
-  summary: 'Reorder an item',
-  description: `Changes the position of an item within a section of a course version.<br/>
+    summary: 'Reorder an item',
+    description: `Changes the position of an item within a section of a course version.<br/>
 Accessible to:
 - Instructors, managers, and teaching assistants of the course.`,
-})
+  })
   @Authorized(['admin'])
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
@@ -178,7 +183,10 @@ Accessible to:
     description: 'Item not found',
     statusCode: 404,
   })
-  async move(@Params() params: VersionModuleSectionItemParams, @Body() body: MoveItemBody) {
+  async move(
+    @Params() params: VersionModuleSectionItemParams,
+    @Body() body: MoveItemBody,
+  ) {
     const {versionId, moduleId, sectionId, itemId} = params;
     return await this.itemService.moveItem(
       versionId,
@@ -189,13 +197,13 @@ Accessible to:
     );
   }
 
-@OpenAPI({
-  summary: 'Get an item by ID',
-  description: `Retrieves a specific item from a course version.<br/>
+  @OpenAPI({
+    summary: 'Get an item by ID',
+    description: `Retrieves a specific item from a course version.<br/>
 Access control logic:
 - For students: The item is returned only if it matches the student's current item ID in their course progress.
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
-})
+  })
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/:courseId/versions/:courseVersionId/item/:itemId')
   @HttpCode(201)
@@ -210,9 +218,19 @@ Access control logic:
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@Params() params: GetItemParams) {
+  async getItem(@Params() params: GetItemParams, @Req() req: any) {
     const {courseId, courseVersionId, itemId} = params;
-
-    return await this.itemService.readItem(courseVersionId, itemId);
+    const userId = await this.authService.getUserIdFromReq(req);
+    const progress = await this.progressService.getUserProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (progress.currentItem !== itemId) {
+      throw new ForbiddenError('Item does not match current progress');
+    }
+    return {
+      item: await this.itemService.readItem(courseVersionId, itemId),
+    };
   }
 }

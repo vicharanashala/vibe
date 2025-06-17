@@ -1855,7 +1855,13 @@ export interface components {
              * @description Watch item ID used for tracking progress
              * @example 60d5ec49b3f1c8e4a8f8b8c7
              */
-            watchItemId: string;
+            watchItemId?: string | null;
+            /**
+             * Format: Mongo Object ID
+             * @description Attempt ID used for quiz tracking progress
+             * @example 60d5ec49b3f1c8e4a8f8b8c7
+             */
+            attemptId?: string | null;
         };
         UpdateProgressParams: {
             /**
