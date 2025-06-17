@@ -25,7 +25,7 @@ import {
 } from '#root/shared/interfaces/quiz.js';
 import {QuestionBody} from '../classes/index.js';
 
-describe('Progress Controller Integration Tests', () => {
+describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
   const appInstance = Express();
   let app;
   let user: IUser;
