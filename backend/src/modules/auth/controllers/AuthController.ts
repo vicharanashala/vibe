@@ -55,7 +55,6 @@ export class AuthController {
   })
   @Authorized()
   @Patch('/change-password')
-  @UseBefore(AuthRateLimiter)
   async changePassword(
     @Body() body: ChangePasswordBody,
     @Req() request: AuthenticatedRequest,
@@ -80,7 +79,6 @@ export class AuthController {
       'Validates whether the provided Firebase ID token is authentic and not expired. Useful for checking the session validity or re-authenticating a user.',
   })
   @Post('/verify')
-  @UseBefore(AuthRateLimiter)
   async verifyToken() {
     return {
       message: 'Token is valid',
