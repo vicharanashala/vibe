@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
 import { appConfig } from './config/app.js';
 import { loggingHandler } from './shared/middleware/loggingHandler.js';
@@ -9,6 +10,15 @@ import { loadAppModules } from './bootstrap/loadModules.js';
 import { printStartupSummary } from './utils/logDetails.js';
 
 const app = express();
+
+// Configure CORS to allow requests from frontend
+app.use(cors({
+  origin: appConfig.origins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(loggingHandler);
 
 const { controllers } = await loadAppModules(appConfig.module.toLowerCase());

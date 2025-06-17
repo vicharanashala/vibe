@@ -108,6 +108,9 @@ export default function CoursePage() {
     sectionId: string;
   } | null>(null);
 
+  // Initialize API hooks
+  const updateProgress = useUpdateProgress();
+
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError } =
     useCourseVersionById(VERSION_ID);
@@ -143,7 +146,7 @@ export default function CoursePage() {
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
-    shouldFetchItem ? selectedItemId : ''
+    shouldFetchItem ? selectedItemId! : ''
   );
 
   useEffect(() => {
@@ -165,8 +168,12 @@ export default function CoursePage() {
       currentSectionItems &&
       !itemsLoading
     ) {
+      // Safely handle the response structure
+      const itemsArray = (currentSectionItems as any)?.items || 
+                         (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+      
       // Sort items by order property before storing
-      const sortedItems = sortItemsByOrder(currentSectionItems);
+      const sortedItems = sortItemsByOrder(itemsArray);
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: sortedItems
@@ -201,18 +208,69 @@ export default function CoursePage() {
     }
   }, [progressData, updateCourseNavigation]);
 
+  // ✅ Additional effect to handle progress updates from handleNext
+  useEffect(() => {
+    if (progressData && updateProgress.isSuccess) {
+      const moduleId = progressData.currentModule;
+      const sectionId = progressData.currentSection;
+      const itemId = progressData.currentItem;
+
+      // Only update if we're not already on this item
+      if (itemId !== selectedItemId) {
+        setSelectedModuleId(moduleId);
+        setSelectedSectionId(sectionId);
+        setSelectedItemId(itemId);
+
+        // ✅ Ensure new section items are loaded if switching sections
+        if (sectionId !== selectedSectionId) {
+          setActiveSectionInfo({
+            moduleId,
+            sectionId
+          });
+        }
+
+        // ✅ Auto-expand the new module and section
+        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+        updateCourseNavigation(moduleId, sectionId, itemId);
+      }
+    }
+  }, [progressData, updateProgress.isSuccess, selectedItemId, selectedSectionId, updateCourseNavigation]);
+
   // Effect to set current item when item data is fetched
   useEffect(() => {
-    if (itemData?.item && !itemLoading) {
-      setCurrentItem(itemData.item);
+    if (itemData && !itemLoading) {
+      // Handle the different possible response structures
+      const item = (itemData as any)?.item || itemData;
+      if (item && typeof item === 'object' && item._id) {
+        setCurrentItem(item);
+      }
     }
   }, [itemData, itemLoading]);
 
   // Handle item selection
   const handleSelectItem = (moduleId: string, sectionId: string, _id: string) => {
+    // ✅ Stop current item before switching
+    if (itemContainerRef.current) {
+      itemContainerRef.current.stopCurrentItem();
+    }
+
     setSelectedModuleId(moduleId);
     setSelectedSectionId(sectionId);
     setSelectedItemId(_id);
+
+    // ✅ Ensure section items are loaded if not already
+    if (!sectionItems[sectionId]) {
+      setActiveSectionInfo({
+        moduleId,
+        sectionId
+      });
+    }
+
+    // ✅ Expand the module and section automatically
+    setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+    setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
 
     // Update the course store with the new navigation state
     updateCourseNavigation(moduleId, sectionId, _id);
@@ -232,8 +290,6 @@ export default function CoursePage() {
 
     setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
-
-  const updateProgress = useUpdateProgress();
 
   const handleNext = useCallback(() => {
     // ✅ Stop current item before moving to next
@@ -255,31 +311,15 @@ export default function CoursePage() {
           sectionId: selectedSectionId ? selectedSectionId : '',
           itemId: selectedItemId ? selectedItemId : '',
           watchItemId: useCourseStore.getState().currentCourse?.watchItemId || '',
-          attemptId: attemptId,
         },
       }
     );
-    // Delay to ensure progress is updated before refetching
+    
+    // ✅ Wait for progress update to complete, then refetch and update state
     setTimeout(() => {
       refetchProgress();
-      if (progressData) {
-        const { currentModule, currentSection, currentItem } = progressData;
-        setSelectedModuleId(currentModule);
-        setSelectedSectionId(currentSection);
-        setSelectedItemId(currentItem);
-        updateCourseNavigation(currentModule, currentSection, currentItem);
-      }
-        }, 200);
-        
-    refetchProgress();
-    if (progressData) {
-      const { currentModule, currentSection, currentItem } = progressData;
-      setSelectedModuleId(currentModule);
-      setSelectedSectionId(currentSection);
-      setSelectedItemId(currentItem);
-      updateCourseNavigation(currentModule, currentSection, currentItem);
-    }
-  }, [itemContainerRef, updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress,updateCourseNavigation]);
+    }, 300);
+  }, [updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
@@ -295,7 +335,7 @@ export default function CoursePage() {
     );
   }
 
-  if (versionError || progressError || proctoringError) {
+  if (versionError || progressError) {
     return (
       <Card className="mx-auto max-w-md">
         <CardContent className="flex h-64 items-center justify-center">
@@ -311,7 +351,7 @@ export default function CoursePage() {
     );
   }
 
-  const modules = courseVersionData?.modules || [];
+  const modules = (courseVersionData as any)?.modules || [];
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -577,7 +617,7 @@ export default function CoursePage() {
                   doGesture={doGesture}
                   onNext={handleNext}
                   isProgressUpdating={updateProgress.isPending}
-                  attemptId={attemptId}
+                  attemptId={attemptId || undefined}
                   setAttemptId={setAttemptId}
                 />
               </div>

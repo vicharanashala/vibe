@@ -316,8 +316,7 @@ export default function Page() {
   const todoManager = useTodos();
 
   // Fetch user enrollments - only if authenticated and userId exists
-  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(
-    (isAuthenticated && userId) ? userId : "",
+  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(userId,
     1, // page
     5  // limit - show only first 5 courses on dashboard
   );

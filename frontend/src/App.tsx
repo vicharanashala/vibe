@@ -14,7 +14,7 @@ export function App() {
   //   return () => unsubscribe();
   // }, []);
   if (localStorage.getItem('isAuth') !== 'true' || !localStorage.getItem('isAuth')) {
-    initAuth();
+      initAuth();
   }
    
 

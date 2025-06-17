@@ -92,7 +92,7 @@ export function generateOpenAPISpec(routingControllersOptions: RoutingController
     filterMetadataByModulePrefix(appConfig.module);
   }
 
-  console.log(storage.controllers[0].route);
+  // console.log(storage.controllers[0].route);
 
   // Create OpenAPI specification
   const spec = routingControllersToSpec(storage, routingControllersOptions, {

@@ -23,7 +23,7 @@ export class EnrollmentService extends BaseService {
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-    @inject(USERS_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

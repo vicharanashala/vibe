@@ -535,7 +535,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/{userId}/enrollments
-export function useUserEnrollments(userId: string, page?: number, limit?: number): {
+export function useUserEnrollments(userId: string | undefined, page?: number, limit?: number): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
