@@ -16,10 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/store/auth-store";
-import { useUserEnrollments, useCourseById, useUserByFirebaseUID } from "@/lib/api/hooks";
+import { useUserEnrollments, useCourseById } from "@/lib/api/hooks";
 import { useNavigate } from "@tanstack/react-router";
 import { useCourseStore } from "@/lib/store/course-store";
-import { redirect } from "react-router-dom";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -89,7 +88,7 @@ const useTodos = () => {
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(todo => 
+    setTodos(prev => prev.map(todo =>
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
   };
@@ -122,16 +121,16 @@ const useTodos = () => {
 };
 
 // Enhanced image handling function
-const ImageWithFallback = ({ src, alt, className, aspectRatio = "aspect-video" }: 
-                          { src: string; alt: string; className?: string; aspectRatio?: string }) => {
+const ImageWithFallback = ({ src, alt, className, aspectRatio = "aspect-video" }:
+  { src: string; alt: string; className?: string; aspectRatio?: string }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
-  
+
   const handleLoad = () => {
     setIsLoading(false);
   };
-  
+
   const handleError = () => {
     setHasError(true);
     setIsLoading(false);
@@ -174,7 +173,7 @@ const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>
   const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
-  
+
   // Mock progress data - replace with actual progress from enrollment
   const progress = Math.floor(Math.random() * 100);
   const totalLessons = Math.floor(Math.random() * 30) + 10;
@@ -182,12 +181,12 @@ const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>
   const handleContinue = () => {
     // Extract both courseId and versionId from enrollment
     const versionId = bufferToHex(enrollment.courseVersionId) || "";
-    
+
     console.log("Setting course store:", {
       courseId: courseId,
       versionId: versionId
     });
-    
+
     // Pass both courseId and versionId to the store
     setCurrentCourse({
       courseId: courseId,
@@ -197,10 +196,10 @@ const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>
       itemId: null,
       watchItemId: null
     });
-    
+
     navigate({ to: "/student/learn" });
   };
-  
+
   if (isCourseLoading) {
     return (
       <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
@@ -264,8 +263,8 @@ const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4 text-green-500" />
                   <span className="text-green-500">
-                    {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string' 
-                      ? new Date(enrollment.enrollmentDate).toLocaleDateString() 
+                    {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
+                      ? new Date(enrollment.enrollmentDate).toLocaleDateString()
                       : 'Recently'}
                   </span>
                 </div>
@@ -280,7 +279,7 @@ const CourseCard = ({ enrollment, index }: { enrollment: Record<string, unknown>
           Next: Continue Learning
         </p>
         <div className="mt-auto">
-          <Button 
+          <Button
             variant={progress === 0 ? "default" : "outline"}
             className={progress === 0 ? "" : "border-accent hover:bg-accent/10"}
             onClick={handleContinue}
@@ -299,11 +298,14 @@ export default function Page() {
   const studentName = user?.name || user?.firstName || 'Student';
   console.log(user);
   const userId = user?.userId;
-  if (!userId || userId === "") {
-    // redirect to login if no userId is found
-    console.log(userId, "User ID not found, redirecting to auth page");
-    redirect({ to: '/auth' });
-  }
+
+  // Handle authentication redirect using useEffect
+  useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      console.log("User not authenticated or no userId found, redirecting to auth page");
+      navigate({ to: '/auth' });
+    }
+  }, [isAuthenticated, userId, navigate]);
 
   const token = localStorage.getItem('firebase-auth-token');
   console.log("Firebase Auth Token:", token);
@@ -313,9 +315,8 @@ export default function Page() {
   // Use todos hook
   const todoManager = useTodos();
 
-  // Fetch user enrollments
-  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(
-    userId || "",
+  // Fetch user enrollments - only if authenticated and userId exists
+  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(userId,
     1, // page
     5  // limit - show only first 5 courses on dashboard
   );
@@ -327,28 +328,34 @@ export default function Page() {
     const intervalId = setInterval(() => {
       setGreeting(getGreeting());
     }, 60000);
-    
+
     return () => clearInterval(intervalId);
   }, []);
 
   // Calculate overall progress (mock calculation)
-  const totalProgress = enrollments.length > 0 
+  const totalProgress = enrollments.length > 0
     ? Math.round(Math.random() * 100) // Replace with real progress calculation
     : 0;
 
-  // Show authentication required message
-  if (!isAuthenticated) {
+  // Show authentication required message or loading state
+  if (!isAuthenticated || !userId) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
-            <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
+            <h3 className="text-lg font-medium mb-2">
+              {!isAuthenticated ? "Authentication Required" : "Loading..."}
+            </h3>
             <p className="text-muted-foreground text-center mb-4">
-              Please log in to view your dashboard
+              {!isAuthenticated
+                ? "Please log in to view your dashboard"
+                : "Preparing your dashboard..."}
             </p>
-            <Button onClick={() => window.location.href = '/auth'}>
-              Go to Login
-            </Button>
+            {!isAuthenticated && (
+              <Button onClick={() => navigate({ to: '/auth' })}>
+                Go to Login
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -393,7 +400,7 @@ export default function Page() {
       {/* Main content and sidebar */}
       <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
         <main className="flex-1">
-          
+
 
           {/* In Progress Courses */}
           <div className="mb-8">
@@ -406,8 +413,8 @@ export default function Page() {
                   <Info className="h-4 w-4" />
                 </Button>
               </div>
-              <Button 
-                variant="link" 
+              <Button
+                variant="link"
                 className="text-primary text-sm font-medium flex items-center"
                 onClick={() => navigate({ to: '/student/courses' })}
               >
@@ -456,8 +463,8 @@ export default function Page() {
                       <p className="text-sm text-muted-foreground">
                         Showing 5 of {totalEnrollments} enrolled courses
                       </p>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => navigate({ to: '/student/courses' })}
                       >
@@ -479,8 +486,8 @@ export default function Page() {
                   <Info className="h-4 w-4" />
                 </Button>
               </div>
-              <Button 
-                variant="link" 
+              <Button
+                variant="link"
                 className="text-primary text-sm font-medium flex items-center"
                 onClick={() => navigate({ to: '/student/courses' })}
               >
@@ -503,8 +510,98 @@ export default function Page() {
 
         {/* Sidebar */}
         <aside className="w-full md:w-80 space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border">
+          <Card className="border border-sidebar-border bg-secondary/50 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">To-Do List</CardTitle>
+              <CardDescription>
+                {todoManager.todos.filter(t => !t.completed).length} tasks remaining
+              </CardDescription>
+            </CardHeader>
 
-          
+            <CardContent>
+              {todoManager.isLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent"></div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todoManager.sortedTasks.map(todo => (
+                    <div key={todo.id}
+                      className={`flex items-start gap-2 group ${todo.completed ? 'opacity-60' : ''}`}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full p-0 mt-0.5"
+                        onClick={() => todoManager.toggleTodo(todo.id)}
+                      >
+                        {todo.completed ?
+                          <CheckCircle2 className="h-5 w-5 text-primary" /> :
+                          <Circle className="h-5 w-5" />}
+                      </Button>
+                      <span className={`flex-1 text-sm ${todo.completed ? 'line-through' : ''}`}>{todo.text}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => todoManager.deleteTask(todo.id)}
+                      >
+                        <X className="h-3 w-3" />
+                        <span className="sr-only">Delete task</span>
+                      </Button>
+                    </div>
+                  ))}
+
+                  {todoManager.isAddingTask ? (
+                    <form onSubmit={todoManager.addNewTask} className="flex items-center gap-2 pt-1">
+                      <Circle className="h-5 w-5 ml-0.5 text-muted-foreground" />
+                      <Input
+                        ref={todoManager.newTaskInputRef}
+                        type="text"
+                        value={todoManager.newTaskText}
+                        onChange={(e) => todoManager.setNewTaskText(e.target.value)}
+                        placeholder="What needs to be done?"
+                        className="h-7 py-1 text-sm border-0 border-b focus-visible:ring-0 rounded-none px-0"
+                        autoFocus
+                        onBlur={() => {
+                          if (!todoManager.newTaskText.trim()) todoManager.setIsAddingTask(false);
+                        }}
+                      />
+                    </form>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => todoManager.setIsAddingTask(true)}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add new task
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter>
+              {todoManager.todos.length > 0 && (
+                <div className="w-full flex justify-between text-xs text-muted-foreground">
+                  <span>{todoManager.todos.filter(t => !t.completed).length} remaining</span>
+                  {todoManager.todos.some(t => t.completed) && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => todoManager.setTodos(todoManager.todos.filter(t => !t.completed))}
+                    >
+                      Clear completed
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardFooter>
+          </Card>
+
           <Card className="border border-sidebar-border bg-secondary/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
@@ -552,19 +649,17 @@ export default function Page() {
                     // Calculate mock deadline (replace with real deadline data when available)
                     const daysRemaining = Math.floor(Math.random() * 30) + 1;
                     const isUrgent = daysRemaining <= 7;
-                    
+
                     return (
-                      <div 
-                        key={bufferToHex(enrollment.courseId) || index} 
-                        className={`flex items-center space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm student-card-hover ${
-                          isUrgent ? 'border-destructive/30 bg-destructive/5' : 'border-primary/20 bg-secondary/10'
-                        }`}
+                      <div
+                        key={bufferToHex(enrollment.courseId) || index}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm student-card-hover ${isUrgent ? 'border-destructive/30 bg-destructive/5' : 'border-primary/20 bg-secondary/10'
+                          }`}
                       >
-                        <div className={`flex-shrink-0 p-1.5 rounded-full ${
-                          isUrgent 
-                            ? 'bg-destructive/20 text-destructive' 
-                            : 'bg-primary/10 text-primary'
-                        }`}>
+                        <div className={`flex-shrink-0 p-1.5 rounded-full ${isUrgent
+                          ? 'bg-destructive/20 text-destructive'
+                          : 'bg-primary/10 text-primary'
+                          }`}>
                           <FileText className="h-3 w-3" />
                         </div>
                         <div className="flex-1 space-y-0.5">
@@ -594,97 +689,7 @@ export default function Page() {
             </CardContent>
           </Card>
 
-          <Card className="border border-sidebar-border bg-secondary/50 overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">To-Do List</CardTitle>
-              <CardDescription>
-                {todoManager.todos.filter(t => !t.completed).length} tasks remaining
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent>
-              {todoManager.isLoading ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent"></div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {todoManager.sortedTasks.map(todo => (
-                    <div key={todo.id} 
-                      className={`flex items-start gap-2 group ${todo.completed ? 'opacity-60' : ''}`}
-                    >
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 rounded-full p-0 mt-0.5"
-                        onClick={() => todoManager.toggleTodo(todo.id)}
-                      >
-                        {todo.completed ? 
-                          <CheckCircle2 className="h-5 w-5 text-primary" /> : 
-                          <Circle className="h-5 w-5" />}
-                      </Button>
-                      <span className={`flex-1 text-sm ${todo.completed ? 'line-through' : ''}`}>{todo.text}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => todoManager.deleteTask(todo.id)}
-                      >
-                        <X className="h-3 w-3" />
-                        <span className="sr-only">Delete task</span>
-                      </Button>
-                    </div>
-                  ))}
 
-                  {todoManager.isAddingTask ? (
-                    <form onSubmit={todoManager.addNewTask} className="flex items-center gap-2 pt-1">
-                      <Circle className="h-5 w-5 ml-0.5 text-muted-foreground" />
-                      <Input
-                        ref={todoManager.newTaskInputRef}
-                        type="text"
-                        value={todoManager.newTaskText}
-                        onChange={(e) => todoManager.setNewTaskText(e.target.value)}
-                        placeholder="What needs to be done?"
-                        className="h-7 py-1 text-sm border-0 border-b focus-visible:ring-0 rounded-none px-0"
-                        autoFocus
-                        onBlur={() => {
-                          if (!todoManager.newTaskText.trim()) todoManager.setIsAddingTask(false);
-                        }}
-                      />
-                    </form>
-                  ) : (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full mt-2 text-muted-foreground hover:text-foreground"
-                      onClick={() => todoManager.setIsAddingTask(true)}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add new task
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-            
-            <CardFooter>
-              {todoManager.todos.length > 0 && (
-                <div className="w-full flex justify-between text-xs text-muted-foreground">
-                  <span>{todoManager.todos.filter(t => !t.completed).length} remaining</span>
-                  {todoManager.todos.some(t => t.completed) && (
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs"
-                      onClick={() => todoManager.setTodos(todoManager.todos.filter(t => !t.completed))}
-                    >
-                      Clear completed
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardFooter>
-          </Card>
         </aside>
       </div>
     </>

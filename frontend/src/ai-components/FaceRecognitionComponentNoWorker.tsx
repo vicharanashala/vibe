@@ -130,7 +130,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   const [recognitions, setRecognitions] = useState<FaceRecognition[]>([]);
   const [trackedFaces, setTrackedFaces] = useState<TrackedFace[]>([]);
   const lastProcessTime = useRef<number>(0);
-  const processingInterval = 1000; // Process every 1 second for faster testing
+  const processingInterval = 500; // Process every 1 second for faster testing
   const labeledDescriptorsRef = useRef<faceapi.LabeledFaceDescriptors[]>([]);
   
   // IOU tracking configuration
@@ -156,7 +156,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
     const initializeModels = async () => {
       try {
-        console.log('[FaceRecognitionComponent] Initializing face-api models...');
+        // console.log('[FaceRecognitionComponent] Initializing face-api models...');
         updateDebugInfo({ backendStatus: 'loading' });
         
         const modelUrl = '/models/face-api/model';
@@ -167,7 +167,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
         ]);
         
-        console.log('[FaceRecognitionComponent] Face-api models loaded successfully');
+        // console.log('[FaceRecognitionComponent] Face-api models loaded successfully');
         
         if (isMounted) {
           await loadKnownFaces();
@@ -185,7 +185,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
     const loadKnownFaces = async () => {
       try {
-        console.log('[FaceRecognitionComponent] Loading known faces from API...');
+        // console.log('[FaceRecognitionComponent] Loading known faces from API...');
         const response = await fetch('http://localhost:4001/activity/known-faces');
         
         if (!response.ok) {
@@ -193,7 +193,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         }
         
         const data = await response.json();
-        console.log('[FaceRecognitionComponent] Fetched known faces data:', data);
+        // console.log('[FaceRecognitionComponent] Fetched known faces data:', data);
 
         const peopleData = data.faces || [];
         
@@ -203,28 +203,28 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           return;
         }
 
-        console.log(`[FaceRecognitionComponent] Processing ${peopleData.length} people...`);
+        // console.log(`[FaceRecognitionComponent] Processing ${peopleData.length} people...`);
 
         const labeledDescriptors = await Promise.all(
           peopleData.map(async (person, personIndex) => {
-            console.log(`[FaceRecognitionComponent] Processing person ${personIndex + 1}/${peopleData.length}: ${person.label}`);
+            // console.log(`[FaceRecognitionComponent] Processing person ${personIndex + 1}/${peopleData.length}: ${person.label}`);
             const descriptions: Float32Array[] = [];
             const validImageUrls = person.imagePaths.filter(isValidImageUrl);
 
-            console.log(`[FaceRecognitionComponent] Person ${person.label} has ${validImageUrls.length} valid images`);
+            // console.log(`[FaceRecognitionComponent] Person ${person.label} has ${validImageUrls.length} valid images`);
 
             if (validImageUrls.length === 0) {
-              console.warn(`[FaceRecognitionComponent] No valid images for: ${person.label}`);
+              // console.warn(`[FaceRecognitionComponent] No valid images for: ${person.label}`);
               return null;
             }
 
             for (const [imgIndex, imgUrl] of validImageUrls.entries()) {
               try {
-                console.log(`[FaceRecognitionComponent] Processing image ${imgIndex + 1}/${validImageUrls.length} for ${person.label}: ${imgUrl}`);
+                // console.log(`[FaceRecognitionComponent] Processing image ${imgIndex + 1}/${validImageUrls.length} for ${person.label}: ${imgUrl}`);
                 
                 // Use faceapi.fetchImage properly
                 const img = await faceapi.fetchImage(imgUrl);
-                console.log(`[FaceRecognitionComponent] Image loaded successfully for ${person.label}`);
+                // console.log(`[FaceRecognitionComponent] Image loaded successfully for ${person.label}`);
                 
                 const detectionResult = await faceapi
                   .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
@@ -233,16 +233,16 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
                 if (detectionResult && detectionResult.descriptor) {
                   descriptions.push(detectionResult.descriptor);
-                  console.log(`[FaceRecognitionComponent] ✅ Successfully processed face from: ${person.label} (${imgIndex + 1}/${validImageUrls.length})`);
+                  // console.log(`[FaceRecognitionComponent] ✅ Successfully processed face from: ${person.label} (${imgIndex + 1}/${validImageUrls.length})`);
                 } else {
-                  console.warn(`[FaceRecognitionComponent] ❌ No face detected in: ${imgUrl}`);
+                  // console.warn(`[FaceRecognitionComponent] ❌ No face detected in: ${imgUrl}`);
                 }
               } catch (imgError: unknown) {
                 console.error(`[FaceRecognitionComponent] Error processing ${imgUrl}:`, imgError);
                 // Try alternative approach if CORS fails
                 const errorMessage = imgError instanceof Error ? imgError.message : String(imgError);
                 if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
-                  console.log(`[FaceRecognitionComponent] Trying alternative loading method for: ${imgUrl}`);
+                  // console.log(`[FaceRecognitionComponent] Trying alternative loading method for: ${imgUrl}`);
                   try {
                     const imgElement = new Image();
                     imgElement.crossOrigin = 'anonymous';
@@ -260,7 +260,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
                     if (detectionResult && detectionResult.descriptor) {
                       descriptions.push(detectionResult.descriptor);
-                      console.log(`[FaceRecognitionComponent] ✅ Successfully processed face (alternative method) from: ${person.label}`);
+                      // console.log(`[FaceRecognitionComponent] ✅ Successfully processed face (alternative method) from: ${person.label}`);
                     }
                   } catch (altError: unknown) {
                     console.error(`[FaceRecognitionComponent] Alternative method also failed for ${imgUrl}:`, altError);
@@ -269,7 +269,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
               }
             }
 
-            console.log(`[FaceRecognitionComponent] Person ${person.label}: ${descriptions.length} face descriptors created`);
+            // console.log(`[FaceRecognitionComponent] Person ${person.label}: ${descriptions.length} face descriptors created`);
 
             return descriptions.length > 0 
               ? new faceapi.LabeledFaceDescriptors(person.label, descriptions)
@@ -286,7 +286,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         const labels = validDescriptors.map(desc => desc.label);
         const totalPhotoFaces = validDescriptors.reduce((sum, desc) => sum + desc.descriptors.length, 0);
         
-        console.log(`[FaceRecognitionComponent] Loaded ${validDescriptors.length} people with ${totalPhotoFaces} face descriptors`);
+        // console.log(`[FaceRecognitionComponent] Loaded ${validDescriptors.length} people with ${totalPhotoFaces} face descriptors`);
         
         if (isMounted) {
           updateDebugInfo({
@@ -317,39 +317,39 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
   // Process face recognition when faces are detected
   const processRecognition = useCallback(async () => {
-    console.log('[FaceRecognitionComponent] processRecognition called', {
-      isReady,
-      hasVideo: !!videoRef.current,
-      facesLength: faces.length,
-      labeledDescriptorsLength: labeledDescriptorsRef.current.length
-    });
+    // console.log('[FaceRecognitionComponent] processRecognition called', {
+    //   isReady,
+    //   hasVideo: !!videoRef.current,
+    //   facesLength: faces.length,
+    //   labeledDescriptorsLength: labeledDescriptorsRef.current.length
+    // });
 
     if (!isReady || !videoRef.current || faces.length === 0 || labeledDescriptorsRef.current.length === 0) {
-      console.log('[FaceRecognitionComponent] Skipping recognition - conditions not met');
+      // console.log('[FaceRecognitionComponent] Skipping recognition - conditions not met');
       return;
     }
 
     const now = Date.now();
     if (now - lastProcessTime.current < processingInterval) {
-      console.log('[FaceRecognitionComponent] Skipping recognition - too soon');
+      // console.log('[FaceRecognitionComponent] Skipping recognition - too soon');
       return;
     }
 
-    console.log('[FaceRecognitionComponent] Processing recognition...');
+    // console.log('[FaceRecognitionComponent] Processing recognition...');
     const startTime = performance.now();
 
     try {
       const video = videoRef.current;
       
       // Check video dimensions
-      console.log('[FaceRecognitionComponent] Video dimensions:', {
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        readyState: video.readyState
-      });
+      // console.log('[FaceRecognitionComponent] Video dimensions:', {
+      //   videoWidth: video.videoWidth,
+      //   videoHeight: video.videoHeight,
+      //   readyState: video.readyState
+      // });
 
       if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.warn('[FaceRecognitionComponent] Video dimensions are zero, skipping');
+        // console.warn('[FaceRecognitionComponent] Video dimensions are zero, skipping');
         return;
       }
 
@@ -365,18 +365,18 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
 
-      console.log('[FaceRecognitionComponent] Canvas created, detecting faces...');
+      // console.log('[FaceRecognitionComponent] Canvas created, detecting faces...');
 
       const detections = await faceapi
         .detectAllFaces(canvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.1 }))
         .withFaceLandmarks()
         .withFaceDescriptors();
 
-      console.log('[FaceRecognitionComponent] Face detections:', detections.length);
+      // console.log('[FaceRecognitionComponent] Face detections:', detections.length);
 
       if (detections.length === 0) {
         const processingTime = performance.now() - startTime;
-        console.log('[FaceRecognitionComponent] No faces detected in frame');
+        // console.log('[FaceRecognitionComponent] No faces detected in frame');
         
         // Clean up expired tracks (only recognized faces should be in tracking anyway)
         setTrackedFaces(prev => prev.filter(track => track.isMatch && now - track.lastSeen < TRACK_EXPIRY_TIME));
@@ -469,7 +469,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         });
         
         reusedTrackCount++;
-        console.log(`[FaceRecognitionComponent] Reused track for ${track.label} (IOU: ${match.iou.toFixed(3)})`);
+        // console.log(`[FaceRecognitionComponent] Reused track for ${track.label} (IOU: ${match.iou.toFixed(3)})`);
       }
 
       // Process unmatched detections (perform new recognition)
@@ -505,7 +505,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         });
         
         newRecognitionCount++;
-        console.log(`[FaceRecognitionComponent] New recognition: ${match.label}, distance: ${match.distance.toFixed(3)}, isMatch: ${isMatch}${isMatch ? ' (added to tracking)' : ' (not tracked - unknown)'}`);
+        // console.log(`[FaceRecognitionComponent] New recognition: ${match.label}, distance: ${match.distance.toFixed(3)}, isMatch: ${isMatch}${isMatch ? ' (added
       }
 
       // Add unexpired recognized tracks that weren't matched (faces that disappeared this frame)

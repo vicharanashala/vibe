@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
 import {appConfig} from './config/app.js';
 import {loggingHandler} from './shared/middleware/loggingHandler.js';
@@ -11,6 +12,7 @@ import type { CorsOptions } from 'cors';
 import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 
 const app = express();
+
 app.use(loggingHandler);
 
 const {controllers, validators} = await loadAppModules(appConfig.module.toLowerCase());
@@ -18,7 +20,7 @@ const {controllers, validators} = await loadAppModules(appConfig.module.toLowerC
 const corsOptions: CorsOptions = {
   origin: appConfig.origins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   optionsSuccessStatus: 204
 };

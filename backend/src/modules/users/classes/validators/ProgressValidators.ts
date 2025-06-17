@@ -1,4 +1,4 @@
-import {ID} from '#root/shared/interfaces/models.js';
+import {ID, IProgress} from '#root/shared/interfaces/models.js';
 import {Expose} from 'class-transformer';
 import {
   IsNotEmpty,
@@ -375,7 +375,7 @@ export class ResetCourseProgressBody {
   invalidFieldsCheck2?: any; // dummy field to trigger validation error
 }
 
-export class ProgressDataResponse {
+export class ProgressDataResponse implements IProgress{
   @JSONSchema({
     description: 'Unique identifier for the progress record',
     example: '60d5ec49b3f1c8e4a8f8b8d1',
@@ -461,4 +461,15 @@ export class ProgressDataResponse {
   @IsNotEmpty()
   @IsBoolean()
   completed: boolean;
+}
+
+export class ProgressNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'Error message indicating progress not found',
+    example: 'Progress not found for the specified user and course version',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
 }

@@ -205,7 +205,7 @@ Access control logic:
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
   @Authorized(['admin', 'instructor', 'student'])
-  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @Get('/:courseId/versions/:courseVersionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item retrieved successfully',
@@ -226,7 +226,8 @@ Access control logic:
       courseId,
       courseVersionId,
     );
-    if (progress.currentItem !== itemId) {
+    console.log(progress.currentItem);
+    if (progress.currentItem.toString() !== itemId) {
       throw new ForbiddenError('Item does not match current progress');
     }
     return {

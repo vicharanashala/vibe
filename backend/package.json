@@ -28,6 +28,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.4.1",
   "dependencies": {
+    "@types/cors": "^2.8.19",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
     "chalk": "^5.4.1",

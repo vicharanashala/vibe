@@ -7,6 +7,7 @@ import {
   IsArray,
   IsNotEmpty,
 } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 
 class CreateQuestionBankBody implements Partial<IQuestionBank> {
@@ -93,6 +94,18 @@ class ReplaceQuestionResponse {
   newQuestionId: string;
 }
 
+class QuestionBankNotFoundErrorResponse {
+  @JSONSchema({
+      description: 'The error message.',
+      example:
+        'Question bank not found.',
+      type: 'string',
+      readOnly: true,
+    })
+  @IsNotEmpty()
+  message: string;
+}
+
 export {
   CreateQuestionBankBody,
   GetQuestionBankByIdParams,
@@ -100,4 +113,5 @@ export {
   QuestionBankAndQuestionParams,
   QuestionBankResponse,
   ReplaceQuestionResponse,
+  QuestionBankNotFoundErrorResponse,
 };

@@ -23,9 +23,9 @@ const BlurDetection: React.FC<BlurDetectionProps> = ({ videoRef, setIsBlur }) =>
         } else {
           const elapsedTime = Date.now() - blurStartTimeRef.current;
           if (elapsedTime >= 2000 && elapsedTime < 2200) {
-            console.log("[BlurDetection] ⚠️ Your image is blurry!");
+            // console.log("[BlurDetection] ⚠️ Your image is blurry!");
           } else if (elapsedTime >= 5000 && elapsedTime < 5200) {
-            console.log("[BlurDetection] 🚨 Your image is still blurry, flag noted.");
+            // console.log("[BlurDetection] 🚨 Your image is still blurry, flag noted.");
             blurStartTimeRef.current = null; // Reset
           }
         }

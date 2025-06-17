@@ -8,7 +8,7 @@ const getAuthToken = (): string | null => {
 };
 
 const fetchClient = createFetchClient<paths>({
-  baseUrl: "http://localhost:4001",
+  baseUrl: "http://localhost:4001/api"
 });
 
 // Add middleware to automatically include Authorization header
@@ -23,3 +23,4 @@ fetchClient.use({
 });
 
 export const api = createClient(fetchClient);
+

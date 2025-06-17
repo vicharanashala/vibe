@@ -18,7 +18,7 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
   useEffect(() => {
     const loadModel = async () => {
       try {
-        console.log("[SpeechDetector] 🔄 Loading MediaPipe Model...");
+        // console.log("[SpeechDetector] 🔄 Loading MediaPipe Model...");
         const filesetResolver = await FilesetResolver.forAudioTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@0.10.0/wasm"
         );
@@ -28,10 +28,10 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
         });
 
         setModelReady(true);
-        console.log("[SpeechDetector] ✅ Model Loaded Successfully!");
+        // console.log("[SpeechDetector] ✅ Model Loaded Successfully!");
         startMicrophone();
       } catch (error) {
-        console.error("[SpeechDetector] ❌ Error loading model:", error);
+        // console.error("[SpeechDetector] ❌ Error loading model:", error);
       }
     };
 

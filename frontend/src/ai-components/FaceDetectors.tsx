@@ -8,6 +8,11 @@ interface FaceDetectorsProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  settings:{
+    isFaceCountDetectionEnabled:boolean, 
+    isFaceRecognitionEnabled:boolean, 
+    isFocusEnabled: boolean
+  }
 }
 
 const isLookingAway = (face: Face): boolean => {
@@ -47,12 +52,12 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
 
   // Debug log
   useEffect(() => {
-    console.log('🎭 [FaceDetectors] Component rendered with:', {
-      facesCount: faces.length,
-      hasVideoRef: !!videoRef.current,
-      hasCallback: !!onRecognitionResult,
-      hasDebugCallback: !!onDebugInfoUpdate
-    });
+    // console.log('🎭 [FaceDetectors] Component rendered with:', {
+    //   facesCount: faces.length,
+    //   hasVideoRef: !!videoRef.current,
+    //   hasCallback: !!onRecognitionResult,
+    //   hasDebugCallback: !!onDebugInfoUpdate
+    // });
   }, [faces.length, videoRef, onRecognitionResult, onDebugInfoUpdate]);
 
   return (

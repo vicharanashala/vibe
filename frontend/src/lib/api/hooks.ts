@@ -535,7 +535,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/{userId}/enrollments
-export function useUserEnrollments(userId: string, page?: number, limit?: number): {
+export function useUserEnrollments(userId: string | undefined, page?: number, limit?: number): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -894,6 +894,41 @@ export function useReportAnomaly(): {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
-    error: result.error ? (result.error.message || 'Failed to report anomaly') : null
+    error: result.error ? (result.error || 'Failed to report anomaly') : null
+  };
+}
+
+export interface ProctoringSettings {
+  _id: string;
+  userId: string;
+  versionId: string;
+  courseId: string;
+  settings: {
+    proctors: {
+      detectors: {
+        detectorName: string;
+        settings: {
+          enabled: boolean;
+        }
+      }[]
+    }
+}
+}
+
+export function useProctoringSettings(userId: string, courseId: string, versionId: string ): {
+  data:  | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/settings/users/{userId}/{courseId}/{versionId}", {
+    params: { path: { userId, courseId, versionId } }
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user by Firebase UID') : null,
+    refetch: result.refetch
   };
 }
