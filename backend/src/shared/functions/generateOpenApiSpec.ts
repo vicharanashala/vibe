@@ -1,4 +1,4 @@
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
 import {
   getMetadataArgsStorage,
   RoutingControllersOptions,
@@ -7,9 +7,9 @@ import {
   getMetadataStorage,
   MetadataStorage
 } from 'class-validator';
-import {routingControllersToSpec} from 'routing-controllers-openapi';
+import { routingControllersToSpec } from 'routing-controllers-openapi';
 
-import {appConfig} from '../../config/app.js'; // adjust path as needed
+import { appConfig } from '../../config/app.js'; // adjust path as needed
 import { metadata } from 'reflect-metadata/no-conflict';
 import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
 
@@ -129,15 +129,15 @@ export function generateOpenAPISpec(
   }
 
   let schemas: Record<string, any> = {};
-  if(validators.length === 0 || appConfig.module === 'all') {
+  if (validators.length === 0 || appConfig.module === 'all') {
     // If no specific validators are provided, use all class-validator schemas
     schemas = validationMetadatasToSchemas({
       refPointerPrefix: '#/components/schemas/',
-  });
+    });
   } else {
     // If specific validators are provided, filter schemas based on them
     schemas = getSchemasForValidators(validators);
-  } 
+  }
 
   // Create OpenAPI specification
   const spec = routingControllersToSpec(storage, routingControllersOptions, {

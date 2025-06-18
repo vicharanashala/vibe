@@ -184,6 +184,26 @@ class AuthErrorResponse {
 }
 
 
+class LoginBody {
+  @JSONSchema({
+    title: 'Email Address',
+    description: 'Email address of the user'
+  })
+  @IsEmail()
+  email: string;  
+
+  @JSONSchema({
+    title: 'Password',
+    description: 'Password for account authentication',
+    example:'SecureP@ssw0rd',
+    minLength: 8,
+    writeOnly: true
+  })
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
+}
+
 export const AUTH_VALIDATORS = [
   SignUpBody,
   ChangePasswordBody,
@@ -192,6 +212,7 @@ export const AUTH_VALIDATORS = [
   ChangePasswordResponse,
   TokenVerificationResponse,
   AuthErrorResponse,
+  LoginBody,
 ];
 
 export {
@@ -202,4 +223,5 @@ export {
   ChangePasswordResponse,
   TokenVerificationResponse,
   AuthErrorResponse,
+  LoginBody,
 };
