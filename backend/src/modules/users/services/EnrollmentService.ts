@@ -167,7 +167,10 @@ export class EnrollmentService extends BaseService {
         skip,
         limit,
       );
-      return result;
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+      }));
     });
   }
 

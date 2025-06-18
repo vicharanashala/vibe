@@ -80,6 +80,7 @@ class QuestionService extends BaseService {
         questionData,
         session,
       );
+      updated._id = updated._id.toString();
       return updated;
     });
   }
