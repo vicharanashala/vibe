@@ -46,6 +46,27 @@ export default function StudentLayout() {
             </div>
           </div>
 
+          {/* <div className="flex items-center gap-4">
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.map((item, index) => (
+                  <React.Fragment key={index}>
+                    {index > 0 && <BreadcrumbSeparator />}
+                    <BreadcrumbItem>
+                      {item.isCurrentPage ? (
+                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink href={item.path} asChild>
+                          <Link to={item.path}>{item.label}</Link>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                  </React.Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div> */}
+
           {/* Single container with consistent spacing for all navigation elements */}
           <div className="flex items-center gap-4">
             <Button
