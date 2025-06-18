@@ -186,8 +186,8 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     const loadKnownFaces = async () => {
       try {
         // console.log('[FaceRecognitionComponent] Loading known faces from API...');
-        const response = await fetch('http://localhost:4001/activity/known-faces');
-        
+        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
