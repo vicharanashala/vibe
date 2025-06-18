@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserEnrollments } from "@/lib/api/hooks";
-import { useAuthStore } from "@/lib/store/auth-store";
+import { useUserEnrollments } from "@/hooks/hooks";
+import { useAuthStore } from "@/store/auth-store";
 
 // Import new components
 import { CourseCard } from "@/components/course/CourseCard";

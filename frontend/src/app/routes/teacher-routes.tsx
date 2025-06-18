@@ -1,10 +1,10 @@
 import { RouteObject } from "react-router-dom";
 import TeacherLayout from "@/layouts/teacher-layout";
-import Dashboard from "@/pages/teacher/dashboard";
-import CreateCourse from "@/pages/teacher/create-course";
-import Editor from "@/pages/teacher/create-article";
-import FaceDetectors from "@/pages/testing-proctoring/face-detectors";
-import GetCourse from "@/pages/teacher/get-course";
+import Dashboard from "@/app/pages/teacher/dashboard";
+import CreateCourse from "@/app/pages/teacher/create-course";
+import Editor from "@/app/pages/teacher/create-article";
+import FaceDetectors from "@/app/pages/testing-proctoring/face-detectors";
+import GetCourse from "@/app/pages/teacher/get-course";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",

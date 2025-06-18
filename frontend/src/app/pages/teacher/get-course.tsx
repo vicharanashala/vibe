@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useCourseById } from "@/lib/api/hooks";
+import { useCourseById } from "@/hooks/hooks";
 
 export default function GetCourse() {
     const [courseId, setCourseId] = useState("");

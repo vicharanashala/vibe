@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
-import { useCourseById } from "@/lib/api/hooks";
-import { useCourseStore } from "@/lib/store/course-store";
+import { useCourseById } from "@/hooks/hooks";
+import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
-import { bufferToHex } from "@/lib/utils/helpers";
+import { bufferToHex } from "@/utils/helpers";
 
 interface CourseCardProps {
   enrollment: Record<string, unknown>;

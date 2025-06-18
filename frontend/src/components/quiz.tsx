@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/lib/api/hooks';
-import { useAuthStore } from "@/lib/store/auth-store";
-import { useCourseStore } from "@/lib/store/course-store";
+import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { useAuthStore } from "@/store/auth-store";
+import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 
 // Utility function to convert buffer to hex string

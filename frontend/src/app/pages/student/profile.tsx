@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { useAuthStore } from "@/lib/store/auth-store.ts"
+import { useAuthStore } from "@/store/auth-store"
 
 export default function StudentProfile() {
   const { user } = useAuthStore()

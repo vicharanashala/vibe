@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
-import { useStartItem, useStopItem } from '../lib/api/hooks';
-import { useAuthStore } from '../lib/store/auth-store';
-import { useCourseStore } from '../lib/store/course-store';
+import { useStartItem, useStopItem } from '../hooks/hooks';
+import { useAuthStore } from '../store/auth-store';
+import { useCourseStore } from '../store/course-store';
 
 interface VideoProps {
   URL: string;

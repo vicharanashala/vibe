@@ -2,18 +2,18 @@ import React, { useRef, useEffect, useState, useCallback, JSX, use } from 'react
 import ReactDOM from 'react-dom';
 import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import GestureDetector from '../ai-components/GestureDetector';
-import BlurDetection from '../ai-components/BlurDetector';
-import SpeechDetector from '../ai-components/SpeechDetector';
-import FaceDetectors from '../ai-components/FaceDetectors';
-import FaceRecognitionOverlay from '../ai-components/FaceRecognitionOverlay';
-import { FaceRecognition, FaceRecognitionDebugInfo } from '../ai-components/FaceRecognitionComponent';
+import GestureDetector from './ai/GestureDetector';
+import BlurDetection from './ai/BlurDetector';
+import SpeechDetector from './ai/SpeechDetector';
+import FaceDetectors from './ai/FaceDetectors';
+import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
+import { FaceRecognition, FaceRecognitionDebugInfo } from './ai/FaceRecognitionComponent';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
-import useCameraProcessor from '../ai-components/useCameraProcessor';
-import { useReportAnomaly } from '@/lib/api/hooks';
+import useCameraProcessor from './ai/useCameraProcessor';
+import { useReportAnomaly } from '@/hooks/hooks';
 
-import { useAuthStore } from '@/lib/store/auth-store';
-import { useCourseStore } from '@/lib/store/course-store';
+import { useAuthStore } from '@/store/auth-store';
+import { useCourseStore } from '@/store/course-store';
 
 // Proctoring settings interface based on the backend structure
 interface IDetectorSettings {

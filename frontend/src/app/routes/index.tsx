@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AuthPage from "@/pages/auth-page";
+import AuthPage from "@/app/pages/auth-page";
 import teacherRoutes from "./teacher-routes";
 import studentRoutes from "./student-routes";
-import { useAuthStore } from "@/lib/store/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 import { JSX } from "react";
 import React from "react";
 

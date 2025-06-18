@@ -1,5 +1,5 @@
 import { FC, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store/auth-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useNavigate } from '@tanstack/react-router';
 
 export const NotFoundComponent: FC = () => {

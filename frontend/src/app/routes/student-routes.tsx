@@ -1,10 +1,10 @@
 import { RouteObject } from "react-router-dom";
 import StudentLayout from "@/layouts/student-layout";
-import StudentDashboard from "@/pages/student/dashboard";
-import StudentCourses from "@/pages/student/courses";
-import StudentProfile from "@/pages/student/profile";
+import StudentDashboard from "@/app/pages/student/dashboard";
+import StudentCourses from "@/app/pages/student/courses";
+import StudentProfile from "@/app/pages/student/profile";
 import ItemContainer from "@/components/Item-container";
-import CoursePage from "@/pages/student/course-page";
+import CoursePage from "@/app/pages/student/course-page";
 // import ParentComponent from "@/ai-components/ParentComponent";
 import { Item } from "@/components/Item-container"; // Assuming Item is defined in Item-container
 

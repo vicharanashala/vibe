@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateCourse } from "@/lib/api/hooks";
+import { useCreateCourse } from "@/hooks/hooks";
 
 export default function CreateCourse() {
   const [name, setTitle] = useState("");

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useMatches, Link, useNavigate } from "@tanstack/react-router";
-import { AppSidebar } from "../components/app-sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { logout } from "@/lib/api/auth";
+import { logout } from "@/utils/auth";
 import { LogOut } from "lucide-react";
 import {
   Breadcrumb,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useAuthStore } from "@/lib/store/auth-store";
-import { useUserEnrollments } from "@/lib/api/hooks";
+import { useAuthStore } from "@/store/auth-store";
+import { useUserEnrollments } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
@@ -9,7 +9,7 @@ import { AnnouncementBanner } from "@/components/ui/AnnouncementBanner";
 import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getGreeting } from "@/lib/utils/helpers";
+import { getGreeting } from "@/utils/helpers";
 
 export default function Page() {
   const { user, isAuthenticated } = useAuthStore();

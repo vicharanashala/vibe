@@ -1,4 +1,4 @@
-import { auth, provider } from '../firebase';
+import { auth, provider } from '../lib/firebase';
 import { 
   signInWithPopup, 
   signInWithEmailAndPassword,
@@ -7,7 +7,7 @@ import {
   User as FirebaseUser // Import Firebase User type
 } from 'firebase/auth';
 import { useAuthStore } from '../store/auth-store'; // Removed unused User import
-import { queryClient } from './client';
+import { queryClient } from '../lib/client';
 
 
 
@@ -134,4 +134,4 @@ export function checkAuth() {
 
 // API-specific functions
 // Use openapi-react-query hooks from hooks.ts
-export { useLogin, useUserByFirebaseUID } from './hooks';
+export { useLogin, useUserByFirebaseUID } from '../hooks/hooks';

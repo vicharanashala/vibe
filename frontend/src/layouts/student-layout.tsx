@@ -1,11 +1,11 @@
 "use client"
 
 import { Outlet, Link } from "@tanstack/react-router"
-import { useAuthStore } from "@/lib/store/auth-store"
+import { useAuthStore } from "@/store/auth-store"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { logout } from "@/lib/api/auth"
+import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"

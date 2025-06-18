@@ -1,5 +1,5 @@
 import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/firebase";
-import { useAuthStore } from "@/lib/store/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useState, createContext, useContext, useEffect } from "react";
@@ -11,7 +11,7 @@ import { Check, AlertCircle } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 
 // Create a context for tab state management
 const TabsContext = createContext<{

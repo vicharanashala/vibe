@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TodoList } from "@/components/ui/TodoList";
-import { bufferToHex } from "@/lib/utils/helpers";
+import { bufferToHex } from "@/utils/helpers";
 
 interface DashboardSidebarProps {
   enrollments: Array<Record<string, unknown>>;

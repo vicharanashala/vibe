@@ -1,6 +1,6 @@
 import React, { createContext } from 'react';
-import { useAuthStore } from '@/lib/store/auth-store';
-import { logout, loginWithGoogle, loginWithEmail } from '@/lib/api/auth';
+import { useAuthStore } from '@/store/auth-store';
+import { logout, loginWithGoogle, loginWithEmail } from '@/utils/auth';
 
 type Role = 'teacher' | 'student' | 'admin' | null;
 
