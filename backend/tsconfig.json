@@ -6,7 +6,7 @@
         "moduleResolution": "nodenext",
         "lib": ["ESNext"],
         "outDir": "build",
-        "rootDir": "src",
+        "rootDir": "src", // Changed back to "." to include scripts directory
         "sourceMap": true,
         "strict": false,
         "esModuleInterop": true,
@@ -26,8 +26,7 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "noEmitOnError": true,
-        "skipLibCheck": true,
-        
+        "skipLibCheck": true
     },
     "exclude": [
         "build",
