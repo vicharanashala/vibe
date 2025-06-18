@@ -1,5 +1,5 @@
 import express from 'express';
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
 import { appConfig } from './config/app.js';
 import { loggingHandler } from './shared/middleware/loggingHandler.js';

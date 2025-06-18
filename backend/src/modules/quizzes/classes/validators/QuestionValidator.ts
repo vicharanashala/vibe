@@ -85,7 +85,7 @@ class Question implements Partial<IQuestion> {
   @IsNotEmpty()
   @ValidateNested({each: true})
   @Type(() => QuestionParameter)
-  parameters?: IQuestionParameter[];
+  parameters?: QuestionParameter[];
 
   @IsString()
   hint?: string;
@@ -166,7 +166,7 @@ class QuestionBody {
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => Question)
-  question: IQuestion;
+  question: Question;
   @IsNotEmpty()
   @ValidateNested()
   @Type(({object}) => {
