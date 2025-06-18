@@ -2,9 +2,9 @@ import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
-import { CourseBody } from '../classes/validators/CourseValidators.js';
-import { describe, it, beforeEach, beforeAll, expect, vi } from 'vitest';
-import { coursesModuleOptions, setupCoursesContainer } from '../index.js';
+import {CourseBody} from '../classes/validators/CourseValidators.js';
+import {describe, it, beforeEach, beforeAll, expect, vi} from 'vitest';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();
@@ -135,7 +135,10 @@ describe('Course Controller Integration Tests', () => {
 
         const response = await request(app)
           .put('/courses/67dd98f025dd87ebf639851c')
-          .send({name: 'Updated Course', description: 'Updated course description'})
+          .send({
+            name: 'Updated Course',
+            description: 'Updated course description',
+          })
           .expect(404);
       }, 60000);
 

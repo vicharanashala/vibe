@@ -1,10 +1,17 @@
-import { validationMetadatasToSchemas } from "class-validator-jsonschema";
-import { getMetadataArgsStorage, RoutingControllersOptions } from "routing-controllers";
-import { routingControllersToSpec } from "routing-controllers-openapi";
-
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+import {
+  getMetadataArgsStorage,
+  RoutingControllersOptions,
+} from 'routing-controllers';
+import {
+  getMetadataStorage,
+  MetadataStorage
+} from 'class-validator';
+import { routingControllersToSpec } from 'routing-controllers-openapi';
 
 import { appConfig } from '../../config/app.js'; // adjust path as needed
-
+import { metadata } from 'reflect-metadata/no-conflict';
+import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
 
 const getOpenApiServers = () => {
   const servers = [];
@@ -52,6 +59,10 @@ const getOpenApiServers = () => {
       url: `https://${parsedUrl.hostname}`,
       description: 'Production Server',
     });
+    servers.push({
+      url: appUrl,
+      description: 'Production API Server',
+    });
   }
 
   return servers;
@@ -62,28 +73,53 @@ export function filterMetadataByModulePrefix(modulePrefix: string) {
   const normalizedPrefix = `/${modulePrefix.toLowerCase()}`;
 
   // Filter controllers by prefix
-  storage.controllers = storage.controllers.filter((ctrl) =>
-    typeof ctrl.route === 'string' &&
-    ctrl.route.toLowerCase().startsWith(normalizedPrefix)
+  storage.controllers = storage.controllers.filter(
+    ctrl =>
+      typeof ctrl.route === 'string' &&
+      ctrl.route.toLowerCase().startsWith(normalizedPrefix),
   );
 
   // Collect valid targets (class references)
-  const validTargets = new Set(storage.controllers.map((c) => c.target));
+  const validTargets = new Set(storage.controllers.map(c => c.target));
 
   // Filter all associated metadata by controller target
-  storage.actions = storage.actions.filter((a) => validTargets.has(a.target));
+  storage.actions = storage.actions.filter(a => validTargets.has(a.target));
+}
+
+function getSchemasForValidators(validators: Function[]) {
+  const validatorSet = new Set(validators);
+  let storage: MetadataStorage = getMetadataStorage();
+
+  const filteredValidationMetadatas: Map<Function, ValidationMetadata[]> = new Map();
+  const originalValidationMetadatas = (storage as unknown as any).validationMetadatas as Map<Function, ValidationMetadata[]>;
+
+  for (const [key, value] of originalValidationMetadatas) {
+    // Filter validation metadata based on the provided validators
+    if (validatorSet.has(key)) {
+      filteredValidationMetadatas.set(key, value);
+    }
+  }
+
+  // Temporarily replace the validation metadata storage
+  (storage as any).validationMetadatas = filteredValidationMetadatas;
+
+  // Generate schemas from the filtered validation metadata
+  const schemas = validationMetadatasToSchemas({
+    refPointerPrefix: '#/components/schemas/',
+    classValidatorMetadataStorage: storage,
+  });
+
+  // Restore original metadata
+  (storage as any).validationMetadatas = originalValidationMetadatas;
+
+  return schemas;
 }
 
 
-export function generateOpenAPISpec(routingControllersOptions: RoutingControllersOptions) {
-  // Get validation schemas
-  const schemas = validationMetadatasToSchemas({
-    refPointerPrefix: '#/components/schemas/',
-    validationError: {
-      target: true,
-      value: true,
-    },
-  });
+export function generateOpenAPISpec(
+  routingControllersOptions: RoutingControllersOptions,
+  validators: Function[] = [],
+) {
 
   // Get metadata storage
   const storage = getMetadataArgsStorage();
@@ -92,7 +128,16 @@ export function generateOpenAPISpec(routingControllersOptions: RoutingController
     filterMetadataByModulePrefix(appConfig.module);
   }
 
-  console.log(storage.controllers[0].route);
+  let schemas: Record<string, any> = {};
+  if (validators.length === 0 || appConfig.module === 'all') {
+    // If no specific validators are provided, use all class-validator schemas
+    schemas = validationMetadatasToSchemas({
+      refPointerPrefix: '#/components/schemas/',
+    });
+  } else {
+    // If specific validators are provided, filter schemas based on them
+    schemas = getSchemasForValidators(validators);
+  }
 
   // Create OpenAPI specification
   const spec = routingControllersToSpec(storage, routingControllersOptions, {

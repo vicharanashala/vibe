@@ -535,7 +535,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/{userId}/enrollments
-export function useUserEnrollments(userId: string, page?: number, limit?: number): {
+export function useUserEnrollments(userId: string | undefined, page?: number, limit?: number): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -846,5 +846,89 @@ export function useSubmitQuiz(): {
     reset: result.reset,
     status: result.status,
     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+  };
+}
+
+interface ReportAnomalyBody {
+  userId: string;
+  courseId: string;
+  courseVersionId: string;
+  moduleId?: string;
+  sectionId?: string;
+  itemId?: string;
+  anomalyType: string;
+}
+
+interface ReportAnomalyResponse {
+  // Define the structure of the response here
+  _id: string;
+  userId: string;
+  courseId: string;
+  courseVersionId: string;
+  moduleId?: string;
+  sectionId?: string;
+  itemId?: string;
+  anomalyType: string;
+}
+
+export function useReportAnomaly(): {
+  mutate: (variables: { body: ReportAnomalyBody }) => void,
+  mutateAsync: (variables: { body: ReportAnomalyBody }) => Promise<ReportAnomalyResponse>,
+  data: ReportAnomalyResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/users/anomaly/");
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error ? (result.error || 'Failed to report anomaly') : null
+  };
+}
+
+export interface ProctoringSettings {
+  _id: string;
+  userId: string;
+  versionId: string;
+  courseId: string;
+  settings: {
+    proctors: {
+      detectors: {
+        detectorName: string;
+        settings: {
+          enabled: boolean;
+        }
+      }[]
+    }
+}
+}
+
+export function useProctoringSettings(userId: string, courseId: string, versionId: string ): {
+  data:  | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/settings/users/{userId}/{courseId}/{versionId}", {
+    params: { path: { userId, courseId, versionId } }
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user by Firebase UID') : null,
+    refetch: result.refetch
   };
 }

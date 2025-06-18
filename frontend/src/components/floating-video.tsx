@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, JSX } from 'react';
+import React, { useRef, useEffect, useState, useCallback, JSX, use } from 'react';
 import ReactDOM from 'react-dom';
 import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,20 +10,46 @@ import FaceRecognitionOverlay from '../ai-components/FaceRecognitionOverlay';
 import { FaceRecognition, FaceRecognitionDebugInfo } from '../ai-components/FaceRecognitionComponent';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from '../ai-components/useCameraProcessor';
+import { useReportAnomaly } from '@/lib/api/hooks';
+
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useCourseStore } from '@/lib/store/course-store';
+
+// Proctoring settings interface based on the backend structure
+interface IDetectorSettings {
+  detectorName: string;
+  settings: {
+    enabled: boolean;
+  };
+}
+
+interface ProctoringSettings {
+  _id: string;
+  studentId: string;
+  versionId: string;
+  courseId: string;
+  settings: {
+    proctors: {
+      detectors: IDetectorSettings[];
+    };
+  };
+}
 
 interface FloatingVideoProps {
   isVisible?: boolean;
   onClose?: () => void;
   onAnomalyDetected?: (hasAnomaly: boolean) => void;
   setDoGesture: (value: boolean) => void;
+  settings?: ProctoringSettings;
 }
 
 let flag = 0;
-function FloatingVideo({ 
-  isVisible = true, 
+function FloatingVideo({
+  isVisible = true,
   onClose,
   onAnomalyDetected,
-  setDoGesture
+  setDoGesture,
+  settings
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +61,7 @@ function FloatingVideo({
   const [overlayPosition, setOverlayPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isPoppedOut, setIsPoppedOut] = useState(true);
+  const [anomaly, setAnomaly] = useState(false);
 
 
   // Original aspect ratio (maintain the initial component ratio)
@@ -55,6 +82,7 @@ function FloatingVideo({
     recognizedFaces: 0,
     lastUpdateTime: Date.now(),
     backendStatus: 'loading'
+
   });
   const [penaltyPoints, setPenaltyPoints] = useState(-10);
   const [penaltyType, setPenaltyType] = useState("");
@@ -63,15 +91,51 @@ function FloatingVideo({
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
   const [thumbsUpCountdown, setThumbsUpCountdown] = useState(0);
   const [lastChallengeTime, setLastChallengeTime] = useState(0);
-
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
 
+  // Helper function to check if a specific proctoring component is enabled
+  const isComponentEnabled = useCallback((componentName: string): boolean => {
+    if (!settings?.settings?.proctors?.detectors) return false;
+    
+    const detector = settings.settings.proctors.detectors.find(
+      (detector) => detector.detectorName === componentName
+    );
+    
+    return detector?.settings?.enabled ?? false;
+  }, [settings]);
+
+  // Check which components are enabled
+  const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
+  const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
+  const isHandGestureDetectionEnabled = isComponentEnabled('handGestureDetection');
+  const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
+  const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
+  const isFocusEnabled = isComponentEnabled('focus');
+
+  // Log enabled components for debugging
+  useEffect(() => {
+    if (settings) {
+      console.log('🔧 [FloatingVideo] Proctoring settings loaded:', {
+        blurDetection: isBlurDetectionEnabled,
+        faceCountDetection: isFaceCountDetectionEnabled,
+        handGestureDetection: isHandGestureDetectionEnabled,
+        voiceDetection: isVoiceDetectionEnabled,
+        faceRecognition: isFaceRecognitionEnabled,
+        focus: isFocusEnabled
+      });
+    }
+  }, [settings, isBlurDetectionEnabled, isFaceCountDetectionEnabled, isHandGestureDetectionEnabled, isVoiceDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled]);
+
+  // Add the hooks
+  const { data, error, mutate: reportAnomaly } = useReportAnomaly();
+  const authStore = useAuthStore();
+  const courseStore = useCourseStore();
   // Handle face recognition results
   const handleFaceRecognitionResult = useCallback((recognitions: FaceRecognition[]) => {
     console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
     setRecognizedFaces(recognitions);
-    
+
     // Log additional info about the recognition
     const knownFaces = recognitions.filter(r => r.isMatch);
     if (knownFaces.length > 0) {
@@ -103,6 +167,21 @@ function FloatingVideo({
       restartVideo();
     }, 100);
   }, [isPoppedOut]);
+  useEffect(() => {
+    if (anomaly) {
+      reportAnomaly({
+        body: {
+          userId: authStore.user?.userId || "",
+          courseId: courseStore.currentCourse?.courseId || "",
+          courseVersionId: courseStore.currentCourse?.versionId || "",
+          moduleId: courseStore.currentCourse?.moduleId || "",
+          sectionId: courseStore.currentCourse?.sectionId || "",
+          itemId: courseStore.currentCourse?.itemId || "",
+          anomalyType: anomalyType
+        }
+      });
+    }
+  }, [anomaly]);
 
   // Function to restart video stream
   const restartVideo = useCallback(async () => {
@@ -110,7 +189,7 @@ function FloatingVideo({
     if (!video) return;
 
     console.log('[FloatingVideo] Restarting video stream...');
-    
+
     try {
       // Stop current stream if exists
       if (currentStream) {
@@ -122,21 +201,21 @@ function FloatingVideo({
       setFaceDetectorsKey(prev => prev + 1);
 
       // Get new stream with standard configuration
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           frameRate: { max: 30 },
           width: { ideal: 640 },
           height: { ideal: 480 }
-        } 
+        }
       });
-      
+
       video.srcObject = stream;
       setCurrentStream(stream);
-      
+
       // Setup and play video with timeout protection
       await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => reject(new Error('Video load timeout')), 100);
-        
+
         const onSuccess = () => {
           clearTimeout(timeoutId);
           console.log('[FloatingVideo] Video stream restarted successfully');
@@ -145,14 +224,13 @@ function FloatingVideo({
             resolve(null);
           }, 100);
         };
-        
+
         video.onloadedmetadata = () => video.play().then(onSuccess).catch(reject);
         video.onerror = () => {
           clearTimeout(timeoutId);
           reject(new Error('Video load error'));
         };
       });
-      
     } catch (error) {
       console.error('[FloatingVideo] Error restarting video:', error);
     }
@@ -170,26 +248,26 @@ function FloatingVideo({
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
 
-      // Condition 1: If speaking is detected
-      if (isSpeaking === "Yes") {
+      // Condition 1: If speaking is detected (only if voice detection is enabled)
+      if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
-      // Condition 2: If faces count is not exactly 1
-      if (facesCount !== 1) {
+      // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
+      if (facesCount !== 1 && isFaceCountDetectionEnabled) {
         newPenaltyType = "Faces Count";
         newPenaltyPoints += 1;
       }
 
-      // Condition 3: If the screen is blurred
-      if (isBlur === "Yes") {
+      // Condition 3: If the screen is blurred (only if blur detection is enabled)
+      if (isBlur === "Yes" && isBlurDetectionEnabled) {
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
       }
 
-      // Condition 4: If not focused
-      if (!isFocused) {
+      // Condition 4: If not focused (only if focus tracking is enabled)
+      if (!isFocused && isFocusEnabled) {
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
@@ -198,27 +276,67 @@ function FloatingVideo({
       if (newPenaltyPoints > 0) {
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
+
+        const anomalyType = newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition";
+        // here to add the hook
+
+        console.log({body: {
+            userId: authStore.user?.userId || "", 
+            courseId: courseStore.currentCourse?.courseId || "", 
+            courseVersionId: courseStore.currentCourse?.versionId || "",
+            moduleId: courseStore.currentCourse?.moduleId || "",
+            sectionId: courseStore.currentCourse?.sectionId || "",
+            itemId: courseStore.currentCourse?.itemId || "",
+            anomalyType: anomalyType
+        }});
+        reportAnomaly({
+          body: {
+            userId: authStore.user?.userId || "", 
+            courseId: courseStore.currentCourse?.courseId || "", 
+            courseVersionId: courseStore.currentCourse?.versionId || "",
+            moduleId: courseStore.currentCourse?.moduleId || "",
+            sectionId: courseStore.currentCourse?.sectionId || "",
+            itemId: courseStore.currentCourse?.itemId || "",
+            anomalyType: anomalyType
+        }})
+        console.log(data, error)
       }
     }, 1000); // Update every second
 
     return () => clearInterval(interval);
-  }, [isSpeaking, facesCount, isBlur, isFocused]);
+  }, [
+    isSpeaking, 
+    facesCount, 
+    isBlur, 
+    isFocused, 
+    reportAnomaly, 
+    authStore.user?.userId, 
+    courseStore.currentCourse,
+    isVoiceDetectionEnabled,
+    isFaceCountDetectionEnabled,
+    isBlurDetectionEnabled,
+    isFocusEnabled,
+    data,
+    error
+  ]);
   const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
-  // Random thumbs-up challenge system
+  // Random thumbs-up challenge system - only run if gesture detection is enabled
   useEffect(() => {
+    if (!isHandGestureDetectionEnabled) return;
+    
     const checkForChallenge = () => {
       const now = Date.now();
       const timeSinceLastChallenge = now - lastChallengeTime;
-      
+
       // Only trigger if no active challenge and enough time has passed (2-5 minutes randomly)
-      if (!isThumbsUpChallenge && timeSinceLastChallenge > 3000*mul) { // Minimum 30 seconds for testing
-        const randomInterval = Math.random() * (3000*mul - 1200*mul) + 1200*mul; // 2-5 minutes
-        
+      if (!isThumbsUpChallenge && timeSinceLastChallenge > 3000 * mul) { // Minimum 30 seconds for testing
+        const randomInterval = Math.random() * (3000 * mul - 1200 * mul) + 1200 * mul; // 2-5 minutes
+
         if (timeSinceLastChallenge > randomInterval) {
           // Check if user is already showing thumbs-up when challenge starts
           const gestureText = gesture.toLowerCase();
-          const isAlreadyThumbsUp =gestureText.includes("thumb_up") || gestureText === "thumb_up";
-          
+          const isAlreadyThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
+
           if (isAlreadyThumbsUp) {
             console.log("[Challenge] ⚠️ Thumbs-up detected when challenge starts - marking as anomaly");
             // Add penalty for pre-emptive thumbs-up
@@ -239,11 +357,11 @@ function FloatingVideo({
 
     const interval = setInterval(checkForChallenge, 1000);
     return () => clearInterval(interval);
-  }, [isThumbsUpChallenge, lastChallengeTime, gesture]);
+  }, [isThumbsUpChallenge, lastChallengeTime, gesture, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Thumbs-up countdown timer
+  // Thumbs-up countdown timer - only run if gesture detection is enabled
   useEffect(() => {
-    if (!isThumbsUpChallenge || thumbsUpCountdown <= 0) return;
+    if (!isHandGestureDetectionEnabled || !isThumbsUpChallenge || thumbsUpCountdown <= 0) return;
 
     const timer = setTimeout(() => {
       setThumbsUpCountdown(prev => {
@@ -260,43 +378,39 @@ function FloatingVideo({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isThumbsUpChallenge, thumbsUpCountdown]);
+  }, [isThumbsUpChallenge, thumbsUpCountdown, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Check for thumbs-up gesture during challenge
+  // Check for thumbs-up gesture during challenge - only run if gesture detection is enabled
   useEffect(() => {
-    if (isThumbsUpChallenge && gesture) {
-      const gestureText = gesture.toLowerCase();
-      console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
-      
-      // Check for various thumbs-up patterns that MediaPipe might return
-      const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
-      
-      if (isThumbsUp) {
-        console.log("[Challenge] ✅ Thumbs-up detected! Challenge passed.");
-        setDoGesture(false);
-        // Success - end challenge without penalty
-        setIsThumbsUpChallenge(false);
-        setThumbsUpCountdown(0);
-      }
+    if (!isHandGestureDetectionEnabled || !isThumbsUpChallenge || !gesture) return;
+    
+    const gestureText = gesture.toLowerCase();
+    console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
+    
+    // Check for various thumbs-up patterns that MediaPipe might return
+    const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
+    
+    if (isThumbsUp) {
+      console.log("[Challenge] ✅ Thumbs-up detected! Challenge passed.");
+      setDoGesture(false);
+      // Success - end challenge without penalty
+      setIsThumbsUpChallenge(false);
+      setThumbsUpCountdown(0);
     }
-  }, [gesture, isThumbsUpChallenge]);
+  }, [gesture, isThumbsUpChallenge, isHandGestureDetectionEnabled, setDoGesture]);
 
-  // Check if any anomalies are detected (removed gesture condition)
-  const isAnomaliesDetected = isSpeaking === "Yes" || 
-                              facesCount !== 1 || 
-                              isBlur === "Yes" || 
-                              !isFocused ||
-                              isThumbsUpChallenge;
+  // Check if any anomalies are detected - only consider enabled detectors
+  const isAnomaliesDetected = (isSpeaking === "Yes" && isVoiceDetectionEnabled) || 
+                              (facesCount !== 1 && isFaceCountDetectionEnabled) || 
+                              (isBlur === "Yes" && isBlurDetectionEnabled) || 
+                              (!isFocused && isFocusEnabled) ||
+                              (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
-  // Notify parent component about anomaly status
-  useEffect(() => {
-    onAnomalyDetected?.(isAnomaliesDetected);
-  }, [isAnomaliesDetected, onAnomalyDetected]);
 
   // Smart overlay positioning based on face detection
   useEffect(() => {
     if (!faces.length || !faces[0]) return;
-    
+
     const face = faces[0];
     if (!face.box) return;
 
@@ -305,7 +419,7 @@ function FloatingVideo({
 
     const videoWidth = videoElement.videoWidth;
     const videoHeight = videoElement.videoHeight;
-    
+
     if (videoWidth === 0 || videoHeight === 0) return;
 
     // Calculate face position relative to video (0-1 scale)
@@ -332,12 +446,12 @@ function FloatingVideo({
       setIsResizing(true);
       return;
     }
-    
+
     // Ignore clicks on buttons
     if (target.closest('button')) {
       return;
     }
-    
+
     // Start dragging
     e.preventDefault();
     setIsDragging(true);
@@ -401,14 +515,14 @@ function FloatingVideo({
     const handleEnded = () => {
       console.log('[FloatingVideo] Video ended, restarting...');
       video.currentTime = 0;
-      video.play().catch(() => {});
+      video.play().catch(() => { });
     };
-    
+
     const handlePause = () => {
       console.log('[FloatingVideo] Video paused, attempting to resume...');
       // If not intentionally paused (muted, hidden, etc.), try to play
       if (video.paused && !video.ended) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       }
     };
 
@@ -420,7 +534,7 @@ function FloatingVideo({
     video.addEventListener('ended', handleEnded);
     video.addEventListener('pause', handlePause);
     video.addEventListener('error', handleError);
-    
+
     return () => {
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('pause', handlePause);
@@ -444,7 +558,7 @@ function FloatingVideo({
 
   const getOverlayClasses = () => {
     const baseClasses = "absolute text-white p-2 text-xs pointer-events-none max-w-[50%] backdrop-blur-sm transition-all duration-500";
-    
+
     switch (overlayPosition) {
       case 'top-left':
         return `${baseClasses} top-0 left-0`;
@@ -468,11 +582,10 @@ function FloatingVideo({
   const floatingVideoContent = (
     <div
       ref={containerRef}
-      className={`z-[999999] bg-black rounded-lg shadow-lg border border-gray-600 overflow-hidden select-none transition-all duration-300 ${
-        isPoppedOut 
-          ? 'fixed' 
-          : 'relative'
-      }`}
+      className={`z-[999999] bg-black rounded-lg shadow-lg border border-gray-600 overflow-hidden select-none transition-all duration-300 ${isPoppedOut
+        ? 'fixed'
+        : 'relative'
+        }`}
       style={isPoppedOut ? {
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -488,43 +601,43 @@ function FloatingVideo({
       onMouseDown={isPoppedOut ? handleMouseDown : undefined}
     >
       {/* Header - Anomaly state */}
-        {isAnomaliesDetected && (
-          <div className="bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
-            <div className="flex items-center space-x-2 flex-1 min-w-0">
-          <span className="font-medium truncate">
-            {isThumbsUpChallenge 
-              ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s` 
-              : `🚨 ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
-            }
-          </span>
-            </div>
-            <div className="flex items-center space-x-1 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleCollapse}
-            className="h-6 w-6 p-0 text-white hover:bg-red-700 hover:text-white flex-shrink-0"
-            title={isCollapsed ? 'Expand' : 'Collapse'}
-          >
-            {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              setIsPoppedOut(!isPoppedOut);
-            }}
-            className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white flex-shrink-0"
-          >
-            {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-          </Button>
-            </div>
+      {isAnomaliesDetected && (
+        <div className="bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <span className="font-medium truncate">
+              {isThumbsUpChallenge
+                ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s`
+                : `🚨 ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
+              }
+            </span>
           </div>
-        )}
+          <div className="flex items-center space-x-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleCollapse}
+              className="h-6 w-6 p-0 text-white hover:bg-red-700 hover:text-white flex-shrink-0"
+              title={isCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setIsPoppedOut(!isPoppedOut);
+              }}
+              className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white flex-shrink-0"
+            >
+              {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            </Button>
+          </div>
+        </div>
+      )}
 
-        {/* Header - Normal state */}
+      {/* Header - Normal state */}
       {!isAnomaliesDetected && (
         <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm">
           <div className="flex items-center space-x-2 flex-1">
@@ -563,9 +676,9 @@ function FloatingVideo({
       )}
 
       {/* Video element - Always present and functional for AI detection */}
-      <div 
+      <div
         className="absolute top-8 left-0"
-        style={{ 
+        style={{
           width: isCollapsed ? '1px' : '100%',
           height: isCollapsed ? '1px' : `${videoHeight}px`,
           overflow: 'hidden'
@@ -577,19 +690,19 @@ function FloatingVideo({
           muted
           playsInline
           className="w-full h-full object-cover bg-gray-800"
-          style={{ 
+          style={{
             transform: 'scaleX(-1)',
             // Always keep video visible to AI components
             opacity: 1,
           }}
         />
-        
+
         {/* Enhanced Face Recognition Debug Overlay */}
         {/* {!isCollapsed && (
           <div className="absolute top-0 left-0 z-20 bg-black bg-opacity-75 text-white p-3 text-xs font-mono border-r border-b border-gray-600">
           <div className="space-y-1">
             {/* Backend Status */}
-            {/* <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
             <span className="text-gray-300">Backend:</span>
             <span className={`font-semibold ${
               faceRecognitionDebug.backendStatus === 'success' ? 'text-green-400' : 
@@ -600,34 +713,34 @@ function FloatingVideo({
             </div>
             
             {/* Known Faces Info */}
-            {/* <div className="text-blue-300">
+        {/* <div className="text-blue-300">
             Known People: {faceRecognitionDebug.knownFacesCount}
             </div>
             
             {/* Photo Faces Info */}
-            {/* <div className="text-purple-300">
+        {/* <div className="text-purple-300">
             Photo Faces: {faceRecognitionDebug.detectedPhotoFaces}
             </div>
             
             {/* Current Frame Info */}
-            {/* <div className="text-cyan-300">
+        {/* <div className="text-cyan-300">
             Frame Faces: {faceRecognitionDebug.currentFrameFaces}
             </div>
             
             {/* Recognition Results */}
-            {/* <div className="text-green-300">
+        {/* <div className="text-green-300">
             Recognized: {faceRecognitionDebug.recognizedFaces}
             </div>
             
             {/* Processing Time */}
-            {/* {faceRecognitionDebug.processingTime && (
+        {/* {faceRecognitionDebug.processingTime && (
             <div className="text-orange-300">
               Process: {faceRecognitionDebug.processingTime.toFixed(1)}ms
             </div>
             )}
             
             {/* Known Face Labels */}
-            {/* {faceRecognitionDebug.knownFaceLabels.length > 0 && (
+        {/* {faceRecognitionDebug.knownFaceLabels.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-600">
               <div className="text-gray-300 mb-1">Known:</div>
               <div className="text-yellow-300 text-xs">
@@ -637,7 +750,7 @@ function FloatingVideo({
             )}
             
             {/* Current Recognition Results */}
-            {/* {recognizedFaces.length > 0 && (
+        {/* {recognizedFaces.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-600">
               <div className="text-gray-300 mb-1">Current:</div>
               {recognizedFaces.map((face, idx) => (
@@ -649,14 +762,14 @@ function FloatingVideo({
             )}
             
             {/* Error Message */}
-            {/* {faceRecognitionDebug.errorMessage && (
+        {/* {faceRecognitionDebug.errorMessage && (
             <div className="mt-2 pt-2 border-t border-gray-600">
               <div className="text-red-400 text-xs">Error: {faceRecognitionDebug.errorMessage}</div>
             </div>
             )}
             
             {/* Last Update Time */}
-            {/* <div className="mt-2 pt-2 border-t border-gray-600 text-gray-400 text-xs">
+        {/* <div className="mt-2 pt-2 border-t border-gray-600 text-gray-400 text-xs">
             Updated: {new Date(faceRecognitionDebug.lastUpdateTime).toLocaleTimeString()}
             </div>
           </div>
@@ -670,7 +783,7 @@ function FloatingVideo({
             className="z-10"
           />
         )}
-        
+
         {/* Canvas for face detection - Always present */}
         <canvas
           ref={canvasRef}
@@ -699,12 +812,12 @@ function FloatingVideo({
           <>
             {/* Overlay - Only show when anomalies are detected */}
             {isAnomaliesDetected && (
-              <div className={getOverlayClasses()} style={{background:"rgba(0, 0, 0, 0.7)", pointerEvents: 'none'}}>
+              <div className={getOverlayClasses()} style={{ background: "rgba(0, 0, 0, 0.7)", pointerEvents: 'none' }}>
                 <div className="space-y-1">
                   <div className="font-semibold text-yellow-300 mb-1 drop-shadow-lg">
                     {isThumbsUpChallenge ? "Security Challenge" : "Anomaly Details"}
                   </div>
-                  
+
                   <div className="space-y-0.5 text-[9px] drop-shadow-md">
                     {isThumbsUpChallenge && (
                       <div className="text-yellow-300 font-medium">
@@ -713,7 +826,7 @@ function FloatingVideo({
                         </span>
                       </div>
                     )}
-                    
+
                     {!isThumbsUpChallenge && (
                       <>
                         {isBlur === "Yes" && (
@@ -721,28 +834,28 @@ function FloatingVideo({
                             {isBlur}
                           </span></div>
                         )}
-                        
+
                         {isSpeaking === "Yes" && (
                           <div>Speaking: <span className="text-red-400">
                             {isSpeaking}
                           </span></div>
                         )}
-                        
+
                         {!isFocused && (
                           <div>Focus: <span className="text-red-400">
                             Not Focused
                           </span></div>
                         )}
-                        
+
                         {facesCount !== 1 && (
                           <div>Faces: <span className="text-red-400">
                             {facesCount} {facesCount === 0 ? "(None detected)" : facesCount > 1 ? "(Multiple detected)" : ""}
                           </span></div>
                         )}
-                        
+
                         {/* Face Recognition Results */}
                         {recognizedFaces.length > 0 && (
-                          <div>Recognized: 
+                          <div>Recognized:
                             {recognizedFaces.map((face, index) => (
                               <span key={index} className={face.isMatch ? "text-green-400" : "text-yellow-400"}>
                                 {index > 0 ? ", " : " "}
@@ -754,7 +867,7 @@ function FloatingVideo({
                         )}
                       </>
                     )}
-                    
+
                     <div className="border-t border-gray-500 pt-1 mt-2">
                       <div>Penalty Score: <span className="text-red-400 font-medium">
                         {penaltyPoints}
@@ -780,38 +893,47 @@ function FloatingVideo({
         )}
       </div>
 
-      {/* AI Components - Use key to force re-initialization when isPoppedOut changes */}
+      {/* AI Components - Only render if enabled in proctoring settings */}
       <div className="hidden">
-        <BlurDetection 
-          key={`blur-${aiComponentsKey}`}
-          videoRef={videoRef} 
-          setIsBlur={setIsBlur}
-        />
-        <SpeechDetector 
-          key={`speech-${aiComponentsKey}`}
-          setIsSpeaking={setIsSpeaking}
-        />
-        <GestureDetector 
-          key={`gesture-${aiComponentsKey}`}
-          videoRef={videoRef} 
-          setGesture={setGesture}
-          trigger={true}
-        />
-        <FaceDetectors 
-          key={`face-${faceDetectorsKey}`}
-          faces={faces} 
-          setIsFocused={setIsFocused}
-          videoRef={videoRef}
-          onRecognitionResult={handleFaceRecognitionResult}
-          onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
-        />
+        {isBlurDetectionEnabled && (
+          <BlurDetection 
+            key={`blur-${aiComponentsKey}`}
+            videoRef={videoRef} 
+            setIsBlur={setIsBlur}
+          />
+        )}
+        {isVoiceDetectionEnabled && (
+          <SpeechDetector 
+            key={`speech-${aiComponentsKey}`}
+            setIsSpeaking={setIsSpeaking}
+          />
+        )}
+        {isHandGestureDetectionEnabled && (
+          <GestureDetector 
+            key={`gesture-${aiComponentsKey}`}
+            videoRef={videoRef} 
+            setGesture={setGesture}
+            trigger={true}
+          />
+        )}
+        {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled) && (
+          <FaceDetectors 
+            key={`face-${faceDetectorsKey}`}
+            faces={faces} 
+            setIsFocused={setIsFocused}
+            videoRef={videoRef}
+            onRecognitionResult={handleFaceRecognitionResult}
+            onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
+            settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
+          />
+        )}
       </div>
 
       {/* Resize Handle - Only show when not collapsed and popped out */}
       {!isCollapsed && isPoppedOut && (
-        <div 
+        <div
           className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-600 opacity-60 hover:opacity-100"
-          style={{ 
+          style={{
             clipPath: 'polygon(100% 0%, 0% 100%, 100% 100%)',
             pointerEvents: 'auto'
           }}

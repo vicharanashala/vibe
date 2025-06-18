@@ -1,6 +1,7 @@
 import {
   SignUpBody,
   ChangePasswordBody,
+  LoginBody,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
@@ -23,9 +24,10 @@ import {
 } from 'routing-controllers';
 import { AUTH_TYPES } from '#auth/types.js';
 import { OpenAPI } from 'routing-controllers-openapi';
+import { appConfig } from '#root/config/app.js';
 
 @OpenAPI({
-  tags: ['Authentication']
+  tags: ['Authentication'],
 })
 @JsonController('/auth')
 @injectable()
@@ -37,7 +39,8 @@ export class AuthController {
 
   @OpenAPI({
     summary: 'Register a new user account',
-    description: 'Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.',
+    description:
+      'Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.',
   })
   @Post('/signup')
   @UseBefore(AuthRateLimiter)
@@ -49,11 +52,11 @@ export class AuthController {
 
   @OpenAPI({
     summary: 'Change user password',
-    description: 'Allows an authenticated user to update their password. This action is performed via Firebase Authentication and requires the current credentials to be valid.',
+    description:
+      'Allows an authenticated user to update their password. This action is performed via Firebase Authentication and requires the current credentials to be valid.',
   })
   @Authorized()
   @Patch('/change-password')
-  @UseBefore(AuthRateLimiter)
   async changePassword(
     @Body() body: ChangePasswordBody,
     @Req() request: AuthenticatedRequest,
@@ -74,13 +77,31 @@ export class AuthController {
 
   @OpenAPI({
     summary: 'Verify Firebase ID token',
-    description: 'Validates whether the provided Firebase ID token is authentic and not expired. Useful for checking the session validity or re-authenticating a user.',
+    description:
+      'Validates whether the provided Firebase ID token is authentic and not expired. Useful for checking the session validity or re-authenticating a user.',
   })
   @Post('/verify')
-  @UseBefore(AuthRateLimiter)
   async verifyToken() {
     return {
       message: 'Token is valid',
     };
+  }
+
+  @Post('/login')
+  async login(@Body() body: LoginBody) {
+    const { email, password } = body;
+    const data = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true
+      })
+    });
+
+    const result = await data.json();
+
+    return result;
   }
 }

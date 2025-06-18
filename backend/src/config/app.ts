@@ -1,6 +1,5 @@
 import {env} from '#root/utils/env.js';
 
-
 // src/constants/AppModule.ts (or a shared constants directory)
 
 export enum AppModule {
@@ -11,7 +10,6 @@ export enum AppModule {
   Quizzes = 'quizzes',
 }
 
-
 export const appConfig = {
   isProduction: env('NODE_ENV') === 'production',
   isStaging: env('NODE_ENV') === 'staging',
@@ -20,4 +18,10 @@ export const appConfig = {
   url: env('APP_URL'),
   origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:3000'],
   module: env('APP_MODULE') || 'all',
+  firebase: {
+    clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,
+    privateKey: env('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n') || undefined,
+    projectId: env('FIREBASE_PROJECT_ID') || undefined,
+    apiKey: env('FIREBASE_API_KEY') || undefined,
+  }
 };

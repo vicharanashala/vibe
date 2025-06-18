@@ -1,13 +1,29 @@
-import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
+import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
 import request from 'supertest';
 import Express from 'express';
-import { quizzesModuleOptions, setupQuizzesContainer } from '../index.js';
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { IUser } from '#root/shared/interfaces/models.js';
-import { CourseData } from '#root/modules/users/tests/utils/createCourse.js';
-import { DESquestionData, DESsolution, NATquestionData, NATsolution, OTLquestionData, OTLsolution, SMLquestionData, SMLsolution, SOLquestionData, SOLsolution } from './SamleQuestionBody.js';
-import { IQuestion, ISOLSolution, ISMLSolution, IOTLSolution } from '#root/shared/interfaces/quiz.js';
-import { QuestionBody } from '../classes/index.js';
+import {quizzesModuleOptions, setupQuizzesContainer} from '../index.js';
+import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
+import {IUser} from '#root/shared/interfaces/models.js';
+import {CourseData} from '#root/modules/users/tests/utils/createCourse.js';
+import {
+  DESquestionData,
+  DESsolution,
+  NATquestionData,
+  NATsolution,
+  OTLquestionData,
+  OTLsolution,
+  SMLquestionData,
+  SMLsolution,
+  SOLquestionData,
+  SOLsolution,
+} from './SamleQuestionBody.js';
+import {
+  IQuestion,
+  ISOLSolution,
+  ISMLSolution,
+  IOTLSolution,
+} from '#root/shared/interfaces/quiz.js';
+import {QuestionBody} from '../classes/index.js';
 
 describe('Progress Controller Integration Tests', () => {
   const appInstance = Express();
@@ -38,27 +54,42 @@ describe('Progress Controller Integration Tests', () => {
 
   describe('Create Question', () => {
     it('should create a question', async () => {
-      const body: QuestionBody = {question: SOLquestionData, solution: SOLsolution};
+      const body: QuestionBody = {
+        question: SOLquestionData,
+        solution: SOLsolution,
+      };
       const response = await request(app).post('/quizzes/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create an SML question', async () => {
-      const body: QuestionBody = {question: SMLquestionData, solution: SMLsolution};
+      const body: QuestionBody = {
+        question: SMLquestionData,
+        solution: SMLsolution,
+      };
       const response = await request(app).post('/quizzes/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create an OTL question', async () => {
-      const body: QuestionBody = {question: OTLquestionData, solution: OTLsolution};
+      const body: QuestionBody = {
+        question: OTLquestionData,
+        solution: OTLsolution,
+      };
       const response = await request(app).post('/quizzes/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create a NAT question', async () => {
-      const body: QuestionBody = {question: NATquestionData, solution: NATsolution};
+      const body: QuestionBody = {
+        question: NATquestionData,
+        solution: NATsolution,
+      };
       const response = await request(app).post('/quizzes/questions').send(body);
       expect(response.status).toBe(201);
     });
     it('should create a DES question', async () => {
-      const body: QuestionBody = {question: DESquestionData, solution: DESsolution};
+      const body: QuestionBody = {
+        question: DESquestionData,
+        solution: DESsolution,
+      };
       const response = await request(app).post('/quizzes/questions').send(body);
       expect(response.status).toBe(201);
     });
@@ -78,7 +109,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/must have a valid tag/i);
     });
     it('should fail if not parameterized but parameters are defined', async () => {
@@ -100,7 +131,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
         /not parameterized, but has parameters/i,
       );
@@ -124,7 +155,7 @@ describe('Progress Controller Integration Tests', () => {
       };
       const body: QuestionBody = {question: questionData, solution};
       const response = await request(app).post('/quizzes/questions').send(body);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.message).toMatch(
         /parameterized, but has no parameters/i,
       );
@@ -467,8 +498,13 @@ describe('Progress Controller Integration Tests', () => {
   describe('Get Question', () => {
     // NAT
     it('should get a NAT question by ID', async () => {
-      const body: QuestionBody = {question: NATquestionData, solution: NATsolution};
-      const createRes = await request(app).post('/quizzes/questions').send(body);
+      const body: QuestionBody = {
+        question: NATquestionData,
+        solution: NATsolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(body);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -479,8 +515,13 @@ describe('Progress Controller Integration Tests', () => {
     });
     // SOL
     it('should get a SOL question by ID', async () => {
-      const body: QuestionBody = {question: SOLquestionData, solution: SOLsolution};
-      const createRes = await request(app).post('/quizzes/questions').send(body);
+      const body: QuestionBody = {
+        question: SOLquestionData,
+        solution: SOLsolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(body);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -491,8 +532,13 @@ describe('Progress Controller Integration Tests', () => {
     });
     // SML
     it('should get a SML question by ID', async () => {
-      const body: QuestionBody = {question: SMLquestionData, solution: SMLsolution};
-      const createRes = await request(app).post('/quizzes/questions').send(body);
+      const body: QuestionBody = {
+        question: SMLquestionData,
+        solution: SMLsolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(body);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -503,8 +549,13 @@ describe('Progress Controller Integration Tests', () => {
     });
     // OTL
     it('should get an OTL question by ID', async () => {
-      const body: QuestionBody = {question: OTLquestionData, solution: OTLsolution};
-      const createRes = await request(app).post('/quizzes/questions').send(body);
+      const body: QuestionBody = {
+        question: OTLquestionData,
+        solution: OTLsolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(body);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -515,8 +566,13 @@ describe('Progress Controller Integration Tests', () => {
     });
     // DES
     it('should get a DES question by ID', async () => {
-      const body: QuestionBody = {question: DESquestionData, solution: DESsolution};
-      const createRes = await request(app).post('/quizzes/questions').send(body);
+      const body: QuestionBody = {
+        question: DESquestionData,
+        solution: DESsolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(body);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -526,7 +582,9 @@ describe('Progress Controller Integration Tests', () => {
       console.log(res.body);
     });
     it('should return 404 for non-existent question', async () => {
-      const res = await request(app).get('/quizzes/questions/507f1f77bcf86cd799439011');
+      const res = await request(app).get(
+        '/quizzes/questions/507f1f77bcf86cd799439011',
+      );
       expect(res.status).toBe(404);
     });
   });
@@ -550,8 +608,13 @@ describe('Progress Controller Integration Tests', () => {
 
     it('should update a question by ID', async () => {
       // Create a question first
-      const createBody: QuestionBody = {question: originalQuestion, solution: originalSolution};
-      const createRes = await request(app).post('/quizzes/questions').send(createBody);
+      const createBody: QuestionBody = {
+        question: originalQuestion,
+        solution: originalSolution,
+      };
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(createBody);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
@@ -563,8 +626,13 @@ describe('Progress Controller Integration Tests', () => {
         hint: 'Updated hint',
       };
       const updatedSolution = {...originalSolution, value: 7};
-      const updateBody: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
-      const res = await request(app).put(`/quizzes/questions/${questionId}`).send(updateBody);
+      const updateBody: QuestionBody = {
+        question: updatedQuestion,
+        solution: updatedSolution,
+      };
+      const res = await request(app)
+        .put(`/quizzes/questions/${questionId}`)
+        .send(updateBody);
       expect(res.status).toBe(200);
       expect(res.body.text).toBe('Updated question');
       expect(res.body.points).toBe(5);
@@ -573,8 +641,13 @@ describe('Progress Controller Integration Tests', () => {
     it('should return 404 for non-existent question', async () => {
       const updatedQuestion = {...originalQuestion, text: 'Does not matter'};
       const updatedSolution = {...originalSolution, value: 0};
-      const body: QuestionBody = {question: updatedQuestion, solution: updatedSolution};
-      const res = await request(app).put('/quizzes/questions/507f1f77bcf86cd799439011').send(body);
+      const body: QuestionBody = {
+        question: updatedQuestion,
+        solution: updatedSolution,
+      };
+      const res = await request(app)
+        .put('/quizzes/questions/507f1f77bcf86cd799439011')
+        .send(body);
       expect(res.status).toBe(404);
     });
   });
@@ -599,21 +672,27 @@ describe('Progress Controller Integration Tests', () => {
     it('should delete a question by ID and remove it from all question banks', async () => {
       // Create a question first
       const createBody: QuestionBody = {question: questionData, solution};
-      const createRes = await request(app).post('/quizzes/questions').send(createBody);
+      const createRes = await request(app)
+        .post('/quizzes/questions')
+        .send(createBody);
       expect(createRes.status).toBe(201);
       const questionId = createRes.body.questionId;
 
       // Create a question bank with the question
-      const bankRes = await request(app).post('/quizzes/question-bank').send({
-        questions: [questionId],
-        title: 'Bank for Delete Test',
-        description: 'Bank for delete question test',
-      });
+      const bankRes = await request(app)
+        .post('/quizzes/question-bank')
+        .send({
+          questions: [questionId],
+          title: 'Bank for Delete Test',
+          description: 'Bank for delete question test',
+        });
       expect(bankRes.status).toBe(200);
       const questionBankId = bankRes.body.questionBankId;
 
       // Confirm the question is in the bank
-      const bankGetRes = await request(app).get(`/quizzes/question-bank/${questionBankId}`);
+      const bankGetRes = await request(app).get(
+        `/quizzes/question-bank/${questionBankId}`,
+      );
       expect(bankGetRes.status).toBe(200);
       expect(bankGetRes.body.questions).toContain(questionId);
 
@@ -626,16 +705,18 @@ describe('Progress Controller Integration Tests', () => {
       expect(getRes.status).toBe(404);
 
       // Confirm the question is removed from the bank
-      const bankGetResAfter = await request(app).get(`/quizzes/question-bank/${questionBankId}`);
+      const bankGetResAfter = await request(app).get(
+        `/quizzes/question-bank/${questionBankId}`,
+      );
       expect(bankGetResAfter.status).toBe(200);
       // expect(bankGetResAfter.body.questions).not.toContain(questionId);
     });
 
     it('should return 404 for non-existent question', async () => {
-      const res = await request(app).delete('/quizzes/questions/507f1f77bcf86cd799439011');
+      const res = await request(app).delete(
+        '/quizzes/questions/507f1f77bcf86cd799439011',
+      );
       expect(res.status).toBe(404);
     });
   });
-
-  
 });

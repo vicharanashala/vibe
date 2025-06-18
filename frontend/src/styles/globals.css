@@ -2,8 +2,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-
-
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -38,7 +36,7 @@
   --color-chart-3: hsl(var(--chart-3));
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
-  
+
   /* Sidebar theme */
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
@@ -77,15 +75,15 @@
   --card-foreground: 20 14.3% 4.1%;
   --popover: 0 0% 100%;
   --popover-foreground: 20 14.3% 4.1%;
-  
+
   /* Primary orange-yellow theme - Light mode: softer, lighter colors */
   --primary: 42 88% 65%; /* Lighter, softer orange-yellow #f5d563 */
   --primary-foreground: 38 10% 10%;
-  
+
   /* Secondary theme */
   --secondary: 60 4.8% 95.9%;
   --secondary-foreground: 220 40% 40%; /* Indigo */
-  
+
   /* Supporting colors */
   --muted: 0 0% 96.1%;
   --muted-foreground: 0 0% 45.1%;
@@ -96,15 +94,14 @@
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
   --ring: 42 88% 65%; /* Matching lighter primary */
-  
-  
+
   /* Chart colors - Lighter variants for light mode */
   --chart-1: 42 88% 65%; /* Lighter orange-yellow */
   --chart-2: 46 85% 55%; /* Lighter yellow */
   --chart-3: 38 75% 55%; /* Lighter orange */
   --chart-4: 220 50% 55%; /* Lighter indigo */
   --chart-5: 40 70% 45%; /* Lighter brown-orange */
-  
+
   /* Sidebar theme - Light and airy */
   --sidebar: 0 0% 98%;
   --sidebar-foreground: 20 14.3% 4.1%;
@@ -114,13 +111,13 @@
   --sidebar-accent-foreground: 38 10% 10%;
   --sidebar-border: 20 5.9% 90%;
   --sidebar-ring: 42 88% 65%; /* Matching lighter primary */
-  
+
   /* Font and visual properties */
   --font-sans: Poppins, sans-serif;
   --font-serif: Libre Baskerville, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.5rem;
-  
+
   /* Shadow properties */
   --shadow-2xs: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.05);
   --shadow-xs: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.05);
@@ -140,15 +137,15 @@
   --card-foreground: 60 9.1% 97.8%;
   --popover: 20 14.3% 4.1%;
   --popover-foreground: 60 9.1% 97.8%;
-  
+
   /* Primary orange-yellow theme - Dark mode: vibrant, high contrast colors */
   --primary: 38 95% 60%; /* More vibrant orange-yellow #faa835 */
   --primary-foreground: 20 14.3% 4.1%;
-  
+
   /* Secondary theme */
   --secondary: 12 6.5% 15.1%;
   --secondary-foreground: 60 9.1% 97.8%;
-  
+
   /* Supporting colors */
   --muted: 12 6.5% 15.1%;
   --muted-foreground: 24 5.4% 63.9%;
@@ -159,14 +156,14 @@
   --border: 12 6.5% 15.1%;
   --input: 12 6.5% 15.1%;
   --ring: 38 95% 60%; /* Matching vibrant primary */
-  
+
   /* Chart colors - More vibrant for dark mode */
   --chart-1: 38 95% 60%; /* Vibrant orange-yellow */
   --chart-2: 42 92% 50%; /* Vibrant yellow-orange */
   --chart-3: 34 88% 45%; /* Vibrant orange */
   --chart-4: 220 50% 60%; /* Brighter indigo */
   --chart-5: 32 85% 50%; /* Vibrant amber */
-  
+
   /* Sidebar theme - High contrast for dark mode */
   --sidebar: 20 14.3% 4.1%;
   --sidebar-foreground: 60 9.1% 97.8%;
@@ -176,7 +173,7 @@
   --sidebar-accent-foreground: 60 9.1% 97.8%;
   --sidebar-border: 12 6.5% 15.1%;
   --sidebar-ring: 38 95% 60%; /* Matching vibrant primary */
-  
+
   /* Shadow properties remain unchanged */
 }
 
@@ -349,8 +346,96 @@
   .student-dashboard-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .student-course-card {
     padding: 1rem;
   }
 }
+
+@theme inline {
+  --animate-shine: shine var(--duration) infinite linear;
+  @keyframes shine {
+  0% {
+    background-position: 0% 0%;
+    }
+  50% {
+    background-position: 100% 100%;
+    }
+  to {
+    background-position: 0% 0%;
+    }
+  }
+  --animate-line-shadow: line-shadow 15s linear infinite
+;
+  @keyframes line-shadow {
+  0% {
+    background-position: 0 0;
+    }
+  100% {
+    background-position: 100% -100%;
+    }
+  }
+  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  @keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  25% {
+    background-position: 50% 100%;
+    transform: rotate(5deg) scale(1.1);
+    }
+  50% {
+    background-position: 100% 50%;
+    transform: rotate(-3deg) scale(0.95);
+    }
+  75% {
+    background-position: 50% 0%;
+    transform: rotate(3deg) scale(1.05);
+    }
+  100% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  }
+  @keyframes shine {
+  0% {
+    background-position: 0% 0%;
+    }
+  50% {
+    background-position: 100% 100%;
+    }
+  to {
+    background-position: 0% 0%;
+    }
+  }
+  @keyframes line-shadow {
+  0% {
+    background-position: 0 0;
+    }
+  100% {
+    background-position: 100% -100%;
+    }
+  }
+  @keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  25% {
+    background-position: 50% 100%;
+    transform: rotate(5deg) scale(1.1);
+    }
+  50% {
+    background-position: 100% 50%;
+    transform: rotate(-3deg) scale(0.95);
+    }
+  75% {
+    background-position: 50% 0%;
+    transform: rotate(3deg) scale(1.05);
+    }
+  100% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  }}

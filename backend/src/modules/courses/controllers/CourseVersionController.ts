@@ -1,5 +1,5 @@
-import { CourseVersionService } from '#courses/services/CourseVersionService.js';
-import { injectable, inject } from 'inversify';
+import {CourseVersionService} from '#courses/services/CourseVersionService.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Authorized,
@@ -12,10 +12,10 @@ import {
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
   CreateCourseVersionResponse,
   CourseVersionNotFoundErrorResponse,
@@ -27,7 +27,7 @@ import {
 } from '#courses/classes/validators/CourseVersionValidators.js';
 
 @OpenAPI({
-  tags: ["Course Versions"],
+  tags: ['Course Versions'],
 })
 @injectable()
 @JsonController('/courses')
@@ -35,7 +35,7 @@ export class CourseVersionController {
   constructor(
     @inject(COURSES_TYPES.CourseVersionService)
     private readonly courseVersionService: CourseVersionService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Create a course version',
@@ -44,7 +44,7 @@ Accessible to:
 - Instructor or manager of the course.`,
   })
   @Authorized(['admin', 'instructor'])
-  @Post('/:id/versions', { transformResponse: true })
+  @Post('/:id/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
@@ -61,7 +61,7 @@ Accessible to:
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
   ): Promise<CourseVersion> {
-    const { id } = params;
+    const {id} = params;
     const createdCourseVersion =
       await this.courseVersionService.createCourseVersion(id, body);
     return createdCourseVersion;
@@ -89,7 +89,7 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
   ): Promise<CourseVersion> {
-    const { id } = params;
+    const {id} = params;
     const retrievedCourseVersion =
       await this.courseVersionService.readCourseVersion(id);
     const retrievedCourseVersionExample = retrievedCourseVersion;
@@ -117,8 +117,8 @@ Accessible to:
   })
   async delete(
     @Params() params: DeleteCourseVersionParams,
-  ): Promise<{ message: string }> {
-    const { courseId, versionId } = params;
+  ): Promise<{message: string}> {
+    const {courseId, versionId} = params;
     if (!versionId || !courseId) {
       throw new BadRequestError('Version ID is required');
     }

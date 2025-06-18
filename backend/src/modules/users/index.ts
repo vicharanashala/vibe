@@ -6,6 +6,7 @@ import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {usersContainerModule} from './container.js';
 import {EnrollmentController} from './controllers/EnrollmentController.js';
 import {ProgressController} from './controllers/ProgressController.js';
+import {UserController} from './controllers/UserController.js';
 import { CourseController } from '../courses/controllers/CourseController.js';
 import { coursesContainerModule } from '../courses/container.js';
 
@@ -20,14 +21,13 @@ export const usersContainerModules: ContainerModule[] = [
 export const usersModuleControllers: Function[] = [
   EnrollmentController,
   ProgressController,
+  UserController,
   CourseController,
 ];
 
 export async function setupUsersContainer(): Promise<void> {
   const container = new Container();
-  await container.load(
-    ...usersContainerModules,
-  );
+  await container.load(...usersContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
@@ -41,4 +41,3 @@ export const usersModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
-

@@ -8,7 +8,11 @@ import {
 } from '../classes/validators/ModuleValidators.js';
 import {Module} from '../classes/transformers/Module.js';
 import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {NotFoundError, InternalServerError, BadRequestError} from 'routing-controllers';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+} from 'routing-controllers';
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';

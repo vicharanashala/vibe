@@ -23,7 +23,7 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
     let backendUser = null;
     try {
       const res = await fetch(
-        `http://localhost:4001/users/firebase/${firebaseUser.uid}`,
+        `http://localhost:4001/api/users/firebase/${firebaseUser.uid}`,
         {
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -50,7 +50,7 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
             (backendUser ? `${backendUser.firstName} ${backendUser.lastName}`.trim() : ''),
       role: useAuthStore.getState().user?.role || null,
       avatar: firebaseUser.photoURL || '',
-      userId: backendUser?.id,
+      userId: backendUser?._id,
       firstName: backendUser?.firstName,
       lastName: backendUser?.lastName,
     };
@@ -69,6 +69,7 @@ export const initAuth = () => {
       const user = await mapFirebaseUserToAppUser(firebaseUser);
       if (user) {
         console.log('User authenticated:', user);
+        localStorage.setItem('isAuth', 'true'); // Set auth flag in localStorage
         setUser(user);
       }
     } else {
@@ -110,7 +111,8 @@ export const loginWithEmail = async (email: string, password: string) => {
 // Use a single implementation of logout and checkAuth
 // Logout
 export function logout() {
-  // Clear token
+  // Clear localStorage
+  localStorage.removeItem('isAuth');
   localStorage.removeItem('firebase-auth-token');
   
   // Sign out from Firebase

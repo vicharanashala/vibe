@@ -10,7 +10,7 @@ import {
 import {authContainerModule} from './container.js';
 import {AuthController} from './controllers/AuthController.js';
 import {FirebaseAuthService} from './services/FirebaseAuthService.js';
-
+import { AUTH_VALIDATORS, SignUpBody, SignUpResponse } from './classes/index.js';
 
 export const authContainerModules: ContainerModule[] = [
   authContainerModule,
@@ -38,15 +38,14 @@ export const authModuleOptions: RoutingControllersOptions = {
     }
 
     try {
-      const user = await authService.verifyToken(token);
-      action.request.user = user;
+      return await authService.verifyToken(token);
+      // const user = await authService.getUserFromToken(token);
+      // action.request.user = user;
 
       // Check if the user's roles match the required roles
-      if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
-        return false;
-      }
-
-      return true;
+      // if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
+      //   return false;
+      // }
     } catch (error) {
       return false;
     }
@@ -67,6 +66,10 @@ export const authModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
+
+export const authModuleValidators: Function[] = [
+...AUTH_VALIDATORS
+];
 
 // export * from './classes/index.js';
 // export * from './controllers/index.js';

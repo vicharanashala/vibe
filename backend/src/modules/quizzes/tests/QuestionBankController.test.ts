@@ -1,15 +1,18 @@
-import { sharedContainerModule } from '#root/container.js';
+import {sharedContainerModule} from '#root/container.js';
 import Express from 'express';
-import { RoutingControllersOptions, useContainer, useExpressServer } from 'routing-controllers';
-import { quizzesContainerModule } from '../container.js';
-import { coursesContainerModule } from '#root/modules/courses/container.js';
-import { Container } from 'inversify';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { quizzesModuleOptions } from '../index.js';
-import { coursesModuleOptions } from '#root/modules/courses/index.js';
+import {
+  RoutingControllersOptions,
+  useContainer,
+  useExpressServer,
+} from 'routing-controllers';
+import {quizzesContainerModule} from '../container.js';
+import {coursesContainerModule} from '#root/modules/courses/container.js';
+import {Container} from 'inversify';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {quizzesModuleOptions} from '../index.js';
+import {coursesModuleOptions} from '#root/modules/courses/index.js';
 import request from 'supertest';
-import { beforeAll, describe, it, expect } from 'vitest';
-
+import {beforeAll, describe, it, expect} from 'vitest';
 
 describe('QuestionBankController', () => {
   const appInstance = Express();
@@ -26,7 +29,10 @@ describe('QuestionBankController', () => {
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     const options: RoutingControllersOptions = {
-      controllers: [...(quizzesModuleOptions.controllers as Function[]), ...(coursesModuleOptions.controllers as Function[])],
+      controllers: [
+        ...(quizzesModuleOptions.controllers as Function[]),
+        ...(coursesModuleOptions.controllers as Function[]),
+      ],
       authorizationChecker: async () => true,
       defaultErrorHandler: true,
       validation: true,
@@ -132,32 +138,36 @@ describe('QuestionBankController', () => {
         description: 'Bank for ADD success',
       });
 
-      const questionRes = await request(app).post('/quizzes/questions').send({
-        question: {
-          text: 'Question C',
-          type: 'SELECT_ONE_IN_LOT',
-          points: 5,
-          timeLimitSeconds: 30,
-          isParameterized: false,
-          parameters: [],
-          hint: 'Hint C',
-        },
-        solution: {
-          correctLotItem: { text: 'Correct', explaination: 'Correct' },
-          incorrectLotItems: [],
-        },
-      });
+      const questionRes = await request(app)
+        .post('/quizzes/questions')
+        .send({
+          question: {
+            text: 'Question C',
+            type: 'SELECT_ONE_IN_LOT',
+            points: 5,
+            timeLimitSeconds: 30,
+            isParameterized: false,
+            parameters: [],
+            hint: 'Hint C',
+          },
+          solution: {
+            correctLotItem: {text: 'Correct', explaination: 'Correct'},
+            incorrectLotItems: [],
+          },
+        });
       const bankId = bankRes.body.questionBankId;
       const questionId = questionRes.body.questionId;
-      const res = await request(app)
-        .patch(`/quizzes/question-bank/${bankId}/questions/${questionId}/add`);
+      const res = await request(app).patch(
+        `/quizzes/question-bank/${bankId}/questions/${questionId}/add`,
+      );
       expect(res.status).toBe(200);
       expect(res.body.questions).toContain(questionId);
     });
 
     it('failure: invalid ids', async () => {
-      const res = await request(app)
-        .patch('/quizzes/question-bank/invalidbank/questions/invalidquestion/add');
+      const res = await request(app).patch(
+        '/quizzes/question-bank/invalidbank/questions/invalidquestion/add',
+      );
       expect(res.status).toBe(400);
     });
   });
@@ -188,36 +198,41 @@ describe('QuestionBankController', () => {
         description: 'Bank for REMOVE success',
       });
 
-      const questionRes = await request(app).post('/quizzes/questions').send({
-        question: {
-          text: 'Question D',
-          type: 'SELECT_ONE_IN_LOT',
-          points: 5,
-          timeLimitSeconds: 30,
-          isParameterized: false,
-          parameters: [],
-          hint: 'Hint D',
-        },
-        solution: {
-          correctLotItem: { text: 'Correct', explaination: 'Correct' },
-          incorrectLotItems: [],
-        },
-      });
+      const questionRes = await request(app)
+        .post('/quizzes/questions')
+        .send({
+          question: {
+            text: 'Question D',
+            type: 'SELECT_ONE_IN_LOT',
+            points: 5,
+            timeLimitSeconds: 30,
+            isParameterized: false,
+            parameters: [],
+            hint: 'Hint D',
+          },
+          solution: {
+            correctLotItem: {text: 'Correct', explaination: 'Correct'},
+            incorrectLotItems: [],
+          },
+        });
       const bankId = bankRes.body.questionBankId;
       const questionId = questionRes.body.questionId;
       // Add first
-      await request(app)
-        .patch(`/quizzes/question-bank/${bankId}/questions/${questionId}/add`);
+      await request(app).patch(
+        `/quizzes/question-bank/${bankId}/questions/${questionId}/add`,
+      );
       // Remove
-      const res = await request(app)
-        .patch(`/quizzes/question-bank/${bankId}/questions/${questionId}/remove`);
+      const res = await request(app).patch(
+        `/quizzes/question-bank/${bankId}/questions/${questionId}/remove`,
+      );
       expect(res.status).toBe(200);
       expect(res.body.questions).not.toContain(questionId);
     });
 
     it('failure: invalid ids', async () => {
-      const res = await request(app)
-        .patch('/quizzes/question-bank/invalidbank/questions/invalidquestion/remove');
+      const res = await request(app).patch(
+        '/quizzes/question-bank/invalidbank/questions/invalidquestion/remove',
+      );
       expect(res.status).toBe(400);
     });
   });
@@ -248,37 +263,42 @@ describe('QuestionBankController', () => {
         description: 'Bank for REPLACE success',
       });
 
-      const questionRes = await request(app).post('/quizzes/questions').send({
-        question: {
-          text: 'Question E',
-          type: 'SELECT_ONE_IN_LOT',
-          points: 5,
-          timeLimitSeconds: 30,
-          isParameterized: false,
-          parameters: [],
-          hint: 'Hint E',
-        },
-        solution: {
-          correctLotItem: { text: 'Correct', explaination: 'Correct' },
-          incorrectLotItems: [],
-        },
-      });
+      const questionRes = await request(app)
+        .post('/quizzes/questions')
+        .send({
+          question: {
+            text: 'Question E',
+            type: 'SELECT_ONE_IN_LOT',
+            points: 5,
+            timeLimitSeconds: 30,
+            isParameterized: false,
+            parameters: [],
+            hint: 'Hint E',
+          },
+          solution: {
+            correctLotItem: {text: 'Correct', explaination: 'Correct'},
+            incorrectLotItems: [],
+          },
+        });
       const bankId = bankRes.body.questionBankId;
       const questionId = questionRes.body.questionId;
       // Add first
-      await request(app)
-        .patch(`/quizzes/question-bank/${bankId}/questions/${questionId}/add`);
+      await request(app).patch(
+        `/quizzes/question-bank/${bankId}/questions/${questionId}/add`,
+      );
       // Replace
-      const res = await request(app)
-        .patch(`/quizzes/question-bank/${bankId}/questions/${questionId}/replace-duplicate`);
+      const res = await request(app).patch(
+        `/quizzes/question-bank/${bankId}/questions/${questionId}/replace-duplicate`,
+      );
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('newQuestionId');
       expect(res.body.newQuestionId).not.toBe(questionId);
     });
 
     it('failure: invalid ids', async () => {
-      const res = await request(app)
-        .patch('/quizzes/question-bank/invalidbank/questions/invalidquestion/replace-duplicate');
+      const res = await request(app).patch(
+        '/quizzes/question-bank/invalidbank/questions/invalidquestion/replace-duplicate',
+      );
       expect(res.status).toBe(400);
     });
   });

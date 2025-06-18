@@ -1,8 +1,12 @@
-import { Container, ContainerModule } from 'inversify';
-import { LLMController } from './controllers/LLMController.js';import { sharedContainerModule } from '#root/container.js';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { useContainer, RoutingControllersOptions } from 'routing-controllers';
-import { genaiContainerModule } from './container.js';
+import 'reflect-metadata';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {Container, ContainerModule} from 'inversify';
+import {RoutingControllersOptions, useContainer} from 'routing-controllers';
+import {HttpErrorHandler} from '#shared/index.js';
+import {genaiContainerModule} from './container.js';
+import GenAIVideoController from './GenAIVideoController.js';
+
 
 export const genaiContainerModules: ContainerModule[] = [
   genaiContainerModule,
@@ -10,7 +14,7 @@ export const genaiContainerModules: ContainerModule[] = [
 ];
 
 export const genaiModuleControllers: Function[] = [
-  LLMController,
+  GenAIVideoController
 ];
 
 export async function setupGenaiContainer(): Promise<void> {
@@ -22,10 +26,12 @@ export async function setupGenaiContainer(): Promise<void> {
 
 export const genaiModuleOptions: RoutingControllersOptions = {
   controllers: genaiModuleControllers,
-  middlewares: [],
-  defaultErrorHandler: true,
+  middlewares: [HttpErrorHandler],
+  defaultErrorHandler: false,
   authorizationChecker: async function () {
     return true;
   },
   validation: true,
 };
+
+export * from './GenAIVideoController.js';

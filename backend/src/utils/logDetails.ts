@@ -11,9 +11,15 @@ export function printStartupSummary() {
   const isProd = env === 'production';
 
   const log = console.log;
-  const label = (text: string) => isDev ? chalk.cyan.bold(text) : text;
+  const label = (text: string) => (isDev ? chalk.cyan.bold(text) : text);
 
-  log('\n' + (isDev ? chalk.bgBlue.white.bold('🚀 ViBe REST API Startup Summary') : '🚀 ViBe REST API Startup Summary') + '\n');
+  log(
+    '\n' +
+    (isDev
+      ? chalk.bgBlue.white.bold('🚀 ViBe REST API Startup Summary')
+      : '🚀 ViBe REST API Startup Summary') +
+    '\n',
+  );
 
   // 🧩 Application Configuration
   log(label('Environment: ') + env);
@@ -38,13 +44,20 @@ export function printStartupSummary() {
       const upper = method.toUpperCase();
       if (!isDev) return upper;
       switch (upper) {
-        case 'GET': return chalk.green(upper);
-        case 'POST': return chalk.blue(upper);
-        case 'PUT': return chalk.yellow(upper);
-        case 'PATCH': return chalk.hex('#fca130')(upper);
-        case 'DELETE': return chalk.red(upper);
-        case 'OPTIONS': return chalk.gray(upper);
-        default: return chalk.white(upper);
+        case 'GET':
+          return chalk.green(upper);
+        case 'POST':
+          return chalk.blue(upper);
+        case 'PUT':
+          return chalk.yellow(upper);
+        case 'PATCH':
+          return chalk.hex('#fca130')(upper);
+        case 'DELETE':
+          return chalk.red(upper);
+        case 'OPTIONS':
+          return chalk.gray(upper);
+        default:
+          return chalk.white(upper);
       }
     };
 
@@ -55,7 +68,9 @@ export function printStartupSummary() {
 
       let routePath: string;
       if (typeof route.route === 'string') {
-        routePath = route.route.startsWith('/') ? route.route : '/' + route.route;
+        routePath = route.route.startsWith('/')
+          ? route.route
+          : '/' + route.route;
       } else if (route.route instanceof RegExp) {
         routePath = route.route.toString();
       } else {
@@ -86,6 +101,11 @@ export function printStartupSummary() {
     }
 
     t.printTable();
+
+    if (isDev) {
+      log(chalk.yellow(`Visit API Reference at ${appConfig.url}/reference`));
+    }
+
   } else {
     const totalRoutes = getMetadataArgsStorage().actions.length;
     log(`Registered Routes: ${totalRoutes}`);

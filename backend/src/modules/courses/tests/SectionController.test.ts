@@ -4,7 +4,6 @@ import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import request from 'supertest';
 import {describe, expect, it, beforeAll} from 'vitest';
 
-
 describe('Section Controller Integration Tests', () => {
   const App = Express();
   let app;
@@ -14,7 +13,6 @@ describe('Section Controller Integration Tests', () => {
     await setupCoursesContainer();
     app = useExpressServer(App, coursesModuleOptions);
   });
-
 
   describe('SECTION CREATION', () => {
     describe('Success Scenario', () => {

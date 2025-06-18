@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useMatches, Link } from "@tanstack/react-router";
-import { useAuthStore } from "@/lib/store/auth-store";
+import { Outlet, useMatches, Link, useNavigate } from "@tanstack/react-router";
 import { AppSidebar } from "../components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { logout } from "@/lib/api/auth";
+import { LogOut } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,9 +27,14 @@ interface BreadcrumbItem {
 }
 
 export default function TeacherLayout() {
-  const { user } = useAuthStore();
   const matches = useMatches();
+  const navigate = useNavigate();
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+
+  const handleLogout = () => {
+    logout();
+    navigate({ to: "/auth" });
+  };
 
   // Generate breadcrumbs based on the current path
   useEffect(() => {
@@ -97,8 +104,17 @@ export default function TeacherLayout() {
               </Breadcrumb>
             </div>
             
-            {/* Add Theme Toggle */}
-            <div className="flex items-center">
+            {/* Add Theme Toggle and Logout Button */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="relative h-9 px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Logout</span>
+              </Button>
               <ThemeToggle />
             </div>
           </div>

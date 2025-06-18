@@ -28,6 +28,7 @@ import {
 } from 'class-validator';
 import {ObjectId} from 'mongodb';
 import {NATQuestion} from '../transformers/Question.js';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 class QuestionParameter implements IQuestionParameter {
   @IsNotEmpty()
@@ -260,6 +261,18 @@ class QuestionId {
   questionId: string;
 }
 
+class QuestionNotFoundErrorResponse {
+  @JSONSchema({
+      description: 'The error message.',
+      example:
+        'Question not found.',
+      type: 'string',
+      readOnly: true,
+    })
+  @IsNotEmpty()
+  message: string;
+}
+
 export {
   QuestionBody,
   QuestionId,
@@ -273,4 +286,5 @@ export {
   QuestionParameter,
   LotItem,
   LotOrder,
+  QuestionNotFoundErrorResponse,
 };

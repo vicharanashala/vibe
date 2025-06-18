@@ -37,9 +37,9 @@ async function detectFaces(imageBitmap: ImageBitmap) {
     const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
     const arrayBuffer = await blob.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    console.log(`--- JPEG IMAGE DATA (copy and save as .jpg) ---`);
-    console.log(base64);
-    console.log(`--- END JPEG IMAGE DATA ---`);
+    // console.log(`--- JPEG IMAGE DATA (copy and save as .jpg) ---`);
+    // console.log(base64);
+    // console.log(`--- END JPEG IMAGE DATA ---`);
     lastLogTime = currentTime;
   }
 
