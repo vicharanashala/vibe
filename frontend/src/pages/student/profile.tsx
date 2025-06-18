@@ -1,81 +1,83 @@
-import { useState } from "react";
-import { Camera, Mail, Phone, MapPin, Calendar } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+"use client"
+
+import { Mail, User, Shield } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { useAuthStore } from "@/lib/store/auth-store.ts"
 
 export default function StudentProfile() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: "Alex",
-    lastName: "Johnson",
-    email: "alex.johnson@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "New York, NY",
-    bio: "Passionate about web development and always eager to learn new technologies.",
-    joinDate: "September 2023",
-  });
+  const { user } = useAuthStore()
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Handle form submission here
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    // Reset form data if needed
-  };
+  // Fallback data if user is not available
+  const displayName = user?.name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Student"
+  const displayEmail = user?.email || "No email provided"
+  const displayRole = user?.role || "student"
+  const avatarFallback = user?.firstName?.[0] || user?.name?.[0] || displayEmail[0] || "S"
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex flex-col space-y-6">
         <section className="flex flex-col space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information</p>
+          <p className="text-muted-foreground">Your personal information and details</p>
         </section>
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Profile Picture & Basic Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Picture</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col items-center space-y-4">
+          <Card className="relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20" />
+            <CardContent className="relative p-6">
+              <div className="flex flex-col items-center space-y-6">
                 <div className="relative">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src="/placeholder-avatar.jpg" alt="Profile" />
-                    <AvatarFallback className="text-lg">
-                      {formData.firstName[0]}{formData.lastName[0]}
+                  <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
+                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
+                    <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                      {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
+                  <div className="absolute -bottom-2 -right-2">
+                    <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
+                      {displayRole}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <h3 className="font-medium">{formData.firstName} {formData.lastName}</h3>
-                  <p className="text-sm text-muted-foreground">Student</p>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Joined {formData.joinDate}</span>
+                <div className="text-center space-y-2">
+                  <h3 className="font-bold text-xl">{displayName}</h3>
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    {displayEmail}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="secondary">JavaScript</Badge>
-                  <Badge variant="secondary">React</Badge>
-                  <Badge variant="secondary">TypeScript</Badge>
+
+                <div className="w-full space-y-4">
+                  <Separator />
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Account Type
+                    </span>
+                    <Badge
+                      variant={
+                        displayRole === "admin" ? "destructive" : displayRole === "teacher" ? "default" : "secondary"
+                      }
+                      className="px-3 py-1"
+                    >
+                      {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)}
+                    </Badge>
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <Badge
+                      variant="default"
+                      className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-4 py-2"
+                    >
+                      ✓ Active Member
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -84,95 +86,40 @@ export default function StudentProfile() {
           {/* Personal Information */}
           <Card className="md:col-span-2">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Update your personal details</CardDescription>
-                </div>
-                {!isEditing ? (
-                  <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
-                ) : (
-                  <div className="space-x-2">
-                    <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Changes</Button>
-                  </div>
-                )}
-              </div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                <User className="h-6 w-6" />
+                Personal Information
+                </CardTitle>
+              <CardDescription>Your account details and information</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">First Name</label>
+                    <p className="text-base font-medium mt-1">{user?.firstName || "Not provided"}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    disabled={!isEditing}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Last Name</label>
+                    <p className="text-base font-medium mt-1">{user?.lastName || "Not provided"}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    disabled={!isEditing}
-                    className="pl-10"
-                  />
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Display Name</label>
+                    <p className="text-base font-medium mt-1">{user?.name || "Not set"}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    disabled={!isEditing}
-                    className="pl-10"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      Email Address
+                    </label>
+                    <p className="text-base font-medium mt-1 break-all">{displayEmail}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                  disabled={!isEditing}
-                  rows={3}
-                />
               </div>
             </CardContent>
           </Card>
@@ -207,5 +154,5 @@ export default function StudentProfile() {
         </Card>
       </div>
     </div>
-  );
+  )
 }
