@@ -63,3 +63,6 @@ frontend/openapi.json
 mcp
 frontend/public/models
 dist/
+
+
+config.json

@@ -27,8 +27,10 @@ import {
   Target,
   Home,
   GraduationCap,
+  AlertCircle,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
+import { isError } from "util";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -98,6 +100,7 @@ export default function CoursePage() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});  
   const [doGesture, setDoGesture] = useState<boolean>(false);
+  const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -120,7 +123,7 @@ export default function CoursePage() {
     useUserProgress(USER_ID, COURSE_ID, VERSION_ID);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
-  const { data: proctoringData, isLoading: proctoringLoading, error: proctoringError } =
+  const { data: proctoringData, isLoading: proctoringLoading } =
     useProctoringSettings(USER_ID, COURSE_ID, VERSION_ID);
 
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
@@ -148,9 +151,17 @@ export default function CoursePage() {
     shouldFetchItem ? VERSION_ID : '',
     shouldFetchItem ? selectedItemId! : ''
   );
+  useEffect(() => {
+    console.error('Current item error:', itemError);
+    if (itemError) {
+      setIsItemForbidden(true);
+    } else {
+      setIsItemForbidden(false);
+    }
+  }, [itemError]);
 
   useEffect(() => {
-    console.log('Current section items:', itemData);
+    console.log('Current item data:', itemData);
   }, [itemData]);
 
   // Log proctoring settings when loaded (only logs once when data is available)
@@ -590,6 +601,33 @@ export default function CoursePage() {
           <div className="flex-1 overflow-hidden relative">
             {/* Ambient background effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
+
+            {/* ✅ Item Access Error Notification */}
+            {isItemForbidden && (
+              <Card className="fixed top-8 right-8 z-50 w-96 border-2 border-destructive/40 bg-destructive/95 text-destructive-foreground shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2 duration-300">
+                <CardContent className="flex items-center gap-4 px-6 py-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive-foreground/20">
+                    <AlertCircle className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Badge variant="outline" className="border-destructive-foreground/30 bg-destructive-foreground/10 text-destructive-foreground font-bold">
+                      Access Restricted
+                    </Badge>
+                    <p className="text-sm font-medium leading-relaxed">
+                      The item does not match current progress. Please complete current item first.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsItemForbidden(false)}
+                    className="text-destructive-foreground hover:bg-destructive-foreground/10"
+                  >
+                    ×
+                  </Button>
+                </CardContent>
+              </Card>
+             )}
 
             {/* Gesture Popup */}
             {doGesture && (
