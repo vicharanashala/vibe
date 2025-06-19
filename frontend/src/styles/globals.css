@@ -68,7 +68,6 @@
   --popover: 48 100% 98%;
   --sidebar: 48 100% 97%;
  
-  --popover: 48 100% 98%;
   --popover-foreground: 20 14.3% 4.1%;
 
   --primary: 38 95% 58%;
@@ -159,13 +158,6 @@
   body {
     @apply bg-background text-foreground;
   }
-  .card, .popover, .student-course-card {
-    background-color: hsl(var(--card));
-    color: hsl(var(--card-foreground));
-    border-color: hsl(var(--border));
-    box-shadow: 0 2px 8px hsl(var(--border) / 0.08);
-  }
-
   .card, .popover, .student-course-card {
     background-color: hsl(var(--card));
     color: hsl(var(--card-foreground));
