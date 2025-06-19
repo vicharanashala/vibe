@@ -62,11 +62,10 @@
 
 /* LIGHT MODE THEME */
 :root {
-   --background: 48 100% 98%;      /* Very light yellow background */
+  --background: 48 100% 98%;      /* Very light yellow background */
   --card: 42 100% 96%;            /* Slightly deeper, warm light yellow for cards/boxes */
   --card-foreground: 24 8% 12%;      /* Slightly deeper for cards */
   --popover: 48 100% 98%;
-  --sidebar: 48 100% 97%;
  
   --popover-foreground: 20 14.3% 4.1%;
 
