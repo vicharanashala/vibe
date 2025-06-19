@@ -226,6 +226,7 @@ Access control logic:
       courseId,
       courseVersionId,
     );
+    console.log(progress.currentItem);
     if (progress.currentItem.toString() !== itemId) {
       throw new ForbiddenError('Item does not match current progress');
     }

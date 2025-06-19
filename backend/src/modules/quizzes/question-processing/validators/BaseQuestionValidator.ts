@@ -1,4 +1,5 @@
 import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
+import { BadRequestError } from 'routing-controllers';
 import {TagParser} from '../tag-parser/TagParser.js';
 
 export class BaseQuestionValidator {
@@ -30,7 +31,7 @@ export class BaseQuestionValidator {
       this.question.parameters.length !== 0
     ) {
       if (!this.tagStatus.questionHasTag) {
-        throw new Error(
+        throw new BadRequestError(
           'Parameterized question must have a valid tag in the question text.',
         );
       }
@@ -54,7 +55,7 @@ export class BaseQuestionValidator {
       !this.question.isParameterized &&
       this.question.parameters.length !== 0
     ) {
-      throw new Error(
+      throw new BadRequestError(
         'Question is not parameterized, but has parameters defined.',
       );
     }
@@ -63,7 +64,7 @@ export class BaseQuestionValidator {
       this.question.isParameterized &&
       this.question.parameters.length === 0
     ) {
-      throw new Error(
+      throw new BadRequestError(
         'Question is parameterized, but has no parameters defined.',
       );
     }

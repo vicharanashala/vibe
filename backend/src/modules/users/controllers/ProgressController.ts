@@ -1,3 +1,4 @@
+import { User } from '#root/modules/auth/classes/index.js';
 import {Progress} from '#users/classes/transformers/Progress.js';
 import {
   GetUserProgressParams,
@@ -10,6 +11,8 @@ import {
   UpdateProgressBody,
   ResetCourseProgressParams,
   ResetCourseProgressBody,
+  ProgressDataResponse,
+  ProgressNotFoundErrorResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -23,8 +26,15 @@ import {
   Body,
   OnUndefined,
   Patch,
+  BadRequestError,
+  InternalServerError,
 } from 'routing-controllers';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 
+@OpenAPI({
+  tags: ['Progress'],
+})
 @JsonController('/users', {transformResponse: true})
 @injectable()
 class ProgressController {
@@ -33,8 +43,19 @@ class ProgressController {
     private readonly progressService: ProgressService,
   ) {}
 
+  @OpenAPI({
+    summary: 'Get user progress in a course version',
+    description: 'Retrieves the progress of a user in a specific course version.',
+  })
   @Get('/:userId/progress/courses/:courseId/versions/:courseVersionId/')
   @HttpCode(200)
+  @ResponseSchema(ProgressDataResponse, {
+    description: 'User progress retrieved successfully',
+  })
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
   async getUserProgress(
     @Params() params: GetUserProgressParams,
   ): Promise<Progress> {
@@ -49,8 +70,23 @@ class ProgressController {
     return progress;
   }
 
+  @OpenAPI({
+    summary: 'Start an item for user progress',
+    description: 'Marks the start of an item for a user in a course version.',
+  })
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/start')
   @HttpCode(200)
+  @ResponseSchema(StartItemResponse, {
+    description: 'Item started successfully',
+  })
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestError, {
+    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
+    statusCode: 400,
+  })
   async startItem(
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
@@ -72,8 +108,24 @@ class ProgressController {
     });
   }
 
+  @OpenAPI({
+    summary: 'Stop an item for user progress',
+    description: 'Marks the stop of an item for a user in a course version.',
+  })
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/stop')
   @OnUndefined(200)
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestError, {
+    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
+    statusCode: 400,
+  })
+  @ResponseSchema(InternalServerError, {
+    description: 'Failed to stop tracking item',
+    statusCode: 500,
+  })
   async stopItem(
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
@@ -92,8 +144,24 @@ class ProgressController {
     );
   }
 
+  @OpenAPI({
+    summary: 'Update user progress',
+    description: 'Updates the progress of a user for a specific item in a course version.',
+  })
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/update')
   @OnUndefined(200)
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestError, {
+    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
+    statusCode: 400,
+  })
+  @ResponseSchema(InternalServerError, {
+    description: 'Progress could not be updated',
+    statusCode: 500,
+  })
   async updateProgress(
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
@@ -113,8 +181,24 @@ class ProgressController {
     );
   }
 
+  @OpenAPI({
+    summary: 'Reset user progress',
+    description: `Resets the user's progress in a course version. 
+If only moduleId is provided, resets to the beginning of the module. 
+If moduleId and sectionId are provided, resets to the beginning of the section. 
+If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
+If none are provided, resets to the beginning of the course.`,
+  })
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/reset')
   @OnUndefined(200)
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerError, {
+    description: 'Progress could not be reset',
+    statusCode: 500,
+  })
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,

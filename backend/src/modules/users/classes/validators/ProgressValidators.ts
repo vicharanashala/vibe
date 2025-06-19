@@ -1,4 +1,4 @@
-import {ID} from '#root/shared/interfaces/models.js';
+import {ID, IProgress} from '#root/shared/interfaces/models.js';
 import {Expose} from 'class-transformer';
 import {
   IsNotEmpty,
@@ -363,19 +363,35 @@ export class ResetCourseProgressBody {
   @IsMongoId()
   itemId?: string | null;
 
+  @Expose()
+  @JSONSchema({
+    description: 'field to trigger validation error if moduleId is not provided',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
   @ValidateIf(
     o => o.moduleId === null && (o.sectionId !== null || o.itemId !== null),
     {message: 'moduleId is required if sectionId or itemId is provided'},
   )
   invalidFieldsCheck?: any; // dummy field to trigger validation error
 
+  @Expose()
+  @JSONSchema({
+    description: 'field to trigger validation error if sectionId is not provided',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
   @ValidateIf(o => o.sectionId === null && o.itemId !== null, {
     message: 'sectionId is required if itemId is provided',
   })
   invalidFieldsCheck2?: any; // dummy field to trigger validation error
 }
 
-export class ProgressDataResponse {
+export class ProgressDataResponse implements IProgress{
   @JSONSchema({
     description: 'Unique identifier for the progress record',
     example: '60d5ec49b3f1c8e4a8f8b8d1',
@@ -461,4 +477,15 @@ export class ProgressDataResponse {
   @IsNotEmpty()
   @IsBoolean()
   completed: boolean;
+}
+
+export class ProgressNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'Error message indicating progress not found',
+    example: 'Progress not found for the specified user and course version',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
 }

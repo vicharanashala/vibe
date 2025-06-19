@@ -10,11 +10,11 @@ export const rateLimiter = rateLimit({
 });
 
 export const authRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  limit: 3, // Limit each IP to 3 requests per window
-  standardHeaders: true, // Use `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  message: {error: 'Too many requests, please try again later.'},
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5, // Max 5 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts. Please try again later.' },
 });
 
 export function AuthRateLimiter(

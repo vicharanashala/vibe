@@ -1,8 +1,8 @@
 import chalk from 'chalk';
-import {Table} from 'console-table-printer';
-import {getMetadataArgsStorage} from 'routing-controllers';
-import {appConfig} from '../config/app.js'; // adjust path as needed
-import {dbConfig} from '../config/db.js'; // adjust path as needed
+import { Table } from 'console-table-printer';
+import { getMetadataArgsStorage } from 'routing-controllers';
+import { appConfig } from '../config/app.js'; // adjust path as needed
+import { dbConfig } from '../config/db.js'; // adjust path as needed
 
 export function printStartupSummary() {
   const env = process.env.NODE_ENV || 'development';
@@ -15,10 +15,10 @@ export function printStartupSummary() {
 
   log(
     '\n' +
-      (isDev
-        ? chalk.bgBlue.white.bold('🚀 ViBe REST API Startup Summary')
-        : '🚀 ViBe REST API Startup Summary') +
-      '\n',
+    (isDev
+      ? chalk.bgBlue.white.bold('🚀 ViBe REST API Startup Summary')
+      : '🚀 ViBe REST API Startup Summary') +
+    '\n',
   );
 
   // 🧩 Application Configuration
@@ -86,9 +86,9 @@ export function printStartupSummary() {
 
     const t = new Table({
       columns: [
-        {name: 'Controller', alignment: 'left'},
-        {name: 'Method', alignment: 'left'},
-        {name: 'Path', alignment: 'left'},
+        { name: 'Controller', alignment: 'left' },
+        { name: 'Method', alignment: 'left' },
+        { name: 'Path', alignment: 'left' },
       ],
       rowSeparator: true,
       title: 'Registered Routes',
@@ -96,11 +96,16 @@ export function printStartupSummary() {
 
     for (const ctrl of Object.keys(grouped)) {
       for (const route of grouped[ctrl]) {
-        t.addRow(route, {color: ''});
+        t.addRow(route, { color: '' });
       }
     }
 
     t.printTable();
+
+    if (isDev) {
+      log(chalk.yellow(`Visit API Reference at ${appConfig.url}/reference`));
+    }
+
   } else {
     const totalRoutes = getMetadataArgsStorage().actions.length;
     log(`Registered Routes: ${totalRoutes}`);
