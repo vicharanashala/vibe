@@ -2,6 +2,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Theme variable mapping */
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -30,14 +31,12 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
-  /* Chart colors for data visualization */
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
 
-  /* Sidebar theme */
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --color-sidebar-primary: hsl(var(--sidebar-primary));
@@ -47,90 +46,68 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
+  --font-sans: Poppins, sans-serif;
+  --font-serif: Libre Baskerville, serif;
+  --font-mono: JetBrains Mono, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --shadow-2xs: var(--shadow-2xs);
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow: var(--shadow);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
+  --shadow-sm: 0 1px 2px hsl(var(--border) / 0.05);
+  --shadow-md: 0 4px 6px hsl(var(--border) / 0.08);
+  --shadow-lg: 0 10px 15px hsl(var(--border) / 0.1);
 }
 
-/* CSS variables for light/dark mode support - Trenning theme */
+/* LIGHT MODE THEME */
 :root {
-  /* Base colors */
-  --background: 0 0% 100%;
-  --foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --popover: 0 0% 100%;
+  --background: 48 100% 98%;      /* Very light yellow background */
+  --card: 42 100% 96%;            /* Slightly deeper, warm light yellow for cards/boxes */
+  --card-foreground: 24 8% 12%;      /* Slightly deeper for cards */
+  --popover: 48 100% 98%;
+ 
   --popover-foreground: 20 14.3% 4.1%;
 
-  /* Primary orange-yellow theme - Light mode: softer, lighter colors */
-  --primary: 42 88% 65%; /* Lighter, softer orange-yellow #f5d563 */
-  --primary-foreground: 38 10% 10%;
+  --primary: 38 95% 58%;
+  --primary-foreground: 24 8% 12%;
 
-  /* Secondary theme */
   --secondary: 60 4.8% 95.9%;
-  --secondary-foreground: 220 40% 40%; /* Indigo */
+  --secondary-foreground: 220 40% 40%;
 
-  /* Supporting colors */
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 40 75% 50%; /* Lighter, more gentle orange-yellow */
-  --accent-foreground: 38 10% 10%;
+  --muted: 40 12% 96%;
+  --muted-foreground: 24 8% 40%;
+  --accent: 32 90% 52%;
+  --accent-foreground: 24 8% 12%;
+
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  --ring: 42 88% 65%; /* Matching lighter primary */
 
-  /* Chart colors - Lighter variants for light mode */
-  --chart-1: 42 88% 65%; /* Lighter orange-yellow */
-  --chart-2: 46 85% 55%; /* Lighter yellow */
-  --chart-3: 38 75% 55%; /* Lighter orange */
-  --chart-4: 220 50% 55%; /* Lighter indigo */
-  --chart-5: 40 70% 45%; /* Lighter brown-orange */
+  --border: 38 30% 90%;
+  --input: 38 30% 90%;
 
-  /* Sidebar theme - Light and airy */
+  --ring: 38 95% 58%;
+
+  --chart-1: 38 95% 58%;
+  --chart-2: 32 90% 52%;
+  --chart-3: 44 85% 60%;
+  --chart-4: 220 45% 60%;
+  --chart-5: 40 65% 45%;
+
   --sidebar: 0 0% 98%;
-  --sidebar-foreground: 20 14.3% 4.1%;
-  --sidebar-primary: 42 88% 65%; /* Lighter orange-yellow */
-  --sidebar-primary-foreground: 38 10% 10%;
-  --sidebar-accent: 40 75% 50%; /* Lighter accent */
-  --sidebar-accent-foreground: 38 10% 10%;
-  --sidebar-border: 20 5.9% 90%;
-  --sidebar-ring: 42 88% 65%; /* Matching lighter primary */
+  --sidebar-foreground: 24 8% 12%;
+  --sidebar-primary: 38 95% 58%;
+  --sidebar-primary-foreground: 24 8% 12%;
+  --sidebar-accent: 32 90% 52%;
+  --sidebar-accent-foreground: 24 8% 12%;
+  --sidebar-border: 38 30% 90%;
+  --sidebar-ring: 38 95% 58%;
 
-  /* Font and visual properties */
-  --font-sans: Poppins, sans-serif;
-  --font-serif: Libre Baskerville, serif;
-  --font-mono: JetBrains Mono, monospace;
   --radius: 0.5rem;
-
-  /* Shadow properties */
-  --shadow-2xs: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.05);
-  --shadow-xs: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.05);
-  --shadow-sm: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -2px hsl(0 0% 10.1961% / 0.10);
-  --shadow: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -2px hsl(0 0% 10.1961% / 0.10);
-  --shadow-md: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.10), 0px 2px 4px -2px hsl(0 0% 10.1961% / 0.10);
-  --shadow-lg: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.10), 0px 4px 6px -2px hsl(0 0% 10.1961% / 0.10);
-  --shadow-xl: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.10), 0px 8px 10px -2px hsl(0 0% 10.1961% / 0.10);
-  --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 10.1961% / 0.25);
 }
 
+/* DARK MODE - untouched */
 .dark {
-  /* Base colors */
   --background: 20 14.3% 4.1%;
   --foreground: 60 9.1% 97.8%;
   --card: 20 14.3% 4.1%;
@@ -138,45 +115,41 @@
   --popover: 20 14.3% 4.1%;
   --popover-foreground: 60 9.1% 97.8%;
 
-  /* Primary orange-yellow theme - Dark mode: vibrant, high contrast colors */
-  --primary: 38 95% 60%; /* More vibrant orange-yellow #faa835 */
+  --primary: 38 95% 60%;
   --primary-foreground: 20 14.3% 4.1%;
 
-  /* Secondary theme */
   --secondary: 12 6.5% 15.1%;
   --secondary-foreground: 60 9.1% 97.8%;
 
-  /* Supporting colors */
   --muted: 12 6.5% 15.1%;
   --muted-foreground: 24 5.4% 63.9%;
-  --accent: 36 90% 45%; /* More vibrant orange accent */
+  --accent: 36 90% 45%;
   --accent-foreground: 60 9.1% 97.8%;
+
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 60 9.1% 97.8%;
+
   --border: 12 6.5% 15.1%;
   --input: 12 6.5% 15.1%;
-  --ring: 38 95% 60%; /* Matching vibrant primary */
+  --ring: 38 95% 60%;
 
-  /* Chart colors - More vibrant for dark mode */
-  --chart-1: 38 95% 60%; /* Vibrant orange-yellow */
-  --chart-2: 42 92% 50%; /* Vibrant yellow-orange */
-  --chart-3: 34 88% 45%; /* Vibrant orange */
-  --chart-4: 220 50% 60%; /* Brighter indigo */
-  --chart-5: 32 85% 50%; /* Vibrant amber */
+  --chart-1: 38 95% 60%;
+  --chart-2: 42 92% 50%;
+  --chart-3: 34 88% 45%;
+  --chart-4: 220 50% 60%;
+  --chart-5: 32 85% 50%;
 
-  /* Sidebar theme - High contrast for dark mode */
   --sidebar: 20 14.3% 4.1%;
   --sidebar-foreground: 60 9.1% 97.8%;
-  --sidebar-primary: 38 95% 60%; /* Vibrant orange-yellow */
+  --sidebar-primary: 38 95% 60%;
   --sidebar-primary-foreground: 20 14.3% 4.1%;
-  --sidebar-accent: 36 90% 15%; /* Vibrant accent */
+  --sidebar-accent: 36 90% 15%;
   --sidebar-accent-foreground: 60 9.1% 97.8%;
   --sidebar-border: 12 6.5% 15.1%;
-  --sidebar-ring: 38 95% 60%; /* Matching vibrant primary */
-
-  /* Shadow properties remain unchanged */
+  --sidebar-ring: 38 95% 60%;
 }
 
+/* BASE LAYER STYLING */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -184,258 +157,28 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Student-specific styles */
-/* Custom animations for student dashboard */
-@keyframes pulse-gentle {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-.student-card-hover {
-  transition: all 0.2s ease-in-out;
-}
-
-.student-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Progress bar animations */
-.progress-bar-animated {
-  transition: width 0.6s ease-in-out;
-}
-
-/* Course completion celebration */
-.course-completed {
-  animation: pulse-gentle 2s infinite;
-}
-
-/* Study streak indicator - responsive gradient using theme colors */
-.streak-indicator {
-  background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--chart-2)));
-  background-size: 200% 200%;
-  animation: gradient-shift 3s ease infinite;
-}
-
-@keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* Quiz-specific dark mode enhancements */
-.quiz-card-success {
-  @apply border-green-500/50 bg-green-500/10;
-}
-
-.dark .quiz-card-success {
-  @apply border-green-400/50 bg-green-400/10;
-}
-
-.quiz-card-error {
-  @apply border-red-500/50 bg-red-500/10;
-}
-
-.dark .quiz-card-error {
-  @apply border-red-400/50 bg-red-400/10;
-}
-
-.quiz-option-hover {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-.quiz-option-hover:hover {
-  @apply bg-accent/50 transform scale-[1.01];
-}
-
-.dark .quiz-option-hover:hover {
-  @apply bg-accent/30;
-}
-
-.quiz-timer-warning {
-  @apply animate-pulse;
-}
-
-.quiz-timer-critical {
-  @apply animate-bounce text-destructive;
-}
-
-.quiz-ranking-item {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-.quiz-ranking-item:hover {
-  @apply transform translate-x-1 shadow-md;
-}
-
-.dark .quiz-ranking-item:hover {
-  @apply shadow-lg shadow-accent/20;
-}
-
-/* Quiz-specific dark mode enhancements */
-.quiz-option-hover {
-  transition: all 0.2s ease-in-out;
-}
-
-.quiz-option-hover:hover {
-  background-color: hsl(var(--accent) / 0.1);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px hsl(var(--border) / 0.2);
-}
-
-.dark .quiz-option-hover:hover {
-  background-color: hsl(var(--accent) / 0.05);
-  box-shadow: 0 2px 8px hsl(var(--accent) / 0.1);
-}
-
-.quiz-ranking-item {
-  transition: all 0.2s ease-in-out;
-}
-
-.quiz-ranking-item:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px hsl(var(--border) / 0.3);
-}
-
-.dark .quiz-ranking-item:hover {
-  box-shadow: 0 4px 12px hsl(var(--accent) / 0.2);
-}
-
-.quiz-timer-warning {
-  animation: pulse-gentle 1.5s infinite;
-}
-
-.quiz-timer-critical {
-  animation: pulse-gentle 0.8s infinite;
-}
-
-.quiz-success-card {
-  border-color: hsl(120 60% 50% / 0.5);
-  background-color: hsl(120 60% 50% / 0.1);
-}
-
-.dark .quiz-success-card {
-  border-color: hsl(120 60% 60% / 0.5);
-  background-color: hsl(120 60% 60% / 0.1);
-}
-
-.quiz-error-card {
-  border-color: hsl(0 60% 50% / 0.5);
-  background-color: hsl(0 60% 50% / 0.1);
-}
-
-.dark .quiz-error-card {
-  border-color: hsl(0 60% 60% / 0.5);
-  background-color: hsl(0 60% 60% / 0.1);
-}
-
-/* Mobile-specific styles */
-@media (max-width: 768px) {
-  .student-dashboard-grid {
-    grid-template-columns: 1fr;
+  .card, .popover, .student-course-card {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border-color: hsl(var(--border));
+    box-shadow: 0 2px 8px hsl(var(--border) / 0.08);
   }
 
-  .student-course-card {
-    padding: 1rem;
+  .btn-primary, .button-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border: none;
+    box-shadow: 0 2px 8px hsl(var(--primary) / 0.08);
+  }
+
+  .btn-primary:hover, .button-primary:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  .sidebar {
+    background-color: hsl(var(--sidebar));
+    color: hsl(var(--sidebar-foreground));
+    border-right: 1px solid hsl(var(--sidebar-border));
   }
 }
-
-@theme inline {
-  --animate-shine: shine var(--duration) infinite linear;
-  @keyframes shine {
-  0% {
-    background-position: 0% 0%;
-    }
-  50% {
-    background-position: 100% 100%;
-    }
-  to {
-    background-position: 0% 0%;
-    }
-  }
-  --animate-line-shadow: line-shadow 15s linear infinite
-;
-  @keyframes line-shadow {
-  0% {
-    background-position: 0 0;
-    }
-  100% {
-    background-position: 100% -100%;
-    }
-  }
-  --animate-aurora: aurora 8s ease-in-out infinite alternate;
-  @keyframes aurora {
-  0% {
-    background-position: 0% 50%;
-    transform: rotate(-5deg) scale(0.9);
-    }
-  25% {
-    background-position: 50% 100%;
-    transform: rotate(5deg) scale(1.1);
-    }
-  50% {
-    background-position: 100% 50%;
-    transform: rotate(-3deg) scale(0.95);
-    }
-  75% {
-    background-position: 50% 0%;
-    transform: rotate(3deg) scale(1.05);
-    }
-  100% {
-    background-position: 0% 50%;
-    transform: rotate(-5deg) scale(0.9);
-    }
-  }
-  @keyframes shine {
-  0% {
-    background-position: 0% 0%;
-    }
-  50% {
-    background-position: 100% 100%;
-    }
-  to {
-    background-position: 0% 0%;
-    }
-  }
-  @keyframes line-shadow {
-  0% {
-    background-position: 0 0;
-    }
-  100% {
-    background-position: 100% -100%;
-    }
-  }
-  @keyframes aurora {
-  0% {
-    background-position: 0% 50%;
-    transform: rotate(-5deg) scale(0.9);
-    }
-  25% {
-    background-position: 50% 100%;
-    transform: rotate(5deg) scale(1.1);
-    }
-  50% {
-    background-position: 100% 50%;
-    transform: rotate(-3deg) scale(0.95);
-    }
-  75% {
-    background-position: 50% 0%;
-    transform: rotate(3deg) scale(1.05);
-    }
-  100% {
-    background-position: 0% 50%;
-    transform: rotate(-5deg) scale(0.9);
-    }
-  }}
