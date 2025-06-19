@@ -28,6 +28,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
 import {QuestionType} from '#root/shared/interfaces/quiz.js';
+import { Question } from './QuestionValidator.js';
 
 class QuestionAnswerFeedback implements IQuestionAnswerFeedback {
   @IsMongoId()
@@ -347,7 +348,8 @@ class QuestionDetails implements IQuestionDetails {
   @JSONSchema({
     description: 'Parameter map for the question',
     type: 'object',
-    example: { difficulty: 'easy' },
+    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
+    example: { difficulty: 'easy', maxScore: 10 }
   })
   parameterMap?: ParameterMap;
 }
@@ -364,6 +366,18 @@ class QuestionAnswersBody {
   answers: QuestionAnswer[];
 }
 
+class QuestionRenderView extends Question implements IQuestionRenderView {
+  @IsOptional()
+  @ValidateNested()
+  @JSONSchema({
+    description: 'Parameter map for the question',
+    type: 'object',
+    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
+    example: { difficulty: 'easy', maxScore: 10 }
+  })
+  parameterMap?: ParameterMap;
+}
+
 // Response Schemas
 class CreateAttemptResponse {
   @IsMongoId()
@@ -378,10 +392,11 @@ class CreateAttemptResponse {
   @IsMongoId()
   @IsNotEmpty()
   @ValidateNested({each: true})
+  @Type(() => QuestionRenderView)
   @JSONSchema({
     description: 'Question render views for the attempt',
     type: 'array',
-    items: { type: 'object' },
+    items: { $ref: '#/components/schemas/QuestionRenderView' },
   })
   questionRenderViews: IQuestionRenderView[];
 }
@@ -639,15 +654,6 @@ class EditQuestionBankBody implements Partial<QuestionBankRef> {
     example: ['math', 'science'],
   })
   tags?: string[];
-
-  @IsString()
-  @IsOptional()
-  @JSONSchema({
-    description: 'Single tag filter',
-    type: 'string',
-    example: 'math',
-  })
-  tag?: string;
 }
 
 class RegradeSubmissionBody implements Partial<IGradingResult> {
@@ -697,6 +703,26 @@ class AddFeedbackBody {
     example: 'Great answer!',
   })
   feedback: string;
+}
+
+class AttemptDetails implements IAttemptDetails {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the attempt',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  attemptId: string | ObjectId;
+
+  @IsMongoId()
+  @IsOptional()
+  @JSONSchema({
+    description: 'ID of the submission result',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c77',
+  })
+  submissionResultId?: string | ObjectId;
 }
 
 class UserQuizMetricsResponse {
@@ -765,10 +791,12 @@ class UserQuizMetricsResponse {
   remainingAttempts: number;
 
   @IsNotEmpty()
+  @ValidateNested({each: true})
+  @Type(() => AttemptDetails)
   @JSONSchema({
     description: 'List of attempts',
     type: 'array',
-    items: { type: 'object' },
+    items: { $ref: '#/components/schemas/AttemptDetails' },
   })
   attempts: IAttemptDetails[];
 }
@@ -838,6 +866,40 @@ class QuizAttemptResponse {
   updatedAt: Date;
 }
 
+class GradingResult implements IGradingResult {
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Total score for the grading result',
+    type: 'number',
+    example: 8,
+  })
+  totalScore?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Maximum possible score for the grading result',
+    type: 'number',
+    example: 10,
+  })
+  totalMaxScore?: number;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => QuestionAnswerFeedback)
+  @JSONSchema({
+    description: 'Overall feedback for the grading result',
+    type: 'array',
+    items: { $ref: '#/components/schemas/QuestionAnswerFeedback' },
+  })
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: Date;
+  gradedBy?: string;
+}
+
 class QuizSubmissionResponse {
   @IsMongoId()
   @IsOptional()
@@ -879,16 +941,17 @@ class QuizSubmissionResponse {
   @IsNotEmpty()
   @JSONSchema({
     description: 'Submission date',
-    type: 'string',
-    format: 'date-time',
     example: '2024-06-18T12:45:00.000Z',
   })
   submittedAt: Date;
 
   @IsOptional()
+  @ValidateNested()
+  @Type(() => GradingResult)
   @JSONSchema({
     description: 'Grading result for the submission',
     type: 'object',
+    items: {$ref: '#/components/schemas/GradingResult'},
   })
   gradingResult?: IGradingResult;
 }

@@ -327,6 +327,7 @@ class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     title: 'Video Details',
     description: 'Details specific to video items',
+    type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.VIDEO)
   @IsNotEmpty()
@@ -337,6 +338,7 @@ class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     title: 'Blog Details',
     description: 'Details specific to blog items',
+    type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.BLOG)
   @IsNotEmpty()
