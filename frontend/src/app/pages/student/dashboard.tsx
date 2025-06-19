@@ -14,10 +14,9 @@ import { getGreeting } from "@/utils/helpers";
 export default function Page() {
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
-  const studentName = user?.name || user?.firstName || 'Student';
   const userId = user?.userId;
 
-  // Handle authentication redirect using useEffect
+  // Redirect to auth page if not logged in yet
   useEffect(() => {
     if (!isAuthenticated || !userId) {
       console.log("User not authenticated or no userId found, redirecting to auth page");
@@ -25,31 +24,7 @@ export default function Page() {
     }
   }, [isAuthenticated, userId, navigate]);
 
-  const [greeting, setGreeting] = useState(getGreeting());
-
-  // Fetch user enrollments - only if authenticated and userId exists
-  const { data: enrollmentsData, isLoading: enrollmentsLoading, error: enrollmentsError } = useUserEnrollments(userId,
-    1, // page
-    5  // limit - show only first 5 courses on dashboard
-  );
-
-  const enrollments = enrollmentsData?.enrollments || [];
-  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setGreeting(getGreeting());
-    }, 60000);
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Calculate overall progress (mock calculation)
-  const totalProgress = enrollments.length > 0
-    ? Math.round(Math.random() * 100) // Replace with real progress calculation
-    : 0;
-
-  // Show authentication required message or loading state
+  // While we don't have a real userId, show loading/auth prompt
   if (!isAuthenticated || !userId) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -65,12 +40,49 @@ export default function Page() {
     );
   }
 
+  // Only once userId is truthy do we render the dashboard content
+  return <DashboardContent userId={userId} />;
+}
+
+interface DashboardContentProps {
+  userId: string;
+}
+
+function DashboardContent({ userId }: DashboardContentProps) {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const studentName = user?.name || user?.firstName || 'Student';
+
+  // Greeting state & updater
+  const [greeting, setGreeting] = useState(getGreeting());
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setGreeting(getGreeting());
+    }, 60000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Now safe to call the enrollments hook with a real userId
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError
+  } = useUserEnrollments(userId, 1, 5, true);
+
+  const enrollments = enrollmentsData?.enrollments || [];
+  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+  const totalProgress = enrollments.length > 0
+    ? Math.round(Math.random() * 100)
+    : 0;
+
   return (
     <>
-      {/* Greeting and Stat Cards in a row */}
+      {/* Greeting & Stats */}
       <div className="flex flex-col md:flex-row items-stretch mb-8 px-4 md:px-28 lg:px-16 xl:px-0">
         <div className="flex-1 flex flex-col justify-center bg-background rounded-lg p-6 mb-0">
-          <h1 className="text-3xl font-bold mb-1">{greeting}, {studentName} 👋</h1>
+          <h1 className="text-3xl font-bold mb-1">
+            {greeting}, {studentName} 👋
+          </h1>
           <p className="text-muted-foreground">
             Welcome to your learning dashboard, check your priority learning.
           </p>
@@ -82,23 +94,22 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Announcement Banner */}
+      {/* Announcement */}
       <AnnouncementBanner
         title="Achievement Unlocked!"
         description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
       />
 
-      {/* Main content and sidebar */}
+      {/* Main content & sidebar */}
       <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
         <main className="flex-1">
-          {/* In Progress Courses */}
           <CourseSection
             title="In progress learning content"
             enrollments={enrollments}
             isLoading={enrollmentsLoading}
             error={enrollmentsError}
             totalEnrollments={totalEnrollments}
-            showViewAll={true}
+            showViewAll
             onViewAll={() => navigate({ to: '/student/courses' })}
             onRetry={() => window.location.reload()}
             variant="dashboard"
@@ -111,12 +122,11 @@ export default function Page() {
             className="mb-8"
           />
 
-          {/* Recommended Courses */}
           <CourseSection
             title="Recommended for you"
-            enrollments={[]} // Empty for now
+            enrollments={[]}
             isLoading={false}
-            showViewAll={true}
+            showViewAll
             onViewAll={() => navigate({ to: '/student/courses' })}
             variant="dashboard"
             emptyStateConfig={{
@@ -128,7 +138,6 @@ export default function Page() {
           />
         </main>
 
-        {/* Sidebar */}
         <DashboardSidebar enrollments={enrollments} />
       </div>
     </>

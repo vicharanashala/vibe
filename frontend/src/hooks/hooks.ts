@@ -535,7 +535,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/{userId}/enrollments
-export function useUserEnrollments(userId: string | undefined, page?: number, limit?: number): {
+export function useUserEnrollments(userId: string | undefined, page?: number, limit?: number, enabled: boolean = true): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -545,7 +545,8 @@ export function useUserEnrollments(userId: string | undefined, page?: number, li
     params: { 
       path: { userId },
       query: { page, limit }
-    }
+    },
+      enabled: enabled && !!userId
   });
 
   return {
