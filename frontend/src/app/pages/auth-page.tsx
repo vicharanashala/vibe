@@ -12,6 +12,7 @@ import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
+import { useSignup } from "@/hooks/hooks.ts";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -204,57 +205,67 @@ export default function AuthPage() {
     }
   };
 
+//SignUp
+
+const signupMutation = useSignup();
+  
   // New function for handling signup
   const handleEmailSignup = async () => {
     if (!validateForm()) return;
-    
-    // Additional signup validation
+  
     if (!passwordsMatch) {
       setFormErrors({
         ...formErrors,
-        password: "Passwords do not match"
+        password: "Passwords do not match",
       });
       return;
     }
-    
+  
     if (passwordStrength.value < 50) {
       setFormErrors({
         ...formErrors,
-        password: "Please create a stronger password"
+        password: "Please create a stronger password",
       });
       return;
     }
-    
+  
     try {
       setLoading(true);
       setFormErrors({});
-      
-      // Create the user account
+  
       const result = await createUserWithEmail(email, password, fullName);
-      
-      // Set user in store - always student for signup
+  
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
         name: fullName,
-        role: "student", // Sign up is always for students
+        role: "student",
         avatar: result.user.photoURL || ""
       });
-      
-      // Navigate to student dashboard
+  
+      await signupMutation.mutateAsync({
+        body: {
+          uid: result.user.uid,
+          name: fullName,
+          email: result.user.email || email,
+          avatar: result.user.photoURL || "",
+          role: "student",
+        }
+      });
+  
       navigate({ to: "/student" });
-    } catch (error: unknown) {
+  
+    } catch (error: any) {
       console.error("Email Signup Failed", error);
-      // Handle specific Firebase errors
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'auth/email-already-in-use') {
+      if (error?.code === "auth/email-already-in-use") {
         setFormErrors({
           ...formErrors,
-          auth: "This email is already in use. Please try logging in instead."
+          auth: "This email is already in use. Please try logging in instead.",
         });
       } else {
         setFormErrors({
           ...formErrors,
-          auth: "Failed to create account. Please try again."
+          auth: "Failed to create account. Please try again.",
         });
       }
     } finally {
@@ -435,10 +446,10 @@ export default function AuthPage() {
                   <CardContent className="space-y-4">{/* Content based on activeRole */}
                     {/* Auth Error Alert */}
                     {formErrors.auth && (
-                      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                      <div className="rounded-lg border border-red-600 bg-destructive/10 p-3">
                         <div className="flex items-center space-x-2">
-                          <AlertCircle className="h-4 w-4 text-destructive" />
-                          <p className="text-sm text-destructive">{formErrors.auth}</p>
+                          <AlertCircle className="h-4 w-4 text-red-600" />
+                          <p className="text-sm text-red-600 font-medium">{formErrors.auth}</p>
                         </div>
                       </div>
                     )}
@@ -471,8 +482,10 @@ export default function AuthPage() {
                       </Label>
                       <Input 
                         id="password" 
+                        name="new-password"
                         type="password" 
                         placeholder="Enter your password"
+                        autoComplete="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)} 
                         className={cn(
