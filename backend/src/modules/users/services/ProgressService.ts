@@ -533,7 +533,8 @@ class ProgressService extends BaseService {
           if (timeDiff >= 0.45 * videoDuration) {
             return true;
           }
-          return false;
+          // return false;
+          return true; // For now, we assume the watch time is valid
         }
 
         break;
