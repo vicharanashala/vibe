@@ -12,9 +12,12 @@ interface LoadedModuleResult {
 
 export async function loadAppModules(moduleName: string): Promise<LoadedModuleResult> {
   const isAll = moduleName === 'all';
-  let modulesDir = path.resolve('./src/modules');
+  let modulesDir;
   if (appConfig.isProduction) {
     modulesDir = path.resolve('./build/modules');
+  }
+  else {
+    modulesDir = path.resolve('./src/modules');
   }
   const files = await fs.readdir(modulesDir);
 
