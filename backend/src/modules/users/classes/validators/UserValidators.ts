@@ -99,3 +99,9 @@ export class UserNotFoundErrorResponse {
   @IsString()
   message: string;
 }
+
+export const USER_VALIDATORS = [
+  UserByFirebaseUIDParams,
+  UserByFirebaseUIDResponse,
+  UserNotFoundErrorResponse
+]

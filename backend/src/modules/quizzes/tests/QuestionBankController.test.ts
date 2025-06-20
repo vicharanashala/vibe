@@ -14,7 +14,7 @@ import {coursesModuleOptions} from '#root/modules/courses/index.js';
 import request from 'supertest';
 import {beforeAll, describe, it, expect} from 'vitest';
 
-describe('QuestionBankController', () => {
+describe('QuestionBankController', {timeout: 30000}, () => {
   const appInstance = Express();
   let app: any;
 

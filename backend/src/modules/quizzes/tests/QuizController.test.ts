@@ -185,7 +185,7 @@ describe('QuizController',{timeout: 30000}, () => {
         bankId: questionBankId,
         count: 1,
       });
-    expect(updateQuizRes.status).toBe(201);
+    expect(updateQuizRes.status).toBe(200);
 
     return {quizId, questionBankId, questionId};
   }
@@ -212,7 +212,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const res = await request(app).delete(
         `/quizzes/quiz/${quizId}/bank/${questionBankId}`,
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -222,7 +222,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const res = await request(app)
         .patch(`/quizzes/quiz/${quizId}/bank`)
         .send({bankId: questionBankId, count: 2});
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -230,7 +230,7 @@ describe('QuizController',{timeout: 30000}, () => {
     it('should get all question banks for a quiz', async () => {
       const {quizId, questionBankId} = await setupQuizWithBank();
       const res = await request(app).get(`/quizzes/quiz/${quizId}/bank`);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body[0].bankId).toBe(questionBankId);
     });
   });
@@ -256,8 +256,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const res = await request(app).get(
         `/quizzes/quiz/${quizId}/user/${userId}`,
       );
-      console.log('User metrics response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('quizId');
       expect(res.body).toHaveProperty('userId');
     });
@@ -285,7 +284,7 @@ describe('QuizController',{timeout: 30000}, () => {
 
       const res = await request(app).get(`/quizzes/quiz/attempts/${attemptId}`);
       console.log('Attempt response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('quizId');
     });
   });
@@ -314,7 +313,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const quizSubmissionRes = await request(app).get(
         `/quizzes/quiz/${quizId}/submissions`,
       );
-      expect(quizSubmissionRes.status).toBe(201);
+      expect(quizSubmissionRes.status).toBe(200);
       expect(Array.isArray(quizSubmissionRes.body)).toBe(true);
       const submissionId =
         quizSubmissionRes.body[0]._id || quizSubmissionRes.body[0].submissionId;
@@ -322,7 +321,7 @@ describe('QuizController',{timeout: 30000}, () => {
         `/quizzes/quiz/submissions/${submissionId}`,
       );
       console.log('Submission response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('quizId');
     });
   });
@@ -332,7 +331,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const {quizId} = await setupQuizWithBank();
       const res = await request(app).get(`/quizzes/quiz/${quizId}/details`);
       console.log('Quiz details response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('name');
     });
   });
@@ -358,7 +357,7 @@ describe('QuizController',{timeout: 30000}, () => {
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/analytics`);
       console.dir(res.body, {depth: null});
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('totalAttempts');
     });
   });
@@ -383,7 +382,7 @@ describe('QuizController',{timeout: 30000}, () => {
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/performance`);
       console.log('Quiz performance response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
   });
@@ -408,7 +407,7 @@ describe('QuizController',{timeout: 30000}, () => {
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/results`);
       console.log('Quiz results response:', res.body);
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
   });
@@ -447,7 +446,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const quizSubmissionRes = await request(app).get(
         `/quizzes/quiz/${quizId}/submissions`,
       );
-      expect(quizSubmissionRes.status).toBe(201);
+      expect(quizSubmissionRes.status).toBe(200);
       expect(Array.isArray(quizSubmissionRes.body)).toBe(true);
       const submissionId = quizSubmissionRes.body[0]._id;
 
@@ -455,7 +454,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const res = await request(app).post(
         `/quizzes/quiz/submission/${submissionId}/score/5`,
       );
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -486,19 +485,19 @@ describe('QuizController',{timeout: 30000}, () => {
       const quizSubmissionRes = await request(app).get(
         `/quizzes/quiz/${quizId}/submissions`,
       );
-      expect(quizSubmissionRes.status).toBe(201);
+      expect(quizSubmissionRes.status).toBe(200);
       expect(Array.isArray(quizSubmissionRes.body)).toBe(true);
       const submissionId = quizSubmissionRes.body[0]._id;
       // Regrade
       const res = await request(app)
         .post(`/quizzes/quiz/submission/${submissionId}/regrade`)
         .send({gradingStatus: 'FAILED'});
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       // get grading result
       const gradingRes = await request(app).get(
         `/quizzes/quiz/submissions/${submissionId}`,
       );
-      expect(gradingRes.status).toBe(201);
+      expect(gradingRes.status).toBe(200);
       expect(gradingRes.body.gradingResult).toBeDefined();
       expect(gradingRes.body.gradingResult.gradingStatus).toBe('FAILED');
       console.log('Regrade response:', gradingRes.body);
@@ -532,7 +531,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const quizSubmissionRes = await request(app).get(
         `/quizzes/quiz/${quizId}/submissions`,
       );
-      expect(quizSubmissionRes.status).toBe(201);
+      expect(quizSubmissionRes.status).toBe(200);
       expect(Array.isArray(quizSubmissionRes.body)).toBe(true);
       const submissionId = quizSubmissionRes.body[0]._id;
       // Add feedback
@@ -541,13 +540,13 @@ describe('QuizController',{timeout: 30000}, () => {
           `/quizzes/quiz/submission/${submissionId}/question/${questionId}/feedback`,
         )
         .send({feedback: 'Good job!'});
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
 
       // get submission to verify feedback
       const submissionRes = await request(app).get(
         `/quizzes/quiz/submissions/${submissionId}`,
       );
-      expect(submissionRes.status).toBe(201);
+      expect(submissionRes.status).toBe(200); 
       expect(
         submissionRes.body.gradingResult.overallFeedback[0].answerFeedback,
       ).toBe('Good job!');

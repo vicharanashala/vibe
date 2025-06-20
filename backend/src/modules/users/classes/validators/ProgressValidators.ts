@@ -363,12 +363,28 @@ export class ResetCourseProgressBody {
   @IsMongoId()
   itemId?: string | null;
 
+  @Expose()
+  @JSONSchema({
+    description: 'field to trigger validation error if moduleId is not provided',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
   @ValidateIf(
     o => o.moduleId === null && (o.sectionId !== null || o.itemId !== null),
     {message: 'moduleId is required if sectionId or itemId is provided'},
   )
   invalidFieldsCheck?: any; // dummy field to trigger validation error
 
+  @Expose()
+  @JSONSchema({
+    description: 'field to trigger validation error if sectionId is not provided',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
   @ValidateIf(o => o.sectionId === null && o.itemId !== null, {
     message: 'sectionId is required if itemId is provided',
   })
@@ -473,3 +489,18 @@ export class ProgressNotFoundErrorResponse {
   @IsNotEmpty()
   message: string;
 }
+
+export const PROGRESS_VALIDATORS = [
+  GetUserProgressParams,
+  StartItemBody,
+  StartItemParams,
+  StartItemResponse,
+  StopItemBody,
+  StopItemParams,
+  UpdateProgressBody,
+  UpdateProgressParams,
+  ResetCourseProgressBody,
+  ResetCourseProgressParams,
+  ProgressDataResponse,
+  ProgressNotFoundErrorResponse
+]

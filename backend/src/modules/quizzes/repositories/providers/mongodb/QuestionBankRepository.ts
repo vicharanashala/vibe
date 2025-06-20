@@ -75,6 +75,7 @@ class QuestionBankRepository {
     if (!result) {
       return null;
     }
+    result._id = result._id.toString(); // Convert ObjectId to string
     return result;
   }
 

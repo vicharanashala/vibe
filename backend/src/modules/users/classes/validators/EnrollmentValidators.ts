@@ -142,15 +142,21 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Enrollment data for the user',
     type: 'object',
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
+  @ValidateNested()
+  @Type(() => EnrollmentDataResponse)
   @IsNotEmpty()
   enrollment: EnrollmentDataResponse;
 
   @JSONSchema({
     description: 'Progress data for the user',
     type: 'object',
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => ProgressDataResponse)
   progress: ProgressDataResponse;
 }
 
@@ -186,15 +192,39 @@ export class EnrolledUserResponseData {
 }
 
 export class EnrollmentResponse {
+  @JSONSchema({
+    description: 'Total number of documents in the response',
+    example: 100,
+    type: 'integer',
+  })
+  @IsNotEmpty()
   @IsInt()
   totalDocuments: number;
 
+  @JSONSchema({
+    description: 'Total number of pages in the response',
+    example: 10,
+    type: 'integer',
+  })
+  @IsNotEmpty()
   @IsInt()
   totalPages: number;
 
+  @JSONSchema({
+    description: 'Current page number in the response',
+    example: 1,
+    type: 'integer',
+  })
+  @IsNotEmpty()
   @IsInt()
   currentPage: number;
 
+  @JSONSchema({
+    description: 'Array of enrollment data for the user',
+    type: 'array',
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
+  })
+  @IsNotEmpty()
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => EnrollmentDataResponse)
@@ -209,3 +239,13 @@ export class EnrollmentNotFoundErrorResponse {
   @IsString()
   message: string;
 }
+
+export const ENROLLMENT_VALIDATORS = [
+  EnrollUserResponseData,
+  EnrolledUserResponseData,
+  EnrollmentBody,
+  EnrollmentParams,
+  EnrollmentDataResponse,
+  EnrollmentResponse,
+  EnrollmentNotFoundErrorResponse
+]
