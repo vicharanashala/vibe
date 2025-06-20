@@ -66,3 +66,4 @@ dist/
 
 
 config.json
+backend/tsconfig.tsbuildinfo
