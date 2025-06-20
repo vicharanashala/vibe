@@ -62,6 +62,7 @@ function FloatingVideo({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isPoppedOut, setIsPoppedOut] = useState(true);
   const [anomaly, setAnomaly] = useState(false);
+  const [anomalyType, setAnomalyType] = useState("");
 
 
   // Original aspect ratio (maintain the initial component ratio)
@@ -181,7 +182,7 @@ function FloatingVideo({
         }
       });
     }
-  }, [anomaly]);
+  }, [anomaly, anomalyType, authStore.user?.userId, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId, reportAnomaly]);
 
   // Function to restart video stream
   const restartVideo = useCallback(async () => {
@@ -276,30 +277,12 @@ function FloatingVideo({
       if (newPenaltyPoints > 0) {
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
-
-        const anomalyType = newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition";
+        setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
         // here to add the hook
-
-        console.log({body: {
-            userId: authStore.user?.userId || "", 
-            courseId: courseStore.currentCourse?.courseId || "", 
-            courseVersionId: courseStore.currentCourse?.versionId || "",
-            moduleId: courseStore.currentCourse?.moduleId || "",
-            sectionId: courseStore.currentCourse?.sectionId || "",
-            itemId: courseStore.currentCourse?.itemId || "",
-            anomalyType: anomalyType
-        }});
-        reportAnomaly({
-          body: {
-            userId: authStore.user?.userId || "", 
-            courseId: courseStore.currentCourse?.courseId || "", 
-            courseVersionId: courseStore.currentCourse?.versionId || "",
-            moduleId: courseStore.currentCourse?.moduleId || "",
-            sectionId: courseStore.currentCourse?.sectionId || "",
-            itemId: courseStore.currentCourse?.itemId || "",
-            anomalyType: anomalyType
-        }})
-        console.log(data, error)
+        setAnomaly(true);
+      }
+      else {
+        setAnomaly(false);
       }
     }, 1000); // Update every second
 
