@@ -502,6 +502,7 @@ class ProgressService extends BaseService {
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
+    return true;
     switch (item.type) {
       case 'VIDEO':
         // return true;
