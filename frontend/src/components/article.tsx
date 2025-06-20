@@ -22,9 +22,9 @@ import { markdown } from '@yoopta/exports';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, ChevronRight } from "lucide-react";
-import { useStartItem, useStopItem } from "@/lib/api/hooks";
-import { useAuthStore } from "@/lib/store/auth-store";
-import { useCourseStore } from "@/lib/store/course-store";
+import { useStartItem, useStopItem } from "@/hooks/hooks";
+import { useAuthStore } from "@/store/auth-store";
+import { useCourseStore } from "@/store/course-store";
 
 
 
