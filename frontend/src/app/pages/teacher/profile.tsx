@@ -1,3 +1,5 @@
+"use client" 
+
 import UserProfile from "@/components/profile";
 
 export default function TeacherProfile() {

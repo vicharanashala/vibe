@@ -37,7 +37,6 @@ import {
   Sector,
   SectorProps
 } from 'recharts';
-import { Link } from "react-router-dom";
 
 // Helper function to get greeting based on time of day
 const getGreeting = () => {
