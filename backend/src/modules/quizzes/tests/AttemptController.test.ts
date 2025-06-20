@@ -394,7 +394,7 @@ describe('AttemptController', async () => {
           bankId: questionBankId,
           count: 1,
         });
-      expect(updateQuizRes.status).toBe(201);
+      expect(updateQuizRes.status).toBe(200);
 
       // 8. Create attempt
       const attemptRes = await request(app)
@@ -553,11 +553,11 @@ describe('AttemptController', async () => {
       const updateQuizRes = await request(app)
         .post(`/quizzes/quiz/${quizId}/bank`)
         .send({ bankId: mainBankId, count: 4 });
-      expect(updateQuizRes.status).toBe(201);
+      expect(updateQuizRes.status).toBe(200);
       const updateDesQuizRes = await request(app)
         .post(`/quizzes/quiz/${quizId}/bank`)
         .send({ bankId: desBankId, count: 1 });
-      expect(updateDesQuizRes.status).toBe(201);
+      expect(updateDesQuizRes.status).toBe(200);
 
       // 8. Create attempt
       const attemptRes = await request(app)

@@ -530,3 +530,19 @@ export {
   LotOrder,
   QuestionNotFoundErrorResponse,
 };
+
+export const QUESTION_VALIDATORS = [
+  QuestionBody,
+  QuestionId,
+  QuestionResponse,
+  Question,
+  SOLSolution,
+  SMLSolution,
+  OTLSolution,
+  NATSoltion,
+  DESSolution,
+  QuestionParameter,
+  LotItem,
+  LotOrder,
+  QuestionNotFoundErrorResponse,
+]
