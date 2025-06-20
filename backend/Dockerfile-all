@@ -39,7 +39,7 @@ RUN pnpm install
 # ENV MODULE=all
 # ENV SENTRY_PROJECT=vibe-backend
 # ENV SENTRY_ORG=dled
-# ENV PORT=4001
+ENV PORT=4001
 EXPOSE 4001
 
 # Run the compiled JS

@@ -46,7 +46,7 @@ jobs:
       - name: Build all images with Docker Compose
         run: |
           VERSION=v${{ needs.versioning.outputs.new_version }}
-          docker build -f Dockerfile-all -t all --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} .
+          docker build -f Dockerfile-all -t all -p 4001:4001 --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} .
         working-directory: backend
         env:
           DB_URL: ${{ secrets.DB_URL }}
