@@ -11,10 +11,11 @@ import {
   CheckCircle2,
   Circle,
   Plus,
-  X
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth-store";
 // Note: You need to create these UI components or install a package that provides them
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +37,7 @@ import {
   Sector,
   SectorProps
 } from 'recharts';
+import { Link } from "react-router-dom";
 
 // Helper function to get greeting based on time of day
 const getGreeting = () => {
@@ -116,7 +118,7 @@ interface ChartLabelProps {
 }
 
 export default function Page() {
-  const [name] = useState("John Doe");
+  const { user } = useAuthStore();
   const [greeting, setGreeting] = useState(getGreeting());
   const [todos, setTodos] = useState<Task[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
@@ -284,9 +286,10 @@ export default function Page() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex flex-col space-y-6">
+        
         {/* Greeting Section */}
         <section className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">{greeting}, {name}!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{greeting}, {user?.name}!</h1>
           <p className="text-muted-foreground">Here's what's happening with your courses today.</p>
         </section>
 
