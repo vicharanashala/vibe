@@ -275,11 +275,10 @@ function FloatingVideo({
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
+        setAnomaly(true);
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
         setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
-        // here to add the hook
-        setAnomaly(true);
       }
       else {
         setAnomaly(false);
