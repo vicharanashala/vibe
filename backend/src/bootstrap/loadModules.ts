@@ -3,6 +3,7 @@ import path from 'path';
 import {Container, ContainerModule} from 'inversify';
 import {useContainer} from 'routing-controllers';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
+import { appConfig } from '#root/config/app.js';
 
 interface LoadedModuleResult {
   controllers: Function[];
@@ -11,7 +12,10 @@ interface LoadedModuleResult {
 
 export async function loadAppModules(moduleName: string): Promise<LoadedModuleResult> {
   const isAll = moduleName === 'all';
-  const modulesDir = path.resolve('./src/modules');
+  let modulesDir = path.resolve('./src/modules');
+  if (appConfig.isProduction) {
+    modulesDir = path.resolve('./build/modules');
+  }
   const files = await fs.readdir(modulesDir);
 
   let controllers: Function[] = [];
