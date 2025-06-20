@@ -20,7 +20,8 @@
     "#auth/*.js": "./build/modules/auth/*.js",
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
-    "#quizzes/*.js": "./build/modules/quizzes/*.js"
+    "#quizzes/*.js": "./build/modules/quizzes/*.js",
+    "#settings/*.js": "./build/modules/settings/*.js"
   },
   "type": "module",
   "keywords": [],

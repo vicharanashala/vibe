@@ -29,7 +29,6 @@ class CreateCourseVersionParams {
     title: 'Course ID',
     description: 'ID of the course to attach the new version to',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -41,7 +40,6 @@ class ReadCourseVersionParams {
     title: 'Version ID',
     description: 'ID of the course version to retrieve',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -53,7 +51,6 @@ class DeleteCourseVersionParams {
     title: 'Version ID',
     description: 'ID of the course version to delete',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -63,7 +60,6 @@ class DeleteCourseVersionParams {
     title: 'Course ID',
     description: 'ID of the course to which the version belongs',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -75,7 +71,6 @@ class CourseVersionDataResponse {
     description: 'ID of the course version',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   id: string;
@@ -100,7 +95,6 @@ class CourseVersionDataResponse {
     description: 'ID of the course this version belongs to',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   courseId: string;

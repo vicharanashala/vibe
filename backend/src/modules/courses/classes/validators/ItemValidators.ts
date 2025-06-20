@@ -84,7 +84,6 @@ class QuizDetailsPayloadValidator
   implements Omit<IQuizDetails, 'questionBankRefs'>
 {
   @JSONSchema({
-    title: 'Pass Threshold',
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
     type: 'number',
@@ -99,7 +98,7 @@ class QuizDetailsPayloadValidator
   passThreshold: number; // 0-1
 
   @JSONSchema({
-    title: 'Maximum Attempts',
+
     description:
       'Maximum number of attempts allowed for the quiz, -1 for unlimited',
     example: 3,
@@ -112,7 +111,6 @@ class QuizDetailsPayloadValidator
   maxAttempts: number;
 
   @JSONSchema({
-    title: 'Quiz Type',
     description: 'Type of quiz: DEADLINE or NO_DEADLINE',
     example: 'DEADLINE',
     type: 'string',
@@ -123,7 +121,6 @@ class QuizDetailsPayloadValidator
   quizType: 'DEADLINE' | 'NO_DEADLINE';
 
   @JSONSchema({
-    title: 'Approximate Time to Complete',
     description: 'Approximate time to complete the quiz in HH:MM:SS format',
     example: '00:30:00',
     type: 'string',
@@ -135,7 +132,6 @@ class QuizDetailsPayloadValidator
   approximateTimeToComplete: string;
 
   @JSONSchema({
-    title: 'Allow Partial Grading',
     description:
       'Whether to allow partial grading for questions, particularly for MSQ/SML type of questions.',
     example: true,
@@ -146,7 +142,6 @@ class QuizDetailsPayloadValidator
   allowPartialGrading: boolean;
 
   @JSONSchema({
-    title: 'Allow Hint',
     description: 'Whether to allow students to see the hints for questions',
     example: true,
     type: 'boolean',
@@ -156,7 +151,6 @@ class QuizDetailsPayloadValidator
   allowHint: boolean;
 
   @JSONSchema({
-    title: 'Show Correct Answers After Submission',
     description:
       'Whether to return and show correct answers after successful submission of an attempt',
     example: true,
@@ -167,7 +161,6 @@ class QuizDetailsPayloadValidator
   showCorrectAnswersAfterSubmission: boolean;
 
   @JSONSchema({
-    title: 'Show Explanation After Submission',
     description:
       'Whether to return and show explanations for correct answers after successful submission of an attempt',
     example: true,
@@ -178,7 +171,6 @@ class QuizDetailsPayloadValidator
   showExplanationAfterSubmission: boolean;
 
   @JSONSchema({
-    title: 'Show Score After Submission',
     description:
       'Whether to return and show score after successful submission of an attempt',
     example: true,
@@ -189,7 +181,6 @@ class QuizDetailsPayloadValidator
   showScoreAfterSubmission: boolean;
 
   @JSONSchema({
-    title: 'Question Visibility',
     description: 'Number of quiz questions visible to students in an attempt',
     example: 5,
     type: 'integer',
@@ -200,7 +191,6 @@ class QuizDetailsPayloadValidator
   questionVisibility: number;
 
   @JSONSchema({
-    title: 'Quiz Release Time',
     description: 'ISO date string representing quiz release time',
     example: '2023-10-15T14:00:00Z',
     type: 'string',
@@ -211,7 +201,6 @@ class QuizDetailsPayloadValidator
   releaseTime: Date;
 
   @JSONSchema({
-    title: 'Quiz Deadline',
     description: 'ISO date string for quiz deadline',
     example: '2023-10-22T23:59:59Z',
     type: 'string',
@@ -223,47 +212,21 @@ class QuizDetailsPayloadValidator
 }
 
 class BlogDetailsPayloadValidator implements IBlogDetails {
-  @JSONSchema({
-    title: 'Blog Tags',
-    description: 'Tags for categorizing the blog (auto-managed)',
-    example: ['programming', 'algorithms'],
-    type: 'array',
-    items: {
-      type: 'string',
-    },
-    readOnly: true,
-  })
+
   @IsEmpty()
   tags: string[];
 
-  @JSONSchema({
-    title: 'Blog Content',
-    description: 'Full blog content in markdown or plain text',
-    example:
-      '# Introduction\n\nThis is a sample blog post about programming...',
-    type: 'string',
-  })
+
   @IsNotEmpty()
   @IsString()
   content: string;
 
-  @JSONSchema({
-    title: 'Blog Points',
-    description: 'Points assigned to the blog submission',
-    example: 20,
-    type: 'number',
-  })
+
   @IsNotEmpty()
   @IsDecimal()
   points: number;
 
-  @JSONSchema({
-    title: 'Estimated Read Time',
-    description: 'Estimated time to complete reading the blog in minutes',
-    example: 15,
-    type: 'integer',
-    minimum: 1,
-  })
+
   @IsNotEmpty()
   @IsPositive()
   estimatedReadTimeInMinutes: number;
@@ -271,7 +234,6 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
 
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
-    title: 'Item Name',
     description: 'Title of the item',
     example: 'Introduction to Data Structures',
     type: 'string',
@@ -281,7 +243,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   name: string;
 
   @JSONSchema({
-    title: 'Item Description',
     description: 'Description of the item',
     example:
       'Learn about basic data structures like arrays, linked lists, and stacks.',
@@ -292,11 +253,9 @@ class CreateItemBody implements Partial<IBaseItem> {
   description: string;
 
   @JSONSchema({
-    title: 'After Item ID',
     description: 'Place item after this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -304,11 +263,9 @@ class CreateItemBody implements Partial<IBaseItem> {
   afterItemId?: string;
 
   @JSONSchema({
-    title: 'Before Item ID',
     description: 'Place item before this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -316,7 +273,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
-    title: 'Item Type',
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
@@ -327,7 +283,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   type: ItemType;
 
   @JSONSchema({
-    title: 'Video Details',
     description: 'Details specific to video items',
     type: 'object',
   })
@@ -338,7 +293,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   videoDetails?: VideoDetailsPayloadValidator;
 
   @JSONSchema({
-    title: 'Blog Details',
     description: 'Details specific to blog items',
     type: 'object',
   })
@@ -349,7 +303,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   blogDetails?: BlogDetailsPayloadValidator;
 
   @JSONSchema({
-    title: 'Quiz Details',
     description: 'Details specific to quiz items',
     type: 'object',
   })
@@ -362,7 +315,6 @@ class CreateItemBody implements Partial<IBaseItem> {
 
 class UpdateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
-    title: 'Item Name',
     description: 'Title of the item',
     example: 'Introduction to Data Structures',
     type: 'string',
@@ -372,7 +324,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   name: string;
 
   @JSONSchema({
-    title: 'Item Description',
     description: 'Description of the item',
     example:
       'Learn about basic data structures like arrays, linked lists, and stacks.',
@@ -383,11 +334,9 @@ class UpdateItemBody implements Partial<IBaseItem> {
   description: string;
 
   @JSONSchema({
-    title: 'After Item ID',
     description: 'Place item after this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -395,11 +344,9 @@ class UpdateItemBody implements Partial<IBaseItem> {
   afterItemId?: string;
 
   @JSONSchema({
-    title: 'Before Item ID',
     description: 'Place item before this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -407,7 +354,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
-    title: 'Item Type',
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
@@ -418,7 +364,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   type: ItemType;
 
   @JSONSchema({
-    title: 'Video Details',
     description: 'Details specific to video items',
     type: 'object',
   })
@@ -429,7 +374,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   videoDetails?: VideoDetailsPayloadValidator;
 
   @JSONSchema({
-    title: 'Blog Details',
     description: 'Details specific to blog items',
     type: 'object',
   })
@@ -440,7 +384,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   blogDetails?: BlogDetailsPayloadValidator;
 
   @JSONSchema({
-    title: 'Quiz Details',
     description: 'Details specific to quiz items',
     type: 'object',
   })
@@ -457,7 +400,6 @@ class MoveItemBody {
     description: 'Move the item after this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -473,7 +415,6 @@ class MoveItemBody {
     description: 'Move the item before this item ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -486,7 +427,6 @@ class VersionModuleSectionItemParams {
     title: 'Version ID',
     description: 'ID of the course version',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -496,7 +436,6 @@ class VersionModuleSectionItemParams {
     title: 'Module ID',
     description: 'ID of the module',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -506,7 +445,6 @@ class VersionModuleSectionItemParams {
     title: 'Section ID',
     description: 'ID of the section',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -516,7 +454,6 @@ class VersionModuleSectionItemParams {
     title: 'Item ID',
     description: 'ID of the item',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -529,7 +466,6 @@ class DeleteItemParams {
     description: 'ID of the items group containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8g9',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -540,7 +476,6 @@ class DeleteItemParams {
     description: 'ID of the item to delete',
     example: '60d5ec49b3f1c8e4a8f8b8f8',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -553,7 +488,6 @@ class GetItemParams {
     description: 'ID of the course in which user is enrolled',
     example: '60d5ec49b3f1c8e4a8f8b8g9',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -564,7 +498,6 @@ class GetItemParams {
     description: 'ID of the course version containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8f8',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -575,7 +508,6 @@ class GetItemParams {
     description: 'ID of the item',
     example: '60d5ec49b3f1c8e4a8f8b8f8',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -598,7 +530,6 @@ class ItemRefResponse implements ItemRef {
   @JSONSchema({
     description: 'The unique identifier of the item',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsMongoId()
@@ -628,7 +559,6 @@ class ItemsGroupResponse implements ItemsGroup {
   @JSONSchema({
     description: 'The unique identifier of the items group',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsMongoId()
@@ -652,7 +582,6 @@ class ItemsGroupResponse implements ItemsGroup {
   @JSONSchema({
     description: 'The ID of the section to which this items group belongs',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsMongoId()
