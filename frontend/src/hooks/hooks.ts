@@ -147,6 +147,36 @@ export function useUpdateCourse(): {
   };
 }
 
+// DELETE /courses/{id}
+export function useDeleteCourse(): {
+  mutate: (variables: { params: { path: { id: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { id: string } } }) => Promise<void>,
+  data: void | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("delete", "/courses/{id}");
+
+  return {
+    mutate:      result.mutate,
+    mutateAsync: result.mutateAsync,
+    data:        result.data as void,
+    isPending:   result.isPending,
+    isSuccess:   result.isSuccess,
+    isError:     result.isError,
+    isIdle:      result.isIdle,
+    reset:       result.reset,
+    status:      result.status,
+    error:       result.error ? (result.error || 'Failed to delete course') : null
+  };
+}
+
+
 // Course Version hooks
 
 // POST /courses/{id}/versions
