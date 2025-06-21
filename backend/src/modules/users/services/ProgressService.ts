@@ -784,6 +784,24 @@ class ProgressService extends BaseService {
     });
   }
 
+  async getCompletedItems(userId: string, courseId: string, courseVersionId: string): Promise<Set<string>> {
+      // Verify if the user, course, and course version exist
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const progress = await this.progressRepository.getCompletedItems(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      if (!progress) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      // Return the completed items
+      return progress;
+  }
+
   async resetCourseProgressToModule(
     userId: string,
     courseId: string,

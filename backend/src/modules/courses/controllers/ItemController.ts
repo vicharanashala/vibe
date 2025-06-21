@@ -221,14 +221,15 @@ Access control logic:
   async getItem(@Params() params: GetItemParams, @Req() req: any) {
     const {courseId, courseVersionId, itemId} = params;
     const userId = await this.authService.getUserIdFromReq(req);
-    const progress = await this.progressService.getUserProgress(
+    const progress = await this.progressService.getCompletedItems(
       userId,
       courseId,
       courseVersionId,
     );
-    console.log(progress.currentItem);
-    if (progress.currentItem.toString() !== itemId) {
-      throw new ForbiddenError('Item does not match current progress');
+    if (!progress.has(itemId)) {
+      throw new ForbiddenError(
+        'You do not have access to this item.',
+      );
     }
     return {
       item: await this.itemService.readItem(courseVersionId, itemId),
