@@ -489,3 +489,18 @@ export class ProgressNotFoundErrorResponse {
   @IsNotEmpty()
   message: string;
 }
+
+export const PROGRESS_VALIDATORS = [
+  GetUserProgressParams,
+  StartItemBody,
+  StartItemParams,
+  StartItemResponse,
+  StopItemBody,
+  StopItemParams,
+  UpdateProgressBody,
+  UpdateProgressParams,
+  ResetCourseProgressBody,
+  ResetCourseProgressParams,
+  ProgressDataResponse,
+  ProgressNotFoundErrorResponse
+]

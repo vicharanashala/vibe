@@ -239,3 +239,13 @@ export class EnrollmentNotFoundErrorResponse {
   @IsString()
   message: string;
 }
+
+export const ENROLLMENT_VALIDATORS = [
+  EnrollUserResponseData,
+  EnrolledUserResponseData,
+  EnrollmentBody,
+  EnrollmentParams,
+  EnrollmentDataResponse,
+  EnrollmentResponse,
+  EnrollmentNotFoundErrorResponse
+]

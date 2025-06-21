@@ -1234,18 +1234,6 @@ class FlaggedQuestionResponse {
   // Not yet implemented
 }
 
-class AttemptNotFoundErrorResponse {
-  @JSONSchema({
-    description: 'The error message.',
-    example: 'No attempt found.',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsNotEmpty()
-  message: string;
-}
-
 class SubmissionResponse implements ISubmission {
   @IsMongoId()
   @IsNotEmpty()
@@ -1314,30 +1302,6 @@ class GetAllSubmissionsResponse {
   submissions: SubmissionResponse[];
 }
 
-class QuizNotFoundErrorResponse {
-  @JSONSchema({
-    description: 'The error message.',
-    example: 'Quiz not found.',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsNotEmpty()
-  message: string;
-}
-
-class GetAllQuestionBanksResponse {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuestionBankRefResponse)
-  @JSONSchema({
-    description: 'List of all question banks',
-    type: 'array',
-    items: { $ref: '#/components/schemas/QuestionBankRef' },
-  })
-  questionBanks: IQuestionBankRef[];
-}
-
 class QuestionBankRefResponse implements IQuestionBankRef {
   @IsMongoId()
   @IsNotEmpty()
@@ -1389,6 +1353,43 @@ class QuestionBankRefResponse implements IQuestionBankRef {
   type?: string;
 }
 
+class AttemptNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example:
+      'No attempt found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class QuizNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example: 'Quiz not found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class GetAllQuestionBanksResponse {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionBankRefResponse)
+  @JSONSchema({
+    description: 'List of all question banks',
+    type: 'array',
+    items: { $ref: '#/components/schemas/QuestionBankRef' },
+  })
+  questionBanks: IQuestionBankRef[];
+}
+
 export {
   CreateAttemptParams,
   SaveAttemptParams,
@@ -1421,3 +1422,36 @@ export {
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse
 };
+
+export const QUIZ_VALIDATORS = [
+  CreateAttemptParams,
+  SaveAttemptParams,
+  SubmitAttemptParams,
+  CreateAttemptResponse,
+  SubmitAttemptResponse,
+  GetAttemptResponse,
+  QuestionAnswersBody,
+  AddQuestionBankBody,
+  EditQuestionBankBody,
+  RegradeSubmissionBody,
+  AddFeedbackBody,
+  QuizIdParam,
+  QuizAttemptParam,
+  QuizSubmissionParam,
+  UpdateQuizSubmissionParam,
+  RemoveQuestionBankParams,
+  GetUserMatricesParams,
+  AddFeedbackParams,
+  UserQuizMetricsResponse,
+  QuizAttemptResponse,
+  QuizSubmissionResponse,
+  QuizDetailsResponse,
+  QuizAnalyticsResponse,
+  QuizPerformanceResponse,
+  QuizResultsResponse,
+  FlaggedQuestionResponse,
+  AttemptNotFoundErrorResponse,
+  GetAllSubmissionsResponse,
+  QuizNotFoundErrorResponse,
+  GetAllQuestionBanksResponse
+]

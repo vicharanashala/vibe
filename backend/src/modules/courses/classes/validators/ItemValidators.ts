@@ -17,16 +17,18 @@ import {
   ValidateIf,
   ValidateNested,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {CourseVersion} from '../transformers/CourseVersion.js';
-import {ItemsGroup} from '../transformers/Item.js';
+import {ItemRef, ItemsGroup} from '../transformers/Item.js';
 import {
   IVideoDetails,
   IQuizDetails,
   IBlogDetails,
   IBaseItem,
   ItemType,
+  ID,
 } from '#root/shared/interfaces/models.js';
 import {OnlyOneId} from './customValidators.js';
 
@@ -361,57 +363,25 @@ class CreateItemBody implements Partial<IBaseItem> {
 class UpdateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     title: 'Item Name',
-    description: 'Updated title of the item',
-    example: 'Advanced Data Structures',
+    description: 'Title of the item',
+    example: 'Introduction to Data Structures',
     type: 'string',
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   name: string;
 
   @JSONSchema({
     title: 'Item Description',
-    description: 'Updated description of the item',
+    description: 'Description of the item',
     example:
-      'Learn about advanced data structures like trees, graphs, and hash tables.',
+      'Learn about basic data structures like arrays, linked lists, and stacks.',
     type: 'string',
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   description: string;
 
-  @JSONSchema({
-    title: 'Item Order',
-    description: 'Order key for item placement (auto-managed)',
-    example: 'a1b2c3',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsEmpty()
-  order: string;
-
-  @JSONSchema({
-    title: 'Item Details',
-    description: 'Item details (depends on type) – video, blog, or quiz',
-    type: 'object',
-    readOnly: true,
-  })
-  @JSONSchema({
-    title: 'Created At',
-    description: 'Item creation timestamp (auto-managed)',
-    example: '2023-10-01T12:00:00Z',
-    type: 'string',
-    format: 'date-time',
-    readOnly: true,
-  })
-  @JSONSchema({
-    title: 'Updated At',
-    description: 'Item update timestamp (auto-managed)',
-    example: '2023-10-05T15:30:00Z',
-    type: 'string',
-    format: 'date-time',
-    readOnly: true,
-  })
   @JSONSchema({
     title: 'After Item ID',
     description: 'Place item after this item ID',
@@ -422,10 +392,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  @OnlyOneId({
-    afterIdPropertyName: 'afterItemId',
-    beforeIdPropertyName: 'beforeItemId',
-  })
   afterItemId?: string;
 
   @JSONSchema({
@@ -441,8 +407,19 @@ class UpdateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
+    title: 'Item Type',
+    description: 'Type of the item: VIDEO, BLOG, or QUIZ',
+    example: 'VIDEO',
+    type: 'string',
+    enum: ['VIDEO', 'BLOG', 'QUIZ'],
+  })
+  @IsEnum(ItemType)
+  @IsNotEmpty()
+  type: ItemType;
+
+  @JSONSchema({
     title: 'Video Details',
-    description: 'Updated details specific to video items',
+    description: 'Details specific to video items',
     type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.VIDEO)
@@ -453,7 +430,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
 
   @JSONSchema({
     title: 'Blog Details',
-    description: 'Updated details specific to blog items',
+    description: 'Details specific to blog items',
     type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.BLOG)
@@ -464,7 +441,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
 
   @JSONSchema({
     title: 'Quiz Details',
-    description: 'Updated details specific to quiz items',
+    description: 'Details specific to quiz items',
     type: 'object',
   })
   @ValidateIf(o => o.type === ItemType.QUIZ)
@@ -569,6 +546,7 @@ class DeleteItemParams {
   @IsString()
   itemId: string;
 }
+
 class GetItemParams {
   @JSONSchema({
     title: 'Course ID',
@@ -616,14 +594,83 @@ class ItemNotFoundErrorResponse {
   message: string;
 }
 
+class ItemRefResponse implements ItemRef {
+  @JSONSchema({
+    description: 'The unique identifier of the item',
+    type: 'string',
+    format: 'Mongo Object ID',
+    readOnly: true,
+  })
+  @IsMongoId()
+  @IsOptional()
+  _id?: ID;
+
+  @JSONSchema({
+    description: 'The name of the item',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsEnum(ItemType)
+  type: ItemType;
+
+  @JSONSchema({
+    description: 'The order of the item',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsString()
+  order: string;
+}
+
+class ItemsGroupResponse implements ItemsGroup {
+  @JSONSchema({
+    description: 'The unique identifier of the items group',
+    type: 'string',
+    format: 'Mongo Object ID',
+    readOnly: true,
+  })
+  @IsMongoId()
+  @IsOptional()
+  _id?: ID;
+
+  @JSONSchema({
+    description: 'The list of items in the group',
+    type: 'array',
+    items: {
+      $ref: '#/components/schemas/ItemRefResponse',
+    },
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @Type(() => ItemRefResponse)
+  @ValidateNested({each: true})
+  @IsArray()
+  items: ItemRef[];
+
+  @JSONSchema({
+    description: 'The ID of the section to which this items group belongs',
+    type: 'string',
+    format: 'Mongo Object ID',
+    readOnly: true,
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  sectionId: ID;
+}
+
 class ItemDataResponse {
   @JSONSchema({
     description: 'The item data',
     type: 'object',
     readOnly: true,
+    items: { $ref: '#/components/schemas/ItemGroupResponse' }
   })
   @IsNotEmpty()
-  itemsGroup: ItemsGroup;
+  @ValidateNested()
+  @Type(() => ItemsGroupResponse)
+  itemsGroup: ItemsGroupResponse;
 
   @JSONSchema({
     description: 'The updated version data (when applicable)',
@@ -666,3 +713,18 @@ export {
   DeletedItemResponse,
   GetItemParams,
 };
+
+export const ITEM_VALIDATORS = [
+  CreateItemBody,
+  UpdateItemBody,
+  MoveItemBody,
+  VideoDetailsPayloadValidator,
+  QuizDetailsPayloadValidator,
+  BlogDetailsPayloadValidator,
+  VersionModuleSectionItemParams,
+  DeleteItemParams,
+  ItemNotFoundErrorResponse,
+  ItemDataResponse,
+  DeletedItemResponse,
+  GetItemParams,
+]

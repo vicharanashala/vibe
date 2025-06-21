@@ -262,3 +262,14 @@ export {
   QuestionBankNotFoundErrorResponse,
   QuestionBankRef,
 };
+
+export const QUESTIONBANK_VALIDATORS = [
+  CreateQuestionBankBody,
+  GetQuestionBankByIdParams,
+  CreateQuestionBankResponse,
+  QuestionBankAndQuestionParams,
+  QuestionBankResponse,
+  ReplaceQuestionResponse,
+  QuestionBankNotFoundErrorResponse,
+  QuestionBankRef,
+]

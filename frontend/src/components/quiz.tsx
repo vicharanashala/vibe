@@ -13,13 +13,7 @@ import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuiz
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
-
-// Utility function to convert buffer to hex string
-const bufferToHex = (buffer: number[]) => {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-};
+import { bufferToHex } from '@/utils/helpers';
 
 // Utility function to preprocess content for math rendering
 const preprocessMathContent = (content: string): string => {
@@ -128,7 +122,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [, setCurrentConnecting] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [showHint, setShowHint] = useState(false);
-  const processedQuizId = bufferToHex(quizId.buffer.data);
+  const processedQuizId = bufferToHex(quizId);
   console.log('Quiz ID:', quizId);
   // Use the quiz attempt hook
   const { mutateAsync: attemptQuiz, isPending, error } = useAttemptQuiz();
@@ -149,7 +143,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       let questionId: string;
       if (question._id && typeof question._id === 'object' && 'buffer' in question._id) {
         // Handle BufferId type - convert buffer data to hex string
-        questionId = bufferToHex((question._id.buffer.data));
+        questionId = bufferToHex((question._id));
       } else {
         // Handle direct string/ObjectId
         questionId = String(question._id);
@@ -263,9 +257,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               if (selectedLotItem && selectedLotItem._id) {
                 if (typeof selectedLotItem._id === 'string') {
                   saveAnswer.lotItemId = selectedLotItem._id;
-                } else if (selectedLotItem._id.buffer && selectedLotItem._id.buffer.data) {
+                } else if (selectedLotItem._id.buffer && selectedLotItem._id) {
                   // Convert buffer data to hex string
-                  const buffer = selectedLotItem._id.buffer.data;
+                  const buffer = selectedLotItem._id;
                   saveAnswer.lotItemId = bufferToHex(buffer);
                 }
               }
@@ -279,9 +273,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 if (lotItem && lotItem._id) {
                   if (typeof lotItem._id === 'string') {
                     return lotItem._id;
-                  } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                  } else if (lotItem._id.buffer && lotItem._id) {
                     // Convert buffer data to hex string
-                    const buffer = lotItem._id.buffer.data;
+                    const buffer = lotItem._id;
                     return bufferToHex(buffer);
                   }
                 }
@@ -310,9 +304,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 if (lotItem && lotItem._id) {
                   if (typeof lotItem._id === 'string') {
                     lotItemId = lotItem._id;
-                  } else if (lotItem._id.buffer && lotItem._id.buffer.data) {
+                  } else if (lotItem._id.buffer && lotItem._id) {
                     // Convert buffer data to hex string
-                    const buffer = lotItem._id.buffer.data;
+                    const buffer = lotItem._id;
                     lotItemId = bufferToHex(buffer);
                   }
                 }
