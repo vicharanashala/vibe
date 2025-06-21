@@ -356,6 +356,28 @@ export interface IWatchTime {
   endTime?: Date;
 }
 
+export enum actionType {
+  SIGNUP = 'SIGNUP',
+  ENROLL = 'ENROLL',
+  NOTIFY = 'NOTIFY',
+}
+export enum statusType {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  EXPIRED = 'EXPIRED',
+}
+// Interface for Invite
+export interface IInvite {
+  _id?: string | ObjectId | null;
+  email: String;
+  courseId: String | ObjectId;
+  courseVersionId: string | ObjectId;
+  token: String;
+  action: actionType;
+  status: statusType;
+  createdAt: Date;
+  expiresAt: Date;
+}
 // Interface for proctoring settings.
 /*export interface IProctoringSettings {
   components: ProctoringComponent[];

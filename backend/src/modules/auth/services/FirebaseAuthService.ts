@@ -4,10 +4,16 @@ import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
-import {IUser} from '#root/shared/interfaces/models.js';
+import {IEnrollment, IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {IInviteRepository} from '#root/shared/database/interfaces/IInviteRepository.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
+import { InviteRepository } from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { statusType, actionType } from '#root/shared/interfaces/models.js';
+import { MailService } from '#root/modules/notifications/index.js';
+
 import { appConfig } from '#root/config/app.js';
 
 /**
@@ -33,7 +39,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   constructor(
     @inject(GLOBAL_TYPES.UserRepo)
     private userRepository: IUserRepository,
-
+    @inject(GLOBAL_TYPES.InviteRepo)
+    private inviteRepository: InviteRepository,
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private enrollmentRepository: EnrollmentRepository,
+    @inject(GLOBAL_TYPES.MailService)
+    private mailService: MailService,
     @inject(GLOBAL_TYPES.Database)
     private database: MongoDatabase,
   ) {
@@ -134,6 +145,42 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError('Failed to create the user');
       }
     });
+    const invites = await this.inviteRepository.findInviteByEmail(body.email);
+    for (const invite of invites) {
+     
+      if (invite.status == statusType.PENDING) {
+        const isAlreadyEnrolled =
+          await this.enrollmentRepository.findEnrollment(
+            createdUserId,
+            invite.courseId,
+            invite.courseVersionId,
+          );
+   
+
+        if (!isAlreadyEnrolled) {
+          // Enroll the user
+          await this.enrollmentRepository.createEnrollment({
+            userId: createdUserId,
+            courseId: invite.courseId,
+            courseVersionId: invite.courseVersionId,
+            status: 'active',
+            enrollmentDate: new Date(),
+            role: 'student'
+          });
+
+          // Update invite object
+          invite.action = actionType.NOTIFY;
+          invite.status = statusType.ACCEPTED;
+          invite.updatedAt = new Date(); // optional
+
+          // Save the modified invite back to DB
+          await this.inviteRepository.updateInvite(invite);
+          await this.mailService.sendMail(invite);
+          
+        }
+      }
+    }
+  
     return createdUserId;
   }
 
