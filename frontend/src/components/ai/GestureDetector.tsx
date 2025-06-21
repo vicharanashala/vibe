@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { GestureRecognizer, FilesetResolver } from "@mediapipe/tasks-vision";
 
 interface GestureDetectorProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -7,43 +6,86 @@ interface GestureDetectorProps {
   setGesture: (gesture: string) => void;
 }
 
+interface GestureWorkerResponse {
+  type: 'INIT_SUCCESS' | 'INIT_ERROR' | 'GESTURE_RESULT' | 'ERROR';
+  gesture?: string;
+  confidence?: number;
+  timestamp?: number;
+  error?: string;
+}
+
 const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, setGesture }) => {
-  const [gestureRecognizer, setGestureRecognizer] = useState<GestureRecognizer | null>(null);
+  const [isWorkerReady, setIsWorkerReady] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
   const recognitionLoopRef = useRef<NodeJS.Timeout | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    const loadModel = async () => {
+    const initializeWorker = () => {
       try {
-        // console.log("[GestureDetector] 🔄 Loading MediaPipe GestureRecognizer...");
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-        );
+        // console.log("[GestureDetector] 🔄 Initializing Gesture Worker...");
+        const worker = new Worker('/workers/gestureWorker.js');
 
-        const recognizer = await GestureRecognizer.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
-            delegate: "CPU",
-          },
-          runningMode: "IMAGE",
-          numHands: 2, // Detect up to 2 hands
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
+        worker.onmessage = (event: MessageEvent) => {
+          const { type, gesture, confidence, error } = event.data as GestureWorkerResponse;
 
-        setGestureRecognizer(recognizer);
-        // console.log("[GestureDetector] ✅ GestureRecognizer Model Loaded!");
+          switch (type) {
+            case 'INIT_SUCCESS':
+              // console.log("[GestureDetector] ✅ Gesture Worker Initialized!");
+              setIsWorkerReady(true);
+              break;
+            
+            case 'INIT_ERROR':
+              console.error("[GestureDetector] ❌ Worker initialization failed:", error);
+              setIsWorkerReady(false);
+              break;
+            
+            case 'GESTURE_RESULT':
+              if (gesture) {
+                if (confidence && confidence > 0.6) {
+                  setGesture(gesture);
+                } else {
+                  setGesture("No Gesture Detected ❌");
+                }
+              }
+              break;
+            
+            case 'ERROR':
+              console.error("[GestureDetector] ❌ Worker error:", error);
+              setGesture("Detection Error");
+              break;
+          }
+        };
+
+        worker.onerror = (error) => {
+          console.error("[GestureDetector] ❌ Worker error:", error);
+          setIsWorkerReady(false);
+        };
+
+        workerRef.current = worker;
+        
+        // Initialize the worker
+        worker.postMessage({ type: 'INIT' });
+
       } catch (error) {
-        // console.error("[GestureDetector] ❌ Failed to load Gesture Recognizer:", error);
+        console.error("[GestureDetector] ❌ Failed to create worker:", error);
       }
     };
 
-    loadModel();
-  }, []);
+    initializeWorker();
+
+    // Cleanup worker on unmount
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.postMessage({ type: 'STOP' });
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
+  }, [setGesture]);
 
   useEffect(() => {
-    if (!gestureRecognizer || !videoRef.current || !trigger) {
+    if (!isWorkerReady || !videoRef.current || !trigger || !workerRef.current) {
       if (recognitionLoopRef.current) {
         clearInterval(recognitionLoopRef.current);
         recognitionLoopRef.current = null;
@@ -54,39 +96,48 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
       return;
     }
 
-    // console.log("[GestureDetector] 🎥 Starting gesture recognition...");
+    // console.log("[GestureDetector] 🎥 Starting gesture recognition with worker...");
     
+    // Create a canvas for capturing video frames
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
+
     // Wait for video to be properly ready before starting recognition
     const startRecognition = () => {
-      recognitionLoopRef.current = setInterval(async () => {
+      recognitionLoopRef.current = setInterval(() => {
         try {
           const video = videoRef.current;
-          if (!video || video.readyState !== 4) return;
+          const canvas = canvasRef.current;
+          const worker = workerRef.current;
+          
+          if (!video || !canvas || !worker || video.readyState !== 4) return;
 
           // Ensure video has valid dimensions and is playing
           if (video.videoWidth === 0 || video.videoHeight === 0 || video.paused) return;
 
-          const results = await gestureRecognizer.recognize(video);
+          // Set canvas dimensions to match video
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
 
-          if (results.gestures && results.gestures.length > 0 && results.gestures[0].length > 0) {
-            const detectedGesture = results.gestures[0][0];
-            const gestureName = detectedGesture.categoryName;
-            const confidence = detectedGesture.score;
-            
-            // console.log(`[GestureDetector] ✋ Gesture: ${gestureName} (confidence: ${confidence.toFixed(2)})`);
-            
-            // Only report gestures with reasonable confidence
-            if (confidence > 0.6) {
-              setGesture(gestureName);
-            } else {
-              setGesture("No Gesture Detected ❌");
-            }
-          } else {
-            setGesture("No Gesture Detected ❌");
-          }
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Get image data from canvas
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Send frame to worker for processing
+          worker.postMessage({
+            type: 'PROCESS_FRAME',
+            imageData,
+            timestamp: Date.now()
+          });
+
         } catch (error) {
-          console.error("[GestureDetector] ❌ Error during inference:", error);
-          setGesture("Detection Error");
+          console.error("[GestureDetector] ❌ Error capturing frame:", error);
         }
       }, 300); // Faster detection rate
     };
@@ -100,7 +151,7 @@ const GestureDetector: React.FC<GestureDetectorProps> = ({ videoRef, trigger, se
         recognitionLoopRef.current = null;
       }
     };
-  }, [trigger, videoRef, gestureRecognizer, setGesture]);
+  }, [trigger, videoRef, isWorkerReady, setGesture]);
 
   return null; // No JSX, only updates parent state
 };
