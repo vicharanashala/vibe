@@ -19,7 +19,7 @@ import {
   IsEmail,
   IsNumber,
 } from 'class-validator';
-import {IInvite, actionType, statusType} from '#shared/interfaces/models.js'; // Your IInvite interface and actionType
+import {IInvite, InviteActionType, InviteStatusType} from '#shared/interfaces/models.js'; // Your IInvite interface and actionType
 /**
  * Course data transformation.
  *
@@ -39,7 +39,7 @@ class Invite implements IInvite {
   _id?: ID;
 
   @Expose()
-  status: statusType;
+  status: InviteStatusType;
   @Expose()
   @Type(() => Date)
   expiresAt: Date;
@@ -95,7 +95,7 @@ class Invite implements IInvite {
   @Expose()
   token: string;
   @Expose()
-  action: actionType;
+  action: InviteActionType;
 
   @Expose()
   @Type(() => Date)

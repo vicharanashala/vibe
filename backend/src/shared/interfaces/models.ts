@@ -356,12 +356,12 @@ export interface IWatchTime {
   endTime?: Date;
 }
 
-export enum actionType {
+export enum InviteActionType {
   SIGNUP = 'SIGNUP',
   ENROLL = 'ENROLL',
   NOTIFY = 'NOTIFY',
 }
-export enum statusType {
+export enum InviteStatusType {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
   EXPIRED = 'EXPIRED',
@@ -373,8 +373,8 @@ export interface IInvite {
   courseId: String | ObjectId;
   courseVersionId: string | ObjectId;
   token: String;
-  action: actionType;
-  status: statusType;
+  action: InviteActionType;
+  status: InviteStatusType;
   createdAt: Date;
   expiresAt: Date;
 }

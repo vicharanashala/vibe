@@ -11,7 +11,7 @@ import {IInviteRepository} from '#root/shared/database/interfaces/IInviteReposit
 import { EnrollmentRepository } from '#root/shared/index.js';
 import { InviteRepository } from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { statusType, actionType } from '#root/shared/interfaces/models.js';
+import { InviteStatusType, InviteActionType } from '#root/shared/interfaces/models.js';
 import { MailService } from '#root/modules/notifications/index.js';
 
 import { appConfig } from '#root/config/app.js';
@@ -148,7 +148,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     const invites = await this.inviteRepository.findInviteByEmail(body.email);
     for (const invite of invites) {
      
-      if (invite.status == statusType.PENDING) {
+      if (invite.status == InviteStatusType.PENDING) {
         const isAlreadyEnrolled =
           await this.enrollmentRepository.findEnrollment(
             createdUserId,
@@ -169,8 +169,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           });
 
           // Update invite object
-          invite.action = actionType.NOTIFY;
-          invite.status = statusType.ACCEPTED;
+          invite.action = InviteActionType.NOTIFY;
+          invite.status = InviteStatusType.ACCEPTED;
           invite.updatedAt = new Date(); // optional
 
           // Save the modified invite back to DB

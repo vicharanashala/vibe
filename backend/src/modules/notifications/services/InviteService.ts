@@ -8,7 +8,7 @@ import {InviteRepository} from '#shared/database/providers/mongo/repositories/In
 import { MailService } from './MailService.js';
 import {Invite} from '../classes/transformers/Invite.js';
 import crypto from 'crypto';
-import {actionType, statusType, IEnrollment} from '#shared/interfaces/models.js';
+import {InviteActionType, InviteStatusType, IEnrollment} from '#shared/interfaces/models.js';
 import {plainToClass, instanceToPlain} from 'class-transformer';
 import { NOTIFICATIONS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -57,8 +57,8 @@ export class InviteService {
         courseId: courseId, // Must be a valid MongoDB ObjectId string
         courseVersionId: courseVersionId,
         token: 'secure-random-token-abc123',
-        action: actionType.SIGNUP, // enum usage
-        status: statusType.PENDING, // enum usage
+        action: InviteActionType.SIGNUP, // enum usage
+        status: InviteStatusType.PENDING, // enum usage
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       });
@@ -73,23 +73,23 @@ export class InviteService {
           inviteObject.courseVersionId,
         );
         if (enrollment) {
-          inviteObject.action = actionType.NOTIFY;
-          inviteObject.status = statusType.ACCEPTED;
+          inviteObject.action = InviteActionType.NOTIFY;
+          inviteObject.status = InviteStatusType.ACCEPTED;
           result.status = 'already_enrolled';
           result.action = "notify";
           result.message = "User already enrolled in this course";
           
         } else {
-          inviteObject.action = actionType.ENROLL;
-          inviteObject.status = statusType.PENDING;
+          inviteObject.action = InviteActionType.ENROLL;
+          inviteObject.status = InviteStatusType.PENDING;
           result.status = 'pending';
           result.action = "enroll";
           result.message = "User not enrolled in course"
         }
       } catch (error) {
         console.error('Error fetching user:', error);
-        inviteObject.action = actionType.SIGNUP;
-        inviteObject.status = statusType.PENDING;
+        inviteObject.action = InviteActionType.SIGNUP;
+        inviteObject.status = InviteStatusType.PENDING;
         result.status = 'pending';
         result.message = "User not found, signup required";
         result.action = "signup";
@@ -124,7 +124,7 @@ export class InviteService {
    
 
     // Step 1: Validate invite
-    if (!invite || invite.status !== statusType.PENDING) {
+    if (!invite || invite.status !== InviteStatusType.PENDING) {
         return {
         statusCode: 400,
         error: 'invalid token',
@@ -134,11 +134,11 @@ export class InviteService {
     }
 
     // Step 2: If SIGNUP → tell user to sign up first
-    if (invite.action === actionType.SIGNUP) {
+    if (invite.action === InviteActionType.SIGNUP) {
       return {
         statusCode: 400,
         error: 'signup_required',
-        message: 'Please sign up at POST auth/signup to claim your invite',
+        message: 'Your acceptance of invite is successful. Please sign up to access the course.',
         email: invite.email,
       };
     }
@@ -161,7 +161,7 @@ export class InviteService {
     );
 
     // Step 5: Enroll if ENROLL action and not already enrolled
-    if (invite.action === actionType.ENROLL && !alreadyEnrolled) {
+    if (invite.action === InviteActionType.ENROLL && !alreadyEnrolled) {
       const enrollment: IEnrollment = {
         userId: user._id.toString(),
         courseId: invite.courseId,
@@ -172,15 +172,15 @@ export class InviteService {
       };
       await this.enrollmentRepo.createEnrollment(enrollment);
       // Step 6: Mark invite as accepted
-      invite.status = statusType.ACCEPTED;
-      invite.action = actionType.NOTIFY; // Change action to NOTIFY after enrollment
+      invite.status = InviteStatusType.ACCEPTED;
+      invite.action = InviteActionType.NOTIFY; // Change action to NOTIFY after enrollment
       await this.inviteRepo.updateInvite(invite);
       // Send notification email
       await this.mailService.sendMail(invite);
     }
 
     // Step 7: Return appropriate response
-    if (invite.action === actionType.NOTIFY && alreadyEnrolled) {
+    if (invite.action === InviteActionType.NOTIFY && alreadyEnrolled) {
       return {
         statusCode: 200,
         status: 'already_enrolled',

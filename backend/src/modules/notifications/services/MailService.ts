@@ -2,7 +2,9 @@ import 'reflect-metadata';
 import {inject, injectable} from 'inversify';
 import nodemailer from 'nodemailer';
 import {Invite} from '../classes/transformers/Invite.js';
-import {actionType, statusType} from '#shared/interfaces/models.js';
+import {InviteActionType, InviteStatusType} from '#shared/interfaces/models.js';
+import { smtpConfig } from '#root/config/smtp.js';
+import { appConfig } from '#root/config/app.js';
 
 /**
  * Service for sending emails related to course invitations and notifications.
@@ -17,8 +19,8 @@ export class MailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // use app password
+        user: smtpConfig.auth.user,
+        pass: smtpConfig.auth.pass,
       },
     });
   }
@@ -31,12 +33,12 @@ export class MailService {
     };
     
 
-    const BASE_URL = process.env.CLIENT_BASE_URL || 'https://yourdomain.com';
+    const BASE_URL = appConfig.url || 'https://vibe.vicharanashala.ai';
 
     let mailContent: MailContent;
 
     switch (invite.action) {
-      case actionType.SIGNUP:
+      case InviteActionType.SIGNUP:
         mailContent = {
           subject: "You're Invited to Join a Course / SIGN UP",
           text: `You've been invited to join a course. Click: ${BASE_URL}/invites/accept?token=${invite.token}&courseId=${invite.courseId}&version=${invite.courseVersionId}`,
@@ -45,7 +47,7 @@ export class MailService {
         };
         break;
 
-      case actionType.NOTIFY:
+      case InviteActionType.NOTIFY:
         mailContent = {
           subject: 'Successfully Enrolled in the Course',
           text: `Your course has updates: ${BASE_URL}/courses/${invite.courseId}/notifications`,
@@ -54,7 +56,7 @@ export class MailService {
         };
         break;
 
-      case actionType.ENROLL:
+      case InviteActionType.ENROLL:
         mailContent = {
           subject: "You're Invited to Join a Course" ,
           text: `You've been enrolled. Start here: ${BASE_URL}/courses/${invite.courseId}/enroll?token=${invite.token}`,
@@ -68,7 +70,7 @@ export class MailService {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: smtpConfig.auth.user,
       to: invite.email,
       subject: mailContent.subject,
       text: mailContent.text,
