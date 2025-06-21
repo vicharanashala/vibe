@@ -222,6 +222,11 @@ describe('Course Version Controller Integration Tests', () => {
       description: 'Module description',
     };
 
+    const modulePayload2 = {
+      name: 'New Module 2',
+      description: 'Module description',
+    };
+
     const sectionPayload = {
       name: 'New Section',
       description: 'Section description',
@@ -268,7 +273,13 @@ describe('Course Version Controller Integration Tests', () => {
           .send(modulePayload)
           .expect(201);
 
+        const module2Response = await request(app)
+          .post(`/courses/versions/${versionId}/modules`)
+          .send(modulePayload2)
+          .expect(201);
+
         const moduleId = moduleResponse.body.version.modules[0].moduleId;
+        const module2Id = module2Response.body.version.modules[1].moduleId;
 
         const sectionResponse = await request(app)
           .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
@@ -289,6 +300,12 @@ describe('Course Version Controller Integration Tests', () => {
           .delete(`/courses/${courseId}/versions/${versionId}`)
           .expect(200);
         expect(deleteVersion.body.deletedItem);
+
+        // Check if the version is deleted
+        const readResponse = await request(app)
+          .get(`/courses/versions/${versionId}`)
+          .expect(404);
+        expect(readResponse.body.message).toMatch('Course Version not found');
       }, 90000);
     });
     describe('Failure Scenario', () => {
