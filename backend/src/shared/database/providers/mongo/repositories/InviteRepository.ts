@@ -1,7 +1,7 @@
 import 'reflect-metadata';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {Course, CourseVersion, ItemsGroup} from '#courses/classes/index.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { Course, CourseVersion, ItemsGroup } from '#courses/classes/index.js';
 import {
   ClientSession,
   Collection,
@@ -10,29 +10,22 @@ import {
   ObjectId,
   UpdateResult,
 } from 'mongodb';
-import {IInviteRepository} from '#shared/database/interfaces/IInviteRepository.js';
-import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {NotFoundError} from 'routing-controllers';
-import {ResultSetDependencies} from 'mathjs';
+import { IInviteRepository } from '#shared/database/interfaces/IInviteRepository.js';
+import { ICourse, ICourseVersion } from '#shared/interfaces/models.js';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { ResultSetDependencies } from 'mathjs';
 import { GLOBAL_TYPES } from '#root/types.js';
+import { Invite } from '#root/modules/notifications/index.js';
 
 @injectable()
-export class InviteRepository implements IInviteRepository {
-  private inviteCollection: Collection<any>;
-  private courseCollection: Collection<Course>;
-  private courseVersionCollection: Collection<CourseVersion>;
-  private itemsGroupCollection: Collection<ItemsGroup>;
+export class InviteRepository {
+  private inviteCollection: Collection<Invite>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
-    this.inviteCollection = await this.db.getCollection<any>('newInvite');
-    this.courseCollection = await this.db.getCollection<Course>('newCourse');
-    this.courseVersionCollection =
-      await this.db.getCollection<CourseVersion>('newCourseVersion');
-    this.itemsGroupCollection =
-      await this.db.getCollection<ItemsGroup>('itemsGroup');
+    this.inviteCollection = await this.db.getCollection<Invite>('invites');
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -43,56 +36,61 @@ export class InviteRepository implements IInviteRepository {
     return client;
   }
 
-  async create(invite: any, session?: ClientSession): Promise<any> {
+  async create(invite: Invite, session?: ClientSession): Promise<string> {
     await this.init();
-    
+
     try {
-      
-      const result = await this.inviteCollection.insertOne(invite, {session});
-      return result;
+      const result = await this.inviteCollection.insertOne(invite, { session });
+      return result.insertedId.toString();
     } catch {
-      throw new Error('Failed to create invite');
+      throw new InternalServerError('Failed to create invite');
     }
   }
-  async findInviteByEmail(email: string): Promise<any | null> {
+
+  async findInviteById(id: string, session?: ClientSession): Promise<Invite | null> {
+    await this.init(); // Ensure collection is initialized
+    const invite = await this.inviteCollection.findOne({ _id: new ObjectId(id) }, { session });
+    return invite;
+  }
+
+  async findInvitesByIds(ids: string[], session?: ClientSession): Promise<Invite[]> {
     await this.init(); // Ensure collection is initialized
 
-    try {
-      const invites = await this.inviteCollection.find({email}).toArray();
-      return invites;
-    } catch (error) {
-      
-      throw new Error('Failed to find invite by email');
+    if (!ids || ids.length === 0) {
+      return [];
     }
+
+    const objectIds = ids.map(id => new ObjectId(id));
+    const invites = await this.inviteCollection.find({ _id: { $in: objectIds } }, { session }).toArray();
+    return invites;
   }
 
-  async updateInvite(invite: any): Promise<void> {
+  async updateInvite(inviteId: string, inviteData: Partial<Invite>, session?: ClientSession): Promise<void> {
     await this.init();
 
-    if (!invite._id) {
-      throw new Error('Invite must have an _id to be updated');
-    }
-
-    const {_id, ...updateData} = invite;
-
     const result = await this.inviteCollection.updateOne(
-      {_id: new ObjectId(_id)},
-      {$set: updateData},
+      { _id: new ObjectId(inviteId) },
+      { $set: inviteData },
+      { session }
     );
 
     if (result.modifiedCount === 0) {
-      throw new Error(`Failed to update invite with ID: ${_id}`);
+      throw new Error(`Failed to update invite with ID: ${inviteId}`);
     }
   }
 
-  async findInviteByToken(token: string): Promise<any | null> {
+  async findInvitesByEmail(email: string, session?: ClientSession): Promise<Invite[]> {
     await this.init(); // Ensure collection is initialized
 
-    try {
-      const invite = await this.inviteCollection.findOne({ _id: new ObjectId(token) });
-      return invite;
-    } catch (error) {
-      throw error;
-    }
+    const invites = await this.inviteCollection.find({ email }, { session }).toArray();
+    return invites;
   }
+
+  async findInvitesByCourse(courseId: string, courseVersionId: string, session?: ClientSession): Promise<Invite[]> {
+    await this.init(); // Ensure collection is initialized
+
+    const invites = await this.inviteCollection.find({ courseId, courseVersionId }, { session }).toArray();
+    return invites;
+  }
+
 }

@@ -54,13 +54,13 @@ export class EnrollmentBody {
     description: 'Role of the user',
     example: 'instructor',
     type: 'string',
-    enum: ['instructor', 'student'],
+    enum: ['INSTRUCTOR', 'STUDENT'],
   })
-  @IsEnum(['instructor', 'student'])
+  @IsEnum(['INSTRUCTOR', 'STUDENT', 'MANAGER', 'TA', 'STAFF'])
   @IsNotEmpty()
-  role: 'instructor' | 'student';
+  role: EnrollmentRole;
 }
-
+  
 export class EnrollmentDataResponse {
   @JSONSchema({
     description: 'Unique identifier for the enrollment record',

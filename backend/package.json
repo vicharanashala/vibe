@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "node scripts/class-transformer-0.5.1.patch.js",
     "start": "tsc && node build/index.js",
     "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
     "watch:compile": "tsc --watch",
@@ -21,7 +22,8 @@
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
-    "#settings/*.js": "./build/modules/settings/*.js"
+    "#settings/*.js": "./build/modules/settings/*.js",
+    "#temp/*.js": "./build/modules/temp/*.js"
   },
   "type": "module",
   "keywords": [],
@@ -84,6 +86,7 @@
     "@sentry/cli": "^2.43.0",
     "@sentry/node": "^9.27.0",
     "@sentry/profiling-node": "^9.27.0",
+    "@types/nodemailer": "^6.4.17",
     "axios": "^1.9.0",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",

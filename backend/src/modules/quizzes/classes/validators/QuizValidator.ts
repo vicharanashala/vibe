@@ -314,8 +314,13 @@ class QuestionAnswer implements IQuestionAnswer {
     ],
   })
   @ValidateNested()
-  @Type(({object}) => {
-    switch (object.questionType as QuestionType) {
+  @Type((type) => {
+
+    if (!type) {
+      return Object;
+    }
+
+    switch (type.object.questionType as QuestionType) {
       case 'SELECT_ONE_IN_LOT':
         return SOLAnswer;
       case 'SELECT_MANY_IN_LOT':
@@ -327,7 +332,7 @@ class QuestionAnswer implements IQuestionAnswer {
       case 'DESCRIPTIVE':
         return DESAnswer;
       default:
-        throw new Error(`Unsupported question type: ${object.questionType}`);
+        throw new Error(`Unsupported question type: ${type.object.questionType}`);
     }
   })
   @IsNotEmpty()

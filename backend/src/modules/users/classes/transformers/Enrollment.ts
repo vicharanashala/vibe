@@ -49,7 +49,7 @@ export class Enrollment implements IEnrollment {
       this.userId = new ObjectId(userId);
       this.courseId = new ObjectId(courseId);
       this.courseVersionId = new ObjectId(courseVersionId);
-      this.status = 'active';
+      this.status = 'ACTIVE';
       this.enrollmentDate = new Date();
     }
   }

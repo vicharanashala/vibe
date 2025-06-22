@@ -322,8 +322,8 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
-export type EnrollmentRole = 'instructor' | 'student' | 'manager' | 'ta';
-export type EnrollmentStatus = 'active' | 'inactive';
+export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
+export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
 // New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;

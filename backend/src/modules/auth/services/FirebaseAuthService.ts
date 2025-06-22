@@ -12,9 +12,13 @@ import { EnrollmentRepository } from '#root/shared/index.js';
 import { InviteRepository } from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import { InviteStatusType, InviteActionType } from '#root/shared/interfaces/models.js';
-import { MailService } from '#root/modules/notifications/index.js';
+import { InviteResult, MailService } from '#root/modules/notifications/index.js';
 
 import { appConfig } from '#root/config/app.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
+import { InviteService } from '#root/modules/notifications/services/InviteService.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -39,10 +43,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   constructor(
     @inject(GLOBAL_TYPES.UserRepo)
     private userRepository: IUserRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteService)
+    private inviteService: InviteService,
     @inject(GLOBAL_TYPES.InviteRepo)
     private inviteRepository: InviteRepository,
-    @inject(GLOBAL_TYPES.EnrollmentRepo)
-    private enrollmentRepository: EnrollmentRepository,
+    @inject(USERS_TYPES.EnrollmentService)
+    private enrollmentService: EnrollmentService,
     @inject(GLOBAL_TYPES.MailService)
     private mailService: MailService,
     @inject(GLOBAL_TYPES.Database)
@@ -110,7 +116,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     return true;
   }
 
-  async signup(body: SignUpBody): Promise<string> {
+  async signup(body: SignUpBody): Promise<any> {
     let userRecord: any;
     try {
       // Create the user in Firebase Auth
@@ -145,43 +151,32 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError('Failed to create the user');
       }
     });
-    const invites = await this.inviteRepository.findInviteByEmail(body.email);
+    
+    let enrolledInvites: InviteResult[] = [];
+
+    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
     for (const invite of invites) {
-     
-      if (invite.status == InviteStatusType.PENDING) {
-        const isAlreadyEnrolled =
-          await this.enrollmentRepository.findEnrollment(
-            createdUserId,
+      if(invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        if(result && (result as any).enrollment) {
+          enrolledInvites.push(new InviteResult(
+            invite._id,
+            invite.email,
+            invite.inviteStatus,
+            invite.role,
             invite.courseId,
             invite.courseVersionId,
-          );
-   
-
-        if (!isAlreadyEnrolled) {
-          // Enroll the user
-          await this.enrollmentRepository.createEnrollment({
-            userId: createdUserId,
-            courseId: invite.courseId,
-            courseVersionId: invite.courseVersionId,
-            status: 'active',
-            enrollmentDate: new Date(),
-            role: 'student'
-          });
-
-          // Update invite object
-          invite.action = InviteActionType.NOTIFY;
-          invite.status = InviteStatusType.ACCEPTED;
-          invite.updatedAt = new Date(); // optional
-
-          // Save the modified invite back to DB
-          await this.inviteRepository.updateInvite(invite);
-          await this.mailService.sendMail(invite);
-          
+          ));
         }
       }
     }
-  
-    return createdUserId;
+
+    return enrolledInvites.length > 0 ? {
+      userId: createdUserId,
+      invites: enrolledInvites,
+    }: {
+      userId: createdUserId,
+    };
   }
 
   async changePassword(

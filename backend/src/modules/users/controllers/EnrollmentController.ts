@@ -1,3 +1,5 @@
+
+import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -61,7 +63,7 @@ export class EnrollmentController {
       courseId,
       courseVersionId,
       role,
-    );
+    ) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
 
     return new EnrollUserResponse(
       responseData.enrollment,
