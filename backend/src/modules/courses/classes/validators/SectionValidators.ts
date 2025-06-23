@@ -200,3 +200,13 @@ export {
   SectionNotFoundErrorResponse,
   SectionDeletedResponse,
 };
+
+export const SECTION_VALIDATORS = [
+  CreateSectionBody,
+  UpdateSectionBody,
+  MoveSectionBody,
+  VersionModuleSectionParams,
+  SectionDataResponse,
+  SectionNotFoundErrorResponse,
+  SectionDeletedResponse,
+]

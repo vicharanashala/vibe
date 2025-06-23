@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Face, Keypoint } from "@tensorflow-models/face-detection";
-import FaceRecognitionComponent, { FaceRecognition, FaceRecognitionDebugInfo } from "./FaceRecognitionComponentNoWorker";
+import FaceRecognitionComponent, { FaceRecognition, FaceRecognitionDebugInfo } from "./FaceRecognitionComponent";
 
 interface FaceDetectorsProps {
   faces: Face[],

@@ -8,6 +8,9 @@ import {QuestionBankController} from './controllers/QuestionBankController.js';
 import {coursesContainerModule} from '#courses/container.js';
 import {AttemptController} from './controllers/AttemptController.js';
 import {QuizController} from './controllers/QuizController.js';
+import { } from './classes/validators/QuestionBankValidator.js';
+import { QUESTIONBANK_VALIDATORS, QUESTION_VALIDATORS, QUIZ_VALIDATORS } from './classes/validators/index.js';
+import { } from './classes/validators/QuizValidator.js';
 
 export const quizzesContainerModules: ContainerModule[] = [
   quizzesContainerModule,
@@ -38,3 +41,9 @@ export const quizzesModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
+
+export const quizzesModuleValidators: Function[] = [
+  ...QUESTIONBANK_VALIDATORS,
+  ...QUESTION_VALIDATORS,
+  ...QUIZ_VALIDATORS
+]

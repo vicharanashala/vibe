@@ -306,16 +306,38 @@ class QuestionAnswer implements IQuestionAnswer {
   @JSONSchema({
     description: 'Answer for the question',
     oneOf: [
-      { $ref: '#/components/schemas/SOLAnswer' },
-      { $ref: '#/components/schemas/SMLAnswer' },
-      { $ref: '#/components/schemas/OTLAnswer' },
-      { $ref: '#/components/schemas/NATAnswer' },
-      { $ref: '#/components/schemas/DESAnswer' },
+      { 
+        $ref: '#/components/schemas/SOLAnswer',
+        title: 'Select One in Lot Answer',
+        description: 'Commonly reffered as MCQ (Multiple Choice Question)',
+      },
+      { 
+        $ref: '#/components/schemas/SMLAnswer',
+        title: 'Select Many in Lot Answer',
+        description: 'Commonly reffered as MSQ (Multiple Select Question)',
+      },
+      { 
+        $ref: '#/components/schemas/OTLAnswer',
+        title: 'Order the Lots Answer',
+      },
+      { 
+        $ref: '#/components/schemas/NATAnswer',
+        title: 'Numeric Answer Type',
+      },
+      { 
+        $ref: '#/components/schemas/DESAnswer',
+        title: 'Descriptive Answer', 
+      },
     ],
   })
   @ValidateNested()
-  @Type(({object}) => {
-    switch (object.questionType as QuestionType) {
+  @Type((type) => {
+
+    if (!type) {
+      return Object;
+    }
+
+    switch (type.object.questionType as QuestionType) {
       case 'SELECT_ONE_IN_LOT':
         return SOLAnswer;
       case 'SELECT_MANY_IN_LOT':
@@ -327,7 +349,7 @@ class QuestionAnswer implements IQuestionAnswer {
       case 'DESCRIPTIVE':
         return DESAnswer;
       default:
-        throw new Error(`Unsupported question type: ${object.questionType}`);
+        throw new Error(`Unsupported question type: ${type.object.questionType}`);
     }
   })
   @IsNotEmpty()
@@ -1234,18 +1256,6 @@ class FlaggedQuestionResponse {
   // Not yet implemented
 }
 
-class AttemptNotFoundErrorResponse {
-  @JSONSchema({
-    description: 'The error message.',
-    example: 'No attempt found.',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsNotEmpty()
-  message: string;
-}
-
 class SubmissionResponse implements ISubmission {
   @IsMongoId()
   @IsNotEmpty()
@@ -1314,30 +1324,6 @@ class GetAllSubmissionsResponse {
   submissions: SubmissionResponse[];
 }
 
-class QuizNotFoundErrorResponse {
-  @JSONSchema({
-    description: 'The error message.',
-    example: 'Quiz not found.',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsNotEmpty()
-  message: string;
-}
-
-class GetAllQuestionBanksResponse {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuestionBankRefResponse)
-  @JSONSchema({
-    description: 'List of all question banks',
-    type: 'array',
-    items: { $ref: '#/components/schemas/QuestionBankRef' },
-  })
-  questionBanks: IQuestionBankRef[];
-}
-
 class QuestionBankRefResponse implements IQuestionBankRef {
   @IsMongoId()
   @IsNotEmpty()
@@ -1389,6 +1375,43 @@ class QuestionBankRefResponse implements IQuestionBankRef {
   type?: string;
 }
 
+class AttemptNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example:
+      'No attempt found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class QuizNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example: 'Quiz not found.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
+class GetAllQuestionBanksResponse {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionBankRefResponse)
+  @JSONSchema({
+    description: 'List of all question banks',
+    type: 'array',
+    items: { $ref: '#/components/schemas/QuestionBankRef' },
+  })
+  questionBanks: IQuestionBankRef[];
+}
+
 export {
   CreateAttemptParams,
   SaveAttemptParams,
@@ -1421,3 +1444,36 @@ export {
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse
 };
+
+export const QUIZ_VALIDATORS = [
+  CreateAttemptParams,
+  SaveAttemptParams,
+  SubmitAttemptParams,
+  CreateAttemptResponse,
+  SubmitAttemptResponse,
+  GetAttemptResponse,
+  QuestionAnswersBody,
+  AddQuestionBankBody,
+  EditQuestionBankBody,
+  RegradeSubmissionBody,
+  AddFeedbackBody,
+  QuizIdParam,
+  QuizAttemptParam,
+  QuizSubmissionParam,
+  UpdateQuizSubmissionParam,
+  RemoveQuestionBankParams,
+  GetUserMatricesParams,
+  AddFeedbackParams,
+  UserQuizMetricsResponse,
+  QuizAttemptResponse,
+  QuizSubmissionResponse,
+  QuizDetailsResponse,
+  QuizAnalyticsResponse,
+  QuizPerformanceResponse,
+  QuizResultsResponse,
+  FlaggedQuestionResponse,
+  AttemptNotFoundErrorResponse,
+  GetAllSubmissionsResponse,
+  QuizNotFoundErrorResponse,
+  GetAllQuestionBanksResponse
+]

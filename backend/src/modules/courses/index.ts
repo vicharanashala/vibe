@@ -14,6 +14,7 @@ import {
 } from './controllers/index.js';
 import { usersContainerModule } from '../users/container.js';
 import { quizzesContainerModule } from '../quizzes/container.js';
+import { COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
@@ -47,3 +48,11 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   },
   validation: true,
 };
+
+export const coursesModuleValidators: Function[] = [
+  ...COURSE_VALIDATORS,
+  ...COURSEVERSION_VALIDATORS,
+  ...ITEM_VALIDATORS,
+  ...MODULE_VALIDATORS,
+  ...SECTION_VALIDATORS
+]

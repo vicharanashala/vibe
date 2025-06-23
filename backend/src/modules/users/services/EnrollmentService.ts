@@ -1,4 +1,5 @@
 import {COURSES_TYPES} from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
@@ -36,6 +37,7 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     courseVersionId: string,
     role: EnrollmentRole,
+    throughInvite: boolean = false,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -59,8 +61,16 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
       );
-      if (existingEnrollment) {
+
+      // If the user is already enrolled and not enrolling through an invite, throw an error
+      // This prevents duplicate enrollments unless it's through an invite
+      if (existingEnrollment && !throughInvite) {
         throw new BadRequestError('User is already enrolled in this course version');
+      }
+      // If the user is already enrolled through an invite, we will skip the enrollment creation
+      if (existingEnrollment && throughInvite) {
+        let status: InviteStatus = 'ALREADY_ENROLLED'
+        return status;
       }
 
       const enrollment = new Enrollment(userId, courseId, courseVersionId);
@@ -69,7 +79,7 @@ export class EnrollmentService extends BaseService {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         role: role,
-        status: 'active',
+        status: 'ACTIVE',
         enrollmentDate: new Date(),
       });
 

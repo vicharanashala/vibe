@@ -18,6 +18,7 @@ import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
+import TeacherProfile from "@/app/pages/teacher/profile";
 // import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
@@ -263,6 +264,13 @@ const teacherDashboardRoute = new Route({
   component: Dashboard,
 });
 
+// Teacher profile route
+const teacherProfileRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/profile',
+  component: TeacherProfile,
+});
+
 // Teacher create course route
 const teacherCreateCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -383,6 +391,7 @@ const routeTree = rootRoute.addChildren([
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
     teacherTestingRoute,
+    teacherProfileRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
@@ -402,7 +411,7 @@ const memoryHistory = typeof window !== 'undefined' ? undefined : createMemoryHi
 // Create router instance with additional options
 export const router = new Router({
   routeTree,
-  defaultPreload: 'intent',
+  defaultPreload: false,
   // Use memory history for SSR
   history: memoryHistory,
   // Global not found component

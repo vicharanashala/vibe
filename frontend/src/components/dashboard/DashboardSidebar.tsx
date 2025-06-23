@@ -12,7 +12,7 @@ interface DashboardSidebarProps {
 
 export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
   return (
-    <aside className={`w-full md:w-80 space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border ${className || ''}`}>
+    <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border ${className || ''}`}>
       <TodoList />
 
       <Card className="border border-sidebar-border bg-secondary/50">
@@ -101,6 +101,6 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
           </div>
         </CardContent>
       </Card>
-    </aside>
+    </div>
   );
 };

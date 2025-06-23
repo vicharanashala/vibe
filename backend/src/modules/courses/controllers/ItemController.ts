@@ -228,7 +228,12 @@ Access control logic:
     );
     console.log(progress.currentItem);
     if (progress.currentItem.toString() !== itemId) {
-      throw new ForbiddenError('Item does not match current progress');
+      const prevProgress = await this.progressService.getCompletedItems(userId, courseId, courseVersionId);
+      if (!prevProgress.has(itemId)) {
+        throw new ForbiddenError(
+          'You do not have access to this item.',
+        );
+      }
     }
     return {
       item: await this.itemService.readItem(courseVersionId, itemId),

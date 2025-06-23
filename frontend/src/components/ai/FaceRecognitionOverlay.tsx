@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaceRecognition } from './FaceRecognitionComponentNoWorker';
+import { FaceRecognition } from './FaceRecognitionComponent';
 
 interface FaceRecognitionOverlayProps {
   recognitions: FaceRecognition[];

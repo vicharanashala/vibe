@@ -3,6 +3,7 @@ import {
   MongoDatabase,
   UserRepository,
   HttpErrorHandler,
+  SettingsRepository,
 } from '#shared/index.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
@@ -25,6 +26,10 @@ export const sharedContainerModule = new ContainerModule(options => {
   // Repositories
   options.bind(GLOBAL_TYPES.UserRepo).to(UserRepository).inSingletonScope();
   options.bind(GLOBAL_TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
+  options
+    .bind(GLOBAL_TYPES.SettingsRepo)
+    .to(SettingsRepository)
+    .inSingletonScope();
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();

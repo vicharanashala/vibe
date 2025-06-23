@@ -27,15 +27,17 @@ export default function Page() {
   // While we don't have a real userId, show loading/auth prompt
   if (!isAuthenticated || !userId) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <EmptyState
-          title={!isAuthenticated ? "Authentication Required" : "Loading..."}
-          description={!isAuthenticated
-            ? "Please log in to view your dashboard"
-            : "Preparing your dashboard..."}
-          actionText={!isAuthenticated ? "Go to Login" : undefined}
-          onAction={!isAuthenticated ? () => navigate({ to: '/auth' }) : undefined}
-        />
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="px-4 sm:px-6 lg:px-8 w-full max-w-md">
+          <EmptyState
+            title={!isAuthenticated ? "Authentication Required" : "Loading..."}
+            description={!isAuthenticated
+              ? "Please log in to view your dashboard"
+              : "Preparing your dashboard..."}
+            actionText={!isAuthenticated ? "Go to Login" : undefined}
+            onAction={!isAuthenticated ? () => navigate({ to: '/auth' }) : undefined}
+          />
+        </div>
       </div>
     );
   }
@@ -77,9 +79,10 @@ function DashboardContent({ userId }: DashboardContentProps) {
 
   return (
     <>
-      {/* Greeting & Stats */}
-      <div className="flex flex-col md:flex-row items-stretch mb-8 px-4 md:px-28 lg:px-16 xl:px-0">
-        <div className="flex-1 flex flex-col justify-center bg-background rounded-lg p-6 mb-0">
+      {/* Greeting and Stat Cards in two separate flex boxes */}
+      <div className="flex flex-col md:flex-row justify-between items-start mb-8 px-4 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
+        {/* Left: Greeting Box */}
+        <div className="flex-1 bg-background rounded-lg p-6">
           <h1 className="text-3xl font-bold mb-1">
             {greeting}, {studentName} 👋
           </h1>
@@ -87,21 +90,22 @@ function DashboardContent({ userId }: DashboardContentProps) {
             Welcome to your learning dashboard, check your priority learning.
           </p>
         </div>
-        <div className="ml-0 md:ml-8 flex flex-row gap-4 items-center">
+        {/* Right: Stat Cards */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
           <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
           <StatCard icon="⏱️" value="2.5h" label="Study Time" />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
         </div>
       </div>
-
-      {/* Announcement */}
-      <AnnouncementBanner
-        title="Achievement Unlocked!"
-        description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
-      />
-
-      {/* Main content & sidebar */}
-      <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+      {/* Announcement Banner */}
+      <div className="mb-2 px-4 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
+        <AnnouncementBanner
+          title="Achievement Unlocked!"
+          description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
+        />
+      </div>
+      {/* Main content and sidebar */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col md:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
@@ -121,7 +125,6 @@ function DashboardContent({ userId }: DashboardContentProps) {
             }}
             className="mb-8"
           />
-
           <CourseSection
             title="Recommended for you"
             enrollments={[]}
@@ -137,8 +140,11 @@ function DashboardContent({ userId }: DashboardContentProps) {
             }}
           />
         </main>
-
-        <DashboardSidebar enrollments={enrollments} />
+        <aside className="w-full md:w-80">
+          <div className="sticky top-6">
+            <DashboardSidebar enrollments={enrollments} />
+          </div>
+        </aside>
       </div>
     </>
   );
