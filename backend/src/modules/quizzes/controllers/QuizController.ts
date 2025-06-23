@@ -45,7 +45,7 @@ import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {ISubmission} from '#quizzes/interfaces/index.js';
 
 @OpenAPI({
-  tags: ['Quizzes'],
+  tags: ['Quiz'],
 })
 @injectable()
 @JsonController('/quizzes/quiz')

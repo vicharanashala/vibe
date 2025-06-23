@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "node scripts/class-transformer-0.5.1.patch.js",
     "start": "tsc && node build/index.js",
     "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
     "watch:compile": "tsc --watch",
@@ -21,7 +22,8 @@
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
-    "#settings/*.js": "./build/modules/settings/*.js"
+    "#settings/*.js": "./build/modules/settings/*.js",
+    "#temp/*.js": "./build/modules/temp/*.js"
   },
   "type": "module",
   "keywords": [],
@@ -32,6 +34,7 @@
     "node": ">=14.0.0"
   },
   "devDependencies": {
+    "@docusaurus/tsconfig": "3.7.0",
     "@faker-js/faker": "^9.7.0",
     "@jest/globals": "30.0.0-beta.3",
     "@scalar/express-api-reference": "^0.8.4",
@@ -79,9 +82,15 @@
   "dependencies": {
     "@sentry/node": "^9.30.0",
     "@types/cors": "^2.8.19",
-    "axios": "^1.10.0",
-    "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.0",
+    "@casl/ability": "^6.7.3",
+    "@microsoft/kiota-bundle": "1.0.0-preview.96",
+    "@scalar/express-api-reference": "^0.7.6",
+    "@sentry/cli": "^2.43.0",
+    "@sentry/profiling-node": "^9.27.0",
+    "@types/nodemailer": "^6.4.17",
+    "axios": "^1.9.0",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
     "chalk": "^5.4.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -100,6 +109,7 @@
     "lexorank": "^1.0.5",
     "mathjs": "^14.5.2",
     "mongodb": "^6.17.0",
+    "nodemailer": "^7.0.3",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",

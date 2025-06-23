@@ -306,16 +306,38 @@ class QuestionAnswer implements IQuestionAnswer {
   @JSONSchema({
     description: 'Answer for the question',
     oneOf: [
-      { $ref: '#/components/schemas/SOLAnswer' },
-      { $ref: '#/components/schemas/SMLAnswer' },
-      { $ref: '#/components/schemas/OTLAnswer' },
-      { $ref: '#/components/schemas/NATAnswer' },
-      { $ref: '#/components/schemas/DESAnswer' },
+      { 
+        $ref: '#/components/schemas/SOLAnswer',
+        title: 'Select One in Lot Answer',
+        description: 'Commonly reffered as MCQ (Multiple Choice Question)',
+      },
+      { 
+        $ref: '#/components/schemas/SMLAnswer',
+        title: 'Select Many in Lot Answer',
+        description: 'Commonly reffered as MSQ (Multiple Select Question)',
+      },
+      { 
+        $ref: '#/components/schemas/OTLAnswer',
+        title: 'Order the Lots Answer',
+      },
+      { 
+        $ref: '#/components/schemas/NATAnswer',
+        title: 'Numeric Answer Type',
+      },
+      { 
+        $ref: '#/components/schemas/DESAnswer',
+        title: 'Descriptive Answer', 
+      },
     ],
   })
   @ValidateNested()
-  @Type(({object}) => {
-    switch (object.questionType as QuestionType) {
+  @Type((type) => {
+
+    if (!type) {
+      return Object;
+    }
+
+    switch (type.object.questionType as QuestionType) {
       case 'SELECT_ONE_IN_LOT':
         return SOLAnswer;
       case 'SELECT_MANY_IN_LOT':
@@ -327,7 +349,7 @@ class QuestionAnswer implements IQuestionAnswer {
       case 'DESCRIPTIVE':
         return DESAnswer;
       default:
-        throw new Error(`Unsupported question type: ${object.questionType}`);
+        throw new Error(`Unsupported question type: ${type.object.questionType}`);
     }
   })
   @IsNotEmpty()

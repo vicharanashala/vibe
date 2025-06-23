@@ -21,10 +21,12 @@ import {
   Patch,
   Req,
   HttpError,
+  OnUndefined,
 } from 'routing-controllers';
 import { AUTH_TYPES } from '#auth/types.js';
 import { OpenAPI } from 'routing-controllers-openapi';
 import { appConfig } from '#root/config/app.js';
+import { InviteResponse, InviteResult } from '#root/modules/notifications/index.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -45,9 +47,12 @@ export class AuthController {
   @Post('/signup')
   @UseBefore(AuthRateLimiter)
   @HttpCode(201)
+  @OnUndefined(201)
   async signup(@Body() body: SignUpBody) {
-    const user = await this.authService.signup(body);
-    return instanceToPlain(user);
+    const acknowledgedInvites = await this.authService.signup(body);
+    if (acknowledgedInvites) {
+      return new InviteResponse(acknowledgedInvites as InviteResult[]);
+    }
   }
 
   @OpenAPI({

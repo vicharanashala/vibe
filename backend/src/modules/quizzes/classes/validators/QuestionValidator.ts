@@ -10,7 +10,7 @@ import {
   INATSolution,
   IDESSolution,
 } from '#shared/interfaces/quiz.js';
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -26,8 +26,8 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import {ObjectId} from 'mongodb';
-import {NATQuestion} from '../transformers/Question.js';
+import { ObjectId } from 'mongodb';
+import { NATQuestion } from '../transformers/Question.js';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 class QuestionParameter implements IQuestionParameter {
@@ -41,7 +41,7 @@ class QuestionParameter implements IQuestionParameter {
   name: string;
 
   @IsNotEmpty()
-  @IsString({each: true})
+  @IsString({ each: true })
   @IsArray()
   @ArrayMinSize(2)
   @JSONSchema({
@@ -91,7 +91,6 @@ class LotOrder implements ILotOrder {
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Lot item to be ordered',
-    $ref: '#/components/schemas/LotItem',
   })
   lotItem: ILotItem;
 
@@ -142,12 +141,11 @@ class Question implements Partial<IQuestion> {
 
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => QuestionParameter)
   @JSONSchema({
     description: 'Parameters for the question',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionParameter' },
     example: [
       { name: 'Param1', possibleValues: ['cat', 'dog'], type: 'string' },
     ],
@@ -184,7 +182,7 @@ class Question implements Partial<IQuestion> {
 class SOLSolution implements ISOLSolution {
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Incorrect lot items',
@@ -202,7 +200,7 @@ class SOLSolution implements ISOLSolution {
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Correct lot item',
-    items: {$ref: '#/components/schemas/LotItem'},
+    items: { $ref: '#/components/schemas/LotItem' },
     example: { text: 'Option A', explaination: 'Correct because...' },
   })
   correctLotItem: ILotItem;
@@ -211,7 +209,7 @@ class SOLSolution implements ISOLSolution {
 class SMLSolution implements ISMLSolution {
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Incorrect lot items',
@@ -226,12 +224,11 @@ class SMLSolution implements ISMLSolution {
 
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Correct lot items',
     type: 'array',
-    items: { $ref: '#/components/schemas/LotItem' },
     example: [
       { text: 'Option A', explaination: 'Correct because...' },
       { text: 'Option D', explaination: 'Correct because...' },
@@ -243,12 +240,11 @@ class SMLSolution implements ISMLSolution {
 class OTLSolution implements IOTLSolution {
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotOrder)
   @JSONSchema({
     description: 'Ordering of lot items',
     type: 'array',
-    items: { $ref: '#/components/schemas/LotOrder' },
     example: [
       { lotItem: { text: 'Step 1', explaination: '...' }, order: 1 },
       { lotItem: { text: 'Step 2', explaination: '...' }, order: 2 },
@@ -321,14 +317,20 @@ class QuestionBody {
   @Type(() => Question)
   @JSONSchema({
     description: 'Question object',
-    items: {$ref: '#/components/schemas/Question'},
+    items: { $ref: '#/components/schemas/Question' },
   })
   question: IQuestion;
 
   @IsNotEmpty()
   @ValidateNested()
-  @Type(({object}) => {
-    const question = object.question as Question;
+  @Type((type) => {
+
+    if (!type) {
+      // Fallback to a base type or throw during runtime use only
+      return Object;
+    }
+
+    const question = type.object.question as Question;
     switch (question.type) {
       case 'SELECT_ONE_IN_LOT':
         return SOLSolution;
@@ -347,11 +349,30 @@ class QuestionBody {
   @JSONSchema({
     description: 'Solution object for the question',
     oneOf: [
-      { $ref: '#/components/schemas/SOLSolution' },
-      { $ref: '#/components/schemas/SMLSolution' },
-      { $ref: '#/components/schemas/OTLSolution' },
-      { $ref: '#/components/schemas/NATSoltion' },
-      { $ref: '#/components/schemas/DESSolution' },
+      { 
+        $ref: '#/components/schemas/SOLSolution',
+        title: 'Select One from Lot Solution',
+        description: 'Solution for questions where one item is selected from a lot.',
+      },
+      { 
+        $ref: '#/components/schemas/SMLSolution',
+        title: 'Select Many from Lot Solution',
+        description: 'Solution for questions where multiple items are selected from a lot.',},
+      { 
+        $ref: '#/components/schemas/OTLSolution',
+        title: 'Order the Lots Solution',
+        description: 'Solution for questions where items need to be ordered.',
+      },
+      { 
+        $ref: '#/components/schemas/NATSoltion',
+        title: 'Numeric Answer Type Solution',
+        description: 'Solution for numeric answer type questions.',
+      },
+      { 
+        $ref: '#/components/schemas/DESSolution',
+        title: 'Descriptive Solution',
+        description: 'Solution for descriptive questions with a text answer.',
+      },
     ],
   })
   solution:
@@ -365,12 +386,11 @@ class QuestionBody {
 class QuestionResponse
   extends Question
   implements
-    Partial<ISOLSolution>,
-    Partial<ISMLSolution>,
-    Partial<IOTLSolution>,
-    Partial<NATQuestion>,
-    Partial<DESSolution>
-{
+  Partial<ISOLSolution>,
+  Partial<ISMLSolution>,
+  Partial<IOTLSolution>,
+  Partial<NATQuestion>,
+  Partial<DESSolution> {
   @IsNotEmpty()
   @IsMongoId()
   @JSONSchema({
@@ -440,7 +460,7 @@ class QuestionResponse
   expression?: string;
 
   @IsOptional()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Ordering of lot items',
@@ -454,7 +474,7 @@ class QuestionResponse
   ordering?: ILotOrder[];
 
   @IsOptional()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Correct lot items',
@@ -468,7 +488,7 @@ class QuestionResponse
   correctLotItems?: ILotItem[];
 
   @IsOptional()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Incorrect lot items',
@@ -505,12 +525,12 @@ class QuestionId {
 
 class QuestionNotFoundErrorResponse {
   @JSONSchema({
-      description: 'The error message.',
-      example:
-        'Question not found.',
-      type: 'string',
-      readOnly: true,
-    })
+    description: 'The error message.',
+    example:
+      'Question not found.',
+    type: 'string',
+    readOnly: true,
+  })
   @IsNotEmpty()
   message: string;
 }

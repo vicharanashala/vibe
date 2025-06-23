@@ -16,6 +16,7 @@ import {
 } from 'routing-controllers';
 import {Request, Response} from 'express';
 import {JSONSchema} from 'class-validator-jsonschema';
+import { Type } from 'class-transformer';
 
 const logger = createLogger({
   level: 'info',
@@ -84,7 +85,8 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsArray() // Ensures 'children' is an array
-  @ValidateNested({each: true}) // Ensures each element inside 'children' is validated
+  @ValidateNested({each: true})
+  @Type(()=>ValidationErrorResponse) // Ensures each element inside 'children' is validated
   children!: ValidationErrorResponse[];
 
   @JSONSchema({

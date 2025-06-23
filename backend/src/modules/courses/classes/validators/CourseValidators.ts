@@ -39,7 +39,6 @@ class CourseIdParams {
   @JSONSchema({
     description: 'Object ID of the course',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -50,7 +49,6 @@ class CourseDataResponse implements ICourse {
   @JSONSchema({
     description: 'Unique identifier for the course',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsNotEmpty()
@@ -79,7 +77,6 @@ class CourseDataResponse implements ICourse {
     readOnly: true,
     items: {
       type: 'string',
-      format: 'Mongo Object ID',
     },
   })
   @IsNotEmpty()
@@ -92,7 +89,6 @@ class CourseDataResponse implements ICourse {
     readOnly: true,
     items: {
       type: 'string',
-      format: 'Mongo Object ID',
     },
   })
   @IsNotEmpty()

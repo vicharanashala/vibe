@@ -21,6 +21,7 @@ import {
   RemoveUserProctoringBody,
 } from '#settings/classes/index.js';
 import {SETTINGS_TYPES} from '#settings/types.js';
+import { OpenAPI } from 'routing-controllers-openapi';
 
 /**
  * This controller handles user settings operations.
@@ -28,6 +29,10 @@ import {SETTINGS_TYPES} from '#settings/types.js';
  *
  */
 
+@OpenAPI({
+  tags: ['User Settings'],
+  description: 'Operations for managing user settings in courses',
+})
 @injectable()
 @JsonController('/settings/users')
 export class UserSettingsController {
