@@ -51,7 +51,7 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 // Add a function to create a user with email and password
 export const createUserWithEmail = async (email: string, password: string, displayName?: string) => {
-  const auth = getAuth();
+  const auth = getAuth(app);
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   
   // Update user profile if display name is provided
