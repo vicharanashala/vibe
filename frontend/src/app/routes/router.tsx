@@ -26,6 +26,7 @@ import { Item } from '@/components/Item-container' // Assuming Item is defined i
 import Dashboard from '@/app/pages/teacher/dashboard'
 import CreateCourse from '@/app/pages/teacher/create-course'
 import GetCourse from '@/app/pages/teacher/get-course'
+import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
 import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
@@ -284,6 +285,13 @@ const teacherGetCourseRoute = new Route({
   component: GetCourse,
 });
 
+// Teacher courses page route
+const teacherCoursesPageRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/list',
+  component: TeacherCoursesPage,
+});
+
 // Teacher create article route
 const teacherCreateArticleRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -381,6 +389,7 @@ const routeTree = rootRoute.addChildren([
     teacherCreateCourseRoute,
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
+    teacherCoursesPageRoute,
     teacherTestingRoute,
     teacherProfileRoute,
   ]),
