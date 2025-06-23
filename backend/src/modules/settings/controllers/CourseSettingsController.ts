@@ -21,6 +21,7 @@ import {
 } from '#settings/classes/index.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {SETTINGS_TYPES} from '#settings/types.js';
+import { OpenAPI } from 'routing-controllers-openapi';
 
 /**
  * This controller handles course settings operations.
@@ -28,6 +29,9 @@ import {SETTINGS_TYPES} from '#settings/types.js';
  *
  */
 
+@OpenAPI({
+  tags: ['Course Settings'],
+})
 @injectable()
 @JsonController('/settings/courses')
 export class CourseSettingsController {

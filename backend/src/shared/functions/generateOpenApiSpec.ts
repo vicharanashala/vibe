@@ -225,30 +225,48 @@ export function generateOpenAPISpec(
     //     },
     //   ],
     //   // Use Scalar's preferred grouping approach
-    //   'x-tagGroups': [
-    //     {
-    //       name: 'Authentication',
-    //       tags: ['Authentication'],
-    //     },
-    //     {
-    //       name: 'Course Management',
-    //       tags: [
-    //         'Courses',
-    //         'Course Versions',
-    //         'Course Modules',
-    //         'Course Sections',
-    //         'Course Items',
-    //       ],
-    //     },
-    //     {
-    //       name: 'User Management',
-    //       tags: ['User Enrollments', 'User Progress'],
-    //     },
-    //     {
-    //       name: 'Data Models',
-    //       tags: ['Models'],
-    //     },
-    //   ],
+      tags:[
+        {
+          name: 'Courses',
+          description: 'Operations related to courses management',
+        }
+      ],
+      'x-tagGroups': [
+        {
+          name: 'Authentication',
+          tags: ['Authentication'],
+        },
+        {
+          name: 'Course Management',
+          tags: [
+            'Courses',
+            'Course Versions',
+            'Course Modules',
+            'Course Sections',
+            'Course Items',
+          ],
+        },
+        {
+          name: 'Quizzes',
+          tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
+        },
+        {
+          name: 'Notifications',
+          tags: ['Invites'],
+        },
+        {
+          name: 'Users',
+          tags: ['Enrollments','Progress','Users']
+        },
+        {
+          name: 'Settings',
+          tags: ['Course Settings', 'User Settings'],
+        },
+        {
+          name: 'Data Models',
+          tags: ['Models'],
+        },
+      ],
     components: {
       schemas,
       securitySchemes: {

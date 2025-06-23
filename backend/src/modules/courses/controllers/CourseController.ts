@@ -26,6 +26,7 @@ import {
 
 @OpenAPI({
   tags: ['Courses'],
+  description: 'Operations for managing courses in the system',
 })
 @injectable()
 @JsonController('/courses')

@@ -27,6 +27,9 @@ import {
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 
+@OpenAPI({
+  tags: ['Enrollments'],
+})
 @JsonController('/users', { transformResponse: true })
 @injectable()
 export class EnrollmentController {

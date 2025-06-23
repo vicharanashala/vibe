@@ -31,7 +31,7 @@ import { MessageResponse } from '../classes/index.js';
  * @category Invite/Controllers
  */
 @OpenAPI({
-  tags: ['Invite Notifications'],
+  tags: ['Invites'],
 })
 @JsonController('/notifications/invite', { transformResponse: true })
 @injectable()

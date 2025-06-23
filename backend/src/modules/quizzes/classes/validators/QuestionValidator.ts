@@ -91,7 +91,6 @@ class LotOrder implements ILotOrder {
   @Type(() => LotItem)
   @JSONSchema({
     description: 'Lot item to be ordered',
-    $ref: '#/components/schemas/LotItem',
   })
   lotItem: ILotItem;
 
@@ -147,7 +146,6 @@ class Question implements Partial<IQuestion> {
   @JSONSchema({
     description: 'Parameters for the question',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionParameter' },
     example: [
       { name: 'Param1', possibleValues: ['cat', 'dog'], type: 'string' },
     ],
@@ -231,7 +229,6 @@ class SMLSolution implements ISMLSolution {
   @JSONSchema({
     description: 'Correct lot items',
     type: 'array',
-    items: { $ref: '#/components/schemas/LotItem' },
     example: [
       { text: 'Option A', explaination: 'Correct because...' },
       { text: 'Option D', explaination: 'Correct because...' },
@@ -248,7 +245,6 @@ class OTLSolution implements IOTLSolution {
   @JSONSchema({
     description: 'Ordering of lot items',
     type: 'array',
-    items: { $ref: '#/components/schemas/LotOrder' },
     example: [
       { lotItem: { text: 'Step 1', explaination: '...' }, order: 1 },
       { lotItem: { text: 'Step 2', explaination: '...' }, order: 2 },
@@ -353,11 +349,30 @@ class QuestionBody {
   @JSONSchema({
     description: 'Solution object for the question',
     oneOf: [
-      { $ref: '#/components/schemas/SOLSolution' },
-      { $ref: '#/components/schemas/SMLSolution' },
-      { $ref: '#/components/schemas/OTLSolution' },
-      { $ref: '#/components/schemas/NATSoltion' },
-      { $ref: '#/components/schemas/DESSolution' },
+      { 
+        $ref: '#/components/schemas/SOLSolution',
+        title: 'Select One from Lot Solution',
+        description: 'Solution for questions where one item is selected from a lot.',
+      },
+      { 
+        $ref: '#/components/schemas/SMLSolution',
+        title: 'Select Many from Lot Solution',
+        description: 'Solution for questions where multiple items are selected from a lot.',},
+      { 
+        $ref: '#/components/schemas/OTLSolution',
+        title: 'Order the Lots Solution',
+        description: 'Solution for questions where items need to be ordered.',
+      },
+      { 
+        $ref: '#/components/schemas/NATSoltion',
+        title: 'Numeric Answer Type Solution',
+        description: 'Solution for numeric answer type questions.',
+      },
+      { 
+        $ref: '#/components/schemas/DESSolution',
+        title: 'Descriptive Solution',
+        description: 'Solution for descriptive questions with a text answer.',
+      },
     ],
   })
   solution:
