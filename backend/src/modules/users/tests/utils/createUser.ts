@@ -18,5 +18,5 @@ export async function createUser(app: typeof Express): Promise<string> {
     .expect(201); // Expecting a 201 created status
 
   // Return the user object
-  return signUpRes.body; // Assuming the response body contains the user object
+  return signUpRes.body.userId; // Assuming the response body contains the user object
 }

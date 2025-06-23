@@ -51,7 +51,7 @@ export class AuthController {
   async signup(@Body() body: SignUpBody) {
     const acknowledgedInvites = await this.authService.signup(body);
     if (acknowledgedInvites) {
-      return new InviteResponse(acknowledgedInvites as InviteResult[]);
+      return acknowledgedInvites;
     }
   }
 

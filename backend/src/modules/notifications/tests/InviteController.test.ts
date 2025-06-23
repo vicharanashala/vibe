@@ -1,102 +1,264 @@
 import 'reflect-metadata';
-import request from 'supertest';
-import  Express  from 'express';
-import { useExpressServer } from 'routing-controllers';
+import Express from 'express';
+import { RoutingControllersOptions, useContainer, useExpressServer } from 'routing-controllers';
 import { faker } from '@faker-js/faker';
-import { SignUpBody } from '#root/modules/auth/classes/index.js';
-import { setupNotificationsContainer } from '../index.js';
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import {HttpErrorHandler} from '#shared/index.js';
-import { InviteController } from '../controllers/InviteController.js';
+import { MailService, notificationsContainerModule, notificationsModuleOptions } from '../index.js';
+import { describe, it, expect, beforeAll, vi, beforeEach, afterAll } from 'vitest';
+import request from 'supertest';
+import { InviteBody } from '../classes/validators/InviteValidators.js';
+import { createCourse, createVersion } from '#root/modules/courses/tests/utils/creationFunctions.js';
+import { coursesModuleControllers } from '#root/modules/courses/index.js';
+import { sharedContainerModule } from '#root/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { coursesContainerModule } from '#root/modules/courses/container.js';
+import { usersContainerModule } from '#root/modules/users/container.js';
+import { Container, ContainerModule } from 'inversify';
+import { SignUpBody } from '#root/modules/auth/classes/validators/AuthValidators.js';
+import { authContainerModule } from '#root/modules/auth/container.js';
+import { authModuleControllers } from '#root/modules/auth/index.js';
+import { usersModuleControllers } from '#root/modules/users/index.js';
 
-function generateDummyEmails(count: number): string[] {
-  const domains = ['gmail.com'];
-  return Array.from({ length: count }, (_, i) => {
-    const user = `user${i}_${Math.random().toString(36).substring(2, 5)}`;
-    const domain = domains[i % domains.length];
-    return `${user}@${domain}`;
-  });
-}
+const notificationsContainerModules: ContainerModule[] = [
+  notificationsContainerModule,
+  sharedContainerModule,
+  usersContainerModule,
+  coursesContainerModule,
+  authContainerModule
+];
 
-
-
-
-describe('Invite Controller Integration Tests', () => {
-  const appInstance = Express();
-  let app;
+describe('InviteController', () => {
+  let app: any;
+  let courseId: string;
+  let version: any;
 
   beforeAll(async () => {
-    await setupNotificationsContainer();
-    app = useExpressServer(appInstance, {
-      controllers: [InviteController],
+    process.env.NODE_ENV = 'test';
+    const container = new Container();
+    await container.load(...notificationsContainerModules);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
+    app = Express();
+    const options: RoutingControllersOptions = {
+      controllers: [...(notificationsModuleOptions.controllers as Function[]), ...(coursesModuleControllers as Function[]), ...(authModuleControllers as Function[]), ...(usersModuleControllers as Function[])],
+      authorizationChecker: async () => true,
+      defaultErrorHandler: true,
       validation: true,
-      defaultErrorHandler: false,
-      middlewares: [HttpErrorHandler],
+    };
+    useExpressServer(app, options);
+  }, 900000);
+
+  beforeEach(async () => {
+    vi.spyOn(MailService.prototype, 'sendMail').mockResolvedValue({
+      accepted: [faker.internet.email(), faker.internet.email(), faker.internet.email()],
+      rejected: [],
+      envelope: {},
+      messageId: 'mocked-message-id',
+      response: '250 OK: message queued',
     });
-  }, 30000);
-
-  describe('Invite Multiple Users Test', () => {
-    const courseId = '6844113ce1f2a9f17bedc542'; // Sample course ID
-    // Replace with a valid course version ID for your tests
-    const courseVersionId = '6844113ce1f2a9f17bedc542'; // Sample course version ID
-
-    it('should invite multiple users successfully', async () => {
-      const inviteBody = {
-        emails: generateDummyEmails(5), // Generate 5 dummy emails
-      };
-      console.log(inviteBody)
-      const response = await request(app)
-        .post(`/notifications/invite/courses/${courseId}/versions/${courseVersionId}`)
-        .send(inviteBody);
-        console.log('Response:', response.status, response.body); 
-      expect(response.status).toBe(200);
-    }, 90000);
-
-    it('should return 400 for invalid email', async () => {
-      const inviteBody = {
-        email: ['invalid-email'],
-      };
-      const response = await request(app)
-        .post(`/notifications/invite/courses/${courseId}/versions/${courseVersionId}`)
-        .send(inviteBody);
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].constraints.isEmail).toBeDefined();
-      expect(response.body.errors[0].constraints.isEmail).toBe(
-        'Each item must be a valid email address',
-      );
-    }, 30000);
-
-    it('should return 400 for missing required fields', async () => {
-      const inviteBody = {
-        email: [],
-      };
-      const response = await request(app)
-        .post(`/notifications/invite/courses/${courseId}/versions/${courseVersionId}`)
-        .send(inviteBody);
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('errors');
-    }, 30000);
+    const course = await createCourse(app);
+    courseId = course._id.toString();
+    version = await createVersion(app, courseId);
   });
 
-  describe('Process Invite Test', () => {
-    it('should process invite successfully', async () => {
-      const validToken = '1b6714320d9b0409f74c15420c6266c4c57fb79250c8307d7564813c2c22f7f6'; // Replace with actual testable token
-      const response = await request(app)
-        .post(`/notifications/invite/${validToken}`)
-        .send();
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+  
+  // Helper to create valid invite body
+  function createInviteBody(email?: string, role?: any): InviteBody {
+    return {
+      inviteData: [
+        {
+          email: email || faker.internet.email(),
+          role: role || 'STUDENT',
+        },
+      ],
+    };
+  }
+  async function createInvite(email?: string, role?: any): Promise<any> {
+    const body = createInviteBody(email, role);
+    const res = await request(app)
+      .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
+      .send(body);
+    return res;
+  }
 
-      console.log('Process Response:', response.status, response.body);
+  describe('POST /notifications/invite/courses/:courseId/versions/:courseVersionId', () => {
+    it('invites users with valid email and role', async () => {
+      const res = await createInvite();
+      expect(res.status).toBe(200);
+      expect(res.body.invites).toBeInstanceOf(Array);
+      expect(res.body.invites[0]).toHaveProperty('email');
+      expect(res.body.invites[0]).toHaveProperty('inviteStatus');
+    });
+    
+    it('returns "ALREADY_ENROLLED" when user is already enrolled in the course', async () => {
+      const email = faker.internet.email();
+      const signUpBody: SignUpBody = {
+        email: email,
+        password: faker.internet.password(),
+        firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
+        lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+      };
+      const signUpResponse = await request(app)
+      .post('/auth/signup/')
+      .send(signUpBody);
+      expect(signUpResponse.status).toBe(201);
+      const userId = signUpResponse.body.userId;
+      const enrollmentResponse = await request(app)
+        .post(
+          `/users/${userId}/enrollments/courses/${courseId}/versions/${version._id.toString()}`,
+        )
+        .send({
+          role: 'STUDENT',
+        });
+      expect(enrollmentResponse.status).toBe(200);
+      const res = await createInvite(email);
+      expect(res.status).toBe(200);
+      expect(res.body.invites[0].inviteStatus).toBe('ALREADY_ENROLLED');
+    });
+    
+    it('fails because of invalid email', async () => {
+      const body = createInviteBody('not-an-email');
+      const res = await request(app)
+        .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
+        .send(body);
+      expect(res.status).toBe(400);
+    });
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
-    }, 90000);
+    it('fails because of missing inviteData', async () => {
+      const res = await request(app)
+        .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
+        .send({});
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /notifications/invite/courses/:courseId/versions/:courseVersionId', () => {
+    it('fetches all invites for a specific course version', async () => {
+      const res = await request(app)
+        .get(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`);
+      expect(res.status).toBe(200);
+      expect(res.body.invites).toBeInstanceOf(Array);
+    });
+  });
+
+  describe('GET /notifications/invite/:inviteId', () => {
+    it('accepts invite for unregistered user and links it after signup', async () => {
+      // You may need to create an invite first and get its ID
+      const email = faker.internet.email();
+      const inviteResponse = await createInvite(email);
+      const inviteId = inviteResponse.body.invites[0].inviteId;
+      const res = await request(app).get(`/notifications/invite/${inviteId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe('Your invite acceptance has been acknowledged. Please sign up to access the course.');
+      // send again
+      const resendRes = await request(app).get(`/notifications/invite/${inviteId}`);
+      expect(resendRes.body.message).toBe('You have already accepted this invite.');
+      // now create a user
+      const signUpBody: SignUpBody = {
+        email: email,
+        password: faker.internet.password(),
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+      };
+      const signUpResponse = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
+      expect(signUpResponse.status).toBe(201);
+      expect(signUpResponse.body.invites[0].inviteId).toBe(inviteId);
+      expect(signUpResponse.body.invites[0].inviteStatus).toBe('ACCEPTED');
+    });
+
+    it('enrolls registered user via invite, fails if tried to accept again and then fetch user enrollemnts for verification', async () => {
+      // You may need to create an invite first and get its ID
+      const email = faker.internet.email();
+      const signUpBody: SignUpBody = {
+        email: email,
+        password: faker.internet.password(),
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+      };
+      const signUpResponse = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
+      expect(signUpResponse.status).toBe(201);
+      const inviteResponse = await createInvite(email, 'INSTRUCTOR');
+      const inviteId = inviteResponse.body.invites[0].inviteId;
+      const res = await request(app).get(`/notifications/invite/${inviteId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe('You have been successfully enrolled in the course as INSTRUCTOR.');
+      // send again
+      const resendRes = await request(app).get(`/notifications/invite/${inviteId}`);
+      expect(resendRes.body.message).toBe('You have already accepted this invite.');
+      // check if user is enrolled
+      const userId = signUpResponse.body.userId;
+      const getEnrollmentsResponse = await request(app).get(
+        `/users/${userId}/enrollments?page=1&limit=1`,
+      );
+      expect(getEnrollmentsResponse.status).toBe(200);
+      expect(getEnrollmentsResponse.body.enrollments).toBeInstanceOf(Array);
+      expect(getEnrollmentsResponse.body.enrollments[0].courseId).toBe(courseId);
+      expect(getEnrollmentsResponse.body.enrollments[0].role).toBe('INSTRUCTOR');
+    });
+
+    it('returns 400 for malformed or invalid inviteId', async () => {
+      const res = await request(app).get('/notifications/invite/invalid-id');
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /notifications/invite/resend/:inviteId', () => {
+    it('takes invite id and resends invite email to user', async () => {
+      const inviteResponse = await createInvite();
+      const inviteId = inviteResponse.body.invites[0].inviteId;
+      const res = await request(app).post(`/notifications/invite/resend/${inviteId}`);
+      expect(res.status).toBe(200);
+    });
+
+    it('fails to resend because of invalid inviteId', async () => {
+      const res = await request(app).post('/notifications/invite/resend/invalid-id');
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /notifications/invite/cancel/:inviteId', () => {
+    it('cancels invite and fails if tried to accept later', async () => {
+      const inviteResponse = await createInvite();
+      const inviteId = inviteResponse.body.invites[0].inviteId;
+      const res = await request(app).post(`/notifications/invite/cancel/${inviteId}`);
+      expect(res.status).toBe(200);
+      const res2 = await request(app).get(`/notifications/invite/${inviteId}`);
+      expect(res2.body.message).toBe('This invite has been cancelled.');
+    });
+
+    it('returns 400 when cancelling with invalid inviteId', async () => {
+      const res = await request(app).post('/notifications/invite/cancel/invalid-id');
+      expect(res.status).toBe(400);
+    });
+  });
+
+  it('send multiple invite to users, after user accepts one invite, it should throw an error when user tries to accept another invite for the same course', async () => {
+    const email = faker.internet.email();
+      const signUpBody: SignUpBody = {
+        email: email,
+        password: faker.internet.password(),
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+      };
+      const signUpResponse = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
+      expect(signUpResponse.status).toBe(201);
+      const inviteResponse1 = await createInvite(email, 'STUDENT');
+      const inviteId1 = inviteResponse1.body.invites[0].inviteId;
+      const inviteResponse2 = await createInvite(email, 'STUDENT');
+      const inviteId2 = inviteResponse2.body.invites[0].inviteId;
+      const res = await request(app).get(`/notifications/invite/${inviteId1}`);
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe('You have been successfully enrolled in the course as STUDENT.');
+      // send on inviteId2
+      const resendRes = await request(app).get(`/notifications/invite/${inviteId2}`);
+      expect(resendRes.body.message).toBe('You are already enrolled in this course.');
   });
 });
-
-
-
-
-
-
-

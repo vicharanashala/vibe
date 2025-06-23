@@ -15,13 +15,15 @@ import {
 import { usersContainerModule } from '../users/container.js';
 import { quizzesContainerModule } from '../quizzes/container.js';
 import { COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
+import { notificationsContainerModule } from '../notifications/container.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
   sharedContainerModule,
   authContainerModule,
   usersContainerModule,
-  quizzesContainerModule
+  quizzesContainerModule,
+  notificationsContainerModule
 ];
 
 export const coursesModuleControllers: Function[] = [
