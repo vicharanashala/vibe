@@ -504,7 +504,7 @@ class ProgressService extends BaseService {
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     switch (item.type) {
       case 'VIDEO':
-        // return true;
+        return true;
         if (watchTime.startTime && watchTime.endTime && item.details) {
           const videoDetails = item.details as IVideoDetails;
           const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
