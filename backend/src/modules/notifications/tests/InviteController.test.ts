@@ -141,6 +141,42 @@ describe('InviteController', () => {
       expect(res.status).toBe(200);
       expect(res.body.invites).toBeInstanceOf(Array);
     });
+
+    it('sends invite to two users, accepts invite for one and fetches all the invites for course version', async () => {
+      const email1 = faker.internet.email();
+      const email2 = faker.internet.email();
+      const inviteData = [
+        {
+          email: email1,
+          role:  'STUDENT',
+        },
+        {
+          email: email2,
+          role: 'INSTRUCTOR',
+        },
+      ]
+      const res = await request(app)
+      .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
+      .send({inviteData});
+      expect(res.status).toBe(200);
+      expect(res.body.invites).toBeInstanceOf(Array);
+      const inviteId1 = res.body.invites[0].inviteId;
+      const acceptRes = await request(app).get(`/notifications/invite/${inviteId1}`);
+      expect(acceptRes.status).toBe(200);
+      const invitesRes = await request(app)
+        .get(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`);
+      expect(invitesRes.status).toBe(200);
+      expect(invitesRes.body.invites).toBeInstanceOf(Array);
+      expect(invitesRes.body.invites.length).toBe(2);
+      invitesRes.body.invites.forEach((invite: any) => {
+        if (invite.email === email1) {
+          expect(invite.inviteStatus).toBe('ACCEPTED');
+          expect(invite.acceptedAt).toBeDefined();
+        } else if (invite.email === email2) {
+          expect(invite.inviteStatus).toBe('PENDING');
+        }
+      });
+    });
   });
 
   describe('GET /notifications/invite/:inviteId', () => {

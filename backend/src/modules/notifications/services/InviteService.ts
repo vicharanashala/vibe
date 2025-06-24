@@ -144,9 +144,9 @@ export class InviteService extends BaseService {
         message: 'You have already accepted this invite.',
       };
     }
-
+    const date = new Date();
     // Validate the invite expiresAt < new Date() throw error
-    if (invite.expiresAt < new Date()) {
+    if (invite.expiresAt < date) {
       throw new BadRequestError('Invite has expired');
     }
     // If enrolled, return
@@ -158,6 +158,7 @@ export class InviteService extends BaseService {
 
     // Update invite status to ACCEPTED
     invite.inviteStatus = 'ACCEPTED';
+    invite.acceptedAt = date;
     await this.inviteRepo.updateInvite(inviteId, invite);
 
     // If existing user, enroll them
@@ -250,7 +251,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt
       );
     });
   }
@@ -262,7 +264,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt
       );
     });
   }
@@ -279,7 +282,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt,
       );
     });
   }
