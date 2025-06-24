@@ -3,26 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import type { CourseSectionProps } from '@/types/course.types';
 
-interface CourseSectionProps {
-  title: string;
-  enrollments: Array<Record<string, unknown>>;
-  isLoading: boolean;
-  error?: string | null;
-  totalEnrollments?: number;
-  showViewAll?: boolean;
-  onViewAll?: () => void;
-  onRetry?: () => void;
-  variant?: 'dashboard' | 'courses';
-  skeletonCount?: number;
-  emptyStateConfig?: {
-    title: string;
-    description: string;
-    actionText?: string;
-    onAction?: () => void;
-  };
-  className?: string;
-}
 
 export const CourseSection = ({
   title,

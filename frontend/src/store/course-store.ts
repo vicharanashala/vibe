@@ -1,21 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface CourseInfo {
-  courseId: string;
-  versionId: string | null;
-  moduleId: string | null;
-  sectionId: string | null;
-  itemId: string | null;
-  watchItemId: string | null;
-}
-
-interface CourseState {
-  currentCourse: CourseInfo | null;
-  setCurrentCourse: (courseInfo: CourseInfo) => void;
-  setWatchItemId: (watchItemId: string) => void;
-  clearCurrentCourse: () => void;
-}
+import type { CourseInfo, CourseState } from '@/types/course.types';
 
 // Use persist middleware to keep course selection between page refreshes
 export const useCourseStore = create<CourseState>()(

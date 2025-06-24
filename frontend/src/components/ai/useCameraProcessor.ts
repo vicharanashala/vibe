@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import CameraProcessor, { MLProcessor } from "./CameraProcessor";
+import CameraProcessor from "./CameraProcessor";
 import * as faceDetection from "@tensorflow-models/face-detection";
+
+import type { MLProcessor } from "@/types/ai.types";
 
 const useCameraProcessor = (frameRate = 3) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);

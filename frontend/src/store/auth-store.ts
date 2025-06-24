@@ -1,29 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type User = {
-  uid: string;
-  email: string;
-  name?: string;
-  role: 'teacher' | 'student' | 'admin' | null;
-  avatar?: string;
-  // Backend user fields
-  userId?: string;
-  firstName?: string;
-  lastName?: string;
-};
-
-type AuthStore = {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  
-  // Actions
-  setUser: (user: User) => void;
-  setToken: (token: string) => void;
-  clearUser: () => void;
-  hasRole: (role: string | string[]) => boolean;
-};
+import type { User, AuthStore } from '@/types/auth.types';
 
 export const useAuthStore = create<AuthStore>()(
   persist(

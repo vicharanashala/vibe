@@ -2,16 +2,8 @@ import React, { createContext } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { logout, loginWithGoogle, loginWithEmail } from '@/utils/auth';
 
-type Role = 'teacher' | 'student' | 'admin' | null;
+import type { Role, AuthContextType } from '@/types/auth.types';
 
-interface AuthContextType {
-  role: Role;
-  isAuthenticated: boolean;
-  login: (selectedRole: Role, uid: string, email: string, name?: string) => void;
-  loginWithGoogle: () => Promise<any>;
-  loginWithEmail: (email: string, password: string) => Promise<any>;
-  logout: () => void;
-}
 
 // Create a context with default values
 export const AuthContext = createContext<AuthContextType>({

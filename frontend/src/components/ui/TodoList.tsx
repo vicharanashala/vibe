@@ -4,13 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-// Todo interface
-interface TodoItem {
-  id: string;
-  text: string;
-  completed: boolean;
-  createdAt: string;
-}
+import type { TodoItem, TodoListProps } from "@/types/ui.types";
 
 // Custom hook for managing todos
 const useTodos = () => {
@@ -84,10 +78,6 @@ const useTodos = () => {
     sortedTasks
   };
 };
-
-interface TodoListProps {
-  className?: string;
-}
 
 export const TodoList = ({ className }: TodoListProps) => {
   const todoManager = useTodos();

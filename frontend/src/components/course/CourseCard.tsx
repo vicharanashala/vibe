@@ -8,13 +8,7 @@ import { useCourseById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { bufferToHex } from "@/utils/helpers";
-
-interface CourseCardProps {
-  enrollment: Record<string, unknown>;
-  index: number;
-  variant?: 'dashboard' | 'courses';
-  className?: string;
-}
+import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, variant = 'dashboard', className }: CourseCardProps) => {
   const courseId = bufferToHex(enrollment.courseId);

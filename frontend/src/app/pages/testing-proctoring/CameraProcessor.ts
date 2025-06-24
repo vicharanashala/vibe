@@ -1,4 +1,4 @@
-export type MLProcessor = (image: ImageBitmap) => void;
+import type { MLProcessor } from "@/types/ai.types";
 
 class CameraProcessor {
   private videoElement: HTMLVideoElement | null = null;
