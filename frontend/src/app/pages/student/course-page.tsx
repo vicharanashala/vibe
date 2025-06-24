@@ -15,7 +15,8 @@ import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdatePr
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link } from "@tanstack/react-router";
-import ItemContainer, { Item, ItemContainerRef } from "@/components/Item-container";
+import ItemContainer from "@/components/Item-container";
+import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import {
@@ -31,6 +32,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
+import type { itemref } from "@/types/course.types";
+
 import { isError } from "util";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
@@ -52,11 +55,6 @@ const getItemIcon = (type: string) => {
   }
 };
 
-interface itemref {
-  order?: string;
-  type?: string;
-  _id?: string;
-}
 
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {

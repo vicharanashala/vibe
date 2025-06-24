@@ -6,7 +6,7 @@ import StudentProfile from "@/app/pages/student/profile";
 import ItemContainer from "@/components/Item-container";
 import CoursePage from "@/app/pages/student/course-page";
 // import ParentComponent from "@/ai-components/ParentComponent";
-import { Item } from "@/components/Item-container"; // Assuming Item is defined in Item-container
+import { Item } from "@/types/item-container.types"; // Assuming Item is defined in Item-container
 
 const studentRoutes: RouteObject = {
   path: "/student",

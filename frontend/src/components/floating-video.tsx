@@ -15,33 +15,7 @@ import { useReportAnomaly } from '@/hooks/hooks';
 import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 
-// Proctoring settings interface based on the backend structure
-interface IDetectorSettings {
-  detectorName: string;
-  settings: {
-    enabled: boolean;
-  };
-}
-
-interface ProctoringSettings {
-  _id: string;
-  studentId: string;
-  versionId: string;
-  courseId: string;
-  settings: {
-    proctors: {
-      detectors: IDetectorSettings[];
-    };
-  };
-}
-
-interface FloatingVideoProps {
-  isVisible?: boolean;
-  onClose?: () => void;
-  onAnomalyDetected?: (hasAnomaly: boolean) => void;
-  setDoGesture: (value: boolean) => void;
-  settings?: ProctoringSettings;
-}
+import type { IDetectorSettings, StudentProctoringSettings, FloatingVideoProps } from '@/types/video.types';
 
 let flag = 0;
 function FloatingVideo({

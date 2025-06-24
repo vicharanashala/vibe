@@ -2,10 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '@/store/auth-store';
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-  requiredRole?: 'teacher' | 'student' | 'admin' | ('teacher' | 'student' | 'admin')[];
-}
+import type { ProtectedRouteProps } from '@/types/auth.types';
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { isAuthenticated, user, hasRole } = useAuthStore();

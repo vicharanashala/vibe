@@ -23,11 +23,7 @@ import { useAuthStore } from "@/store/auth-store"
 import { bufferToHex } from "@/utils/helpers"
 
 // Define types for better TypeScript support
-type RawEnrollment = {
-  _id: string
-  courseId: { buffer: { data: number[] } }
-  courseVersionId: { buffer: { data: number[] } }
-}
+import type { RawEnrollment } from "@/types/course.types"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")

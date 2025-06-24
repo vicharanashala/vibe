@@ -1,12 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Image as ImageIcon } from "lucide-react";
 
-interface ImageWithFallbackProps {
-  src: string;
-  alt: string;
-  className?: string;
-  aspectRatio?: string;
-}
+import type { ImageWithFallbackProps } from "@/types/ui.types";
 
 export const ImageWithFallback = ({ 
   src, 

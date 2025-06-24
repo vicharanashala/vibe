@@ -22,11 +22,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-interface BreadcrumbItem {
-  label: string;
-  path: string;
-  isCurrentPage?: boolean;
-}
+import type { BreadcrumbItemment } from "@/types/layout.types";
 
 export default function TeacherLayout() {
   const matches = useMatches();

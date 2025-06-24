@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
+import type { QuizQuestion, QuizProps, QuizRef, BufferLike, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
 
 // Utility function to preprocess content for math rendering
 const preprocessMathContent = (content: string): string => {
@@ -37,62 +38,6 @@ const preprocessMathContent = (content: string): string => {
   
   return processedContent;
 };
-
-// Enhanced question types based on backend QuestionRenderView
-interface QuizQuestion {
-  id: string;
-  type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE' | 'ORDER_THE_LOTS';
-  question: string;
-  options?: string[]; // For lot items
-  points: number;
-  timeLimit?: number; // in seconds (timeLimitSeconds from backend)
-  hint?: string;
-  // Additional properties for different question types
-  decimalPrecision?: number;
-  expression?: string;
-  lotItems?: Array<{ text: string; explaination: string; _id: { buffer: { type: string; data: number[] } } | string }>;
-}
-
-interface BufferLike {
-  buffer: {
-    type: string;
-    data: number[];
-  };
-}
-
-export interface questionBankRef {
-  bankId: string; // ObjectId as string
-  count: number; // How many questions to pick
-  difficulty?: string[]; // Optional filter
-  tags?: string[]; // Optional filter
-  type?: string; // Optional question type filter
-}
-
-interface QuizProps {
-  questionBankRefs: questionBankRef[];
-  passThreshold: number;
-  maxAttempts: number;
-  quizType: 'DEADLINE' | 'NO_DEADLINE' | '';
-  releaseTime: Date | undefined;
-  questionVisibility: number;
-  deadline?: Date;
-  approximateTimeToComplete: string;
-  allowPartialGrading: boolean;
-  allowHint: boolean;
-  showCorrectAnswersAfterSubmission: boolean;
-  showExplanationAfterSubmission: boolean;
-  showScoreAfterSubmission: boolean;
-  quizId: string | BufferLike;
-  doGesture?: boolean;
-  onNext?: () => void;
-  isProgressUpdating?: boolean;
-  attemptId?: string;
-  setAttemptId?: (attemptId: string) => void;
-}
-
-export interface QuizRef {
-  stopItem: () => void;
-}
 
 const Quiz = forwardRef<QuizRef, QuizProps>(({
   questionBankRefs,

@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AudioClassifier, FilesetResolver } from "@mediapipe/tasks-audio";
 
-interface SpeechDetectorProps {
-  setIsSpeaking: (value: string) => void;
-}
+import type { SpeechDetectorProps } from "@/types/ai.types";
 
 const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
   const [modelReady, setModelReady] = useState(false);
