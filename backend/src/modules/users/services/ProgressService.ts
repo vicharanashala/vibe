@@ -529,8 +529,8 @@ class ProgressService extends BaseService {
 
           const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-          // Check if the watch time is >= 0.5 * video duration
-          if (timeDiff >= 0.45 * videoDuration) {
+          // Check if the watch time is >= 0.2 * video duration
+          if (timeDiff >= 0.2 * videoDuration) {
             return true;
           }
           return false;

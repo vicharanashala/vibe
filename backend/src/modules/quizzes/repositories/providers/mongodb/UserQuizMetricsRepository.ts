@@ -50,12 +50,13 @@ class UserQuizMetricsRepository {
   public async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
+    session?: ClientSession,
   ): Promise<IUserQuizMetrics> {
     await this.init();
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
       {_id: new ObjectId(metricsId)},
       {$set: updateData},
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
 
     return result;
