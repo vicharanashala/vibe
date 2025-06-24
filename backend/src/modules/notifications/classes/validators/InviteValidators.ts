@@ -125,15 +125,26 @@ class InviteResult {
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
   courseVersionId?: string | ObjectId;
 
+  @JSONSchema({
+    description: 'Date when the invite was accepted',
+    type: 'string',
+    format: 'date-time',
+    example: '2023-10-01T12:00:00Z',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  acceptedAt?: Date;
 
-
-  constructor(inviteId: ObjectId | string, email: string, inviteStatus: InviteStatus, role: EnrollmentRole = 'STUDENT', courseId?: string | ObjectId, courseVersionId?: string | ObjectId) {
+  constructor(inviteId: ObjectId | string, email: string, inviteStatus: InviteStatus, role: EnrollmentRole = 'STUDENT', acceptedAt?: Date, courseId?: string | ObjectId, courseVersionId?: string | ObjectId) {
     this.inviteId = inviteId;
     this.email = email;
     this.inviteStatus = inviteStatus;
     this.role = role;
     this.courseId = courseId;
     this.courseVersionId = courseVersionId;
+    if (inviteStatus == 'ACCEPTED' && acceptedAt) {
+      this.acceptedAt = acceptedAt;
+    }
   }
 }
 

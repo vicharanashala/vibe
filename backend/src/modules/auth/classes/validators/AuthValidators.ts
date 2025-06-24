@@ -55,6 +55,36 @@ class SignUpBody {
   lastName: string;
 }
 
+class GoogleSignUpBody {
+  @JSONSchema({
+    title: 'Email Address',
+    description: 'Email address of the user, used as login identifier',
+    example: 'user@example.com',
+    type: 'string',
+    format: 'email',
+  })
+  @IsEmail()
+  email: string;
+
+  @JSONSchema({
+    title: 'First Name',
+    description: "User's first name (alphabetic characters only)",
+    example: 'John',
+    type: 'string',
+  })
+  @IsAlpha()
+  firstName: string;
+
+  @JSONSchema({
+    title: 'Last Name',
+    description: "User's last name (alphabetic characters only)",
+    example: 'Smith',
+    type: 'string',
+  })
+  @IsAlpha()
+  lastName: string;
+}
+
 class VerifySignUpProviderBody {
   @JSONSchema({
     title: 'Firebase Auth Token',
@@ -206,6 +236,7 @@ class LoginBody {
 
 export const AUTH_VALIDATORS = [
   SignUpBody,
+  GoogleSignUpBody,
   ChangePasswordBody,
   SignUpResponse,
   VerifySignUpProviderBody,
@@ -217,6 +248,7 @@ export const AUTH_VALIDATORS = [
 
 export {
   SignUpBody,
+  GoogleSignUpBody,
   ChangePasswordBody,
   SignUpResponse,
   VerifySignUpProviderBody,

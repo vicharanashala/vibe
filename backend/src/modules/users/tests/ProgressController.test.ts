@@ -33,6 +33,7 @@ import {
 import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
+import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
 describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
   const appInstance = Express();
@@ -51,7 +52,8 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       authContainerModule,
       usersContainerModule,
       coursesContainerModule,
-      quizzesContainerModule
+      quizzesContainerModule,
+      notificationsContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);

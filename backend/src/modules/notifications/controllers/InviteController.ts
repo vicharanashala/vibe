@@ -4,26 +4,19 @@ import {
   Post,
   HttpCode,
   Params,
-  Authorized,
-  BadRequestError,
   Get,
-  NotFoundError,
-  Param,
-  QueryParam,
-  InternalServerError,
   Body,
-  Res
+  ContentType,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { InviteService } from '../services/InviteService.js';
 import { CourseAndVersionId, InviteBody, InviteIdParams, InviteResponse, InviteResult } from '../classes/validators/InviteValidators.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { SignUpBody } from '#auth/classes/validators/AuthValidators.js'
 import { NOTIFICATIONS_TYPES } from '../types.js';
-import { CourseVersion } from '#root/modules/courses/classes/index.js';
 import { MessageResponse } from '../classes/index.js';
-
+import { appConfig } from '#root/config/app.js';
+import { inviteRedirectTemplate } from '../redirectTemplate.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -72,18 +65,26 @@ export class InviteController {
 
   @Get('/:inviteId')
   @HttpCode(200)
+  @ContentType('html')
   @OpenAPI({
     summary: 'Process Invite',
-    description: 'Process an invite given an inviteId.'
+    description: 'Process an invite given an inviteId and send a response before redirecting the user.',
+    responses: {
+      '200': {
+        description: 'JSON response with redirect information'
+      }
+    }
   })
   @ResponseSchema(MessageResponse, {
     description: 'Invite processed successfully',
     statusCode: 200,
   })
-  async processInvites(@Params() params: InviteIdParams): Promise<MessageResponse> {
+  async processInvites(
+    @Params() params: InviteIdParams,
+  ): Promise<string> {
       const { inviteId } = params;
-      const response = await this.inviteService.processInvite(inviteId);
-      return response;
+      const result = await this.inviteService.processInvite(inviteId);
+      return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
 
   @Get('/courses/:courseId/versions/:courseVersionId')

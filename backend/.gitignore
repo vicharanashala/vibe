@@ -73,3 +73,7 @@ node_modules/
 
 build/
 client/
+.
+tsconfig.tsbuildinfo
+client/
+build/
