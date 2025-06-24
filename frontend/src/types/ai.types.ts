@@ -83,3 +83,5 @@ export interface GestureDetectorProps {
   trigger: boolean;
   setGesture: (gesture: string) => void;
 }
+
+export type MLProcessor = (image: ImageBitmap) => void;
