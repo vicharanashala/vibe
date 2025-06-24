@@ -233,30 +233,31 @@ const signupMutation = useSignup();
       setLoading(true);
       setFormErrors({});
 
-      const result = await createUserWithEmail(email, password, fullName);
+      // const result = await createUserWithEmail(email, password, fullName);
 
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
+      await signupMutation.mutateAsync({
+        body: {
+          email: email,
+          password: password,
+          firstName: firstName,
+          lastName: lastName
+        }
+        
+      });
+      const result = await loginWithEmail(email, password);
+      
+      // Set user in store
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
-        name: fullName,
-        role: "student",
-        avatar: result.user.photoURL || ""
-      });
-
-      await signupMutation.mutateAsync({
-        body: {
-          email: result.user.email || email,
-          password: password,
-          firstName: firstName,
-          lastName: lastName,
-          avatar: result.user.photoURL || "",
-          role: "student",
-        }
+        name: result.user.displayName || "",
+        role: activeRole,
+        avatar: result.user.photoURL || "",
       });
 
       navigate({ to: "/student" });
