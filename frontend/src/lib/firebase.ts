@@ -3,6 +3,8 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
+import { useLoginWithGoogle } from "@/hooks/hooks";
+
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -27,7 +29,7 @@ export const provider = new GoogleAuthProvider();
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
   const result = await signInWithPopup(auth, provider);
-  
+  console.log("New user?:", result._tokenResponse?.isNewUser);
   // Get ID token for backend authentication
   const idToken = await result.user.getIdToken();
   

@@ -26,6 +26,26 @@ export function useLogin(): {
   };
 }
 
+// POST /auth/google
+export function useLoginWithGoogle(): {
+  mutate: (variables: { body: {lastName: string, firstName: string, email: string } }) => void,
+  mutateAsync: (variables: { body: {lastName: string, firstName: string, email: string } }) => Promise<components['schemas']['SignUpResponse']>,
+  data: components['schemas']['TokenVerificationResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/auth/google");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Google login failed') : null
+  };
+}
+
 // POST /auth/signup
 export function useSignup(): {
   mutate: (variables: { body: components['schemas']['SignUpBody'] }) => void,

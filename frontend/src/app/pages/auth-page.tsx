@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle, TimerOff } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
-import { useSignup } from "@/hooks/hooks.ts";
+import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -21,32 +21,32 @@ const TabsContext = createContext<{
 }>({ value: "" });
 
 // Create simplified versions of missing components
-const Tabs = ({ defaultValue, className, children, value, onValueChange }: { 
-  defaultValue: string; 
-  className: string; 
-  children: React.ReactNode; 
+const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
+  defaultValue: string;
+  className: string;
+  children: React.ReactNode;
   value?: string;
   onValueChange?: (value: string) => void;
 }) => {
   // Use internal state if no value is provided (uncontrolled component)
   const [internalValue, setInternalValue] = useState(defaultValue);
-  
+
   // Determine which value to use (controlled or uncontrolled)
   const activeValue = value !== undefined ? value : internalValue;
-  
+
   // Handle value change
   const handleValueChange = (newValue: string) => {
     // Update internal state if uncontrolled
     if (value === undefined) {
       setInternalValue(newValue);
     }
-    
+
     // Call external handler if provided
     if (onValueChange) {
       onValueChange(newValue);
     }
   };
-  
+
   return (
     <TabsContext.Provider value={{ value: activeValue, onValueChange: handleValueChange }}>
       <div className={className} data-value={activeValue}>
@@ -60,22 +60,22 @@ const TabsList = ({ className, children }: { className: string; children: React.
   return <div className={className}>{children}</div>;
 };
 
-const TabsTrigger = ({ value, children, onClick }: { 
-  value: string; 
+const TabsTrigger = ({ value, children, onClick }: {
+  value: string;
   children: React.ReactNode;
   onClick?: () => void;
 }) => {
   const { value: activeValue, onValueChange } = useContext(TabsContext);
-  
+
   const handleClick = () => {
     if (onClick) onClick();
     if (onValueChange) onValueChange(value);
   };
-  
+
   const isActive = activeValue === value;
-  
+
   return (
-    <button 
+    <button
       onClick={handleClick}
       className={`px-4 py-2 ${isActive ? "bg-background font-medium" : "text-muted-foreground"}`}
       data-value={value}
@@ -92,7 +92,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">("student");
@@ -104,7 +104,7 @@ export default function AuthPage() {
     fullName?: string;
     auth?: string;
   }>({});
-  
+
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -112,19 +112,19 @@ export default function AuthPage() {
   const passwordsMatch = !confirmPassword || password === confirmPassword;
   const calculatePasswordStrength = (password: string) => {
     if (!password) return { value: 0, label: "Weak", color: "bg-red-500" };
-    
+
     let strength = 0;
     if (password.length >= 8) strength += 25;
     if (/[A-Z]/.test(password)) strength += 25;
     if (/\d/.test(password)) strength += 25;
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
-    
+
     if (strength <= 25) return { value: strength, label: "Weak", color: "bg-red-500" };
     if (strength <= 50) return { value: strength, label: "Fair", color: "bg-yellow-500" };
     if (strength <= 75) return { value: strength, label: "Good", color: "bg-blue-500" };
     return { value: strength, label: "Strong", color: "bg-green-500" };
   };
-  
+
   const passwordStrength = calculatePasswordStrength(password);
 
   const toggleSignUpMode = () => {
@@ -134,15 +134,15 @@ export default function AuthPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
-    
+
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
-    
+
     if (!password) errors.password = "Password is required";
     else if (isSignUp && password.length < 8) errors.password = "Password must be at least 8 characters";
-    
+
     if (isSignUp && !fullName) errors.fullName = "Full name is required";
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -152,38 +152,56 @@ export default function AuthPage() {
       setLoading(true);
       setFormErrors({});
       const result = await loginWithGoogle();
-      
+      // Check if the user is new
+      if (result._tokenResponse?.isNewUser) {
+      // If new user, set the default role to student
+      setActiveRole("student");
+      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+        Authorization: `Bearer ${result._tokenResponse.idToken}`,
+        'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+        email: result.user.email,
+        firstName: result._tokenResponse.firstName,
+        lastName: result._tokenResponse.lastName,
+        }),
+      });
+      }
+
       // Set user in store
       setUser({
-        uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
-        role: activeRole, // Use the selected role from tabs
-        avatar: result.user.photoURL || "",
+      uid: result.user.uid,
+      email: result.user.email || "",
+      name: result.user.displayName || "",
+      role: activeRole, // Use the selected role from tabs
+      avatar: result.user.photoURL || "",
       });
-      
+
       navigate({ to: `/${activeRole}` });
     } catch (error) {
       console.error("Google Login Failed", error);
       setFormErrors({
-        ...formErrors,
-        auth: "Failed to sign in with Google. Please try again."
+      ...formErrors,
+      auth: "Failed to sign in with Google. Please try again."
       });
     } finally {
       setLoading(false);
     }
-  };
+    };
 
   const handleEmailLogin = async () => {
     if (!validateForm()) return;
-    
+
     try {
       setLoading(true);
       setFormErrors({});
-      
+
       // This function now handles login only
       const result = await loginWithEmail(email, password);
-      
+
       // Set user in store
       setUser({
         uid: result.user.uid,
@@ -192,7 +210,7 @@ export default function AuthPage() {
         role: activeRole,
         avatar: result.user.photoURL || "",
       });
-      
+
       navigate({ to: `/${activeRole}` });
     } catch (error) {
       console.error("Email Login Failed", error);
@@ -205,10 +223,10 @@ export default function AuthPage() {
     }
   };
 
-//SignUp
+  //SignUp
 
-const signupMutation = useSignup();
-  
+  const signupMutation = useSignup();
+
   // New function for handling signup
   const handleEmailSignup = async () => {
     if (!validateForm()) return;
@@ -247,10 +265,10 @@ const signupMutation = useSignup();
           firstName: firstName,
           lastName: lastName
         }
-        
+
       });
       const result = await loginWithEmail(email, password);
-      
+
       // Set user in store
       setUser({
         uid: result.user.uid,
@@ -306,16 +324,16 @@ const signupMutation = useSignup();
           "absolute inset-0 h-full w-full",
         )}
       />
-      
+
       <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
         {/* Left Side - Hero Section with Logos - Mobile & Desktop */}
         <div className="flex flex-col justify-center items-center p-6 lg:p-12 bg-gradient-to-br from-primary/10 via-primary/5 to-background relative lg:flex-1 min-h-[40vh] lg:min-h-screen">
           {/* Top Section with Brand - Positioned Absolutely */}
           <div className="absolute top-8 left-8 flex items-center space-x-4">
             <div className="h-12 w-12 rounded-lg overflow-hidden">
-              <img 
-                src="https://continuousactivelearning.github.io/vibe/img/logo.png" 
-                alt="Vibe Logo" 
+              <img
+                src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                alt="Vibe Logo"
                 className="h-12 w-12 object-contain"
               />
             </div>
@@ -336,7 +354,7 @@ const signupMutation = useSignup();
                 Connect, collaborate, and grow with our innovative educational platform designed for the next generation
               </p>
             </div>
-            
+
             {/* Institutional Logos - 2x2 Grid with Better Spacing */}
             <div className="w-full max-w-lg">
               <div className="text-center mb-6">
@@ -346,60 +364,60 @@ const signupMutation = useSignup();
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <Card className="relative overflow-hidden bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <ShineBorder 
-                  shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
-                  className="absolute inset-0"
+                  <ShineBorder
+                    shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
+                    className="absolute inset-0"
                   />
                   <div className="relative p-2 flex items-center justify-center h-28 bg-white">
-                  <img 
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIMLYKMDSyb-jHjoXCgqylITmmVNGIxwMfKg&s" 
-                    alt="IIT Ropar" 
-                    className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
-                  />
+                    <img
+                      src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIMLYKMDSyb-jHjoXCgqylITmmVNGIxwMfKg&s"
+                      alt="IIT Ropar"
+                      className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                    />
                   </div>
                 </Card>
 
                 <Card className="relative overflow-hidden bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <ShineBorder 
-                  shineColor={["#FE8FB5", "#FFBE7B", "#A07CFE"]}
-                  className="absolute inset-0"
+                  <ShineBorder
+                    shineColor={["#FE8FB5", "#FFBE7B", "#A07CFE"]}
+                    className="absolute inset-0"
                   />
                   <div className="relative p-2 flex items-center justify-center h-28 bg-white">
-                  <img 
-                    src="https://mmc.ugc.ac.in/newtheme/img/ugc_logo.png" 
-                    alt="UGC Logo" 
-                    className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
-                  />
+                    <img
+                      src="https://mmc.ugc.ac.in/newtheme/img/ugc_logo.png"
+                      alt="UGC Logo"
+                      className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                    />
                   </div>
                 </Card>
 
                 <Card className="relative overflow-hidden bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <ShineBorder 
-                  shineColor={["#FFBE7B", "#A07CFE", "#FE8FB5"]}
-                  className="absolute inset-0"
+                  <ShineBorder
+                    shineColor={["#FFBE7B", "#A07CFE", "#FE8FB5"]}
+                    className="absolute inset-0"
                   />
                   <div className="relative p-2 flex items-center hover:scale-110 duration-300 justify-center h-28 bg-white">
-                  <img 
-                  src="https://annam.ai/wp-content/uploads/2025/01/4-1-768x768.png" 
-                  alt="Annam Logo" 
-                  style={{ scale: 2.3, transform: 'translateY(5px)' }}
-                  className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
-                  />
+                    <img
+                      src="https://annam.ai/wp-content/uploads/2025/01/4-1-768x768.png"
+                      alt="Annam Logo"
+                      style={{ scale: 2.3, transform: 'translateY(5px)' }}
+                      className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                    />
                   </div>
                 </Card>
 
                 <Card className="relative overflow-hidden bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <ShineBorder 
-                  shineColor={["#A07CFE", "#FFBE7B", "#FE8FB5"]}
-                  className="absolute inset-0"
+                  <ShineBorder
+                    shineColor={["#A07CFE", "#FFBE7B", "#FE8FB5"]}
+                    className="absolute inset-0"
                   />
                   <div className="relative p-2 flex items-center hover:scale-110 duration-300 justify-center h-28 bg-white/95">
-                  <img 
-                    src="https://dled-lab.github.io/logo.png" 
-                    alt="Dhananjaya Lab Logo"
-                    style={{ scale: 2.5}}
-                    className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
-                  />
+                    <img
+                      src="https://dled-lab.github.io/logo.png"
+                      alt="Dhananjaya Lab Logo"
+                      style={{ scale: 2.5 }}
+                      className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                    />
                   </div>
                 </Card>
               </div>
@@ -416,8 +434,8 @@ const signupMutation = useSignup();
                 {isSignUp ? "Create Account" : "Welcome Back"}
               </h2>
               <p className="text-muted-foreground">
-                {isSignUp 
-                  ? "Join thousands of learners worldwide" 
+                {isSignUp
+                  ? "Join thousands of learners worldwide"
                   : "Sign in to your account to continue"
                 }
               </p>
@@ -425,27 +443,27 @@ const signupMutation = useSignup();
 
             {/* Auth Card with Shine Border */}
             <Card className="relative overflow-hidden">
-              <ShineBorder 
-                shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]} 
+              <ShineBorder
+                shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
                 duration={8}
                 borderWidth={2}
               />
-              
+
               {!isSignUp ? (
                 // Login Section
                 <div>
                   {/* Role Selection Tabs */}
                   <CardHeader className="pb-4">
-                    <Tabs 
-                      defaultValue="student" 
-                      className="w-full" 
+                    <Tabs
+                      defaultValue="student"
+                      className="w-full"
                       onValueChange={(v: string) => setActiveRole(v as "student" | "teacher")}
                       value={activeRole}
                     >
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student">Student</TabsTrigger>
                         <TabsTrigger value="teacher">Teacher</TabsTrigger>
-                        
+
                       </TabsList>
                     </Tabs>
                   </CardHeader>
@@ -466,12 +484,12 @@ const signupMutation = useSignup();
                       <Label htmlFor="email" className="text-sm font-medium">
                         Email Address
                       </Label>
-                      <Input 
-                        id="email" 
+                      <Input
+                        id="email"
                         type="email"
                         placeholder="Enter your email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)} 
+                        onChange={(e) => setEmail(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           formErrors.email && "border-destructive focus-visible:ring-destructive"
@@ -487,14 +505,14 @@ const signupMutation = useSignup();
                       <Label htmlFor="password" className="text-sm font-medium">
                         Password
                       </Label>
-                      <Input 
-                        id="password" 
+                      <Input
+                        id="password"
                         name="new-password"
-                        type="password" 
+                        type="password"
                         placeholder="Enter your password"
                         autoComplete="new-password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)} 
+                        onChange={(e) => setPassword(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           formErrors.password && "border-destructive focus-visible:ring-destructive"
@@ -506,14 +524,14 @@ const signupMutation = useSignup();
                     </div>
 
                     {/* Login Button */}
-                    <Button 
+                    <Button
                       className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
                       onClick={handleEmailLogin}
                       disabled={loading}
                     >
                       {loading ? "Signing in..." : `Sign in as ${activeRole}`}
                     </Button>
-                    
+
                     {/* Divider */}
                     <div className="relative my-6">
                       <div className="absolute inset-0 flex items-center">
@@ -527,10 +545,10 @@ const signupMutation = useSignup();
                     </div>
 
                     {/* Google Login */}
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200" 
-                      onClick={handleGoogleLogin} 
+                    <Button
+                      variant="outline"
+                      className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200"
+                      onClick={handleGoogleLogin}
                       disabled={loading}
                     >
                       <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -544,9 +562,9 @@ const signupMutation = useSignup();
                   </CardContent>
 
                   <CardFooter className="pt-4">
-                    <Button 
-                      variant="link" 
-                      className="w-full text-sm text-muted-foreground hover:text-foreground" 
+                    <Button
+                      variant="link"
+                      className="w-full text-sm text-muted-foreground hover:text-foreground"
                       onClick={toggleSignUpMode}
                     >
                       Don't have an account? <span className="ml-1 font-medium">Sign up</span>
@@ -579,11 +597,11 @@ const signupMutation = useSignup();
                       <Label htmlFor="fullName" className="text-sm font-medium">
                         Full Name
                       </Label>
-                      <Input 
-                        id="fullName" 
+                      <Input
+                        id="fullName"
                         placeholder="Enter your full name"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)} 
+                        onChange={(e) => setFullName(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           formErrors.fullName && "border-destructive focus-visible:ring-destructive"
@@ -599,12 +617,12 @@ const signupMutation = useSignup();
                       <Label htmlFor="signup-email" className="text-sm font-medium">
                         Email Address
                       </Label>
-                      <Input 
-                        id="signup-email" 
+                      <Input
+                        id="signup-email"
                         type="email"
                         placeholder="Enter your email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)} 
+                        onChange={(e) => setEmail(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           formErrors.email && "border-destructive focus-visible:ring-destructive"
@@ -620,12 +638,12 @@ const signupMutation = useSignup();
                       <Label htmlFor="signup-password" className="text-sm font-medium">
                         Password
                       </Label>
-                      <Input 
-                        id="signup-password" 
-                        type="password" 
+                      <Input
+                        id="signup-password"
+                        type="password"
                         placeholder="Create a strong password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)} 
+                        onChange={(e) => setPassword(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           formErrors.password && "border-destructive focus-visible:ring-destructive"
@@ -646,7 +664,7 @@ const signupMutation = useSignup();
                             </span>
                           </div>
                           <div className="w-full bg-muted rounded-full h-1.5">
-                            <div 
+                            <div
                               className={cn(
                                 "h-1.5 rounded-full transition-all duration-300",
                                 passwordStrength.color
@@ -657,30 +675,30 @@ const signupMutation = useSignup();
                           <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Check className={cn(
-                                "h-3 w-3", 
+                                "h-3 w-3",
                                 password.length >= 8 ? 'text-green-500' : 'text-muted-foreground'
-                              )} /> 
+                              )} />
                               8+ characters
                             </div>
                             <div className="flex items-center gap-1">
                               <Check className={cn(
-                                "h-3 w-3", 
+                                "h-3 w-3",
                                 /[A-Z]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} /> 
+                              )} />
                               Uppercase
                             </div>
                             <div className="flex items-center gap-1">
                               <Check className={cn(
-                                "h-3 w-3", 
+                                "h-3 w-3",
                                 /\d/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} /> 
+                              )} />
                               Numbers
                             </div>
                             <div className="flex items-center gap-1">
                               <Check className={cn(
-                                "h-3 w-3", 
+                                "h-3 w-3",
                                 /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} /> 
+                              )} />
                               Special chars
                             </div>
                           </div>
@@ -696,12 +714,12 @@ const signupMutation = useSignup();
                       <Label htmlFor="confirmPassword" className="text-sm font-medium">
                         Confirm Password
                       </Label>
-                      <Input 
-                        id="confirmPassword" 
-                        type="password" 
+                      <Input
+                        id="confirmPassword"
+                        type="password"
                         placeholder="Confirm your password"
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)} 
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         className={cn(
                           "transition-all duration-200",
                           !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
@@ -713,7 +731,7 @@ const signupMutation = useSignup();
                     </div>
 
                     {/* Sign Up Button */}
-                    <Button 
+                    <Button
                       className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
                       onClick={handleEmailSignup}
                       disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
@@ -723,9 +741,9 @@ const signupMutation = useSignup();
                   </CardContent>
 
                   <CardFooter>
-                    <Button 
-                      variant="link" 
-                      className="w-full text-sm text-muted-foreground hover:text-foreground" 
+                    <Button
+                      variant="link"
+                      className="w-full text-sm text-muted-foreground hover:text-foreground"
                       onClick={toggleSignUpMode}
                     >
                       Already have an account? <span className="ml-1 font-medium">Sign in</span>
