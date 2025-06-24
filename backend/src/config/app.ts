@@ -18,6 +18,7 @@ export const appConfig = {
   url: env('APP_URL'),
   origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:3000'],
   module: env('APP_MODULE') || 'all',
+  routePrefix: env('APP_ROUTE_PREFIX') || '/api',
   // Only for development
   firebase: {
     clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,

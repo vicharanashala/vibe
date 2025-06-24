@@ -43,7 +43,7 @@ export class InviteService extends BaseService {
       subject: `Invitation to join course: ${course.name}`,
       text: `You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite: ${appConfig.url}/notifications/invite/${invite._id.toString()}`,
       html: `<p>You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite:</p>
-             <a href="${appConfig.url}/notifications/invite/${invite._id.toString()}">Accept Invite</a>`,
+             <a href="${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}">Accept Invite</a>`,
     };
   }
 
