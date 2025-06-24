@@ -164,6 +164,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
             invite.email,
             invite.inviteStatus,
             invite.role,
+            invite.acceptedAt,
             invite.courseId,
             invite.courseVersionId,
           ));
