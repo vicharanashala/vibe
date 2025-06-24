@@ -2,7 +2,7 @@ export function inviteRedirectTemplate(message: string, redirectUrl: string): st
   return `
     <html>
       <head>
-        <meta http-equiv="refresh" content="1;url=${redirectUrl}" />
+        <meta http-equiv="refresh" content="10;url=${redirectUrl}" />
         <style>
           body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -42,7 +42,7 @@ export function inviteRedirectTemplate(message: string, redirectUrl: string): st
         <div class="message-box">
           <h2>${message}</h2>
           <div class="redirect">
-            Redirecting you in a moment...
+            Redirecting you in 10 seconds...
             <br>
             <a href="${redirectUrl}">Click here if you are not redirected</a>
           </div>
