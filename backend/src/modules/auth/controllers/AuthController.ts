@@ -2,6 +2,7 @@ import {
   SignUpBody,
   ChangePasswordBody,
   LoginBody,
+  GoogleSignUpBody,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
@@ -9,7 +10,6 @@ import {
 } from '#auth/interfaces/IAuthService.js';
 import { ChangePasswordError } from '#auth/services/FirebaseAuthService.js';
 import { AuthRateLimiter } from '#shared/middleware/rateLimiter.js';
-import { instanceToPlain } from 'class-transformer';
 import { injectable, inject } from 'inversify';
 import {
   JsonController,
@@ -26,7 +26,6 @@ import {
 import { AUTH_TYPES } from '#auth/types.js';
 import { OpenAPI } from 'routing-controllers-openapi';
 import { appConfig } from '#root/config/app.js';
-import { InviteResponse, InviteResult } from '#root/modules/notifications/index.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -50,6 +49,21 @@ export class AuthController {
   @OnUndefined(201)
   async signup(@Body() body: SignUpBody) {
     const acknowledgedInvites = await this.authService.signup(body);
+    if (acknowledgedInvites) {
+      return acknowledgedInvites;
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Register a new user account',
+    description:
+      'Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.',
+  })
+  @Post('/signup/google')
+  @UseBefore(AuthRateLimiter)
+  @HttpCode(201)
+  async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
+    const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }

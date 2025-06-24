@@ -1,4 +1,4 @@
-import {SignUpBody, User, ChangePasswordBody} from '#auth/classes/index.js';
+import {SignUpBody, User, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
@@ -15,6 +15,7 @@ import { USERS_TYPES } from '#root/modules/users/types.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import { fi } from '@faker-js/faker';
 
 /**
  * Custom error thrown during password change operations.
@@ -148,6 +149,60 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       }
     });
     
+    let enrolledInvites: InviteResult[] = [];
+
+    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    for (const invite of invites) {
+      if(invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        if(result && (result as any).enrollment) {
+          enrolledInvites.push(new InviteResult(
+            invite._id,
+            invite.email,
+            invite.inviteStatus,
+            invite.role,
+            invite.acceptedAt,
+            invite.courseId,
+            invite.courseVersionId,
+          ));
+        }
+      }
+    }
+
+    return enrolledInvites.length > 0 ? {
+      userId: createdUserId,
+      invites: enrolledInvites,
+    }: {
+      userId: createdUserId,
+    };
+  }
+
+  async googleSignup(
+    body: GoogleSignUpBody,
+    token: string,
+  ): Promise<any> {
+    await this.verifyToken(token);
+    // Decode the token to get the Firebase UID
+    const decodedToken = await this.auth.verifyIdToken(token);
+    const firebaseUID = decodedToken.uid;
+    const user: Partial<IUser> = {
+      firebaseUID: firebaseUID,
+      email: body.email,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      roles: ['user'],
+    };
+
+    let createdUserId: string;
+
+    await this._withTransaction(async session => {
+      const newUser = new User(user);
+      createdUserId = await this.userRepository.create(newUser, session);
+      if (!createdUserId) {
+        throw new InternalServerError('Failed to create the user');
+      }
+    });
+
     let enrolledInvites: InviteResult[] = [];
 
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
