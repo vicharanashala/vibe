@@ -1,20 +1,13 @@
 import 'reflect-metadata';
-import { instanceToPlain } from 'class-transformer';
 import { injectable, inject } from 'inversify';
-import { Course, CourseVersion, ItemsGroup } from '#courses/classes/index.js';
 import {
   ClientSession,
   Collection,
-  DeleteResult,
   MongoClient,
   ObjectId,
-  UpdateResult,
 } from 'mongodb';
-import { IInviteRepository } from '#shared/database/interfaces/IInviteRepository.js';
-import { ICourse, ICourseVersion } from '#shared/interfaces/models.js';
 import { MongoDatabase } from '../MongoDatabase.js';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { ResultSetDependencies } from 'mathjs';
+import { InternalServerError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { Invite } from '#root/modules/notifications/index.js';
 

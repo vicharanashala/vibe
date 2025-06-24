@@ -4,26 +4,16 @@ import {
   Post,
   HttpCode,
   Params,
-  Authorized,
-  BadRequestError,
   Get,
-  NotFoundError,
-  Param,
-  QueryParam,
-  InternalServerError,
   Body,
-  Res
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { InviteService } from '../services/InviteService.js';
 import { CourseAndVersionId, InviteBody, InviteIdParams, InviteResponse, InviteResult } from '../classes/validators/InviteValidators.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { SignUpBody } from '#auth/classes/validators/AuthValidators.js'
 import { NOTIFICATIONS_TYPES } from '../types.js';
-import { CourseVersion } from '#root/modules/courses/classes/index.js';
 import { MessageResponse } from '../classes/index.js';
-
 
 /**
  * Controller for managing student enrollments in courses.
