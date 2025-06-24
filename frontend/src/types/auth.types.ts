@@ -15,3 +15,27 @@ export interface ProtectedRouteProps {
   children: ReactNode;
   requiredRole?: 'teacher' | 'student' | 'admin' | ('teacher' | 'student' | 'admin')[];
 }
+
+export type User = {
+  uid: string;
+  email: string;
+  name?: string;
+  role: 'teacher' | 'student' | 'admin' | null;
+  avatar?: string;
+  // Backend user fields
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export type AuthStore = {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  
+  // Actions
+  setUser: (user: User) => void;
+  setToken: (token: string) => void;
+  clearUser: () => void;
+  hasRole: (role: string | string[]) => boolean;
+};
