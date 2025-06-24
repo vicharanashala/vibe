@@ -212,7 +212,7 @@ const signupMutation = useSignup();
   // New function for handling signup
   const handleEmailSignup = async () => {
     if (!validateForm()) return;
-  
+
     if (!passwordsMatch) {
       setFormErrors({
         ...formErrors,
@@ -220,7 +220,7 @@ const signupMutation = useSignup();
       });
       return;
     }
-  
+
     if (passwordStrength.value < 50) {
       setFormErrors({
         ...formErrors,
@@ -228,33 +228,40 @@ const signupMutation = useSignup();
       });
       return;
     }
-  
+
     try {
       setLoading(true);
       setFormErrors({});
-  
-      const result = await createUserWithEmail(email, password, fullName);
-  
+
+      // const result = await createUserWithEmail(email, password, fullName);
+
+      // Parse fullName into firstName and lastName
+      const nameParts = fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      await signupMutation.mutateAsync({
+        body: {
+          email: email,
+          password: password,
+          firstName: firstName,
+          lastName: lastName
+        }
+        
+      });
+      const result = await loginWithEmail(email, password);
+      
+      // Set user in store
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
-        name: fullName,
-        role: "student",
-        avatar: result.user.photoURL || ""
+        name: result.user.displayName || "",
+        role: activeRole,
+        avatar: result.user.photoURL || "",
       });
-  
-      await signupMutation.mutateAsync({
-        body: {
-          uid: result.user.uid,
-          name: fullName,
-          email: result.user.email || email,
-          avatar: result.user.photoURL || "",
-          role: "student",
-        }
-      });
-  
+
       navigate({ to: "/student" });
-  
+
     } catch (error: any) {
       console.error("Email Signup Failed", error);
       if (error?.code === "auth/email-already-in-use") {

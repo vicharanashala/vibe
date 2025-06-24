@@ -18,6 +18,7 @@ import { Link } from "@tanstack/react-router";
 import ItemContainer from "@/components/Item-container";
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuroraText } from "@/components/magicui/aurora-text";
 import {
   ChevronRight,
   BookOpen,
@@ -370,26 +371,18 @@ export default function CoursePage() {
         <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
           <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
             {/* Vibe Logo and Brand */}
-            <div className="flex items-center gap-3 px-0 py-0">
-              <div className="relative p-1">
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 transition-all duration-300" />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="relative h-5 w-5 text-primary drop-shadow-sm"
-                >
-                  <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-                </svg>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg overflow-hidden">
+                <img
+                 src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                 alt="Vibe Logo"
+                 className="h-8 w-8 object-contain"
+                />
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-base font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
-                  Vibe
-                </h1>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[1.15rem] font-bold leading-none">
+                  <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+                </span>
                 <p className="text-xs text-muted-foreground">Learning Platform</p>
               </div>
             </div>

@@ -19,6 +19,7 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import TeacherProfile from "@/app/pages/teacher/profile";
+import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 // import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
@@ -271,6 +272,12 @@ const teacherProfileRoute = new Route({
   component: TeacherProfile,
 });
 
+const teacherAudioManagerRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/transcribe',
+  component: LiveQuiz, 
+});
+
 // Teacher create course route
 const teacherCreateCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -392,6 +399,7 @@ const routeTree = rootRoute.addChildren([
     teacherCoursesPageRoute,
     teacherTestingRoute,
     teacherProfileRoute,
+    teacherAudioManagerRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
