@@ -11,6 +11,8 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
 
+import type { DashboardContentProps } from '@/types/dashboard.types';
+
 export default function Page() {
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
@@ -46,9 +48,6 @@ export default function Page() {
   return <DashboardContent userId={userId} />;
 }
 
-interface DashboardContentProps {
-  userId: string;
-}
 
 function DashboardContent({ userId }: DashboardContentProps) {
   const { user } = useAuthStore();

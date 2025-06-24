@@ -43,19 +43,8 @@ const plugins = [
     TodoList,
     Code,
 ];
+import type { ArticleProps, ArticleRef } from "@/types/article.types";
 
-interface ArticleProps {
-    content: string;
-    estimatedReadTimeInMinutes?: string;
-    points?: string;
-    tags?: string[];
-    onNext?: () => void;
-    isProgressUpdating?: boolean;
-}
-
-export interface ArticleRef {
-    stopItem: () => void;
-}
 
 const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
     // ✅ Initialize Yoopta Editor

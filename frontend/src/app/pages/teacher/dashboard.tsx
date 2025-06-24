@@ -35,8 +35,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Sector,
-  SectorProps
 } from 'recharts';
+import type { Task, ActiveShapeProps, ChartLabelProps } from '@/types/dashboard.types';
+
 
 // Helper function to get greeting based on time of day
 const getGreeting = () => {
@@ -86,35 +87,6 @@ const initialTodoItems = [
   { id: 5, text: "Update course materials for next week", completed: false },
 ];
 
-// Define the Task type for better type safety
-type Task = {
-  id: number;
-  text: string;
-  completed: boolean;
-};
-
-// Define prop types for active shape rendering
-interface ActiveShapeProps extends SectorProps {
-  cx: number;
-  cy: number;
-  innerRadius: number;
-  outerRadius: number;
-  startAngle: number;
-  endAngle: number;
-  fill: string;
-  payload: {
-    name: string;
-    value: number;
-  };
-  percent: number;
-  value: number;
-}
-
-// Custom type for chart label
-interface ChartLabelProps {
-  name: string;
-  percent: number;
-}
 
 export default function Page() {
   const { user } = useAuthStore();

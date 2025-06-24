@@ -1,35 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 
-export interface FaceRecognition {
-  box: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  label: string;
-  distance: number;
-  isMatch: boolean;
-}
-
-export interface FaceRecognitionDebugInfo {
-  knownFacesCount: number;
-  knownFaceLabels: string[];
-  detectedPhotoFaces: number;
-  currentFrameFaces: number;
-  recognizedFaces: number;
-  processingTime?: number;
-  lastUpdateTime: number;
-  backendStatus: 'loading' | 'success' | 'error';
-  errorMessage?: string;
-}
-
-interface FaceRecognitionComponentProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
-  onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
-}
+import type { FaceRecognition, TrackedFace, FaceRecognitionDebugInfo, FaceRecognitionComponentProps } from '@/types/ai.types';
 
 // Optimized validation with caching
 const URL_VALIDATION_CACHE = new Map<string, boolean>();
@@ -73,7 +45,10 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     currentFrameFaces: 0,
     recognizedFaces: 0,
     lastUpdateTime: Date.now(),
-    backendStatus: 'loading'
+    backendStatus: 'loading',
+    trackedFaces: 0,
+    reusedTracks: 0,
+    newRecognitions: 0
   });
   const [recognitions, setRecognitions] = useState<FaceRecognition[]>([]);
   const lastProcessTime = useRef<number>(0);

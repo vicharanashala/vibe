@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-interface GestureDetectorProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  trigger: boolean;
-  setGesture: (gesture: string) => void;
-}
+import type { GestureDetectorProps } from "@/types/ai.types";
 
 interface GestureWorkerResponse {
   type: 'INIT_SUCCESS' | 'INIT_ERROR' | 'GESTURE_RESULT' | 'ERROR';

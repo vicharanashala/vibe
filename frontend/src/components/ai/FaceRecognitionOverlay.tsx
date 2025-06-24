@@ -1,11 +1,7 @@
 import React from 'react';
-import { FaceRecognition } from './FaceRecognitionComponent';
+import { FaceRecognition, FaceRecognitionOverlayProps } from '@/types/ai.types';
 
-interface FaceRecognitionOverlayProps {
-  recognitions: FaceRecognition[];
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  className?: string;
-}
+
 
 const FaceRecognitionOverlay: React.FC<FaceRecognitionOverlayProps> = ({
   recognitions,

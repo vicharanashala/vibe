@@ -1,57 +1,10 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
-import Quiz, { questionBankRef } from './quiz';
-import Article, { ArticleRef } from './article';
-
-export interface Item {
-  _id: string;
-  name: string;
-  description?: string;
-  type: string;
-  order?: string;
-  details?: {
-    points?: string;
-
-    // For Video
-    URL?: string;
-    startTime?: string;
-    endTime?: string;
-
-    // For Article or Blog
-    tags?: string[];
-    content?: string;
-    estimatedReadTimeInMinutes?: string;
-
-    // For Quiz
-    questionBankRefs?: questionBankRef[];
-    passThreshold?: number;
-    maxAttempts?: number;
-    quizType?: 'DEADLINE' | 'NO_DEADLINE';
-    releaseTime?: Date;
-    questionVisibility?: number;
-    deadline?: Date;
-    approximateTimeToComplete?: string;
-    allowPartialGrading?: boolean;
-    allowHint?: boolean;
-    showCorrectAnswersAfterSubmission?: boolean;
-    showExplanationAfterSubmission?: boolean;
-    showScoreAfterSubmission?: boolean;
-    quizId?: string;
-  };
-}
-
-interface ItemContainerProps {
-  item: Item;
-  doGesture: boolean;
-  onNext: () => void;
-  isProgressUpdating: boolean;
-  attemptId?: string;
-  setAttemptId?: (attemptId: string) => void;
-}
-
-export interface ItemContainerRef {
-  stopCurrentItem: () => void;
-}
+import Quiz from './quiz';
+import { questionBankRef } from '@/types/quiz.types';
+import Article from './article';
+import type { ArticleRef } from "@/types/article.types";
+import type { Item, ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, isProgressUpdating, attemptId, setAttemptId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);

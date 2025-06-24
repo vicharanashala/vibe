@@ -6,54 +6,13 @@ import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
+import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
-interface VideoProps {
-  URL: string;
-  startTime?: string;
-  endTime?: string;
-  points?: string;
-  doGesture?: boolean;
-  onNext?: () => void;
-  isProgressUpdating?: boolean;
-}
 
 // Helper to extract YouTube video ID from URL
 function getYouTubeId(url: string): string | null {
   const match = url.match(/(?:v=|youtu.be\/?)([\w-]{11})/);
   return match ? match[1] : null;
-}
-
-// Minimal YT namespace types for YouTube IFrame API
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        element: HTMLDivElement,
-        options: {
-          videoId: string;
-          playerVars: Record<string, unknown>;
-          events: {
-            onReady: (event: { target: YTPlayerInstance }) => void;
-            onStateChange: (event: { data: number; target: YTPlayerInstance }) => void;
-          };
-        }
-      ) => YTPlayerInstance;
-      PlayerState: { PLAYING: number };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-interface YTPlayerInstance {
-  playVideo: () => void;
-  pauseVideo: () => void;
-  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
-  getCurrentTime: () => number;
-  getDuration: () => number;
-  getVolume: () => number;
-  setVolume: (volume: number) => void;
-  setPlaybackRate: (rate: number) => void;
-  getAvailablePlaybackRates?: () => number[];
 }
 
 // Helper to parse time string (HH:MM:SS or MM:SS or SS) to seconds

@@ -22,7 +22,7 @@ import TeacherProfile from "@/app/pages/teacher/profile";
 // import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
-import { Item } from '@/components/Item-container' // Assuming Item is defined in Item-container
+import type { Item } from '@/types/item-container.types' // Assuming Item is defined in Item-container
 import Dashboard from '@/app/pages/teacher/dashboard'
 import CreateCourse from '@/app/pages/teacher/create-course'
 import GetCourse from '@/app/pages/teacher/get-course'

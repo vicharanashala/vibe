@@ -20,16 +20,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-interface BreadcrumbItem {
-  label: string;
-  path: string;
-  isCurrentPage?: boolean;
-}
+import type { BreadcrumbItemment } from "@/types/layout.types";
 
 export default function TeacherLayout() {
   const matches = useMatches();
   const navigate = useNavigate();
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItemment[]>([]);
 
   const handleLogout = () => {
     logout();
@@ -38,7 +34,7 @@ export default function TeacherLayout() {
 
   // Generate breadcrumbs based on the current path
   useEffect(() => {
-    const items: BreadcrumbItem[] = [];
+    const items: BreadcrumbItemment[] = [];
     
     // Add Dashboard as first item
     items.push({

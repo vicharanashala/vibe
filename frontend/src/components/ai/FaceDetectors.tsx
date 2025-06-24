@@ -1,19 +1,8 @@
 import React, { useEffect } from "react";
 import { Face, Keypoint } from "@tensorflow-models/face-detection";
-import FaceRecognitionComponent, { FaceRecognition, FaceRecognitionDebugInfo } from "./FaceRecognitionComponent";
+import FaceRecognitionComponent from "./FaceRecognitionComponent";
 
-interface FaceDetectorsProps {
-  faces: Face[],
-  setIsFocused: (focused: boolean) => void;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
-  onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
-  settings:{
-    isFaceCountDetectionEnabled:boolean, 
-    isFaceRecognitionEnabled:boolean, 
-    isFocusEnabled: boolean
-  }
-}
+import type { FaceDetectorsProps, FaceRecognition, FaceRecognitionDebugInfo } from "@/types/ai.types";
 
 const isLookingAway = (face: Face): boolean => {
   if (!face || face.keypoints.length < 6) return false;
