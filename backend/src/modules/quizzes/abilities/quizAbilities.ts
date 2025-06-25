@@ -5,8 +5,7 @@ import { QuizScope, createAbilityBuilder } from './types.js';
 // Actions
 export enum QuizActions {
     ModifyBank = "modifyBank",
-    ViewBank = "viewBank",
-    ViewSubmission = "viewSubmission",
+    View = "view",
     GetStats = "getStats",
     ModifySubmissions = "modifySubmissions",
 }
@@ -41,12 +40,10 @@ export function setupQuizAbilities(
 
         switch (enrollment.role) {
             case 'student':
-                can(QuizActions.ViewSubmission, 'Quiz', userBounded);
                 break;
             case 'instructor':
                 can(QuizActions.ModifyBank, 'Quiz', courseBounded);
-                can(QuizActions.ViewBank, 'Quiz', courseBounded);
-                can(QuizActions.ViewSubmission, 'Quiz', courseBounded);
+                can(QuizActions.View, 'Quiz', courseBounded);
                 can(QuizActions.GetStats, 'Quiz', courseBounded);
                 can(QuizActions.ModifySubmissions, 'Quiz', courseBounded);
                 break;
@@ -54,8 +51,7 @@ export function setupQuizAbilities(
                 can('manage', 'Quiz', courseBounded);
                 break;
             case 'ta':
-                can(QuizActions.ViewBank, 'Quiz', courseVersionBounded);
-                can(QuizActions.ViewSubmission, 'Quiz', courseVersionBounded);
+                can(QuizActions.View, 'Quiz', courseVersionBounded);
                 can(QuizActions.GetStats, 'Quiz', courseVersionBounded);
                 break;
         }

@@ -7,7 +7,8 @@ export enum EnrollmentActions {
     Create = "create",
     Modify = "modify",
     Delete = "delete",
-    View = "view"
+    View = "view",
+    ViewAll = "viewAll",
 }
 
 // Subjects
@@ -46,12 +47,14 @@ export function setupEnrollmentAbilities(
                 can(EnrollmentActions.View, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
+                can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
                 break;
             case 'manager':
                 can('manage', 'Enrollment', courseBounded);
                 break;
             case 'ta':
                 can(EnrollmentActions.View, 'Enrollment', versionBounded);
+                cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
                 break;
         }
     });

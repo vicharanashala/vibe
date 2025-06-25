@@ -10,7 +10,6 @@ export enum ItemActions {
     ViewAll = "viewAll",
     Modify = "modify",
     View = "view",
-    Reorder = "reorder",
     Delete = "delete"
 }
 
@@ -64,7 +63,6 @@ export function setupItemAbilities(
             case 'instructor':
                 can(ItemActions.Create, 'Item', courseBounded);
                 can(ItemActions.Modify, 'Item', courseBounded);
-                can(ItemActions.Reorder, 'Item', courseBounded);
                 can(ItemActions.Delete, 'Item', courseBounded);
                 can(ItemActions.ViewAll, 'Item', courseBounded);
                 break;
