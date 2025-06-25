@@ -429,7 +429,7 @@ const memoryHistory = typeof window !== 'undefined' ? undefined : createMemoryHi
 // Create router instance with additional options
 export const router = new Router({
   routeTree,
-  defaultPreload: 'false',
+  defaultPreload: false,
   // Use memory history for SSR
   history: memoryHistory,
   // Global not found component
