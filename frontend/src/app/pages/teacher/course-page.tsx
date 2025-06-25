@@ -200,7 +200,7 @@ function CourseCard({
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection', // bulrDetection
+  BLURDETECTION = 'blurDetection', // blurDetection
   FACECOUNTDETECTION = 'faceCountDetection', // faceCountDetection
   HANDGESTUREDETECTION = 'handGestureDetection', // handGestureDetection
   VOICEDETECTION = 'voiceDetection', // voiceDetection

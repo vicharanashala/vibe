@@ -986,7 +986,7 @@ export function useEditProctoringSettings() {
     */
    const url = isNew
       ? '/api/settings/courses'
-      : '/api/settings/courses/${courseId}/${courseVersionId}/proctoring';
+      : `/api/settings/courses/${courseId}/${courseVersionId}/proctoring`;
 
     const body = isNew
       ? {
