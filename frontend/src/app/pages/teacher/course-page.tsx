@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { ChevronRight, BookOpen, Edit3, Eye, Save, X, FileText, Plus, MoreVertical, Search, Trash2, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ProctoringModal } from "../testing-proctoring/EditProctoringModal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 // Import the hooks and auth store
 import {
   useUpdateCourse,
