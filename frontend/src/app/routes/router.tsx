@@ -19,14 +19,16 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
-
+import TeacherProfile from "@/app/pages/teacher/profile";
+import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 // import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
-import { Item } from '@/components/Item-container' // Assuming Item is defined in Item-container
+import type { Item } from '@/types/item-container.types'
 import Dashboard from '@/app/pages/teacher/dashboard'
 import CreateCourse from '@/app/pages/teacher/create-course'
 import GetCourse from '@/app/pages/teacher/get-course'
+import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
 import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
@@ -265,6 +267,19 @@ const teacherDashboardRoute = new Route({
   component: Dashboard,
 });
 
+// Teacher profile route
+const teacherProfileRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/profile',
+  component: TeacherProfile,
+});
+
+const teacherAudioManagerRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/transcribe',
+  component: LiveQuiz, 
+});
+
 // Teacher create course route
 const teacherCreateCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -277,6 +292,13 @@ const teacherGetCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/get',
   component: GetCourse,
+});
+
+// Teacher courses page route
+const teacherCoursesPageRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/list',
+  component: TeacherCoursesPage,
 });
 
 // Teacher create article route
