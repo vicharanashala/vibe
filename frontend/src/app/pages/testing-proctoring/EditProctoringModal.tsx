@@ -1,103 +1,12 @@
-/*import { Dialog, DialogContent } from "@radix-ui/react-dialog"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Save,X } from "lucide-react"
-import { useUpdateProctoringSettings } from "@/hooks/hooks"
-
-
-enum ProctoringComponent {
-  CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection',
-  FACECOUNTDETECTION = 'faceCountDetection',
-  HANDGESTUREDETECTION = 'handGestureDetection',
-  VOICEDETECTION = 'voiceDetection',
-  VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection',
-  RIGHTCLICKDISABLED = 'rightClickDisabled',
-  FACERECOGNITION = 'faceRecognition',
-}
-export default function EditProctoringModal({
-  open,
-  setOpen,
-  courseId,
-  versionId,
-  currentSettings,
-  refetch
-}: {
-  open : boolean;
-  setOpen: (open: boolean) => void;
-  courseId: string;
-  versionId: string;
-  currentSettings: { detectors: { detectorName: string; settings: { enabled: boolean } }[] };
-  refetch: () => void;
-}) {
-  const [selectedDetectors, setSelectedDetectors] = useState<string[]>(
-    currentSettings?.detectors
-    .filter(detector => detector.settings.enabled)
-    .map(detector => detector.detectorName) || []
-  );
-
-  const updateMutation = useUpdateProctoringSettings();
-
-  const toggleDetector = (detectorName: string) => {
-    setSelectedDetectors( prev=> 
-      prev.includes(detectorName) ? 
-      prev.filter(name => name !== detectorName) : 
-      [...prev, detectorName]
-    );
-  };
-
-  const save = async() => {
-    await updateMutation.mutateAsync({
-      params: { path: { courseId, courseVersionId: versionId } },
-      body: {
-        detectors: Object.values(ProctoringComponent).map(detectorName => ({
-          detectorName,
-          settings: { enabled: selectedDetectors.includes(detectorName) }
-        }))
-      }
-    });
-    refetch();
-    setOpen(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="space-y-4 ">
-        <h3 className="text-lg font-semibold text-foreground">Edit Proctoring Settings</h3>
-        
-        <div className="space-y-3">
-          {Object.values(ProctoringComponent).map(detectorName => (
-            <div key={detectorName} className="flex items-center space-x-2">
-              <Checkbox
-                checked={selectedDetectors.includes(detectorName)}
-                onCheckedChange={() => toggleDetector(detectorName)}
-              />
-              <span className="text-sm">{detectorName}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 pt-4">
-          <Button onClick={save} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? <Save className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
-          </Button>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            <X className="mr-2 h-4 w-4" />
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-*/
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useEditProctoringSettings } from "@/hooks/hooks"
-
 import { useState } from "react"
 
 enum ProctoringComponent {
@@ -109,6 +18,17 @@ enum ProctoringComponent {
   VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection',
   RIGHTCLICKDISABLED = 'rightClickDisabled',
   FACERECOGNITION = 'faceRecognition',
+}
+
+const labelMap: Record<string, string> = {
+  cameraMic: "Camera + Microphone",
+  blurDetection: "Blur Detection",
+  faceCountDetection: "Face Count Detection",
+  handGestureDetection: "Hand Gesture Detection",
+  voiceDetection: "Voice Detection",
+  virtualBackgroundDetection: "Virtual Background Detection",
+  rightClickDisabled: "Right Click Disabled",
+  faceRecognition: "Face Recognition",
 }
 
 export function ProctoringModal({
@@ -122,16 +42,16 @@ export function ProctoringModal({
   onClose: () => void
   courseId: string
   courseVersionId: string
-  isNew: boolean // true = POST, false = PUT
+  isNew: boolean
 }) {
-  const allComponents = Object.values(ProctoringComponent)
   const { editSettings, loading, error } = useEditProctoringSettings()
+
+  const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
-    allComponents.map((name) => ({
-      name,
-      enabled: false,
-    }))
+    allComponents.map((name) => ({ name, enabled: false }))
   )
+
+  // (Optional) If you want to prefill existing settings, you can fetch and set them here using useEffect
 
   const toggle = (name: string) => {
     setDetectors((prev) =>
@@ -150,7 +70,9 @@ export function ProctoringModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-background text-foreground max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Edit Proctoring Settings</DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-center">
+            Proctoring Settings
+          </DialogTitle>
         </DialogHeader>
 
         <form
@@ -158,18 +80,21 @@ export function ProctoringModal({
             e.preventDefault()
             handleSubmit()
           }}
-          className="space-y-4 pt-2"
+          className="space-y-6 pt-4"
         >
-          <div className="space-y-3">
-            {detectors.map((d) => (
-              <div key={d.name} className="flex items-center space-x-2">
+          <div className="space-y-4">
+            {detectors.map((detector) => (
+              <div key={detector.name} className="flex items-center space-x-2">
                 <Checkbox
-                  id={d.name}
-                  checked={d.enabled}
-                  onCheckedChange={() => toggle(d.name)}
+                  id={detector.name}
+                  checked={detector.enabled}
+                  onCheckedChange={() => toggle(detector.name)}
                 />
-                <label htmlFor={d.name} className="text-sm capitalize leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  {d.name}
+                <label
+                  htmlFor={detector.name}
+                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {labelMap[detector.name] || detector.name}
                 </label>
               </div>
             ))}
@@ -177,7 +102,7 @@ export function ProctoringModal({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
