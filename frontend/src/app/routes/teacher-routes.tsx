@@ -19,7 +19,7 @@ const teacherRoutes: RouteObject = {
       path: "dashboard",
       element: <Dashboard />,
     },
-     {
+    {
       path: "profile",
       element: <TeacherProfile />,
     },
@@ -36,7 +36,7 @@ const teacherRoutes: RouteObject = {
       path: "courses/articles/create",
       element: <Editor />,
     },
-      {
+    {
       path: "courses/list",
       element: <TeacherCoursesPage />,
     },
@@ -47,8 +47,8 @@ const teacherRoutes: RouteObject = {
     {
       path: "testing",
       element: <FaceDetectors />,
-    }
-     {
+    },
+    {
       path: "transcribe",
       element: <LiveQuiz />, // Uncomment if you want to use AudioManager
     },

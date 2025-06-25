@@ -405,7 +405,10 @@ const routeTree = rootRoute.addChildren([
     teacherCreateCourseRoute,
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
+    teacherCoursesPageRoute,
     teacherTestingRoute,
+    teacherProfileRoute,
+    teacherAudioManagerRoute,
     teacherAddCourseRoute,
   ]),
   studentLayoutRoute.addChildren([
@@ -426,7 +429,7 @@ const memoryHistory = typeof window !== 'undefined' ? undefined : createMemoryHi
 // Create router instance with additional options
 export const router = new Router({
   routeTree,
-  defaultPreload: 'intent',
+  defaultPreload: 'false',
   // Use memory history for SSR
   history: memoryHistory,
   // Global not found component
