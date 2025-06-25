@@ -18,6 +18,7 @@ import {
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
+  useEditProctoringSettings
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
 import { bufferToHex } from "@/utils/helpers"
@@ -196,23 +197,10 @@ function CourseCard({
     description: "",
   })
   const [showProctoringModal, setShowProctoringModal] = useState(false)
-  enum ProctoringComponent {
-  CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection', // bulrDetection
-  FACECOUNTDETECTION = 'faceCountDetection', // faceCountDetection
-  HANDGESTUREDETECTION = 'handGestureDetection', // handGestureDetection
-  VOICEDETECTION = 'voiceDetection', // voiceDetection
-  VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection', // virtualBackgroundDetection
-  RIGHTCLICKDISABLED = 'rightClickDisabled', // rightClickDisabled
-  FACERECOGNITION = 'faceRecognition', // faceRecognition
-}
-  const allComponents = Object.values(ProctoringComponent);
-  const { editSettings, loading: saving, error } = useEditProctoringSettings();
-  const [detectors, setDetectors] = useState(
-    allComponents.map((name) => ({ name, enabled: false }))
-  );
+  const { editSettings, loading, error } = useEditProctoringSettings()
 
 
+  
   const queryClient = useQueryClient()
 
   // Convert buffers to hex strings for API compatibility
@@ -617,7 +605,6 @@ function CourseCard({
             courseVersionId={course.versions[0]}
             isNew={!settingsExist}
           />
-
 
 
 
