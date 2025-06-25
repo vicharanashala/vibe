@@ -63,3 +63,7 @@ frontend/openapi.json
 mcp
 frontend/public/models
 dist/
+
+
+config.json
+backend/tsconfig.tsbuildinfo

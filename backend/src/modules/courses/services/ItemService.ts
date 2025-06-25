@@ -166,6 +166,7 @@ export class ItemService extends BaseService {
 
   public async readItem(versionId: string, itemId: string) {
     const item = await this.itemRepo.readItem(versionId, itemId);
+    item._id = item._id.toString();
     return item;
   }
 

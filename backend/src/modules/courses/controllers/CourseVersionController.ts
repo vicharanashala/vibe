@@ -92,7 +92,6 @@ Accessible to:
     const {id} = params;
     const retrievedCourseVersion =
       await this.courseVersionService.readCourseVersion(id);
-    const retrievedCourseVersionExample = retrievedCourseVersion;
     return retrievedCourseVersion;
   }
 
