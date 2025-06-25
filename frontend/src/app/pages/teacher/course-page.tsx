@@ -195,23 +195,10 @@ function CourseCard({
     description: "",
   })
   const [showProctoringModal, setShowProctoringModal] = useState(false)
-  enum ProctoringComponent {
-  CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection', // blurDetection
-  FACECOUNTDETECTION = 'faceCountDetection', // faceCountDetection
-  HANDGESTUREDETECTION = 'handGestureDetection', // handGestureDetection
-  VOICEDETECTION = 'voiceDetection', // voiceDetection
-  VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection', // virtualBackgroundDetection
-  RIGHTCLICKDISABLED = 'rightClickDisabled', // rightClickDisabled
-  FACERECOGNITION = 'faceRecognition', // faceRecognition
-}
-  const allComponents = Object.values(ProctoringComponent);
-  const { editSettings, loading: saving, error } = useEditProctoringSettings();
-  const [detectors, setDetectors] = useState(
-    allComponents.map((name) => ({ name, enabled: false }))
-  );
+  const { editSettings, loading, error } = useEditProctoringSettings()
 
 
+  
   const queryClient = useQueryClient()
 
   // Convert buffers to hex strings for API compatibility
@@ -608,77 +595,15 @@ function CourseCard({
             </div>
           </div>
 
-          {showProctoringModal && (
-            <Dialog open={showProctoringModal} onOpenChange={setShowProctoringModal}>
-              <DialogContent className="bg-background text-foreground max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-xl font-semibold text-center">
-                    Proctoring Settings
-                  </DialogTitle>
-                </DialogHeader>
+          
+          <ProctoringModal
+            open={showProctoringModal}
+            onClose={() => setShowProctoringModal(false)}
+            courseId={courseIdHex}
+            courseVersionId={course.versions[0]}
+            isNew={!settingsExist}
+          />
 
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    await editSettings(courseIdHex, course.versions[0], detectors, !settingsExist);
-                    setShowProctoringModal(false);
-                  }}
-                  className="space-y-6 pt-4"
-                >
-                  <div className="space-y-4">
-                    {detectors.map((detector) => {
-                      const readableLabel = {
-                        cameraMic: "Camera + Microphone",
-                        blurDetection: "Blur Detection",
-                        faceCountDetection: "Face Count Detection",
-                        handGestureDetection: "Hand Gesture Detection",
-                        voiceDetection: "Voice Detection",
-                        virtualBackgroundDetection: "Virtual Background Detection",
-                        rightClickDisabled: "Right Click Disabled",
-                        faceRecognition: "Face Recognition",
-                      }[detector.name] || detector.name;
-
-                      return (
-                        <div key={detector.name} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={detector.name}
-                            checked={detector.enabled}
-                            onCheckedChange={() =>
-                              setDetectors((prev) =>
-                                prev.map((d) =>
-                                  d.name === detector.name
-                                    ? { ...d, enabled: !d.enabled }
-                                    : d
-                                )
-                              )
-                            }
-                          />
-                          <label
-                            htmlFor={detector.name}
-                            className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {readableLabel}
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="secondary" onClick={() => setShowProctoringModal(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={saving}>
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-          )}
 
 
         </CardContent>

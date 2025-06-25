@@ -880,13 +880,8 @@ export function useEditProctoringSettings() {
   ) => {
     setLoading(true);
     setError(null);
-    /*const API_BASE_URL = "http://localhost:4001";
-
-    const method = isNew ? 'POST' : 'PUT';
-    const url = isNew
-      ? `${API_BASE_URL}/api/settings/courses`
-      : `${API_BASE_URL}/api/settings/courses/${courseId}/${courseVersionId}/proctoring`;
-    */
+   
+   const method = isNew ? 'POST' : 'PUT';
    const url = isNew
       ? '/api/settings/courses'
       : `/api/settings/courses/${courseId}/${courseVersionId}/proctoring`;
@@ -906,7 +901,6 @@ export function useEditProctoringSettings() {
             settings: { enabled: d.enabled },
           })),
         };
-    console.log("🚀 Fetching:", method, url, body);
 
     try {
       const res = await fetch(url, {
