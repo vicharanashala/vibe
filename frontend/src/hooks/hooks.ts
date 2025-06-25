@@ -481,7 +481,7 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch item') : null,
+    error: result.error ? (result.error.message?result.error.message:"ERROR HERE") : null,
     refetch: result.refetch
   };
 }
