@@ -156,6 +156,24 @@ export class EnrollmentRepository {
       .toArray();
   }
 
+  async getCourseVersionEnrollments(
+    courseId: string,
+    courseVersionId: string,
+    skip: number,
+    limit: number,
+  ) {
+    await this.init();
+    return this.enrollmentCollection
+      .find({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      })
+      .skip(skip)
+      .limit(limit)
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
   /**
    * Count total enrollments for a user
    */
