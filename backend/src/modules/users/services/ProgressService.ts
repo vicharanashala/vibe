@@ -784,7 +784,7 @@ class ProgressService extends BaseService {
     });
   }
 
-  async getCompletedItems(userId: string, courseId: string, courseVersionId: string): Promise<Set<string>> {
+  async getCompletedItems(userId: string, courseId: string, courseVersionId: string): Promise<String[]> {
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
 

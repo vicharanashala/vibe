@@ -30,6 +30,10 @@ export const usersContainerModule = new ContainerModule(options => {
     .to(ProgressService)
     .inSingletonScope();
   options
+    .bind(ProgressService)
+    .toSelf()
+    .inSingletonScope();
+  options
     .bind(USERS_TYPES.UserService)
     .to(UserService)
     .inSingletonScope();
