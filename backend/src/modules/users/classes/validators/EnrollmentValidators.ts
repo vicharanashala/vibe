@@ -231,6 +231,19 @@ export class EnrollmentResponse {
   enrollments: EnrollmentDataResponse[];
 }
 
+export class CourseVersionEnrollmentResponse {
+  @JSONSchema({
+    description: 'Array of enrollment data for the course version',
+    type: 'array',
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
+  })
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EnrollmentDataResponse)
+  enrollments: EnrollmentDataResponse[];
+}
+
 export class EnrollmentNotFoundErrorResponse {
   @JSONSchema({
     description: 'Error message indicating the enrollment was not found',

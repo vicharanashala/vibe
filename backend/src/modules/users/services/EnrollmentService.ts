@@ -186,6 +186,40 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async getCourseVersionEnrollments(
+    courseId: string,
+    courseVersionId: string,
+    skip: number,
+    limit: number,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+
+      const result = await this.enrollmentRepo.getCourseVersionEnrollments(
+        courseId,
+        courseVersionId,
+        skip,
+        limit,
+      );
+
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        userId: enrollment.userId.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
+
   async countEnrollments(userId: string) {
     return this._withTransaction(async (session: ClientSession) => {
       const result = await this.enrollmentRepo.countEnrollments(userId);
