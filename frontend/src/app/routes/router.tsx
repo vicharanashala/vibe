@@ -32,6 +32,7 @@ import Editor from '@/app/pages/teacher/create-article'
 import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
+import CourseEnrollments from '../pages/teacher/course-enrollments'
 
 const sampleText = `
 # 🌟 Sample Markdown Document
@@ -306,6 +307,13 @@ const teacherCreateArticleRoute = new Route({
   component: Editor,
 });
 
+// Teacher Course Enrollments route
+const teacherCourseEnrollmentsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/enrollments',
+  component: CourseEnrollments,
+});
+
 // Testing face detection route
 const teacherTestingRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -399,6 +407,7 @@ const routeTree = rootRoute.addChildren([
     teacherCoursesPageRoute,
     teacherTestingRoute,
     teacherProfileRoute,
+    teacherCourseEnrollmentsRoute
     teacherAudioManagerRoute,
   ]),
   studentLayoutRoute.addChildren([

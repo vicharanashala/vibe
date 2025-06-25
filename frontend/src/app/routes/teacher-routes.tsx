@@ -8,6 +8,7 @@ import GetCourse from "@/app/pages/teacher/get-course";
 import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you want to use AudioManager
+import CourseEnrollments from "../pages/teacher/course-enrollments";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -36,6 +37,10 @@ const teacherRoutes: RouteObject = {
     {
       path: "courses/list",
       element: <TeacherCoursesPage />,
+    },
+    {
+      path: "courses/enrollments",
+      element: <CourseEnrollments />,
     },
     {
       index: true,

@@ -6,8 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronRight, BookOpen, Edit3, Eye, Save, X, FileText, Plus, MoreVertical, Search, Trash2, Loader2 } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
+import {
+  ChevronRight,
+  BookOpen,
+  Edit3,
+  Eye,
+  Save,
+  X,
+  FileText,
+  Plus,
+  Search,
+  Trash2,
+  Loader2,
+  Users,
+} from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 
 // Import the hooks and auth store
 import {
@@ -46,7 +60,7 @@ export default function TeacherCoursesPage() {
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   const uniqueCourses = enrollments.reduce((acc: RawEnrollment[], enrollment: RawEnrollment) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
-    const existingCourse = acc.find(e => bufferToHex(e.courseId) === courseIdHex)
+    const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
       acc.push(enrollment)
     }
@@ -66,18 +80,18 @@ export default function TeacherCoursesPage() {
   // Invalidate all related queries
   const invalidateAllQueries = () => {
     // Invalidate enrollments
-    queryClient.invalidateQueries({ 
-      queryKey: ['get', '/users/{userId}/enrollments'] 
+    queryClient.invalidateQueries({
+      queryKey: ["get", "/users/{userId}/enrollments"],
     })
-    
+
     // Invalidate all course queries
-    queryClient.invalidateQueries({ 
-      queryKey: ['get', '/courses/{id}'] 
+    queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/{id}"],
     })
-    
+
     // Invalidate all course version queries
-    queryClient.invalidateQueries({ 
-      queryKey: ['get', '/courses/versions/{id}'] 
+    queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{id}"],
     })
   }
 
@@ -161,10 +175,10 @@ export default function TeacherCoursesPage() {
         {/* Courses List */}
         <div className="space-y-4">
           {filteredCourses.map((enrollment: RawEnrollment) => (
-            <CourseCard 
-              key={enrollment._id} 
-              enrollment={enrollment} 
-              searchQuery={searchQuery} 
+            <CourseCard
+              key={enrollment._id}
+              enrollment={enrollment}
+              searchQuery={searchQuery}
               onInvalidate={invalidateAllQueries}
             />
           ))}
@@ -269,8 +283,8 @@ function CourseCard({
       })
 
       // Invalidate specific course query
-      queryClient.invalidateQueries({ 
-        queryKey: ['get', '/courses/{id}', { params: { path: { id: courseIdHex } } }]
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/courses/{id}", { params: { path: { id: courseIdHex } } }],
       })
 
       setEditingCourse(false)
@@ -290,7 +304,7 @@ function CourseCard({
       await deleteCourseMutation.mutateAsync({
         params: { path: { id: courseIdHex } },
       })
-      
+
       // Invalidate all related queries after deletion
       onInvalidate()
     } catch (error) {
@@ -324,8 +338,8 @@ function CourseCard({
       })
 
       // Invalidate course query to refresh versions list
-      queryClient.invalidateQueries({ 
-        queryKey: ['get', '/courses/{id}', { params: { path: { id: courseIdHex } } }]
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/courses/{id}", { params: { path: { id: courseIdHex } } }],
       })
 
       setShowNewVersionForm(false)
@@ -368,7 +382,7 @@ function CourseCard({
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   <span>{course.versions?.length || 0} versions</span>
-                </div>               
+                </div>
               </div>
             </div>
           </div>
@@ -381,7 +395,7 @@ function CourseCard({
                 e.stopPropagation()
                 startEditing()
               }}
-              className="h-8"
+              className="h-8 cursor-pointer"
               disabled={updateCourseMutation.isPending}
             >
               {updateCourseMutation.isPending ? (
@@ -399,7 +413,7 @@ function CourseCard({
                 e.stopPropagation()
                 deleteCourse()
               }}
-              className="h-8 text-destructive hover:text-destructive"
+              className="h-8 text-destructive hover:text-destructive cursor-pointer"
               disabled={deleteCourseMutation.isPending}
             >
               {deleteCourseMutation.isPending ? (
@@ -452,7 +466,12 @@ function CourseCard({
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button onClick={saveEditing} size="sm" disabled={updateCourseMutation.isPending}>
+                  <Button
+                    onClick={saveEditing}
+                    size="sm"
+                    disabled={updateCourseMutation.isPending}
+                    className="cursor-pointer"
+                  >
                     {updateCourseMutation.isPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                     ) : (
@@ -460,7 +479,7 @@ function CourseCard({
                     )}
                     Save Changes
                   </Button>
-                  <Button onClick={cancelEditing} variant="outline" size="sm">
+                  <Button onClick={cancelEditing} variant="outline" size="sm" className="cursor-pointer">
                     <X className="h-3 w-3 mr-1" />
                     Cancel
                   </Button>
@@ -483,6 +502,7 @@ function CourseCard({
                   size="sm"
                   variant="outline"
                   disabled={createVersionMutation.isPending}
+                  className="cursor-pointer"
                 >
                   {createVersionMutation.isPending ? (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -501,33 +521,34 @@ function CourseCard({
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-foreground">Create New Version</h4>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-foreground mb-1 block">Version Name</label>
                       <Input
                         value={newVersionData.version}
-                        onChange={(e) => setNewVersionData(prev => ({ ...prev, version: e.target.value }))}
+                        onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
                         placeholder="e.g., v2.0, Version 2, etc."
                         className="border-primary/30 focus:border-primary"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="text-sm font-medium text-foreground mb-1 block">Version Description</label>
                       <Textarea
                         value={newVersionData.description}
-                        onChange={(e) => setNewVersionData(prev => ({ ...prev, description: e.target.value }))}
+                        onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
                         placeholder="Describe what's new in this version..."
                         className="min-h-[80px] border-primary/30 focus:border-primary resize-none"
                       />
                     </div>
-                    
+
                     <div className="flex items-center gap-2 pt-2">
-                      <Button 
-                        onClick={saveNewVersion} 
+                      <Button
+                        onClick={saveNewVersion}
                         size="sm"
                         disabled={createVersionMutation.isPending}
+                        className="cursor-pointer"
                       >
                         {createVersionMutation.isPending ? (
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -536,11 +557,7 @@ function CourseCard({
                         )}
                         Save Version
                       </Button>
-                      <Button 
-                        onClick={cancelNewVersion} 
-                        variant="outline" 
-                        size="sm"
-                      >
+                      <Button onClick={cancelNewVersion} variant="outline" size="sm" className="cursor-pointer">
                         <X className="h-3 w-3 mr-1" />
                         Cancel
                       </Button>
@@ -554,9 +571,9 @@ function CourseCard({
             <div className="space-y-3">
               {course.versions && course.versions.length > 0 ? (
                 course.versions.map((versionId: string) => (
-                  <VersionCard 
-                    key={versionId} 
-                    versionId={versionId} 
+                  <VersionCard
+                    key={versionId}
+                    versionId={versionId}
                     courseId={courseIdHex}
                     onInvalidate={onInvalidate}
                     deleteVersionMutation={deleteVersionMutation}
@@ -580,19 +597,20 @@ function CourseCard({
 }
 
 // Separate component for individual version cards
-function VersionCard({ 
-  versionId, 
-  courseId, 
-  onInvalidate, 
-  deleteVersionMutation 
-}: { 
+function VersionCard({
+  versionId,
+  courseId,
+  onInvalidate,
+  deleteVersionMutation,
+}: {
   versionId: string
   courseId: string
   onInvalidate: () => void
   deleteVersionMutation: any
 }) {
   const queryClient = useQueryClient()
-  
+  const navigate = useNavigate()
+
   // Fetch individual version data
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
 
@@ -607,19 +625,27 @@ function VersionCard({
       })
 
       // Invalidate the specific version query
-      queryClient.invalidateQueries({ 
-        queryKey: ['get', '/courses/versions/{id}', { params: { path: { id: versionId } } }]
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: versionId } } }],
       })
 
       // Invalidate the course query to refresh versions list
-      queryClient.invalidateQueries({ 
-        queryKey: ['get', '/courses/{id}', { params: { path: { id: courseId } } }]
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/courses/{id}", { params: { path: { id: courseId } } }],
       })
 
       onInvalidate() // Also invalidate parent queries
     } catch (error) {
       console.error("Failed to delete version:", error)
     }
+  }
+
+  const viewEnrollments = () => {
+    // Navigate to enrollments page with courseId and versionId as search parameters
+    navigate({
+      to: "/teacher/courses/enrollments",
+      search: { courseId: courseId, versionId: versionId },
+    })
   }
 
   if (versionLoading) {
@@ -639,9 +665,7 @@ function VersionCard({
     return (
       <Card className="bg-card/50 border-l-4 border-l-destructive/40">
         <CardContent className="p-4">
-          <div className="text-sm text-destructive">
-            Error loading version data
-          </div>
+          <div className="text-sm text-destructive">Error loading version data</div>
         </CardContent>
       </Card>
     )
@@ -659,7 +683,11 @@ function VersionCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="h-7 text-xs">
+            <Button variant="outline" size="sm" onClick={viewEnrollments} className="h-7 text-xs cursor-pointer">
+              <Users className="h-3 w-3 mr-1" />
+              View Enrollments
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer">
               <Eye className="h-3 w-3 mr-1" />
               View
             </Button>
@@ -667,7 +695,7 @@ function VersionCard({
               variant="outline"
               size="sm"
               onClick={deleteVersion}
-              className="h-7 text-xs text-destructive hover:text-destructive"
+              className="h-7 text-xs text-destructive hover:text-destructive cursor-pointer"
               disabled={deleteVersionMutation.isPending}
             >
               {deleteVersionMutation.isPending ? (
