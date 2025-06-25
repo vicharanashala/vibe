@@ -2,10 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-interface MathRendererProps {
-  children: React.ReactNode;
-  className?: string;
-}
+import type { MathRendererProps } from '@/types/math.types';
 
 const MathRenderer: React.FC<MathRendererProps> = ({ children, className }) => {
   const containerRef = useRef<HTMLDivElement>(null);

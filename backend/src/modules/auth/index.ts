@@ -11,10 +11,16 @@ import {authContainerModule} from './container.js';
 import {AuthController} from './controllers/AuthController.js';
 import {FirebaseAuthService} from './services/FirebaseAuthService.js';
 import { AUTH_VALIDATORS, SignUpBody, SignUpResponse } from './classes/index.js';
+import { notificationsContainerModule } from '../notifications/container.js';
+import { usersContainerModule } from '../users/container.js';
+import { coursesContainerModule } from '../courses/container.js';
 
 export const authContainerModules: ContainerModule[] = [
   authContainerModule,
   sharedContainerModule,
+  notificationsContainerModule,
+  usersContainerModule,
+  coursesContainerModule
 ];
 
 export const authModuleControllers: Function[] = [AuthController];

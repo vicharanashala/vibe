@@ -28,7 +28,7 @@ const corsOptions: CorsOptions = {
 const moduleOptions: RoutingControllersOptions = {
   controllers: controllers,
   middlewares: [HttpErrorHandler],
-  routePrefix: '/api',
+  routePrefix: appConfig.routePrefix,
   authorizationChecker: async () => true,
   currentUserChecker: currentUserChecker,
   defaultErrorHandler: true,

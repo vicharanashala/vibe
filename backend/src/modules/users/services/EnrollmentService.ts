@@ -180,6 +180,8 @@ export class EnrollmentService extends BaseService {
       return result.map(enrollment => ({
         ...enrollment,
         _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
       }));
     });
   }

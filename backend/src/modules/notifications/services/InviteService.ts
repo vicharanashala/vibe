@@ -7,18 +7,12 @@ import { UserRepository } from '#shared/database/providers/mongo/repositories/Us
 import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 import { MailService } from './MailService.js';
 import { Invite } from '../classes/transformers/Invite.js';
-import crypto from 'crypto';
-import { InviteActionType, InviteStatusType, IEnrollment, EnrollmentRole, ICourseVersion, ICourse } from '#shared/interfaces/models.js';
-import { plainToClass, instanceToPlain } from 'class-transformer';
+import { EnrollmentRole, ICourseVersion, ICourse } from '#shared/interfaces/models.js';
 import { NOTIFICATIONS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
-import { User } from '#auth/classes/transformers/User.js';
-import { STATUS_CODES } from 'http';
-import { smtpConfig } from '#root/config/smtp.js';
 import { appConfig } from '#root/config/app.js';
-import nodemailer from 'nodemailer';
-import { I } from 'vitest/dist/chunks/reporters.d.DL9pg5DB.js';
+import nodemailer from 'nodemailer';;
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { InviteResult } from '../classes/index.js';
 import { BaseService, MongoDatabase } from '#root/shared/index.js';
@@ -47,9 +41,9 @@ export class InviteService extends BaseService {
     return {
       to: invite.email,
       subject: `Invitation to join course: ${course.name}`,
-      text: `You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite: ${appConfig.url}/notifications/invite/${invite._id.toString()}`,
+      text: `You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite: ${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}`,
       html: `<p>You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite:</p>
-             <a href="${appConfig.url}/notifications/invite/${invite._id.toString()}">Accept Invite</a>`,
+             <a href="${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}">Accept Invite</a>`,
     };
   }
 
@@ -144,9 +138,9 @@ export class InviteService extends BaseService {
         message: 'You have already accepted this invite.',
       };
     }
-
+    const date = new Date();
     // Validate the invite expiresAt < new Date() throw error
-    if (invite.expiresAt < new Date()) {
+    if (invite.expiresAt < date) {
       throw new BadRequestError('Invite has expired');
     }
     // If enrolled, return
@@ -158,6 +152,7 @@ export class InviteService extends BaseService {
 
     // Update invite status to ACCEPTED
     invite.inviteStatus = 'ACCEPTED';
+    invite.acceptedAt = date;
     await this.inviteRepo.updateInvite(inviteId, invite);
 
     // If existing user, enroll them
@@ -250,7 +245,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt
       );
     });
   }
@@ -262,7 +258,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt
       );
     });
   }
@@ -279,7 +276,8 @@ export class InviteService extends BaseService {
         invite._id,
         invite.email,
         invite.inviteStatus,
-        invite.role
+        invite.role,
+        invite.acceptedAt,
       );
     });
   }

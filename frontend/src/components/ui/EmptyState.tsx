@@ -2,15 +2,7 @@ import { BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-interface EmptyStateProps {
-  icon?: React.ReactNode;
-  title: string;
-  description: string;
-  actionText?: string;
-  onAction?: () => void;
-  variant?: 'default' | 'error';
-  className?: string;
-}
+import type { EmptyStateProps } from "@/types/ui.types";
 
 export const EmptyState = ({ 
   icon, 

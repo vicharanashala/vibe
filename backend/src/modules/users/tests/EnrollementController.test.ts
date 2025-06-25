@@ -41,6 +41,7 @@ import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {coursesModuleControllers} from '#root/modules/courses/index.js';
 import {authModuleControllers} from '#root/modules/auth/index.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
+import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
@@ -57,6 +58,7 @@ describe('Enrollment Controller Integration Tests', () => {
       usersContainerModule,
       coursesContainerModule,
       quizzesContainerModule,
+      notificationsContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -92,7 +94,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .send(signUpBody);
 
       // Extract the user ID from the response
-      const userId = signUpResponse.body;
+      const userId = signUpResponse.body.userId;
 
       // 2. Create a course by hitting at endpoint /courses
 
@@ -212,7 +214,7 @@ describe('Enrollment Controller Integration Tests', () => {
           `/courses/versions/${itemParams.versionId}/modules/${itemParams.moduleId}/sections/${itemParams.sectionId}/items`,
         )
         .send(itemPayload)
-        .expect(201);
+      expect(createItemResponse.status).toBe(201);
       // Expect the response to contain the item ID
       expect(createItemResponse.body).toHaveProperty('itemsGroup');
       expect(createItemResponse.body.itemsGroup).toHaveProperty('items');
@@ -221,7 +223,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       const itemId = createItemResponse.body.itemsGroup.items[0]._id;
 
-      // 3. Enroll the user as a student in the course version by hitting at endpoint
+      // 3. Enroll the user as a STUDENT in the course version by hitting at endpoint
 
       const createEnrollmentParams: EnrollmentParams = {
         userId: userId,
@@ -234,7 +236,7 @@ describe('Enrollment Controller Integration Tests', () => {
           `/users/${createEnrollmentParams.userId}/enrollments/courses/${createEnrollmentParams.courseId}/versions/${createEnrollmentParams.courseVersionId}`,
         )
         .send({
-          role: 'student',
+          role: 'STUDENT',
         });
       //expect status code to be 200
       expect(enrollmentResponse.status).toBe(200);
@@ -295,7 +297,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post('/auth/signup')
         .send(signUpBody)
         .expect(201);
-      const userId = signUpResponse.body;
+      const userId = signUpResponse.body.userId;
 
       // 2. Create a course
       const courseBody: CourseBody = {
@@ -383,7 +385,7 @@ describe('Enrollment Controller Integration Tests', () => {
           `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
         )
         .send({
-          role: 'student',
+          role: 'STUDENT',
         });
       expect(enrollmentResponse.status).toBe(200);
       expect(enrollmentResponse.body).toHaveProperty('enrollment');
@@ -403,7 +405,7 @@ describe('Enrollment Controller Integration Tests', () => {
           `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
         )
         .send({
-          role: 'student',
+          role: 'STUDENT',
         });
       expect(reEnrollResponse.status).toBe(200);
       expect(reEnrollResponse.body).toHaveProperty('enrollment');
@@ -431,7 +433,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post('/auth/signup')
         .send(signUpBody)
         .expect(201);
-      const userId = signUpResponse.body;
+      const userId = signUpResponse.body.userId;
 
       // 2. Create two courses and enroll user in both
       const enrollments: any[] = [];
@@ -517,7 +519,7 @@ describe('Enrollment Controller Integration Tests', () => {
             `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
           )
           .send({
-            role: 'student',
+            role: 'STUDENT',
           });
         expect(enrollmentResponse.status).toBe(200);
         expect(enrollmentResponse.body).toHaveProperty('enrollment');
@@ -529,7 +531,6 @@ describe('Enrollment Controller Integration Tests', () => {
       const getEnrollmentsResponse = await request(app).get(
         `/users/${userId}/enrollments?page=1&limit=1`,
       );
-
       expect(getEnrollmentsResponse.body).toHaveProperty('totalDocuments', 2);
       expect(getEnrollmentsResponse.body).toHaveProperty('totalPages', 2);
       expect(getEnrollmentsResponse.body).toHaveProperty('currentPage', 1);

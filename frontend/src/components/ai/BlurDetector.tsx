@@ -1,9 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-interface BlurDetectionProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  setIsBlur: (value: string) => void;
-}
+import type { BlurDetectionProps } from "@/types/ai.types";
 
 const BlurDetection: React.FC<BlurDetectionProps> = ({ videoRef, setIsBlur }) => {
   const workerRef = useRef<Worker | null>(null);

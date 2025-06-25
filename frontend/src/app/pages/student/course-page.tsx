@@ -14,9 +14,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress, useItemById, useProctoringSettings } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
-import { Link } from "@tanstack/react-router";
-import ItemContainer, { Item, ItemContainerRef } from "@/components/Item-container";
+import { Link, Navigate } from "@tanstack/react-router";
+import ItemContainer from "@/components/Item-container";
+import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuroraText } from "@/components/magicui/aurora-text";
 import {
   ChevronRight,
   BookOpen,
@@ -30,7 +32,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
-import { isError } from "util";
+import type { itemref } from "@/types/course.types";
+import { logout } from "@/utils/auth";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -51,11 +54,6 @@ const getItemIcon = (type: string) => {
   }
 };
 
-interface itemref {
-  order?: string;
-  type?: string;
-  _id?: string;
-}
 
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
@@ -75,7 +73,7 @@ export default function CoursePage() {
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
- 
+
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
@@ -98,7 +96,7 @@ export default function CoursePage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});  
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
 
@@ -153,7 +151,11 @@ export default function CoursePage() {
   );
   useEffect(() => {
     console.error('Current item error:', itemError);
-    if (itemError) {
+    if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.") {
+      logout();
+      Navigate({ to: '/auth' });
+    }
+    else if (itemError) {
       setIsItemForbidden(true);
     } else {
       setIsItemForbidden(false);
@@ -180,9 +182,9 @@ export default function CoursePage() {
       !itemsLoading
     ) {
       // Safely handle the response structure
-      const itemsArray = (currentSectionItems as any)?.items || 
-                         (Array.isArray(currentSectionItems) ? currentSectionItems : []);
-      
+      const itemsArray = (currentSectionItems as any)?.items ||
+        (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
       // Sort items by order property before storing
       const sortedItems = sortItemsByOrder(itemsArray);
       setSectionItems(prev => ({
@@ -326,7 +328,7 @@ export default function CoursePage() {
         },
       }
     );
-    
+
     // ✅ Wait for progress update to complete, then refetch and update state
     setTimeout(() => {
       refetchProgress();
@@ -348,6 +350,7 @@ export default function CoursePage() {
   }
 
   if (versionError || progressError) {
+
     return (
       <Card className="mx-auto max-w-md">
         <CardContent className="flex h-64 items-center justify-center">
@@ -357,6 +360,9 @@ export default function CoursePage() {
             </div>
             <p className="text-destructive font-medium">Error loading course data</p>
             <p className="text-muted-foreground text-sm mt-1">Please try again later</p>
+            <Button asChild className="mt-4">
+              <Link to="/student">Go to Dashboard</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -372,26 +378,18 @@ export default function CoursePage() {
         <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
           <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
             {/* Vibe Logo and Brand */}
-            <div className="flex items-center gap-3 px-0 py-0">
-              <div className="relative p-1">
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 transition-all duration-300" />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="relative h-5 w-5 text-primary drop-shadow-sm"
-                >
-                  <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-                </svg>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg overflow-hidden">
+                <img
+                  src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                  alt="Vibe Logo"
+                  className="h-8 w-8 object-contain"
+                />
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-base font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
-                  Vibe
-                </h1>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[1.15rem] font-bold leading-none">
+                  <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+                </span>
                 <p className="text-xs text-muted-foreground">Learning Platform</p>
               </div>
             </div>
@@ -488,17 +486,17 @@ export default function CoursePage() {
                                             >
                                               <div className="flex items-center gap-2 w-full min-w-0">
                                                 <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "bg-primary/15 text-primary"
-                                                    : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
+                                                  ? "bg-primary/15 text-primary"
+                                                  : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                   }`}>
                                                   {getItemIcon(item.type)}
                                                 </div>
                                                 <div className="flex-1 text-left min-w-0">
                                                   <div className="text-xs font-medium truncate w-full" title={currentItem?.name || 'Loading...'}>
-                                                    {selectedItemId === itemId && itemLoading ? 'Loading...' : 
-                                                     selectedItemId === itemId && currentItem?.name ? 
-                                                     (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) : 
-                                                     `${item.name||item.type[0] + item.type.slice(1).toLowerCase() || ''} Item `}
+                                                    {selectedItemId === itemId && itemLoading ? 'Loading...' :
+                                                      selectedItemId === itemId && currentItem?.name ?
+                                                        (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) :
+                                                        `${item.name || item.type[0] + item.type.slice(1).toLowerCase() || ''} Item `}
                                                   </div>
                                                 </div>
                                               </div>
@@ -524,9 +522,9 @@ export default function CoursePage() {
               </SidebarMenu>
             </ScrollArea>
           </SidebarContent>
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-              <FloatingVideo setDoGesture={setDoGesture} settings={proctoringData}></FloatingVideo>
-            </SidebarFooter>
+          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
+            <FloatingVideo setDoGesture={setDoGesture} settings={proctoringData}></FloatingVideo>
+          </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
             <SidebarMenu className="space-y-1 pl-2 py-3">
@@ -627,7 +625,7 @@ export default function CoursePage() {
                   </Button>
                 </CardContent>
               </Card>
-             )}
+            )}
 
             {/* Gesture Popup */}
             {doGesture && (
@@ -650,9 +648,9 @@ export default function CoursePage() {
 
             {currentItem ? (
               <div className="relative z-10 h-full">
-                <ItemContainer 
-                  ref={itemContainerRef} 
-                  item={currentItem} 
+                <ItemContainer
+                  ref={itemContainerRef}
+                  item={currentItem}
                   doGesture={doGesture}
                   onNext={handleNext}
                   isProgressUpdating={updateProgress.isPending}

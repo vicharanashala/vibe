@@ -4,11 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TodoList } from "@/components/ui/TodoList";
 import { bufferToHex } from "@/utils/helpers";
-
-interface DashboardSidebarProps {
-  enrollments: Array<Record<string, unknown>>;
-  className?: string;
-}
+import type { DashboardSidebarProps } from '@/types/dashboard.types';
 
 export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
   return (

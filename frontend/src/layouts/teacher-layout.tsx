@@ -3,6 +3,8 @@ import { Outlet, useMatches, Link, useNavigate } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthStore } from "@/store/auth-store";
 import { logout } from "@/utils/auth";
 import { LogOut } from "lucide-react";
 import {
@@ -20,15 +22,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-interface BreadcrumbItem {
-  label: string;
-  path: string;
-  isCurrentPage?: boolean;
-}
+import type { BreadcrumbItemment } from "@/types/layout.types";
 
 export default function TeacherLayout() {
   const matches = useMatches();
   const navigate = useNavigate();
+  const { user } = useAuthStore(); // 🧠 from store
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
 
   const handleLogout = () => {
@@ -36,43 +35,33 @@ export default function TeacherLayout() {
     navigate({ to: "/auth" });
   };
 
-  // Generate breadcrumbs based on the current path
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
-    
-    // Add Dashboard as first item
     items.push({
-      label: 'Dashboard',
-      path: '/teacher',
-      isCurrentPage: matches.length === 1
+      label: "Dashboard",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
     });
-    
-    // Add route segments as breadcrumb items
+
     if (matches.length > 1) {
       for (let i = 1; i < matches.length; i++) {
         const match = matches[i];
         const path = match.pathname;
-        
-        // Get the last segment of the path for the label
-        const segments = path.split('/').filter(Boolean);
-        let label = segments[segments.length - 1] || '';
-        
-        // Format label (capitalize, replace hyphens with spaces)
-        label = label.replace(/-/g, ' ');
+        const segments = path.split("/").filter(Boolean);
+        let label = segments[segments.length - 1] || "";
+        label = label.replace(/-/g, " ");
         label = label.charAt(0).toUpperCase() + label.slice(1);
-        
+
         items.push({
           label,
           path,
-          isCurrentPage: i === matches.length - 1
+          isCurrentPage: i === matches.length - 1,
         });
       }
     }
-    
+
     setBreadcrumbs(items);
   }, [matches]);
-    // console.log('Current user role:', user?.role);
-
 
   return (
     <SidebarProvider>
@@ -83,7 +72,7 @@ export default function TeacherLayout() {
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mx-2 h-4" />
-              
+
               <Breadcrumb>
                 <BreadcrumbList>
                   {breadcrumbs.map((item, index) => (
@@ -103,8 +92,7 @@ export default function TeacherLayout() {
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            
-            {/* Add Theme Toggle and Logout Button */}
+
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -115,11 +103,26 @@ export default function TeacherLayout() {
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:block ml-2">Logout</span>
               </Button>
+
               <ThemeToggle />
+
+              <Link to="/teacher/profile" className="group relative">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110 blur-sm" />
+                <Avatar className="relative h-9 w-9 cursor-pointer border-2 border-transparent transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/20 group-hover:scale-105">
+                  <AvatarImage
+                    src={user?.avatar || "/placeholder.svg"}
+                    alt={user?.name}
+                    className="transition-all duration-300"
+                  />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 text-primary font-bold text-sm transition-all duration-300 group-hover:from-primary/25 group-hover:to-primary/10">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
             </div>
           </div>
         </header>
-        
+
         <div className="flex flex-1 flex-col p-6">
           <Outlet />
         </div>

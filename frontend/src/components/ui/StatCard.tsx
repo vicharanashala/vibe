@@ -1,11 +1,6 @@
 import { Card } from "@/components/ui/card";
 
-interface StatCardProps {
-  icon: string;
-  value: string;
-  label: string;
-  className?: string;
-}
+import type { StatCardProps } from "@/types/ui.types";
 
 export const StatCard = ({ icon, value, label, className }: StatCardProps) => {
   return (

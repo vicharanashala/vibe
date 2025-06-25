@@ -11,7 +11,17 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
   const { user } = useAuthStore()
 
   // Fallback data if user is not available
-  const [firstName,lastName] = (user?.name || "FirstName LastName").split(" ");
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+
+  if (user?.firstName && user?.lastName) {
+    firstName = user.firstName;
+    lastName = user.lastName;
+  } else {
+    const nameParts = (user?.name || "FirstName LastName").split(" ");
+    firstName = nameParts[0];
+    lastName = nameParts[1];
+  }
 
   const displayName = user?.name || `${firstName || ""} ${lastName || ""}`.trim() || (role === "teacher" ? "Teacher" : "Student")
   const displayEmail = user?.email || "No email provided"

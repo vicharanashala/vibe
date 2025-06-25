@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, type QuestionRenderView, useSubmitQuiz, type SubmitQuizResponse, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
+import type { QuizQuestion, QuizProps, QuizRef, BufferLike, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
 
 // Utility function to preprocess content for math rendering
 const preprocessMathContent = (content: string): string => {
@@ -37,62 +38,6 @@ const preprocessMathContent = (content: string): string => {
   
   return processedContent;
 };
-
-// Enhanced question types based on backend QuestionRenderView
-interface QuizQuestion {
-  id: string;
-  type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE' | 'ORDER_THE_LOTS';
-  question: string;
-  options?: string[]; // For lot items
-  points: number;
-  timeLimit?: number; // in seconds (timeLimitSeconds from backend)
-  hint?: string;
-  // Additional properties for different question types
-  decimalPrecision?: number;
-  expression?: string;
-  lotItems?: Array<{ text: string; explaination: string; _id: { buffer: { type: string; data: number[] } } | string }>;
-}
-
-interface BufferLike {
-  buffer: {
-    type: string;
-    data: number[];
-  };
-}
-
-export interface questionBankRef {
-  bankId: string; // ObjectId as string
-  count: number; // How many questions to pick
-  difficulty?: string[]; // Optional filter
-  tags?: string[]; // Optional filter
-  type?: string; // Optional question type filter
-}
-
-interface QuizProps {
-  questionBankRefs: questionBankRef[];
-  passThreshold: number;
-  maxAttempts: number;
-  quizType: 'DEADLINE' | 'NO_DEADLINE' | '';
-  releaseTime: Date | undefined;
-  questionVisibility: number;
-  deadline?: Date;
-  approximateTimeToComplete: string;
-  allowPartialGrading: boolean;
-  allowHint: boolean;
-  showCorrectAnswersAfterSubmission: boolean;
-  showExplanationAfterSubmission: boolean;
-  showScoreAfterSubmission: boolean;
-  quizId: string | BufferLike;
-  doGesture?: boolean;
-  onNext?: () => void;
-  isProgressUpdating?: boolean;
-  attemptId?: string;
-  setAttemptId?: (attemptId: string) => void;
-}
-
-export interface QuizRef {
-  stopItem: () => void;
-}
 
 const Quiz = forwardRef<QuizRef, QuizProps>(({
   questionBankRefs,
@@ -123,9 +68,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [showHint, setShowHint] = useState(false);
   const processedQuizId = bufferToHex(quizId);
-  console.log('Quiz ID:', quizId);
+  // console.log('Quiz ID:', quizId);
   // Use the quiz attempt hook
-  const { mutateAsync: attemptQuiz, isPending, error } = useAttemptQuiz();
+  const {data: attemptData, mutateAsync: attemptQuiz, isPending, error: attemptError } = useAttemptQuiz();
 
   // Use the quiz submit hook
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
@@ -526,6 +471,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       let questionsToUse = quizQuestions;
       if (!currentAttemptId) {
         // Call the API to create a new quiz attempt (only once)
+        console.log('Starting new quiz attempt for ID:', processedQuizId);
         const response = await attemptQuiz({
           params: { path: { quizId: processedQuizId } }
         });
@@ -586,11 +532,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       handleSendStartItem();
     } catch (err) {
       console.error('Failed to start quiz:', err);
+      console.log(attemptError);
+      console.log(attemptData);
       // Handle error - maybe show a toast or alert
     }
   };
 
-  const handleAnswer = useCallback((answer: string | number | number[] | string[]) => {
+  const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
+    if (answer === -1) return;
     if (currentQuestion) {
       const newAnswers = {
         ...answers,
@@ -779,7 +728,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                     releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
                 </Button>
 
-                {error && (
+                {attemptError && (
                   <div className="text-sm text-red-600 text-center max-w-[300px]">
                     Failed to start quiz. Please try again.
                   </div>
@@ -1115,17 +1064,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
-              value={answers[currentQuestion.id]?.toString()}
-              onValueChange={(value) => handleAnswer(parseInt(value))}
+              name={`question-${currentQuestion.id}`}
+              value={answers[currentQuestion.id] !== undefined ? answers[currentQuestion.id].toString() : -1}
+              onValueChange={(value) => handleAnswer(value?parseInt(value): undefined)}
               className="space-y-3"
             >
               {currentQuestion.options.map((option, index) => (
                 <Label
                   key={index}
-                  htmlFor={`option-${index}`}
+                  htmlFor={`option-${currentQuestion.id}-${index}`}
                   className="flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
                 >
-                  <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                  <RadioGroupItem value={index.toString()} id={`option-${currentQuestion.id}-${index}`} />
                   <span className="flex-1">
                     <MathRenderer>
                       {preprocessMathContent(option)}
@@ -1143,11 +1093,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {currentQuestion.options.map((option, index) => (
                 <Label
                   key={index}
-                  htmlFor={`multi-${index}`}
+                  htmlFor={`multi-${currentQuestion.id}-${index}`}
                   className="flex items-center space-x-3 rounded-lg border border-border p-4 hover:bg-accent/50 cursor-pointer w-full transition-colors"
                 >
                   <Checkbox
-                    id={`multi-${index}`}
+                    id={`multi-${currentQuestion.id}-${index}`}
                     checked={Array.isArray(answers[currentQuestion.id]) && (answers[currentQuestion.id] as number[]).includes(index)}
                     onCheckedChange={(checked) => {
                       const currentAnswers = Array.isArray(answers[currentQuestion.id]) ? [...(answers[currentQuestion.id] as number[])] : [];
@@ -1171,9 +1121,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {/* Descriptive Answer */}
           {currentQuestion.type === 'DESCRIPTIVE' && (
             <div className="space-y-2">
-              <Label htmlFor="descriptive-answer">Your Answer</Label>
+              <Label htmlFor={`descriptive-answer-${currentQuestion.id}`}>Your Answer</Label>
               <Input
-                id="descriptive-answer"
+                id={`descriptive-answer-${currentQuestion.id}`}
                 type="text"
                 value={(answers[currentQuestion.id] as string) || ''}
                 onChange={(e) => handleAnswer(e.target.value)}
@@ -1186,9 +1136,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {/* Numerical Input (NUMERIC_ANSWER_TYPE) */}
           {currentQuestion.type === 'NUMERIC_ANSWER_TYPE' && (
             <div className="space-y-2">
-              <Label htmlFor="numerical-answer">Enter a number</Label>
+              <Label htmlFor={`numerical-answer-${currentQuestion.id}`}>Enter a number</Label>
               <Input
-                id="numerical-answer"
+                id={`numerical-answer-${currentQuestion.id}`}
                 type="number"
                 step={currentQuestion.decimalPrecision ? `0.${'0'.repeat(currentQuestion.decimalPrecision - 1)}1` : 'any'}
                 value={(answers[currentQuestion.id] as number) || ''}

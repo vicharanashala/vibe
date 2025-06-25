@@ -1,14 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface AnnouncementBannerProps {
-  badge?: string;
-  title: string;
-  description: string;
-  actionText?: string;
-  onAction?: () => void;
-  className?: string;
-}
+import type { AnnouncementBannerProps } from "@/types/ui.types";
 
 export const AnnouncementBanner = ({ 
   badge = "New", 

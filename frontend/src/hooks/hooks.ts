@@ -8,6 +8,10 @@ import { api } from '../lib/openapi';
 import { components } from '../types/schema';
 import { useState } from 'react';
 
+import type { BufferId, LotItem, BaseQuestionRenderView, DescriptiveQuestionRenderView, SelectManyInLotQuestionRenderView, OrderTheLotsQuestionRenderView, NumericAnswerQuestionRenderView, SelectOneInLotQuestionRenderView, QuestionRenderView, SaveQuestion, IQuestionAnswerFeedback, SubmitQuizResponse} from '../types/quiz.types';
+import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportanomaly.types';
+import type { ProctoringSettings } from '@/types/video.types';
+
 // Auth hooks
 
 // POST /auth/verify
@@ -24,6 +28,26 @@ export function useLogin(): {
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Login failed') : null,
     refetch: result.refetch
+  };
+}
+
+// POST /auth/google
+export function useLoginWithGoogle(): {
+  mutate: (variables: { body: {lastName: string, firstName: string, email: string } }) => void,
+  mutateAsync: (variables: { body: {lastName: string, firstName: string, email: string } }) => Promise<components['schemas']['SignUpResponse']>,
+  data: components['schemas']['TokenVerificationResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/auth/google");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Google login failed') : null
   };
 }
 
@@ -458,7 +482,7 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch item') : null,
+    error: result.error ? (result.error.message?result.error.message:"ERROR HERE") : null,
     refetch: result.refetch
   };
 }
@@ -710,60 +734,6 @@ export function useUserByFirebaseUID(firebaseUID: string): {
 }
 
 // Types for quiz questions
-export interface BufferId {
-  buffer: {
-    type: "Buffer";
-    data: number[];
-  };
-}
-
-export interface LotItem {
-  text: string; 
-  _id: BufferId;
-}
-
-export interface BaseQuestionRenderView {
-  _id: BufferId;
-  type: string;
-  isParameterized: boolean;
-  text: string;
-  hint: string;
-  points: number;
-  timeLimitSeconds: number;
-  parameterMap: Record<string, unknown>;
-}
-
-export interface DescriptiveQuestionRenderView extends BaseQuestionRenderView {
-  type: "DESCRIPTIVE";
-}
-
-export interface SelectManyInLotQuestionRenderView extends BaseQuestionRenderView {
-  type: "SELECT_MANY_IN_LOT";
-  lotItems: LotItem[];
-}
-
-export interface OrderTheLotsQuestionRenderView extends BaseQuestionRenderView {
-  type: "ORDER_THE_LOTS";
-  lotItems: LotItem[];
-}
-
-export interface NumericAnswerQuestionRenderView extends BaseQuestionRenderView {
-  type: "NUMERIC_ANSWER_TYPE";
-  decimalPrecision: number;
-  expression: string;
-}
-
-export interface SelectOneInLotQuestionRenderView extends BaseQuestionRenderView {
-  type: "SELECT_ONE_IN_LOT";
-  lotItems: LotItem[];
-}
-
-export type QuestionRenderView = 
-  | DescriptiveQuestionRenderView
-  | SelectManyInLotQuestionRenderView
-  | OrderTheLotsQuestionRenderView
-  | NumericAnswerQuestionRenderView
-  | SelectOneInLotQuestionRenderView;
 
 // Quiz hooks
 export function useAttemptQuiz(): {
@@ -799,18 +769,6 @@ export function useAttemptQuiz(): {
   };
 }
 
-type SaveQuestion = {
-  questionId: string;
-  questionType: "DESCRIPTIVE" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "SELECT_ONE_IN_LOT";
-  answer: {
-    lotItemId?: string;
-    lotItemIds?: string[];
-    text?: string;
-    numericAnswer?: string;
-    order?: string[];
-  }
-};
-
 export function useSaveQuiz(): {
   mutate: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => void,
   mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string} }, body:{answers: SaveQuestion[]} }) => Promise<void>,
@@ -836,22 +794,6 @@ export function useSaveQuiz(): {
     status: result.status,
     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
   };
-}
-
-export interface IQuestionAnswerFeedback {
-  questionId: string;
-  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
-  score: number;
-  answerFeedback?: string;
-}
-
-export interface SubmitQuizResponse {
-  totalScore?: number;
-  totalMaxScore?: number;
-  overallFeedback?: IQuestionAnswerFeedback[];
-  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED';
-  gradedAt?: string;
-  gradedBy?: string;
 }
 
 export function useSubmitQuiz(): {
@@ -881,28 +823,6 @@ export function useSubmitQuiz(): {
   };
 }
 
-interface ReportAnomalyBody {
-  userId: string;
-  courseId: string;
-  courseVersionId: string;
-  moduleId?: string;
-  sectionId?: string;
-  itemId?: string;
-  anomalyType: string;
-}
-
-interface ReportAnomalyResponse {
-  // Define the structure of the response here
-  _id: string;
-  userId: string;
-  courseId: string;
-  courseVersionId: string;
-  moduleId?: string;
-  sectionId?: string;
-  itemId?: string;
-  anomalyType: string;
-}
-
 export function useReportAnomaly(): {
   mutate: (variables: { body: ReportAnomalyBody }) => void,
   mutateAsync: (variables: { body: ReportAnomalyBody }) => Promise<ReportAnomalyResponse>,
@@ -928,23 +848,6 @@ export function useReportAnomaly(): {
     status: result.status,
     error: result.error ? (result.error || 'Failed to report anomaly') : null
   };
-}
-
-export interface ProctoringSettings {
-  _id: string;
-  userId: string;
-  versionId: string;
-  courseId: string;
-  settings: {
-    proctors: {
-      detectors: {
-        detectorName: string;
-        settings: {
-          enabled: boolean;
-        }
-      }[]
-    }
-}
 }
 
 export function useProctoringSettings(userId: string, courseId: string, versionId: string ): {
