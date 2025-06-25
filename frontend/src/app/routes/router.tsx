@@ -18,12 +18,13 @@ import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
+import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 // import ParentComponent from '@/ai-components/ParentComponent'
 import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
-import type { Item } from '@/types/item-container.types' // Assuming Item is defined in Item-container
+import type { Item } from '@/types/item-container.types'
 import Dashboard from '@/app/pages/teacher/dashboard'
 import CreateCourse from '@/app/pages/teacher/create-course'
 import GetCourse from '@/app/pages/teacher/get-course'
@@ -32,6 +33,7 @@ import Editor from '@/app/pages/teacher/create-article'
 import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
+
 
 const sampleText = `
 # 🌟 Sample Markdown Document
@@ -313,6 +315,13 @@ const teacherTestingRoute = new Route({
   component: FaceDetectors,
 });
 
+const teacherAddCourseRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/add-course',
+  component: AddCoursePage,
+});
+
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -400,6 +409,7 @@ const routeTree = rootRoute.addChildren([
     teacherTestingRoute,
     teacherProfileRoute,
     teacherAudioManagerRoute,
+    teacherAddCourseRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
