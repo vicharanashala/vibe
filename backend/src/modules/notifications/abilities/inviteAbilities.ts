@@ -40,17 +40,17 @@ export function setupInviteAbilities(
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
         
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(InviteActions.Modify, 'Invite', courseBounded);
                 can(InviteActions.View, 'Invite', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Invite', courseBounded);
                 cannot(InviteActions.View, 'Invite', versionBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 break;
         }
     });

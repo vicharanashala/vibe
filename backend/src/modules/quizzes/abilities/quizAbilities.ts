@@ -39,18 +39,18 @@ export function setupQuizAbilities(
         const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(QuizActions.ModifyBank, 'Quiz', courseBounded);
                 can(QuizActions.View, 'Quiz', courseBounded);
                 can(QuizActions.GetStats, 'Quiz', courseBounded);
                 can(QuizActions.ModifySubmissions, 'Quiz', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Quiz', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(QuizActions.ModifyBank, 'Quiz', courseVersionBounded);
                 can(QuizActions.View, 'Quiz', courseVersionBounded);
                 can(QuizActions.GetStats, 'Quiz', courseVersionBounded);

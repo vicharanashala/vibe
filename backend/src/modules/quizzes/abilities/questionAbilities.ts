@@ -38,18 +38,18 @@ export function setupQuestionAbilities(
         const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(QuestionActions.Create, 'Question', courseBounded);
                 can(QuestionActions.Modify, 'Question', courseBounded);
                 can(QuestionActions.Delete, 'Question', courseBounded);
                 can(QuestionActions.View, 'Question', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Question', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(QuestionActions.Create, 'Question', courseVersionBounded);
                 can(QuestionActions.Modify, 'Question', courseVersionBounded);
                 can(QuestionActions.View, 'Question', courseVersionBounded);

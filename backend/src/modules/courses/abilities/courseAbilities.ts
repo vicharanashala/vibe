@@ -37,17 +37,17 @@ export function setupCourseAbilities(
         const courseBounded = { courseId: enrollment.courseId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(CourseActions.View, 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 break;
         }
     });

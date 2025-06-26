@@ -39,18 +39,18 @@ export function setupAttemptAbilities(
         const userBounded = { userId: user.userId, courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(AttemptActions.Start, 'Attempt', userBounded);
                 can(AttemptActions.Save, 'Attempt', userBounded);
                 can(AttemptActions.Submit, 'Attempt', userBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(AttemptActions.View, 'Attempt', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Attempt', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(AttemptActions.View, 'Attempt', courseVersionBounded);
                 break;
         }

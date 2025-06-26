@@ -40,19 +40,19 @@ export function setupEnrollmentAbilities(
         const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(EnrollmentActions.View, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
                 can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Enrollment', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(EnrollmentActions.View, 'Enrollment', versionBounded);
                 cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
                 break;
