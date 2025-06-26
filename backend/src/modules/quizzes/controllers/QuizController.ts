@@ -53,8 +53,6 @@ class QuizController {
   constructor(
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-    @inject(QUIZZES_TYPES.QuestionBankService)
-    private readonly questionBankService: QuestionBankService,
   ) {}
 
   @OpenAPI({
@@ -415,6 +413,28 @@ class QuizController {
       questionId,
       feedback,
     );
+  }
+
+  @OpenAPI({
+    summary: 'Reset available attempts for a user on a quiz',
+    description: 'Resets the number of available attempts for a user on a specific quiz.',
+  })
+  @Authorized(['admin', 'instructor'])
+  @Post('/:quizId/user/:userId/reset-attempts')
+  @OnUndefined(200)
+  @ResponseSchema(BadRequestError, {
+    description: 'Invalid quiz ID or user ID',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  async resetAvailableAttempts(
+    @Params() params: GetUserMatricesParams
+  ): Promise<void> {
+    const {quizId, userId} = params;
+    await this.quizService.resetAvailableAttempts(quizId, userId);
   }
 }
 

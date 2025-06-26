@@ -128,4 +128,17 @@ export class UserRepository implements IUserRepository {
     );
     return instanceToPlain(new User(result)) as IUser;
   }
+
+  async edit(
+    userId: string,
+    userData: Partial<IUser>,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.usersCollection.updateOne(
+      {_id: new ObjectId(userId)},
+      {$set: userData},
+      {session},
+    );
+  }
 }
