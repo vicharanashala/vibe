@@ -1,4 +1,6 @@
 
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { Course, CourseVersionDataResponse } from '#root/modules/courses/classes/index.js';
 import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
@@ -28,6 +30,7 @@ import {
   NotFoundError,
   Body,
   Authorized,
+  Req,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions } from '../abilities/enrollmentAbilities.js';
@@ -41,6 +44,9 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: FirebaseAuthService,
   ) { }
 
   @OpenAPI({
@@ -119,7 +125,7 @@ export class EnrollmentController {
     description: 'Retrieves a paginated list of all course enrollments for a user.',
   })
   @Authorized({ action: EnrollmentActions.View, subject: 'Enrollment' })
-  @Get('/:userId/enrollments')
+  @Get('/enrollments')
   @HttpCode(200)
   @ResponseSchema(EnrollmentResponse, {
     description: 'Paginated list of user enrollments',
@@ -133,14 +139,14 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async getUserEnrollments(
-    @Param('userId') userId: string,
+    @Req() request: any,
     @QueryParam('page') page = 1,
     @QueryParam('limit') limit = 10,
   ): Promise<EnrollmentResponse> {
     //convert page and limit to integers
     page = parseInt(page as unknown as string, 10);
     limit = parseInt(limit as unknown as string, 10);
-
+    const userId = await this.authService.getUserIdFromReq(request);
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
