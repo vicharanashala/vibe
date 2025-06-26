@@ -1,5 +1,9 @@
 import * as tf from "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-webgl";
+import "@tensorflow/tfjs-backend-wasm"
+import "@tensorflow/tfjs";
+import "@tensorflow/tfjs-core"; // Ensure WebGL backend is available
+
 import * as faceDetection from "@tensorflow-models/face-detection";
 
 // Self-contained worker script
@@ -7,7 +11,9 @@ let detector: faceDetection.FaceDetector | null = null;
 let lastLogTime = 0;
 
 async function initializeModel() {
-  await tf.setBackend("webgl"); 
+  const backends = tf.engine().registry;
+  const availableBackends = Object.keys(backends);
+  if("webgl"in availableBackends) await tf.setBackend("webgl"); else if ("wasm" in availableBackends) await tf.setBackend("wasm"); else await tf.setBackend("cpu");
   await tf.ready();
   const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
   const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = { runtime: "tfjs", maxFaces: 10 }; // TensorFlow.js backend
