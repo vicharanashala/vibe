@@ -23,7 +23,7 @@ export async function createEnrollment(
     .post(
       `/users/${userId}/enrollments/courses/${courseId}/versions/${courseVersionId}`,
     )
-    .send({role: 'student'})
+    .send({role: 'STUDENT'})
     .expect(200);
 
   // Build up the expected “shape” of the response

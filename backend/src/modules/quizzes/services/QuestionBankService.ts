@@ -77,6 +77,7 @@ class QuestionBankService extends BaseService {
           `Question bank with ID ${questionBankId} not found`,
         );
       }
+      questionBank._id = questionBank._id.toString();
       return questionBank;
     });
   }

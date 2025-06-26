@@ -1,4 +1,4 @@
-﻿import {QuestionBankRef} from '#quizzes/classes/transformers/QuestionBank.js';
+﻿import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
 import {
   QuizIdParam,
   AddQuestionBankBody,
@@ -38,13 +38,14 @@ import {
   Patch,
   Authorized,
   BadRequestError,
+  Res,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {ISubmission} from '#quizzes/interfaces/index.js';
 
 @OpenAPI({
-  tags: ['Quizzes'],
+  tags: ['Quiz'],
 })
 @injectable()
 @JsonController('/quizzes/quiz')
@@ -62,7 +63,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Post('/:quizId/bank')
-  @OnUndefined(201)
+  @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
     statusCode: 404,
@@ -85,7 +86,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Delete('/:quizId/bank/:questionBankId')
-  @OnUndefined(204)
+  @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz or question bank not found',
     statusCode: 404,
@@ -101,7 +102,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Patch('/:quizId/bank')
-  @OnUndefined(201)
+  @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
     statusCode: 404,
@@ -123,10 +124,14 @@ class QuizController {
     description: 'Retrieves all question banks associated with a quiz.',
   })
   @Get('/:quizId/bank')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(GetAllQuestionBanksResponse, {
     description: 'List of question banks',
     statusCode: 200,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
   })
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
@@ -140,10 +145,10 @@ class QuizController {
     description: 'Retrieves quiz metrics for a specific user.',
   })
   @Get('/:quizId/user/:userId')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(UserQuizMetricsResponse, { 
     description: 'User quiz metrics',
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -165,10 +170,10 @@ class QuizController {
     description: 'Retrieves details of a specific quiz attempt.',
   })
   @Get('/attempts/:attemptId')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(QuizAttemptResponse, { 
     description: 'Quiz attempt details',
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz or attempt not found',
@@ -186,8 +191,11 @@ class QuizController {
     description: 'Retrieves details of a specific quiz submission.',
   })
   @Get('/submissions/:submissionId')
-  @HttpCode(201)
-  @ResponseSchema(QuizSubmissionResponse, { description: 'Quiz submission details' })
+  @HttpCode(200)
+  @ResponseSchema(QuizSubmissionResponse, {
+    description: 'Quiz submission details',
+    statusCode: 200,
+  })
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
   ): Promise<QuizSubmissionResponse> {
@@ -201,11 +209,11 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/submissions')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(GetAllSubmissionsResponse, {
     description: 'List of submissions',
     isArray: true,
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -228,10 +236,10 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/details')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(QuizDetailsResponse, {
     description: 'Quiz details',
-    statusCode: 201,
+    statusCode: 200,
   })
   async getQuizDetails(
     @Params() params: QuizIdParam,
@@ -246,10 +254,10 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/analytics')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(QuizAnalyticsResponse, {
     description: 'Quiz analytics',
-    statusCode: 201,
+    statusCode: 200,
   })
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
@@ -264,11 +272,11 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/performance')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(QuizPerformanceResponse, {
     isArray: true,
     description: 'Performance stats per question',
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -291,11 +299,11 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/results')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(QuizResultsResponse, {
     isArray: true,
     description: 'Quiz results',
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -318,10 +326,10 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Get('/:quizId/flagged')
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(FlaggedQuestionResponse, {
     description: 'Flagged questions',
-    statusCode: 201,
+    statusCode: 200,
   })
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -344,7 +352,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Post('/submission/:submissionId/score/:score')
-  @OnUndefined(201)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
     description: 'Invalid submission ID or score',
     statusCode: 400,
@@ -364,7 +372,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Post('/submission/:submissionId/regrade')
-  @OnUndefined(201)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
     description: 'Invalid submission ID or regrade data',
     statusCode: 400,
@@ -387,7 +395,7 @@ class QuizController {
   })
   @Authorized(['admin', 'instructor'])
   @Post('/submission/:submissionId/question/:questionId/feedback')
-  @OnUndefined(201)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
     description: 'Invalid submission ID or question ID',
     statusCode: 400,

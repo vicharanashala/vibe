@@ -139,6 +139,7 @@ class QuizService extends BaseService {
       if (!metrics) {
         throw new NotFoundError('Metrics not found.');
       }
+      metrics._id = metrics._id.toString();
       return metrics;
     });
   }
@@ -148,6 +149,7 @@ class QuizService extends BaseService {
       if (!attempt) {
         throw new NotFoundError('Attempt does not exist.');
       }
+      attempt._id = attempt._id.toString();
       return attempt;
     });
   }
@@ -160,6 +162,7 @@ class QuizService extends BaseService {
       if (!submission) {
         throw new NotFoundError('Submission does not exist.');
       }
+      submission._id = submission._id.toString(); // Convert ObjectId to string
       return submission;
     });
   }
@@ -169,6 +172,7 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
       }
+      quiz._id = quiz._id.toString();
       return quiz;
     });
   }
@@ -427,7 +431,7 @@ class QuizService extends BaseService {
       // Convert _id to string for each submission
       return submissions.map(sub => ({
         ...sub,
-        _id: sub._id?.toString?.() ?? sub._id,
+        _id: sub._id.toString(),
       }));
     });
   }

@@ -31,6 +31,7 @@ import {
   SOLsolution,
 } from './SamleQuestionBody.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
 describe('AttemptController', async () => {
   const appInstance = Express();
@@ -46,6 +47,7 @@ describe('AttemptController', async () => {
       coursesContainerModule,
       usersContainerModule,
       authContainerModule,
+      notificationsContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -78,7 +80,7 @@ describe('AttemptController', async () => {
     };
     const signupRes = await request(app).post('/auth/signup').send(signUpBody);
     expect(signupRes.status).toBe(201);
-    userId = signupRes.body;
+    userId = signupRes.body.userId;
     expect(userId).toBeTruthy();
     vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId);
   }, 900000);
@@ -394,7 +396,7 @@ describe('AttemptController', async () => {
           bankId: questionBankId,
           count: 1,
         });
-      expect(updateQuizRes.status).toBe(201);
+      expect(updateQuizRes.status).toBe(200);
 
       // 8. Create attempt
       const attemptRes = await request(app)
@@ -553,11 +555,11 @@ describe('AttemptController', async () => {
       const updateQuizRes = await request(app)
         .post(`/quizzes/quiz/${quizId}/bank`)
         .send({ bankId: mainBankId, count: 4 });
-      expect(updateQuizRes.status).toBe(201);
+      expect(updateQuizRes.status).toBe(200);
       const updateDesQuizRes = await request(app)
         .post(`/quizzes/quiz/${quizId}/bank`)
         .send({ bankId: desBankId, count: 1 });
-      expect(updateDesQuizRes.status).toBe(201);
+      expect(updateDesQuizRes.status).toBe(200);
 
       // 8. Create attempt
       const attemptRes = await request(app)

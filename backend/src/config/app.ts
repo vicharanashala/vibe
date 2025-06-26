@@ -18,6 +18,7 @@ export const appConfig = {
   url: env('APP_URL'),
   origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:3000'],
   module: env('APP_MODULE') || 'all',
+  // Only for development
   firebase: {
     clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,
     privateKey: env('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n') || undefined,

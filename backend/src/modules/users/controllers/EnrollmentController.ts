@@ -1,3 +1,5 @@
+
+import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -25,6 +27,9 @@ import {
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 
+@OpenAPI({
+  tags: ['Enrollments'],
+})
 @JsonController('/users', { transformResponse: true })
 @injectable()
 export class EnrollmentController {
@@ -61,7 +66,7 @@ export class EnrollmentController {
       courseId,
       courseVersionId,
       role,
-    );
+    ) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
 
     return new EnrollUserResponse(
       responseData.enrollment,

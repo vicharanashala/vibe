@@ -1,4 +1,5 @@
 import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -321,8 +322,8 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
-export type EnrollmentRole = 'instructor' | 'student' | 'manager' | 'ta';
-export type EnrollmentStatus = 'active' | 'inactive';
+export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
+export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
 // New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;
@@ -353,4 +354,79 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+}
+
+export enum InviteActionType {
+  SIGNUP = 'SIGNUP',
+  ENROLL = 'ENROLL',
+  NOTIFY = 'NOTIFY',
+}
+export enum InviteStatusType {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  EXPIRED = 'EXPIRED',
+}
+// Interface for Invite
+export interface IInvite {
+  _id?: string | ObjectId | null;
+  email: String;
+  courseId: String | ObjectId;
+  courseVersionId: string | ObjectId;
+  token: String;
+  action: InviteActionType;
+  status: InviteStatusType;
+  createdAt: Date;
+  expiresAt: Date;
+}
+// Interface for proctoring settings.
+/*export interface IProctoringSettings {
+  components: ProctoringComponent[];
+}*/
+
+export interface IDetectorOptions {
+  enabled: boolean;
+  options?: Record<string, any>;
+}
+
+export interface IDetectorSettings {
+  detectorName: ProctoringComponent;
+  settings: IDetectorOptions;
+}
+
+export interface IProctoringSettings {
+  detectors: IDetectorSettings[];
+}
+
+// Common settings interface for both user and course settings.
+export interface ISettings {
+  proctors: IProctoringSettings;
+}
+
+// Interface for user-specific settings.
+export interface IUserSettings {
+  _id?: string | ObjectId | null;
+  studentId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  courseId: string | ObjectId;
+  settings: ISettings;
+}
+
+// Interface for course-specific settings.
+export interface ICourseSettings {
+  courseVersionId: string | ObjectId;
+  courseId: string | ObjectId;
+  settings: ISettings;
+}
+
+// Interface for User Specific Anomalies
+
+export interface IUserAnomaly {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  moduleId?: string | ObjectId;
+  sectionId?: string | ObjectId;
+  itemId?: string | ObjectId;
+  anomalyType: string;
 }
