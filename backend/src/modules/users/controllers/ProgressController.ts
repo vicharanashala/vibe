@@ -1,4 +1,3 @@
-import { User } from '#root/modules/auth/classes/index.js';
 import {Progress} from '#users/classes/transformers/Progress.js';
 import {
   GetUserProgressParams,
@@ -34,8 +33,6 @@ import {
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { ProgressActions } from '../abilities/progressAbilities.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 
