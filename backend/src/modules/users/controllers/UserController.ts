@@ -6,11 +6,15 @@ import {
   JsonController,
   Get,
   HttpCode,
-  Param,
   Params,
+  OnUndefined,
+  Req,
+  Body,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import { UserByFirebaseUIDParams, UserByFirebaseUIDResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { AUTH_TYPES } from '#root/modules/auth/types.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -21,26 +25,46 @@ export class UserController {
   constructor(
     @inject(USERS_TYPES.UserService)
     private readonly userService: UserService,
+    
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: FirebaseAuthService,
   ) {}
 
   @OpenAPI({
-    summary: 'Get user by Firebase UID',
-    description: 'Retrieves a user profile using their Firebase UID.',
+    summary: 'Get user information by user ID',
+    description: 'Retrieves user information based on the provided user ID.',
   })
-  @Get('/firebase/:firebaseUID')
+  @Get('/:userId')
   @HttpCode(200)
-  @ResponseSchema(UserByFirebaseUIDResponse, {
-    description: 'User profile retrieved successfully',
+  @ResponseSchema(User, {
+    description: 'User information retrieved successfully',
   })
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
   })
-  async getUserByFirebaseUID(
-    @Params() params: UserByFirebaseUIDParams,
-  ): Promise<User> {
-    const {firebaseUID} = params;
-    const user = await this.userService.findByFirebaseUID(firebaseUID);
-    return new User(user);
+  async getUserById(
+    @Params() params: GetUserParams,
+  ): Promise<GetUserResponse> {
+    const { userId } = params;
+    return await this.userService.getUserById(userId);
+  }
+
+  @OpenAPI({
+    summary: 'Edit user information',
+    description: 'Retrieves user information based on the provided user ID.',
+  })
+  @Get('/edit')
+  @OnUndefined(200)
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  async editUser(
+    @Req() req: any,
+    @Body() body: EditUserBody
+  ): Promise<void> {
+    const userId = await this.authService.getUserIdFromReq(req);
+    await this.userService.editUser(userId, body);
   }
 }
