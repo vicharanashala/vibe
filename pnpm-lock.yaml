@@ -72,6 +72,9 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       dotenv:
         specifier: ^16.5.0
         version: 16.5.0
@@ -543,6 +546,9 @@ importers:
       lucide-react:
         specifier: ^0.475.0
         version: 0.475.0(react@19.1.0)
+      motion:
+        specifier: ^12.18.1
+        version: 12.19.1(@emotion/is-prop-valid@1.3.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -675,32 +681,7 @@ importers:
         version: 8.29.1(eslint@9.24.0(jiti@2.4.2))(typescript@5.8.3)
       vite:
         specifier: ^6.1.0
-        version: 6.2.6(@types/node@22.15.21)(jiti@2.4.2)(lightningcss@1.29.2)(sass@1.89.0)(terser@5.39.0)(tsx@4.19.4)(yaml@2.7.1)
-
-  mcp:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.10.0
-        version: 1.12.0
-      axios:
-        specifier: ^1.9.0
-        version: 1.9.0
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.5.0
-      json-schema-to-zod:
-        specifier: ^2.6.1
-        version: 2.6.1
-      zod:
-        specifier: ^3.24.3
-        version: 3.25.28
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.2
-        version: 22.15.21
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
+        version: 6.2.6(@types/node@22.15.21)(jiti@2.4.2)(lightningcss@1.29.2)(sass@1.89.0)(terser@5.39.0)(tsx@4.20.3)(yaml@2.7.1)
 
 packages:
 
@@ -8417,6 +8398,20 @@ packages:
     resolution: {integrity: sha512-uXBDv5knpYmv/2gLzWQ5mBHGBRk9wcKTeWu6GLTUEQfjCxO09uM/mHDrojlL+Q1mVGIIFo149Gba7od1XPgSzQ==}
     engines: {node: '>= 12'}
 
+  framer-motion@12.19.1:
+    resolution: {integrity: sha512-nq9hwWAEKf4gzprbOZzKugLV5OVKF7zrNDY6UOVu+4D3ZgIkg8L9Jy6AMrpBM06fhbKJ6LEG6UY5+t7Eq6wNlg==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
     engines: {node: '>= 0.6'}
@@ -10646,6 +10641,26 @@ packages:
       snappy:
         optional: true
       socks:
+        optional: true
+
+  motion-dom@12.19.0:
+    resolution: {integrity: sha512-m96uqq8VbwxFLU0mtmlsIVe8NGGSdpBvBSHbnnOJQxniPaabvVdGgxSamhuDwBsRhwX7xPxdICgVJlOpzn/5bw==}
+
+  motion-utils@12.19.0:
+    resolution: {integrity: sha512-BuFTHINYmV07pdWs6lj6aI63vr2N4dg0vR+td0rtrdpWOhBzIkEklZyLcvKBoEtwSqx8Jg06vUB5RS0xDiUybw==}
+
+  motion@12.19.1:
+    resolution: {integrity: sha512-OhoHWrht+zwDPccr2wGltJdwgz2elFBBt/sLei2g0hwICvy2hOBFUkA4Ylup3VnDgz+vUtecf694EV7bJK4XjA==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
         optional: true
 
   mri@1.2.0:
@@ -23421,7 +23436,7 @@ snapshots:
       resolve: 1.22.10
       semver: 7.7.1
 
-  eslint-plugin-prettier@5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@9.24.0(jiti@2.4.2)))(eslint@8.57.1)(prettier@3.3.3):
+  eslint-plugin-prettier@5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@8.57.1))(eslint@8.57.1)(prettier@3.3.3):
     dependencies:
       eslint: 8.57.1
       prettier: 3.3.3
@@ -24189,6 +24204,16 @@ snapshots:
 
   fraction.js@5.2.2: {}
 
+  framer-motion@12.19.1(@emotion/is-prop-valid@1.3.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      motion-dom: 12.19.0
+      motion-utils: 12.19.0
+      tslib: 2.8.1
+    optionalDependencies:
+      '@emotion/is-prop-valid': 1.3.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+
   fresh@0.5.2: {}
 
   fresh@2.0.0: {}
@@ -24536,7 +24561,7 @@ snapshots:
       eslint: 8.57.1
       eslint-config-prettier: 9.1.0(eslint@8.57.1)
       eslint-plugin-n: 15.7.0(eslint@8.57.1)
-      eslint-plugin-prettier: 5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@9.24.0(jiti@2.4.2)))(eslint@8.57.1)(prettier@3.3.3)
+      eslint-plugin-prettier: 5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@8.57.1))(eslint@8.57.1)(prettier@3.3.3)
       execa: 5.1.1
       inquirer: 7.3.3
       json5: 2.2.3
@@ -27398,6 +27423,21 @@ snapshots:
       '@mongodb-js/saslprep': 1.2.2
       bson: 6.10.4
       mongodb-connection-string-url: 3.0.2
+
+  motion-dom@12.19.0:
+    dependencies:
+      motion-utils: 12.19.0
+
+  motion-utils@12.19.0: {}
+
+  motion@12.19.1(@emotion/is-prop-valid@1.3.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      framer-motion: 12.19.1(@emotion/is-prop-valid@1.3.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      tslib: 2.8.1
+    optionalDependencies:
+      '@emotion/is-prop-valid': 1.3.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   mri@1.2.0: {}
 
