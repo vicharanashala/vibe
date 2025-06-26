@@ -7,7 +7,7 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName: string;
-  roles: string[];
+  roles: 'admin' | 'user';
 }
 
 export type Versions = {
@@ -433,8 +433,8 @@ export interface IUserAnomaly {
 
 export interface AuthenticatedUserEnrollements {
     courseId: string,
-    versionId: string,
-    role: "student" | "instructor" | "manager" | "ta",
+    courseVersionId: string,
+    role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
 }
 
 export interface AuthenticatedUser {

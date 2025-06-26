@@ -1,4 +1,4 @@
-import { AuthenticatedUser } from '../interfaces/models.js';
+import { AuthenticatedUser, IUser } from '../interfaces/models.js';
 import { AbilityBuilder, MongoAbility, createMongoAbility } from "@casl/ability";
 
 // Import unified ability setup functions from each module
@@ -6,6 +6,11 @@ import { setupAllCourseAbilities } from "#root/modules/courses/abilities/index.j
 import { setupAllQuizAbilities } from "#root/modules/quizzes/abilities/index.js";
 import { setupAllNotificationAbilities } from "#root/modules/notifications/abilities/index.js";
 import { setupAllUserAbilities } from "#root/modules/users/abilities/index.js";
+import { currentUserChecker } from './currentUserChecker.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { getFromContainer } from 'routing-controllers';
+
+const enrollmentService = getFromContainer(EnrollmentService);
 
 // Define the CASL authorization options interface
 export interface CaslAuthOptions {
@@ -34,8 +39,7 @@ function createUserAbility(user: AuthenticatedUser): MongoAbility<any> {
  */
 function extractResourceFromRequest(action: any): any {
     const params = action.request.params || {};
-    const query = action.request.query || {};
-    
+
     // Build resource object based on available parameters
     const resource: any = {};
     
@@ -52,18 +56,26 @@ function extractResourceFromRequest(action: any): any {
  * Main authorization checker - compatible with routing-controllers
  */
 export async function authorizationChecker(action: any, roles: any[]): Promise<boolean> {
-    const user = action.request.user as AuthenticatedUser;
-    
+    const user = await currentUserChecker(action) as IUser;
     if (!user) {
         return false;
     }
-
+    const enrollments= await enrollmentService.getAllEnrollments(user._id.toString());
+    const authenticatedUser: AuthenticatedUser = {
+        userId: user._id.toString(),
+        globalRole: user.roles,
+        enrollments: enrollments.map(enrollment => ({
+            courseId: enrollment.courseId.toString(),
+            courseVersionId: enrollment.courseVersionId.toString(),
+            role: enrollment.role,
+        })),
+    };
     // Extract CASL options from the roles parameter
     // routing-controllers will pass the options from @Authorized({action: "...", subject: "..."})
     const caslOptions = roles[0] as CaslAuthOptions;
 
     // Create user's abilities
-    const ability = createUserAbility(user);
+    const ability = createUserAbility(authenticatedUser);
     
     // Extract resource from request if not explicitly provided
     const resource = caslOptions.resource || extractResourceFromRequest(action);

@@ -75,14 +75,11 @@ export class GetUserResponse implements IUser {
 
   @JSONSchema({
     description: "User's roles",
-    example: ['student'],
-    type: 'array',
-    items: {
-      type: 'string',
-    },
+    example: 'admin',
+    type: 'string',
     readOnly: true,
   })
-  roles: string[];
+  roles: 'admin' | 'user';
 }
 
 export class EditUserBody{
