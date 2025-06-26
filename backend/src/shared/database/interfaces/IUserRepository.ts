@@ -74,4 +74,9 @@ export interface IUserRepository {
   //   anamoly: IUserAnomaly,
   //   session?: ClientSession,
   // ): Promise<IUserAnomaly | null>;
+  edit(
+    userId: string,
+    userData: Partial<IUser>,
+    session?: ClientSession,
+  ): Promise<void>;
 }

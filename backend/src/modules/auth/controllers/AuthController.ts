@@ -94,18 +94,6 @@ export class AuthController {
     }
   }
 
-  @OpenAPI({
-    summary: 'Verify Firebase ID token',
-    description:
-      'Validates whether the provided Firebase ID token is authentic and not expired. Useful for checking the session validity or re-authenticating a user.',
-  })
-  @Post('/verify')
-  async verifyToken() {
-    return {
-      message: 'Token is valid',
-    };
-  }
-
   @Post('/login')
   async login(@Body() body: LoginBody) {
     const { email, password } = body;

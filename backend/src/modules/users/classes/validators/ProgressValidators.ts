@@ -12,16 +12,6 @@ import {JSONSchema} from 'class-validator-jsonschema';
 
 export class GetUserProgressParams {
   @JSONSchema({
-    description: 'User ID to retrieve progress for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: string;
-
-  @JSONSchema({
     description: 'Course ID to retrieve progress for',
     type: 'string',
     format: 'Mongo Object ID',
@@ -79,16 +69,6 @@ export class StartItemBody {
 
 export class StartItemParams {
   @JSONSchema({
-    description: 'User ID to track progress for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: string;
-
-  @JSONSchema({
     description: 'Course ID to track progress for',
     type: 'string',
     format: 'Mongo Object ID',
@@ -128,16 +108,6 @@ export class StartItemResponse {
 }
 
 export class StopItemParams {
-  @JSONSchema({
-    description: 'User ID to stop tracking progress for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: string;
-
   @JSONSchema({
     description: 'Course ID to stop tracking progress for',
     type: 'string',
@@ -263,16 +233,6 @@ export class UpdateProgressBody {
 }
 
 export class UpdateProgressParams {
-  @JSONSchema({
-    description: 'User ID to update progress for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: string;
-
   @JSONSchema({
     description: 'Course ID to update progress for',
     type: 'string',
