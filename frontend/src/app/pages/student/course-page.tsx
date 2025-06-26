@@ -67,7 +67,6 @@ const sortItemsByOrder = (items: any[]) => {
 export default function CoursePage() {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const { user } = useAuthStore();
-  const USER_ID = useAuthStore.getState().user?.userId || "";
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
 
@@ -118,11 +117,11 @@ export default function CoursePage() {
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError, refetch: refetchProgress } =
-    useUserProgress(USER_ID, COURSE_ID, VERSION_ID);
+    useUserProgress(COURSE_ID, VERSION_ID);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
   const { data: proctoringData, isLoading: proctoringLoading } =
-    useProctoringSettings(USER_ID, COURSE_ID, VERSION_ID);
+    useProctoringSettings(COURSE_ID, VERSION_ID);
 
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
@@ -314,7 +313,6 @@ export default function CoursePage() {
       {
         params: {
           path: {
-            userId: USER_ID,
             courseId: COURSE_ID,
             courseVersionId: VERSION_ID
           },
@@ -333,7 +331,7 @@ export default function CoursePage() {
     setTimeout(() => {
       refetchProgress();
     }, 300);
-  }, [updateProgress, USER_ID, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress]);
+  }, [updateProgress, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (

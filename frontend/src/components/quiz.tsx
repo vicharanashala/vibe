@@ -284,11 +284,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   function handleSendStartItem() {
-    if (!userId || !currentCourse?.itemId) return;
+    if (!currentCourse?.itemId) return;
     console.log({
       params: {
         path: {
-          userId,
           courseId: currentCourse.courseId,
           courseVersionId: currentCourse.versionId ?? '',
         },
@@ -302,7 +301,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     startItem.mutate({
       params: {
         path: {
-          userId,
           courseId: currentCourse.courseId,
           courseVersionId: currentCourse.versionId ?? '',
         },
@@ -318,11 +316,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }
 
   function handleStopItem() {
-    if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+    if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
     console.log({
       params: {
         path: {
-          userId,
           courseId: currentCourse.courseId,
           courseVersionId: currentCourse.versionId ?? '',
         },
@@ -337,7 +334,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     stopItem.mutate({
       params: {
         path: {
-          userId,
           courseId: currentCourse.courseId,
           courseVersionId: currentCourse.versionId ?? '',
         },
@@ -358,7 +354,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }));
 
   // Get user and course data from stores
-  const userId = useAuthStore((state) => state.user?.userId);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();

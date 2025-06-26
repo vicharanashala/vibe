@@ -155,7 +155,7 @@ class QuestionProcessor {
     // const randomParameterMap = generateRandomParameterMap(
     //   this.question.parameters,
     // );
-    return this.renderer.render(parameterMap);
+    return this.renderer.render();
   }
 
   grade(

@@ -16,11 +16,9 @@ export default function StudentCourses() {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Get the current user from auth store
-  const { user, isAuthenticated } = useAuthStore();
-  const userId = user?.userId;
+  const { isAuthenticated } = useAuthStore();
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
-    userId || "",
     currentPage,
   );
 
@@ -55,17 +53,6 @@ export default function StudentCourses() {
           description="Please log in to view your courses"
           actionText="Go to Login"
           onAction={() => window.location.href = '/auth'}
-        />
-      </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <EmptyState
-          title="Loading User Data"
-          description="Please wait while we load your information..."
         />
       </div>
     );

@@ -28,9 +28,13 @@ import {
   Patch,
   BadRequestError,
   InternalServerError,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { AUTH_TYPES } from '#root/modules/auth/types.js';
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -41,13 +45,16 @@ class ProgressController {
   constructor(
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+    
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: IAuthService,
   ) {}
 
   @OpenAPI({
     summary: 'Get user progress in a course version',
     description: 'Retrieves the progress of a user in a specific course version.',
   })
-  @Get('/:userId/progress/courses/:courseId/versions/:courseVersionId/')
+  @Get('/progress/courses/:courseId/versions/:courseVersionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
     description: 'User progress retrieved successfully',
@@ -57,10 +64,11 @@ class ProgressController {
     statusCode: 404,
   })
   async getUserProgress(
+    @Req() request: any,
     @Params() params: GetUserProgressParams,
   ): Promise<Progress> {
-    const {userId, courseId, courseVersionId} = params;
-
+    const {courseId, courseVersionId} = params;
+    const userId = await this.authService.getUserIdFromReq(request);
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
@@ -74,7 +82,7 @@ class ProgressController {
     summary: 'Start an item for user progress',
     description: 'Marks the start of an item for a user in a course version.',
   })
-  @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/start')
+  @Post('/progress/courses/:courseId/versions/:courseVersionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
     description: 'Item started successfully',
@@ -88,12 +96,13 @@ class ProgressController {
     statusCode: 400,
   })
   async startItem(
+    @Req() request: any,
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
   ): Promise<StartItemResponse> {
-    const {userId, courseId, courseVersionId} = params;
+    const {courseId, courseVersionId} = params;
     const {itemId, moduleId, sectionId} = body;
-
+    const userId = await this.authService.getUserIdFromReq(request);
     const watchItemId: string = await this.progressService.startItem(
       userId,
       courseId,
@@ -112,7 +121,7 @@ class ProgressController {
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
   })
-  @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/stop')
+  @Post('/progress/courses/:courseId/versions/:courseVersionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
     description: 'Progress not found',
@@ -127,12 +136,13 @@ class ProgressController {
     statusCode: 500,
   })
   async stopItem(
+    @Req() request: any,
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
   ): Promise<void> {
-    const {userId, courseId, courseVersionId} = params;
+    const {courseId, courseVersionId} = params;
     const {itemId, sectionId, moduleId, watchItemId} = body;
-
+    const userId = await this.authService.getUserIdFromReq(request);
     await this.progressService.stopItem(
       userId,
       courseId,
@@ -148,7 +158,7 @@ class ProgressController {
     summary: 'Update user progress',
     description: 'Updates the progress of a user for a specific item in a course version.',
   })
-  @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/update')
+  @Patch('/progress/courses/:courseId/versions/:courseVersionId/update')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
     description: 'Progress not found',
@@ -163,12 +173,13 @@ class ProgressController {
     statusCode: 500,
   })
   async updateProgress(
+    @Req() request: any,
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
   ): Promise<void> {
-    const {userId, courseId, courseVersionId} = params;
+    const {courseId, courseVersionId} = params;
     const {itemId, moduleId, sectionId, watchItemId, attemptId} = body;
-
+    const userId = await this.authService.getUserIdFromReq(request);
     await this.progressService.updateProgress(
       userId,
       courseId,

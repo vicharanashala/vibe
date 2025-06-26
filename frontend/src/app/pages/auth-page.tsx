@@ -153,44 +153,44 @@ export default function AuthPage() {
       setFormErrors({});
       const result = await loginWithGoogle();
       // Check if the user is new
-      if (result._tokenResponse?.isNewUser) {
-      // If new user, set the default role to student
-      setActiveRole("student");
-      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: {
-        Authorization: `Bearer ${result._tokenResponse.idToken}`,
-        'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-        email: result.user.email,
-        firstName: result._tokenResponse.firstName,
-        lastName: result._tokenResponse.lastName,
-        }),
-      });
+      if (result._tokenResponse.isNewUser) {
+        // If new user, set the default role to student
+        setActiveRole("student");
+        const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
+        const response = await fetch(backendUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${result.user.getIdToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: result.user.email,
+            firstName: result._tokenResponse.firstName,
+            lastName: result._tokenResponse.lastName,
+          }),
+        });
       }
 
       // Set user in store
       setUser({
-      uid: result.user.uid,
-      email: result.user.email || "",
-      name: result.user.displayName || "",
-      role: activeRole, // Use the selected role from tabs
-      avatar: result.user.photoURL || "",
+        uid: result.user.uid,
+        email: result.user.email || "",
+        name: result.user.displayName || "",
+        role: activeRole, // Use the selected role from tabs
+        avatar: result.user.photoURL || "",
       });
 
       navigate({ to: `/${activeRole}` });
     } catch (error) {
       console.error("Google Login Failed", error);
       setFormErrors({
-      ...formErrors,
-      auth: "Failed to sign in with Google. Please try again."
+        ...formErrors,
+        auth: "Failed to sign in with Google. Please try again."
       });
     } finally {
       setLoading(false);
     }
-    };
+  };
 
   const handleEmailLogin = async () => {
     if (!validateForm()) return;

@@ -146,7 +146,6 @@ function FloatingVideo({
     if (anomaly) {
       reportAnomaly({
         body: {
-          userId: authStore.user?.userId || "",
           courseId: courseStore.currentCourse?.courseId || "",
           courseVersionId: courseStore.currentCourse?.versionId || "",
           moduleId: courseStore.currentCourse?.moduleId || "",
@@ -156,7 +155,7 @@ function FloatingVideo({
         }
       });
     }
-  }, [anomaly, anomalyType, authStore.user?.userId, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId, reportAnomaly]);
+  }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId, reportAnomaly]);
 
   // Function to restart video stream
   const restartVideo = useCallback(async () => {
@@ -265,8 +264,7 @@ function FloatingVideo({
     facesCount, 
     isBlur, 
     isFocused, 
-    reportAnomaly, 
-    authStore.user?.userId, 
+    reportAnomaly,
     courseStore.currentCourse,
     isVoiceDetectionEnabled,
     isFaceCountDetectionEnabled,

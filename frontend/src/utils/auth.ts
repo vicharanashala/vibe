@@ -18,41 +18,12 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
     // Get token for backend API calls
     const token = await firebaseUser.getIdToken(true);
     useAuthStore.getState().setToken(token);
-
-    // Fetch backend user info directly using fetch
-    let backendUser = null;
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/firebase/${firebaseUser.uid}`,
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-        }
-      );
-      console.log('Fetching backend user:', firebaseUser.uid);
-      console.log(res);
-      if (res.ok) {
-        backendUser = await res.json();
-        console.log('Fetched backend user:', backendUser);
-      }
-    } catch (error) {
-      console.error('Failed to fetch backend user:', error);
-      // Continue with Firebase data only
-    }
-
-    // Map user with backend data
     return {
       uid: firebaseUser.uid,
-      email: firebaseUser.email || backendUser?.email || '',
-      name: firebaseUser.displayName || 
-            (backendUser ? `${backendUser.firstName} ${backendUser.lastName}`.trim() : ''),
+      email: firebaseUser.email || '',
+      name: firebaseUser.displayName || '',
       role: useAuthStore.getState().user?.role || null,
       avatar: firebaseUser.photoURL || '',
-      userId: backendUser?._id,
-      firstName: backendUser?.firstName,
-      lastName: backendUser?.lastName,
     };
   } catch (error) {
     console.error('Error mapping Firebase user:', error);
@@ -61,22 +32,22 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
 };
 
 // Initialize auth listener
-export const initAuth = () => {
-  const { setUser, clearUser } = useAuthStore.getState();
+// export const initAuth = () => {
+//   const { setUser, clearUser } = useAuthStore.getState();
   
-  return onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-    if (firebaseUser) {
-      const user = await mapFirebaseUserToAppUser(firebaseUser);
-      if (user) {
-        console.log('User authenticated:', user);
-        localStorage.setItem('isAuth', 'true'); // Set auth flag in localStorage
-        setUser(user);
-      }
-    } else {
-      clearUser();
-    }
-  });
-};
+//   return onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+//     if (firebaseUser) {
+//       const user = await mapFirebaseUserToAppUser(firebaseUser);
+//       if (user) {
+//         console.log('User authenticated:', user);
+//         localStorage.setItem('isAuth', 'true'); // Set auth flag in localStorage
+//         setUser(user);
+//       }
+//     } else {
+//       clearUser();
+//     }
+//   });
+// };
 
 // Login with Google in a popup
 export const loginWithGoogle = async () => {

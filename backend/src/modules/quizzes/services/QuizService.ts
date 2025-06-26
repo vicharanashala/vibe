@@ -435,6 +435,29 @@ class QuizService extends BaseService {
       }));
     });
   }
+
+  resetAvailableAttempts(quizId: string, userId: string): Promise<void> {
+    return this._withTransaction(async session => {
+      const quiz = await this.quizRepo.getById(quizId, session);
+      if (!quiz) {
+        throw new NotFoundError('Quiz does not exist.');
+      }
+      const metrics = await this.userQuizMetricsRepo.get(
+          userId,
+          quizId,
+          session,
+        );
+      if (!metrics) {
+        throw new NotFoundError('User metrics not found.');
+      }
+      metrics.remainingAttempts = quiz.details.maxAttempts;
+      await this.userQuizMetricsRepo.update(
+        userId,
+        metrics,
+        session,
+      );
+    });
+  }
 }
 
 export {QuizService};

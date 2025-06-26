@@ -1,5 +1,4 @@
 export interface ReportAnomalyBody {
-  userId: string;
   courseId: string;
   courseVersionId: string;
   moduleId?: string;

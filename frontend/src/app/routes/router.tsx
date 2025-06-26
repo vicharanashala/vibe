@@ -21,10 +21,7 @@ import StudentProfile from "@/app/pages/student/profile";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
-// import ParentComponent from '@/ai-components/ParentComponent'
-import ItemContainer from '@/components/Item-container'
 import CoursePage from '@/app/pages/student/course-page'
-import type { Item } from '@/types/item-container.types'
 import Dashboard from '@/app/pages/teacher/dashboard'
 import CreateCourse from '@/app/pages/teacher/create-course'
 import GetCourse from '@/app/pages/teacher/get-course'
@@ -351,24 +348,6 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
-const videoRoute = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: '/video',
-  component: () => <ItemContainer item={{name:"abc", itemtype:"video", content:"https://www.youtube.com/watch?v=vBH6GRJ1REM"} as Item} courseId="A" courseVersionId="B" userId="C" />
-});
-
-const articleRoute = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: '/article',
-  component: () => <ItemContainer item={{name:"abc", itemtype:"article", content:sampleText} as Item} courseId="A" courseVersionId="B" userId="C" />
-});
-
-const quizRoute = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: '/quiz',
-  component: () => <ItemContainer item={{name:"abc", itemtype:"quiz", content:"This is a sample quiz content."} as Item} courseId="A" courseVersionId="B" userId="C" />
-});
-
 // const parentComponentRoute = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: '/test-ai',
@@ -424,10 +403,6 @@ const routeTree = rootRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    articleRoute,
-    videoRoute,
-    quizRoute,
-    // parentComponentRoute,
   ]),
   coursePageRoute,
 ]);

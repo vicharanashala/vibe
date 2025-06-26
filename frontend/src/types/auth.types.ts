@@ -22,10 +22,6 @@ export type User = {
   name?: string;
   role: 'teacher' | 'student' | 'admin' | null;
   avatar?: string;
-  // Backend user fields
-  userId?: string;
-  firstName?: string;
-  lastName?: string;
 };
 
 export type AuthStore = {
