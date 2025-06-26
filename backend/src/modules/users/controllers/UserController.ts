@@ -10,6 +10,8 @@ import {
   OnUndefined,
   Req,
   Body,
+  Post,
+  Patch,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -54,7 +56,7 @@ export class UserController {
     summary: 'Edit user information',
     description: 'Retrieves user information based on the provided user ID.',
   })
-  @Get('/edit')
+  @Patch('/edit')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -66,5 +68,23 @@ export class UserController {
   ): Promise<void> {
     const userId = await this.authService.getUserIdFromReq(req);
     await this.userService.editUser(userId, body);
+  }
+
+  @OpenAPI({
+    summary: 'Make a user an admin',
+    description: 'Promotes a user to admin status based on the provided user ID.',
+  })
+  @Post('/make-admin/:userId')
+  @OnUndefined(200)
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  async makeAdmin(
+    @Params() params: GetUserParams,
+    @Body() body: { password: string }
+  ): Promise<void> {
+    const { userId } = params;
+    await this.userService.makeAdmin(userId, body.password);
   }
 }

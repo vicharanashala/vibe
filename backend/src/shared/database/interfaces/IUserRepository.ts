@@ -30,15 +30,7 @@ export interface IUserRepository {
    * @param role - The role to add.
    * @returns A promise that resolves to the updated user if successful, or null if not.
    */
-  addRole(userId: string, role: string): Promise<IUser | null>;
-
-  /**
-   * Removes a role from a user.
-   * @param userId - The ID of the user to remove the role from.
-   * @param role - The role to remove.
-   * @returns A promise that resolves to the updated user if successful, or null if not.
-   */
-  removeRole(userId: string, role: string): Promise<IUser | null>;
+  makeAdmin(userId: string, session: ClientSession): Promise<void>;
 
   /**
    * Updates the password of a user.
