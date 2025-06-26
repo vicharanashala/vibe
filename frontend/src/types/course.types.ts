@@ -52,3 +52,25 @@ export type RawEnrollment = {
   courseId: { buffer: { data: number[] } }
   courseVersionId: { buffer: { data: number[] } }
 }
+
+export interface EnrolledUser {
+  id: string
+  name: string
+  email: string
+  avatar?: string
+  enrolledDate: string
+  progress: number
+}
+
+export interface ResetProgressData {
+  user: EnrolledUser
+  scope: "course" | "module" | "section" | "item"
+  module?: string
+  section?: string
+  item?: string
+}
+
+export interface EnrollmentsSearchParams {
+  courseId?: string
+  versionId?: string
+}
