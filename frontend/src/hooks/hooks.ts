@@ -611,6 +611,28 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   };
 }
 
+// GET /enrollments/courses/{courseId}/versions/{courseVersionId}
+export function useCourseVersionEnrollments(courseId: string | undefined,courseVersionId: string | undefined, page?: number, limit?: number, enabled: boolean = true): {
+  data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}", {
+    params: { 
+      path: { courseId, courseVersionId },
+      query: { page, limit }
+    },
+    enabled: enabled && !!courseId && !!courseVersionId
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
+    refetch: result.refetch
+  };
+}
+
 // Progress hooks
 
 // GET /users/progress/courses/{courseId}/versions/{courseVersionId}/
