@@ -7,6 +7,7 @@ import {
   Get,
   Body,
   ContentType,
+  Authorized,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -17,6 +18,7 @@ import { NOTIFICATIONS_TYPES } from '../types.js';
 import { MessageResponse } from '../classes/index.js';
 import { appConfig } from '#root/config/app.js';
 import { inviteRedirectTemplate } from '../redirectTemplate.js';
+import { InviteActions } from '../abilities/inviteAbilities.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -63,6 +65,7 @@ export class InviteController {
     return new InviteResponse(results);
   }
 
+  @Authorized({ action: InviteActions.Process, subject: 'Invite' })
   @Get('/:inviteId')
   @HttpCode(200)
   @ContentType('html')
@@ -87,6 +90,7 @@ export class InviteController {
       return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
 
+  @Authorized({ action: InviteActions.View, subject: 'Invite' })
   @Get('/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
   @OpenAPI({
@@ -108,6 +112,7 @@ export class InviteController {
     return new InviteResponse(invites);
   }
 
+  @Authorized({ action: InviteActions.Modify, subject: 'Invite' })
   @Post('/resend/:inviteId')
   @HttpCode(200)
   @OpenAPI({
@@ -125,6 +130,7 @@ export class InviteController {
     return this.inviteService.resendInvite(inviteId);
   }
 
+  @Authorized({ action: InviteActions.Modify, subject: 'Invite' })
   @Post('/cancel/:inviteId')
   @HttpCode(200)
   @OpenAPI({

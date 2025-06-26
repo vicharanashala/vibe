@@ -1,4 +1,5 @@
 import {
+  Authorized,
   Body,
   Get,
   HttpCode,
@@ -26,6 +27,7 @@ import {IAttempt} from '#quizzes/interfaces/index.js';
 import {AUTH_TYPES} from '#auth/types.js';
 import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { AttemptActions } from '../abilities/attemptAbilities.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -44,6 +46,7 @@ class AttemptController {
     summary: 'Start a new quiz attempt',
     description: 'Creates a new attempt for the specified quiz for the current user.',
   })
+  @Authorized({action: AttemptActions.Start, subject: 'Attempt'})
   @Post('/:quizId/attempt')
   @HttpCode(200)
   @ResponseSchema(CreateAttemptResponse, {
@@ -66,6 +69,7 @@ class AttemptController {
     summary: 'Save answers for an ongoing attempt',
     description: 'Saves the current answers for a quiz attempt without submitting.',
   })
+  @Authorized({action: AttemptActions.Save, subject: 'Attempt'})
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, { description: 'Bad Request', statusCode: 400 })
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Attempt or Quiz not found', statusCode: 404 })
@@ -89,6 +93,7 @@ class AttemptController {
     summary: 'Submit a quiz attempt',
     description: 'Submits the answers for a quiz attempt and returns the result.',
   })
+  @Authorized({action: AttemptActions.Submit, subject: 'Attempt'})
   @Post('/:quizId/attempt/:attemptId/submit')
   @HttpCode(200)
   @ResponseSchema(SubmitAttemptResponse, {
@@ -123,6 +128,7 @@ class AttemptController {
     summary: 'Get details of a quiz attempt',
     description: 'Retrieves the details of a specific quiz attempt for the current user.',
   })
+  @Authorized({action: AttemptActions.View, subject: 'Attempt'})
   @Get('/:quizId/attempt/:attemptId')
   @HttpCode(200)
   @ResponseSchema(GetAttemptResponse, {
