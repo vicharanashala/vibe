@@ -433,7 +433,7 @@ export interface IUserAnomaly {
 
 export interface AuthenticatedUserEnrollements {
     courseId: string,
-    courseVersionId: string,
+    versionId: string,
     role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
 }
 

@@ -46,7 +46,7 @@ function extractResourceFromRequest(action: any): any {
     // Common ID patterns
     if (params.id) resource.id = params.id;
     if (params.courseId) resource.courseId = params.courseId;
-    if (params.courseVersionId) resource.courseVersionId = params.courseVersionId;
+    if (params.versionId) resource.versionId = params.versionId;
     if (params.itemId) resource.itemId = params.itemId;
     if (params.userId) resource.userId = params.userId;
     return Object.keys(resource).length > 0 ? resource : undefined;
@@ -66,7 +66,7 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
         globalRole: user.roles,
         enrollments: enrollments.map(enrollment => ({
             courseId: enrollment.courseId.toString(),
-            courseVersionId: enrollment.courseVersionId.toString(),
+            versionId: enrollment.courseVersionId.toString(),
             role: enrollment.role,
         })),
     };

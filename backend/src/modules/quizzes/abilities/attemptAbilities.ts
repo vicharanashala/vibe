@@ -35,8 +35,8 @@ export function setupAttemptAbilities(
 
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
-        const courseVersionBounded = { courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
+        const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
             case 'STUDENT':
