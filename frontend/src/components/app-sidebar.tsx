@@ -50,7 +50,7 @@ export function AppSidebar() {
         items: [
           { title: "Add Course", url: "/teacher/courses/create" },
           { title: "View Course", url: "/teacher/courses/get" },
-          { title: "List Courses", url: "/teacher/courses" },
+          { title: "List Courses", url: "/teacher/courses/list" },
         ],
       }
     ],

@@ -27,84 +27,15 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 
 // Import hooks
-import { useCourseById, useCourseVersionById, useItemsBySectionId } from "@/hooks/hooks"
+import {
+  useCourseById,
+  useCourseVersionById,
+  useItemsBySectionId,
+  useCourseVersionEnrollments,
+  useResetProgress,
+} from "@/hooks/hooks"
 
-// Placeholder interfaces for EnrolledUser and ResetProgressData
-interface EnrolledUser {
-  id: string
-  name: string
-  email: string
-  avatar?: string
-  enrolledDate: string
-  progress: number
-}
-
-interface ResetProgressData {
-  user: EnrolledUser
-  scope: "course" | "module" | "section" | "item"
-  module?: string
-  section?: string
-  item?: string
-}
-
-// Initial mock data
-const initialMockUsers: EnrolledUser[] = [
-  {
-    id: "1",
-    name: "Alice Johnson",
-    email: "alice.johnson@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-15",
-    progress: 85,
-  },
-  {
-    id: "2",
-    name: "Bob Smith",
-    email: "bob.smith@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-10",
-    progress: 100,
-  },
-  {
-    id: "3",
-    name: "Carol Davis",
-    email: "carol.davis@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-20",
-    progress: 45,
-  },
-  {
-    id: "4",
-    name: "David Wilson",
-    email: "david.wilson@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-05",
-    progress: 20,
-  },
-  {
-    id: "5",
-    name: "Emma Brown",
-    email: "emma.brown@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-18",
-    progress: 65,
-  },
-  {
-    id: "6",
-    name: "Frank Miller",
-    email: "frank.miller@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    enrolledDate: "2024-01-12",
-    progress: 30,
-  },
-]
-
-const STORAGE_KEY = "course-enrolled-users"
-
-interface EnrollmentsSearchParams {
-  courseId?: string
-  versionId?: string
-}
+import type { EnrolledUser, EnrollmentsSearchParams, ResetProgressData } from "@/types/course.types"
 
 export default function CourseEnrollments() {
   // Get search params using TanStack Router
@@ -113,14 +44,13 @@ export default function CourseEnrollments() {
   const versionId = search?.versionId
 
   // Fetch course and version data
-  const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "", !!courseId)
+  const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const {
     data: version,
     isLoading: versionLoading,
     error: versionError,
-  } = useCourseVersionById(versionId || "", !!versionId)
+  } = useCourseVersionById(versionId || "")
 
-  const [enrolledUsers, setEnrolledUsers] = useState<EnrolledUser[]>([])
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
@@ -131,34 +61,22 @@ export default function CourseEnrollments() {
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
 
-  // Initialize data from localStorage or use initial data
-  useEffect(() => {
-    const savedUsers = localStorage.getItem(STORAGE_KEY)
-    if (savedUsers) {
-      try {
-        setEnrolledUsers(JSON.parse(savedUsers))
-      } catch (error) {
-        console.error("Error parsing saved users:", error)
-        setEnrolledUsers(initialMockUsers)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialMockUsers))
-      }
-    } else {
-      setEnrolledUsers(initialMockUsers)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialMockUsers))
-    }
-  }, [])
+  // Fetch enrollments data
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useCourseVersionEnrollments(courseId, versionId, 1, 100, !!(courseId && versionId))
 
-  // Save to localStorage whenever enrolledUsers changes
-  useEffect(() => {
-    if (enrolledUsers.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(enrolledUsers))
-    }
-  }, [enrolledUsers])
+  // API Hooks
+  const resetProgressMutation = useResetProgress()
 
-  const filteredUsers = enrolledUsers.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Show all enrollments regardless of role or status
+  const studentEnrollments = enrollmentsData?.enrollments || []
+
+  const filteredUsers = studentEnrollments.filter((enrollment: any) =>
+    enrollment.userId.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   useEffect(() => {
@@ -182,38 +100,57 @@ export default function CourseEnrollments() {
 
   const confirmRemoveStudent = () => {
     if (userToRemove) {
-      const updatedUsers = enrolledUsers.filter((user) => user.id !== userToRemove.id)
-      setEnrolledUsers(updatedUsers)
+      // TODO: Implement API call to remove student from course version
+      console.log("Removing student:", userToRemove)
       setIsRemoveDialogOpen(false)
       setUserToRemove(null)
+      // Refetch enrollments after removal
+      refetchEnrollments()
     }
   }
 
-  const handleConfirmReset = () => {
-    if (!selectedUser) return
+  const handleConfirmReset = async () => {
+    if (!selectedUser || !courseId || !versionId) return
 
-    const data: ResetProgressData = {
-      user: selectedUser,
-      scope: resetScope,
-      module: selectedModule || undefined,
-      section: selectedSection || undefined,
-      item: selectedItem || undefined,
-    }
+    try {
+      // Extract userId from the selected user (it's stored in the email field for our case)
+      const userId = selectedUser.email // This contains the actual userId
 
-    // Update the user's progress based on reset scope
-    const updatedUsers = enrolledUsers.map((user) => {
-      if (user.id === selectedUser.id) {
-        // For demo purposes, we'll reset progress to 0
-        // In a real app, this would be more granular based on the scope
-        return { ...user, progress: 0 }
+      // Prepare the request body based on the selected scope
+      const requestBody: any = {}
+
+      if (resetScope === "module" && selectedModule) {
+        requestBody.moduleId = selectedModule
+      } else if (resetScope === "section" && selectedModule && selectedSection) {
+        requestBody.moduleId = selectedModule
+        requestBody.sectionId = selectedSection
+      } else if (resetScope === "item" && selectedModule && selectedSection && selectedItem) {
+        requestBody.moduleId = selectedModule
+        requestBody.sectionId = selectedSection
+        requestBody.itemId = selectedItem
       }
-      return user
-    })
+      // For course scope, we send an empty body
 
-    setEnrolledUsers(updatedUsers)
-    console.log("Resetting progress:", data)
-    setIsResetDialogOpen(false)
-    setSelectedUser(null)
+      await resetProgressMutation.mutateAsync({
+        params: {
+          path: {
+            userId: userId,
+            courseId: courseId,
+            courseVersionId: versionId,
+          },
+        },
+        body: requestBody,
+      })
+
+      console.log("Progress reset successfully")
+      setIsResetDialogOpen(false)
+      setSelectedUser(null)
+      // Refetch enrollments after reset
+      refetchEnrollments()
+    } catch (error) {
+      console.error("Failed to reset progress:", error)
+      // You might want to show an error toast here
+    }
   }
 
   // Get available modules from version data
@@ -277,11 +214,11 @@ export default function CourseEnrollments() {
     return "bg-red-50 dark:bg-red-950/30"
   }
 
-  // Stats calculations based on current enrolled users
-  const totalUsers = enrolledUsers.length
-  const completedUsers = enrolledUsers.filter((u) => u.progress === 100).length
-  const averageProgress =
-    totalUsers > 0 ? Math.round(enrolledUsers.reduce((acc, user) => acc + user.progress, 0) / totalUsers) : 0
+  // Stats calculations based on current enrolled students
+  const totalUsers = studentEnrollments.length
+  // For now, we don't have progress data, so set completed users to 0
+  const completedUsers = 0
+  const averageProgress = 0
 
   const stats = [
     {
@@ -308,7 +245,7 @@ export default function CourseEnrollments() {
   ]
 
   // Loading state
-  if (courseLoading || versionLoading) {
+  if (courseLoading || versionLoading || enrollmentsLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -322,13 +259,15 @@ export default function CourseEnrollments() {
   }
 
   // Error state
-  if (courseError || versionError || !course || !version) {
+  if (courseError || versionError || enrollmentsError || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
           <div className="text-center py-12">
             <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load course data</h3>
-            <p className="text-muted-foreground mb-4">{courseError || versionError || "Course or version not found"}</p>
+            <p className="text-muted-foreground mb-4">
+              {courseError || versionError || enrollmentsError || "Course or version not found"}
+            </p>
           </div>
         </div>
       </div>
@@ -385,7 +324,7 @@ export default function CourseEnrollments() {
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search students by name or email..."
+              placeholder="Search students by user ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
@@ -421,31 +360,27 @@ export default function CourseEnrollments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user, index) => (
+                    {filteredUsers.map((enrollment, index) => (
                       <TableRow
-                        key={user.id}
+                        key={enrollment._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
                       >
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
                             <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                              <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {user.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
+                                {enrollment.userId.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-foreground truncate text-lg">{user.name}</p>
-                              <p className="text-muted-foreground truncate">{user.email}</p>
+                              <p className="font-bold text-foreground truncate text-lg">{enrollment.userId}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
                           <div className="text-muted-foreground font-medium">
-                            {new Date(user.enrolledDate).toLocaleDateString("en-US", {
+                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
@@ -454,17 +389,10 @@ export default function CourseEnrollments() {
                         </TableCell>
                         <TableCell className="py-6">
                           <div className="flex items-center gap-4 w-40">
-                            <div
-                              className={`flex-1 h-3 rounded-full ${getProgressBg(user.progress)} overflow-hidden shadow-inner`}
-                            >
-                              <div
-                                className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(user.progress)} transition-all duration-700 ease-out shadow-sm`}
-                                style={{ width: `${user.progress}%` }}
-                              />
+                            <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
+                              <div className="h-full rounded-full bg-gradient-to-r from-gray-400 to-gray-500 w-0" />
                             </div>
-                            <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
-                              {user.progress}%
-                            </span>
+                            <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">0%</span>
                           </div>
                         </TableCell>
                         <TableCell className="py-6 pr-6">
@@ -472,16 +400,37 @@ export default function CourseEnrollments() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleResetProgress(user)}
+                              onClick={() =>
+                                handleResetProgress({
+                                  id: enrollment._id,
+                                  name: `User ${enrollment.userId}`,
+                                  email: enrollment.userId, // Store userId in email field for our use
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: 0,
+                                })
+                              }
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                              disabled={resetProgressMutation.isPending}
                             >
-                              <RotateCcw className="h-4 w-4 mr-2" />
+                              {resetProgressMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                              )}
                               Reset
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleRemoveStudent(user)}
+                              onClick={() =>
+                                handleRemoveStudent({
+                                  id: enrollment._id,
+                                  name: `User ${enrollment.userId}`,
+                                  email: enrollment.userId,
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: 0,
+                                })
+                              }
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                             >
                               <UserX className="h-4 w-4 mr-2" />
@@ -745,10 +694,17 @@ export default function CourseEnrollments() {
                 <Button
                   variant="destructive"
                   onClick={handleConfirmReset}
-                  disabled={!isFormValid()}
+                  disabled={!isFormValid() || resetProgressMutation.isPending}
                   className="min-w-[120px] shadow-lg cursor-pointer"
                 >
-                  Reset Progress
+                  {resetProgressMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    "Reset Progress"
+                  )}
                 </Button>
               </div>
             </div>
@@ -812,7 +768,7 @@ function ItemSelector({
     }
   }
 
-  const getItemTypeLabel = (type: string) => {
+  const getItemTypeDisplay = (type: string) => {
     switch (type?.toUpperCase()) {
       case "VIDEO":
         return "Video"
@@ -843,7 +799,7 @@ function ItemSelector({
                 <span className="text-lg">{getItemIcon(item.type)}</span>
                 <div>
                   <div className="font-semibold">{item.name}</div>
-                  <div className="text-xs text-muted-foreground">{getItemTypeLabel(item.type)}</div>
+                  <div className="text-xs text-muted-foreground">{getItemTypeDisplay(item.type)}</div>
                 </div>
               </div>
             </SelectItem>

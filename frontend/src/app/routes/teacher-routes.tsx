@@ -9,6 +9,7 @@ import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you want to use AudioManager
 import CourseEnrollments from "../pages/teacher/course-enrollments";
+import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -30,6 +31,7 @@ const teacherRoutes: RouteObject = {
       path: "courses/create",
       element: <CreateCourse />,
     },
+    
     {
       path: "courses/articles/create",
       element: <Editor />,
@@ -53,6 +55,9 @@ const teacherRoutes: RouteObject = {
     {
       path: "transcribe",
       element: <LiveQuiz />, // Uncomment if you want to use AudioManager
+    },
+    {path:"add-course",
+      element:<AddCoursePage /> 
     }
   ],
 };

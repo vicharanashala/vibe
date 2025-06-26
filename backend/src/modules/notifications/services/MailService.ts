@@ -1,10 +1,7 @@
 import 'reflect-metadata';
-import { inject, injectable } from 'inversify';
+import { injectable } from 'inversify';
 import nodemailer from 'nodemailer';
-import { Invite } from '../classes/transformers/Invite.js';
-import { InviteActionType, InviteStatusType } from '#shared/interfaces/models.js';
 import { smtpConfig } from '#root/config/smtp.js';
-import { appConfig } from '#root/config/app.js';
 
 /**
  * Service for sending emails related to course invitations and notifications.

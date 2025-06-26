@@ -56,7 +56,9 @@ class AttemptController {
     @Req() req: any,
     @Params() params: CreateAttemptParams,
   ): Promise<CreateAttemptResponse> {
+    console.log('Attempting quiz with params:', params);
     const {quizId} = params;
+    console.log('Quiz ID:', quizId);
     const userId = await this.authService.getUserIdFromReq(req);
     const attempt = await this.attemptService.attempt(userId, quizId);
     return attempt as CreateAttemptResponse;

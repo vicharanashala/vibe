@@ -31,6 +31,7 @@ RUN apk add --no-cache git bash \
 
 # Copy only production dependencies and compiled code
 COPY package.json ./
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/build ./build
 RUN pnpm install
 
@@ -39,7 +40,7 @@ RUN pnpm install
 # ENV MODULE=all
 # ENV SENTRY_PROJECT=vibe-backend
 # ENV SENTRY_ORG=dled
-ENV PORT=4001
+ENV APP_PORT=4001
 EXPOSE 4001
 
 # Run the compiled JS

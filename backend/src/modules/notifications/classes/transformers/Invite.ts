@@ -89,6 +89,17 @@ class Invite {
   })
   createdAt: Date | null;
 
+  @Type(() => Date)
+  @IsOptional()
+  @JSONSchema({
+    title: 'Accepted At',
+    description: 'Timestamp when the user accepted the invite',
+    example: '2023-10-01T12:00:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  acceptedAt?: Date;
+
 
   constructor(
     email: string,

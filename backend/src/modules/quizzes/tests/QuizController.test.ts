@@ -19,6 +19,7 @@ import {authModuleOptions} from '#root/modules/auth/index.js';
 import {beforeAll, describe, it, expect, beforeEach, vi} from 'vitest';
 import {ItemType} from '#root/shared/interfaces/models.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
 describe('QuizController',{timeout: 30000}, () => {
   const appInstance = Express();
@@ -34,6 +35,7 @@ describe('QuizController',{timeout: 30000}, () => {
       coursesContainerModule,
       usersContainerModule,
       authContainerModule,
+      notificationsContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -68,7 +70,7 @@ describe('QuizController',{timeout: 30000}, () => {
     };
     const signupRes = await request(app).post('/auth/signup').send(signUpBody);
     expect(signupRes.status).toBe(201);
-    userId = signupRes.body;
+    userId = signupRes.body.userId;
     expect(userId).toBeTruthy();
     vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId)
   }, 900000);

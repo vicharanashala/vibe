@@ -31,6 +31,7 @@ import {
   SOLsolution,
 } from './SamleQuestionBody.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
 describe('AttemptController', async () => {
   const appInstance = Express();
@@ -46,6 +47,7 @@ describe('AttemptController', async () => {
       coursesContainerModule,
       usersContainerModule,
       authContainerModule,
+      notificationsContainerModule
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -78,7 +80,7 @@ describe('AttemptController', async () => {
     };
     const signupRes = await request(app).post('/auth/signup').send(signUpBody);
     expect(signupRes.status).toBe(201);
-    userId = signupRes.body;
+    userId = signupRes.body.userId;
     expect(userId).toBeTruthy();
     vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId);
   }, 900000);
