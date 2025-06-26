@@ -23,6 +23,7 @@ import {
   CourseNotFoundErrorResponse,
   CourseIdParams,
 } from '#courses/classes/validators/CourseValidators.js';
+import { CourseActions } from '../abilities/courseAbilities.js';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -40,7 +41,7 @@ export class CourseController {
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseActions.Create, subject: 'Course'})
   @Post('/', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
@@ -63,7 +64,7 @@ Accessible to:
 - Users who are part of the course (students, teaching assistants, instructors, or managers)
 `,
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseActions.View, subject: 'Course'})
   @Get('/:id', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
@@ -88,7 +89,7 @@ Accessible to:
 Accessible to:
 - Instructor or manager for the course.`,
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseActions.Modify, subject: 'Course'})
   @Put('/:id', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
@@ -111,7 +112,7 @@ Accessible to:
     summary: 'Delete a course',
     description: 'Deletes a course by ID.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseActions.Delete, subject: 'Course'})
   @Delete('/:id', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {

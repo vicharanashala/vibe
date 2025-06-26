@@ -23,6 +23,7 @@ import {
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+import { QuestionActions } from '../abilities/questionAbilities.js';
 
 @OpenAPI({
   tags: ['Questions'],
@@ -39,7 +40,7 @@ class QuestionController {
     summary: 'Create a new question',
     description: 'Creates a new quiz question and returns its ID.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionActions.Create, subject: 'Question'})
   @Post('/')
   @HttpCode(201)
   @ResponseSchema(QuestionId, {
@@ -63,6 +64,7 @@ class QuestionController {
     summary: 'Get question by ID',
     description: 'Retrieves a quiz question by its ID.',
   })
+  @Authorized({action: QuestionActions.View, subject: 'Question'})
   @Get('/:questionId')
   @ResponseSchema(QuestionResponse, {
     description: 'Question retrieved successfully',
@@ -87,7 +89,7 @@ class QuestionController {
     summary: 'Update a question',
     description: 'Updates an existing quiz question.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionActions.Modify, subject: 'Question'})
   @Put('/:questionId')
   @HttpCode(200)
   @ResponseSchema(QuestionResponse, {
@@ -106,7 +108,7 @@ class QuestionController {
     summary: 'Delete a question',
     description: 'Deletes a quiz question by its ID.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionActions.Delete, subject: 'Question'})
   @Delete('/:questionId')
   @OnUndefined(204)
   @ResponseSchema(BadRequestError, {

@@ -25,6 +25,7 @@ import {
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
+import { CourseVersionActions } from '../abilities/versionAbilities.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -43,7 +44,7 @@ export class CourseVersionController {
 Accessible to:
 - Instructor or manager of the course.`,
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseVersionActions.Create, subject: 'CourseVersion'})
   @Post('/:id/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
@@ -73,7 +74,7 @@ Accessible to:
 Accessible to:
 - Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
   })
-  @Authorized(['admin', 'instructor', 'student'])
+  @Authorized({action: CourseVersionActions.View, subject: 'CourseVersion'})
   @Get('/versions/:id')
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version retrieved successfully',
@@ -101,7 +102,7 @@ Accessible to:
 Accessible to:
 - Manager of the course.`,
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseVersionActions.Delete, subject: 'CourseVersion'})
   @Delete('/:courseId/versions/:versionId')
   @ResponseSchema(DeleteCourseVersionParams, {
     description: 'Course version deleted successfully',

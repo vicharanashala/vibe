@@ -28,9 +28,11 @@ import {
   Patch,
   BadRequestError,
   InternalServerError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import { ProgressActions } from '../abilities/progressAbilities.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -47,6 +49,7 @@ class ProgressController {
     summary: 'Get user progress in a course version',
     description: 'Retrieves the progress of a user in a specific course version.',
   })
+  @Authorized({action: ProgressActions.View, subject: 'Progress'})
   @Get('/:userId/progress/courses/:courseId/versions/:courseVersionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
@@ -74,6 +77,7 @@ class ProgressController {
     summary: 'Start an item for user progress',
     description: 'Marks the start of an item for a user in a course version.',
   })
+  @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
@@ -112,6 +116,7 @@ class ProgressController {
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
   })
+  @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
   @Post('/:userId/progress/courses/:courseId/versions/:courseVersionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -148,6 +153,7 @@ class ProgressController {
     summary: 'Update user progress',
     description: 'Updates the progress of a user for a specific item in a course version.',
   })
+  @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/update')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -189,6 +195,7 @@ If moduleId and sectionId are provided, resets to the beginning of the section.
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
 If none are provided, resets to the beginning of the course.`,
   })
+  @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
   @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/reset')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
