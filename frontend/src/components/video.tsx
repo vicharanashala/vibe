@@ -40,7 +40,6 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const videoId = getYouTubeId(URL);
-  const userId = useAuthStore((state) => state.user?.userId);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
@@ -97,11 +96,10 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
   }, [doGesture]);
 
   function handleSendStartItem() {
-    if (!userId || !currentCourse?.itemId) return;
+    if (!currentCourse?.itemId) return;
     startItem.mutate({
       params: {
         path: {
-          userId,
           courseId: currentCourse.courseId,
           courseVersionId: currentCourse.versionId ?? '',
         },
@@ -241,7 +239,6 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             console.log({params: {
                   path: {
-                    userId,
                     courseId: currentCourse.courseId,
                     courseVersionId: currentCourse.versionId ?? '',
                   },
@@ -253,11 +250,10 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                   sectionId: currentCourse.sectionId ?? '',
                 }});
 
-            if (watchItemId && userId) {
+            if (watchItemId) {
               stopItem.mutate({
                 params: {
                   path: {
-                    userId,
                     courseId: currentCourse.courseId,
                     courseVersionId: currentCourse.versionId ?? '',
                   },

@@ -11,23 +11,19 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
 
-import type { DashboardContentProps } from '@/types/dashboard.types';
-
 export default function Page() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
-  const userId = user?.userId;
 
   // Redirect to auth page if not logged in yet
   useEffect(() => {
-    if (!isAuthenticated || !userId) {
-      console.log("User not authenticated or no userId found, redirecting to auth page");
+    if (!isAuthenticated) {
+      console.log("User not authenticated, redirecting to auth page");
       navigate({ to: '/auth' });
     }
-  }, [isAuthenticated, userId, navigate]);
+  }, [isAuthenticated, navigate]);
 
-  // While we don't have a real userId, show loading/auth prompt
-  if (!isAuthenticated || !userId) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
         <div className="px-4 sm:px-6 lg:px-8 w-full max-w-md">
@@ -43,16 +39,14 @@ export default function Page() {
       </div>
     );
   }
-
-  // Only once userId is truthy do we render the dashboard content
-  return <DashboardContent userId={userId} />;
+  return <DashboardContent/>;
 }
 
 
-function DashboardContent({ userId }: DashboardContentProps) {
+function DashboardContent() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const studentName = user?.name || user?.firstName || 'Student';
+  const studentName = user?.name || 'Student';
 
   // Greeting state & updater
   const [greeting, setGreeting] = useState(getGreeting());
@@ -62,13 +56,11 @@ function DashboardContent({ userId }: DashboardContentProps) {
     }, 60000);
     return () => clearInterval(intervalId);
   }, []);
-
-  // Now safe to call the enrollments hook with a real userId
   const {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError
-  } = useUserEnrollments(userId, 1, 5, true);
+  } = useUserEnrollments(1, 5, true);
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;

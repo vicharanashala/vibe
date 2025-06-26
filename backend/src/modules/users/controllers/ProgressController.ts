@@ -34,6 +34,7 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -46,7 +47,7 @@ class ProgressController {
     private readonly progressService: ProgressService,
     
     @inject(AUTH_TYPES.AuthService)
-    private readonly authService: FirebaseAuthService,
+    private readonly authService: IAuthService,
   ) {}
 
   @OpenAPI({

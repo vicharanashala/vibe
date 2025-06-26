@@ -31,6 +31,16 @@ export interface IAuthService {
    * @throws Error - If the token is invalid, expired, or cannot be verified
    */
   verifyToken(token: string): Promise<boolean>;
+  getUserIdFromReq(req: any): Promise<string>
+  /**
+   * Retrieves the authenticated user object based on a valid token.
+   * Decodes the token, finds the associated user in the database, and returns the user object.
+   *
+   * @param token - The authentication token (typically a JWT)
+   * @returns A promise that resolves to the authenticated user object
+   * @throws Error - If the token is invalid, user is not found, or retrieval fails
+   */
+  getCurrentUserFromToken(token: string): Promise<IUser>;
 
   /**
    * Changes the password for an authenticated user.

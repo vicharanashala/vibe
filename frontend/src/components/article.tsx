@@ -52,7 +52,6 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const [value, setValue] = useState<YooptaContentValue>();
     
     // ✅ Get user and course data from stores
-    const userId = useAuthStore((state) => state.user?.userId);
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
@@ -61,11 +60,10 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const itemStartedRef = useRef(false);
 
     function handleSendStartItem() {
-        if (!userId || !currentCourse?.itemId) return;
+        if (!currentCourse?.itemId) return;
         startItem.mutate({
             params: {
                 path: {
-                    userId,
                     courseId: currentCourse.courseId,
                     courseVersionId: currentCourse.versionId ?? '',
                 },
@@ -81,11 +79,10 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     }
 
     function handleStopItem() {
-        if (!userId || !currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+        if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
         stopItem.mutate({
             params: {
                 path: {
-                    userId,
                     courseId: currentCourse.courseId,
                     courseVersionId: currentCourse.versionId ?? '',
                 },

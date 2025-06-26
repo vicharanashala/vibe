@@ -1,4 +1,5 @@
 
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { Course, CourseVersionDataResponse } from '#root/modules/courses/classes/index.js';
@@ -44,7 +45,7 @@ export class EnrollmentController {
     private readonly enrollmentService: EnrollmentService,
 
     @inject(AUTH_TYPES.AuthService)
-    private readonly authService: FirebaseAuthService,
+    private readonly authService: IAuthService,
   ) { }
 
   @OpenAPI({

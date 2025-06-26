@@ -34,7 +34,6 @@ export default function TeacherCoursesPage() {
 
   // Get user from auth store
   const { user } = useAuthStore()
-  const userId = user?.userId
 
   // Fetch user enrollments with higher limit to show all courses
   const {
@@ -42,7 +41,7 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(userId, 1, 100, !!userId) // Increased limit to 100
+  } = useUserEnrollments(1, 100, true) // Increased limit to 100
 
   const enrollments = enrollmentsResponse?.enrollments || []
 
@@ -70,7 +69,7 @@ export default function TeacherCoursesPage() {
   const invalidateAllQueries = () => {
     // Invalidate enrollments
     queryClient.invalidateQueries({ 
-      queryKey: ['get', '/users/{userId}/enrollments'] 
+      queryKey: ['get', '/users/enrollments'] 
     })
     
     // Invalidate all course queries
@@ -386,6 +385,7 @@ function CourseCard({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
+                if (!expandedCourse) toggleCourse()
                 startEditing()
               }}
               className="h-8"
@@ -404,6 +404,7 @@ function CourseCard({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
+                if (!expandedCourse) toggleCourse()
                 deleteCourse()
               }}
               className="h-8 text-destructive hover:text-destructive"
@@ -422,14 +423,14 @@ function CourseCard({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
+                if (!expandedCourse) toggleCourse()
                 setShowProctoringModal(true)
               }}
               className="h-8"
             >
             <FileText className="h-3 w-3 mr-1" />
-              Proctoring
+              Settings
             </Button>
-
           </div>
         </div>
       </CardHeader>

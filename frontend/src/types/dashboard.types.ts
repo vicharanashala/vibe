@@ -26,10 +26,6 @@ export interface ChartLabelProps {
   percent: number;
 }
 
-export interface DashboardContentProps {
-  userId: string;
-}
-
 export interface DashboardSidebarProps {
   enrollments: Array<Record<string, unknown>>;
   className?: string;
