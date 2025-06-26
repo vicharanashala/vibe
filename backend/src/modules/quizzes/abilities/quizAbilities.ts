@@ -51,6 +51,7 @@ export function setupQuizAbilities(
                 can('manage', 'Quiz', courseBounded);
                 break;
             case 'ta':
+                can(QuizActions.ModifyBank, 'Quiz', courseVersionBounded);
                 can(QuizActions.View, 'Quiz', courseVersionBounded);
                 can(QuizActions.GetStats, 'Quiz', courseVersionBounded);
                 break;

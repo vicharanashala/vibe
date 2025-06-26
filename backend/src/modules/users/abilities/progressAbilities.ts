@@ -41,8 +41,7 @@ export function setupProgressAbilities(
                 can(ProgressActions.View, 'Progress', userBounded);
                 break;
             case 'instructor':
-                can(ProgressActions.View, 'Progress', courseBounded);
-                can(ProgressActions.Modify, 'Progress', courseBounded);
+                can('manage', 'Progress', courseBounded);
                 break;
             case 'manager':
                 can('manage', 'Progress', courseBounded);

@@ -50,6 +50,8 @@ export function setupQuestionAbilities(
                 can('manage', 'Question', courseBounded);
                 break;
             case 'ta':
+                can(QuestionActions.Create, 'Question', courseVersionBounded);
+                can(QuestionActions.Modify, 'Question', courseVersionBounded);
                 can(QuestionActions.View, 'Question', courseVersionBounded);
                 break;
         }
