@@ -55,7 +55,7 @@ class ProgressController {
     description: 'Retrieves the progress of a user in a specific course version.',
   })
   @Authorized({action: ProgressActions.View, subject: 'Progress'})
-  @Get('/:userId/progress/courses/:courseId/versions/:courseVersionId/')
+  @Get('/progress/courses/:courseId/versions/:courseVersionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
     description: 'User progress retrieved successfully',

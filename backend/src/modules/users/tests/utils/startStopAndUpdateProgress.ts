@@ -26,7 +26,7 @@ export async function startStopAndUpdateProgress({
   const startItemBody = {itemId, moduleId, sectionId};
   const startItemResponse = await request(app)
     .post(
-      `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}/start`,
+      `/users/progress/courses/${courseId}/versions/${courseVersionId}/start`,
     )
     .send(startItemBody)
     .expect(200);
@@ -40,7 +40,7 @@ export async function startStopAndUpdateProgress({
   };
   const stopItemResponse = await request(app)
     .post(
-      `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}/stop`,
+      `/users/progress/courses/${courseId}/versions/${courseVersionId}/stop`,
     )
     .send(stopItemBody)
     .expect(200);
@@ -60,7 +60,7 @@ export async function startStopAndUpdateProgress({
 
   const updateProgressResponse = await request(app)
     .patch(
-      `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}/update`,
+      `/users/progress/courses/${courseId}/versions/${courseVersionId}/update`,
     )
     .send(updateProgressBody)
     .expect(200);

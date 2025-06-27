@@ -1,6 +1,6 @@
 import request from 'supertest';
 import Express from 'express';
-import {useContainer, useExpressServer} from 'routing-controllers';
+import {BadRequestError, useContainer, useExpressServer} from 'routing-controllers';
 import {authModuleOptions} from '#auth/index.js';
 import {coursesModuleOptions} from '#courses/index.js';
 import {usersModuleOptions} from '../index.js';
@@ -40,7 +40,6 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
   let app;
   let userId: string;
   let courseData: CourseData;
-  vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId)
 
   beforeAll(async () => {
     //Set env variables
@@ -83,6 +82,17 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       courseData.modules[0].sections[0].sectionId,
       courseData.modules[0].sections[0].items[0].itemId,
     );
+
+    vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockImplementation(
+    async (req: Express.Request): Promise<string> => {
+      if (req.headers.authorization === 'no') {
+        throw new BadRequestError('Invalid request');
+      }
+      if (req.headers.authorization === 'fake') {
+        return faker.database.mongodbObjectId();
+      }
+      return userId;
+    });
   });
 
   // ------Tests for Create <ModuleName>------
@@ -107,14 +117,10 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${invalidUserId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'no')
         .expect(400);
-
-      //expect body.errors to be truthy
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors).toBeTruthy();
-      expect(response.body.errors[0].constraints).toHaveProperty('isMongoId');
     });
 
     it('should return 400 if courseId is invalid', async () => {
@@ -123,7 +129,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${invalidCourseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${invalidCourseId}/versions/${courseVersionId}`,
         )
         .expect(400);
 
@@ -140,7 +146,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${invalidCourseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${invalidCourseVersionId}`,
         )
         .expect(400);
       //expect body.errors to be truthy
@@ -155,7 +161,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
         .expect(404);
       //expect body.errors to be truthy
@@ -166,14 +172,14 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
     });
 
     it('should return 404 if progress not found when userId is fake', async () => {
-      const userId = faker.database.mongodbObjectId();
       const courseId = courseData.courseId;
       const courseVersionId = courseData.courseVersionId;
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'fake')
         .expect(404);
 
       //expect body.errors to be truthy
@@ -184,14 +190,14 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
     });
 
     it('should return 404 if progress not found when all params are fake', async () => {
-      const userId = faker.database.mongodbObjectId();
       const courseId = faker.database.mongodbObjectId();
       const courseVersionId = faker.database.mongodbObjectId();
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'fake')
         .expect(404);
 
       //expect body.errors to be truthy
@@ -212,7 +218,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -234,7 +240,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -249,7 +255,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -284,7 +290,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -298,7 +304,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -318,7 +324,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody)
         .expect(200);
@@ -332,7 +338,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody);
 
@@ -347,7 +353,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -368,7 +374,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
 
@@ -390,7 +396,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -405,7 +411,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -446,7 +452,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
       expect(updateProgressResponse.status).toBe(200);
@@ -454,7 +460,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // fetch the progress of the user
       const progressResponse = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
         )
         .expect(200);
 
