@@ -1,6 +1,6 @@
 import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
-import {Collection, ObjectId} from 'mongodb';
+import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -148,10 +148,18 @@ export class EnrollmentRepository {
    */
   async getEnrollments(userId: string, skip: number, limit: number) {
     await this.init();
-    return this.enrollmentCollection
+    return await this.enrollmentCollection
       .find({userId})
       .skip(skip)
       .limit(limit)
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
+  async getAllEnrollments(userId: string, session?: ClientSession) {
+    await this.init();
+    return await this.enrollmentCollection
+      .find({userId}, {session})
       .sort({enrollmentDate: -1})
       .toArray();
   }
@@ -163,7 +171,7 @@ export class EnrollmentRepository {
     limit: number,
   ) {
     await this.init();
-    return this.enrollmentCollection
+    return await this.enrollmentCollection
       .find({
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
@@ -179,6 +187,6 @@ export class EnrollmentRepository {
    */
   async countEnrollments(userId: string) {
     await this.init();
-    return this.enrollmentCollection.countDocuments({userId});
+    return await this.enrollmentCollection.countDocuments({userId});
   }
 }

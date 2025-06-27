@@ -186,6 +186,21 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async getAllEnrollments(userId: string) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.getAllEnrollments(
+        userId,
+        session
+      );
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
+
   async getCourseVersionEnrollments(
     courseId: string,
     courseVersionId: string,

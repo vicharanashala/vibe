@@ -6,7 +6,8 @@ import { CourseVersionScope, createAbilityBuilder } from './types.js';
 export enum CourseVersionActions {
     Create = "create",
     Delete = "delete",
-    View = "view"
+    View = "view",
+    Modify = "modify",
 }
 
 // Subjects
@@ -37,16 +38,17 @@ export function setupCourseVersionAbilities(
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(CourseVersionActions.View, 'CourseVersion', courseBounded);
                 cannot(CourseVersionActions.Delete, 'CourseVersion', courseBounded);
+                can(CourseVersionActions.Modify, 'CourseVersion', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'CourseVersion', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(CourseVersionActions.View, 'CourseVersion', versionBounded);
                 break;
         }

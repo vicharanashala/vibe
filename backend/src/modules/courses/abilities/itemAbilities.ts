@@ -56,20 +56,20 @@ export function setupItemAbilities(
         };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(ItemActions.ViewAll, 'Item', versionBounded);
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(ItemActions.Create, 'Item', courseBounded);
                 can(ItemActions.Modify, 'Item', courseBounded);
                 can(ItemActions.Delete, 'Item', courseBounded);
                 can(ItemActions.ViewAll, 'Item', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Item', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(ItemActions.ViewAll, 'Item', versionBounded);
                 break;
         }

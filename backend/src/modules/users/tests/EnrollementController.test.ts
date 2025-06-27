@@ -1,6 +1,6 @@
 import request from 'supertest';
 import Express from 'express';
-import { useContainer, useExpressServer } from 'routing-controllers';
+import { Action, useContainer, useExpressServer } from 'routing-controllers';
 
 import { usersModuleOptions } from '../index.js';
 import { ItemType } from '#shared/interfaces/models.js';
@@ -42,10 +42,31 @@ import { coursesModuleControllers } from '#root/modules/courses/index.js';
 import { authModuleControllers } from '#root/modules/auth/index.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import * as Current from '#root/shared/functions/currentUserChecker.js';
+import { afterEach } from 'node:test';
 
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
+  let currentUserCheckerSpy;
+
+  const user1 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'admin',
+  };
+  const user2 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'user',
+  };
 
   beforeAll(async () => {
     //Set env variables
@@ -62,6 +83,22 @@ describe('Enrollment Controller Integration Tests', () => {
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
+
+    // Create the spy BEFORE using it in options
+    currentUserCheckerSpy = vi.spyOn(Current, 'currentUserChecker').mockImplementation(
+      async (action: Action) => {
+        if (action.request.headers.authorization) {
+          const token = action.request.headers.authorization.split(' ')[1];
+          if (token === 'user1') {
+            return user1;
+          } else if (token === 'user2') {
+            return user2;
+          }
+        }
+        return user2;
+      }
+    );
+
     app = useExpressServer(appInstance, {
       controllers: [
         ...(usersModuleOptions.controllers as Function[]),
@@ -71,12 +108,18 @@ describe('Enrollment Controller Integration Tests', () => {
       authorizationChecker: async () => true,
       defaultErrorHandler: true,
       validation: true,
+      currentUserChecker: Current.currentUserChecker,
     });
   });
 
   beforeEach(async () => {
     // TODO: Optionally reset database state before each test
   });
+
+  afterEach(() => {
+    // Clear the call history of the spy after each test
+    currentUserCheckerSpy.mockClear();
+  })
 
   // ------Tests for Create <ModuleName>------
   describe('Create Enrollment', () => {
@@ -281,33 +324,10 @@ describe('Enrollment Controller Integration Tests', () => {
       );
     }, 90000);
 
-    it('should create an enrollment for different roles check', async () => {
-      // 1. Create 2 new user by hitting at endpoint /auth/signup
-      const signUpBody1: SignUpBody = {
-        email: faker.internet.email(),
-        password: faker.internet.password(),
-        firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
-        lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
-      };
-
-      const signUpBody2: SignUpBody = {
-        email: faker.internet.email(),
-        password: faker.internet.password(),
-        firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
-        lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
-      };
-
-      const signUpResponse1 = await request(app)
-        .post('/auth/signup')
-        .send(signUpBody1);
-
-      const signUpResponse2 = await request(app)
-        .post('/auth/signup')
-        .send(signUpBody2);
-
+    it.only('should create an enrollment for different roles check', async () => {
       // Extract the user ID from the response
-      const userId1 = signUpResponse1.body.userId;
-      const userId2 = signUpResponse2.body.userId;
+      const userId1 = user1._id;
+      const userId2 = user2._id;
 
       // 2. Create a course by hitting at endpoint /courses
 
@@ -318,6 +338,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       const courseResponse = await request(app)
         .post('/courses')
+        .set('Authorization', 'Bearer user1')
         .send(courseBody);
 
       // Expect the response to contain the course ID
@@ -337,6 +358,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       const createCourseVersionResponse = await request(app)
         .post(`/courses/${courseVersionParams.id}/versions`)
+        .set('Authorization', 'Bearer user1')
         .send(courseVersionBody)
         .expect(201);
       // Expect the response to contain the course version ID
@@ -355,6 +377,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       const createModuleResponse = await request(app)
         .post(`/courses/versions/${moduleParams.versionId}/modules`)
+        .set('Authorization', 'Bearer user1')
         .send(moduleBody);
 
       expect(createModuleResponse.status).toBe(201);
@@ -383,6 +406,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/courses/versions/${sectionParams.versionId}/modules/${sectionParams.moduleId}/sections`,
         )
+        .set('Authorization', 'Bearer user1')
         .send(sectionBody)
         .expect(201);
 
@@ -426,6 +450,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/courses/versions/${itemParams.versionId}/modules/${itemParams.moduleId}/sections/${itemParams.sectionId}/items`,
         )
+        .set('Authorization', 'Bearer user1')
         .send(itemPayload)
       expect(createItemResponse.status).toBe(201);
       // Expect the response to contain the item ID
@@ -454,6 +479,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/users/${createEnrollmentParams1.userId}/enrollments/courses/${createEnrollmentParams1.courseId}/versions/${createEnrollmentParams1.courseVersionId}`,
         )
+        .set('Authorization', 'Bearer user1')
         .send({
           role: 'STUDENT',
         });
@@ -462,6 +488,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/users/${createEnrollmentParams2.userId}/enrollments/courses/${createEnrollmentParams2.courseId}/versions/${createEnrollmentParams2.courseVersionId}`,
         )
+        .set('Authorization', 'Bearer user2')
         .send({
           role: 'TEACHER',
         });

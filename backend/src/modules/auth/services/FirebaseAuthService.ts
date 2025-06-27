@@ -136,7 +136,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['user'],
+      roles: 'user',
     };
 
     let createdUserId: string;
@@ -190,7 +190,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['user'],
+      roles: 'user',
     };
 
     let createdUserId: string;
