@@ -33,11 +33,11 @@ import {
   useItemsBySectionId,
   useCourseVersionEnrollments,
   useResetProgress,
+  useUnenrollUser,
 } from "@/hooks/hooks"
 
 import { useCourseStore } from "@/store/course-store"
-import type { EnrolledUser, ResetProgressData } from "@/types/course.types"
-import { ErrorBar } from "recharts"
+import type { EnrolledUser, EnrollmentsSearchParams } from "@/types/course.types"
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
@@ -49,11 +49,7 @@ export default function CourseEnrollments() {
 
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
-  const {
-    data: version,
-    isLoading: versionLoading,
-    error: versionError,
-  } = useCourseVersionById(versionId || "")
+  const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -75,15 +71,17 @@ export default function CourseEnrollments() {
 
   // API Hooks
   const resetProgressMutation = useResetProgress()
+  const unenrollMutation = useUnenrollUser()
 
   // Show all enrollments regardless of role or status
   const studentEnrollments = enrollmentsData?.enrollments || []
 
-  const filteredUsers = studentEnrollments.filter((enrollment: any) =>
-    enrollment.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) + 
-    enrollment.user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) +
-    enrollment.user.email.toLowerCase().includes(searchQuery.toLowerCase()) +
-    (enrollment.user.firstName+ " " + enrollment.user.lastName).toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = studentEnrollments.filter(
+    (enrollment: any) =>
+      enrollment.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) +
+      enrollment.user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) +
+      enrollment.user.email.toLowerCase().includes(searchQuery.toLowerCase()) +
+      (enrollment.user.firstName + " " + enrollment.user.lastName).toLowerCase().includes(searchQuery.toLowerCase()),
   )
   console.log("Filtered Users:", filteredUsers)
 
@@ -106,14 +104,28 @@ export default function CourseEnrollments() {
     setIsRemoveDialogOpen(true)
   }
 
-  const confirmRemoveStudent = () => {
-    if (userToRemove) {
-      // TODO: Implement API call to remove student from course version
-      console.log("Removing student:", userToRemove)
-      setIsRemoveDialogOpen(false)
-      setUserToRemove(null)
-      // Refetch enrollments after removal
-      refetchEnrollments()
+  const confirmRemoveStudent = async () => {
+    if (userToRemove && courseId && versionId) {
+      try {
+        await unenrollMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToRemove.email, // email field contains the actual userId
+              courseId: courseId,
+              courseVersionId: versionId,
+            },
+          },
+        })
+
+        console.log("Student removed successfully:", userToRemove)
+        setIsRemoveDialogOpen(false)
+        setUserToRemove(null)
+        // Refetch enrollments after removal
+        refetchEnrollments()
+      } catch (error) {
+        console.error("Failed to remove student:", error)
+        // You might want to show an error toast here
+      }
     }
   }
 
@@ -389,16 +401,18 @@ export default function CourseEnrollments() {
                       >
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                            <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                            {enrollment.user.firstName[0].toUpperCase() + enrollment.user.lastName[0].toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-foreground truncate text-lg">{enrollment.user.firstName +' '+ enrollment.user.lastName}</p>
-                            <p className="text-sm text-muted-foreground truncate">{enrollment.user.email}</p>
-                          </div>
+                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                              <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                {enrollment.user.firstName[0].toUpperCase() + enrollment.user.lastName[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-foreground truncate text-lg">
+                                {enrollment.user.firstName + " " + enrollment.user.lastName}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">{enrollment.user.email}</p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
@@ -455,8 +469,13 @@ export default function CourseEnrollments() {
                                 })
                               }
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                              disabled={unenrollMutation.isPending}
                             >
-                              <UserX className="h-4 w-4 mr-2" />
+                              {unenrollMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <UserX className="h-4 w-4 mr-2" />
+                              )}
                               Remove
                             </Button>
                           </div>
@@ -526,9 +545,17 @@ export default function CourseEnrollments() {
                 <Button
                   variant="destructive"
                   onClick={confirmRemoveStudent}
+                  disabled={unenrollMutation.isPending}
                   className="min-w-[100px] shadow-lg cursor-pointer"
                 >
-                  Yes, Remove
+                  {unenrollMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    "Yes, Remove"
+                  )}
                 </Button>
               </div>
             </div>
