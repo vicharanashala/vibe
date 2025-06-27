@@ -11,6 +11,7 @@ import { useState } from 'react';
 import type { BufferId, LotItem, BaseQuestionRenderView, DescriptiveQuestionRenderView, SelectManyInLotQuestionRenderView, OrderTheLotsQuestionRenderView, NumericAnswerQuestionRenderView, SelectOneInLotQuestionRenderView, QuestionRenderView, SaveQuestion, IQuestionAnswerFeedback, SubmitQuizResponse} from '../types/quiz.types';
 import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
+import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 
 // Auth hooks
 
@@ -940,4 +941,98 @@ export function useEditProctoringSettings() {
   };
 
   return { editSettings, loading, error };
+}
+
+export function useInviteUsers(): {
+  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: InviteBody }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: InviteBody }) => Promise<InviteResponse>,
+  data: InviteResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to invite users') : null
+  };
+}
+
+export function useProcessInvite(inviteId: string): {
+  data: string | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/notifications/invite/{inviteId}", {
+    params: { path: { inviteId } }
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to process invite') : null,
+    refetch: result.refetch
+  };
+}
+
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true): {
+  data: InviteResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
+    params: { path: { courseId, courseVersionId } },
+    enabled: enabled
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch course invites') : null,
+    refetch: result.refetch
+  };
+}
+
+export function useResendInvite(): {
+  mutate: (variables: { params: { path: { inviteId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { inviteId: string } } }) => Promise<MessageResponse>,
+  data: MessageResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/notifications/invite/resend/{inviteId}");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to resend invite') : null
+  };
+}
+
+export function useCancelInvite(): {
+  mutate: (variables: { params: { path: { inviteId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { inviteId: string } } }) => Promise<MessageResponse>,
+  data: MessageResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/notifications/invite/cancel/{inviteId}");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to cancel invite') : null
+  };
 }
