@@ -59,8 +59,10 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
     if (!user) {
         return false;
     }
+    
     const enrollmentService = getFromContainer(EnrollmentService);
     const enrollments= await enrollmentService.getAllEnrollments(user._id.toString());
+    
     const authenticatedUser: AuthenticatedUser = {
         userId: user._id.toString(),
         globalRole: user.roles,
@@ -70,8 +72,8 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
             role: enrollment.role,
         })),
     };
+    
     // Extract CASL options from the roles parameter
-    // routing-controllers will pass the options from @Authorized({action: "...", subject: "..."})
     const caslOptions = roles[0] as CaslAuthOptions;
 
     // Create user's abilities
@@ -80,6 +82,17 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
     // Extract resource from request if not explicitly provided
     const resource = caslOptions.resource || extractResourceFromRequest(action);
     
+    // For admin users, check without resource constraints first
+    let result = false;
+    if (authenticatedUser.globalRole === 'admin') {
+        result = ability.can(caslOptions.action, caslOptions.subject);
+    }
+    
+    // If admin check passed or user is not admin, check with resource
+    if (!result) {
+        result = ability.can(caslOptions.action, resource || caslOptions.subject);
+    }
+    
     // Check CASL permission
-    return ability.can(caslOptions.action, resource || caslOptions.subject);
+    return result;
 }

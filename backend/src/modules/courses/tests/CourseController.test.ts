@@ -172,6 +172,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -223,6 +224,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -283,7 +285,7 @@ describe('Course Controller Integration Tests', () => {
 
         const courseId = createdCourseResponse.body._id;
 
-        const res = await request(app).delete(`/courses/${courseId}`);
+        const res = await request(app).delete(`/courses/${courseId}`).set('Authorization', 'Bearer user1');
         console.log(res.body);
 
         await request(app).get(`/courses/${courseId}`).set('Authorization', 'Bearer user1').expect(404);
