@@ -3,8 +3,8 @@ import Express from 'express';
 import {Action, RoutingControllersOptions, useContainer, useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
 import {CourseBody} from '../classes/validators/CourseValidators.js';
-import {describe, it, beforeEach, beforeAll, expect, vi, afterEach} from 'vitest';
-import {coursesContainerModules, coursesModuleOptions, setupCoursesContainer} from '../index.js';
+import {describe, it, beforeAll, expect, vi, afterEach, afterAll} from 'vitest';
+import {coursesContainerModules, coursesModuleOptions} from '../index.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { Container } from 'inversify';
 import * as Current from '#root/shared/functions/currentUserChecker.js';
@@ -68,6 +68,10 @@ describe('Course Controller Integration Tests', () => {
     // Don't restore all mocks, just clear the call history
     currentUserCheckerSpy.mockClear();
   });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  })
 
   describe('COURSE CREATION', () => {
     describe('Success Scenario', () => {
