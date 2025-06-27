@@ -38,6 +38,7 @@ import {
   useEditProctoringSettings
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
+import { useCourseStore } from "@/store/course-store"
 import { bufferToHex } from "@/utils/helpers"
 
 // Define types for better TypeScript support
@@ -645,6 +646,7 @@ function VersionCard({
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { setCurrentCourse } = useCourseStore()
 
   // Fetch individual version data
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
@@ -676,10 +678,32 @@ function VersionCard({
   }
 
   const viewEnrollments = () => {
-    // Navigate to enrollments page with courseId and versionId as search parameters
+    // Set course info in store and navigate to enrollments page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
     navigate({
       to: "/teacher/courses/enrollments",
-      search: { courseId: courseId, versionId: versionId },
+    })
+  }
+
+  const viewCourse = () => {
+    // Set course info in store and navigate to course content
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/student/learn",
     })
   }
 
@@ -722,7 +746,7 @@ function VersionCard({
               <Users className="h-3 w-3 mr-1" />
               View Enrollments
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer">
+            <Button variant="outline" size="sm" onClick={viewCourse} className="h-7 text-xs cursor-pointer">
               <Eye className="h-3 w-3 mr-1" />
               View
             </Button>

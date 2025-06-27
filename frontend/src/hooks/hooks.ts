@@ -962,24 +962,6 @@ export function useInviteUsers(): {
   };
 }
 
-export function useProcessInvite(inviteId: string): {
-  data: string | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
-  const result = api.useQuery("get", "/notifications/invite/{inviteId}", {
-    params: { path: { inviteId } }
-  });
-
-  return {
-    data: result.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to process invite') : null,
-    refetch: result.refetch
-  };
-}
-
 export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true): {
   data: InviteResponse | undefined,
   isLoading: boolean,

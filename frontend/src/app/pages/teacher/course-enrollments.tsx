@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearch } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import {
   Search,
   Users,
@@ -35,14 +35,17 @@ import {
   useResetProgress,
 } from "@/hooks/hooks"
 
-import type { EnrolledUser, EnrollmentsSearchParams, ResetProgressData } from "@/types/course.types"
+import { useCourseStore } from "@/store/course-store"
+import type { EnrolledUser, ResetProgressData } from "@/types/course.types"
 import { ErrorBar } from "recharts"
 
 export default function CourseEnrollments() {
-  // Get search params using TanStack Router
-  const search = useSearch({ from: "/teacher/courses/enrollments" }) as EnrollmentsSearchParams
-  const courseId = search?.courseId
-  const versionId = search?.versionId
+  const navigate = useNavigate()
+  
+  // Get course info from store
+  const { currentCourse } = useCourseStore()
+  const courseId = currentCourse?.courseId
+  const versionId = currentCourse?.versionId
 
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
@@ -299,8 +302,22 @@ export default function CourseEnrollments() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer">
-              Add Student
+            <Button 
+            className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer"
+            onClick={() => {
+              // Set course info in store and navigate to invite page
+              const { setCurrentCourse } = useCourseStore.getState();
+              setCurrentCourse({
+                courseId: courseId || "",
+                versionId: versionId || "",
+                moduleId: null,
+                sectionId: null,
+                itemId: null,
+                watchItemId: null,
+              });
+              navigate({to: "/teacher/courses/invite"});
+            }}>
+              Send Invites
             </Button>
           </div>
         </div>

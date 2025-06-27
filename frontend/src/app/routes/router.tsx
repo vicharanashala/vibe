@@ -31,6 +31,7 @@ import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
+import InvitePage from '../pages/teacher/invite'
 
 
 const sampleText = `
@@ -313,6 +314,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollments,
 });
 
+// Teacher Course Invites route
+const teacherCourseInviteRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/invite',
+  component: InvitePage,
+});
+
 // Testing face detection route
 const teacherTestingRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -325,7 +333,6 @@ const teacherAddCourseRoute = new Route({
   path: '/courses/create',
   component: AddCoursePage,
 });
-
 
 // Student dashboard route
 const studentDashboardRoute = new Route({
@@ -398,6 +405,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
+    teacherCourseInviteRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

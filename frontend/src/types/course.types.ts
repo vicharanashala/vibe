@@ -69,8 +69,3 @@ export interface ResetProgressData {
   section?: string
   item?: string
 }
-
-export interface EnrollmentsSearchParams {
-  courseId?: string
-  versionId?: string
-}
