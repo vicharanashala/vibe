@@ -1,16 +1,16 @@
 import request from 'supertest';
 import Express from 'express';
-import {useContainer, useExpressServer} from 'routing-controllers';
+import { Action, useContainer, useExpressServer } from 'routing-controllers';
 
-import {usersModuleOptions} from '../index.js';
-import {ItemType} from '#shared/interfaces/models.js';
+import { usersModuleOptions } from '../index.js';
+import { ItemType } from '#shared/interfaces/models.js';
 import {
   CreateCourseVersionBody,
   CreateCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import {Course} from '#courses/classes/transformers/index.js';
-import {CourseBody} from '#courses/classes/validators/CourseValidators.js';
-import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
+import { Course } from '#courses/classes/transformers/index.js';
+import { CourseBody } from '#courses/classes/validators/CourseValidators.js';
+import { SignUpBody } from '#auth/classes/validators/AuthValidators.js';
 import {
   CreateModuleBody,
   CreateModuleParams,
@@ -20,8 +20,8 @@ import {
   CreateSectionBody,
   VersionModuleSectionParams,
 } from '#courses/classes/validators/SectionValidators.js';
-import {CreateItemBody} from '#courses/classes/validators/ItemValidators.js';
-import {EnrollmentParams} from './utils/createEnrollment.js';
+import { CreateItemBody } from '#courses/classes/validators/ItemValidators.js';
+import { EnrollmentParams } from './utils/createEnrollment.js';
 import {
   describe,
   it,
@@ -31,21 +31,42 @@ import {
   beforeEach,
   vi,
 } from 'vitest';
-import {faker} from '@faker-js/faker';
-import {authContainerModule} from '#root/modules/auth/container.js';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '#root/container.js';
-import {usersContainerModule} from '../container.js';
-import {coursesContainerModule} from '#root/modules/courses/container.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {coursesModuleControllers} from '#root/modules/courses/index.js';
-import {authModuleControllers} from '#root/modules/auth/index.js';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '#root/modules/auth/container.js';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { usersContainerModule } from '../container.js';
+import { coursesContainerModule } from '#root/modules/courses/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { coursesModuleControllers } from '#root/modules/courses/index.js';
+import { authModuleControllers } from '#root/modules/auth/index.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import * as Current from '#root/shared/functions/currentUserChecker.js';
+import { afterEach } from 'node:test';
 
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
+  let currentUserCheckerSpy;
+
+  const user1 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'admin',
+  };
+  const user2 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'user',
+  };
 
   beforeAll(async () => {
     //Set env variables
@@ -62,6 +83,22 @@ describe('Enrollment Controller Integration Tests', () => {
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
+
+    // Create the spy BEFORE using it in options
+    currentUserCheckerSpy = vi.spyOn(Current, 'currentUserChecker').mockImplementation(
+      async (action: Action) => {
+        if (action.request.headers.authorization) {
+          const token = action.request.headers.authorization.split(' ')[1];
+          if (token === 'user1') {
+            return user1;
+          } else if (token === 'user2') {
+            return user2;
+          }
+        }
+        return user2;
+      }
+    );
+
     app = useExpressServer(appInstance, {
       controllers: [
         ...(usersModuleOptions.controllers as Function[]),
@@ -71,12 +108,18 @@ describe('Enrollment Controller Integration Tests', () => {
       authorizationChecker: async () => true,
       defaultErrorHandler: true,
       validation: true,
+      currentUserChecker: Current.currentUserChecker,
     });
   });
 
   beforeEach(async () => {
     // TODO: Optionally reset database state before each test
   });
+
+  afterEach(() => {
+    // Clear the call history of the spy after each test
+    currentUserCheckerSpy.mockClear();
+  })
 
   // ------Tests for Create <ModuleName>------
   describe('Create Enrollment', () => {
@@ -277,6 +320,241 @@ describe('Enrollment Controller Integration Tests', () => {
       expect(enrollmentResponse.body.progress.userId).toBe(userId);
       expect(enrollmentResponse.body.progress.courseId).toBe(courseId);
       expect(enrollmentResponse.body.progress.courseVersionId).toBe(
+        courseVersionId,
+      );
+    }, 90000);
+
+    it.only('should create an enrollment for different roles check', async () => {
+      // Extract the user ID from the response
+      const userId1 = user1._id;
+      const userId2 = user2._id;
+
+      // 2. Create a course by hitting at endpoint /courses
+
+      const courseBody: CourseBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const courseResponse = await request(app)
+        .post('/courses')
+        .set('Authorization', 'Bearer user1')
+        .send(courseBody);
+
+      // Expect the response to contain the course ID
+      expect(courseResponse.body).toHaveProperty('_id');
+
+      const courseId: string = (courseResponse.body as Course)._id as string;
+
+      // Create course version
+      const courseVersionBody: CreateCourseVersionBody = {
+        version: '1.0',
+        description: 'Initial version',
+      };
+
+      const courseVersionParams: CreateCourseVersionParams = {
+        id: courseId,
+      };
+
+      const createCourseVersionResponse = await request(app)
+        .post(`/courses/${courseVersionParams.id}/versions`)
+        .set('Authorization', 'Bearer user1')
+        .send(courseVersionBody)
+        .expect(201);
+      // Expect the response to contain the course version ID
+      const courseVersionId = createCourseVersionResponse.body._id;
+      expect(courseVersionId).toBeDefined();
+
+      // 3. Create a module by hitting at endpoint /courses/:courseId/versions/:versionId/modules
+      const moduleBody: CreateModuleBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const moduleParams: CreateModuleParams = {
+        versionId: courseVersionId,
+      };
+
+      const createModuleResponse = await request(app)
+        .post(`/courses/versions/${moduleParams.versionId}/modules`)
+        .set('Authorization', 'Bearer user1')
+        .send(moduleBody);
+
+      expect(createModuleResponse.status).toBe(201);
+      expect(createModuleResponse.body).toHaveProperty('version');
+      expect(createModuleResponse.body.version).toHaveProperty('modules');
+      expect(createModuleResponse.body.version.modules).toHaveLength(1);
+      expect(createModuleResponse.body.version.modules[0]).toHaveProperty(
+        'moduleId',
+      );
+      // Extract the module ID from the response
+      const moduleId = createModuleResponse.body.version.modules[0].moduleId;
+
+      // 4. Create a section in the module
+
+      const sectionBody: CreateSectionBody = {
+        name: faker.commerce.productName(),
+        description: faker.commerce.productDescription(),
+      };
+
+      const sectionParams: VersionModuleParams = {
+        versionId: courseVersionId,
+        moduleId: moduleId,
+      };
+
+      const createSectionResponse = await request(app)
+        .post(
+          `/courses/versions/${sectionParams.versionId}/modules/${sectionParams.moduleId}/sections`,
+        )
+        .set('Authorization', 'Bearer user1')
+        .send(sectionBody)
+        .expect(201);
+
+      // Expect the response to contain the section ID
+      expect(createSectionResponse.body).toHaveProperty('version');
+      expect(createSectionResponse.body.version).toHaveProperty('modules');
+      expect(createSectionResponse.body.version.modules).toHaveLength(1);
+      expect(createSectionResponse.body.version.modules[0]).toHaveProperty(
+        'sections',
+      );
+      expect(
+        createSectionResponse.body.version.modules[0].sections,
+      ).toHaveLength(1);
+      expect(
+        createSectionResponse.body.version.modules[0].sections[0],
+      ).toHaveProperty('sectionId');
+      // Extract the section ID from the response
+      const sectionId =
+        createSectionResponse.body.version.modules[0].sections[0].sectionId;
+
+      // 5. Create an item in the section
+      const itemPayload = {
+        name: 'Item1',
+        description: 'This an item',
+        type: 'VIDEO',
+        videoDetails: {
+          URL: 'http://url.com',
+          startTime: '00:00:00',
+          endTime: '00:00:40',
+          points: 10.5,
+        },
+      };
+
+      const itemParams: VersionModuleSectionParams = {
+        versionId: courseVersionId,
+        moduleId: moduleId,
+        sectionId: sectionId,
+      };
+
+      const createItemResponse = await request(app)
+        .post(
+          `/courses/versions/${itemParams.versionId}/modules/${itemParams.moduleId}/sections/${itemParams.sectionId}/items`,
+        )
+        .set('Authorization', 'Bearer user1')
+        .send(itemPayload)
+      expect(createItemResponse.status).toBe(201);
+      // Expect the response to contain the item ID
+      expect(createItemResponse.body).toHaveProperty('itemsGroup');
+      expect(createItemResponse.body.itemsGroup).toHaveProperty('items');
+      expect(createItemResponse.body.itemsGroup.items).toHaveLength(1);
+      expect(createItemResponse.body.itemsGroup.items[0]).toHaveProperty('_id');
+
+      const itemId = createItemResponse.body.itemsGroup.items[0]._id;
+
+      // 3. Enroll the user as a STUDENT in the course version by hitting at endpoint
+
+      const createEnrollmentParams1: EnrollmentParams = {
+        userId: userId1,
+        courseId: courseId,
+        courseVersionId: courseVersionId,
+      };
+
+      const createEnrollmentParams2: EnrollmentParams = {
+        userId: userId2,
+        courseId: courseId,
+        courseVersionId: courseVersionId,
+      };
+
+      const enrollmentResponse1 = await request(app)
+        .post(
+          `/users/${createEnrollmentParams1.userId}/enrollments/courses/${createEnrollmentParams1.courseId}/versions/${createEnrollmentParams1.courseVersionId}`,
+        )
+        .set('Authorization', 'Bearer user1')
+        .send({
+          role: 'STUDENT',
+        });
+
+      const enrollmentResponse2 = await request(app)
+        .post(
+          `/users/${createEnrollmentParams2.userId}/enrollments/courses/${createEnrollmentParams2.courseId}/versions/${createEnrollmentParams2.courseVersionId}`,
+        )
+        .set('Authorization', 'Bearer user2')
+        .send({
+          role: 'TEACHER',
+        });
+      //expect status code to be 200
+      expect(enrollmentResponse1.status).toBe(200);
+      expect(enrollmentResponse2.status).toBe(200);
+      //expect response to have property enrollment
+      expect(enrollmentResponse1.body).toHaveProperty('enrollment');
+      expect(enrollmentResponse2.body).toHaveProperty('enrollment');
+      //expect response to have property progress
+      expect(enrollmentResponse1.body).toHaveProperty('progress');
+      expect(enrollmentResponse2.body).toHaveProperty('progress');
+
+      //expect response to have property enrollment with userId
+      expect(enrollmentResponse1.body.enrollment).toHaveProperty('userId');
+      expect(enrollmentResponse1.body.enrollment).toHaveProperty('userId');
+      expect(enrollmentResponse1.body.enrollment.userId).toBe(userId1);
+      expect(enrollmentResponse2.body.enrollment.userId).toBe(userId2);
+
+      //expect response to have property enrollment with courseId
+      expect(enrollmentResponse1.body.enrollment).toHaveProperty('courseId');
+      expect(enrollmentResponse2.body.enrollment).toHaveProperty('courseId');
+      expect(enrollmentResponse1.body.enrollment.courseId).toBe(courseId);
+      expect(enrollmentResponse2.body.enrollment.courseId).toBe(courseId);
+
+      //expect response to have property enrollment with courseVersionId
+      expect(enrollmentResponse1.body.enrollment).toHaveProperty(
+        'courseVersionId',
+      );
+      expect(enrollmentResponse2.body.enrollment).toHaveProperty(
+        'courseVersionId',
+      );
+      expect(enrollmentResponse1.body.enrollment.courseVersionId).toBe(
+        courseVersionId,
+      );
+      expect(enrollmentResponse2.body.enrollment.courseVersionId).toBe(
+        courseVersionId,
+      );
+
+      //expect response to have property progress with moduleId
+      expect(enrollmentResponse1.body.progress).toHaveProperty('currentModule');
+      expect(enrollmentResponse2.body.progress).toHaveProperty('currentModule');
+      expect(enrollmentResponse1.body.progress.currentModule).toBe(moduleId);
+      expect(enrollmentResponse1.body.progress.currentModule).toBe(moduleId);
+
+      //expect response to have property progress with sectionId
+      expect(enrollmentResponse1.body.progress).toHaveProperty('currentSection');
+      expect(enrollmentResponse2.body.progress).toHaveProperty('currentSection');
+      expect(enrollmentResponse1.body.progress.currentSection).toBe(sectionId);
+      expect(enrollmentResponse2.body.progress.currentSection).toBe(sectionId);
+
+      //expect response to have property progress with itemId
+      expect(enrollmentResponse1.body.progress).toHaveProperty('currentItem');
+      expect(enrollmentResponse2.body.progress).toHaveProperty('currentItem');
+      expect(enrollmentResponse1.body.progress.currentItem).toBe(itemId);
+      expect(enrollmentResponse2.body.progress.currentItem).toBe(itemId);
+
+      //expect progress userId, courseId and courseVersionId to be same as the one created
+      expect(enrollmentResponse1.body.progress.userId).toBe(userId1);
+      expect(enrollmentResponse2.body.progress.userId).toBe(userId2);
+      expect(enrollmentResponse1.body.progress.courseId).toBe(courseId);
+      expect(enrollmentResponse2.body.progress.courseId).toBe(courseId);
+      expect(enrollmentResponse1.body.progress.courseVersionId).toBe(
+        courseVersionId,
+      );
+      expect(enrollmentResponse2.body.progress.courseVersionId).toBe(
         courseVersionId,
       );
     }, 90000);
