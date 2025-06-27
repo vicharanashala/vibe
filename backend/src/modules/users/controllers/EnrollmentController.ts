@@ -173,7 +173,7 @@ export class EnrollmentController {
     summary: 'Get enrollment details for a user in a course version',
     description: 'Retrieves enrollment details, including role and status, for a user in a specific course version.',
   })
-  @Authorized({ action: EnrollmentActions.View, subject: 'Enrollment' })
+  @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
   @Get('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
   @ResponseSchema(EnrolledUserResponse, {
@@ -203,7 +203,7 @@ export class EnrollmentController {
     summary: 'Get all enrollments for a course version',
     description: 'Retrieves a paginated list of all users enrolled in a specific course version.',
   })
-  @Authorized({ action: EnrollmentActions.View, subject: 'Enrollment' })
+  @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
   @Get('/enrollments/courses/:courseId/versions/:courseVersionId')
   @HttpCode(200)
   @ResponseSchema(CourseVersionEnrollmentResponse, {

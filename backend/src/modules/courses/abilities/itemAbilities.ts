@@ -37,37 +37,34 @@ export function setupItemAbilities(
     }
     const progressService = getFromContainer(ProgressService);
     user.enrollments.forEach(async (enrollment: AuthenticatedUserEnrollements) =>{
-        const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
-        const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
-        const courseBounded = { courseId: enrollment.courseId };
-        const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const versionBounded = { versionId: enrollment.versionId };
         
-        // Create a condition that matches either the current item or any completed item
-        if (!progress) {
-            throw new InternalServerError('No progress found for user');
-        }
-        const allowedItemIds = [...completedItems];
-        allowedItemIds.push(progress.currentItem.toString());
-        const itemBounded = { 
-            userId: user.userId, 
-            courseId: enrollment.courseId, 
-            versionId: enrollment.versionId,
-            itemId: { $in: allowedItemIds }
-        };
-
         switch (enrollment.role) {
             case 'STUDENT':
                 can(ItemActions.ViewAll, 'Item', versionBounded);
+                const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
+                const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
+                if (!progress) {
+                    throw new InternalServerError('No progress found for user');
+                }
+                const allowedItemIds = [...completedItems];
+                allowedItemIds.push(progress.currentItem.toString());
+                const itemBounded = { 
+                    userId: user.userId, 
+                    courseId: enrollment.courseId, 
+                    versionId: enrollment.versionId,
+                    itemId: { $in: allowedItemIds }
+                };
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':
-                can(ItemActions.Create, 'Item', courseBounded);
-                can(ItemActions.Modify, 'Item', courseBounded);
-                can(ItemActions.Delete, 'Item', courseBounded);
-                can(ItemActions.ViewAll, 'Item', courseBounded);
+                can(ItemActions.Create, 'Item', versionBounded);
+                can(ItemActions.Modify, 'Item', versionBounded);
+                can(ItemActions.Delete, 'Item', versionBounded);
+                can(ItemActions.ViewAll, 'Item', versionBounded);
                 break;
             case 'MANAGER':
-                can('manage', 'Item', courseBounded);
+                can('manage', 'Item', versionBounded);
                 break;
             case 'TA':
                 can(ItemActions.ViewAll, 'Item', versionBounded);

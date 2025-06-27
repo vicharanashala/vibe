@@ -37,14 +37,14 @@ export function setupEnrollmentAbilities(
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId };
 
         switch (enrollment.role) {
             case 'STUDENT':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
                 break;
             case 'INSTRUCTOR':
-                can(EnrollmentActions.View, 'Enrollment', courseBounded);
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
                 cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
                 can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
@@ -53,7 +53,7 @@ export function setupEnrollmentAbilities(
                 can('manage', 'Enrollment', courseBounded);
                 break;
             case 'TA':
-                can(EnrollmentActions.View, 'Enrollment', versionBounded);
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
                 cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
                 break;
         }

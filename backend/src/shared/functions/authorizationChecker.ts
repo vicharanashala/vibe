@@ -1,5 +1,5 @@
 import { AuthenticatedUser, IUser } from '../interfaces/models.js';
-import { AbilityBuilder, MongoAbility, createMongoAbility } from "@casl/ability";
+import { AbilityBuilder, MongoAbility, createMongoAbility, subject } from "@casl/ability";
 
 // Import unified ability setup functions from each module
 import { setupAllCourseAbilities } from "#root/modules/courses/abilities/index.js";
@@ -87,10 +87,11 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
     if (authenticatedUser.globalRole === 'admin') {
         result = ability.can(caslOptions.action, caslOptions.subject);
     }
+    const caslSubject = subject(caslOptions.subject, resource);
     
     // If admin check passed or user is not admin, check with resource
     if (!result) {
-        result = ability.can(caslOptions.action, resource || caslOptions.subject);
+        result = ability.can(caslOptions.action, caslSubject);
     }
     
     // Check CASL permission
