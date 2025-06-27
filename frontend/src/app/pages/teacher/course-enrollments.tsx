@@ -36,6 +36,7 @@ import {
 } from "@/hooks/hooks"
 
 import type { EnrolledUser, EnrollmentsSearchParams, ResetProgressData } from "@/types/course.types"
+import { ErrorBar } from "recharts"
 
 export default function CourseEnrollments() {
   // Get search params using TanStack Router
@@ -76,8 +77,12 @@ export default function CourseEnrollments() {
   const studentEnrollments = enrollmentsData?.enrollments || []
 
   const filteredUsers = studentEnrollments.filter((enrollment: any) =>
-    enrollment.userId.toLowerCase().includes(searchQuery.toLowerCase()),
+    enrollment.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) + 
+    enrollment.user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) +
+    enrollment.user.email.toLowerCase().includes(searchQuery.toLowerCase()) +
+    (enrollment.user.firstName+ " " + enrollment.user.lastName).toLowerCase().includes(searchQuery.toLowerCase())
   )
+  console.log("Filtered Users:", filteredUsers)
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -367,15 +372,16 @@ export default function CourseEnrollments() {
                       >
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {enrollment.userId.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-foreground truncate text-lg">{enrollment.userId}</p>
-                            </div>
+                          <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                            <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                            {enrollment.user.firstName[0].toUpperCase() + enrollment.user.lastName[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-foreground truncate text-lg">{enrollment.user.firstName +' '+ enrollment.user.lastName}</p>
+                            <p className="text-sm text-muted-foreground truncate">{enrollment.user.email}</p>
+                          </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-6">

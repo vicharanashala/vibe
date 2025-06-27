@@ -27,10 +27,10 @@ const teacherRoutes: RouteObject = {
       path: "courses/get",
       element: <GetCourse />
     },
-    {
-      path: "courses/create",
-      element: <CreateCourse />,
-    },
+    // {
+    //   path: "courses/create",
+    //   element: <CreateCourse />,
+    // },
     
     {
       path: "courses/articles/create",
@@ -56,7 +56,8 @@ const teacherRoutes: RouteObject = {
       path: "transcribe",
       element: <LiveQuiz />, // Uncomment if you want to use AudioManager
     },
-    {path:"add-course",
+    {
+      path:"courses/create",
       element:<AddCoursePage /> 
     }
   ],

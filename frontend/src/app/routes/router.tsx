@@ -279,11 +279,11 @@ const teacherAudioManagerRoute = new Route({
 });
 
 // Teacher create course route
-const teacherCreateCourseRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/create',
-  component: CreateCourse,
-});
+// const teacherCreateCourseRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/courses/create',
+//   component: CreateCourse,
+// });
 
 // Teacher get course route
 const teacherGetCourseRoute = new Route({
@@ -322,7 +322,7 @@ const teacherTestingRoute = new Route({
 
 const teacherAddCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/add-course',
+  path: '/courses/create',
   component: AddCoursePage,
 });
 
@@ -389,7 +389,7 @@ const routeTree = rootRoute.addChildren([
   authRoute,
   teacherLayoutRoute.addChildren([
     teacherDashboardRoute,
-    teacherCreateCourseRoute,
+    // teacherCreateCourseRoute,
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
