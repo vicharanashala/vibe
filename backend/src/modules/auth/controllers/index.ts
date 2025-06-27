@@ -1,1 +1,1 @@
-export * from './AuthController';
+export * from './AuthController.js';

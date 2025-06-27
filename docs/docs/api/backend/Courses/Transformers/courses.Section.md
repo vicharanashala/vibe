@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:18](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L18)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:18](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L18)
 
 Section data transformation.
 
@@ -12,13 +12,13 @@ Section data transformation.
 
 > **new Section**(`sectionBody`, `existingSections`): `Section`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:44](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L44)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:44](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L44)
 
 #### Parameters
 
 ##### sectionBody
 
-[`CreateSectionBody`](../Validators/SectionValidators/courses.CreateSectionBody.md)
+[`CreateSectionBody`](../../Other/courses.CreateSectionBody.md)
 
 ##### existingSections
 
@@ -34,7 +34,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:44](htt
 
 > **createdAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:38](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L38)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:38](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L38)
 
 #### Implementation of
 
@@ -46,7 +46,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:38](htt
 
 > **description**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:28](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L28)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:28](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L28)
 
 #### Implementation of
 
@@ -58,7 +58,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:28](htt
 
 > **itemsGroupId**: `ID`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:34](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L34)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:34](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L34)
 
 #### Implementation of
 
@@ -70,7 +70,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:34](htt
 
 > **name**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:25](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L25)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:25](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L25)
 
 #### Implementation of
 
@@ -82,7 +82,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:25](htt
 
 > **order**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:31](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L31)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:31](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L31)
 
 #### Implementation of
 
@@ -94,7 +94,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:31](htt
 
 > `optional` **sectionId**: `ID`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:22](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L22)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:22](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L22)
 
 #### Implementation of
 
@@ -106,7 +106,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:22](htt
 
 > **updatedAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:42](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Section.ts#L42)
+Defined in: [backend/src/modules/courses/classes/transformers/Section.ts:42](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Section.ts#L42)
 
 #### Implementation of
 

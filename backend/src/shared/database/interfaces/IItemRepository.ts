@@ -1,24 +1,51 @@
-import {
-  IBaseItem,
-  IVideoDetails,
-  IQuizDetails,
-  IBlogDetails,
-} from 'shared/interfaces/IUser';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
-  createItem(item: IBaseItem): Promise<IBaseItem | null>;
-  readItem(itemId: string): Promise<IBaseItem | null>;
-  updateItem(
+  readItem(
+    courseVersionId: string,
     itemId: string,
-    item: Partial<IBaseItem>,
-  ): Promise<IBaseItem | null>;
-  deleteItem(itemId: string): Promise<boolean>;
+    session?: ClientSession,
+  ): Promise<Item | null>;
 
-  createVideoDetails(details: IVideoDetails): Promise<string>;
-  createQuizDetails(details: IQuizDetails): Promise<string>;
-  createBlogDetails(details: IBlogDetails): Promise<string>;
+  deleteItem(
+    itemGroupsId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 
-  readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
-  readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
-  readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
+  createItemsGroup(
+    itemsGroup: ItemsGroup,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null>;
+
+  readItemsGroup(
+    itemsGroupId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null>;
+
+  updateItemsGroup(
+    itemsGroupId: string,
+    itemsGroup: ItemsGroup,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null>;
+
+  getFirstOrderItems(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{
+    moduleId: ObjectId;
+    sectionId: ObjectId;
+    itemId: ObjectId;
+  }>;
+
+  createItem(item: Item, session?: ClientSession): Promise<Item | null>;
+
+  // createVideoDetails(details: IVideoDetails): Promise<string>;
+  // createQuizDetails(details: IQuizDetails): Promise<string>;
+  // createBlogDetails(details: IBlogDetails): Promise<string>;
+
+  // readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
+  // readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
+  // readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
 }

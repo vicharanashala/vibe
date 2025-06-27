@@ -26,6 +26,29 @@ function runProcess(name: string, cwd: string, script: string = "dev") {
   });
 }
 
+function runFirebaseEmulator(name: string, cwd: string, script: string = "dev") {
+  return new Promise((resolve, reject) => {
+    console.log(`⏳ Starting ${name} in ${cwd} with script '${script}'...`);
+
+    const isWindows = os.platform() === "win32";
+    const proc = spawn("firebase", ["emulators:start", "--only", script], {
+      cwd,
+      stdio: "inherit",
+      shell: isWindows // shell: true required for Windows
+    });
+
+    proc.on("exit", (code) => {
+      if (code === 0) {
+        console.log(`✅ ${name} exited cleanly.`);
+        resolve(true);
+      } else {
+        console.error(`❌ ${name} exited with code ${code}`);
+        reject(new Error(`${name} failed`));
+      }
+    });
+  });
+}
+
 
 export async function runStart() {
   console.log("🚀 Launching services...");
@@ -57,8 +80,10 @@ export async function runStart() {
   const startBackend = args.includes('backend') || args.length === 1 || args.includes('all');
   const startFrontend = args.includes('frontend') || args.length === 1 || args.includes('all');
   const startDocs = args.includes('docs') || args.includes('all');
+  const startAuthEmu = args.includes('auth') || args.includes('emulators') || args.includes('all');
+  const startFunctionsEmu = args.includes('functions') || args.includes('emulators') || args.includes('all');
 
-  if (!startBackend && !startFrontend && !startDocs) {
+  if (!startBackend && !startFrontend && !startDocs && !startAuthEmu && !startFunctionsEmu) {
     console.error("❌ Incorrect args passed.");
     process.exit(1);
   }
@@ -76,6 +101,14 @@ export async function runStart() {
 
     if (startDocs) {
       processes.push(runProcess("Docs", docsDir, "start"));
+    }
+
+    if (startAuthEmu) {
+      processes.push(runFirebaseEmulator("Firebase Auth Emulator", backendDir, "auth"));
+    }
+
+    if (startFunctionsEmu) {
+      processes.push(runFirebaseEmulator("Firebase Functions Emulator", backendDir, "functions"));
     }
 
     await Promise.all(processes);

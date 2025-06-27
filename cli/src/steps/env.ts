@@ -60,7 +60,7 @@ console.log(`
 const mongoUri = await getMongoUri();
 
 // Write to .env file
-fs.writeFileSync(envPath, `DB_URL="${mongoUri}"\n`);
+fs.writeFileSync(envPath, `DB_URL="${mongoUri}"\nFIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099\nFIREBASE_EMULATOR_HOST=127.0.0.1:4000\nGCLOUD_PROJECT=demo-test`);
 console.log(`✅ Wrote MongoDB URI to ${envPath}`);
 
 // Save step complete

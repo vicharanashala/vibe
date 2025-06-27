@@ -1,78 +1,53 @@
-if (process.env.NODE_ENV === 'production') {
-  import('./instrument');
-}
-import Express from 'express';
-import Sentry from '@sentry/node';
-import {loggingHandler} from 'shared/middleware/loggingHandler';
-import {
-  RoutingControllersOptions,
-  useContainer,
-  useExpressServer,
-} from 'routing-controllers';
-import {coursesModuleOptions} from 'modules/courses';
-import Container from 'typedi';
-import {IDatabase} from 'shared/database';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from 'config/db';
+import express from 'express';
+import cors from 'cors';
+import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
+import {appConfig} from './config/app.js';
+import {loggingHandler} from './shared/middleware/loggingHandler.js';
+import {HttpErrorHandler} from './shared/index.js';
+import {generateOpenAPISpec} from './shared/functions/generateOpenApiSpec.js';
+import {apiReference} from '@scalar/express-api-reference';
+import {loadAppModules} from './bootstrap/loadModules.js';
+import {printStartupSummary} from './utils/logDetails.js';
+import type { CorsOptions } from 'cors';
+import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 
-export const application = Express();
+const app = express();
 
-export const ServiceFactory = (
-  service: typeof application,
-  options: RoutingControllersOptions,
-  port: Number,
-) => {
-  console.log('--------------------------------------------------------');
-  console.log('Initializing service server');
-  console.log('--------------------------------------------------------');
+app.use(loggingHandler);
 
-  service.use(Express.urlencoded({extended: true}));
-  service.use(Express.json());
+const {controllers, validators} = await loadAppModules(appConfig.module.toLowerCase());
 
-  console.log('--------------------------------------------------------');
-  console.log('Logging and Configuration Setup');
-  console.log('--------------------------------------------------------');
-
-  service.use(loggingHandler);
-
-  console.log('--------------------------------------------------------');
-  console.log('Define Routing');
-  console.log('--------------------------------------------------------');
-  service.get('/main/healthcheck', (req, res) => {
-    res.send('Hello World');
-  });
-
-  console.log('--------------------------------------------------------');
-  console.log('Routes Handler');
-  console.log('--------------------------------------------------------');
-  //After Adding Routes
-  if (process.env.NODE_ENV === 'production') {
-    Sentry.setupExpressErrorHandler(service);
-  }
-
-  console.log('--------------------------------------------------------');
-  console.log('Starting Server');
-  console.log('--------------------------------------------------------');
-
-  useExpressServer(service, options);
-
-  service.listen(port, () => {
-    console.log('--------------------------------------------------------');
-    console.log('Started Server at http://localhost:' + port);
-    console.log('--------------------------------------------------------');
-  });
+const corsOptions: CorsOptions = {
+  origin: appConfig.origins,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 
-// Create a main function where multiple services are created
-
-useContainer(Container);
-
-if (!Container.has('Database')) {
-  Container.set<IDatabase>('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-}
-
-export const main = () => {
-  ServiceFactory(application, coursesModuleOptions, 4001);
+const moduleOptions: RoutingControllersOptions = {
+  controllers: controllers,
+  middlewares: [HttpErrorHandler],
+  routePrefix: appConfig.routePrefix,
+  authorizationChecker: async () => true,
+  currentUserChecker: currentUserChecker,
+  defaultErrorHandler: true,
+  development: appConfig.isDevelopment,
+  validation: true,
+  cors: corsOptions,
 };
 
-main();
+const openApiSpec = await generateOpenAPISpec(moduleOptions, validators);
+app.use(
+  '/reference',
+  apiReference({
+    content: openApiSpec,
+    theme: 'elysiajs',
+  }),
+);
+
+// Start server
+useExpressServer(app, moduleOptions);
+app.listen(appConfig.port, () => {
+  printStartupSummary();
+});

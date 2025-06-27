@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:18](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L18)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:18](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L18)
 
 Course data transformation.
 
@@ -10,15 +10,15 @@ Course data transformation.
 
 ### Constructor
 
-> **new Course**(`courseBody`?): `Course`
+> **new Course**(`courseBody?`): `Course`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:48](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L48)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:48](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L48)
 
 #### Parameters
 
 ##### courseBody?
 
-[`CreateCourseBody`](../Validators/CourseValidators/courses.CreateCourseBody.md)
+[`CreateCourseBody`](../../Other/courses.CreateCourseBody.md)
 
 #### Returns
 
@@ -30,7 +30,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:48](http
 
 > `optional` **\_id**: `ID`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:22](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L22)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:22](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L22)
 
 #### Implementation of
 
@@ -42,7 +42,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:22](http
 
 > `optional` **createdAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:42](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L42)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:42](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L42)
 
 #### Implementation of
 
@@ -54,7 +54,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:42](http
 
 > **description**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:28](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L28)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:28](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L28)
 
 #### Implementation of
 
@@ -66,7 +66,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:28](http
 
 > **instructors**: `ID`[]
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:38](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L38)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:38](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L38)
 
 #### Implementation of
 
@@ -78,7 +78,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:38](http
 
 > **name**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:25](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L25)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:25](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L25)
 
 #### Implementation of
 
@@ -90,7 +90,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:25](http
 
 > `optional` **updatedAt**: `Date`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:46](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L46)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:46](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L46)
 
 #### Implementation of
 
@@ -102,7 +102,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:46](http
 
 > **versions**: `ID`[]
 
-Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:33](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Course.ts#L33)
+Defined in: [backend/src/modules/courses/classes/transformers/Course.ts:33](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Course.ts#L33)
 
 #### Implementation of
 

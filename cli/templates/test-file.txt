@@ -1,0 +1,69 @@
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import request from 'supertest';
+import Express from 'express';
+import { useExpressServer } from 'routing-controllers';
+import { Container } from 'typedi';
+
+// TODO: Update the import paths below to your project's structure
+import { MongoDatabase } from '<path-to-database>/MongoDatabase';
+import { <ModuleName>Repository } from '<path-to-repo>/<ModuleName>Repository';
+import { <moduleName>ModuleOptions } from '<path-to-options>';
+
+describe('<ModuleName> Controller Integration Tests', () => {
+  const appInstance = Express();
+  let app;
+  let mongoServer: MongoMemoryServer;
+
+  beforeAll(async () => {
+    // Start an in-memory MongoDB servera
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+
+    // Set up the real MongoDatabase and Repository
+    Container.set('Database', new MongoDatabase(uri, '<your-db-name>'));
+    const repo = new <ModuleName>Repository(
+      Container.get<MongoDatabase>('Database'),
+    );
+    Container.set('Repo', repo);
+
+    // Create the Express app with routing-controllers configuration
+    app = useExpressServer(appInstance, <moduleName>ModuleOptions);
+  });
+
+  afterAll(async () => {
+    // Stop the in-memory MongoDB server
+    await mongoServer.stop();
+  });
+
+  beforeEach(async () => {
+    // TODO: Optionally reset database state before each test
+  });
+
+  // ------Tests for Create <ModuleName>------
+  describe('CREATE <ModuleName>', () => {
+    // it('should ...', async () => {
+    //   // Write your test here
+    // });
+  });
+
+  // ------Tests for Read <ModuleName>------
+  describe('READ <ModuleName>', () => {
+    // it('should ...', async () => {
+    //   // Write your test here
+    // });
+  });
+
+  // ------Tests for Update <ModuleName>------
+  describe('UPDATE <ModuleName>', () => {
+    // it('should ...', async () => {
+    //   // Write your test here
+    // });
+  });
+
+  // ------Tests for Delete <ModuleName>------
+  describe('DELETE <ModuleName>', () => {
+    // it('should ...', async () => {
+    //   // Write your test here
+    // });
+  });
+});

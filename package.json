@@ -11,7 +11,7 @@
 	"scripts": {
 		"prepare": "husky",
 		"binaries": "pnpx ts-node scripts/preload-mongo-binary.ts",
-		"vibe": "pnpx ts-node scripts/cli/src/cli.ts"
+		"vibe": "pnpx ts-node cli/src/cli.ts"
 	},
 	"lint-staged": {
 		"backend/**/*.{js,jsx,ts,tsx}": [

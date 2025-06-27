@@ -1,248 +1,221 @@
 import {instanceToPlain} from 'class-transformer';
-import 'reflect-metadata';
+import {injectable, inject} from 'inversify';
 import {
-  Authorized,
-  Body,
   JsonController,
-  Params,
+  Authorized,
   Post,
+  HttpCode,
+  Params,
+  Body,
+  InternalServerError,
+  HttpError,
   Put,
+  Delete,
+  BadRequestError,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ReadError, UpdateError} from 'shared/errors/errors';
-import {HTTPError} from 'shared/middleware/ErrorHandler';
-import {Inject, Service} from 'typedi';
-import {ItemsGroup} from '../classes/transformers/Item';
-import {Section} from '../classes/transformers/Section';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
+  SectionDataResponse,
+  SectionNotFoundErrorResponse,
   CreateSectionBody,
-  CreateSectionParams,
-  MoveSectionBody,
-  MoveSectionParams,
+  VersionModuleSectionParams,
   UpdateSectionBody,
-  UpdateSectionParams,
-} from '../classes/validators/SectionValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-
-/**
- * Controller for managing sections within course modules.
- * Handles creation, update, and reordering of sections under modules in course versions.
- *
- * @category Courses/Controllers
- * @categoryDescription
- * Provides endpoints for managing "sections" in a module,
- * including creating sections, updating section metadata,
- * and adjusting section order within a module.
- */
-
-@JsonController()
-@Service()
+  MoveSectionBody,
+  SectionDeletedResponse,
+} from '#courses/classes/validators/SectionValidators.js';
+import {SectionService} from '#courses/services/SectionService.js';
+import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
+import {VersionModuleParams} from '../classes/validators/ModuleValidators.js';
+@OpenAPI({
+  tags: ['Course Sections'],
+})
+@injectable()
+@JsonController('/courses')
 export class SectionController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @inject(COURSES_TYPES.SectionService)
+    private readonly sectionService: SectionService,
   ) {
-    if (!this.courseRepo) {
-      throw new Error('CourseRepository is not properly injected');
+    if (!this.sectionService) {
+      throw new Error('Course Service is not properly injected');
     }
   }
 
-  /**
-   * Create a new section under a specific module within a course version.
-   * Automatically generates and assigns a new ItemsGroup to the section.
-   *
-   * @param params - Route parameters including versionId and moduleId.
-   * @param body - Payload for creating the section (e.g., name, description).
-   * @returns The updated course version containing the new section.
-   *
-   * @throws HTTPError(500) on internal errors.
-   *
-   * @category Courses/Controllers
-   */
-
+  @OpenAPI({
+    summary: 'Create a section',
+    description: `Creates a new section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
   @Authorized(['admin'])
   @Post('/versions/:versionId/modules/:moduleId/sections')
+  @HttpCode(201)
+  @ResponseSchema(SectionDataResponse, {
+    description: 'Section created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
   async create(
-    @Params() params: CreateSectionParams,
+    @Params() params: VersionModuleParams,
     @Body() body: CreateSectionBody,
-  ) {
+  ): Promise<CourseVersion> {
     try {
       const {versionId, moduleId} = params;
-      //Fetch Version
-      const version = await this.courseRepo.readVersion(versionId);
-
-      //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
-
-      //Create Section
-      const section = new Section(body, module.sections);
-
-      //Create ItemsGroup
-      let itemsGroup = new ItemsGroup(section.sectionId);
-      itemsGroup = await this.courseRepo.createItemsGroup(itemsGroup);
-
-      //Assign ItemsGroup to Section
-      section.itemsGroupId = itemsGroup._id;
-
-      //Add Section to Module
-      module.sections.push(section);
-
-      //Update Module Update Date
-      module.updatedAt = new Date();
-
-      //Update Version Update Date
-      version.updatedAt = new Date();
-
-      //Update Version
-      const updatedVersion = await this.courseRepo.updateVersion(
+      const createdVersion = await this.sectionService.createSection(
         versionId,
-        version,
+        moduleId,
+        body,
       );
-
-      return {
-        version: instanceToPlain(updatedVersion),
-      };
+      if (!createdVersion) {
+        throw new InternalServerError('Failed to create section');
+      }
+      return {version: instanceToPlain(createdVersion)} as any;
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
 
-  /**
-   * Update an existing section's metadata (name or description).
-   *
-   * @param params - Route parameters including versionId, moduleId, and sectionId.
-   * @param body - Updated fields for the section.
-   * @returns The updated course version with modified section.
-   *
-   * @throws HTTPError(500) if the section or module is not found or if update fails.
-   *
-   * @category Courses/Controllers
-   */
-
+  @OpenAPI({
+    summary: 'Update a section',
+    description: `Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
+  @ResponseSchema(SectionDataResponse, {
+    description: 'Section updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
   async update(
-    @Params() params: UpdateSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: UpdateSectionBody,
-  ) {
+  ): Promise<CourseVersion> {
     try {
       const {versionId, moduleId, sectionId} = params;
-      //Fetch Version
-      const version = await this.courseRepo.readVersion(versionId);
-
-      //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
-      if (!module) throw new ReadError('Module not found');
-
-      //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
-      if (!section) throw new ReadError('Section not found');
-
-      //Update Section
-      Object.assign(section, body.name ? {name: body.name} : {});
-      Object.assign(
-        section,
-        body.description ? {description: body.description} : {},
-      );
-      section.updatedAt = new Date();
-
-      //Update Module Update Date
-      module.updatedAt = new Date();
-
-      //Update Version Update Date
-      version.updatedAt = new Date();
-
-      //Update Version
-      const updatedVersion = await this.courseRepo.updateVersion(
+      const updatedVersion = await this.sectionService.updateSection(
         versionId,
-        version,
+        moduleId,
+        sectionId,
+        body,
       );
-
-      return {
-        version: instanceToPlain(updatedVersion),
-      };
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update section');
+      }
+      return instanceToPlain(
+        Object.assign(new CourseVersion(), updatedVersion),
+      ) as CourseVersion;
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
   }
 
-  /**
-   * Reorder a section within its module by calculating a new order key.
-   *
-   * @param params - Route parameters including versionId, moduleId, and sectionId.
-   * @param body - Positioning details: beforeSectionId or afterSectionId.
-   * @returns The updated course version with reordered sections.
-   *
-   * @throws UpdateError if neither beforeSectionId nor afterSectionId is provided.
-   * @throws HTTPError(500) on internal processing errors.
-   *
-   * @category Courses/Controllers
-   */
-
+  @OpenAPI({
+    summary: 'Reorder a section',
+    description: `Changes the position of a section within its module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
   @Authorized(['admin'])
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
+  @ResponseSchema(SectionDataResponse, {
+    description: 'Section moved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
   async move(
-    @Params() params: MoveSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: MoveSectionBody,
-  ) {
+  ): Promise<CourseVersion> {
     try {
       const {versionId, moduleId, sectionId} = params;
       const {afterSectionId, beforeSectionId} = body;
 
       if (!afterSectionId && !beforeSectionId) {
-        throw new UpdateError(
-          'Either afterModuleId or beforeModuleId is required',
+        throw new BadRequestError(
+          'Either afterSectionId or beforeSectionId is required',
         );
       }
 
-      //Fetch Version
-      const version = await this.courseRepo.readVersion(versionId);
-
-      //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
-
-      //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
-
-      //Sort Sections based on order
-      const sortedSections = module.sections.sort((a, b) =>
-        a.order.localeCompare(b.order),
-      );
-
-      //Calculate New Order
-      const newOrder = calculateNewOrder(
-        sortedSections,
-        'sectionId',
+      const updatedVersion = await this.sectionService.moveSection(
+        versionId,
+        moduleId,
+        sectionId,
         afterSectionId,
         beforeSectionId,
       );
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to move section');
+      }
 
-      //Update Section Order
-      section.order = newOrder;
-      section.updatedAt = new Date();
-
-      //Update Module Update Date
-      module.updatedAt = new Date();
-
-      //Update Version Update Date
-      version.updatedAt = new Date();
-
-      //Update Version
-      const updatedVersion = await this.courseRepo.updateVersion(
-        versionId,
-        version,
-      );
-
-      return {
-        version: instanceToPlain(updatedVersion),
-      };
+      return instanceToPlain(
+        Object.assign(new CourseVersion(), updatedVersion),
+      ) as CourseVersion;
     } catch (error) {
       if (error instanceof Error) {
-        throw new HTTPError(500, error);
+        throw new HttpError(500, error.message);
       }
     }
+  }
+
+  @OpenAPI({
+    summary: 'Delete a section',
+    description: `Deletes a section from a module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized(['admin'])
+  @Delete('/versions/:versionId/modules/:moduleId/sections/:sectionId')
+  @ResponseSchema(SectionDeletedResponse, {
+    description: 'Section deleted successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
+  async delete(
+    @Params() params: VersionModuleSectionParams,
+  ): Promise<SectionDeletedResponse> {
+    const {versionId, moduleId, sectionId} = params;
+    const deletedSection = await this.sectionService.deleteSection(
+      versionId,
+      moduleId,
+      sectionId,
+    );
+    if (!deletedSection) {
+      throw new InternalServerError('Failed to delete section');
+    }
+    return {
+      message: `Section ${params.sectionId} deleted in module ${params.moduleId}`,
+    };
   }
 }

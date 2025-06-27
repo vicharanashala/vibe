@@ -1,0 +1,108 @@
+﻿name: Deploy Backend (all modules in a single container) to Google Cloud
+
+on:
+  push:
+    branches: [master, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  versioning:
+    name: Versioning
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.versioning.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: versioning
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: "v"
+          default_bump: "patch"
+          fetch_all_tags: true
+          release_branches: "master,staging"
+          create_annotated_tag: true
+
+  build:
+    name: Build & Push Docker Images
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build all images with Docker Compose
+        run: |
+          VERSION=v${{ needs.versioning.outputs.new_version }}
+          docker build -f Dockerfile-all -t all --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} .
+        working-directory: backend
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: Tag and Push image
+        run: |
+          VERSION=v${{ needs.versioning.outputs.new_version }}
+          docker tag all:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION
+        working-directory: backend
+
+  deploy_staging:
+    name: Deploy All Modules to Staging
+    needs: [versioning, build]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy services to Cloud Run (staging)
+        run: |
+          VERSION=v${{ needs.versioning.outputs.new_version }}
+          REGION=asia-south2
+          PROJECT=${{ secrets.GCP_PROJECT_ID }}
+          gcloud run deploy all-staging \
+            --image=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION \
+            --region=$REGION \
+            --project=$PROJECT \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars=NODE_ENV=staging
+
+  deploy_production:
+    name: Deploy All Modules to Production
+    needs: [versioning, build, deploy_staging]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy services to Cloud Run (production)
+        run: |
+          VERSION=v${{ needs.versioning.outputs.new_version }}
+          REGION=asia-south2
+          PROJECT=${{ secrets.GCP_PROJECT_ID }}
+          gcloud run deploy all-production \
+            --image=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION \
+            --region=$REGION \
+            --project=$PROJECT \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars=NODE_ENV=production

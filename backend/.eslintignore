@@ -1,1 +1,8 @@
 build/
+dist/
+node_modules/
+tests
+scripts
+.prettierrc.cjs
+jest.config.ts
+esbuild.config.js

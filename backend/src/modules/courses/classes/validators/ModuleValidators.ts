@@ -1,243 +1,209 @@
+import {IModule, ICourseVersion} from '#root/shared/interfaces/models.js';
 import {
-  IsEmpty,
-  IsMongoId,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
+  IsOptional,
+  IsMongoId,
   ValidateIf,
 } from 'class-validator';
-import {IModule, ISection} from 'shared/interfaces/IUser';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {OnlyOneId} from './customValidators.js';
 
-/**
- * Payload for creating a new module inside a course version.
- *
- * @category Courses/Validators/ModuleValidators
- */
-class CreateModuleBody implements IModule {
-  /**
-   * Unique module ID (auto-generated).
-   */
-  @IsEmpty()
-  moduleId?: string | undefined;
-
-  /**
-   * Name/title of the module.
-   * Maximum 255 characters.
-   */
+class CreateModuleBody implements Partial<IModule> {
+  @JSONSchema({
+    title: 'Module Name',
+    description: 'Name/title of the module',
+    example: 'Introduction to Data Structures',
+    type: 'string',
+    maxLength: 255,
+  })
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
 
-  /**
-   * Detailed description of the module.
-   * Maximum 1000 characters.
-   */
+  @JSONSchema({
+    title: 'Module Description',
+    description: 'Detailed description of the module content',
+    example:
+      'This module covers fundamental data structures including arrays, linked lists, stacks, and queues.',
+    type: 'string',
+    maxLength: 1000,
+  })
   @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
 
-  /**
-   * Order string for module placement (auto-managed).
-   */
-  @IsEmpty()
-  order: string;
-
-  /**
-   * Optional: Move the module after this ID.
-   */
+  @JSONSchema({
+    title: 'After Module ID',
+    description: 'Position the new module after this module ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterModuleId',
+    beforeIdPropertyName: 'beforeModuleId',
+  })
   afterModuleId?: string;
 
-  /**
-   * Optional: Move the module before this ID.
-   */
+  @JSONSchema({
+    title: 'Before Module ID',
+    description: 'Position the new module before this module ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
-
-  /**
-   * Array of section objects (auto-managed).
-   */
-  @IsEmpty()
-  sections: ISection[];
-
-  /**
-   * Module creation timestamp (auto-managed).
-   */
-  @IsEmpty()
-  createdAt: Date;
-
-  /**
-   * Module update timestamp (auto-managed).
-   */
-  @IsEmpty()
-  updatedAt: Date;
 }
 
-/**
- * Payload for updating an existing module.
- * Supports partial updates.
- *
- * @category Courses/Validators/ModuleValidators
- */
 class UpdateModuleBody implements Partial<IModule> {
-  /**
-   * New name of the module (optional).
-   */
-  @IsOptional()
+  @JSONSchema({
+    title: 'Module Name',
+    description: 'Updated name of the module',
+    example: 'Advanced Data Structures',
+    type: 'string',
+    maxLength: 255,
+  })
+  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
 
-  /**
-   * New description of the module (optional).
-   */
-  @IsOptional()
+  @JSONSchema({
+    title: 'Module Description',
+    description: 'Updated description of the module content',
+    example:
+      'This module covers advanced data structures including trees, graphs, and hash tables.',
+    type: 'string',
+    maxLength: 1000,
+  })
+  @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
-
-  /**
-   * At least one of `name` or `description` must be provided.
-   */
-  @ValidateIf(o => !o.name && !o.description)
-  @IsNotEmpty({
-    message: 'At least one of "name" or "description" must be provided',
-  })
-  nameOrDescription: string;
 }
 
-/**
- * Payload for moving a module within its version.
- *
- * @category Courses/Validators/ModuleValidators
- */
 class MoveModuleBody {
-  /**
-   * Optional: Move the module after this ID.
-   */
+  @JSONSchema({
+    title: 'After Module ID',
+    description: 'Move the module after this module ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterModuleId',
+    beforeIdPropertyName: 'beforeModuleId',
+  })
   afterModuleId?: string;
 
-  /**
-   * Optional: Move the module before this ID.
-   */
+  @JSONSchema({
+    title: 'Before Module ID',
+    description: 'Move the module before this module ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeModuleId?: string;
-
-  /**
-   * Validation helper: at least one of afterModuleId or beforeModuleId is required.
-   */
-  @ValidateIf(o => !o.afterModuleId && !o.beforeModuleId)
-  @IsNotEmpty({
-    message:
-      'At least one of "afterModuleId" or "beforeModuleId" must be provided',
-  })
-  onlyOneAllowed: string;
-
-  /**
-   * Validation helper: both afterModuleId and beforeModuleId should not be used together.
-   */
-  @ValidateIf(o => o.afterModuleId && o.beforeModuleId)
-  @IsNotEmpty({
-    message: 'Only one of "afterModuleId" or "beforeModuleId" must be provided',
-  })
-  bothNotAllowed: string;
 }
 
-/**
- * Route parameters for creating a module.
- *
- * @category Courses/Validators/ModuleValidators
- */
 class CreateModuleParams {
-  /**
-   * ID of the course version to which the module will be added.
-   */
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version to which the module will be added',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   versionId: string;
 }
 
-/**
- * Route parameters for updating a module.
- *
- * @category Courses/Validators/ModuleValidators
- */
-class UpdateModuleParams {
-  /**
-   * ID of the course version.
-   */
+class VersionModuleParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version containing the module',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   versionId: string;
 
-  /**
-   * ID of the module to be updated.
-   */
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module to be updated',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   moduleId: string;
 }
 
-/**
- * Route parameters for moving a module.
- *
- * @category Courses/Validators/ModuleValidators
- */
-class MoveModuleParams {
-  /**
-   * ID of the course version.
-   */
-  @IsMongoId()
-  @IsString()
-  versionId: string;
-
-  /**
-   * ID of the module to move.
-   */
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
+class ModuleDataResponse {
+  @JSONSchema({
+    description: 'The updated course version data containing modules',
+    type: 'object',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  version: ICourseVersion;
 }
 
-/**
- * Route parameters for deleting a module from a course version.
- *
- * @category Courses/Validators/CourseVersionValidators
- */
-class DeleteModuleParams {
-  /**
-   * ID of the course version.
-   */
-  @IsMongoId()
-  @IsString()
-  versionId: string;
+class ModuleNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
+}
 
-  /**
-   * ID of the module to delete.
-   */
-  @IsMongoId()
-  @IsString()
-  moduleId: string;
+class ModuleDeletedResponse {
+  @JSONSchema({
+    description: 'Deletion confirmation message',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
 }
 
 export {
   CreateModuleBody,
   UpdateModuleBody,
   CreateModuleParams,
-  UpdateModuleParams,
-  MoveModuleParams,
+  VersionModuleParams,
   MoveModuleBody,
-  DeleteModuleParams,
+  ModuleDataResponse,
+  ModuleNotFoundErrorResponse,
+  ModuleDeletedResponse,
 };
+
+export const MODULE_VALIDATORS = [
+  CreateModuleBody,
+  UpdateModuleBody,
+  CreateModuleParams,
+  VersionModuleParams,
+  MoveModuleBody,
+  ModuleDataResponse,
+  ModuleNotFoundErrorResponse,
+  ModuleDeletedResponse,
+]

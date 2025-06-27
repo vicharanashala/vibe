@@ -1,155 +1,137 @@
-import {instanceToPlain} from 'class-transformer';
-import {ObjectId} from 'mongodb';
-import 'reflect-metadata';
+import {CourseVersionService} from '#courses/services/CourseVersionService.js';
+import {injectable, inject} from 'inversify';
 import {
+  JsonController,
   Authorized,
+  Post,
+  HttpCode,
+  Params,
   Body,
   Get,
-  HttpError,
-  JsonController,
-  Params,
-  Post,
   Delete,
   BadRequestError,
+  InternalServerError,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {DeleteError, ItemNotFoundError, ReadError} from 'shared/errors/errors';
-import {Inject, Service} from 'typedi';
-import {CourseVersion} from '../classes/transformers/CourseVersion';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
+  CreateCourseVersionResponse,
+  CourseVersionNotFoundErrorResponse,
   CreateCourseVersionParams,
   CreateCourseVersionBody,
+  CourseVersionDataResponse,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
-} from '../classes/validators/CourseVersionValidators';
+} from '#courses/classes/validators/CourseVersionValidators.js';
 
-/**
- * Controller for handling course version operations like creation and retrieval.
- * All routes are prefixed with `/courses`.
- *
- * @category Courses/Controllers
- * @categoryDescription
- * Manages creation of new course versions and retrieval of version details.
- * Only authorized users (admin/instructor/student) may access relevant endpoints.
- */
+@OpenAPI({
+  tags: ['Course Versions'],
+})
+@injectable()
 @JsonController('/courses')
-@Service()
 export class CourseVersionController {
   constructor(
-    @Inject('NewCourseRepo') private readonly courseRepo: CourseRepository,
+    @inject(COURSES_TYPES.CourseVersionService)
+    private readonly courseVersionService: CourseVersionService,
   ) {}
 
-  /**
-   * Create a new version for a specific course.
-   *
-   * @param params - Parameters including the course ID (`:id`)
-   * @param body - Payload containing version name and description
-   * @returns The updated course and the newly created version
-   *
-   * @throws HttpError(404) if the course is not found
-   * @throws HttpError(500) on any other internal error
-   *
-   * @category Courses/Controllers
-   */
+  @OpenAPI({
+    summary: 'Create a course version',
+    description: `Creates a new version of a given course.<br/>
+Accessible to:
+- Instructor or manager of the course.`,
+  })
   @Authorized(['admin', 'instructor'])
-  @Post('/:id/versions')
+  @Post('/:id/versions', {transformResponse: true})
+  @HttpCode(201)
+  @ResponseSchema(CreateCourseVersionResponse, {
+    description: 'Course version created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
   async create(
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
-  ) {
+  ): Promise<CourseVersion> {
     const {id} = params;
-    try {
-      // console.log("id", id);
-      // console.log("payload", payload);
-      //Fetch Course from DB
-      const course = await this.courseRepo.read(id);
-
-      //Create Version
-      let version = new CourseVersion(body);
-      version.courseId = new ObjectId(id);
-      version = (await this.courseRepo.createVersion(version)) as CourseVersion;
-
-      //Add Version to Course
-      course.versions.push(version._id);
-      course.updatedAt = new Date();
-
-      //Update Course
-      const updatedCourse = await this.courseRepo.update(id, course);
-
-      return {
-        course: instanceToPlain(updatedCourse),
-        version: instanceToPlain(version),
-      };
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        throw new HttpError(404, error.message);
-      }
-      if (error instanceof ReadError) {
-        throw new HttpError(500, error.message);
-      }
-      throw new HttpError(500, error.message);
-    }
+    const createdCourseVersion =
+      await this.courseVersionService.createCourseVersion(id, body);
+    return createdCourseVersion;
   }
 
-  /**
-   * Retrieve a course version by its ID.
-   *
-   * @param params - Parameters including version ID (`:id`)
-   * @returns The course version object if found
-   *
-   * @throws HttpError(404) if the version is not found
-   * @throws HttpError(500) for read errors
-   *
-   * @category Courses/Controllers
-   */
+  @OpenAPI({
+    summary: 'Get course version details',
+    description: `Retrieves information about a specific version of a course.<br/>
+Accessible to:
+- Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
+  })
   @Authorized(['admin', 'instructor', 'student'])
   @Get('/versions/:id')
-  async read(@Params() params: ReadCourseVersionParams) {
+  @ResponseSchema(CourseVersionDataResponse, {
+    description: 'Course version retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course version not found',
+    statusCode: 404,
+  })
+  async read(
+    @Params() params: ReadCourseVersionParams,
+  ): Promise<CourseVersion> {
     const {id} = params;
-    try {
-      const version = await this.courseRepo.readVersion(id);
-      return instanceToPlain(version);
-    } catch (error) {
-      if (error instanceof ReadError) {
-        throw new HttpError(500, error.message);
-      }
-      if (error instanceof ItemNotFoundError) {
-        throw new HttpError(404, error.message);
-      }
-      throw new HttpError(500, error.message);
-    }
+    const retrievedCourseVersion =
+      await this.courseVersionService.readCourseVersion(id);
+    return retrievedCourseVersion;
   }
-  /**
-   * Delete the course version by its ID
-   *
-   * @params params - Parameters including the courseID and version ID.
-   * @returns The deleted course version object.
-   *
-   * @throws HttpError(404) if the course or version is not found.
-   * @throws HttpError(500) on any other internal server errors.
-   *
-   * @category Courses/Controllers
-   */
 
+  @OpenAPI({
+    summary: 'Delete a course version',
+    description: `Deletes a specific version of a course.<br/>
+Accessible to:
+- Manager of the course.`,
+  })
   @Authorized(['admin', 'instructor'])
   @Delete('/:courseId/versions/:versionId')
-  async delete(@Params() params: DeleteCourseVersionParams) {
+  @ResponseSchema(DeleteCourseVersionParams, {
+    description: 'Course version deleted successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  async delete(
+    @Params() params: DeleteCourseVersionParams,
+  ): Promise<{message: string}> {
     const {courseId, versionId} = params;
     if (!versionId || !courseId) {
       throw new BadRequestError('Version ID is required');
     }
-    try {
-      const version = await this.courseRepo.deleteVersion(courseId, versionId);
-      return {
-        message: `Version with the ID ${versionId} has been deleted successfully.`,
-      };
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        throw new HttpError(404, error.message);
-      }
-      if (error instanceof DeleteError) {
-        throw new HttpError(500, error.message);
-      }
+    const deletedVersion = await this.courseVersionService.deleteCourseVersion(
+      courseId,
+      versionId,
+    );
+    if (!deletedVersion) {
+      throw new InternalServerError(
+        'Failed to Delete Version, Please try again later',
+      );
     }
+    return {
+      message: `Version with the ID ${versionId} has been deleted successfully.`,
+    };
   }
 }

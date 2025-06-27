@@ -1,6 +1,9 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import type { ScalarOptions } from '@scalar/docusaurus'
+import path from "path";
+import fs from "fs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -21,8 +24,6 @@ const config: Config = {
     mermaid: true,
   },
 
-
-
   plugins: [
     [
       "docusaurus-plugin-typedoc",
@@ -41,8 +42,60 @@ const config: Config = {
         exclude: ["**/tests/**"],
         router: "category",
         sidebar: {
-          fullNames: false,
+          autoConfiguration: true,
         },
+      },
+    ],
+    [
+    '@scalar/docusaurus',
+    {
+      label: 'Scalar',
+      route: '/vibe/scalar',
+      showNavLink: true,
+      configuration: {
+        content: function() {
+          console.log('Attempting to load OpenAPI spec...');
+          
+          // This is the original path - go up one directory from __dirname to reach project root
+          const filePath = path.resolve(__dirname, './static/openapi/openapi.json');
+          console.log(`Looking for OpenAPI spec at: ${filePath}`);
+          
+          // Check if file exists
+          if (!fs.existsSync(filePath)) {
+            console.error(`ERROR: OpenAPI spec file not found at ${filePath}`);
+            return '{}';
+          }
+          
+          console.log('File exists, attempting to read...');
+          
+          try {
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            console.log('File read successfully, attempting to parse JSON...');
+            
+            try {
+              const jsonContent = JSON.parse(fileContent);
+              console.log('JSON parsed successfully');
+              return JSON.stringify(jsonContent);
+            } catch (parseError) {
+              console.error(`ERROR parsing OpenAPI spec JSON: ${parseError}`);
+              return '{}';
+            }
+          } catch (readError) {
+            console.error(`ERROR reading OpenAPI spec file: ${readError}`);
+            return '{}';
+          }
+        }(),
+      },
+    } as ScalarOptions,
+  ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'newdocs',                            // *must* be unique
+        path: 'newdocs',                          // folder you just created
+        routeBasePath: 'newdocs',                 // URL: /newdocs/<docId>
+        sidebarPath: require.resolve('./sidebarsNew.js'),
+        editUrl: 'https://github.com/your-org/…', // adjust if you want "edit this page"
       },
     ],
   ],
@@ -111,6 +164,13 @@ const config: Config = {
           position: "left",
           label: "Documentation",
         },
+        {
+          type: 'docSidebar',
+          sidebarId: 'newSidebar',
+          position: 'left',
+          label: 'MERN Tutorial',       // <-- your new section name
+          docsPluginId: 'newdocs',  // <-- point at the plugin instance
+         },
         {
           href: "https://github.com/continuousactivelearning/vibe",
           label: "GitHub",

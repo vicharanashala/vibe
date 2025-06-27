@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "docusaurus build",
+    "copy": "mkdir -p static/openapi && cd ../backend && pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --output ../../docs/static/openapi/openapi.json",
+    "start": "pnpm copy && docusaurus start",
+    "build": "pnpm copy && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
@@ -20,10 +21,15 @@
     "@docusaurus/theme-mermaid": "^3.7.0",
     "@docusaurus/theme-search-algolia": "^3.7.0",
     "@mdx-js/react": "^3.0.0",
+    "@scalar/docusaurus": "^0.6.7",
     "clsx": "^2.0.0",
+    "docusaurus-plugin-openapi-docs": "^4.4.0",
+    "docusaurus-theme-openapi-docs": "^4.4.0",
+    "docs": "file:",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.7.0",

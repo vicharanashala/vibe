@@ -1,4 +1,4 @@
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:23](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L23)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:23](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L23)
 
 Item data transformation.
 
@@ -12,13 +12,13 @@ Item data transformation.
 
 > **new Item**(`itemBody`, `existingItems`): `Item`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:43](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L43)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:43](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L43)
 
 #### Parameters
 
 ##### itemBody
 
-[`CreateItemBody`](../../Validators/ItemValidators/courses.CreateItemBody.md)
+[`CreateItemBody`](../../../Other/courses.CreateItemBody.md)
 
 ##### existingItems
 
@@ -34,7 +34,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:43](https:
 
 > **description**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:33](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L33)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:33](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L33)
 
 #### Implementation of
 
@@ -46,7 +46,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:33](https:
 
 > **itemDetails**: `IVideoDetails` \| `IQuizDetails` \| `IBlogDetails`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:41](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L41)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:41](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L41)
 
 #### Implementation of
 
@@ -58,7 +58,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:41](https:
 
 > `optional` **itemId**: `ID`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:27](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L27)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:27](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L27)
 
 #### Implementation of
 
@@ -70,7 +70,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:27](https:
 
 > **name**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:30](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L30)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:30](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L30)
 
 #### Implementation of
 
@@ -82,7 +82,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:30](https:
 
 > **order**: `string`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:39](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L39)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:39](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L39)
 
 #### Implementation of
 
@@ -94,7 +94,7 @@ Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:39](https:
 
 > **type**: `ItemType`
 
-Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:36](https://github.com/continuousactivelearning/vibe/blob/9a2d9d7201b944582c5d0ed5f0f7a4de13abde0f/backend/src/modules/courses/classes/transformers/Item.ts#L36)
+Defined in: [backend/src/modules/courses/classes/transformers/Item.ts:36](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/classes/transformers/Item.ts#L36)
 
 #### Implementation of
 

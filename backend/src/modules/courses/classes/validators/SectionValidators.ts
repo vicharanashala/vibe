@@ -1,252 +1,212 @@
+import {ICourseVersion, ISection} from '#root/shared/interfaces/models.js';
 import {
-  IsEmpty,
-  IsMongoId,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
+  IsOptional,
+  IsMongoId,
   ValidateIf,
 } from 'class-validator';
-import {ISection} from 'shared/interfaces/IUser';
-import {ID} from 'shared/types';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {AtLeastOne, OnlyOneId} from './customValidators.js';
 
-/**
- * Payload for creating a section inside a module.
- *
- * @category Courses/Validators/SectionValidators
- */
-class CreateSectionBody implements ISection {
-  /**
-   * Unique section ID (auto-generated).
-   */
-  @IsEmpty()
-  sectionId?: string | undefined;
-
-  /**
-   * Name/title of the section.
-   * Maximum 255 characters.
-   */
+class CreateSectionBody implements Partial<ISection> {
+  @JSONSchema({
+    title: 'Section Name',
+    description: 'Name/title of the section',
+    example: 'Introduction to Algorithms',
+    type: 'string',
+    maxLength: 255,
+  })
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
 
-  /**
-   * Description or purpose of the section.
-   * Maximum 1000 characters.
-   */
+  @JSONSchema({
+    title: 'Section Description',
+    description: 'Description or purpose of the section',
+    example:
+      'This section covers fundamental algorithmic concepts including time complexity and space complexity.',
+    type: 'string',
+    maxLength: 1000,
+  })
   @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
 
-  /**
-   * Order string for section placement (auto-managed).
-   */
-  @IsEmpty()
-  order: string;
-
-  /**
-   * Optional: place the section after this section ID.
-   */
+  @JSONSchema({
+    title: 'After Section ID',
+    description: 'Optional: Place the new section after this section ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterSectionId',
+    beforeIdPropertyName: 'beforeSectionId',
+  })
   afterSectionId?: string;
 
-  /**
-   * Optional: place the section before this section ID.
-   */
+  @JSONSchema({
+    title: 'Before Section ID',
+    description: 'Optional: Place the new section before this section ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeSectionId?: string;
-
-  /**
-   * ItemsGroup ID associated with this section (auto-managed).
-   */
-  @IsEmpty()
-  itemsGroupId?: ID;
-
-  /**
-   * Creation timestamp (auto-managed).
-   */
-  @IsEmpty()
-  createdAt: Date;
-
-  /**
-   * Last updated timestamp (auto-managed).
-   */
-  @IsEmpty()
-  updatedAt: Date;
 }
 
-/**
- * Payload for updating a section.
- * Allows partial updates to name or description.
- *
- * @category Courses/Validators/SectionValidators
- */
 class UpdateSectionBody implements Partial<ISection> {
-  /**
-   * New name of the section (optional).
-   */
-  @IsOptional()
+  @JSONSchema({
+    title: 'Section Name',
+    description: 'Updated name of the section',
+    example: 'Advanced Algorithms',
+    type: 'string',
+    maxLength: 255,
+  })
+  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name: string;
 
-  /**
-   * New description of the section (optional).
-   */
-  @IsOptional()
+  @JSONSchema({
+    title: 'Section Description',
+    description: 'Updated description of the section',
+    example:
+      'This section covers advanced algorithmic concepts including dynamic programming and greedy algorithms.',
+    type: 'string',
+    maxLength: 1000,
+  })
+  @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
   description: string;
-
-  /**
-   * At least one of name or description must be provided.
-   */
-  @ValidateIf(o => !o.name && !o.description)
-  @IsNotEmpty({
-    message: 'At least one of "name" or "description" must be provided',
-  })
-  nameOrDescription: string;
 }
 
-/**
- * Payload for reordering a section within a module.
- *
- * @category Courses/Validators/SectionValidators
- */
 class MoveSectionBody {
-  /**
-   * Optional: move after this section ID.
-   */
+  @JSONSchema({
+    title: 'After Section ID',
+    description: 'Move the section after this section ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
+  @OnlyOneId({
+    afterIdPropertyName: 'afterSectionId',
+    beforeIdPropertyName: 'beforeSectionId',
+  })
   afterSectionId?: string;
 
-  /**
-   * Optional: move before this section ID.
-   */
+  @JSONSchema({
+    title: 'Before Section ID',
+    description: 'Move the section before this section ID',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsOptional()
   @IsMongoId()
   @IsString()
   beforeSectionId?: string;
-
-  /**
-   * Validation helper — at least one position ID must be provided.
-   */
-  @ValidateIf(o => !o.afterSectionId && !o.beforeSectionId)
-  @IsNotEmpty({
-    message:
-      'At least one of "afterSectionId" or "beforeSectionId" must be provided',
-  })
-  onlyOneAllowed: string;
-
-  /**
-   * Validation helper — only one of before/after should be used.
-   */
-  @ValidateIf(o => o.afterSectionId && o.beforeSectionId)
-  @IsNotEmpty({
-    message:
-      'Only one of "afterSectionId" or "beforeSectionId" must be provided',
-  })
-  bothNotAllowed: string;
 }
 
-/**
- * Route parameters for creating a section in a module.
- *
- * @category Courses/Validators/SectionValidators
- */
-class CreateSectionParams {
-  /**
-   * Version ID of the course the module belongs to.
-   */
+class VersionModuleSectionParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version containing the module',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
   versionId: string;
 
-  /**
-   * Module ID where the new section will be added.
-   */
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  moduleId: string;
-}
-
-/**
- * Route parameters for moving a section within a module.
- *
- * @category Courses/Validators/SectionValidators
- */
-class MoveSectionParams {
-  /**
-   * Version ID of the course.
-   */
-  @IsMongoId()
-  @IsString()
-  @IsNotEmpty()
-  versionId: string;
-
-  /**
-   * Module ID within the version.
-   */
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module containing the section',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
   moduleId: string;
 
-  /**
-   * Section ID that needs to be moved.
-   */
+  @JSONSchema({
+    title: 'Section ID',
+    description: 'ID of the section',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
   sectionId: string;
 }
 
-/**
- * Route parameters for updating a section.
- *
- * @category Courses/Validators/SectionValidators
- */
-class UpdateSectionParams {
-  /**
-   * Version ID of the course.
-   */
-  @IsMongoId()
-  @IsString()
+class SectionDataResponse {
+  @JSONSchema({
+    description: 'The updated course version data containing the section',
+    type: 'object',
+    readOnly: true,
+  })
   @IsNotEmpty()
-  versionId: string;
+  version: ICourseVersion;
+}
 
-  /**
-   * Module ID where the section exists.
-   */
-  @IsMongoId()
-  @IsString()
+class SectionNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message',
+    example:
+      'No section found with the specified ID. Please verify the ID and try again.',
+    type: 'string',
+    readOnly: true,
+  })
   @IsNotEmpty()
-  moduleId: string;
+  message: string;
+}
 
-  /**
-   * Section ID to be updated.
-   */
-  @IsMongoId()
-  @IsString()
+class SectionDeletedResponse {
+  @JSONSchema({
+    description: 'Deletion confirmation message',
+    example:
+      'Section with the ID 60d5ec49b3f1c8e4a8f8b8e6 in Version 60d5ec49b3f1c8e4a8f8b8d5 has been deleted successfully.',
+    type: 'string',
+    readOnly: true,
+  })
   @IsNotEmpty()
-  sectionId: string;
+  message: string;
 }
 
 export {
   CreateSectionBody,
   UpdateSectionBody,
   MoveSectionBody,
-  CreateSectionParams,
-  MoveSectionParams,
-  UpdateSectionParams,
+  VersionModuleSectionParams,
+  SectionDataResponse,
+  SectionNotFoundErrorResponse,
+  SectionDeletedResponse,
 };
+
+export const SECTION_VALIDATORS = [
+  CreateSectionBody,
+  UpdateSectionBody,
+  MoveSectionBody,
+  VersionModuleSectionParams,
+  SectionDataResponse,
+  SectionNotFoundErrorResponse,
+  SectionDeletedResponse,
+]

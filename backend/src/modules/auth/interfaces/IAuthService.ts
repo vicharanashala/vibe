@@ -1,20 +1,6 @@
-/**
- * @file IAuthService.ts
- * @description Interface for the authentication service.
- *
- * @category Auth/Interfaces
- * @categoryDescription
- * Interfaces defining the contract for authentication services.
- * Includes methods for user signup, token verification, and password change.
- */
-
-import 'reflect-metadata';
-import {Request} from 'express';
-import {IUser} from 'shared/interfaces/IUser';
-import {
-  ChangePasswordBody,
-  SignUpBody,
-} from '../classes/validators/AuthValidators';
+import {SignUpBody, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
+import { InviteResult } from '#root/modules/notifications/index.js';
+import {IUser} from '#shared/interfaces/models.js';
 
 /**
  * Interface representing the authentication service.
@@ -34,8 +20,8 @@ export interface IAuthService {
    * @returns A promise that resolves to the newly created user object
    * @throws Error - If user creation fails for any reason
    */
-  signup(body: SignUpBody): Promise<IUser>;
-
+  signup(body: SignUpBody): Promise<InviteResult[] | string | null>;
+  googleSignup( body: GoogleSignUpBody, token: string): Promise<InviteResult[] | string | null>;
   /**
    * Verifies the validity of an authentication token.
    * Decodes the token and retrieves the associated user information.
@@ -44,7 +30,17 @@ export interface IAuthService {
    * @returns A promise that resolves to the user associated with the token
    * @throws Error - If the token is invalid, expired, or cannot be verified
    */
-  verifyToken(token: string): Promise<IUser>;
+  verifyToken(token: string): Promise<boolean>;
+  getUserIdFromReq(req: any): Promise<string>
+  /**
+   * Retrieves the authenticated user object based on a valid token.
+   * Decodes the token, finds the associated user in the database, and returns the user object.
+   *
+   * @param token - The authentication token (typically a JWT)
+   * @returns A promise that resolves to the authenticated user object
+   * @throws Error - If the token is invalid, user is not found, or retrieval fails
+   */
+  getCurrentUserFromToken(token: string): Promise<IUser>;
 
   /**
    * Changes the password for an authenticated user.
