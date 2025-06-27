@@ -152,10 +152,13 @@ class QuestionProcessor {
     // Generates a map of parameter names to their values
     // This map is used to replace the parameter tags in the question text
     // The values are randomly chosen
-    // const randomParameterMap = generateRandomParameterMap(
-    //   this.question.parameters,
-    // );
-    return this.renderer.render();
+    if (!this.question.isParameterized) {
+      return this.renderer.render();
+    }
+    const randomParameterMap = generateRandomParameterMap(
+      this.question.parameters,
+    );
+    return this.renderer.render(randomParameterMap);
   }
 
   grade(
