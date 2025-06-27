@@ -570,10 +570,10 @@ export function useEnrollUser(): {
   };
 }
 
-// POST /users/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll
+// POST /users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll
 export function useUnenrollUser(): {
-  mutate: (variables: { params: { path: {  courseId: string, courseVersionId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: {  courseId: string, courseVersionId: string } } }) => Promise<components['schemas']['EnrollUserResponseData']>,
+  mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }) => Promise<components['schemas']['EnrollUserResponseData']>,
   data: components['schemas']['EnrollUserResponseData'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -583,7 +583,7 @@ export function useUnenrollUser(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll");
+  const result = api.useMutation("post", "/users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll");
   return {
     ...result,
     error: result.error ? (result.error.message || 'User unenrollment failed') : null
