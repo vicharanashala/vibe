@@ -7,7 +7,7 @@ import { IUser } from "../interfaces/models.js";
 export const currentUserChecker: CurrentUserChecker = async (action): Promise<IUser> => {
   const request = action.request as Request;
 
-  if (request.body.user) {
+  if (request.body?.user) {
     return request.body.user as IUser;
   }
 

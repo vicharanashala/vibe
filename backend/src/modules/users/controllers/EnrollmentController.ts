@@ -1,7 +1,4 @@
-
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { Course, CourseVersionDataResponse } from '#root/modules/courses/classes/index.js';
 import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -11,7 +8,6 @@ import {
   EnrollmentParams,
   EnrollmentBody,
   EnrollmentResponse,
-  EnrollmentDataResponse,
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
@@ -34,6 +30,7 @@ import {
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions } from '../abilities/enrollmentAbilities.js';
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -46,7 +43,7 @@ export class EnrollmentController {
     private readonly enrollmentService: EnrollmentService,
 
     @inject(AUTH_TYPES.AuthService)
-    private readonly authService: FirebaseAuthService,
+    private readonly authService: IAuthService,
   ) { }
 
   @OpenAPI({

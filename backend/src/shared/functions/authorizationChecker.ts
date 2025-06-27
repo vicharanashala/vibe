@@ -10,7 +10,6 @@ import { currentUserChecker } from './currentUserChecker.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { getFromContainer } from 'routing-controllers';
 
-const enrollmentService = getFromContainer(EnrollmentService);
 
 // Define the CASL authorization options interface
 export interface CaslAuthOptions {
@@ -60,6 +59,7 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
     if (!user) {
         return false;
     }
+    const enrollmentService = getFromContainer(EnrollmentService);
     const enrollments= await enrollmentService.getAllEnrollments(user._id.toString());
     const authenticatedUser: AuthenticatedUser = {
         userId: user._id.toString(),
