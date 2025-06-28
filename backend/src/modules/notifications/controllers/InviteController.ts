@@ -36,7 +36,8 @@ export class InviteController {
     private readonly inviteService: InviteService,
   ) { }
 
-  @Post('/courses/:courseId/versions/:courseVersionId')
+  @Post('/courses/:courseId/versions/:versionId')
+  @Authorized({ action: InviteActions.Create, subject: 'Invite' })
   @HttpCode(200)
   @ResponseSchema(InviteResponse, {
     description: 'Invite users to a course version',
@@ -54,12 +55,12 @@ export class InviteController {
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
   ) {
-    const { courseId, courseVersionId } = params;
+    const { courseId, versionId } = params;
     const { inviteData } = body
     const results: InviteResult[] = await this.inviteService.inviteUserToCourse(
       inviteData,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return new InviteResponse(results);
@@ -90,7 +91,7 @@ export class InviteController {
   }
 
   @Authorized({ action: InviteActions.View, subject: 'Invite' })
-  @Get('/courses/:courseId/versions/:courseVersionId')
+  @Get('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @OpenAPI({
     summary: 'Get Invites for Course Version',
@@ -103,10 +104,10 @@ export class InviteController {
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
   ): Promise<InviteResponse> {
-    const { courseId, courseVersionId } = params;
+    const { courseId, versionId } = params;
     const invites = await this.inviteService.findInvitesForCourse(
       courseId,
-      courseVersionId
+      versionId
     );
     return new InviteResponse(invites);
   }

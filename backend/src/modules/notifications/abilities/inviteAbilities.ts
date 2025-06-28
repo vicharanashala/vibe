@@ -4,6 +4,7 @@ import { InviteScope, createAbilityBuilder } from './types.js';
 
 // Actions
 export enum InviteActions {
+    Create = "create",
     Modify = "modify",
     Process = "process",
     View = "view",
@@ -43,14 +44,15 @@ export function setupInviteAbilities(
             case 'STUDENT':
                 break;
             case 'INSTRUCTOR':
+                can(InviteActions.Create, 'Invite', courseBounded);
                 can(InviteActions.Modify, 'Invite', courseBounded);
                 can(InviteActions.View, 'Invite', courseBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'Invite', courseBounded);
-                cannot(InviteActions.View, 'Invite', versionBounded);
                 break;
             case 'TA':
+                can(InviteActions.View, 'Invite', versionBounded);
                 break;
         }
     });
