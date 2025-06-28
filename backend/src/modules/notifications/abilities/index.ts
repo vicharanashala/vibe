@@ -8,7 +8,17 @@ import { setupInviteAbilities } from './inviteAbilities.js';
 
 export function setupAllNotificationAbilities(
     builder: AbilityBuilder<any>,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
+    subject?: string
 ) {
-    setupInviteAbilities(builder, user);
+    // If a specific subject is provided, we can conditionally setup abilities
+    if (subject) {
+        switch (subject) {
+            case 'Invite':
+                setupInviteAbilities(builder, user);
+                break;
+        }
+    } else {
+        setupInviteAbilities(builder, user);
+    }
 }

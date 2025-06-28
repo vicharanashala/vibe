@@ -19,11 +19,14 @@ import {
   OnUndefined,
   BadRequestError,
   Authorized,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import { QuestionActions } from '../abilities/questionAbilities.js';
+import { AUTH_TYPES } from '#root/modules/auth/types.js';
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Questions'],
@@ -34,6 +37,9 @@ class QuestionController {
   constructor(
     @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,
+
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: IAuthService,
   ) {}
 
   @OpenAPI({
@@ -51,8 +57,9 @@ class QuestionController {
     description: 'Question creation failed due to invalid body',
     statusCode: 400,
   })
-  async create(@Body() body: QuestionBody): Promise<QuestionId> {
-    const question = QuestionFactory.createQuestion(body);
+  async create(@Body() body: QuestionBody, @Req() req: any): Promise<QuestionId> {
+    const userId = await this.authService.getUserIdFromReq(req);
+    const question = QuestionFactory.createQuestion(body, userId);
     const questionProcessor = new QuestionProcessor(question);
     questionProcessor.validate();
     questionProcessor.render();
@@ -100,7 +107,8 @@ class QuestionController {
     @Body() body: QuestionBody,
   ): Promise<QuestionResponse> {
     const {questionId} = params;
-    const question = QuestionFactory.createQuestion(body);
+    const userId = await this.authService.getUserIdFromReq(body);
+    const question = QuestionFactory.createQuestion(body, userId);
     return await this.questionService.update(questionId, question);
   }
 

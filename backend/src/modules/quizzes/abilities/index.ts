@@ -14,10 +14,29 @@ import { setupAttemptAbilities } from './attemptAbilities.js';
 
 export async function setupAllQuizAbilities(
     builder: AbilityBuilder<any>,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
+    subject?: string
 ) {
-    setupQuizAbilities(builder, user);
-    setupQuestionAbilities(builder, user);
-    setupQuestionBankAbilities(builder, user);
-    await setupAttemptAbilities(builder, user);
+    // If a specific subject is provided, we can conditionally setup abilities
+    if (subject) {
+        switch (subject) {
+            case 'Quiz':
+                setupQuizAbilities(builder, user);
+                break;
+            case 'Question':
+                setupQuestionAbilities(builder, user);
+                break;
+            case 'QuestionBank':
+                setupQuestionBankAbilities(builder, user);
+                break;
+            case 'Attempt':
+                await setupAttemptAbilities(builder, user);
+                break;
+        }
+    } else {
+        setupQuizAbilities(builder, user);
+        setupQuestionAbilities(builder, user);
+        setupQuestionBankAbilities(builder, user);
+        await setupAttemptAbilities(builder, user);
+    }
 }

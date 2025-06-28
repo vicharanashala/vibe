@@ -10,8 +10,23 @@ import { setupProgressAbilities } from './progressAbilities.js';
 
 export function setupAllUserAbilities(
     builder: AbilityBuilder<any>,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
+    subject?: string
 ) {
-    setupEnrollmentAbilities(builder, user);
-    setupProgressAbilities(builder, user);
+    // If a specific subject is provided, we can conditionally setup abilities
+    if (subject) {
+        switch (subject) {
+            case 'Enrollment':
+                setupEnrollmentAbilities(builder, user);
+                break;
+            case 'Progress':
+                setupProgressAbilities(builder, user);
+                break;
+        }
+    }
+    // If no specific subject, setup all user-related abilities
+    else {
+        setupEnrollmentAbilities(builder, user);
+        setupProgressAbilities(builder, user);
+    }
 }

@@ -33,29 +33,14 @@ export function setupQuestionAbilities(
         return;
     }
 
-    user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
-        const courseBounded = { courseId: enrollment.courseId };
-        const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-
-        switch (enrollment.role) {
-            case 'STUDENT':
-                break;
-            case 'INSTRUCTOR':
-                can(QuestionActions.Create, 'Question', courseBounded);
-                can(QuestionActions.Modify, 'Question', courseBounded);
-                can(QuestionActions.Delete, 'Question', courseBounded);
-                can(QuestionActions.View, 'Question', courseBounded);
-                break;
-            case 'MANAGER':
-                can('manage', 'Question', courseBounded);
-                break;
-            case 'TA':
-                can(QuestionActions.Create, 'Question', courseVersionBounded);
-                can(QuestionActions.Modify, 'Question', courseVersionBounded);
-                can(QuestionActions.View, 'Question', courseVersionBounded);
-                break;
-        }
-    });
+    // anyone can create a question
+    can(QuestionActions.Create, 'Question');
+    // anyone can view a question
+    can(QuestionActions.View, 'Question');
+    // can only modify their own questions
+    can(QuestionActions.Modify, 'Question', { createdBy: user.userId });
+    // can only delete their own questions
+    can(QuestionActions.Delete, 'Question', { createdBy: user.userId });
 }
 
 /**

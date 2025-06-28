@@ -11,6 +11,7 @@ import { EnrollmentService } from '#root/modules/users/services/EnrollmentServic
 import { getFromContainer } from 'routing-controllers';
 import { InviteService } from '#root/modules/notifications/index.js';
 import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 
 
 // Define the CASL authorization options interface
@@ -30,24 +31,21 @@ async function createUserAbility(user: AuthenticatedUser, subject: string): Prom
     switch (subject) {
         case 'Course':
         case 'CourseVersion':
-        case 'Module':
-        case 'Section':
         case 'Item':
-            await setupAllCourseAbilities(builder, user);
+            await setupAllCourseAbilities(builder, user, subject);
             break;
         case 'Quiz':
         case 'Question':
+        case 'QuestionBank':
         case 'Attempt':
-            await setupAllQuizAbilities(builder, user);
+            await setupAllQuizAbilities(builder, user, subject);
             break;
-        case 'Notification':
         case 'Invite':
-            setupAllNotificationAbilities(builder, user);
+            setupAllNotificationAbilities(builder, user, subject);
             break;
-        case 'User':
         case 'Enrollment':
         case 'Progress':
-            setupAllUserAbilities(builder, user);
+            setupAllUserAbilities(builder, user, subject);
             break;
         default:
             // For unknown subjects, setup all abilities as fallback
@@ -91,6 +89,13 @@ async function extractResourceFromRequest(action: any, userId: string, subject: 
         if (questionBank) {
             resource.courseId = questionBank.courseId.toString();
             resource.versionId = questionBank.courseVersionId.toString();
+        }
+    }
+    if (subject === 'Question' && !(userAction === 'create' || userAction === 'view')) {
+        const questionService = getFromContainer(QuestionService);
+        const question = await questionService.getById(params.questionId);
+        if (question) {
+            resource.createdBy = question.createdBy;
         }
     }
     return Object.keys(resource).length > 0 ? resource : undefined;
