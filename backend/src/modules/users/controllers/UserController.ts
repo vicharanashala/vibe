@@ -54,7 +54,7 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Edit user information',
-    description: 'Retrieves user information based on the provided user ID.',
+    description: 'Edit user information like first and last name.',
   })
   @Patch('/edit')
   @OnUndefined(200)
