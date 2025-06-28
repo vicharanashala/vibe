@@ -274,8 +274,7 @@ If none are provided, resets to the beginning of the course.`,
     summary: 'Get User Watch Time',
     description: `Gets the User Watch Time for the given Item Id`,
   })
-  @Authorized({ action: ProgressActions.View, subject: 'Progress' })
-  @Get('/watchTime/item/:itemId')
+  @Get('/watchTime/item/:itemId/user/:userId')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -286,11 +285,9 @@ If none are provided, resets to the beginning of the course.`,
     statusCode: 500,
   })
   async getWatchTime(
-    @Req() request: any,
     @Params() params: WatchTimeParams,
   ): Promise<WatchTime[]> {
-    const { itemId } = params;
-    const userId = await this.authService.getUserIdFromReq(request);
+    const { itemId, userId } = params;
 
     const watchTime = await this.progressService.getWatchTime(
       userId,

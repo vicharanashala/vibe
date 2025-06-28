@@ -460,6 +460,16 @@ export class WatchTimeParams {
   @IsString()
   @IsMongoId()
   itemId: string;
+
+  @JSONSchema({
+    description: 'user ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
 }
 
 export const PROGRESS_VALIDATORS = [
