@@ -10,7 +10,7 @@ import { ObjectId } from 'mongodb';
  */
 export class GetUserParams {
   @JSONSchema({
-    description: 'Firebase UID of the user to find',
+    description: 'User ID of the person',
     example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
     type: 'string',
   })

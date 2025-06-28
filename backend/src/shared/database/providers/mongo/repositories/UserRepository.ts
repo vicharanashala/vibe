@@ -94,7 +94,7 @@ export class UserRepository implements IUserRepository {
     await this.init();
     await this.usersCollection.updateOne(
       {_id: new ObjectId(userId)},
-      {role: 'admin'},
+      {$set: {roles: 'admin'}},
       {session},
     );
   }

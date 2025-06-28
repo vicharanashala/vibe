@@ -672,7 +672,16 @@ class ProgressService extends BaseService {
   ): Promise<void> {
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
+      const completedItems = await this.getCompletedItems(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
+      // Check if the item is already completed
+      if (completedItems.includes(itemId)) {
+        return null;
+      }
       await this.verifyProgress(
         userId,
         courseId,

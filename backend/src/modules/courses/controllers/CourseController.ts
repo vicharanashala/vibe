@@ -65,7 +65,7 @@ Accessible to:
 `,
   })
   @Authorized({action: CourseActions.View, subject: 'Course'})
-  @Get('/:id', {transformResponse: true})
+  @Get('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -78,8 +78,8 @@ Accessible to:
     statusCode: 404,
   })
   async read(@Params() params: CourseIdParams) {
-    const {id} = params;
-    const course = await this.courseService.readCourse(id);
+    const {courseId} = params;
+    const course = await this.courseService.readCourse(courseId);
     return course;
   }
 
@@ -90,7 +90,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized({action: CourseActions.Modify, subject: 'Course'})
-  @Put('/:id', {transformResponse: true})
+  @Put('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -103,8 +103,8 @@ Accessible to:
     statusCode: 404,
   })
   async update(@Params() params: CourseIdParams, @Body() body: CourseBody) {
-    const {id} = params;
-    const updatedCourse = await this.courseService.updateCourse(id, body);
+    const {courseId} = params;
+    const updatedCourse = await this.courseService.updateCourse(courseId, body);
     return updatedCourse;
   }
 
@@ -113,7 +113,7 @@ Accessible to:
     description: 'Deletes a course by ID.',
   })
   @Authorized({action: CourseActions.Delete, subject: 'Course'})
-  @Delete('/:id', {transformResponse: true})
+  @Delete('/:courseId', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -124,8 +124,8 @@ Accessible to:
     statusCode: 404,
   })
   async delete(@Params() params: CourseIdParams) {
-    const {id} = params;
-    await this.courseService.deleteCourse(id);
+    const {courseId} = params;
+    await this.courseService.deleteCourse(courseId);
   }
 }
 

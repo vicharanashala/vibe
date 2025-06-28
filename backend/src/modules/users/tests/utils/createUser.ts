@@ -2,13 +2,14 @@ import request from 'supertest';
 import {faker} from '@faker-js/faker';
 import Express from 'express';
 
-export async function createUser(app: typeof Express): Promise<string> {
+export async function createUser(app: typeof Express, role?: string): Promise<string> {
   // Prepare user sign-up data using Faker
   const signUpBody = {
     email: faker.internet.email(),
     password: faker.internet.password(),
     firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
     lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+    roles: role
   };
 
   // Send POST request to sign up the user

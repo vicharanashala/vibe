@@ -42,11 +42,11 @@ async function createVersion(
   };
 
   const params: CreateCourseVersionParams = {
-    id: courseId,
+    courseId: courseId,
   };
 
   const response = await request(app)
-    .post(`/courses/${params.id}/versions`)
+    .post(`/courses/${params.courseId}/versions`)
     .send(body)
     .expect(201);
   return response.body as CourseVersion;

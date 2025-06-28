@@ -3,7 +3,7 @@ import Express from 'express';
 import {Action, RoutingControllersOptions, useContainer, useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
 import {CourseBody} from '../classes/validators/CourseValidators.js';
-import {describe, it, beforeEach, beforeAll, expect, vi, afterEach} from 'vitest';
+import {describe, it, beforeEach, beforeAll, expect, vi, afterEach, afterAll} from 'vitest';
 import {coursesContainerModules, coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { Container } from 'inversify';
@@ -68,6 +68,10 @@ describe('Course Controller Integration Tests', () => {
     // Don't restore all mocks, just clear the call history
     currentUserCheckerSpy.mockClear();
   });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  })
 
   describe('COURSE CREATION', () => {
     describe('Success Scenario', () => {
@@ -172,6 +176,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -223,6 +228,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -283,8 +289,7 @@ describe('Course Controller Integration Tests', () => {
 
         const courseId = createdCourseResponse.body._id;
 
-        const res = await request(app).delete(`/courses/${courseId}`);
-        console.log(res.body);
+        const res = await request(app).delete(`/courses/${courseId}`).set('Authorization', 'Bearer user1');
 
         await request(app).get(`/courses/${courseId}`).set('Authorization', 'Bearer user1').expect(404);
       }, 60000);

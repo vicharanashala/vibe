@@ -39,6 +39,7 @@ export function setupProgressAbilities(
         switch (enrollment.role) {
             case 'STUDENT':
                 can(ProgressActions.View, 'Progress', userBounded);
+                can(ProgressActions.Modify, 'Progress', userBounded);
                 break;
             case 'INSTRUCTOR':
                 can('manage', 'Progress', courseBounded);

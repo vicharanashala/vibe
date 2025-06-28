@@ -34,19 +34,20 @@ export function setupCourseVersionAbilities(
     }
 
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
-        const courseBounded = { courseId: enrollment.courseId };
-        const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const versionBounded = { versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
             case 'STUDENT':
+                can(CourseVersionActions.View, 'CourseVersion', userBounded);
                 break;
             case 'INSTRUCTOR':
-                can(CourseVersionActions.View, 'CourseVersion', courseBounded);
-                cannot(CourseVersionActions.Delete, 'CourseVersion', courseBounded);
-                can(CourseVersionActions.Modify, 'CourseVersion', courseBounded);
+                can(CourseVersionActions.View, 'CourseVersion', versionBounded);
+                cannot(CourseVersionActions.Delete, 'CourseVersion', versionBounded);
+                can(CourseVersionActions.Modify, 'CourseVersion', versionBounded);
                 break;
             case 'MANAGER':
-                can('manage', 'CourseVersion', courseBounded);
+                can('manage', 'CourseVersion', versionBounded);
                 break;
             case 'TA':
                 can(CourseVersionActions.View, 'CourseVersion', versionBounded);

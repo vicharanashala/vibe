@@ -31,7 +31,7 @@ class CourseAndVersionId {
   })
   @IsMongoId()
   @IsNotEmpty()
-  courseVersionId: string;
+  versionId: string;
 }
 
 class EmailInvite {

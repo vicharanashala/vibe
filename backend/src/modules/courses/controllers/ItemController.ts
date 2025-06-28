@@ -206,7 +206,7 @@ Access control logic:
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
   @Authorized({action: ItemActions.View, subject: 'Item'})
-  @Get('/:courseId/versions/:courseVersionId/item/:itemId')
+  @Get('/:courseId/versions/:versionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item retrieved successfully',
@@ -219,25 +219,10 @@ Access control logic:
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@Params() params: GetItemParams, @Req() req: any) {
-    const {courseId, courseVersionId, itemId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
-    const progress = await this.progressService.getUserProgress(
-      userId,
-      courseId,
-      courseVersionId,
-    );
-    console.log(progress.currentItem);
-    if (progress.currentItem.toString() !== itemId) {
-      const prevProgress = await this.progressService.getCompletedItems(userId, courseId, courseVersionId);
-      if (!prevProgress.includes(itemId)) {
-        throw new ForbiddenError(
-          'You do not have access to this item.',
-        );
-      }
-    }
+  async getItem(@Params() params: GetItemParams) {
+    const {versionId, itemId} = params;
     return {
-      item: await this.itemService.readItem(courseVersionId, itemId),
+      item: await this.itemService.readItem(versionId, itemId),
     };
   }
 }
