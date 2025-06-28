@@ -65,7 +65,6 @@ export class InviteController {
     return new InviteResponse(results);
   }
 
-  @Authorized({ action: InviteActions.Process, subject: 'Invite' })
   @Get('/:inviteId')
   @HttpCode(200)
   @ContentType('html')

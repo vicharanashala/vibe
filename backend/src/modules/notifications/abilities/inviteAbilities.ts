@@ -33,7 +33,7 @@ export function setupInviteAbilities(
     }
     
     // Users can always view and manage their own notifications
-    can(InviteActions.Process, 'Invite', { userId: user.userId });
+    can(InviteActions.Process, 'Invite');
     
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
