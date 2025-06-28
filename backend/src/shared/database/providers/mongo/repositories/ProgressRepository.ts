@@ -1,8 +1,8 @@
-import {IProgress, IWatchTime} from '#shared/interfaces/models.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ObjectId, ClientSession} from 'mongodb';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ObjectId, ClientSession } from 'mongodb';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -14,7 +14,7 @@ class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.progressCollection =
@@ -57,7 +57,7 @@ class ProgressRepository {
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
-      {_id: new ObjectId(id)},
+      { _id: new ObjectId(id) },
       {
         session,
       },
@@ -78,8 +78,8 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
-      {returnDocument: 'after', session},
+      { $set: progress },
+      { returnDocument: 'after', session },
     );
     return result;
   }
@@ -89,7 +89,7 @@ class ProgressRepository {
     session: ClientSession,
   ): Promise<IProgress> {
     await this.init();
-    const result = await this.progressCollection.insertOne(progress, {session});
+    const result = await this.progressCollection.insertOne(progress, { session });
     const newProgress = await this.progressCollection.findOne(
       {
         _id: result.insertedId,
@@ -141,31 +141,36 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
       },
-      {$set: {endTime: new Date()}},
-      {returnDocument: 'after', session},
+      { $set: { endTime: new Date() } },
+      { returnDocument: 'after', session },
     );
     return result;
   }
 
   async getWatchTime(
     userId: string | ObjectId,
-    courseId: string,
-    courseVersionId: string,
     itemId: string,
+    courseId?: string,
+    courseVersionId?: string,
     session?: ClientSession,
-  ): Promise<IWatchTime | null> {
+  ): Promise<IWatchTime[] | null> {
     await this.init();
-    const result = await this.watchTimeCollection.findOne(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
-      },
+    const query: Record<string, ObjectId> = {
+      userId: new ObjectId(userId),
+      itemId: new ObjectId(itemId),
+    };
+
+    if (courseId && courseVersionId) {
+      query.courseId = new ObjectId(courseId);
+      query.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    const result = await this.watchTimeCollection.find(
+      query,
       {
         session,
       },
-    );
+    ).toArray();
     return result;
   }
 
@@ -199,11 +204,11 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
-      {returnDocument: 'after', session},
+      { $set: progress },
+      { returnDocument: 'after', session },
     );
     return result;
   }
 }
 
-export {ProgressRepository};
+export { ProgressRepository };

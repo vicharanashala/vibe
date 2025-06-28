@@ -1,41 +1,41 @@
 import request from 'supertest';
 import Express from 'express';
-import {useContainer, useExpressServer} from 'routing-controllers';
-import {authModuleOptions} from '#auth/index.js';
-import {coursesModuleOptions} from '#courses/index.js';
-import {usersModuleOptions} from '../index.js';
+import { useContainer, useExpressServer } from 'routing-controllers';
+import { authModuleOptions } from '#auth/index.js';
+import { coursesModuleOptions } from '#courses/index.js';
+import { usersModuleOptions } from '../index.js';
 
-import {isMongoId} from 'class-validator';
-import {ProgressService} from '../services/ProgressService.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {IUser, IWatchTime} from '#shared/interfaces/models.js';
+import { isMongoId } from 'class-validator';
+import { ProgressService } from '../services/ProgressService.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { IUser, IWatchTime } from '#shared/interfaces/models.js';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,
 } from './utils/createCourse.js';
-import {createUser} from './utils/createUser.js';
-import {createEnrollment} from './utils/createEnrollment.js';
-import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress.js';
-import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '#root/container.js';
-import {faker} from '@faker-js/faker';
-import {authContainerModule} from '#auth/container.js';
-import {coursesContainerModule} from '#courses/container.js';
-import {usersContainerModule} from '../container.js';
+import { createUser } from './utils/createUser.js';
+import { createEnrollment } from './utils/createEnrollment.js';
+import { startStopAndUpdateProgress } from './utils/startStopAndUpdateProgress.js';
+import { verifyProgressInDatabase } from './utils/verifyProgressInDatabase.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '#auth/container.js';
+import { coursesContainerModule } from '#courses/container.js';
+import { usersContainerModule } from '../container.js';
 import {
   ResetCourseProgressBody,
   StartItemBody,
   StopItemBody,
   UpdateProgressBody,
 } from '../classes/validators/ProgressValidators.js';
-import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
-describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
+describe('Progress Controller Integration Tests', { timeout: 90000 }, () => {
   const appInstance = Express();
   let app;
   let userId: string;
@@ -99,6 +99,43 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
         app,
       });
     });
+
+    it('Should fetch the Watch Time', async () => {
+      const startItemBody: StartItemBody = {
+        itemId: courseData.modules[0].sections[0].items[0].itemId,
+        moduleId: courseData.modules[0].moduleId,
+        sectionId: courseData.modules[0].sections[0].sectionId,
+      };
+      // Start the item progress
+      const startItemResponse = await request(app)
+        .post(
+          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+        )
+        .send(startItemBody)
+        // .expect(200);
+
+      const startItemResponseBody = startItemResponse;
+
+      const stopItemBody: StopItemBody = {
+        sectionId: courseData.modules[0].sections[0].sectionId,
+        moduleId: courseData.modules[0].moduleId,
+        itemId: courseData.modules[0].sections[0].items[0].itemId,
+        watchItemId: startItemResponse.body.watchItemId,
+      };
+
+      const stopItemResponse = await request(app)
+        .post(
+          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+        )
+        .send(stopItemBody)
+        .expect(200);
+
+      const watchTimeResponse = await request(app)
+        .get(`/users/${userId}/watchTime/item/${courseData.modules[0].sections[0].items[0].itemId}`)
+      // .expect(200)
+
+      const watchTimeResponseBody = watchTimeResponse;
+    })
 
     it('should return 400 if userId is invalid', async () => {
       const invalidUserId = 'invalidUserId';
@@ -499,7 +536,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       describe('Success Scenario', () => {
         it('should reset progress correctly for a user in a course', async () => {
           // Start Stop and Update Progress
-          const {startItemResponse, stopItemResponse, updateProgressResponse} =
+          const { startItemResponse, stopItemResponse, updateProgressResponse } =
             await startStopAndUpdateProgress({
               userId: userId as string,
               courseId: courseData.courseId,
@@ -849,12 +886,12 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
         expectedSectionId:
           courseData.modules[courseData.modules.length - 1].sections[
             courseData.modules[courseData.modules.length - 1].sections.length -
-              1
+            1
           ].sectionId, // Last section
         expectedItemId:
           courseData.modules[courseData.modules.length - 1].sections[
             courseData.modules[courseData.modules.length - 1].sections.length -
-              1
+            1
           ].items[
             courseData.modules[courseData.modules.length - 1].sections[
               courseData.modules[courseData.modules.length - 1].sections

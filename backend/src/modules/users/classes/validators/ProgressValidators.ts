@@ -450,6 +450,28 @@ export class ProgressNotFoundErrorResponse {
   message: string;
 }
 
+export class WatchTimeParams {
+  @JSONSchema({
+    description: 'User ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
+
+  @JSONSchema({
+    description: 'Item ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -462,5 +484,6 @@ export const PROGRESS_VALIDATORS = [
   ResetCourseProgressBody,
   ResetCourseProgressParams,
   ProgressDataResponse,
-  ProgressNotFoundErrorResponse
+  ProgressNotFoundErrorResponse,
+  WatchTimeParams
 ]
