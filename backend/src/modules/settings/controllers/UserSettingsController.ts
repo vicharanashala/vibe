@@ -54,38 +54,38 @@ export class UserSettingsController {
   }
 
   @Authorized(['admin', 'instructor', 'student'])
-  @Get('/:studentId/:courseId/:courseVersionId')
+  @Get('/:studentId/:courseId/:versionId')
   @HttpCode(200)
   async get(
     @Params() params: ReadUserSettingsParams,
   ): Promise<UserSettings | null> {
     // This method retrieves user settings for a specific student in a course version.
-    const {studentId, courseId, courseVersionId} = params;
+    const {studentId, courseId, versionId} = params;
 
     const userSettings = await this.userSettingsService.readUserSettings(
       studentId,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return userSettings;
   }
 
   @Authorized(['admin', 'instructor'])
-  @Put('/:studentId/:courseId/:courseVersionId/proctoring')
+  @Put('/:studentId/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async updateUserSettings(
     @Params() params: AddUserProctoringParams,
     @Body() body: AddUserProctoringBody,
   ): Promise<{success: boolean}> {
     // This method updates user proctoring settings for a specific student in a course version.
-    const {studentId, courseId, courseVersionId} = params;
+    const {studentId, courseId, versionId} = params;
     const {detectors} = body;
 
     const result = await this.userSettingsService.updateUserSettings(
       studentId,
       courseId,
-      courseVersionId,
+      versionId,
       detectors,
     );
 
