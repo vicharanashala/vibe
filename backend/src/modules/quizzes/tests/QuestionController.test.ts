@@ -2,9 +2,7 @@ import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
 import request from 'supertest';
 import Express from 'express';
 import {quizzesModuleOptions, setupQuizzesContainer} from '../index.js';
-import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
-import {IUser} from '#root/shared/interfaces/models.js';
-import {CourseData} from '#root/modules/users/tests/utils/createCourse.js';
+import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
 import {
   DESquestionData,
   DESsolution,
@@ -24,12 +22,12 @@ import {
   IOTLSolution,
 } from '#root/shared/interfaces/quiz.js';
 import {QuestionBody} from '../classes/index.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { faker } from '@faker-js/faker';
 
 describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
   const appInstance = Express();
   let app;
-  let user: IUser;
-  let courseData: CourseData;
 
   beforeAll(async () => {
     //Set env variables
@@ -46,7 +44,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       defaultErrorHandler: true,
       validation: true,
     };
-
+    vi.spyOn(FirebaseAuthService.prototype, "getUserIdFromReq").mockResolvedValue(faker.database.mongodbObjectId.toString())
     app = useExpressServer(appInstance, options);
   }, 900000);
 

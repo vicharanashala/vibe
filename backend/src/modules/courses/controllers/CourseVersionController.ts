@@ -45,7 +45,7 @@ Accessible to:
 - Instructor or manager of the course.`,
   })
   @Authorized({action: CourseVersionActions.Create, subject: 'CourseVersion'})
-  @Post('/:versionId/versions', {transformResponse: true})
+  @Post('/:courseId/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
