@@ -46,7 +46,7 @@ export class EnrollmentParams {
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class EnrollmentBody {

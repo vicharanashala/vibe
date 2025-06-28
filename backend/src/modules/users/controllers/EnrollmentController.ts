@@ -50,7 +50,7 @@ export class EnrollmentController {
     summary: 'Enroll a user in a course version',
     description: 'Enrolls a user in a specific course version with a given role.',
   })
-  @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId')
   @Authorized({ action: EnrollmentActions.Create, subject: 'Enrollment' })
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
@@ -68,12 +68,12 @@ export class EnrollmentController {
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
   ): Promise<EnrollUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
     const { role } = body;
     const responseData = await this.enrollmentService.enrollUser(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
       role,
     ) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
 
@@ -89,7 +89,7 @@ export class EnrollmentController {
     description: 'Removes a user\'s enrollment and progress from a specific course version.',
   })
   @Authorized({ action: EnrollmentActions.Delete, subject: 'Enrollment' })
-  @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId/unenroll')
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/unenroll')
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User unenrolled successfully',
@@ -102,12 +102,12 @@ export class EnrollmentController {
   async unenrollUser(
     @Params() params: EnrollmentParams,
   ): Promise<EnrollUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
 
     const responseData = await this.enrollmentService.unenrollUser(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return new EnrollUserResponse(
@@ -174,7 +174,7 @@ export class EnrollmentController {
     description: 'Retrieves enrollment details, including role and status, for a user in a specific course version.',
   })
   @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
-  @Get('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(EnrolledUserResponse, {
     description: 'Enrollment details for the user in the course version',
@@ -186,11 +186,11 @@ export class EnrollmentController {
   async getEnrollment(
     @Params() params: EnrollmentParams,
   ): Promise<EnrolledUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
     );
     return new EnrolledUserResponse(
       enrollmentData.role,
