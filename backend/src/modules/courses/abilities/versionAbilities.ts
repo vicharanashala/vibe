@@ -36,9 +36,11 @@ export function setupCourseVersionAbilities(
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
             case 'STUDENT':
+                can(CourseVersionActions.View, 'CourseVersion', userBounded);
                 break;
             case 'INSTRUCTOR':
                 can(CourseVersionActions.View, 'CourseVersion', courseBounded);

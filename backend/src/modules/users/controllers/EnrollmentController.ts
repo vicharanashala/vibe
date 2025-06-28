@@ -204,7 +204,7 @@ export class EnrollmentController {
     description: 'Retrieves a paginated list of all users enrolled in a specific course version.',
   })
   @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
-  @Get('/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Get('/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(CourseVersionEnrollmentResponse, {
     description: 'Paginated list of enrollments for the course version',
@@ -219,7 +219,7 @@ export class EnrollmentController {
   })
   async getCourseVersionEnrollments(
     @Param('courseId') courseId: string,
-    @Param('courseVersionId') courseVersionId: string,
+    @Param('versionId') versionId: string,
     @QueryParam('page') page = 1,
     @QueryParam('limit') limit = 10,
   ): Promise<CourseVersionEnrollmentResponse> {
@@ -234,7 +234,7 @@ export class EnrollmentController {
 
     const enrollments = await this.enrollmentService.getCourseVersionEnrollments(
       courseId,
-      courseVersionId,
+      versionId,
       skip,
       limit,
     );

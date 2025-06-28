@@ -55,7 +55,7 @@ class ProgressController {
     description: 'Retrieves the progress of a user in a specific course version.',
   })
   @Authorized({action: ProgressActions.View, subject: 'Progress'})
-  @Get('/progress/courses/:courseId/versions/:courseVersionId/')
+  @Get('/progress/courses/:courseId/versions/:versionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
     description: 'User progress retrieved successfully',
@@ -68,12 +68,12 @@ class ProgressController {
     @Req() request: any,
     @Params() params: GetUserProgressParams,
   ): Promise<Progress> {
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const userId = await this.authService.getUserIdFromReq(request);
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return progress;
@@ -84,7 +84,7 @@ class ProgressController {
     description: 'Marks the start of an item for a user in a course version.',
   })
   @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
-  @Post('/progress/courses/:courseId/versions/:courseVersionId/start')
+  @Post('/progress/courses/:courseId/versions/:versionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
     description: 'Item started successfully',
@@ -102,13 +102,13 @@ class ProgressController {
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
   ): Promise<StartItemResponse> {
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const {itemId, moduleId, sectionId} = body;
     const userId = await this.authService.getUserIdFromReq(request);
     const watchItemId: string = await this.progressService.startItem(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
       moduleId,
       sectionId,
       itemId,
@@ -124,7 +124,7 @@ class ProgressController {
     description: 'Marks the stop of an item for a user in a course version.',
   })
   @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
-  @Post('/progress/courses/:courseId/versions/:courseVersionId/stop')
+  @Post('/progress/courses/:courseId/versions/:versionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
     description: 'Progress not found',
@@ -143,13 +143,13 @@ class ProgressController {
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
   ): Promise<void> {
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId} = body;
     const userId = await this.authService.getUserIdFromReq(request);
     await this.progressService.stopItem(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
       itemId,
       sectionId,
       moduleId,
@@ -162,7 +162,7 @@ class ProgressController {
     description: 'Updates the progress of a user for a specific item in a course version.',
   })
   @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
-  @Patch('/progress/courses/:courseId/versions/:courseVersionId/update')
+  @Patch('/progress/courses/:courseId/versions/:versionId/update')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
     description: 'Progress not found',
@@ -181,13 +181,13 @@ class ProgressController {
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
   ): Promise<void> {
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const {itemId, moduleId, sectionId, watchItemId, attemptId} = body;
     const userId = await this.authService.getUserIdFromReq(request);
     await this.progressService.updateProgress(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
       moduleId,
       sectionId,
       itemId,
@@ -205,7 +205,7 @@ If moduleId, sectionId, and itemId are provided, resets to the beginning of the 
 If none are provided, resets to the beginning of the course.`,
   })
   @Authorized({action: ProgressActions.Modify, subject: 'Progress'})
-  @Patch('/:userId/progress/courses/:courseId/versions/:courseVersionId/reset')
+  @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -219,7 +219,7 @@ If none are provided, resets to the beginning of the course.`,
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
   ): Promise<void> {
-    const {userId, courseId, courseVersionId} = params;
+    const {userId, courseId, versionId} = params;
     const {moduleId, sectionId, itemId} = body;
 
     // Check if only moduleId is provided
@@ -228,7 +228,7 @@ If none are provided, resets to the beginning of the course.`,
       await this.progressService.resetCourseProgressToModule(
         userId,
         courseId,
-        courseVersionId,
+        versionId,
         moduleId,
       );
     }
@@ -239,7 +239,7 @@ If none are provided, resets to the beginning of the course.`,
       await this.progressService.resetCourseProgressToSection(
         userId,
         courseId,
-        courseVersionId,
+        versionId,
         moduleId,
         sectionId,
       );
@@ -251,7 +251,7 @@ If none are provided, resets to the beginning of the course.`,
       await this.progressService.resetCourseProgressToItem(
         userId,
         courseId,
-        courseVersionId,
+        versionId,
         moduleId,
         sectionId,
         itemId,
@@ -263,7 +263,7 @@ If none are provided, resets to the beginning of the course.`,
       await this.progressService.resetCourseProgress(
         userId,
         courseId,
-        courseVersionId,
+        versionId,
       );
     }
   }

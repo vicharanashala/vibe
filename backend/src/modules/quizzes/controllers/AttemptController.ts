@@ -109,12 +109,6 @@ class AttemptController {
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
     const userId = await this.authService.getUserIdFromReq(req);
-    console.log('Submitting attempt', {
-      userId,
-      quizId,
-      attemptId,
-      answers: body.answers,
-    });
     const result = await this.attemptService.submit(
       userId,
       quizId,

@@ -45,7 +45,7 @@ Accessible to:
 - Instructor or manager of the course.`,
   })
   @Authorized({action: CourseVersionActions.Create, subject: 'CourseVersion'})
-  @Post('/:id/versions', {transformResponse: true})
+  @Post('/:versionId/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
@@ -62,9 +62,9 @@ Accessible to:
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
   ): Promise<CourseVersion> {
-    const {id} = params;
+    const {courseId} = params;
     const createdCourseVersion =
-      await this.courseVersionService.createCourseVersion(id, body);
+      await this.courseVersionService.createCourseVersion(courseId, body);
     return createdCourseVersion;
   }
 
@@ -75,7 +75,7 @@ Accessible to:
 - Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
   })
   @Authorized({action: CourseVersionActions.View, subject: 'CourseVersion'})
-  @Get('/versions/:id')
+  @Get('/versions/:versionId')
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version retrieved successfully',
   })
@@ -90,9 +90,9 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
   ): Promise<CourseVersion> {
-    const {id} = params;
+    const {versionId} = params;
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(id);
+      await this.courseVersionService.readCourseVersion(versionId);
     return retrievedCourseVersion;
   }
 

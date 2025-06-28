@@ -19,16 +19,42 @@ export interface CaslAuthOptions {
 }
 
 /**
- * Creates a unified ability that includes all modules for a user
+ * Creates a unified ability that includes only the relevant module for a user
  */
-function createUserAbility(user: AuthenticatedUser): MongoAbility<any> {
+async function createUserAbility(user: AuthenticatedUser, subject: string): Promise<MongoAbility<any>> {
     const builder = new AbilityBuilder(createMongoAbility);
     
-    // Setup abilities for all modules
-    setupAllCourseAbilities(builder, user);
-    setupAllQuizAbilities(builder, user);
-    setupAllNotificationAbilities(builder, user);
-    setupAllUserAbilities(builder, user);
+    // Only setup abilities for the module being accessed based on the subject
+    switch (subject) {
+        case 'Course':
+        case 'CourseVersion':
+        case 'Module':
+        case 'Section':
+        case 'Item':
+            await setupAllCourseAbilities(builder, user);
+            break;
+        case 'Quiz':
+        case 'Question':
+        case 'Attempt':
+            await setupAllQuizAbilities(builder, user);
+            break;
+        case 'Notification':
+        case 'Invite':
+            setupAllNotificationAbilities(builder, user);
+            break;
+        case 'User':
+        case 'Enrollment':
+        case 'Progress':
+            setupAllUserAbilities(builder, user);
+            break;
+        default:
+            // For unknown subjects, setup all abilities as fallback
+            await setupAllCourseAbilities(builder, user);
+            await setupAllQuizAbilities(builder, user);
+            setupAllNotificationAbilities(builder, user);
+            setupAllUserAbilities(builder, user);
+            break;
+    }
     
     return builder.build();
 }
@@ -36,18 +62,19 @@ function createUserAbility(user: AuthenticatedUser): MongoAbility<any> {
 /**
  * Extracts resource parameters from request for scoped permissions
  */
-function extractResourceFromRequest(action: any): any {
+function extractResourceFromRequest(action: any, userId: string): any {
     const params = action.request.params || {};
 
     // Build resource object based on available parameters
     const resource: any = {};
     
     // Common ID patterns
-    if (params.id) resource.id = params.id;
+
     if (params.courseId) resource.courseId = params.courseId;
     if (params.versionId) resource.versionId = params.versionId;
     if (params.itemId) resource.itemId = params.itemId;
-    if (params.userId) resource.userId = params.userId;
+    if (params.quizId) resource.quizId = params.quizId;
+    resource.userId = userId;
     return Object.keys(resource).length > 0 ? resource : undefined;
 }
 
@@ -76,19 +103,18 @@ export async function authorizationChecker(action: any, roles: any[]): Promise<b
     // Extract CASL options from the roles parameter
     const caslOptions = roles[0] as CaslAuthOptions;
 
-    // Create user's abilities
-    const ability = createUserAbility(authenticatedUser);
+    // Create user's abilities for the specific module
+    const ability = await createUserAbility(authenticatedUser, caslOptions.subject);
     
     // Extract resource from request if not explicitly provided
-    const resource = caslOptions.resource || extractResourceFromRequest(action);
-    
+    const resource = extractResourceFromRequest(action, authenticatedUser.userId);
     // For admin users, check without resource constraints first
     let result = false;
     if (authenticatedUser.globalRole === 'admin') {
         result = ability.can(caslOptions.action, caslOptions.subject);
     }
-    const caslSubject = subject(caslOptions.subject, resource);
     
+    const caslSubject = subject(caslOptions.subject, resource);
     // If admin check passed or user is not admin, check with resource
     if (!result) {
         result = ability.can(caslOptions.action, caslSubject);

@@ -29,7 +29,7 @@ export class GetUserProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemBody {
@@ -86,7 +86,7 @@ export class StartItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemResponse {
@@ -126,7 +126,7 @@ export class StopItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StopItemBody {
@@ -251,7 +251,7 @@ export class UpdateProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressParams {
@@ -283,7 +283,7 @@ export class ResetCourseProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressBody {

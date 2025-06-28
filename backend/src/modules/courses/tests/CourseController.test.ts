@@ -3,8 +3,8 @@ import Express from 'express';
 import {Action, RoutingControllersOptions, useContainer, useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
 import {CourseBody} from '../classes/validators/CourseValidators.js';
-import {describe, it, beforeAll, expect, vi, afterEach, afterAll} from 'vitest';
-import {coursesContainerModules, coursesModuleOptions} from '../index.js';
+import {describe, it, beforeEach, beforeAll, expect, vi, afterEach, afterAll} from 'vitest';
+import {coursesContainerModules, coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { Container } from 'inversify';
 import * as Current from '#root/shared/functions/currentUserChecker.js';
@@ -290,7 +290,6 @@ describe('Course Controller Integration Tests', () => {
         const courseId = createdCourseResponse.body._id;
 
         const res = await request(app).delete(`/courses/${courseId}`).set('Authorization', 'Bearer user1');
-        console.log(res.body);
 
         await request(app).get(`/courses/${courseId}`).set('Authorization', 'Bearer user1').expect(404);
       }, 60000);

@@ -25,7 +25,7 @@ export type ItemAbility = [ItemActionsType, ItemSubjectType];
 /**
  * Setup item abilities for a specific role
  */
-export function setupItemAbilities(
+export async function setupItemAbilities(
     builder: AbilityBuilder<any>,
     user: AuthenticatedUser
 ) {
@@ -36,12 +36,15 @@ export function setupItemAbilities(
         return;
     }
     const progressService = getFromContainer(ProgressService);
-    user.enrollments.forEach(async (enrollment: AuthenticatedUserEnrollements) =>{
+    
+    // Use Promise.all to handle async operations properly
+    await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
         const versionBounded = { versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId, versionId: enrollment.versionId };
         
         switch (enrollment.role) {
             case 'STUDENT':
-                can(ItemActions.ViewAll, 'Item', versionBounded);
+                can(ItemActions.ViewAll, 'Item', userBounded);
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
                 const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
                 if (!progress) {
@@ -49,6 +52,8 @@ export function setupItemAbilities(
                 }
                 const allowedItemIds = [...completedItems];
                 allowedItemIds.push(progress.currentItem.toString());
+                
+                // Grant permission to view items that are in the allowed list
                 const itemBounded = { 
                     userId: user.userId, 
                     courseId: enrollment.courseId, 
@@ -70,14 +75,14 @@ export function setupItemAbilities(
                 can(ItemActions.ViewAll, 'Item', versionBounded);
                 break;
         }
-    });
+    }));
 }
 
 /**
  * Get item abilities for a user - can be directly used by controllers
  */
-export function getItemAbility(user: AuthenticatedUser): MongoAbility<any> {
+export async function getItemAbility(user: AuthenticatedUser): Promise<MongoAbility<any>> {
     const builder = createAbilityBuilder();
-    setupItemAbilities(builder, user);
+    await setupItemAbilities(builder, user);
     return builder.build();
 }

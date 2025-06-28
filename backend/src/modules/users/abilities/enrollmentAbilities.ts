@@ -33,7 +33,9 @@ export function setupEnrollmentAbilities(
         can('manage', 'Enrollment');
         return;
     }
-
+    if (!user.enrollments || user.enrollments.length === 0) {
+        throw new Error('User has no enrollments');
+    }
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };

@@ -10,11 +10,11 @@ import { setupCourseAbilities } from './courseAbilities.js';
 import { setupCourseVersionAbilities } from './versionAbilities.js';
 import { setupItemAbilities } from './itemAbilities.js';
 
-export function setupAllCourseAbilities(
+export async function setupAllCourseAbilities(
     builder: AbilityBuilder<any>,
     user: AuthenticatedUser
 ) {
     setupCourseAbilities(builder, user);
     setupCourseVersionAbilities(builder, user);
-    setupItemAbilities(builder, user);
+    await setupItemAbilities(builder, user);
 }

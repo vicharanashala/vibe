@@ -12,12 +12,12 @@ import { setupQuestionAbilities } from './questionAbilities.js';
 import { setupQuestionBankAbilities } from './questionBankAbilities.js';
 import { setupAttemptAbilities } from './attemptAbilities.js';
 
-export function setupAllQuizAbilities(
+export async function setupAllQuizAbilities(
     builder: AbilityBuilder<any>,
     user: AuthenticatedUser
 ) {
     setupQuizAbilities(builder, user);
     setupQuestionAbilities(builder, user);
     setupQuestionBankAbilities(builder, user);
-    setupAttemptAbilities(builder, user);
+    await setupAttemptAbilities(builder, user);
 }
