@@ -698,26 +698,6 @@ export function useStopItem(): {
   };
 }
 
-// PATCH /users/progress/courses/{courseId}/versions/{courseVersionId}/update
-export function useUpdateProgress(): {
-  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['UpdateProgressBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['UpdateProgressBody'] }) => Promise<unknown>,
-  data: unknown | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
-  const result = api.useMutation("patch", "/users/progress/courses/{courseId}/versions/{courseVersionId}/update");
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Failed to update progress') : null
-  };
-}
-
 // PATCH /users/progress/courses/{courseId}/versions/{courseVersionId}/reset
 export function useResetProgress(): {
   mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => void,

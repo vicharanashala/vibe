@@ -108,8 +108,6 @@ export default function CoursePage() {
     sectionId: string;
   } | null>(null);
 
-  // Initialize API hooks (removed updateProgress as it was causing navigation issues)
-
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError } =
     useCourseVersionById(VERSION_ID);

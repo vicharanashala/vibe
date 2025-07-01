@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, useUpdateProgress } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
@@ -347,21 +347,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         sectionId: currentCourse.sectionId ?? '',
       }
     });
-    updateProgress.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: currentCourse.watchItemId,
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-        attemptId: attemptId ?? '',
-      }
-    });
     itemStartedRef.current = false;
   }
 
@@ -385,7 +370,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
-  const updateProgress = useUpdateProgress();
   
   // ✅ Track if item has been started
   const itemStartedRef = useRef(false);
