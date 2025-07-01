@@ -51,13 +51,14 @@ export async function setupItemAbilities(
                 }
                 const allowedItemIds = [...completedItems];
                 allowedItemIds.push(progress.currentItem.toString());
-                
+                console.log(progress.currentItem.toString());
                 // Grant permission to view items that are in the allowed list
                 const itemBounded = {
                     courseId: enrollment.courseId, 
                     versionId: enrollment.versionId,
                     itemId: { $in: allowedItemIds }
                 };
+                console.log('Allowed Item IDs:', allowedItemIds);
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':

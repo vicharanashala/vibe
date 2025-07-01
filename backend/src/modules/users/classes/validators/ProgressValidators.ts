@@ -173,6 +173,17 @@ export class StopItemBody {
   @IsString()
   @IsMongoId()
   moduleId: string;
+
+  @JSONSchema({
+    description: 'Attempt ID for quiz tracking',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  attemptId?: string;
 }
 
 export class UpdateProgressBody {

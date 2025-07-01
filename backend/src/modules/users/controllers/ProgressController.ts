@@ -156,7 +156,7 @@ class ProgressController {
     @Ability(getProgressAbility) {ability, user}
   ): Promise<void> {
     const { courseId, versionId } = params;
-    const { itemId, sectionId, moduleId, watchItemId } = body;
+    const { itemId, sectionId, moduleId, watchItemId, attemptId } = body;
     const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
@@ -176,43 +176,7 @@ class ProgressController {
       moduleId,
       watchItemId,
     );
-  }
 
-  @OpenAPI({
-    summary: 'Update user progress',
-    description: 'Updates the progress of a user for a specific item in a course version.',
-  })
-  @Patch('/progress/courses/:courseId/versions/:versionId/update')
-  @OnUndefined(200)
-  @ResponseSchema(ProgressNotFoundErrorResponse, {
-    description: 'Progress not found',
-    statusCode: 404,
-  })
-  @ResponseSchema(BadRequestError, {
-    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
-    statusCode: 400,
-  })
-  @ResponseSchema(InternalServerError, {
-    description: 'Progress could not be updated',
-    statusCode: 500,
-  })
-  async updateProgress(
-    @Params() params: UpdateProgressParams,
-    @Body() body: UpdateProgressBody,
-    @Ability(getProgressAbility) {ability, user}
-  ): Promise<void> {
-    const { courseId, versionId } = params;
-    const { itemId, moduleId, sectionId, watchItemId, attemptId } = body;
-    const userId = user._id.toString();
-    
-    // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
-    // Check permission using ability.can() with the actual progress resource
-    if (!ability.can(ProgressActions.Modify, progressResource)) {
-      throw new ForbiddenError('You do not have permission to modify this progress');
-    }
-    
     await this.progressService.updateProgress(
       userId,
       courseId,
