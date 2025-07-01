@@ -345,6 +345,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemId: currentCourse.itemId,
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
+        attemptId: attemptId
       }
     });
     itemStartedRef.current = false;
