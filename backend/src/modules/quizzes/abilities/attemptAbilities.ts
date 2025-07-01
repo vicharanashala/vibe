@@ -41,7 +41,6 @@ export async function setupAttemptAbilities(
     await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
             case 'STUDENT':
@@ -54,8 +53,7 @@ export async function setupAttemptAbilities(
                 allowedItemIds.push(progress.currentItem.toString());
                 
                 // Grant permission for attempts on quizzes that correspond to allowed items
-                const attemptBounded = { 
-                    userId: user.userId,
+                const attemptBounded = {
                     quizId: { $in: allowedItemIds }
                 };
                 can(AttemptActions.Start, 'Attempt', attemptBounded);

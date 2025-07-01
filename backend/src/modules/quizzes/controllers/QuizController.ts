@@ -24,6 +24,7 @@ import {
   GetAllQuestionBanksResponse,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QuestionBankService} from '#quizzes/services/QuestionBankService.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {QuizService} from '#quizzes/services/QuizService.js';
 import {injectable, inject} from 'inversify';
 import {
@@ -36,14 +37,14 @@ import {
   Get,
   OnUndefined,
   Patch,
-  Authorized,
   BadRequestError,
-  Res,
+  ForbiddenError,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {ISubmission} from '#quizzes/interfaces/index.js';
-import { QuizActions } from '../abilities/quizAbilities.js';
+import { QuizActions, getQuizAbility } from '../abilities/quizAbilities.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -60,7 +61,6 @@ class QuizController {
     summary: 'Add a question bank to a quiz',
     description: 'Associates a question bank with a quiz.',
   })
-  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Post('/:quizId/bank')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
@@ -74,8 +74,17 @@ class QuizController {
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
+    @Ability(getQuizAbility) {ability}
   ) {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+    }
+    
     await this.quizService.addQuestionBank(quizId, body);
   }
 
@@ -83,15 +92,25 @@ class QuizController {
     summary: 'Remove a question bank from a quiz',
     description: 'Removes the association of a question bank from a quiz.',
   })
-  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Delete('/:quizId/bank/:questionBankId')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz or question bank not found',
     statusCode: 404,
   })
-  async removeQuestionBank(@Params() params: RemoveQuestionBankParams) {
+  async removeQuestionBank(
+    @Params() params: RemoveQuestionBankParams,
+    @Ability(getQuizAbility) {ability}
+  ) {
     const {quizId, questionBankId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId, questionBankId });
+    
+    if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+    }
+    
     await this.quizService.removeQuestionBank(quizId, questionBankId);
   }
 
@@ -99,7 +118,6 @@ class QuizController {
     summary: 'Edit question bank configuration for a quiz',
     description: 'Updates the configuration of a question bank within a quiz.',
   })
-  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Patch('/:quizId/bank')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
@@ -113,8 +131,17 @@ class QuizController {
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
+    @Ability(getQuizAbility) {ability}
   ) {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+    }
+    
     await this.quizService.editQuestionBankConfiguration(quizId, body);
   }
 
@@ -122,7 +149,6 @@ class QuizController {
     summary: 'Get all question banks for a quiz',
     description: 'Retrieves all question banks associated with a quiz.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/bank')
   @HttpCode(200)
   @ResponseSchema(GetAllQuestionBanksResponse, {
@@ -135,8 +161,17 @@ class QuizController {
   })
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuestionBankRef[]> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view this quiz');
+    }
+    
     return await this.quizService.getAllQuestionBanks(quizId);
   }
 
@@ -144,7 +179,6 @@ class QuizController {
     summary: 'Get user metrics for a quiz',
     description: 'Retrieves quiz metrics for a specific user.',
   })
-  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/user/:userId')
   @HttpCode(200)
   @ResponseSchema(UserQuizMetricsResponse, { 
@@ -161,8 +195,17 @@ class QuizController {
   })
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
+    @Ability(getQuizAbility) {ability}
   ): Promise<UserQuizMetricsResponse> {
     const {quizId, userId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId, userId });
+    
+    if (!ability.can(QuizActions.GetStats, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz statistics');
+    }
+    
     return await this.quizService.getUserMetricsForQuiz(userId, quizId);
   }
 
@@ -170,7 +213,6 @@ class QuizController {
     summary: 'Get quiz attempt details',
     description: 'Retrieves details of a specific quiz attempt.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/attempts/:attemptId')
   @HttpCode(200)
   @ResponseSchema(QuizAttemptResponse, { 
@@ -183,8 +225,17 @@ class QuizController {
   })
   async getQuizAttempt(
     @Params() params: QuizAttemptParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizAttemptResponse> {
     const {attemptId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { attemptId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view this quiz attempt');
+    }
+    
     return await this.quizService.getAttemptDetails(attemptId);
   }
 
@@ -192,7 +243,6 @@ class QuizController {
     summary: 'Get quiz submission details',
     description: 'Retrieves details of a specific quiz submission.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/submissions/:submissionId')
   @HttpCode(200)
   @ResponseSchema(QuizSubmissionResponse, {
@@ -201,8 +251,17 @@ class QuizController {
   })
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizSubmissionResponse> {
     const {submissionId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { submissionId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view this quiz submission');
+    }
+    
     return await this.quizService.getSubmissionDetails(submissionId);
   }
 
@@ -210,7 +269,6 @@ class QuizController {
     summary: 'Get all submissions for a quiz',
     description: 'Retrieves all submissions for a quiz.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/submissions')
   @HttpCode(200)
   @ResponseSchema(GetAllSubmissionsResponse, {
@@ -228,8 +286,17 @@ class QuizController {
   })
   async getAllSubmissions(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<ISubmission[]> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz submissions');
+    }
+    
     return await this.quizService.getAllSubmissions(quizId);
   }
 
@@ -237,7 +304,6 @@ class QuizController {
     summary: 'Get quiz details',
     description: 'Retrieves details of a quiz.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/details')
   @HttpCode(200)
   @ResponseSchema(QuizDetailsResponse, {
@@ -246,8 +312,17 @@ class QuizController {
   })
   async getQuizDetails(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizDetailsResponse> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz details');
+    }
+    
     return await this.quizService.getQuizDetails(quizId);
   }
 
@@ -255,7 +330,6 @@ class QuizController {
     summary: 'Get quiz analytics',
     description: 'Retrieves analytics data for a quiz.',
   })
-  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/analytics')
   @HttpCode(200)
   @ResponseSchema(QuizAnalyticsResponse, {
@@ -264,8 +338,17 @@ class QuizController {
   })
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizAnalyticsResponse> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.GetStats, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz analytics');
+    }
+    
     return await this.quizService.getQuizAnalytics(quizId);
   }
 
@@ -273,7 +356,7 @@ class QuizController {
     summary: 'Get quiz performance statistics',
     description: 'Retrieves performance statistics for each question in a quiz.',
   })
-  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
+  
   @Get('/:quizId/performance')
   @HttpCode(200)
   @ResponseSchema(QuizPerformanceResponse, {
@@ -291,8 +374,17 @@ class QuizController {
   })
   async getQuizPerformance(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizPerformanceResponse[]> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.GetStats, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz performance statistics');
+    }
+    
     return await this.quizService.getQuestionPerformanceStats(quizId);
   }
 
@@ -300,7 +392,7 @@ class QuizController {
     summary: 'Get quiz results',
     description: 'Retrieves results for all students who attempted the quiz.',
   })
-  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
+  
   @Get('/:quizId/results')
   @HttpCode(200)
   @ResponseSchema(QuizResultsResponse, {
@@ -318,8 +410,17 @@ class QuizController {
   })
   async getQuizResults(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizResultsResponse[]> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.GetStats, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view quiz results');
+    }
+    
     return await this.quizService.getQuizResults(quizId);
   }
 
@@ -327,7 +428,7 @@ class QuizController {
     summary: 'Get flagged questions for a quiz',
     description: 'Retrieves all flagged questions for a quiz.',
   })
-  @Authorized({action: QuizActions.View, subject: 'Quiz'})
+  
   @Get('/:quizId/flagged')
   @HttpCode(200)
   @ResponseSchema(FlaggedQuestionResponse, {
@@ -344,8 +445,16 @@ class QuizController {
   })
   async getFlaggedQues(
     @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
   ): Promise<FlaggedQuestionResponse> {
     const {quizId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId });
+    
+    if (!ability.can(QuizActions.View, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to view flagged questions');
+    }
     return await this.quizService.getFlaggedQuestionsForQuiz(quizId);
   }
 
@@ -353,7 +462,7 @@ class QuizController {
     summary: 'Override submission score',
     description: 'Overrides the score for a specific quiz submission.',
   })
-  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
+  
   @Post('/submission/:submissionId/score/:score')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -364,8 +473,19 @@ class QuizController {
     description: 'Submission not found',
     statusCode: 404,
   })
-  async updateQuizSubmissionScore(@Params() params: UpdateQuizSubmissionParam) {
+  async updateQuizSubmissionScore(
+    @Params() params: UpdateQuizSubmissionParam,
+    @Ability(getQuizAbility) {ability}
+  ) {
     const {submissionId, score} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { submissionId });
+    
+    if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to modify quiz submissions');
+    }
+    
     await this.quizService.overrideSubmissionScore(submissionId, score);
   }
 
@@ -373,7 +493,7 @@ class QuizController {
     summary: 'Regrade a quiz submission',
     description: 'Regrades a quiz submission with new grading results.',
   })
-  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
+  
   @Post('/submission/:submissionId/regrade')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -387,8 +507,17 @@ class QuizController {
   async regradeSubmission(
     @Params() params: QuizSubmissionParam,
     @Body() body: RegradeSubmissionBody,
+    @Ability(getQuizAbility) {ability}
   ) {
     const {submissionId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { submissionId });
+    
+    if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to regrade quiz submissions');
+    }
+    
     await this.quizService.regradeSubmission(submissionId, body);
   }
 
@@ -396,7 +525,7 @@ class QuizController {
     summary: 'Add feedback to a question in a submission',
     description: 'Adds feedback to a specific question in a quiz submission.',
   })
-  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
+  
   @Post('/submission/:submissionId/question/:questionId/feedback')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -410,9 +539,18 @@ class QuizController {
   async addFeedbackToQuestion(
     @Params() params: AddFeedbackParams,
     @Body() body: AddFeedbackBody,
+    @Ability(getQuizAbility) {ability}
   ) {
     const {submissionId, questionId} = params;
     const {feedback} = body;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { submissionId, questionId });
+    
+    if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to add feedback to quiz questions');
+    }
+    
     await this.quizService.addFeedbackToAnswer(
       submissionId,
       questionId,
@@ -424,7 +562,7 @@ class QuizController {
     summary: 'Reset available attempts for a user on a quiz',
     description: 'Resets the number of available attempts for a user on a specific quiz.',
   })
-  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
+  
   @Post('/:quizId/user/:userId/reset-attempts')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -436,9 +574,17 @@ class QuizController {
     statusCode: 404,
   })
   async resetAvailableAttempts(
-    @Params() params: GetUserMatricesParams
+    @Params() params: GetUserMatricesParams,
+    @Ability(getQuizAbility) {ability}
   ): Promise<void> {
     const {quizId, userId} = params;
+    
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { quizId, userId });
+    
+    if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to reset quiz attempts');
+    }
     await this.quizService.resetAvailableAttempts(quizId, userId);
   }
 }

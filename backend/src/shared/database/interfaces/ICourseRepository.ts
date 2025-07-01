@@ -45,4 +45,8 @@ export interface ICourseRepository {
     courseVersion: ICourseVersion,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
+  findVersionByItemGroupId(
+    itemGroupId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null>
 }

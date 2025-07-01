@@ -173,6 +173,17 @@ export class StopItemBody {
   @IsString()
   @IsMongoId()
   moduleId: string;
+
+  @JSONSchema({
+    description: 'Attempt ID for quiz tracking',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  attemptId?: string;
 }
 
 export class UpdateProgressBody {
@@ -452,16 +463,6 @@ export class ProgressNotFoundErrorResponse {
 
 export class WatchTimeParams {
   @JSONSchema({
-    description: 'Item ID to get watch time for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  itemId: string;
-
-  @JSONSchema({
     description: 'user ID to get watch time for',
     type: 'string',
     format: 'Mongo Object ID',
@@ -470,6 +471,16 @@ export class WatchTimeParams {
   @IsString()
   @IsMongoId()
   userId: string;
+
+  @JSONSchema({
+    description: 'Item ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
 }
 
 export const PROGRESS_VALIDATORS = [

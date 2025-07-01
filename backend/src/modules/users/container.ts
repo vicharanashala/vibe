@@ -26,16 +26,8 @@ export const usersContainerModule = new ContainerModule(options => {
     .to(EnrollmentService)
     .inSingletonScope();
   options
-    .bind(EnrollmentService)
-    .toSelf()
-    .inSingletonScope();
-  options
     .bind(USERS_TYPES.ProgressService)
     .to(ProgressService)
-    .inSingletonScope();
-  options
-    .bind(ProgressService)
-    .toSelf()
     .inSingletonScope();
   options
     .bind(USERS_TYPES.UserService)

@@ -464,4 +464,22 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
+
+  async findVersionByItemGroupId(
+    itemGroupId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null> {
+    await this.init();
+      const courseVersion = await this.courseVersionCollection.findOne({
+        'modules.sections.itemGroupId': itemGroupId,
+      }, { session });
+
+      if (!courseVersion) {
+        return null;
+      }
+
+      return instanceToPlain(
+        Object.assign(new CourseVersion(), courseVersion),
+      ) as CourseVersion;
+  }
 }

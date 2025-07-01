@@ -1,8 +1,6 @@
 import 'reflect-metadata';
 import {
-  Authorized,
   Body,
-  CurrentUser,
   Delete,
   ForbiddenError,
   Get,
@@ -11,7 +9,6 @@ import {
   Params,
   Post,
   Put,
-  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -28,13 +25,11 @@ import {
   VersionModuleSectionItemParams,
 } from '#courses/classes/validators/ItemValidators.js';
 import {ItemService} from '#courses/services/ItemService.js';
-import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
-import {AUTH_TYPES} from '#root/modules/auth/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
 import {injectable, inject} from 'inversify';
 import {VersionModuleSectionParams} from '../classes/index.js';
-import { ItemActions } from '../abilities/itemAbilities.js';
+import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
 
 @injectable()
 @JsonController('/courses')
@@ -42,10 +37,6 @@ export class ItemController {
   constructor(
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
-    @inject(USERS_TYPES.ProgressService)
-    private readonly progressService: ProgressService,
-    @inject(AUTH_TYPES.AuthService)
-    private readonly authService: FirebaseAuthService,
   ) {}
   @OpenAPI({
     summary: 'Create an item',
@@ -53,7 +44,6 @@ export class ItemController {
   Accessible to:
   - Instructors, managers or teaching assistants of the course.`,
   })
-  @Authorized({action: ItemActions.Create, subject: 'Item'})
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
@@ -70,8 +60,18 @@ export class ItemController {
   async create(
     @Params() params: VersionModuleSectionParams,
     @Body() body: CreateItemBody,
+    @Ability(getItemAbility) {ability}
   ) {
     const {versionId, moduleId, sectionId} = params;
+    
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId });
+    
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Create, itemResource)) {
+      throw new ForbiddenError('You do not have permission to create items in this section');
+    }
+    
     return await this.itemService.createItem(
       versionId,
       moduleId,
@@ -86,7 +86,6 @@ export class ItemController {
   Accessible to:
   - All users who are part of the course.`,
   })
-  @Authorized({action: ItemActions.ViewAll, subject: 'Item'})
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @ResponseSchema(ItemDataResponse, {
     description: 'Items retrieved successfully',
@@ -99,8 +98,20 @@ export class ItemController {
     description: 'Item not found',
     statusCode: 404,
   })
-  async readAll(@Params() params: VersionModuleSectionParams) {
+  async readAll(
+    @Params() params: VersionModuleSectionParams,
+    @Ability(getItemAbility) {ability}
+  ) {
     const {versionId, moduleId, sectionId} = params;
+    
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId });
+    
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.ViewAll, itemResource)) {
+      throw new ForbiddenError('You do not have permission to view items in this section');
+    }
+    
     return await this.itemService.readAllItems(versionId, moduleId, sectionId);
   }
 
@@ -110,7 +121,6 @@ export class ItemController {
   Accessible to:
   - Instructors, managers, and teaching assistants of the course.`,
   })
-  @Authorized({action: ItemActions.Modify, subject: 'Item'})
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
@@ -128,8 +138,18 @@ export class ItemController {
   async update(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: UpdateItemBody,
+    @Ability(getItemAbility) {ability}
   ) {
     const {versionId, moduleId, sectionId, itemId} = params;
+    
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId });
+    
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError('You do not have permission to modify this item');
+    }
+    
     return await this.itemService.updateItem(
       versionId,
       moduleId,
@@ -145,7 +165,6 @@ export class ItemController {
   Accessible to:
   - Instructors or managers of the course.`,
   })
-  @Authorized({action: ItemActions.Delete, subject: 'Item'})
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -158,8 +177,19 @@ export class ItemController {
     description: 'Item not found',
     statusCode: 404,
   })
-  async delete(@Params() params: DeleteItemParams) {
+  async delete(
+    @Params() params: DeleteItemParams,
+    @Ability(getItemAbility) {ability}
+  ) {
     const {itemsGroupId, itemId} = params;
+    const version = await this.itemService.findVersion(itemsGroupId);
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: version._id.toString() });
+    
+    if (!ability.can(ItemActions.Delete, itemResource)) {
+      throw new ForbiddenError('You do not have permission to delete this item');
+    }
+    
     return await this.itemService.deleteItem(itemsGroupId, itemId);
   }
 
@@ -169,7 +199,6 @@ export class ItemController {
 Accessible to:
 - Instructors, managers, and teaching assistants of the course.`,
   })
-  @Authorized({action: ItemActions.Modify, subject: 'Item'})
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
@@ -187,8 +216,18 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: MoveItemBody,
+    @Ability(getItemAbility) {ability}
   ) {
     const {versionId, moduleId, sectionId, itemId} = params;
+    
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId });
+    
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError('You do not have permission to move this item');
+    }
+    
     return await this.itemService.moveItem(
       versionId,
       moduleId,
@@ -205,7 +244,6 @@ Access control logic:
 - For students: The item is returned only if it matches the student's current item ID in their course progress.
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
-  @Authorized({action: ItemActions.View, subject: 'Item'})
   @Get('/:courseId/versions/:versionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
@@ -219,8 +257,20 @@ Access control logic:
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@Params() params: GetItemParams) {
-    const {versionId, itemId} = params;
+  async getItem(
+    @Params() params: GetItemParams,
+    @Ability(getItemAbility) {ability}
+  ) {
+    const {versionId, itemId, courseId} = params;
+    
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { courseId, versionId, itemId });
+    
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.View, itemResource)) {
+      throw new ForbiddenError('You do not have permission to view this item');
+    }
+    
     return {
       item: await this.itemService.readItem(versionId, itemId),
     };

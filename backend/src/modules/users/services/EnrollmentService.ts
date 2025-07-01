@@ -236,9 +236,8 @@ export class EnrollmentService extends BaseService {
           });
         }
         catch (error) {
-          console.log(`User with ID ${result[i].userId} not found`);
+          console.log(result[i].userId, error);
         }
-
       }
 
       // find user for each enrollment
