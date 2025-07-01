@@ -35,11 +35,10 @@ export function setupCourseAbilities(
 
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId };
 
         switch (enrollment.role) {
             case 'STUDENT':
-                can(CourseActions.View, 'Course', userBounded);
+                can(CourseActions.View, 'Course', courseBounded);
                 break;
             case 'INSTRUCTOR':
                 can(CourseActions.View, 'Course', courseBounded);

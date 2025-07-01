@@ -1,5 +1,4 @@
 import {
-  Authorized,
   Body,
   Get,
   HttpCode,
@@ -7,11 +6,14 @@ import {
   OnUndefined,
   Params,
   Post,
-  Req,
+  ForbiddenError,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {AttemptService} from '#quizzes/services/AttemptService.js';
 import {injectable, inject} from 'inversify';
+import { AttemptActions, getAttemptAbility } from '../abilities/attemptAbilities.js';
+import { subject } from '@casl/ability';
 import {
   CreateAttemptParams,
   CreateAttemptResponse,
@@ -24,10 +26,7 @@ import {
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
-import {AUTH_TYPES} from '#auth/types.js';
-import {FirebaseAuthService} from '#auth/services/FirebaseAuthService.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
-import { AttemptActions } from '../abilities/attemptAbilities.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -38,15 +37,13 @@ class AttemptController {
   constructor(
     @inject(QUIZZES_TYPES.AttemptService)
     private readonly attemptService: AttemptService,
-    @inject(AUTH_TYPES.AuthService)
-    private readonly authService: FirebaseAuthService,
   ) {}
 
   @OpenAPI({
     summary: 'Start a new quiz attempt',
     description: 'Creates a new attempt for the specified quiz for the current user.',
   })
-  @Authorized({action: AttemptActions.Start, subject: 'Attempt'})
+  
   @Post('/:quizId/attempt')
   @HttpCode(200)
   @ResponseSchema(CreateAttemptResponse, {
@@ -56,11 +53,18 @@ class AttemptController {
   @ResponseSchema(BadRequestErrorResponse, { description: 'Bad Request', statusCode: 400 })
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Quiz not found', statusCode: 404 })
   async attempt(
-    @Req() req: any,
     @Params() params: CreateAttemptParams,
+    @Ability(getAttemptAbility) {ability, user}
   ): Promise<CreateAttemptResponse> {
     const {quizId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
+    const userId = user._id.toString();
+    // Build subject context first
+    const attemptSubject = subject('Attempt', {quizId});
+    
+    if (!ability.can(AttemptActions.Start, attemptSubject)) {
+      throw new ForbiddenError('You do not have permission to start this quiz attempt');
+    }
+    
     const attempt = await this.attemptService.attempt(userId, quizId);
     return attempt as CreateAttemptResponse;
   }
@@ -69,7 +73,7 @@ class AttemptController {
     summary: 'Save answers for an ongoing attempt',
     description: 'Saves the current answers for a quiz attempt without submitting.',
   })
-  @Authorized({action: AttemptActions.Save, subject: 'Attempt'})
+  
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, { description: 'Bad Request', statusCode: 400 })
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Attempt or Quiz not found', statusCode: 404 })
@@ -77,10 +81,17 @@ class AttemptController {
   async save(
     @Params() params: SaveAttemptParams,
     @Body() body: QuestionAnswersBody,
-    @Req() req: any,
+    @Ability(getAttemptAbility) {ability, user}
   ): Promise<void> {
     const {quizId, attemptId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
+    const userId = user._id.toString();
+    // Build subject context first
+    const attemptSubject = subject('Attempt', {quizId});
+    
+    if (!ability.can(AttemptActions.Save, attemptSubject)) {
+      throw new ForbiddenError('You do not have permission to save this quiz attempt');
+    }
+    
     await this.attemptService.save(
       userId,
       quizId,
@@ -93,7 +104,7 @@ class AttemptController {
     summary: 'Submit a quiz attempt',
     description: 'Submits the answers for a quiz attempt and returns the result.',
   })
-  @Authorized({action: AttemptActions.Submit, subject: 'Attempt'})
+  
   @Post('/:quizId/attempt/:attemptId/submit')
   @HttpCode(200)
   @ResponseSchema(SubmitAttemptResponse, {
@@ -105,10 +116,18 @@ class AttemptController {
   async submit(
     @Params() params: SubmitAttemptParams,
     @Body() body: QuestionAnswersBody,
-    @Req() req: any,
+    @Ability(getAttemptAbility) {ability, user}
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
+    const userId = user._id.toString();
+    
+    // Build subject context first
+    const attemptSubject = subject('Attempt', {quizId});
+    
+    if (!ability.can(AttemptActions.Submit, attemptSubject)) {
+      throw new ForbiddenError('You do not have permission to submit this quiz attempt');
+    }
+    
     const result = await this.attemptService.submit(
       userId,
       quizId,
@@ -122,7 +141,7 @@ class AttemptController {
     summary: 'Get details of a quiz attempt',
     description: 'Retrieves the details of a specific quiz attempt for the current user.',
   })
-  @Authorized({action: AttemptActions.View, subject: 'Attempt'})
+  
   @Get('/:quizId/attempt/:attemptId')
   @HttpCode(200)
   @ResponseSchema(GetAttemptResponse, {
@@ -132,11 +151,19 @@ class AttemptController {
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Attempt not found', statusCode: 404 })
   @ResponseSchema(BadRequestErrorResponse, { description: 'Attempy does not belong to user or quiz', statusCode: 400 })
   async getAttempt(
-    @Req() req: any,
     @Params() params: SubmitAttemptParams,
+    @Ability(getAttemptAbility) {ability, user}
   ): Promise<IAttempt> {
     const {quizId, attemptId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
+    const userId = user._id.toString();
+    
+    // Build subject context first
+    const attemptSubject = subject('Attempt', {quizId});
+    
+    if (!ability.can(AttemptActions.View, attemptSubject)) {
+      throw new ForbiddenError('You do not have permission to view this quiz attempt');
+    }
+    
     const attempt = await this.attemptService.getAttempt(
       userId,
       quizId,

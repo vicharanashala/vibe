@@ -28,15 +28,17 @@ import {
   Patch,
   BadRequestError,
   InternalServerError,
-  Authorized,
   Req,
+  ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
-import { ProgressActions } from '../abilities/progressAbilities.js';
+import { ProgressActions, getProgressAbility } from '../abilities/progressAbilities.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { WatchTime } from '../classes/transformers/WatchTime.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -56,7 +58,6 @@ class ProgressController {
     summary: 'Get user progress in a course version',
     description: 'Retrieves the progress of a user in a specific course version.',
   })
-  @Authorized({ action: ProgressActions.View, subject: 'Progress' })
   @Get('/progress/courses/:courseId/versions/:versionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
@@ -69,9 +70,19 @@ class ProgressController {
   async getUserProgress(
     @Req() request: any,
     @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) ability
   ): Promise<Progress> {
     const { courseId, versionId } = params;
     const userId = await this.authService.getUserIdFromReq(request);
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission to view this progress');
+    }
+    
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
@@ -85,7 +96,6 @@ class ProgressController {
     summary: 'Start an item for user progress',
     description: 'Marks the start of an item for a user in a course version.',
   })
-  @Authorized({ action: ProgressActions.Modify, subject: 'Progress' })
   @Post('/progress/courses/:courseId/versions/:versionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
@@ -103,10 +113,19 @@ class ProgressController {
     @Req() request: any,
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
+    @Ability(getProgressAbility) ability
   ): Promise<StartItemResponse> {
     const { courseId, versionId } = params;
     const { itemId, moduleId, sectionId } = body;
     const userId = await this.authService.getUserIdFromReq(request);
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError('You do not have permission to modify this progress');
+    }
     const watchItemId: string = await this.progressService.startItem(
       userId,
       courseId,
@@ -125,7 +144,6 @@ class ProgressController {
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
   })
-  @Authorized({ action: ProgressActions.Modify, subject: 'Progress' })
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -144,10 +162,20 @@ class ProgressController {
     @Req() request: any,
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
+    @Ability(getProgressAbility) ability
   ): Promise<void> {
     const { courseId, versionId } = params;
     const { itemId, sectionId, moduleId, watchItemId } = body;
     const userId = await this.authService.getUserIdFromReq(request);
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError('You do not have permission to modify this progress');
+    }
+    
     await this.progressService.stopItem(
       userId,
       courseId,
@@ -163,7 +191,6 @@ class ProgressController {
     summary: 'Update user progress',
     description: 'Updates the progress of a user for a specific item in a course version.',
   })
-  @Authorized({ action: ProgressActions.Modify, subject: 'Progress' })
   @Patch('/progress/courses/:courseId/versions/:versionId/update')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -182,10 +209,20 @@ class ProgressController {
     @Req() request: any,
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
+    @Ability(getProgressAbility) ability
   ): Promise<void> {
     const { courseId, versionId } = params;
     const { itemId, moduleId, sectionId, watchItemId, attemptId } = body;
     const userId = await this.authService.getUserIdFromReq(request);
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError('You do not have permission to modify this progress');
+    }
+    
     await this.progressService.updateProgress(
       userId,
       courseId,
@@ -206,7 +243,6 @@ If moduleId and sectionId are provided, resets to the beginning of the section.
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
 If none are provided, resets to the beginning of the course.`,
   })
-  @Authorized({ action: ProgressActions.Modify, subject: 'Progress' })
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -220,9 +256,18 @@ If none are provided, resets to the beginning of the course.`,
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
+    @Ability(getProgressAbility) ability
   ): Promise<void> {
     const { userId, courseId, versionId } = params;
     const { moduleId, sectionId, itemId } = body;
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError('You do not have permission to modify this progress');
+    }
 
     // Check if only moduleId is provided
     // If so, reset progress to the beginning of the module

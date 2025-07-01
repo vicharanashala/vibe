@@ -40,11 +40,10 @@ export async function setupItemAbilities(
     // Use Promise.all to handle async operations properly
     await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
         const versionBounded = { versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, versionId: enrollment.versionId };
         
         switch (enrollment.role) {
             case 'STUDENT':
-                can(ItemActions.ViewAll, 'Item', userBounded);
+                can(ItemActions.ViewAll, 'Item', versionBounded);
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
                 const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
                 if (!progress) {

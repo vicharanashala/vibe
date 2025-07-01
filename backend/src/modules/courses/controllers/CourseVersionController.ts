@@ -2,7 +2,6 @@ import {CourseVersionService} from '#courses/services/CourseVersionService.js';
 import {injectable, inject} from 'inversify';
 import {
   JsonController,
-  Authorized,
   Post,
   HttpCode,
   Params,
@@ -11,11 +10,13 @@ import {
   Delete,
   BadRequestError,
   InternalServerError,
+  ForbiddenError,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {
   CreateCourseVersionResponse,
   CourseVersionNotFoundErrorResponse,
@@ -25,7 +26,8 @@ import {
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import { CourseVersionActions } from '../abilities/versionAbilities.js';
+import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -44,7 +46,6 @@ export class CourseVersionController {
 Accessible to:
 - Instructor or manager of the course.`,
   })
-  @Authorized({action: CourseVersionActions.Create, subject: 'CourseVersion'})
   @Post('/:courseId/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
@@ -61,8 +62,17 @@ Accessible to:
   async create(
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {courseId} = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { courseId });
+    
+    if (!ability.can(CourseVersionActions.Create, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to create course versions');
+    }
+    
     const createdCourseVersion =
       await this.courseVersionService.createCourseVersion(courseId, body);
     return createdCourseVersion;
@@ -74,7 +84,6 @@ Accessible to:
 Accessible to:
 - Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
   })
-  @Authorized({action: CourseVersionActions.View, subject: 'CourseVersion'})
   @Get('/versions/:versionId')
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version retrieved successfully',
@@ -89,8 +98,17 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {versionId} = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    
+    if (!ability.can(CourseVersionActions.View, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to view this course version');
+    }
+    
     const retrievedCourseVersion =
       await this.courseVersionService.readCourseVersion(versionId);
     return retrievedCourseVersion;
@@ -102,7 +120,6 @@ Accessible to:
 Accessible to:
 - Manager of the course.`,
   })
-  @Authorized({action: CourseVersionActions.Delete, subject: 'CourseVersion'})
   @Delete('/:courseId/versions/:versionId')
   @ResponseSchema(DeleteCourseVersionParams, {
     description: 'Course version deleted successfully',
@@ -117,11 +134,20 @@ Accessible to:
   })
   async delete(
     @Params() params: DeleteCourseVersionParams,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<{message: string}> {
     const {courseId, versionId} = params;
     if (!versionId || !courseId) {
       throw new BadRequestError('Version ID is required');
     }
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { courseId, versionId });
+    
+    if (!ability.can(CourseVersionActions.Delete, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to delete this course version');
+    }
+    
     const deletedVersion = await this.courseVersionService.deleteCourseVersion(
       courseId,
       versionId,
