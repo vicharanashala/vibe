@@ -228,11 +228,16 @@ export class EnrollmentService extends BaseService {
       // Create enriched enrollments with user data
       const resultWithUsers = [];
       for (var i = 0; i < result.length; i++) {
-        const user = await this.userRepo.findById(result[i].userId);
-        resultWithUsers.push({
-          ...result[i],
-          user: user,
-        });
+        try {
+          const user = await this.userRepo.findById(result[i].userId);
+          resultWithUsers.push({
+            ...result[i],
+            user: user,
+          });
+        }
+        catch (error) {
+          console.log(result[i].userId, error);
+        }
       }
       
       // find user for each enrollment
