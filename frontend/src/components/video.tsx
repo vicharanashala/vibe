@@ -265,6 +265,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                   sectionId: currentCourse.sectionId ?? '',
                 }
               });
+            }
             progressStoppedRef.current = true;
           }
           if (endTimeSeconds > 0 && time >= endTimeSeconds) {
