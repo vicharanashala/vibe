@@ -55,7 +55,7 @@ export class InviteController {
   async inviteUsers(
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) ability
+    @Ability(getInviteAbility) {ability}
   ) {
     const { courseId, versionId } = params;
     const { inviteData } = body;
@@ -113,7 +113,7 @@ export class InviteController {
   })
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) ability
+    @Ability(getInviteAbility) {ability}
   ): Promise<InviteResponse> {
     const { courseId, versionId } = params;
     
@@ -144,7 +144,7 @@ export class InviteController {
   })
   async resendInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) ability
+    @Ability(getInviteAbility) {ability}
   ): Promise<MessageResponse> {
     const { inviteId } = params;
     const invite = await this.inviteService.findInviteById(inviteId);
@@ -170,7 +170,7 @@ export class InviteController {
   })
   async cancelInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) ability
+    @Ability(getInviteAbility) {ability}
   ): Promise<MessageResponse> {
     const { inviteId } = params;
     

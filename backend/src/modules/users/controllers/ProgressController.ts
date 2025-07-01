@@ -28,14 +28,11 @@ import {
   Patch,
   BadRequestError,
   InternalServerError,
-  Req,
   ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { ProgressActions, getProgressAbility } from '../abilities/progressAbilities.js';
-import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { WatchTime } from '../classes/transformers/WatchTime.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
@@ -49,9 +46,6 @@ class ProgressController {
   constructor(
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
-
-    @inject(AUTH_TYPES.AuthService)
-    private readonly authService: IAuthService,
   ) { }
 
   @OpenAPI({
@@ -68,12 +62,11 @@ class ProgressController {
     statusCode: 404,
   })
   async getUserProgress(
-    @Req() request: any,
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) ability
+    @Ability(getProgressAbility) {ability, user},
   ): Promise<Progress> {
     const { courseId, versionId } = params;
-    const userId = await this.authService.getUserIdFromReq(request);
+    const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
@@ -110,14 +103,13 @@ class ProgressController {
     statusCode: 400,
   })
   async startItem(
-    @Req() request: any,
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
-    @Ability(getProgressAbility) ability
+    @Ability(getProgressAbility) {ability, user}
   ): Promise<StartItemResponse> {
     const { courseId, versionId } = params;
     const { itemId, moduleId, sectionId } = body;
-    const userId = await this.authService.getUserIdFromReq(request);
+    const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
@@ -159,14 +151,13 @@ class ProgressController {
     statusCode: 500,
   })
   async stopItem(
-    @Req() request: any,
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
-    @Ability(getProgressAbility) ability
+    @Ability(getProgressAbility) {ability, user}
   ): Promise<void> {
     const { courseId, versionId } = params;
     const { itemId, sectionId, moduleId, watchItemId } = body;
-    const userId = await this.authService.getUserIdFromReq(request);
+    const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
@@ -206,14 +197,13 @@ class ProgressController {
     statusCode: 500,
   })
   async updateProgress(
-    @Req() request: any,
     @Params() params: UpdateProgressParams,
     @Body() body: UpdateProgressBody,
-    @Ability(getProgressAbility) ability
+    @Ability(getProgressAbility) {ability, user}
   ): Promise<void> {
     const { courseId, versionId } = params;
     const { itemId, moduleId, sectionId, watchItemId, attemptId } = body;
-    const userId = await this.authService.getUserIdFromReq(request);
+    const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
@@ -256,7 +246,7 @@ If none are provided, resets to the beginning of the course.`,
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
-    @Ability(getProgressAbility) ability
+    @Ability(getProgressAbility) {ability}
   ): Promise<void> {
     const { userId, courseId, versionId } = params;
     const { moduleId, sectionId, itemId } = body;

@@ -53,8 +53,7 @@ export async function setupItemAbilities(
                 allowedItemIds.push(progress.currentItem.toString());
                 
                 // Grant permission to view items that are in the allowed list
-                const itemBounded = { 
-                    userId: user.userId, 
+                const itemBounded = {
                     courseId: enrollment.courseId, 
                     versionId: enrollment.versionId,
                     itemId: { $in: allowedItemIds }

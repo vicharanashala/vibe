@@ -25,8 +25,6 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import { QuestionActions, getQuestionAbility } from '../abilities/questionAbilities.js';
-import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { subject } from '@casl/ability';
 
 @OpenAPI({
@@ -38,9 +36,6 @@ class QuestionController {
   constructor(
     @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,
-
-    @inject(AUTH_TYPES.AuthService)
-    private readonly authService: IAuthService,
   ) {}
 
   @OpenAPI({

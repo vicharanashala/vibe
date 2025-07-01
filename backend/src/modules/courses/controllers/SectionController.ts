@@ -69,7 +69,7 @@ Accessible to:
   async create(
     @Params() params: VersionModuleParams,
     @Body() body: CreateSectionBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {versionId, moduleId} = params;
     
@@ -119,7 +119,7 @@ Accessible to:
   async update(
     @Params() params: VersionModuleSectionParams,
     @Body() body: UpdateSectionBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {versionId, moduleId, sectionId} = params;
     
@@ -172,7 +172,7 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionParams,
     @Body() body: MoveSectionBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {versionId, moduleId, sectionId} = params;
     
@@ -234,7 +234,7 @@ Accessible to:
   })
   async delete(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<SectionDeletedResponse> {
     const {versionId, moduleId, sectionId} = params;
     

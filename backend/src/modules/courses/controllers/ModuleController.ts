@@ -61,7 +61,7 @@ Accessible to:
   async create(
     @Params() params: CreateModuleParams,
     @Body() body: CreateModuleBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ) {
     const { versionId } = params;
     
@@ -97,7 +97,7 @@ Accessible to:
   async update(
     @Params() params: VersionModuleParams,
     @Body() body: UpdateModuleBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ) {
     const { versionId, moduleId } = params;
     
@@ -137,7 +137,7 @@ Accessible to:
   async move(
     @Params() params: VersionModuleParams,
     @Body() body: MoveModuleBody,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ) {
     const { versionId, moduleId } = params;
     
@@ -176,7 +176,7 @@ Accessible to:
   })
   async delete(
     @Params() params: VersionModuleParams,
-    @Ability(getCourseVersionAbility) ability
+    @Ability(getCourseVersionAbility) {ability}
   ) {
     const { versionId, moduleId } = params;
     

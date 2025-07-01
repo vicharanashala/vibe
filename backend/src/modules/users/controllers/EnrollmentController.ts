@@ -1,4 +1,3 @@
-import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -25,13 +24,10 @@ import {
   BadRequestError,
   NotFoundError,
   Body,
-  Authorized,
-  Req,
   ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions, getEnrollmentAbility } from '../abilities/enrollmentAbilities.js';
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 
@@ -44,9 +40,6 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-
-    @inject(AUTH_TYPES.AuthService)
-    private readonly authService: IAuthService,
   ) { }
 
   @OpenAPI({
@@ -69,7 +62,7 @@ export class EnrollmentController {
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
-    @Ability(getEnrollmentAbility) ability
+    @Ability(getEnrollmentAbility) {ability}
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
     
@@ -116,7 +109,7 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) ability
+    @Ability(getEnrollmentAbility) {ability}
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
     
@@ -163,16 +156,14 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async getUserEnrollments(
-    @Req() request: any,
     @QueryParam('page') page = 1,
     @QueryParam('limit') limit = 10,
-    @Ability(getEnrollmentAbility) ability
+    @Ability(getEnrollmentAbility) {ability, user}
   ): Promise<EnrollmentResponse> {
     //convert page and limit to integers
     page = parseInt(page as unknown as string, 10);
     limit = parseInt(limit as unknown as string, 10);
-    const userId = await this.authService.getUserIdFromReq(request);
-    
+    const userId = user._id.toString();
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', { userId });
     
@@ -221,7 +212,7 @@ export class EnrollmentController {
   })
   async getEnrollment(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) ability
+    @Ability(getEnrollmentAbility) {ability}
   ): Promise<EnrolledUserResponse> {
     const { userId, courseId, versionId } = params;
     
@@ -271,7 +262,7 @@ export class EnrollmentController {
     @Param('versionId') versionId: string,
     @QueryParam('page') page = 1,
     @QueryParam('limit') limit = 10,
-    @Ability(getEnrollmentAbility) ability
+    @Ability(getEnrollmentAbility) {ability}
   ): Promise<CourseVersionEnrollmentResponse> {
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', { 

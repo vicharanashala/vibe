@@ -74,7 +74,7 @@ class QuizController {
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {quizId} = params;
     
@@ -100,7 +100,7 @@ class QuizController {
   })
   async removeQuestionBank(
     @Params() params: RemoveQuestionBankParams,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {quizId, questionBankId} = params;
     
@@ -131,7 +131,7 @@ class QuizController {
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {quizId} = params;
     
@@ -161,7 +161,7 @@ class QuizController {
   })
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuestionBankRef[]> {
     const {quizId} = params;
     
@@ -195,7 +195,7 @@ class QuizController {
   })
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<UserQuizMetricsResponse> {
     const {quizId, userId} = params;
     
@@ -225,7 +225,7 @@ class QuizController {
   })
   async getQuizAttempt(
     @Params() params: QuizAttemptParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizAttemptResponse> {
     const {attemptId} = params;
     
@@ -251,7 +251,7 @@ class QuizController {
   })
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizSubmissionResponse> {
     const {submissionId} = params;
     
@@ -286,7 +286,7 @@ class QuizController {
   })
   async getAllSubmissions(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<ISubmission[]> {
     const {quizId} = params;
     
@@ -312,7 +312,7 @@ class QuizController {
   })
   async getQuizDetails(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizDetailsResponse> {
     const {quizId} = params;
     
@@ -338,7 +338,7 @@ class QuizController {
   })
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizAnalyticsResponse> {
     const {quizId} = params;
     
@@ -374,7 +374,7 @@ class QuizController {
   })
   async getQuizPerformance(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizPerformanceResponse[]> {
     const {quizId} = params;
     
@@ -410,7 +410,7 @@ class QuizController {
   })
   async getQuizResults(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<QuizResultsResponse[]> {
     const {quizId} = params;
     
@@ -445,7 +445,7 @@ class QuizController {
   })
   async getFlaggedQues(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<FlaggedQuestionResponse> {
     const {quizId} = params;
     
@@ -475,7 +475,7 @@ class QuizController {
   })
   async updateQuizSubmissionScore(
     @Params() params: UpdateQuizSubmissionParam,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {submissionId, score} = params;
     
@@ -507,7 +507,7 @@ class QuizController {
   async regradeSubmission(
     @Params() params: QuizSubmissionParam,
     @Body() body: RegradeSubmissionBody,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {submissionId} = params;
     
@@ -539,7 +539,7 @@ class QuizController {
   async addFeedbackToQuestion(
     @Params() params: AddFeedbackParams,
     @Body() body: AddFeedbackBody,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ) {
     const {submissionId, questionId} = params;
     const {feedback} = body;
@@ -575,7 +575,7 @@ class QuizController {
   })
   async resetAvailableAttempts(
     @Params() params: GetUserMatricesParams,
-    @Ability(getQuizAbility) ability
+    @Ability(getQuizAbility) {ability}
   ): Promise<void> {
     const {quizId, userId} = params;
     
