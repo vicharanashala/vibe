@@ -11,11 +11,17 @@ import {QuizController} from './controllers/QuizController.js';
 import { } from './classes/validators/QuestionBankValidator.js';
 import { QUESTIONBANK_VALIDATORS, QUESTION_VALIDATORS, QUIZ_VALIDATORS } from './classes/validators/index.js';
 import { } from './classes/validators/QuizValidator.js';
+import { authContainerModule } from '../auth/container.js';
+import { notificationsContainerModule } from '../notifications/container.js';
+import { usersContainerModule } from '../users/container.js';
 
 export const quizzesContainerModules: ContainerModule[] = [
   quizzesContainerModule,
   sharedContainerModule,
   coursesContainerModule,
+  authContainerModule,
+  notificationsContainerModule,
+  usersContainerModule
 ];
 
 export const quizzesModuleControllers: Function[] = [

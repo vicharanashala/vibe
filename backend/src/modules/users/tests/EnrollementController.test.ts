@@ -1,6 +1,6 @@
 import request from 'supertest';
 import Express from 'express';
-import {useContainer, useExpressServer} from 'routing-controllers';
+import {Action, useContainer, useExpressServer} from 'routing-controllers';
 
 import {usersModuleOptions} from '../index.js';
 import {ItemType} from '#shared/interfaces/models.js';
@@ -42,11 +42,22 @@ import {coursesModuleControllers} from '#root/modules/courses/index.js';
 import {authModuleControllers} from '#root/modules/auth/index.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
+import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
+import { authorizationChecker } from '#root/shared/index.js';
+import * as current from '#root/shared/functions/currentUserChecker.js';
 
 describe('Enrollment Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
-
+  const user1 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'admin',
+  };
+  let user2;
   beforeAll(async () => {
     //Set env variables
     process.env.NODE_ENV = 'test';
@@ -62,22 +73,34 @@ describe('Enrollment Controller Integration Tests', () => {
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
+    vi.spyOn(current, 'currentUserChecker').mockImplementation(
+          async (action: Action) => {
+            if (action.request.headers.authorization) {
+              const token = action.request.headers.authorization.split(' ')[1];
+              if (token === 'user1') {
+                return user1;
+              } else if (token === 'student') {
+                return user2;
+              }
+            }
+            return user1;
+          }
+        );
     app = useExpressServer(appInstance, {
       controllers: [
         ...(usersModuleOptions.controllers as Function[]),
         ...(authModuleControllers as Function[]),
         ...(coursesModuleControllers as Function[]),
       ],
-      authorizationChecker: async () => true,
+      authorizationChecker: authorizationChecker,
       defaultErrorHandler: true,
       validation: true,
     });
   });
 
-  beforeEach(async () => {
-    // TODO: Optionally reset database state before each test
+  afterAll(() => {
+    vi.resetAllMocks();
   });
-
   // ------Tests for Create <ModuleName>------
   describe('Create Enrollment', () => {
     it('should create an enrollment', async () => {
@@ -119,11 +142,11 @@ describe('Enrollment Controller Integration Tests', () => {
       };
 
       const courseVersionParams: CreateCourseVersionParams = {
-        id: courseId,
+        courseId: courseId,
       };
 
       const createCourseVersionResponse = await request(app)
-        .post(`/courses/${courseVersionParams.id}/versions`)
+        .post(`/courses/${courseVersionParams.courseId}/versions`)
         .send(courseVersionBody)
         .expect(201);
       // Expect the response to contain the course version ID
@@ -434,7 +457,12 @@ describe('Enrollment Controller Integration Tests', () => {
         .send(signUpBody)
         .expect(201);
       const userId = signUpResponse.body.userId;
-
+      const userInfo = await request(app)
+        .get(`/users/${userId}`)
+        .expect(200);
+      user2 = userInfo.body;
+      console.log('User created:', user2);
+      vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId);
       // 2. Create two courses and enroll user in both
       const enrollments: any[] = [];
       for (let i = 0; i < 2; i++) {
@@ -528,9 +556,10 @@ describe('Enrollment Controller Integration Tests', () => {
       }
 
       // 3. Fetch enrollments with pagination (limit 1, page 1)
-      const getEnrollmentsResponse = await request(app).get(
-        `/users/${userId}/enrollments?page=1&limit=1`,
-      );
+      const getEnrollmentsResponse = await request(app)
+        .get(`/users/enrollments?page=1&limit=1`)
+        .set('Authorization', 'Bearer student')
+        .expect(200);
       expect(getEnrollmentsResponse.body).toHaveProperty('totalDocuments', 2);
       expect(getEnrollmentsResponse.body).toHaveProperty('totalPages', 2);
       expect(getEnrollmentsResponse.body).toHaveProperty('currentPage', 1);
@@ -540,7 +569,7 @@ describe('Enrollment Controller Integration Tests', () => {
 
       // 4. Fetch enrollments with pagination (limit 1, page 2)
       const getEnrollmentsResponsePage2 = await request(app)
-        .get(`/users/${userId}/enrollments?page=2&limit=1`)
+        .get(`/users/enrollments?page=2&limit=1`)
         .expect(200);
 
       expect(getEnrollmentsResponsePage2.body).toHaveProperty(

@@ -23,6 +23,7 @@ import {
   CourseNotFoundErrorResponse,
   CourseIdParams,
 } from '#courses/classes/validators/CourseValidators.js';
+import { CourseActions } from '../abilities/courseAbilities.js';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -40,7 +41,7 @@ export class CourseController {
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseActions.Create, subject: 'Course'})
   @Post('/', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
@@ -63,8 +64,8 @@ Accessible to:
 - Users who are part of the course (students, teaching assistants, instructors, or managers)
 `,
   })
-  @Authorized(['admin', 'instructor'])
-  @Get('/:id', {transformResponse: true})
+  @Authorized({action: CourseActions.View, subject: 'Course'})
+  @Get('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -77,8 +78,8 @@ Accessible to:
     statusCode: 404,
   })
   async read(@Params() params: CourseIdParams) {
-    const {id} = params;
-    const course = await this.courseService.readCourse(id);
+    const {courseId} = params;
+    const course = await this.courseService.readCourse(courseId);
     return course;
   }
 
@@ -88,8 +89,8 @@ Accessible to:
 Accessible to:
 - Instructor or manager for the course.`,
   })
-  @Authorized(['admin', 'instructor'])
-  @Put('/:id', {transformResponse: true})
+  @Authorized({action: CourseActions.Modify, subject: 'Course'})
+  @Put('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -102,8 +103,8 @@ Accessible to:
     statusCode: 404,
   })
   async update(@Params() params: CourseIdParams, @Body() body: CourseBody) {
-    const {id} = params;
-    const updatedCourse = await this.courseService.updateCourse(id, body);
+    const {courseId} = params;
+    const updatedCourse = await this.courseService.updateCourse(courseId, body);
     return updatedCourse;
   }
 
@@ -111,8 +112,8 @@ Accessible to:
     summary: 'Delete a course',
     description: 'Deletes a course by ID.',
   })
-  @Authorized(['admin', 'instructor'])
-  @Delete('/:id', {transformResponse: true})
+  @Authorized({action: CourseActions.Delete, subject: 'Course'})
+  @Delete('/:courseId', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -123,8 +124,8 @@ Accessible to:
     statusCode: 404,
   })
   async delete(@Params() params: CourseIdParams) {
-    const {id} = params;
-    await this.courseService.deleteCourse(id);
+    const {courseId} = params;
+    await this.courseService.deleteCourse(courseId);
   }
 }
 

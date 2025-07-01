@@ -33,27 +33,29 @@ export function setupEnrollmentAbilities(
         can('manage', 'Enrollment');
         return;
     }
-
+    if (!user.enrollments || user.enrollments.length === 0) {
+        throw new Error('User has no enrollments');
+    }
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
                 break;
-            case 'instructor':
-                can(EnrollmentActions.View, 'Enrollment', courseBounded);
+            case 'INSTRUCTOR':
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
                 cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
                 cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
                 can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Enrollment', courseBounded);
                 break;
-            case 'ta':
-                can(EnrollmentActions.View, 'Enrollment', versionBounded);
+            case 'TA':
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
                 cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
                 break;
         }

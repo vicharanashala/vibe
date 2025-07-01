@@ -1,7 +1,7 @@
 import {authContainerModule} from '#auth/container.js';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {HttpErrorHandler} from '#shared/index.js';
+import {authorizationChecker, HttpErrorHandler} from '#shared/index.js';
 import {Container, ContainerModule} from 'inversify';
 import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {coursesContainerModule} from './container.js';
@@ -45,9 +45,7 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   controllers: coursesModuleControllers,
   middlewares: [HttpErrorHandler],
   defaultErrorHandler: false,
-  authorizationChecker: async function () {
-    return true;
-  },
+  authorizationChecker: authorizationChecker,
   validation: true,
 };
 

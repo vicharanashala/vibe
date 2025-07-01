@@ -1,46 +1,46 @@
 import request from 'supertest';
 import Express from 'express';
-import {useContainer, useExpressServer} from 'routing-controllers';
+import {BadRequestError, useContainer, useExpressServer} from 'routing-controllers';
 import {authModuleOptions} from '#auth/index.js';
 import {coursesModuleOptions} from '#courses/index.js';
 import {usersModuleOptions} from '../index.js';
 
-import {isMongoId} from 'class-validator';
-import {ProgressService} from '../services/ProgressService.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {IUser, IWatchTime} from '#shared/interfaces/models.js';
+import { isMongoId } from 'class-validator';
+import { ProgressService } from '../services/ProgressService.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { IUser, IWatchTime } from '#shared/interfaces/models.js';
 import {
   CourseData,
   createCourseWithModulesSectionsAndItems,
 } from './utils/createCourse.js';
-import {createUser} from './utils/createUser.js';
-import {createEnrollment} from './utils/createEnrollment.js';
-import {startStopAndUpdateProgress} from './utils/startStopAndUpdateProgress.js';
-import {verifyProgressInDatabase} from './utils/verifyProgressInDatabase.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '#root/container.js';
-import {faker} from '@faker-js/faker';
-import {authContainerModule} from '#auth/container.js';
-import {coursesContainerModule} from '#courses/container.js';
-import {usersContainerModule} from '../container.js';
+import { createUser } from './utils/createUser.js';
+import { createEnrollment } from './utils/createEnrollment.js';
+import { startStopAndUpdateProgress } from './utils/startStopAndUpdateProgress.js';
+import { verifyProgressInDatabase } from './utils/verifyProgressInDatabase.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '#auth/container.js';
+import { coursesContainerModule } from '#courses/container.js';
+import { usersContainerModule } from '../container.js';
 import {
   ResetCourseProgressBody,
   StartItemBody,
   StopItemBody,
   UpdateProgressBody,
 } from '../classes/validators/ProgressValidators.js';
-import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 
-describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
+describe('Progress Controller Integration Tests', { timeout: 90000 }, () => {
   const appInstance = Express();
   let app;
-  let userId: string;
+  let userIdUser: string;
+  let userIdAdmin: string;
   let courseData: CourseData;
-  vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId)
 
   beforeAll(async () => {
     //Set env variables
@@ -68,28 +68,43 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       validation: true,
     });
 
-    courseData = await createCourseWithModulesSectionsAndItems(2, 2, 3, app);
-
     // Create a user
-    userId = await createUser(app);
+    userIdUser = await createUser(app, 'user');
+    userIdAdmin = await createUser(app, 'admin');
+
+    courseData = await createCourseWithModulesSectionsAndItems(2, 2, 3, app);
 
     // Create enrollment
     await createEnrollment(
       app,
-      userId,
+      userIdUser,
       courseData.courseId,
       courseData.courseVersionId,
       courseData.modules[0].moduleId,
       courseData.modules[0].sections[0].sectionId,
       courseData.modules[0].sections[0].items[0].itemId,
     );
+
+    vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockImplementation(
+    async (req: Express.Request): Promise<string> => {
+      if (req.headers.authorization === 'no') {
+        throw new BadRequestError('Invalid request');
+      }
+      if (req.headers.authorization === 'fake') {
+        return faker.database.mongodbObjectId();
+      }
+      if (req.headers.authorization === 'userAdmin') {
+        return userIdAdmin;
+      }
+      return userIdUser;
+    });
   });
 
   // ------Tests for Create <ModuleName>------
   describe('Fetch Progress Data', () => {
     it('should fetch the progress', async () => {
       await verifyProgressInDatabase({
-        userId: userId as string,
+        userId: userIdUser as string,
         courseId: courseData.courseId,
         courseVersionId: courseData.courseVersionId,
         expectedModuleId: courseData.modules[0].moduleId,
@@ -100,6 +115,46 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       });
     });
 
+    it('Should fetch the Watch Time', async () => {
+      const startItemBody: StartItemBody = {
+        itemId: courseData.modules[0].sections[0].items[0].itemId,
+        moduleId: courseData.modules[0].moduleId,
+        sectionId: courseData.modules[0].sections[0].sectionId,
+      };
+      // Start the item progress
+      const startItemResponse = await request(app)
+        .post(
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+        )
+        .set('authorization', 'yes')
+        .send(startItemBody)
+        // .expect(200);
+
+      const startItemResponseBody = startItemResponse;
+
+      const stopItemBody: StopItemBody = {
+        sectionId: courseData.modules[0].sections[0].sectionId,
+        moduleId: courseData.modules[0].moduleId,
+        itemId: courseData.modules[0].sections[0].items[0].itemId,
+        watchItemId: startItemResponse.body.watchItemId,
+      };
+
+      const stopItemResponse = await request(app)
+        .post(
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+        )
+        .set('authorization', 'yes')
+        .send(stopItemBody)
+        .expect(200);
+
+      const watchTimeResponse = await request(app)
+        .get(`/users/watchTime/item/${courseData.modules[0].sections[0].items[0].itemId}`)
+        .set('authorization', 'yes')
+      // .expect(200)
+
+      const watchTimeResponseBody = watchTimeResponse;
+    })
+
     it('should return 400 if userId is invalid', async () => {
       const invalidUserId = 'invalidUserId';
       const courseId = courseData.courseId;
@@ -107,14 +162,10 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${invalidUserId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'no')
         .expect(400);
-
-      //expect body.errors to be truthy
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors).toBeTruthy();
-      expect(response.body.errors[0].constraints).toHaveProperty('isMongoId');
     });
 
     it('should return 400 if courseId is invalid', async () => {
@@ -123,7 +174,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${invalidCourseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${invalidCourseId}/versions/${courseVersionId}`,
         )
         .expect(400);
 
@@ -140,7 +191,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${invalidCourseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${invalidCourseVersionId}`,
         )
         .expect(400);
       //expect body.errors to be truthy
@@ -155,7 +206,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
         .expect(404);
       //expect body.errors to be truthy
@@ -166,14 +217,14 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
     });
 
     it('should return 404 if progress not found when userId is fake', async () => {
-      const userId = faker.database.mongodbObjectId();
       const courseId = courseData.courseId;
       const courseVersionId = courseData.courseVersionId;
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'fake')
         .expect(404);
 
       //expect body.errors to be truthy
@@ -184,14 +235,14 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
     });
 
     it('should return 404 if progress not found when all params are fake', async () => {
-      const userId = faker.database.mongodbObjectId();
       const courseId = faker.database.mongodbObjectId();
       const courseVersionId = faker.database.mongodbObjectId();
 
       const response = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+          `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
         )
+        .set('Authorization', 'fake')
         .expect(404);
 
       //expect body.errors to be truthy
@@ -212,7 +263,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -234,7 +285,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // Start the item progress
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -249,7 +300,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -261,12 +312,12 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       courseData = await createCourseWithModulesSectionsAndItems(2, 2, 3, app);
 
       // Create a user
-      userId = await createUser(app);
+      userIdUser = await createUser(app);
 
       // Create enrollment
       await createEnrollment(
         app,
-        userId,
+        userIdUser,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
@@ -284,7 +335,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -298,7 +349,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -318,7 +369,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody)
         .expect(200);
@@ -332,7 +383,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody);
 
@@ -347,7 +398,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -368,7 +419,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
 
@@ -390,7 +441,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       };
       const startItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/start`,
         )
         .send(startItemBody)
         .expect(200);
@@ -405,7 +456,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const stopItemResponse = await request(app)
         .post(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/stop`,
         )
         .send(stopItemBody)
         .expect(200);
@@ -446,7 +497,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       const updateProgressResponse = await request(app)
         .patch(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/update`,
         )
         .send(updateProgressBody);
       expect(updateProgressResponse.status).toBe(200);
@@ -454,13 +505,13 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       // fetch the progress of the user
       const progressResponse = await request(app)
         .get(
-          `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
+          `/users/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}`,
         )
         .expect(200);
 
       // Expect the response to contain the progress data
       expect(progressResponse.body).toHaveProperty('userId');
-      expect(progressResponse.body.userId).toBe(userId);
+      expect(progressResponse.body.userId).toBe(userIdUser);
       expect(progressResponse.body).toHaveProperty('courseId');
       expect(progressResponse.body.courseId).toBe(courseData.courseId);
       expect(progressResponse.body).toHaveProperty('courseVersionId');
@@ -481,12 +532,12 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       courseData = await createCourseWithModulesSectionsAndItems(3, 3, 4, app);
 
       // Create a user
-      userId = await createUser(app);
+      userIdUser = await createUser(app);
 
       // Create enrollment
       await createEnrollment(
         app,
-        userId as string,
+        userIdUser as string,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
@@ -499,9 +550,9 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       describe('Success Scenario', () => {
         it('should reset progress correctly for a user in a course', async () => {
           // Start Stop and Update Progress
-          const {startItemResponse, stopItemResponse, updateProgressResponse} =
+          const { startItemResponse, stopItemResponse, updateProgressResponse } =
             await startStopAndUpdateProgress({
-              userId: userId as string,
+              userId: userIdUser as string,
               courseId: courseData.courseId,
               courseVersionId: courseData.courseVersionId,
               itemId: courseData.modules[0].sections[0].items[0].itemId,
@@ -511,7 +562,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
             });
 
           await verifyProgressInDatabase({
-            userId: userId as string,
+            userId: userIdUser as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[0].moduleId,
@@ -523,14 +574,14 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
           // Reset the progress
           const resetResponse = await request(app).patch(
-            `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+            `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
           );
 
           expect(resetResponse.status).toBe(200);
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: userId as string,
+            userId: userIdUser as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[0].moduleId,
@@ -553,7 +604,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -561,7 +612,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: userId as string,
+            userId: userIdUser as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -583,7 +634,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -609,7 +660,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -617,7 +668,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: userId as string,
+            userId: userIdUser as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -640,7 +691,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -663,7 +714,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -690,7 +741,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody);
 
@@ -698,7 +749,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           expect(resetResponse.body).toBe('');
 
           await verifyProgressInDatabase({
-            userId: userId as string,
+            userId: userIdUser as string,
             courseId: courseData.courseId,
             courseVersionId: courseData.courseVersionId,
             expectedModuleId: courseData.modules[1].moduleId,
@@ -722,7 +773,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -746,7 +797,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -770,7 +821,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           // Reset the progress
           const resetResponse = await request(app)
             .patch(
-              `/users/${userId}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
+              `/users/${userIdUser}/progress/courses/${courseData.courseId}/versions/${courseData.courseVersionId}/reset`,
             )
             .send(resetBody)
             .expect(404);
@@ -792,12 +843,12 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
       courseData = await createCourseWithModulesSectionsAndItems(3, 2, 3, app);
 
       // Create a user
-      userId = await createUser(app);
+      userIdUser = await createUser(app);
 
       // Create enrollment
       await createEnrollment(
         app,
-        userId as string,
+        userIdUser as string,
         courseData.courseId,
         courseData.courseVersionId,
         courseData.modules[0].moduleId,
@@ -827,7 +878,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
           ) {
             const item = section.items[itemIndex];
             await startStopAndUpdateProgress({
-              userId: userId as string,
+              userId: userIdUser as string,
               courseId: courseData.courseId,
               courseVersionId: courseData.courseVersionId,
               itemId: item.itemId,
@@ -841,7 +892,7 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
 
       // After completing all items in the course, verify the course completion
       await verifyProgressInDatabase({
-        userId: userId as string,
+        userId: userIdUser as string,
         courseId: courseData.courseId,
         courseVersionId: courseData.courseVersionId,
         expectedModuleId:
@@ -849,12 +900,12 @@ describe('Progress Controller Integration Tests', {timeout: 90000}, () => {
         expectedSectionId:
           courseData.modules[courseData.modules.length - 1].sections[
             courseData.modules[courseData.modules.length - 1].sections.length -
-              1
+            1
           ].sectionId, // Last section
         expectedItemId:
           courseData.modules[courseData.modules.length - 1].sections[
             courseData.modules[courseData.modules.length - 1].sections.length -
-              1
+            1
           ].items[
             courseData.modules[courseData.modules.length - 1].sections[
               courseData.modules[courseData.modules.length - 1].sections

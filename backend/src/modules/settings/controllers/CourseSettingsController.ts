@@ -47,7 +47,7 @@ export class CourseSettingsController {
     @Body() body: CreateCourseSettingsBody,
   ): Promise<CourseSettings> {
     // This method creates course settings for a course.
-    // It expects the body to contain the courseId and courseVersionId.
+    // It expects the body to contain the courseId and versionId.
     const courseSettings = new CourseSettings(body);
     const createdSettings =
       await this.courseSettingsService.createCourseSettings(courseSettings);
@@ -57,17 +57,17 @@ export class CourseSettingsController {
   }
 
   @Authorized(['admin', 'instructor'])
-  @Get('/:courseId/:courseVersionId')
+  @Get('/:courseId/:versionId')
   @HttpCode(200)
   async get(
     @Params() params: ReadCourseSettingsParams,
   ): Promise<CourseSettings | null> {
     // This method retrives course settings for a specific course and version.
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
 
     const courseSettings = await this.courseSettingsService.readCourseSettings(
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     // Error handling yet to be implemented
@@ -76,19 +76,19 @@ export class CourseSettingsController {
   }
 
   @Authorized(['admin', 'instructor'])
-  @Put('/:courseId/:courseVersionId/proctoring')
+  @Put('/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async updateCourseSettings(
     @Params() params: AddCourseProctoringParams,
     @Body() body: AddCourseProctoringBody,
   ): Promise<{success: boolean}> {
     // This method updates proctoring settings for a course version.
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const {detectors} = body;
 
     const result = await this.courseSettingsService.updateCourseSettings(
       courseId,
-      courseVersionId,
+      versionId,
       detectors,
     );
 
@@ -99,18 +99,18 @@ export class CourseSettingsController {
   // This endpoint is not currently used in the implementation, but it is kept for future use.
   /*
   @Authorized(['admin', 'instructor'])
-  @Delete('/:courseId/:courseVersionId/proctoring')
+  @Delete('/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async removeCourseProctoring(
     @Params() params: RemoveCourseProctoringParams,
     @Body() body: RemoveCourseProctoringBody,
   ): Promise<{success: boolean}> {
-    const {courseId, courseVersionId} = params;
+    const {courseId, versionId} = params;
     const {detectorName} = body;
 
     const result = await this.courseSettingsService.removeCourseProctoring(
       courseId,
-      courseVersionId,
+      versionId,
       detectorName,
     );
 

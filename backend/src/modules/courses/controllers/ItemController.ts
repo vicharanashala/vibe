@@ -34,6 +34,7 @@ import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {injectable, inject} from 'inversify';
 import {VersionModuleSectionParams} from '../classes/index.js';
+import { ItemActions } from '../abilities/itemAbilities.js';
 
 @injectable()
 @JsonController('/courses')
@@ -52,7 +53,7 @@ export class ItemController {
   Accessible to:
   - Instructors, managers or teaching assistants of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: ItemActions.Create, subject: 'Item'})
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
@@ -85,7 +86,7 @@ export class ItemController {
   Accessible to:
   - All users who are part of the course.`,
   })
-  @Authorized(['admin', 'instructor', 'student'])
+  @Authorized({action: ItemActions.ViewAll, subject: 'Item'})
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @ResponseSchema(ItemDataResponse, {
     description: 'Items retrieved successfully',
@@ -109,7 +110,7 @@ export class ItemController {
   Accessible to:
   - Instructors, managers, and teaching assistants of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: ItemActions.Modify, subject: 'Item'})
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
@@ -144,7 +145,7 @@ export class ItemController {
   Accessible to:
   - Instructors or managers of the course.`,
   })
-  @Authorized(['instructor', 'admin'])
+  @Authorized({action: ItemActions.Delete, subject: 'Item'})
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -168,7 +169,7 @@ export class ItemController {
 Accessible to:
 - Instructors, managers, and teaching assistants of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: ItemActions.Modify, subject: 'Item'})
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
@@ -204,8 +205,8 @@ Access control logic:
 - For students: The item is returned only if it matches the student's current item ID in their course progress.
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
-  @Authorized(['admin', 'instructor', 'student'])
-  @Get('/:courseId/versions/:courseVersionId/item/:itemId')
+  @Authorized({action: ItemActions.View, subject: 'Item'})
+  @Get('/:courseId/versions/:versionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item retrieved successfully',
@@ -218,25 +219,10 @@ Access control logic:
     description: 'Item not found',
     statusCode: 404,
   })
-  async getItem(@Params() params: GetItemParams, @Req() req: any) {
-    const {courseId, courseVersionId, itemId} = params;
-    const userId = await this.authService.getUserIdFromReq(req);
-    const progress = await this.progressService.getUserProgress(
-      userId,
-      courseId,
-      courseVersionId,
-    );
-    console.log(progress.currentItem);
-    if (progress.currentItem.toString() !== itemId) {
-      const prevProgress = await this.progressService.getCompletedItems(userId, courseId, courseVersionId);
-      if (!prevProgress.includes(itemId)) {
-        throw new ForbiddenError(
-          'You do not have access to this item.',
-        );
-      }
-    }
+  async getItem(@Params() params: GetItemParams) {
+    const {versionId, itemId} = params;
     return {
-      item: await this.itemService.readItem(courseVersionId, itemId),
+      item: await this.itemService.readItem(versionId, itemId),
     };
   }
 }

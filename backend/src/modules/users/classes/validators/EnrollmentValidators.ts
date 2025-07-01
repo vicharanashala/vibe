@@ -47,13 +47,13 @@ export class EnrollmentParams {
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class EnrollmentBody {
   @JSONSchema({
     description: 'Role of the user',
-    example: 'instructor',
+    example: 'INSTRUCTOR',
     type: 'string',
     enum: ['INSTRUCTOR', 'STUDENT'],
   })
@@ -118,9 +118,9 @@ export class EnrollmentDataResponse {
 
   @JSONSchema({
     description: 'Role of the user',
-    example: 'instructor',
+    example: 'INSTRUCTOR',
     type: 'string',
-    enum: ['instructor', 'student'],
+    enum: ['INSTRUCTOR', 'STUDENT'],
   })
   @IsNotEmpty()
   @IsString()
@@ -173,9 +173,9 @@ export class EnrollUserResponseData {
 export class EnrolledUserResponseData {
   @JSONSchema({
     description: 'Role of the user in the course',
-    example: 'instructor',
+    example: 'INSTRUCTOR',
     type: 'string',
-    enum: ['instructor', 'student'],
+    enum: ['INSTRUCTOR', 'STUDENT'],
   })
   @IsNotEmpty()
   role: EnrollmentRole;

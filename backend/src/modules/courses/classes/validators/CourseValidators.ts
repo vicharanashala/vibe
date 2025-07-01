@@ -42,7 +42,7 @@ class CourseIdParams {
   })
   @IsMongoId()
   @IsString()
-  id: string;
+  courseId: string;
 }
 
 class CourseDataResponse implements ICourse {

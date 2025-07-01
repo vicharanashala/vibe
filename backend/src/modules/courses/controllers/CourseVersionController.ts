@@ -25,6 +25,7 @@ import {
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
+import { CourseVersionActions } from '../abilities/versionAbilities.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -43,8 +44,8 @@ export class CourseVersionController {
 Accessible to:
 - Instructor or manager of the course.`,
   })
-  @Authorized(['admin', 'instructor'])
-  @Post('/:id/versions', {transformResponse: true})
+  @Authorized({action: CourseVersionActions.Create, subject: 'CourseVersion'})
+  @Post('/:courseId/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
@@ -61,9 +62,9 @@ Accessible to:
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
   ): Promise<CourseVersion> {
-    const {id} = params;
+    const {courseId} = params;
     const createdCourseVersion =
-      await this.courseVersionService.createCourseVersion(id, body);
+      await this.courseVersionService.createCourseVersion(courseId, body);
     return createdCourseVersion;
   }
 
@@ -73,8 +74,8 @@ Accessible to:
 Accessible to:
 - Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
   })
-  @Authorized(['admin', 'instructor', 'student'])
-  @Get('/versions/:id')
+  @Authorized({action: CourseVersionActions.View, subject: 'CourseVersion'})
+  @Get('/versions/:versionId')
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version retrieved successfully',
   })
@@ -89,9 +90,9 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
   ): Promise<CourseVersion> {
-    const {id} = params;
+    const {versionId} = params;
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(id);
+      await this.courseVersionService.readCourseVersion(versionId);
     return retrievedCourseVersion;
   }
 
@@ -101,7 +102,7 @@ Accessible to:
 Accessible to:
 - Manager of the course.`,
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: CourseVersionActions.Delete, subject: 'CourseVersion'})
   @Delete('/:courseId/versions/:versionId')
   @ResponseSchema(DeleteCourseVersionParams, {
     description: 'Course version deleted successfully',

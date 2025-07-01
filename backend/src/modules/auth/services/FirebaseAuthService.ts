@@ -68,8 +68,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           credential: admin.credential.applicationDefault(),
         });
       }
-      this.auth = admin.auth();
     }
+    this.auth = admin.auth();
   }
   async getCurrentUserFromToken(token: string): Promise<IUser> {
     // Verify the token and decode it to get the Firebase UID
@@ -136,7 +136,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['user'],
+      roles: 'user',
     };
 
     let createdUserId: string;
@@ -190,7 +190,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['user'],
+      roles: 'user',
     };
 
     let createdUserId: string;

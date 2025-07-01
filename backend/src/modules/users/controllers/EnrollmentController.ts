@@ -1,8 +1,4 @@
-
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { Course, CourseVersionDataResponse } from '#root/modules/courses/classes/index.js';
 import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -12,7 +8,6 @@ import {
   EnrollmentParams,
   EnrollmentBody,
   EnrollmentResponse,
-  EnrollmentDataResponse,
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
@@ -30,9 +25,12 @@ import {
   BadRequestError,
   NotFoundError,
   Body,
+  Authorized,
   Req,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { EnrollmentActions } from '../abilities/enrollmentAbilities.js';
+import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -52,7 +50,8 @@ export class EnrollmentController {
     summary: 'Enroll a user in a course version',
     description: 'Enrolls a user in a specific course version with a given role.',
   })
-  @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId')
+  @Authorized({ action: EnrollmentActions.Create, subject: 'Enrollment' })
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User enrolled successfully',
@@ -69,12 +68,12 @@ export class EnrollmentController {
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
   ): Promise<EnrollUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
     const { role } = body;
     const responseData = await this.enrollmentService.enrollUser(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
       role,
     ) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
 
@@ -89,7 +88,8 @@ export class EnrollmentController {
     summary: 'Unenroll a user from a course version',
     description: 'Removes a user\'s enrollment and progress from a specific course version.',
   })
-  @Post('/:userId/enrollments/courses/:courseId/versions/:courseVersionId/unenroll')
+  @Authorized({ action: EnrollmentActions.Delete, subject: 'Enrollment' })
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/unenroll')
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User unenrolled successfully',
@@ -102,12 +102,12 @@ export class EnrollmentController {
   async unenrollUser(
     @Params() params: EnrollmentParams,
   ): Promise<EnrollUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
 
     const responseData = await this.enrollmentService.unenrollUser(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return new EnrollUserResponse(
@@ -121,6 +121,7 @@ export class EnrollmentController {
     summary: 'Get all enrollments for a user',
     description: 'Retrieves a paginated list of all course enrollments for a user.',
   })
+  @Authorized({ action: EnrollmentActions.View, subject: 'Enrollment' })
   @Get('/enrollments')
   @HttpCode(200)
   @ResponseSchema(EnrollmentResponse, {
@@ -172,7 +173,8 @@ export class EnrollmentController {
     summary: 'Get enrollment details for a user in a course version',
     description: 'Retrieves enrollment details, including role and status, for a user in a specific course version.',
   })
-  @Get('/:userId/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(EnrolledUserResponse, {
     description: 'Enrollment details for the user in the course version',
@@ -184,11 +186,11 @@ export class EnrollmentController {
   async getEnrollment(
     @Params() params: EnrollmentParams,
   ): Promise<EnrolledUserResponse> {
-    const { userId, courseId, courseVersionId } = params;
+    const { userId, courseId, versionId } = params;
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
-      courseVersionId,
+      versionId,
     );
     return new EnrolledUserResponse(
       enrollmentData.role,
@@ -201,7 +203,8 @@ export class EnrollmentController {
     summary: 'Get all enrollments for a course version',
     description: 'Retrieves a paginated list of all users enrolled in a specific course version.',
   })
-  @Get('/enrollments/courses/:courseId/versions/:courseVersionId')
+  @Authorized({ action: EnrollmentActions.ViewAll, subject: 'Enrollment' })
+  @Get('/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(CourseVersionEnrollmentResponse, {
     description: 'Paginated list of enrollments for the course version',
@@ -216,7 +219,7 @@ export class EnrollmentController {
   })
   async getCourseVersionEnrollments(
     @Param('courseId') courseId: string,
-    @Param('courseVersionId') courseVersionId: string,
+    @Param('versionId') versionId: string,
     @QueryParam('page') page = 1,
     @QueryParam('limit') limit = 10,
   ): Promise<CourseVersionEnrollmentResponse> {
@@ -231,7 +234,7 @@ export class EnrollmentController {
 
     const enrollments = await this.enrollmentService.getCourseVersionEnrollments(
       courseId,
-      courseVersionId,
+      versionId,
       skip,
       limit,
     );

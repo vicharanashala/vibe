@@ -7,6 +7,7 @@ import {
   Get,
   Body,
   ContentType,
+  Authorized,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -17,6 +18,7 @@ import { NOTIFICATIONS_TYPES } from '../types.js';
 import { MessageResponse } from '../classes/index.js';
 import { appConfig } from '#root/config/app.js';
 import { inviteRedirectTemplate } from '../redirectTemplate.js';
+import { InviteActions } from '../abilities/inviteAbilities.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -34,7 +36,8 @@ export class InviteController {
     private readonly inviteService: InviteService,
   ) { }
 
-  @Post('/courses/:courseId/versions/:courseVersionId')
+  @Post('/courses/:courseId/versions/:versionId')
+  @Authorized({ action: InviteActions.Create, subject: 'Invite' })
   @HttpCode(200)
   @ResponseSchema(InviteResponse, {
     description: 'Invite users to a course version',
@@ -52,12 +55,12 @@ export class InviteController {
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
   ) {
-    const { courseId, courseVersionId } = params;
+    const { courseId, versionId } = params;
     const { inviteData } = body
     const results: InviteResult[] = await this.inviteService.inviteUserToCourse(
       inviteData,
       courseId,
-      courseVersionId,
+      versionId,
     );
 
     return new InviteResponse(results);
@@ -87,7 +90,8 @@ export class InviteController {
       return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
 
-  @Get('/courses/:courseId/versions/:courseVersionId')
+  @Authorized({ action: InviteActions.View, subject: 'Invite' })
+  @Get('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @OpenAPI({
     summary: 'Get Invites for Course Version',
@@ -100,14 +104,15 @@ export class InviteController {
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
   ): Promise<InviteResponse> {
-    const { courseId, courseVersionId } = params;
+    const { courseId, versionId } = params;
     const invites = await this.inviteService.findInvitesForCourse(
       courseId,
-      courseVersionId
+      versionId
     );
     return new InviteResponse(invites);
   }
 
+  @Authorized({ action: InviteActions.Modify, subject: 'Invite' })
   @Post('/resend/:inviteId')
   @HttpCode(200)
   @OpenAPI({
@@ -125,6 +130,7 @@ export class InviteController {
     return this.inviteService.resendInvite(inviteId);
   }
 
+  @Authorized({ action: InviteActions.Modify, subject: 'Invite' })
   @Post('/cancel/:inviteId')
   @HttpCode(200)
   @OpenAPI({

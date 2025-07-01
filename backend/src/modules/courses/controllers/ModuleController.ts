@@ -24,6 +24,7 @@ import {
   Delete,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { CourseVersionActions } from '../abilities/index.js';
 
 @OpenAPI({
   tags: ['Course Modules'],
@@ -42,7 +43,7 @@ export class ModuleController {
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: CourseVersionActions.Modify, subject: 'CourseVersion'})
   @Post('/versions/:versionId/modules')
   @HttpCode(201)
   @ResponseSchema(ModuleDataResponse, {
@@ -70,7 +71,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: CourseVersionActions.Modify, subject: 'CourseVersion'})
   @Put('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module updated successfully',
@@ -101,7 +102,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: CourseVersionActions.Modify, subject: 'CourseVersion'})
   @Put('/versions/:versionId/modules/:moduleId/move')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module moved successfully',
@@ -132,7 +133,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized({action: CourseVersionActions.Modify, subject: 'CourseVersion'})
   @Delete('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDeletedResponse, {
     description: 'Module deleted successfully',

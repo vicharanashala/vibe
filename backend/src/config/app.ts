@@ -20,6 +20,7 @@ export const appConfig = {
   module: env('APP_MODULE') || 'all',
   routePrefix: env('APP_ROUTE_PREFIX') || '/api',
   frontendUrl: env('FRONTEND_URL') || 'http://localhost:5173',
+  adminPassword: env('ADMIN_PASSWORD') || 'admin123',
   // Only for development
   firebase: {
     clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,

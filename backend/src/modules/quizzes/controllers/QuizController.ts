@@ -43,6 +43,7 @@ import {
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {ISubmission} from '#quizzes/interfaces/index.js';
+import { QuizActions } from '../abilities/quizAbilities.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -59,7 +60,7 @@ class QuizController {
     summary: 'Add a question bank to a quiz',
     description: 'Associates a question bank with a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Post('/:quizId/bank')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
@@ -82,7 +83,7 @@ class QuizController {
     summary: 'Remove a question bank from a quiz',
     description: 'Removes the association of a question bank from a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Delete('/:quizId/bank/:questionBankId')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
@@ -98,7 +99,7 @@ class QuizController {
     summary: 'Edit question bank configuration for a quiz',
     description: 'Updates the configuration of a question bank within a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Patch('/:quizId/bank')
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
@@ -121,6 +122,7 @@ class QuizController {
     summary: 'Get all question banks for a quiz',
     description: 'Retrieves all question banks associated with a quiz.',
   })
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/bank')
   @HttpCode(200)
   @ResponseSchema(GetAllQuestionBanksResponse, {
@@ -142,6 +144,7 @@ class QuizController {
     summary: 'Get user metrics for a quiz',
     description: 'Retrieves quiz metrics for a specific user.',
   })
+  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/user/:userId')
   @HttpCode(200)
   @ResponseSchema(UserQuizMetricsResponse, { 
@@ -167,6 +170,7 @@ class QuizController {
     summary: 'Get quiz attempt details',
     description: 'Retrieves details of a specific quiz attempt.',
   })
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/attempts/:attemptId')
   @HttpCode(200)
   @ResponseSchema(QuizAttemptResponse, { 
@@ -188,6 +192,7 @@ class QuizController {
     summary: 'Get quiz submission details',
     description: 'Retrieves details of a specific quiz submission.',
   })
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/submissions/:submissionId')
   @HttpCode(200)
   @ResponseSchema(QuizSubmissionResponse, {
@@ -205,7 +210,7 @@ class QuizController {
     summary: 'Get all submissions for a quiz',
     description: 'Retrieves all submissions for a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/submissions')
   @HttpCode(200)
   @ResponseSchema(GetAllSubmissionsResponse, {
@@ -232,7 +237,7 @@ class QuizController {
     summary: 'Get quiz details',
     description: 'Retrieves details of a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/details')
   @HttpCode(200)
   @ResponseSchema(QuizDetailsResponse, {
@@ -250,7 +255,7 @@ class QuizController {
     summary: 'Get quiz analytics',
     description: 'Retrieves analytics data for a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/analytics')
   @HttpCode(200)
   @ResponseSchema(QuizAnalyticsResponse, {
@@ -268,7 +273,7 @@ class QuizController {
     summary: 'Get quiz performance statistics',
     description: 'Retrieves performance statistics for each question in a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/performance')
   @HttpCode(200)
   @ResponseSchema(QuizPerformanceResponse, {
@@ -295,7 +300,7 @@ class QuizController {
     summary: 'Get quiz results',
     description: 'Retrieves results for all students who attempted the quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.GetStats, subject: 'Quiz'})
   @Get('/:quizId/results')
   @HttpCode(200)
   @ResponseSchema(QuizResultsResponse, {
@@ -322,7 +327,7 @@ class QuizController {
     summary: 'Get flagged questions for a quiz',
     description: 'Retrieves all flagged questions for a quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.View, subject: 'Quiz'})
   @Get('/:quizId/flagged')
   @HttpCode(200)
   @ResponseSchema(FlaggedQuestionResponse, {
@@ -348,7 +353,7 @@ class QuizController {
     summary: 'Override submission score',
     description: 'Overrides the score for a specific quiz submission.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
   @Post('/submission/:submissionId/score/:score')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -368,7 +373,7 @@ class QuizController {
     summary: 'Regrade a quiz submission',
     description: 'Regrades a quiz submission with new grading results.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
   @Post('/submission/:submissionId/regrade')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -391,7 +396,7 @@ class QuizController {
     summary: 'Add feedback to a question in a submission',
     description: 'Adds feedback to a specific question in a quiz submission.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifyBank, subject: 'Quiz'})
   @Post('/submission/:submissionId/question/:questionId/feedback')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -419,7 +424,7 @@ class QuizController {
     summary: 'Reset available attempts for a user on a quiz',
     description: 'Resets the number of available attempts for a user on a specific quiz.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuizActions.ModifySubmissions, subject: 'Quiz'})
   @Post('/:quizId/user/:userId/reset-attempts')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {

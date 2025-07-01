@@ -22,26 +22,7 @@ export interface IAuthService {
    */
   signup(body: SignUpBody): Promise<InviteResult[] | string | null>;
   googleSignup( body: GoogleSignUpBody, token: string): Promise<InviteResult[] | string | null>;
-  /**
-   * Verifies the validity of an authentication token.
-   * Decodes the token and retrieves the associated user information.
-   *
-   * @param token - The authentication token to verify (typically a JWT)
-   * @returns A promise that resolves to the user associated with the token
-   * @throws Error - If the token is invalid, expired, or cannot be verified
-   */
-  verifyToken(token: string): Promise<boolean>;
-  getUserIdFromReq(req: any): Promise<string>
-  /**
-   * Retrieves the authenticated user object based on a valid token.
-   * Decodes the token, finds the associated user in the database, and returns the user object.
-   *
-   * @param token - The authentication token (typically a JWT)
-   * @returns A promise that resolves to the authenticated user object
-   * @throws Error - If the token is invalid, user is not found, or retrieval fails
-   */
-  getCurrentUserFromToken(token: string): Promise<IUser>;
-
+  getUserIdFromReq(req: any): Promise<string>;
   /**
    * Changes the password for an authenticated user.
    * Validates that the new password meets requirements and updates

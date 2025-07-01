@@ -10,7 +10,7 @@ import { ObjectId } from 'mongodb';
  */
 export class GetUserParams {
   @JSONSchema({
-    description: 'Firebase UID of the user to find',
+    description: 'User ID of the person',
     example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
     type: 'string',
   })
@@ -75,14 +75,11 @@ export class GetUserResponse implements IUser {
 
   @JSONSchema({
     description: "User's roles",
-    example: ['student'],
-    type: 'array',
-    items: {
-      type: 'string',
-    },
+    example: 'admin',
+    type: 'string',
     readOnly: true,
   })
-  roles: string[];
+  roles: 'admin' | 'user';
 }
 
 export class EditUserBody{

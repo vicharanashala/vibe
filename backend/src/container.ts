@@ -9,6 +9,9 @@ import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
 import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
+import { InviteService } from './modules/notifications/index.js';
+import { QuestionBankService } from './modules/quizzes/services/QuestionBankService.js';
+import { QuestionService } from './modules/quizzes/services/QuestionService.js';
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
@@ -19,7 +22,9 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Auth
   options.bind(FirebaseAuthService).toSelf().inSingletonScope();
-
+  options.bind(InviteService).toSelf().inSingletonScope();
+  options.bind(QuestionBankService).toSelf().inSingletonScope();
+  options.bind(QuestionService).toSelf().inSingletonScope();
   // Database
   options.bind(GLOBAL_TYPES.Database).to(MongoDatabase).inSingletonScope();
 

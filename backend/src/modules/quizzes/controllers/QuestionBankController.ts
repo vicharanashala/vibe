@@ -22,6 +22,7 @@ import {
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
+import { QuestionBankActions } from '../abilities/questionBankAbilities.js';
 
 @OpenAPI({
   tags: ['Question Banks'],
@@ -38,7 +39,7 @@ class QuestionBankController {
     summary: 'Create a new question bank',
     description: 'Creates a new question bank for organizing quiz questions.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionBankActions.Create, subject: 'QuestionBank'})
   @Post('/')
   @HttpCode(200)
   @ResponseSchema(CreateQuestionBankResponse, {
@@ -61,6 +62,7 @@ class QuestionBankController {
     summary: 'Get question bank by ID',
     description: 'Retrieves a question bank and its details by its ID.',
   })
+  @Authorized({action: QuestionBankActions.View, subject: 'QuestionBank'})
   @Get('/:questionBankId')
   @HttpCode(200)
   @ResponseSchema(QuestionBankResponse, {
@@ -83,7 +85,7 @@ class QuestionBankController {
     summary: 'Add a question to a question bank',
     description: 'Adds a question to the specified question bank.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionBankActions.Modify, subject: 'QuestionBank'})
   @Patch('/:questionBankId/questions/:questionId/add')
   @HttpCode(200)
   @ResponseSchema(QuestionBankResponse, {
@@ -108,7 +110,7 @@ class QuestionBankController {
     summary: 'Remove a question from a question bank',
     description: 'Removes a question from the specified question bank.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionBankActions.Modify, subject: 'QuestionBank'})
   @Patch('/:questionBankId/questions/:questionId/remove')
   @HttpCode(200)
   @ResponseSchema(QuestionBankResponse, {
@@ -133,7 +135,7 @@ class QuestionBankController {
     summary: 'Replace a question with its duplicate in a question bank',
     description: 'Duplicates a question and replaces the original in the question bank.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized({action: QuestionBankActions.Modify, subject: 'QuestionBank'})
   @Patch('/:questionBankId/questions/:questionId/replace-duplicate')
   @HttpCode(200)
   @ResponseSchema(ReplaceQuestionResponse, {

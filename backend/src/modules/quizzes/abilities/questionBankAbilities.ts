@@ -34,21 +34,21 @@ export function setupQuestionBankAbilities(
 
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
-        const courseVersionBounded = { courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
+        const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 // Students typically don't have access to question banks
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(QuestionBankActions.Create, 'QuestionBank', courseBounded);
                 can(QuestionBankActions.Modify, 'QuestionBank', courseBounded);
                 can(QuestionBankActions.View, 'QuestionBank', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'QuestionBank', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(QuestionBankActions.View, 'QuestionBank', courseVersionBounded);
                 break;
         }

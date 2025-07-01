@@ -37,16 +37,17 @@ export function setupProgressAbilities(
         const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(ProgressActions.View, 'Progress', userBounded);
+                can(ProgressActions.Modify, 'Progress', userBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can('manage', 'Progress', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Progress', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(ProgressActions.View, 'Progress', versionBounded);
                 break;
         }

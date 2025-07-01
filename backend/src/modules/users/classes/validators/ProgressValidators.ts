@@ -29,7 +29,7 @@ export class GetUserProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemBody {
@@ -86,7 +86,7 @@ export class StartItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemResponse {
@@ -126,7 +126,7 @@ export class StopItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StopItemBody {
@@ -251,7 +251,7 @@ export class UpdateProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressParams {
@@ -283,7 +283,7 @@ export class ResetCourseProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressBody {
@@ -450,6 +450,28 @@ export class ProgressNotFoundErrorResponse {
   message: string;
 }
 
+export class WatchTimeParams {
+  @JSONSchema({
+    description: 'Item ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+
+  @JSONSchema({
+    description: 'user ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -462,5 +484,6 @@ export const PROGRESS_VALIDATORS = [
   ResetCourseProgressBody,
   ResetCourseProgressParams,
   ProgressDataResponse,
-  ProgressNotFoundErrorResponse
+  ProgressNotFoundErrorResponse,
+  WatchTimeParams
 ]

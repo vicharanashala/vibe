@@ -4,6 +4,7 @@ import { InviteScope, createAbilityBuilder } from './types.js';
 
 // Actions
 export enum InviteActions {
+    Create = "create",
     Modify = "modify",
     Process = "process",
     View = "view",
@@ -33,24 +34,25 @@ export function setupInviteAbilities(
     }
     
     // Users can always view and manage their own notifications
-    can(InviteActions.Process, 'Invite', { userId: user.userId });
+    can(InviteActions.Process, 'Invite');
     
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
         
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
+                can(InviteActions.Create, 'Invite', courseBounded);
                 can(InviteActions.Modify, 'Invite', courseBounded);
                 can(InviteActions.View, 'Invite', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Invite', courseBounded);
-                cannot(InviteActions.View, 'Invite', versionBounded);
                 break;
-            case 'ta':
+            case 'TA':
+                can(InviteActions.View, 'Invite', versionBounded);
                 break;
         }
     });

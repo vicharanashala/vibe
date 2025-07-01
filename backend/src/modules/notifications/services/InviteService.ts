@@ -281,4 +281,20 @@ export class InviteService extends BaseService {
       );
     });
   }
+
+  async findInviteById(inviteId: string): Promise<InviteResult> {
+    const invite = await this.inviteRepo.findInviteById(inviteId);
+    if (!invite) {
+      throw new NotFoundError('Invite not found');
+    }
+    return new InviteResult(
+      invite._id,
+      invite.email,
+      invite.inviteStatus,
+      invite.role,
+      invite.acceptedAt,
+      invite.courseId,
+      invite.courseVersionId
+    );
+  }
 }

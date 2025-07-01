@@ -35,19 +35,21 @@ export function setupCourseAbilities(
 
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
+        const userBounded = { userId: user.userId, courseId: enrollment.courseId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
+                can(CourseActions.View, 'Course', userBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(CourseActions.View, 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 break;
         }
     });
