@@ -452,16 +452,6 @@ export class ProgressNotFoundErrorResponse {
 
 export class WatchTimeParams {
   @JSONSchema({
-    description: 'Item ID to get watch time for',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  itemId: string;
-
-  @JSONSchema({
     description: 'user ID to get watch time for',
     type: 'string',
     format: 'Mongo Object ID',
@@ -470,6 +460,16 @@ export class WatchTimeParams {
   @IsString()
   @IsMongoId()
   userId: string;
+
+  @JSONSchema({
+    description: 'Item ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
 }
 
 export const PROGRESS_VALIDATORS = [
