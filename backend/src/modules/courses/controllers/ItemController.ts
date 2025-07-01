@@ -182,11 +182,10 @@ export class ItemController {
     @Ability(getItemAbility) {ability}
   ) {
     const {itemsGroupId, itemId} = params;
-    // TODO GET COURSE ID SOMEHOW
+    const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { itemsGroupId, itemId });
+    const itemResource = subject('Item', { versionId: version._id.toString() });
     
-    // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Delete, itemResource)) {
       throw new ForbiddenError('You do not have permission to delete this item');
     }

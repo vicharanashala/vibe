@@ -21,6 +21,7 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
+import { ICourseVersion } from '#root/shared/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -277,5 +278,12 @@ export class ItemService extends BaseService {
 
       return {itemsGroup: updatedItemsGroup, version: updatedVersion};
     });
+  }
+
+  public async findVersion(itemGroupId: string): Promise<ICourseVersion> {
+    const version = await this.courseRepo.findVersionByItemGroupId(
+      itemGroupId,
+    );
+    return version;
   }
 }
