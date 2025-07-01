@@ -160,7 +160,7 @@ export default function AuthPage() {
         const response = await fetch(backendUrl, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${result.user.getIdToken}`,
+            Authorization: `Bearer ${result._tokenResponse.idToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({

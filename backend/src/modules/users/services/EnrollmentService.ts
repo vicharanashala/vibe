@@ -1,21 +1,21 @@
-import {COURSES_TYPES} from '#courses/types.js';
+import { COURSES_TYPES } from '#courses/types.js';
 import { InviteStatus } from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {BadRequestError, NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { BadRequestError, NotFoundError } from 'routing-controllers';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -224,17 +224,23 @@ export class EnrollmentService extends BaseService {
         skip,
         limit,
       );
-      
+
       // Create enriched enrollments with user data
       const resultWithUsers = [];
       for (var i = 0; i < result.length; i++) {
-        const user = await this.userRepo.findById(result[i].userId);
-        resultWithUsers.push({
-          ...result[i],
-          user: user,
-        });
+        try {
+          const user = await this.userRepo.findById(result[i].userId);
+          resultWithUsers.push({
+            ...result[i],
+            user: user,
+          });
+        }
+        catch (error) {
+          console.log(`User with ID ${result[i].userId} not found`);
+        }
+
       }
-      
+
       // find user for each enrollment
       return resultWithUsers.map(enrollment => ({
         ...enrollment,

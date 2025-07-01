@@ -49,6 +49,7 @@ export interface QuizProps {
   isProgressUpdating?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
+  displayNextLesson?: boolean;
 }
 
 export interface QuizRef {

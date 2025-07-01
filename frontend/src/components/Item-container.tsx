@@ -54,6 +54,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           isProgressUpdating={isProgressUpdating}
           attemptId={attemptId}
           setAttemptId={setAttemptId}
+          displayNextLesson={true}
         />;
 
       case 'article':

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, use, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useUpdateProgress, useItemById, useProctoringSettings } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate } from "@tanstack/react-router";
@@ -22,7 +22,6 @@ import { AuroraText } from "@/components/magicui/aurora-text";
 import {
   ChevronRight,
   BookOpen,
-  CheckCircle,
   Play,
   FileText,
   HelpCircle,
@@ -98,6 +97,7 @@ export default function CoursePage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
+  const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -108,15 +108,14 @@ export default function CoursePage() {
     sectionId: string;
   } | null>(null);
 
-  // Initialize API hooks
-  const updateProgress = useUpdateProgress();
+  // Initialize API hooks (removed updateProgress as it was causing navigation issues)
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError } =
     useCourseVersionById(VERSION_ID);
 
   // Fetch user progress
-  const { data: progressData, isLoading: progressLoading, error: progressError, refetch: refetchProgress } =
+  const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -129,8 +128,7 @@ export default function CoursePage() {
 
   const {
     data: currentSectionItems,
-    isLoading: itemsLoading,
-    error: itemsError
+    isLoading: itemsLoading
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? sectionModuleId : '6831b98e1f79c52d445c5db5',
@@ -148,18 +146,52 @@ export default function CoursePage() {
     shouldFetchItem ? VERSION_ID : '',
     shouldFetchItem ? selectedItemId! : ''
   );
+  // State to track previous valid item for reverting
+  const [previousValidItem, setPreviousValidItem] = useState<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+  } | null>(null);
+
+  // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
     console.error('Current item error:', itemError);
     if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.") {
       logout();
       Navigate({ to: '/auth' });
+      return;
     }
-    else if (itemError) {
+    
+    if (itemError && selectedItemId) {
+      // Clear loading state on error
+      setIsNavigatingToNext(false);
       setIsItemForbidden(true);
-    } else {
-      setIsItemForbidden(false);
+      
+      // Only revert if we have a previous valid item
+      if (previousValidItem) {
+        console.log('Access denied. Reverting to previous valid item:', previousValidItem);
+        
+        // Revert selection state immediately
+        setSelectedModuleId(previousValidItem.moduleId);
+        setSelectedSectionId(previousValidItem.sectionId);
+        setSelectedItemId(previousValidItem.itemId);
+        
+        // Update course store navigation
+        updateCourseNavigation(
+          previousValidItem.moduleId,
+          previousValidItem.sectionId,
+          previousValidItem.itemId
+        );
+      }
+      
+      // Always clear error after a delay, regardless of whether we reverted
+      const clearErrorTimeout = setTimeout(() => {
+        setIsItemForbidden(false);
+      }, 3000);
+      
+      return () => clearTimeout(clearErrorTimeout);
     }
-  }, [itemError]);
+  }, [itemError, selectedItemId, previousValidItem, updateCourseNavigation]);
 
   useEffect(() => {
     console.log('Current item data:', itemData);
@@ -194,9 +226,12 @@ export default function CoursePage() {
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
   console.log('Section items:', sectionItems);
 
-  // Effect to initialize based on user progress when data loads
+  // Add a flag to track if initial load from progress is complete
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // Effect to initialize based on user progress ONLY ON INITIAL LOAD
   useEffect(() => {
-    if (progressData) {
+    if (progressData && !initialLoadComplete) {
       const moduleId = progressData.currentModule;
       const sectionId = progressData.currentSection;
       const itemId = progressData.currentItem;
@@ -217,38 +252,11 @@ export default function CoursePage() {
 
       // Update the course store with the current progress
       updateCourseNavigation(moduleId, sectionId, itemId);
+      
+      // Mark initial load as complete so it doesn't run again
+      setInitialLoadComplete(true);
     }
-  }, [progressData, updateCourseNavigation]);
-
-  // ✅ Additional effect to handle progress updates from handleNext
-  useEffect(() => {
-    if (progressData && updateProgress.isSuccess) {
-      const moduleId = progressData.currentModule;
-      const sectionId = progressData.currentSection;
-      const itemId = progressData.currentItem;
-
-      // Only update if we're not already on this item
-      if (itemId !== selectedItemId) {
-        setSelectedModuleId(moduleId);
-        setSelectedSectionId(sectionId);
-        setSelectedItemId(itemId);
-
-        // ✅ Ensure new section items are loaded if switching sections
-        if (sectionId !== selectedSectionId) {
-          setActiveSectionInfo({
-            moduleId,
-            sectionId
-          });
-        }
-
-        // ✅ Auto-expand the new module and section
-        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-        updateCourseNavigation(moduleId, sectionId, itemId);
-      }
-    }
-  }, [progressData, updateProgress.isSuccess, selectedItemId, selectedSectionId, updateCourseNavigation]);
+  }, [progressData, updateCourseNavigation, initialLoadComplete]);
 
   // Effect to set current item when item data is fetched
   useEffect(() => {
@@ -257,35 +265,93 @@ export default function CoursePage() {
       const item = (itemData as any)?.item || itemData;
       if (item && typeof item === 'object' && item._id) {
         setCurrentItem(item);
+        // Clear loading state when new item is successfully loaded
+        setIsNavigatingToNext(false);
       }
     }
   }, [itemData, itemLoading]);
 
   // Handle item selection
-  const handleSelectItem = (moduleId: string, sectionId: string, _id: string) => {
-    // ✅ Stop current item before switching
+  // Handle item selection - simplified and more robust
+  const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
+    // Set loading state when changing items from sidebar - same as with Next button
+    setIsNavigatingToNext(true);
+
+    // Stop current item before switching - make this more robust
     if (itemContainerRef.current) {
+      console.log('Stopping current item before switching');
       itemContainerRef.current.stopCurrentItem();
+      
+      // Add a small delay to ensure cleanup completes
+      setTimeout(() => {
+        // Store current valid item before switching (only if not in error state)
+        if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+          setPreviousValidItem({
+            moduleId: selectedModuleId,
+            sectionId: selectedSectionId,
+            itemId: selectedItemId
+          });
+        }
+
+        // Always clear any existing item errors when manually selecting an item
+        setIsItemForbidden(false);
+        
+        // Attempt the switch
+        setSelectedModuleId(moduleId);
+        setSelectedSectionId(sectionId);
+        setSelectedItemId(itemId);
+
+        // Ensure section items are loaded if not already
+        if (!sectionItems[sectionId]) {
+          setActiveSectionInfo({
+            moduleId,
+            sectionId
+          });
+        }
+
+        // Expand the module and section automatically
+        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+        // Update the course store with the new navigation state
+        updateCourseNavigation(moduleId, sectionId, itemId);
+      }, 50); // Small delay to ensure cleanup completes
+    } else {
+      // Set loading state even without a ref
+      setIsNavigatingToNext(true);
+
+      // Store current valid item before switching (only if not in error state)
+      if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+        setPreviousValidItem({
+          moduleId: selectedModuleId,
+          sectionId: selectedSectionId,
+          itemId: selectedItemId
+        });
+      }
+
+      // Always clear any existing item errors when manually selecting an item
+      setIsItemForbidden(false);
+      
+      // Attempt the switch
+      setSelectedModuleId(moduleId);
+      setSelectedSectionId(sectionId);
+      setSelectedItemId(itemId);
+
+      // Ensure section items are loaded if not already
+      if (!sectionItems[sectionId]) {
+        setActiveSectionInfo({
+          moduleId,
+          sectionId
+        });
+      }
+
+      // Expand the module and section automatically
+      setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+      setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+      // Update the course store with the new navigation state
+      updateCourseNavigation(moduleId, sectionId, itemId);
     }
-
-    setSelectedModuleId(moduleId);
-    setSelectedSectionId(sectionId);
-    setSelectedItemId(_id);
-
-    // ✅ Ensure section items are loaded if not already
-    if (!sectionItems[sectionId]) {
-      setActiveSectionInfo({
-        moduleId,
-        sectionId
-      });
-    }
-
-    // ✅ Expand the module and section automatically
-    setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-    setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-    // Update the course store with the new navigation state
-    updateCourseNavigation(moduleId, sectionId, _id);
   };
 
   // Toggle module expansion
@@ -303,35 +369,148 @@ export default function CoursePage() {
     setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
-  const handleNext = useCallback(() => {
-    // ✅ Stop current item before moving to next
-    if (itemContainerRef.current) {
-      itemContainerRef.current.stopCurrentItem();
+  // Helper function to find the next item in the course structure
+  const findNextItem = useCallback(() => {
+    if (!courseVersionData || !selectedModuleId || !selectedSectionId || !selectedItemId) {
+      return null;
     }
 
-    updateProgress.mutate(
-      {
-        params: {
-          path: {
-            courseId: COURSE_ID,
-            courseVersionId: VERSION_ID
-          },
-        },
-        body: {
-          moduleId: selectedModuleId ? selectedModuleId : '',
-          sectionId: selectedSectionId ? selectedSectionId : '',
-          itemId: selectedItemId ? selectedItemId : '',
-          watchItemId: useCourseStore.getState().currentCourse?.watchItemId,
-          attemptId: attemptId,
-        },
-      }
-    );
+    const modules = (courseVersionData as any)?.modules || [];
+    
+    // Find current module index
+    const currentModuleIndex = modules.findIndex((m: any) => m.moduleId === selectedModuleId);
+    if (currentModuleIndex === -1) return null;
 
-    // ✅ Wait for progress update to complete, then refetch and update state
-    setTimeout(() => {
-      refetchProgress();
-    }, 300);
-  }, [updateProgress, COURSE_ID, VERSION_ID, selectedModuleId, selectedSectionId, selectedItemId, refetchProgress]);
+    const currentModule = modules[currentModuleIndex];
+    const sections = currentModule.sections || [];
+    
+    // Find current section index
+    const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === selectedSectionId);
+    if (currentSectionIndex === -1) return null;
+
+    const currentSectionItems = sectionItems[selectedSectionId] || [];
+    
+    // Find current item index
+    const currentItemIndex = currentSectionItems.findIndex((item: any) => item._id === selectedItemId);
+    if (currentItemIndex === -1) return null;
+
+    // Try to get next item in current section
+    if (currentItemIndex < currentSectionItems.length - 1) {
+      const nextItem = currentSectionItems[currentItemIndex + 1];
+      return {
+        moduleId: selectedModuleId,
+        sectionId: selectedSectionId,
+        itemId: nextItem._id
+      };
+    }
+
+    // Try to get first item of next section in current module
+    if (currentSectionIndex < sections.length - 1) {
+      const nextSection = sections[currentSectionIndex + 1];
+      const nextSectionItems = sectionItems[nextSection.sectionId];
+      if (nextSectionItems && nextSectionItems.length > 0) {
+        return {
+          moduleId: selectedModuleId,
+          sectionId: nextSection.sectionId,
+          itemId: nextSectionItems[0]._id
+        };
+      }
+    }
+
+    // Try to get first item of first section in next module
+    if (currentModuleIndex < modules.length - 1) {
+      const nextModule = modules[currentModuleIndex + 1];
+      const nextModuleSections = nextModule.sections || [];
+      if (nextModuleSections.length > 0) {
+        const firstNextSection = nextModuleSections[0];
+        const nextModuleItems = sectionItems[firstNextSection.sectionId];
+        if (nextModuleItems && nextModuleItems.length > 0) {
+          return {
+            moduleId: nextModule.moduleId,
+            sectionId: firstNextSection.sectionId,
+            itemId: nextModuleItems[0]._id
+          };
+        }
+      }
+    }
+
+    // No next item found
+    return null;
+  }, [courseVersionData, selectedModuleId, selectedSectionId, selectedItemId, sectionItems]);
+
+  const handleNext = useCallback(async () => {
+    // Set loading state
+    setIsNavigatingToNext(true);
+    
+    try {
+      // Stop current item before moving to next with proper cleanup
+      if (itemContainerRef.current) {
+        itemContainerRef.current.stopCurrentItem();
+        
+        // Allow a small delay for cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Find and navigate to the actual next item
+      const nextItem = findNextItem();
+      
+      if (!nextItem) {
+        console.log('No next item found - course completed or end of content');
+        return;
+      }
+
+      const { moduleId, sectionId, itemId } = nextItem;
+      
+      // Ensure all values are defined before switching
+      if (!moduleId || !sectionId || !itemId) {
+        console.log('Invalid next item data');
+        return;
+      }
+
+      // Store current valid item before switching
+      if (selectedItemId && selectedSectionId && selectedModuleId) {
+        setPreviousValidItem({
+          moduleId: selectedModuleId,
+          sectionId: selectedSectionId,
+          itemId: selectedItemId
+        });
+      }
+
+      // Clear any existing item errors to ensure navigation works
+      setIsItemForbidden(false);
+      
+      // Update local state immediately to the NEXT item
+      setSelectedModuleId(moduleId);
+      setSelectedSectionId(sectionId);
+      setSelectedItemId(itemId);
+
+      // Auto-expand the module and section
+      setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+      setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+      // Set active section to fetch items if not already loaded
+      if (!sectionItems[sectionId]) {
+        setActiveSectionInfo({
+          moduleId,
+          sectionId
+        });
+      }
+
+      // Update the course store with the next item
+      updateCourseNavigation(moduleId, sectionId, itemId);
+    } catch (error) {
+      console.error('Error navigating to next item:', error);
+      // Clear loading state on error
+      setIsNavigatingToNext(false);
+    }
+  }, [
+    findNextItem, 
+    selectedModuleId, 
+    selectedSectionId, 
+    selectedItemId, 
+    sectionItems, 
+    updateCourseNavigation
+  ]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
@@ -610,7 +789,10 @@ export default function CoursePage() {
                       Access Restricted
                     </Badge>
                     <p className="text-sm font-medium leading-relaxed">
-                      The item does not match current progress. Please complete current item first.
+                      {previousValidItem 
+                        ? "Item not accessible. Returning to previous valid content in a moment..."
+                        : "The item does not match current progress. Please complete current item first."
+                      }
                     </p>
                   </div>
                   <Button
@@ -651,7 +833,7 @@ export default function CoursePage() {
                   item={currentItem}
                   doGesture={doGesture}
                   onNext={handleNext}
-                  isProgressUpdating={updateProgress.isPending}
+                  isProgressUpdating={isNavigatingToNext}
                   attemptId={attemptId || undefined}
                   setAttemptId={setAttemptId}
                 />
@@ -665,7 +847,7 @@ export default function CoursePage() {
                       <BookOpen className="h-12 w-12 text-primary mx-auto" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-foreground mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                     Ready to Learn?
                   </h3>
                   <p className="text-muted-foreground mb-6 leading-relaxed">

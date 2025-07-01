@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
-import { useStartItem, useStopItem } from '../hooks/hooks';
+import { useStartItem, useStopItem, useUpdateProgress } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
@@ -43,6 +43,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+  const updateProgress = useUpdateProgress();
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -252,6 +253,20 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
 
             if (watchItemId) {
               stopItem.mutate({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId,
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                }
+              });
+              updateProgress.mutate({
                 params: {
                   path: {
                     courseId: currentCourse.courseId,

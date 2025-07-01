@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, useUpdateProgress } from '@/hooks/hooks';
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
@@ -57,6 +57,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   isProgressUpdating,
   attemptId,
   setAttemptId,
+  displayNextLesson
 }, ref) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
@@ -316,21 +317,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }
 
   function handleStopItem() {
-    if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-    console.log({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: currentCourse.watchItemId,
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
+    if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+      console.log('Cannot stop item: missing item or watch ID');
+      itemStartedRef.current = false;
+      return;
+    }
+    
+    if (!itemStartedRef.current) {
+      console.log('Item not started, no need to stop');
+      return;
+    }
+    
+    console.log('Stopping item tracking', {
+      watchItemId: currentCourse.watchItemId,
+      itemId: currentCourse.itemId,
     });
+    
     stopItem.mutate({
       params: {
         path: {
@@ -345,18 +347,45 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         sectionId: currentCourse.sectionId ?? '',
       }
     });
+    updateProgress.mutate({
+      params: {
+        path: {
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+        attemptId: attemptId ?? '',
+      }
+    });
     itemStartedRef.current = false;
   }
 
   // ✅ Expose stop function to parent component
   useImperativeHandle(ref, () => ({
-    stopItem: handleStopItem
+    stopItem: handleStopItem,
+    cleanup: () => {
+      console.log('Manual cleanup triggered');
+      // Stop tracking if active
+      if (itemStartedRef.current) {
+        handleStopItem();
+      }
+      
+      // Reset state
+      setQuizStarted(false);
+      setQuizCompleted(false);
+    }
   }));
 
   // Get user and course data from stores
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+  const updateProgress = useUpdateProgress();
   
   // ✅ Track if item has been started
   const itemStartedRef = useRef(false);
@@ -459,8 +488,87 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
+  // ✅ Add key cleanup effect that runs when quizId changes or component unmounts
+  useEffect(() => {
+    // This will run when the component mounts with a new quizId
+    console.log('Quiz component initialized with ID:', processedQuizId);
+    
+    // Return cleanup function that runs when unmounting or when quizId changes
+    return () => {
+      console.log('Cleaning up quiz with ID:', processedQuizId);
+      
+      // Stop the current item if it was started
+      if (itemStartedRef.current) {
+        console.log('Stopping item tracking on quiz cleanup');
+        handleStopItem();
+      }
+      
+      // Clear any running timers
+      setTimeLeft(0);
+      
+      // Reset quiz state on unmount to ensure clean state for next quiz
+      setQuizStarted(false);
+      setQuizCompleted(false);
+      setCurrentQuestionIndex(0);
+      setAnswers({});
+      setScore(0);
+      setCurrentConnecting(null);
+      setShowHint(false);
+      setSubmissionResults(null);
+      
+      // We don't clear localStorage here because we might want to 
+      // retain progress if the user comes back to this quiz
+    };
+  }, [quizId, processedQuizId]); // Dependencies include quizId so this runs on quiz changes
+
+  // ✅ Enhance the timer effect with better cleanup
+  useEffect(() => {
+    if (!quizStarted || quizCompleted || timeLeft <= 0 || doGesture) return;
+
+    console.log('Starting timer for question', currentQuestionIndex);
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          handleNextQuestion();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Enhanced cleanup
+    return () => {
+      console.log('Clearing timer for question', currentQuestionIndex);
+      clearInterval(timer);
+    };
+  }, [quizStarted, quizCompleted, timeLeft, currentQuestionIndex, handleNextQuestion, doGesture]);
+
+  // ✅ Add effect to handle quizId changes explicitly
+  useEffect(() => {
+    // Reset state when quiz ID changes
+    if (processedQuizId) {
+      console.log('Quiz ID changed, resetting state');
+      setQuizStarted(false);
+      setQuizCompleted(false);
+      setCurrentQuestionIndex(0);
+      setAnswers({});
+      setScore(0);
+      setQuizQuestions([]);
+      setSubmissionResults(null);
+      
+      // Don't reset attemptId here - we'll check for an existing attempt in startQuiz
+    }
+  }, [processedQuizId]);
+
+  // ✅ Modified startQuiz to better handle previous attempts
   const startQuiz = async () => {
     try {
+      // If we're already tracking an item, stop it before starting a new one
+      if (itemStartedRef.current) {
+        console.log('Stopping previous item before starting quiz');
+        handleStopItem();
+      }
+      
       // Check if we already have an attempt ID stored
       let currentAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
       let questionsToUse = quizQuestions;
@@ -550,6 +658,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useEffect(() => {
     if (!quizStarted || quizCompleted || timeLeft <= 0 || doGesture) return;
 
+    console.log('Starting timer for question', currentQuestionIndex);
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -560,7 +669,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    // Enhanced cleanup
+    return () => {
+      console.log('Clearing timer for question', currentQuestionIndex);
+      clearInterval(timer);
+    };
   }, [quizStarted, quizCompleted, timeLeft, currentQuestionIndex, handleNextQuestion, doGesture]);
 
   // Set timer for current question
@@ -781,6 +894,31 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 </div>
               </Card>
             </div>
+
+            {/* Show Next Lesson button at the bottom if displayNextLesson is true */}
+            {displayNextLesson && onNext && (
+              <div className="text-center pt-4">
+                <Button
+                  onClick={onNext}
+                  disabled={isProgressUpdating}
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                >
+                  {isProgressUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      Skip to Next Lesson
+                      <ChevronRight className="h-5 w-5 ml-3" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
           </CardContent>
         </Card>

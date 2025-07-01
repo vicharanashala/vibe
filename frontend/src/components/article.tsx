@@ -22,7 +22,7 @@ import { markdown } from '@yoopta/exports';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, ChevronRight } from "lucide-react";
-import { useStartItem, useStopItem } from "@/hooks/hooks";
+import { useStartItem, useStopItem, useUpdateProgress } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 
@@ -44,6 +44,7 @@ const plugins = [
     Code,
 ];
 import type { ArticleProps, ArticleRef } from "@/types/article.types";
+import path from "path";
 
 
 const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
@@ -55,6 +56,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
+    const updateProgress = useUpdateProgress();
     
     // ✅ Track if item has been started
     const itemStartedRef = useRef(false);
@@ -89,6 +91,19 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             },
             body: {
                 watchItemId: currentCourse.watchItemId,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+            }
+        });
+        updateProgress.mutate({
+            params: {
+                path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                },
+            },
+            body: {
                 itemId: currentCourse.itemId,
                 moduleId: currentCourse.moduleId ?? '',
                 sectionId: currentCourse.sectionId ?? '',

@@ -3,7 +3,6 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  onAuthStateChanged,
   User as FirebaseUser // Import Firebase User type
 } from 'firebase/auth';
 import { useAuthStore } from '../store/auth-store'; // Removed unused User import
@@ -28,6 +27,21 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
   } catch (error) {
     console.error('Error mapping Firebase user:', error);
     return null;
+  }
+};
+
+export const refreshFirebaseToken = async (): Promise<void> => {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) {
+    throw new Error('No authenticated user found');
+  }
+  try {
+    // Refresh the token
+    const token = await firebaseUser.getIdToken(true);
+    useAuthStore.getState().setToken(token);
+  } catch (error) {
+    console.error('Error refreshing Firebase token:', error);
+    throw error;
   }
 };
 

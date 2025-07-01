@@ -71,6 +71,7 @@ function FloatingVideo({
 
   // Helper function to check if a specific proctoring component is enabled
   const isComponentEnabled = useCallback((componentName: string): boolean => {
+    if (componentName === 'handGestureDetection') return false;
     if (!settings?.settings?.proctors?.detectors) return true;
     
     const detector = settings.settings.proctors.detectors.find(

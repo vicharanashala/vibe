@@ -11,6 +11,7 @@ import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you wan
 import CourseEnrollments from "../pages/teacher/course-enrollments";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
+import ViewProgress from "../pages/teacher/view-progress";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -64,7 +65,11 @@ const teacherRoutes: RouteObject = {
     {
       path:"courses/create",
       element:<AddCoursePage /> 
-    }
+    },
+    {
+      path: "courses/progress",
+      element: <ViewProgress />, // View progress of courses
+    },
   ],
 };
 
