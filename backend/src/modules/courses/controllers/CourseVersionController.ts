@@ -11,6 +11,7 @@ import {
   BadRequestError,
   InternalServerError,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -46,6 +47,7 @@ export class CourseVersionController {
 Accessible to:
 - Instructor or manager of the course.`,
   })
+  @Authorized()
   @Post('/:courseId/versions', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
@@ -84,6 +86,7 @@ Accessible to:
 Accessible to:
 - Users who are part of the course version (students, teaching assistants, instructors, or managers).`,
   })
+  @Authorized()
   @Get('/versions/:versionId')
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version retrieved successfully',
@@ -120,6 +123,7 @@ Accessible to:
 Accessible to:
 - Manager of the course.`,
   })
+  @Authorized()
   @Delete('/:courseId/versions/:versionId')
   @ResponseSchema(DeleteCourseVersionParams, {
     description: 'Course version deleted successfully',

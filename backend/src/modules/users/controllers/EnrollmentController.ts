@@ -25,6 +25,7 @@ import {
   NotFoundError,
   Body,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions, getEnrollmentAbility } from '../abilities/enrollmentAbilities.js';
@@ -46,6 +47,7 @@ export class EnrollmentController {
     summary: 'Enroll a user in a course version',
     description: 'Enrolls a user in a specific course version with a given role.',
   })
+  @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
@@ -97,6 +99,7 @@ export class EnrollmentController {
     summary: 'Unenroll a user from a course version',
     description: 'Removes a user\'s enrollment and progress from a specific course version.',
   })
+  @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/unenroll')
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
@@ -146,6 +149,7 @@ export class EnrollmentController {
     summary: 'Get all enrollments for a user',
     description: 'Retrieves a paginated list of all course enrollments for a user.',
   })
+  @Authorized()
   @Get('/enrollments')
   @HttpCode(200)
   @ResponseSchema(EnrollmentResponse, {
@@ -205,6 +209,7 @@ export class EnrollmentController {
     summary: 'Get enrollment details for a user in a course version',
     description: 'Retrieves enrollment details, including role and status, for a user in a specific course version.',
   })
+  @Authorized()
   @Get('/:userId/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(EnrolledUserResponse, {
@@ -248,6 +253,7 @@ export class EnrollmentController {
     summary: 'Get all enrollments for a course version',
     description: 'Retrieves a paginated list of all users enrolled in a specific course version.',
   })
+  @Authorized()
   @Get('/enrollments/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(CourseVersionEnrollmentResponse, {
@@ -301,6 +307,6 @@ export class EnrollmentController {
 
     return {
       enrollments: enrollments
-  };
-}
+    };
+  }
 }

@@ -8,6 +8,7 @@ import {
   Body,
   ContentType,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -38,6 +39,7 @@ export class InviteController {
     private readonly inviteService: InviteService,
   ) { }
 
+  @Authorized()
   @Post('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(InviteResponse, {
@@ -107,6 +109,7 @@ export class InviteController {
       return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
 
+  @Authorized()
   @Get('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @OpenAPI({

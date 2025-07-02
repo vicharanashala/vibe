@@ -40,7 +40,7 @@ export class CourseSettingsController {
     private readonly courseSettingsService: CourseSettingsService,
   ) {}
 
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Post('/')
   @HttpCode(201)
   async create(
@@ -56,7 +56,7 @@ export class CourseSettingsController {
     return createdSettings;
   }
 
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Get('/:courseId/:versionId')
   @HttpCode(200)
   async get(
@@ -75,7 +75,7 @@ export class CourseSettingsController {
     return courseSettings;
   }
 
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Put('/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async updateCourseSettings(
@@ -98,7 +98,7 @@ export class CourseSettingsController {
   // This method removes proctoring settings for a course version.
   // This endpoint is not currently used in the implementation, but it is kept for future use.
   /*
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Delete('/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async removeCourseProctoring(

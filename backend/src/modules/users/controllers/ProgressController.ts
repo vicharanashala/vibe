@@ -30,6 +30,7 @@ import {
   BadRequestError,
   InternalServerError,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -53,6 +54,7 @@ class ProgressController {
     summary: 'Get user progress in a course version',
     description: 'Retrieves the progress of a user in a specific course version.',
   })
+  @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
@@ -90,6 +92,7 @@ class ProgressController {
     summary: 'Start an item for user progress',
     description: 'Marks the start of an item for a user in a course version.',
   })
+  @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
@@ -137,6 +140,7 @@ class ProgressController {
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
   })
+  @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -198,6 +202,7 @@ If moduleId and sectionId are provided, resets to the beginning of the section.
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
 If none are provided, resets to the beginning of the course.`,
   })
+  @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -274,6 +279,7 @@ If none are provided, resets to the beginning of the course.`,
     summary: 'Get User Watch Time',
     description: `Gets the User Watch Time for the given Item Id`,
   })
+  @Authorized()
   @Get('/:userId/watchTime/item/:itemId/')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {

@@ -53,6 +53,7 @@ export class SectionController {
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Post('/versions/:versionId/modules/:moduleId/sections')
   @HttpCode(201)
   @ResponseSchema(SectionDataResponse, {
@@ -104,6 +105,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDataResponse, {
     description: 'Section updated successfully',
@@ -157,6 +159,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
   @ResponseSchema(SectionDataResponse, {
     description: 'Section moved successfully',
@@ -220,6 +223,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Delete('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDeletedResponse, {
     description: 'Section deleted successfully',

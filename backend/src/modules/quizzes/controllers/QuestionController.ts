@@ -23,6 +23,7 @@ import {
   OnUndefined,
   BadRequestError,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
@@ -45,6 +46,7 @@ class QuestionController {
     summary: 'Create a new question',
     description: 'Creates a new quiz question and returns its ID.',
   })
+  @Authorized()
   @Post('/')
   @HttpCode(201)
   @ResponseSchema(QuestionId, {
@@ -77,6 +79,7 @@ class QuestionController {
     summary: 'Get question by ID',
     description: 'Retrieves a quiz question by its ID.',
   })
+  @Authorized()
   @Get('/:questionId')
   @ResponseSchema(QuestionResponse, {
     description: 'Question retrieved successfully',
@@ -109,6 +112,7 @@ class QuestionController {
     summary: 'Update a question',
     description: 'Updates an existing quiz question.',
   })
+  @Authorized()
   @Put('/:questionId')
   @HttpCode(200)
   @ResponseSchema(QuestionResponse, {
@@ -137,6 +141,7 @@ class QuestionController {
     summary: 'Delete a question',
     description: 'Deletes a quiz question by its ID.',
   })
+  @Authorized()
   @Delete('/:questionId')
   @OnUndefined(204)
   @ResponseSchema(BadRequestError, {
@@ -168,6 +173,7 @@ class QuestionController {
     summary: 'Flag a question',
     description: 'Flags a quiz question for review with a reason.',
   })
+  @Authorized()
   @Post('/:questionId/flag')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {
@@ -204,6 +210,7 @@ class QuestionController {
     summary: 'Resolve a flagged question',
     description: 'Resolves a flagged question by marking it as resolved or rejected.',
   })
+  @Authorized()
   @Post('/flags/:flagId/resolve')
   @OnUndefined(200)
   @ResponseSchema(BadRequestError, {

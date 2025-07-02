@@ -9,6 +9,7 @@ import {
   Params,
   Post,
   Put,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -44,6 +45,7 @@ export class ItemController {
   Accessible to:
   - Instructors, managers or teaching assistants of the course.`,
   })
+  @Authorized()
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
@@ -86,6 +88,7 @@ export class ItemController {
   Accessible to:
   - All users who are part of the course.`,
   })
+  @Authorized()
   @Get('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
   @ResponseSchema(ItemDataResponse, {
     description: 'Items retrieved successfully',
@@ -121,6 +124,7 @@ export class ItemController {
   Accessible to:
   - Instructors, managers, and teaching assistants of the course.`,
   })
+  @Authorized()
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
   )
@@ -165,6 +169,7 @@ export class ItemController {
   Accessible to:
   - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -199,6 +204,7 @@ export class ItemController {
 Accessible to:
 - Instructors, managers, and teaching assistants of the course.`,
   })
+  @Authorized()
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
@@ -244,6 +250,7 @@ Access control logic:
 - For students: The item is returned only if it matches the student's current item ID in their course progress.
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
+  @Authorized()
   @Get('/:courseId/versions/:versionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
