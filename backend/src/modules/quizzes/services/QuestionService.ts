@@ -105,6 +105,59 @@ class QuestionService extends BaseService {
       await this.questionRepository.delete(questionId, session);
     });
   }
+
+  public async flagQuestion(
+    questionId: string,
+    userId: string,
+    reason: string,
+    courseId?: string,
+    versionId?: string,
+  ): Promise<void> {
+    return this._withTransaction(async session => {
+      const question = await this.questionRepository.getById(
+        questionId,
+        session,
+      );
+      if (!question) {
+        throw new NotFoundError(`Question with ID ${questionId} not found`);
+      }
+
+      // Flag the question with the reason and user ID
+      await this.questionRepository.flagQuestion(
+        questionId,
+        userId,
+        reason,
+        session,
+        courseId,
+        versionId,
+      );
+    });
+  }
+
+  public async resolveFlaggedQuestion(
+    flagId: string,
+    userId: string,
+    status: 'RESOLVED' | 'REJECTED',
+  ): Promise<void> {
+    return this._withTransaction(async session => {
+      const flaggedQuestion = await this.questionRepository.getFlaggedQuestionById(
+        flagId,
+        session,
+      );
+      if (!flaggedQuestion) {
+        throw new NotFoundError(
+          `Flagged question not found`,
+        );
+      }
+
+      // Update the flagged question status and resolvedBy
+      await this.questionRepository.updateFlaggedQuestion(
+        flagId,
+        {status, resolvedBy: userId, resolvedAt: new Date()},
+        session,
+      );
+    });
+  }
 }
 
 export {QuestionService};

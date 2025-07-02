@@ -1,4 +1,4 @@
-import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
+import {BaseQuestion, FlaggedQuestion} from '#quizzes/classes/transformers/Question.js';
 import {MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
@@ -8,6 +8,7 @@ import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class QuestionRepository {
   private questionCollection: Collection<BaseQuestion>;
+  private flaggedQuestionCollection: Collection<FlaggedQuestion>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -17,6 +18,8 @@ class QuestionRepository {
   private async init() {
     this.questionCollection =
       await this.db.getCollection<BaseQuestion>('questions');
+    this.flaggedQuestionCollection =
+      await this.db.getCollection<FlaggedQuestion>('flagged_questions');
   }
 
   public async create(
@@ -92,6 +95,55 @@ class QuestionRepository {
       return {...newQuestion, _id: result.insertedId.toString()};
     }
     throw new InternalServerError('Failed to duplicate question');
+  }
+
+  public async flagQuestion(
+    questionId: string,
+    userId: string,
+    reason: string,
+    session?: ClientSession,
+    courseId?: string,
+    versionId?: string,
+  ): Promise<string> {
+    await this.init();
+    const flaggedQuestion = new FlaggedQuestion(questionId, userId, reason, courseId, versionId);
+    const result = await this.flaggedQuestionCollection.insertOne(
+      flaggedQuestion,
+      {session},
+    );
+    if (result.acknowledged && result.insertedId) {
+      return result.insertedId.toString();
+    }
+    throw new InternalServerError('Failed to flag question');
+  }
+
+  public async getFlaggedQuestionById(
+    flagId: string,
+    session?: ClientSession,
+  ): Promise<FlaggedQuestion | null> {
+    await this.init();
+    const result = await this.flaggedQuestionCollection.findOne(
+      {_id: new ObjectId(flagId)},
+      {session},
+    );
+    return result;
+  }
+
+  public async updateFlaggedQuestion(
+    flagId: string,
+    updateData: Partial<FlaggedQuestion>,
+    session?: ClientSession,
+  ): Promise<FlaggedQuestion | null> {
+    await this.init();
+    const result = await this.flaggedQuestionCollection.findOneAndUpdate(
+      {_id: new ObjectId(flagId)},
+      {$set: updateData},
+      {returnDocument: 'after', session},
+    );
+    if (!result) {
+      return null;
+    }
+    return result;
   }
 }
 
