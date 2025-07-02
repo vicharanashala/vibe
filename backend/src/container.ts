@@ -10,6 +10,8 @@ import {dbConfig} from './config/db.js';
 import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
 
+
+
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
   const dbName = 'vibe';
@@ -33,4 +35,5 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
-});
+}); 
+

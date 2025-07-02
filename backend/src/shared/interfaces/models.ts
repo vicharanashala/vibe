@@ -429,4 +429,40 @@ export interface IUserAnomaly {
   sectionId?: string | ObjectId;
   itemId?: string | ObjectId;
   anomalyType: string;
+
+  
+}
+
+
+  //interface for anomaly record
+export interface IAnomalyRecord {
+  _id?: string | ObjectId;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  moduleId?: string | ObjectId;
+  sectionId?: string | ObjectId;
+  itemId?: string | ObjectId;
+  timestamp: Date;
+  anomalyType: 'multiple_faces' | 'no_face' | 'focus' | 'blurDetection' | 'voiceDetection' | 'faceRecognition' | 'handGestureDetection';
+  penaltyPoints: number;
+  imageUrl: string;
+  encryptedImageData: string;
+  imageMetadata: {
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    width: number;
+    height: number;
+    captureTimestamp: number;
+  };
+  facesDetected: number;
+  sessionMetadata: {
+    sessionId?: string;
+    examId?: string;
+    browserInfo?: string;
+    userAgent?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
 }
