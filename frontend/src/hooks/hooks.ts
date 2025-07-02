@@ -698,10 +698,10 @@ export function useStopItem(): {
   };
 }
 
-// PATCH /users/progress/courses/{courseId}/versions/{courseVersionId}/reset
+// PATCH /users/{userid}/progress/courses/{courseId}/versions/{courseVersionId}/reset
 export function useResetProgress(): {
-  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => Promise<unknown>,
+  mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } }, body: components['schemas']['ResetCourseProgressBody'] }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -711,7 +711,7 @@ export function useResetProgress(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/users/progress/courses/{courseId}/versions/{courseVersionId}/reset");
+  const result = api.useMutation("patch", "/users/{userId}progress/courses/{courseId}/versions/{courseVersionId}/reset");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to reset progress') : null

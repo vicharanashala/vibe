@@ -284,7 +284,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
-  function handleSendStartItem() {
+  async function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
     console.log({
       params: {
@@ -299,21 +299,28 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         sectionId: currentCourse.sectionId ?? '',
       }
     });
-    startItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
+    
+    try {
+      const response = await startItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
         },
-      },
-      body: {
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
-    if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId);
-    itemStartedRef.current = true;
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+        }
+      });
+      
+      if (response?.watchItemId) setWatchItemId(response.watchItemId);
+      console.log(response);
+      itemStartedRef.current = true;
+    } catch (error) {
+      console.error('Failed to start item:', error);
+    }
   }
 
   function handleStopItem() {
@@ -617,7 +624,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
 
       // ✅ Start tracking item when quiz begins
-      handleSendStartItem();
+      await handleSendStartItem();
     } catch (err) {
       console.error('Failed to start quiz:', err);
       console.log(attemptError);
