@@ -60,14 +60,6 @@ export class InviteController {
     const { courseId, versionId } = params;
     const { inviteData } = body;
     
-    // Build subject context first
-    const inviteContext = { courseId, versionId };
-    const inviteSubject = subject('Invite', inviteContext);
-    
-    if (!ability.can(InviteActions.Create, inviteSubject)) {
-      throw new ForbiddenError('You do not have permission to create invites for this course');
-    }
-    
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
     for (const invite of inviteData) {
