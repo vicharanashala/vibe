@@ -13,6 +13,7 @@ import {
   ProgressDataResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
+  WatchTimeBody,
 } from '#users/classes/validators/ProgressValidators.js';
 import { ProgressService } from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -285,12 +286,15 @@ If none are provided, resets to the beginning of the course.`,
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
+    @Body() body: WatchTimeBody,
   ): Promise<WatchTime[]> {
     const { userId, itemId } = params;
 
     const watchTime = await this.progressService.getWatchTime(
       userId,
-      itemId
+      itemId,
+      body.courseId,
+      body.versionId,
     )
     return watchTime;
   }

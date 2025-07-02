@@ -68,6 +68,20 @@ export class InviteController {
       throw new ForbiddenError('You do not have permission to create invites for this course');
     }
     
+    // Validate that the user can invite to each specific role
+    // This ensures students can only invite students, TAs can invite students/TAs, etc.
+    for (const invite of inviteData) {
+      const roleSpecificSubject = subject('Invite', { 
+        courseId, 
+        versionId, 
+        targetRole: invite.role 
+      });
+      
+      if (!ability.can(InviteActions.Create, roleSpecificSubject)) {
+        throw new ForbiddenError(`You do not have permission to invite users with the role: ${invite.role}`);
+      }
+    }
+    
     const results: InviteResult[] = await this.inviteService.inviteUserToCourse(
       inviteData,
       courseId,

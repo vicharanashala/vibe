@@ -21,6 +21,11 @@ export type InviteAbility = [InviteActionsType, InviteSubjectType];
 
 /**
  * Setup notification abilities for a specific role
+ * Role-based invitation permissions:
+ * - STUDENT: Can only invite other students to their course version
+ * - TA: Can invite students and other TAs to their course version
+ * - INSTRUCTOR: Can invite anyone to their course (all versions)
+ * - MANAGER: Can invite anyone to their course (all versions)
  */
 export function setupInviteAbilities(
     builder: AbilityBuilder<any>,
@@ -42,6 +47,8 @@ export function setupInviteAbilities(
         
         switch (enrollment.role) {
             case 'STUDENT':
+                // Students can only invite other students to their course version
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'STUDENT' });
                 break;
             case 'INSTRUCTOR':
                 can(InviteActions.Create, 'Invite', courseBounded);
@@ -52,6 +59,9 @@ export function setupInviteAbilities(
                 can('manage', 'Invite', courseBounded);
                 break;
             case 'TA':
+                // TAs can invite students and other TAs to their course version
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'STUDENT' });
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'TA' });
                 can(InviteActions.View, 'Invite', versionBounded);
                 break;
         }

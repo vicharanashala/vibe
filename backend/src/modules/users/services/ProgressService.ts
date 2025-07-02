@@ -959,9 +959,9 @@ class ProgressService extends BaseService {
     if (courseId && courseVersionId) await this.verifyDetails(userId, courseId, courseVersionId);
     const watchTime = await this.progressRepository.getWatchTime(
       userId,
+      itemId,
       courseId,
       courseVersionId,
-      itemId,
     );
 
     if (!watchTime) {

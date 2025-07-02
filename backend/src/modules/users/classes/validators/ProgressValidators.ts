@@ -483,6 +483,28 @@ export class WatchTimeParams {
   itemId: string;
 }
 
+export class WatchTimeBody {
+  @JSONSchema({
+    description: 'Course ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Course version ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  versionId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -496,5 +518,6 @@ export const PROGRESS_VALIDATORS = [
   ResetCourseProgressParams,
   ProgressDataResponse,
   ProgressNotFoundErrorResponse,
-  WatchTimeParams
+  WatchTimeParams,
+  WatchTimeBody,
 ]

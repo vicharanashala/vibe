@@ -47,16 +47,20 @@ export function setupEnrollmentAbilities(
                 break;
             case 'INSTRUCTOR':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
-                cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
-                cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
                 can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
+                const roleBounded = { courseId: enrollment.courseId, role: { $in: ['STUDENT', 'TA'] } };
+                can(EnrollmentActions.Delete, 'Enrollment', roleBounded);
+                can(EnrollmentActions.Modify, 'Enrollment', roleBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'Enrollment', courseBounded);
                 break;
             case 'TA':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
-                cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
+                can(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
+                const roleBoundedTa = { courseId: enrollment.courseId, versionId: enrollment.versionId , role: 'STUDENT' };
+                can(EnrollmentActions.Modify, 'Enrollment', roleBoundedTa);
+                can(EnrollmentActions.Delete, 'Enrollment', roleBoundedTa);
                 break;
         }
     });

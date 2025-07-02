@@ -112,12 +112,16 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) {ability}
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
-    
+    const enrollmentData = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', { 
-      userId, 
       courseId, 
-      versionId 
+      versionId,
+      role: enrollmentData.role,
     });
     
     // Check permission using ability.can() with the actual enrollment resource

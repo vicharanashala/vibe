@@ -155,23 +155,29 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IWatchTime[] | null> {
     await this.init();
-    const query: Record<string, ObjectId> = {
+    
+    // Build query dynamically and add logging
+    const query: any = {
       userId: new ObjectId(userId),
       itemId: new ObjectId(itemId),
     };
-
-    if (courseId && courseVersionId) {
+    
+    // Add optional courseId and courseVersionId if provided
+    if (courseId) {
       query.courseId = new ObjectId(courseId);
+    }
+    if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
-
-    const result = await this.watchTimeCollection.find(
-      query,
-      {
-        session,
-      },
-    ).toArray();
-    return result;
+    const result = await this.watchTimeCollection.find(query, { session }).toArray();
+    return result.map((item) => ({
+      ...item,
+      _id: item._id.toString(),
+      userId: item.userId.toString(),
+      courseId: item.courseId.toString(),
+      courseVersionId: item.courseVersionId.toString(),
+      itemId: item.itemId.toString(),
+    }));
   }
 
   async getWatchTimeById(
