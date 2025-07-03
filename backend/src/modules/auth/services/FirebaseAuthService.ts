@@ -276,7 +276,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // Update user in Firebase Auth
     await this.auth.updateUser(firebaseUID, {
       displayName: `${body.firstName} ${body.lastName}`,
-      email: body.email,
     });
   }
 }

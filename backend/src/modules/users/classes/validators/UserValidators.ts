@@ -102,18 +102,6 @@ export class EditUserBody{
   @IsString()
   @IsNotEmpty()
   lastName: string;
-
-  @JSONSchema({
-    description: "User's email address",
-    example: 'user@example.com',
-    type: 'string',
-    format: 'email',
-    readOnly: true,
-  })
-  @IsEmail()
-  @IsString()
-  @IsNotEmpty()
-  email: string;
 }
 
 /**
