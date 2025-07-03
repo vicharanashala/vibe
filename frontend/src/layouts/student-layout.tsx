@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
-import { LogOut } from "lucide-react"
+import { LogOut, ArrowLeft } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 // import FloatingVideo from "@/components/floating-video";
 
@@ -18,6 +18,10 @@ export default function StudentLayout() {
   const handleLogout = () => {
     logout()
     navigate({ to: "/auth" })
+  }
+
+  const handleGoBack = () => {
+    window.history.back()
   }
 
   // console.log('Current user role:', user?.role);
@@ -32,6 +36,7 @@ export default function StudentLayout() {
       <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 transition-all duration-300 before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-primary/[0.02] before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-500">
         <div className="flex w-full items-center justify-between px-8 relative z-10">
           <div className="relative z-20 flex items-center text-xl font-bold tracking-tight group cursor-pointer">
+
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-lg overflow-hidden">
                 <img

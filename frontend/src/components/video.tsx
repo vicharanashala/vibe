@@ -178,6 +178,29 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
 
     // Cleanup when component unmounts or URL changes
     return () => {
+      // Stop if started but not yet stopped
+      if (!progressStoppedRef.current && watchItemIdRef.current) {
+        stopItem.mutate({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId: watchItemIdRef.current,
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+          },
+        });
+      }
+      // Reset references
+      progressStartedRef.current = false;
+      progressStoppedRef.current = false;
+      watchItemIdRef.current = null;
+      
+      // Destroy player
       if (playerRef.current) {
         playerRef.current.destroy?.();
         playerRef.current = null;

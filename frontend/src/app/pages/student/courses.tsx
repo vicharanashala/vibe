@@ -40,6 +40,11 @@ export default function StudentCourses() {
     }
   };
 
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    setCurrentPage(1); // Reset to first page when changing tabs
+  };
+
   const renderEnrollmentCard = (enrollment: Record<string, unknown>, index: number) => {
     return <CourseCard enrollment={enrollment} index={index} variant="dashboard" />;
   };
@@ -80,7 +85,7 @@ export default function StudentCourses() {
           <p className="text-muted-foreground">Manage your learning journey</p>
         </section>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="enrolled">
               Enrolled ({isLoading ? "..." : totalDocuments})

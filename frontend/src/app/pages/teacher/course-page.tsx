@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -25,6 +25,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { ProctoringModal } from "@/components/EditProctoringModal"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Pagination } from "@/components/ui/Pagination"
 
 // Import the hooks and auth store
 import {
@@ -46,23 +47,27 @@ import type { RawEnrollment } from "@/types/course.types"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
   // Get user from auth store
   const { user } = useAuthStore()
 
-  // Fetch user enrollments with higher limit to show all courses
+  // Fetch user enrollments with pagination (use reasonable page size)
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(1, 100, true) // Increased limit to 100
+  } = useUserEnrollments(currentPage, 10, true) // Use pagination with 10 items per page
 
   const enrollments = enrollmentsResponse?.enrollments || []
+  const totalPages = enrollmentsResponse?.totalPages || 1
+  const totalDocuments = enrollmentsResponse?.totalDocuments || 0
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
-  const uniqueCourses = enrollments.reduce((acc: RawEnrollment[], enrollment: RawEnrollment) => {
+  // Since we're using pagination, we'll work with the current page data
+  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
     const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
@@ -75,11 +80,19 @@ export default function TeacherCoursesPage() {
     window.location.href = "/courses/add"
   }
 
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
   // Filter courses based on search query
-  const filteredCourses = uniqueCourses.filter((enrollment: RawEnrollment) => {
-    // We'll need to check this in the CourseCard component since we need to fetch course data first
-    return true // For now, show all enrollments
-  })
+  const filteredCourses = uniqueCourses
 
   // Invalidate all related queries
   const invalidateAllQueries = () => {
@@ -178,7 +191,7 @@ export default function TeacherCoursesPage() {
 
         {/* Courses List */}
         <div className="space-y-4">
-          {filteredCourses.map((enrollment: RawEnrollment) => (
+          {filteredCourses.map((enrollment: any) => (
             <CourseCard
               key={enrollment._id}
               enrollment={enrollment}
@@ -187,6 +200,16 @@ export default function TeacherCoursesPage() {
             />
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
     </div>
   )

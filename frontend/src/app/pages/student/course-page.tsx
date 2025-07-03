@@ -29,6 +29,7 @@ import {
   Home,
   GraduationCap,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -510,6 +511,16 @@ export default function CoursePage() {
     updateCourseNavigation
   ]);
 
+  // Handle going back to courses
+  const handleGoBack = () => {
+    // Stop current item before navigating away
+    if (itemContainerRef.current) {
+      itemContainerRef.current.stopCurrentItem();
+    }
+    // Navigate back to courses page
+    window.history.back();
+  };
+
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
@@ -761,6 +772,14 @@ export default function CoursePage() {
           <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
             <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-4" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoBack}
+              className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <div className="text-xl font-medium text-foreground truncate" title={currentItem ? currentItem.name : 'Select content to begin learning'}>
                 <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>

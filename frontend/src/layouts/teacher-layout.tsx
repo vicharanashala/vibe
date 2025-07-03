@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
 import { logout } from "@/utils/auth";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -33,6 +33,10 @@ export default function TeacherLayout() {
   const handleLogout = () => {
     logout();
     navigate({ to: "/auth" });
+  };
+
+  const handleGoBack = () => {
+    window.history.back();
   };
 
   useEffect(() => {
