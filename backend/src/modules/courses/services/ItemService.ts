@@ -129,6 +129,16 @@ export class ItemService extends BaseService {
         );
       }
 
+      if (version.totalItems) {
+        version.totalItems += 1; // Increment the total items count in the version.
+      } else {
+        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+          version.courseId.toString(),
+          version._id.toString(),
+          session,
+        )
+      }
+
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
       itemsGroup.items.push(newItemDB);
@@ -219,13 +229,32 @@ export class ItemService extends BaseService {
         session,
       );
       if (!deleted) throw new InternalServerError('Item deletion failed');
-
+      const version = await this.findVersion(itemsGroupId);
+      if (version.totalItems) {
+        version.totalItems -= 1;
+      } else {
+        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+          version.courseId.toString(),
+          version._id.toString(),
+          session,
+        )
+      }
       await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
       const updatedItemsGroup = await this.itemRepo.readItemsGroup(
         itemsGroupId,
         session,
       );
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        version._id.toString(),
+        version,
+        session,
+      )
+
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update version after item deletion');
+      }
 
       return {deletedItemId: itemId, itemsGroup: updatedItemsGroup};
     });

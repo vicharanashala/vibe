@@ -205,6 +205,31 @@ export class SectionService extends BaseService {
         throw new NotFoundError('Section not found');
       }
 
+      // Update total item count
+      const updatedVersion = await this.courseRepo.readVersion(
+        versionId,
+        session,
+      );
+      if (!updatedVersion) {
+        throw new NotFoundError('Updated version not found');
+      }
+      updatedVersion.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+        updatedVersion.courseId.toString(),
+        updatedVersion._id.toString(),
+        session,
+      );
+
+      const updatedVersionResult = await this.courseRepo.updateVersion(
+        versionId,
+        updatedVersion,
+        session,
+      );
+      if (!updatedVersionResult) {
+        throw new InternalServerError(
+          `Failed to update version ${versionId} after section deletion`,
+        );
+      }
+
       return deleteResult;
     });
   }

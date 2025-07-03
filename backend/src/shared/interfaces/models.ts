@@ -32,6 +32,7 @@ export interface ICourseVersion {
   version: string;
   description: string;
   modules: IModule[];
+  totalItems?: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -319,4 +319,71 @@ export class ItemRepository implements IItemRepository {
       itemId: new ObjectId(firstItem._id),
     };
   }
+
+  async CalculateTotalItemsCount(courseId: string, versionId: string, session?: ClientSession): Promise<number> {
+    const version = await this.courseRepo.readVersion(versionId, session);
+    if (!version) {
+      throw new NotFoundError(`Course version ${versionId} not found.`);
+    }
+
+    // Verify that the version belongs to the specified course
+    if (version.courseId.toString() !== courseId) {
+      throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);
+    }
+
+    let totalCount = 0;
+
+    // Iterate through all modules
+    for (const module of version.modules) {
+      // Iterate through all sections in each module
+      for (const section of module.sections) {
+        try {
+          const itemsGroup = await this.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+          totalCount += itemsGroup.items.length;
+        } catch (error) {
+          // If itemsGroup is not found, skip this section
+          if (error instanceof NotFoundError) {
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
+
+    return totalCount;
+  }
+
+  async getTotalItemsCount(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const version = await this.courseRepo.readVersion(versionId, session);
+    if (!version) {
+      throw new NotFoundError(`Course version ${versionId} not found.`);
+    }
+    // Verify that the version belongs to the specified course
+    if (version.courseId.toString() !== courseId) {
+      throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);
+    }
+    if (version.totalItems) {
+      return version.totalItems;
+    } else {
+      // If totalItems is not set, calculate it
+      version.totalItems = await this.CalculateTotalItemsCount(courseId, versionId, session);
+      // Update the version with the calculated totalItems
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+      if (!updatedVersion) {
+        throw new InternalServerError(`Failed to update version ${versionId} with total items count.`);
+      }
+      return updatedVersion.totalItems;
+    }
+  }
 }

@@ -25,6 +25,7 @@ import {
 import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import { QUIZZES_TYPES } from '#quizzes/types.js';
 import { WatchTime } from '../classes/transformers/WatchTime.js';
+import { CompletedProgressResponse } from '../classes/index.js';
 @injectable()
 class ProgressService extends BaseService {
   constructor(
@@ -596,6 +597,53 @@ class ProgressService extends BaseService {
       }
 
       return Object.assign(new Progress(), progress);
+    });
+  }
+
+  async getUserProgressPercentage(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<CompletedProgressResponse> {
+    return this._withTransaction(async session => {
+      // Verify if the user, course, and course version exist
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const progress = await this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      if (!progress) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      const totalItems = await this.itemRepo.getTotalItemsCount(
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      const completedItemsArray = await this.progressRepository.getCompletedItems(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      // Use Set to ensure unique completed items and for efficient size comparison
+      const completedItemsSet = new Set(completedItemsArray);
+      
+      // Handle divide by zero case
+      const percentCompleted = totalItems > 0 ? completedItemsSet.size / totalItems : 0;
+
+      return {
+        completed: progress.completed,
+        percentCompleted,
+        totalItems: totalItems,
+        completedItems: completedItemsSet.size,
+      }
     });
   }
 
