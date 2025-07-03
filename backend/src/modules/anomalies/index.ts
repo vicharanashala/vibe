@@ -9,6 +9,11 @@ import {
 import { anomaliesContainerModule } from './container.js';
 import { sharedContainerModule } from '#root/container.js';
 import { ContainerModule } from 'inversify';
+import { coursesContainerModule } from '../courses/container.js';
+import { authContainerModule } from '../auth/container.js';
+import { notificationsContainerModule } from '../notifications/container.js';
+import { usersContainerModule } from '../users/container.js';
+import { quizzesContainerModule } from '../quizzes/container.js';
 
 // Export names that loadAppModules expects
 export const anomaliesModuleControllers: Function[] = [
@@ -27,7 +32,7 @@ export const anomaliesModuleValidators: Function[] = [
 export const anomaliesContainerModules: ContainerModule[] = [
   anomaliesContainerModule,
   sharedContainerModule,
-];
+]
 
 // This sets up Inversify bindings for the anomaly module
 export async function setupAnomaliesContainer(): Promise<void> {
