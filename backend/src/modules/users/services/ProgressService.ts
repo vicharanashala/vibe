@@ -343,6 +343,12 @@ class ProgressService extends BaseService {
     let currentSection: string = sectionId;
     let currentModule: string = moduleId;
 
+    const completedItems = await this.progressRepository.getCompletedItems(
+        userId,
+        courseVersion.courseId.toString(),
+        courseVersion._id.toString(),
+      )
+
     // Check if the moduleId is the last module in the course
     // 1. Sort modules by order
     const sortedModules = courseVersion.modules.sort((a, b) =>
@@ -495,18 +501,13 @@ class ProgressService extends BaseService {
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      // fetch completed items
-      const completedItems = await this.progressRepository.getCompletedItems(
-        userId,
-        courseVersion.courseId.toString(),
-        courseVersion._id.toString(),
-      )
-      if (completedItems.includes(nextItem._id.toString())) {
-        return null;
-      }
       currentItem = nextItem._id.toString();
     }
-
+    if (currentItem) {
+      if (completedItems.includes(currentItem)) {
+        return null;
+      }
+    }
     return {
       completed,
       currentModule,
@@ -735,7 +736,6 @@ class ProgressService extends BaseService {
           );
         }
       }
-
       // Get the course version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
 

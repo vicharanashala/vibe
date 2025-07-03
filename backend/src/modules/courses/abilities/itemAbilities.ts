@@ -58,7 +58,6 @@ export async function setupItemAbilities(
                     versionId: enrollment.versionId,
                     itemId: { $in: allowedItemIds }
                 };
-                console.log('Allowed Item IDs:', allowedItemIds);
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':
