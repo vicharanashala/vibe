@@ -30,6 +30,11 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
 
+  findItemsGroupByItemId(
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null>;
+
   getFirstOrderItems(
     courseVersionId: string,
     session?: ClientSession,

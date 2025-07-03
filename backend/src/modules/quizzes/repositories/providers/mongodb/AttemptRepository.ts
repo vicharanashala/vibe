@@ -25,11 +25,12 @@ class AttemptRepository {
     }
     throw new InternalServerError('Failed to create quiz attempt');
   }
-  public async getById(attemptId: string): Promise<IAttempt | null> {
+  public async getById(attemptId: string, quizId: string, session: ClientSession): Promise<IAttempt | null> {
     await this.init();
     const result = await this.attemptCollection.findOne({
       _id: new ObjectId(attemptId),
-    });
+      userId: quizId,
+    }, {session});
     if (!result) {
       return null;
     }

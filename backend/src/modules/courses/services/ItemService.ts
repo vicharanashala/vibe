@@ -320,4 +320,30 @@ export class ItemService extends BaseService {
     );
     return version;
   }
+
+  /**
+   * Get version and course information from an item ID
+   * Combines findItemsGroupIdByItemId and findVersionByItemGroupId
+   */
+  public async getCourseAndVersionByItemId(itemId: string): Promise<{
+    versionId: string;
+    courseId: string;
+  }> {
+    return this._withTransaction(async session => {
+      // Step 1: Find itemsGroup containing the item
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(itemId, session);
+      const itemsGroupId = itemsGroup?._id.toString();
+      // Step 2: Find version using existing function
+      const version = await this.courseRepo.findVersionByItemGroupId(itemsGroupId, session);
+      
+      if (!version) {
+        throw new NotFoundError(`Version for item ${itemId} not found`);
+      }
+      
+      return {
+        courseId: version.courseId.toString(),
+        versionId: version._id.toString(),
+      };
+    });
+  }
 }

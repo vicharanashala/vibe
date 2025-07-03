@@ -143,9 +143,9 @@ class QuizService extends BaseService {
       return metrics;
     });
   }
-  getAttemptDetails(attemptId: string) {
+  getAttemptDetails(attemptId: string, quizId: string) {
     return this._withTransaction(async session => {
-      const attempt = await this.attemptRepo.getById(attemptId);
+      const attempt = await this.attemptRepo.getById(attemptId, quizId, session);
       if (!attempt) {
         throw new NotFoundError('Attempt does not exist.');
       }
@@ -153,10 +153,11 @@ class QuizService extends BaseService {
       return attempt;
     });
   }
-  getSubmissionDetails(submissionId: string) {
+  getSubmissionDetails(submissionId: string, quizId: string) {
     return this._withTransaction(async session => {
       const submission = await this.submissionRepo.getById(
         submissionId,
+        quizId,
         session,
       );
       if (!submission) {
@@ -294,11 +295,13 @@ class QuizService extends BaseService {
   }
   overrideSubmissionScore(
     submissionId: string,
+    quizId: string,
     newScore: number,
   ): Promise<void> {
     return this._withTransaction(async session => {
       const submission = await this.submissionRepo.getById(
         submissionId,
+        quizId,
         session,
       );
       if (!submission) {
@@ -317,11 +320,13 @@ class QuizService extends BaseService {
   }
   regradeSubmission(
     submissionId: string,
+    quizId: string,
     gradingResult: Partial<IGradingResult>,
   ): Promise<void> {
     return this._withTransaction(async session => {
       const submission = await this.submissionRepo.getById(
         submissionId,
+        quizId,
         session,
       );
       if (!submission) {
@@ -346,12 +351,14 @@ class QuizService extends BaseService {
   }
   addFeedbackToAnswer(
     submissionId: string,
+    quizId: string,
     questionId: string,
     feedback: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
       const submission = await this.submissionRepo.getById(
         submissionId,
+        quizId,
         session,
       );
       if (!submission) {

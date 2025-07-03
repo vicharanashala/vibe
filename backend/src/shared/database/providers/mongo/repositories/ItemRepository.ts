@@ -112,6 +112,25 @@ export class ItemRepository implements IItemRepository {
     ) as ItemsGroup;
   }
 
+  async findItemsGroupByItemId(
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null> {
+    await this.init();
+    const itemsGroup = await this.itemsGroupCollection.findOne(
+      { 'items._id': new ObjectId(itemId) },
+      { session }
+    );
+    
+    if (!itemsGroup) {
+      return null;
+    }
+    
+    return instanceToPlain(
+      Object.assign(new ItemsGroup(), itemsGroup),
+    ) as ItemsGroup;
+  }
+
   // Methods for Item CRUD operations
   async createItem(item: Item, session?: ClientSession): Promise<Item | null> {
     await this.init();
