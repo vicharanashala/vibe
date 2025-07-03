@@ -116,11 +116,12 @@ class AttemptService extends BaseService {
 
   private async _grade(
     attemptId: string,
+    quizId: string,
     answers: IQuestionAnswer[],
     session?: ClientSession,
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
-    const attempt = await this.attemptRepository.getById(attemptId);
+    const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
     const quiz = await this.quizRepository.getById(
       attempt.quizId.toString(),
       session,
@@ -283,7 +284,7 @@ class AttemptService extends BaseService {
       //5. Change the latestAttemptStatus to 'SUBMITTED'
       metrics.latestAttemptStatus = 'SUBMITTED';
 
-      const gradingResult = await this._grade(attemptId, answers, session);
+      const gradingResult = await this._grade(attemptId, quizId, answers, session);
 
       //6. Update the submission with the feedbacks and score
       submission.gradingResult = gradingResult;
@@ -318,7 +319,7 @@ class AttemptService extends BaseService {
   ): Promise<void> {
     return this._withTransaction(async session => {
       //1. Fetch the attempt by ID
-      const attempt = await this.attemptRepository.getById(attemptId);
+      const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
       if (!attempt) {
         throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
       }
@@ -354,15 +355,17 @@ class AttemptService extends BaseService {
     attemptId: string,
   ): Promise<IAttempt> {
     //1. Fetch the attempt by ID
-    const attempt = await this.attemptRepository.getById(attemptId);
-    if (!attempt) {
-      throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
-    }
-    //2. Check if the attempt belongs to the user and quiz
-    if (attempt.userId !== userId || attempt.quizId !== quizId) {
-      throw new BadRequestError('Attempt does not belong to the user or quiz');
-    }
-    return attempt as IAttempt;
+    return this._withTransaction(async session => {
+      const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
+      if (!attempt) {
+        throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
+      }
+      //2. Check if the attempt belongs to the user and quiz
+      if (attempt.userId !== userId || attempt.quizId !== quizId) {
+        throw new BadRequestError('Attempt does not belong to the user or quiz');
+      }
+      return attempt as IAttempt;
+    })
   }
 }
 
