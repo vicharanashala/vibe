@@ -271,4 +271,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
     return {success: true, message: 'Password updated successfully'};
   }
+
+  async updateFirebaseUser(firebaseUID: string, body: Partial<IUser>): Promise<void> {
+    // Update user in Firebase Auth
+    await this.auth.updateUser(firebaseUID, {
+      displayName: `${body.firstName} ${body.lastName}`,
+      email: body.email,
+    });
+  }
 }

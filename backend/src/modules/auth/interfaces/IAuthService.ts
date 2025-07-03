@@ -37,6 +37,20 @@ export interface IAuthService {
     body: ChangePasswordBody,
     requestUser: IUser,
   ): Promise<{success: boolean; message: string}>;
+
+  /**
+   * Retrieves the currently authenticated user based on the provided token.
+   * This method extracts the user information from the token and returns
+   * the user object if found.
+   *
+   * @param token - The authentication token used to identify the user
+   * @returns A promise that resolves to the authenticated user object or null if not found
+   */
+  getCurrentUserFromToken(token: string): Promise<IUser | null>;
+  updateFirebaseUser(
+    firebaseUID: string,
+    body: Partial<IUser>,
+  ): Promise<void>;
 }
 
 /**

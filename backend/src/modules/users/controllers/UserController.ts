@@ -67,10 +67,14 @@ export class UserController {
   })
   async editUser(
     @Req() req: any,
-    @Body() body: EditUserBody
+    @Body() body: EditUserBody,
   ): Promise<void> {
-    const userId = await this.authService.getUserIdFromReq(req);
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    const userId = user._id.toString();
+    const firebaseUID = user.firebaseUID;
     await this.userService.editUser(userId, body);
+    await this.authService.updateFirebaseUser(firebaseUID, body);
   }
 
   @OpenAPI({
