@@ -7,7 +7,6 @@ import {
   MoveModuleBody,
 } from '../classes/validators/ModuleValidators.js';
 import {Module} from '../classes/transformers/Module.js';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
@@ -16,8 +15,6 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-
-import {COURSES_TYPES} from '../types.js';
 import {GLOBAL_TYPES} from '../../../types.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 @injectable()

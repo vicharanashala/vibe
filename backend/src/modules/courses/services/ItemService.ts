@@ -21,7 +21,8 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
-import { ICourseVersion } from '#root/shared/index.js';
+import { ICourseVersion, ProgressRepository } from '#root/shared/index.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -30,6 +31,8 @@ export class ItemService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -216,6 +219,8 @@ export class ItemService extends BaseService {
         session,
       );
       if (!deleted) throw new InternalServerError('Item deletion failed');
+
+      await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
       const updatedItemsGroup = await this.itemRepo.readItemsGroup(
         itemsGroupId,
