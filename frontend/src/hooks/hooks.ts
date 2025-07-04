@@ -941,3 +941,24 @@ export function useEditProctoringSettings() {
 
   return { editSettings, loading, error };
 }
+
+// PATCH /users/patch/api/users/edit
+export function useEditUser(): {
+  mutate: (variables: { body: { firstName?: string; lastName?: string } }) => void,
+  mutateAsync: (variables: { body: { firstName?: string; lastName?: string } }) => Promise<void>,
+  data: void | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/users/edit");
+
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to edit user') : null
+  };
+}
