@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, X, Play, Clock, Edit, Trash2 } from "lucide-react";
 import Video from "@/components/video";
 
 interface ContentItem {
@@ -31,7 +31,7 @@ interface Section {
 
 interface Props {
   sectionIndex: number;
-  sectionData?: Section; // made optional to safely check
+  sectionData?: Section;
   onSectionChange: (updatedSection: Section) => void;
   selected: {
     moduleId: string | null;
@@ -62,7 +62,18 @@ export default function SectionForm({
   selected,
   contentItemRefs,
 }: Props) {
-  // 🚨 early return if sectionData is undefined
+  const [videoDurations, setVideoDurations] = useState<Record<string, number>>({});
+  const [showVideoPopup, setShowVideoPopup] = useState(false);
+  const [currentEditingItem, setCurrentEditingItem] = useState<{
+    index: number;
+    item: ContentItem;
+  } | null>(null);
+  const [tempVideoData, setTempVideoData] = useState({
+    videoUrl: "",
+    points: "",
+    range: [0, 300] as [number, number],
+  });
+
   if (!sectionData) return null;
 
   const updateSectionTitle = (title: string) => {
@@ -94,138 +105,310 @@ export default function SectionForm({
     onSectionChange({ ...sectionData, contentItems: updatedItems });
   };
 
-  return (
-    <Card className="bg-muted/20">
-      <CardContent className="p-4 space-y-4">
-        <h3 className="font-medium text-lg">Section {sectionIndex + 1}</h3>
+  const deleteItem = (index: number) => {
+    const updatedItems = sectionData.contentItems.filter((_, idx) => idx !== index);
+    onSectionChange({ ...sectionData, contentItems: updatedItems });
+  };
 
-        <Input
-          placeholder="Section Title"
-          value={sectionData?.title ?? ""}
-          onChange={(e) => updateSectionTitle(e.target.value)}
-          className="w-full"
-        />
+  const handleTypeChange = (index: number, type: string) => {
+    if (type === "video") {
+      const item = sectionData.contentItems[index];
+      setCurrentEditingItem({ index, item });
+      setTempVideoData({
+        videoUrl: item.videoUrl || "",
+        points: item.points || "",
+        range: item.range || [0, 300],
+      });
+      setShowVideoPopup(true);
+    } else {
+      updateItem(index, "type", type);
+    }
+  };
 
-        {sectionData?.contentItems?.map((item, idx) => {
-          const videoId = extractYouTubeId(item.videoUrl || "");
-          const start = Math.floor(item.range?.[0] ?? 0);
-          const end = Math.floor(item.range?.[1] ?? 0);
+  const handleVideoEdit = (index: number) => {
+    const item = sectionData.contentItems[index];
+    setCurrentEditingItem({ index, item });
+    setTempVideoData({
+      videoUrl: item.videoUrl || "",
+      points: item.points || "",
+      range: item.range || [0, 300],
+    });
+    setShowVideoPopup(true);
+  };
 
-          const isSelected =
-            selected.sectionId === sectionData.id &&
-            selected.contentItemId === item.id;
+  const handleVideoSave = () => {
+    if (currentEditingItem) {
+      const { index } = currentEditingItem;
+      const updatedItems = [...sectionData.contentItems];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        type: "video",
+        videoUrl: tempVideoData.videoUrl,
+        points: tempVideoData.points,
+        range: tempVideoData.range,
+      };
+      onSectionChange({ ...sectionData, contentItems: updatedItems });
+    }
+    setShowVideoPopup(false);
+    setCurrentEditingItem(null);
+  };
 
-          return (
-            <div
-              key={item.id}
-              ref={
-                isSelected
-                  ? (el) => el && contentItemRefs.current.set(item.id, el)
-                  : null
-              }
-              className="border p-4 rounded-md space-y-3 bg-muted/10"
+  const handleVideoCancel = () => {
+    if (currentEditingItem) {
+      updateItem(currentEditingItem.index, "type", "");
+    }
+    setShowVideoPopup(false);
+    setCurrentEditingItem(null);
+    setTempVideoData({
+      videoUrl: "",
+      points: "",
+      range: [0, 300],
+    });
+  };
+
+  const VideoCard = ({ item, onEdit }: { item: ContentItem; onEdit: () => void }) => {
+    const videoId = extractYouTubeId(item.videoUrl || "");
+    const start = Math.floor(item.range?.[0] ?? 0);
+    const end = Math.floor(item.range?.[1] ?? 0);
+    
+    return (
+      <Card className="bg-card border-border">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Play className="h-4 w-4 text-primary" />
+              <span className="font-medium text-card-foreground">Video Content</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              className="h-8 px-3 text-primary hover:bg-accent"
             >
-              <Select
-                value={item.type}
-                onValueChange={(val) => updateItem(idx, "type", val)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Content Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="blog">Blog</SelectItem>
-                  <SelectItem value="quiz">Quiz</SelectItem>
-                </SelectContent>
-              </Select>
+              <span className="text-xs mr-1">Edit</span>
+              <Edit className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <div className="truncate">
+              <span className="font-medium text-foreground">URL:</span> {item.videoUrl || "No URL"}
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span className="font-medium text-foreground">Start:</span> {formatTime(start)}
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span className="font-medium text-foreground">End:</span> {formatTime(end)}
+              </div>
+            </div>
+            <div>
+              <span className="font-medium text-foreground">Points:</span> {item.points || "0"}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
-              {item.type === "video" && (
-                <>
+  const videoId = extractYouTubeId(tempVideoData.videoUrl);
+  const start = Math.floor(tempVideoData.range[0]);
+  const end = Math.floor(tempVideoData.range[1]);
+
+  return (
+    <>
+      <Card className="bg-muted/20">
+        <CardContent className="p-4 space-y-4">
+          <h3 className="font-medium text-lg">Section {sectionIndex + 1}</h3>
+
+          <Input
+            placeholder="Section Title"
+            value={sectionData?.title ?? ""}
+            onChange={(e) => updateSectionTitle(e.target.value)}
+            className="w-full"
+          />
+
+          {sectionData?.contentItems?.map((item, idx) => {
+            const isSelected =
+              selected.sectionId === sectionData.id &&
+              selected.contentItemId === item.id;
+
+            return (
+              <div
+                key={item.id}
+                ref={
+                  isSelected
+                    ? (el) => el && contentItemRefs.current.set(item.id, el)
+                    : null
+                }
+                className="border p-4 rounded-md space-y-3 bg-muted/10"
+              >
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={item.type}
+                    onValueChange={(val) => handleTypeChange(idx, val)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select Content Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="blog">Blog</SelectItem>
+                      <SelectItem value="quiz">Quiz</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteItem(idx)}
+                    className="h-10 w-10 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {item.type === "video" && <VideoCard item={item} onEdit={() => handleVideoEdit(idx)} />}
+
+                {item.type === "blog" && (
                   <Input
-                    placeholder="YouTube Video URL"
-                    value={item.videoUrl}
-                    onChange={(e) =>
-                      updateItem(idx, "videoUrl", e.target.value)
-                    }
+                    placeholder="Blog Link / Content"
+                    value={item.blog}
+                    onChange={(e) => updateItem(idx, "blog", e.target.value)}
                     className="w-full"
                   />
+                )}
 
-                  {videoId && (
-                    <>
+                {item.type === "quiz" && (
+                  <Input
+                    placeholder="Quiz Content / Link"
+                    value={item.quiz}
+                    onChange={(e) => updateItem(idx, "quiz", e.target.value)}
+                    className="w-full"
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={addItem}
+            className="w-full"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Content Item
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Video Configuration Popup */}
+      {showVideoPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style={{ minHeight: '100vh' }}>
+          <div className="bg-background rounded-lg p-6 w-full max-w-4xl max-h-[95vh] overflow-y-auto border shadow-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Configure Video Content</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleVideoCancel}
+                className="p-1"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  YouTube Video URL
+                </label>
+                <Input
+                  placeholder="Enter YouTube Video URL"
+                  value={tempVideoData.videoUrl}
+                  onChange={(e) =>
+                    setTempVideoData(prev => ({ ...prev, videoUrl: e.target.value }))
+                  }
+                  className="w-full"
+                />
+              </div>
+
+              {videoId && (
+                <>
+                  <div className="w-full h-[400px] border rounded-md p-0 bg-muted/20 overflow-hidden">
+                    <div className="w-full h-full">
                       <Video
-                        URL={item.videoUrl || ""}
+                        URL={tempVideoData.videoUrl}
                         startTime={formatTime(start)}
                         endTime={formatTime(end)}
-                        points={item.points}
+                        points={tempVideoData.points}
                         doGesture={false}
+                        onDurationChange={(dur) => {
+                          setVideoDurations((prev) => ({ 
+                            ...prev, 
+                            [currentEditingItem?.item.id || 'temp']: dur 
+                          }));
+                        }}
                       />
+                    </div>
+                  </div>
 
-                      <div className="mt-4">
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                          Select Clip Range (Start to End)
-                        </label>
-                        <Slider
-                          value={item.range || [0, 300]}
-                          onValueChange={(val) =>
-                            updateItem(
-                              idx,
-                              "range",
-                              val as [number, number]
-                            )
-                          }
-                          max={600}
-                          step={1}
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-2">
-                          <span>Start: {formatTime(start)}</span>
-                          <span>End: {formatTime(end)}</span>
-                        </div>
-                      </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      Select Clip Range (Start to End)
+                    </label>
+                    <Slider
+                      value={tempVideoData.range}
+                      onValueChange={(val) =>
+                        setTempVideoData(prev => ({ 
+                          ...prev, 
+                          range: val as [number, number] 
+                        }))
+                      }
+                      max={videoDurations[currentEditingItem?.item.id || 'temp'] || 600}
+                      step={1}
+                    />
+                    <div className="flex justify-between text-sm text-muted-foreground mt-2">
+                      <span>Start: {formatTime(start)}</span>
+                      <span>End: {formatTime(end)}</span>
+                    </div>
+                  </div>
 
-                      <Input
-                        placeholder="Points"
-                        type="number"
-                        value={item.points}
-                        onChange={(e) =>
-                          updateItem(idx, "points", e.target.value)
-                        }
-                        className="w-full"
-                      />
-                    </>
-                  )}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Points
+                    </label>
+                    <Input
+                      placeholder="Enter points value"
+                      type="number"
+                      value={tempVideoData.points}
+                      onChange={(e) =>
+                        setTempVideoData(prev => ({ ...prev, points: e.target.value }))
+                      }
+                      className="w-full"
+                    />
+                  </div>
                 </>
               )}
-
-              {item.type === "blog" && (
-                <Input
-                  placeholder="Blog Link / Content"
-                  value={item.blog}
-                  onChange={(e) => updateItem(idx, "blog", e.target.value)}
-                  className="w-full"
-                />
-              )}
-
-              {item.type === "quiz" && (
-                <Input
-                  placeholder="Quiz Content / Link"
-                  value={item.quiz}
-                  onChange={(e) => updateItem(idx, "quiz", e.target.value)}
-                  className="w-full"
-                />
-              )}
             </div>
-          );
-        })}
 
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={addItem}
-          className="w-full"
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Content Item
-        </Button>
-      </CardContent>
-    </Card>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={handleVideoCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleVideoSave}
+                disabled={!tempVideoData.videoUrl}
+              >
+                Save Video
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

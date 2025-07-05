@@ -9,6 +9,8 @@ export interface VideoProps {
   isProgressUpdating?: boolean;
   rewindVid: boolean;
   pauseVid: boolean;
+  onDurationChange?: (duration: number) => void;
+
 }
 
 // Minimal YouTube Player instance interface
