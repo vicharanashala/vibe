@@ -29,7 +29,7 @@ class AttemptRepository {
     await this.init();
     const result = await this.attemptCollection.findOne({
       _id: new ObjectId(attemptId),
-      userId: quizId,
+      quizId: quizId,
     }, {session});
     if (!result) {
       return null;
