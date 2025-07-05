@@ -30,6 +30,7 @@ import {
   GraduationCap,
   AlertCircle,
   ArrowLeft,
+  CheckCircle
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -99,6 +100,9 @@ export default function CoursePage() {
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
+  const [rewindVid, setRewindVid] = useState<boolean>(false);
+  const [pauseVid, setPauseVid] = useState<boolean>(false);
+  const [quizPassed, setQuizPassed] = useState(2);
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -225,6 +229,10 @@ export default function CoursePage() {
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
   console.log('Section items:', sectionItems);
 
+  // Notification effects
+  useEffect(() => {
+    if (quizPassed !==2) setTimeout(() => setQuizPassed(2), 5000);
+  }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
@@ -511,6 +519,166 @@ export default function CoursePage() {
     updateCourseNavigation
   ]);
 
+  // Helper function to find the last video item before the current item
+  const findPreviousVideoItem = useCallback(() => {
+    if (!courseVersionData || !selectedModuleId || !selectedSectionId || !selectedItemId) {
+      return null;
+    }
+
+    const modules = (courseVersionData as any)?.modules || [];
+    
+    // Find current module index
+    const currentModuleIndex = modules.findIndex((m: any) => m.moduleId === selectedModuleId);
+    if (currentModuleIndex === -1) return null;
+
+    const currentModule = modules[currentModuleIndex];
+    const sections = currentModule.sections || [];
+    
+    // Find current section index
+    const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === selectedSectionId);
+    if (currentSectionIndex === -1) return null;
+
+    const currentSectionItems = sectionItems[selectedSectionId] || [];
+    
+    // Find current item index
+    const currentItemIndex = currentSectionItems.findIndex((item: any) => item._id === selectedItemId);
+    if (currentItemIndex === -1) return null;
+
+    // Search backwards through current section for video items
+    for (let i = currentItemIndex - 1; i >= 0; i--) {
+      const item = currentSectionItems[i];
+      if (item.type && item.type.toLowerCase() === 'video') {
+        return {
+          moduleId: selectedModuleId,
+          sectionId: selectedSectionId,
+          itemId: item._id
+        };
+      }
+    }
+
+    // Search backwards through previous sections in current module
+    for (let sectionIdx = currentSectionIndex - 1; sectionIdx >= 0; sectionIdx--) {
+      const section = sections[sectionIdx];
+      const sectionItemsArray = sectionItems[section.sectionId] || [];
+      
+      // Search from end of section backwards
+      for (let i = sectionItemsArray.length - 1; i >= 0; i--) {
+        const item = sectionItemsArray[i];
+        if (item.type && item.type.toLowerCase() === 'video') {
+          return {
+            moduleId: selectedModuleId,
+            sectionId: section.sectionId,
+            itemId: item._id
+          };
+        }
+      }
+    }
+
+    // Search backwards through previous modules
+    for (let moduleIdx = currentModuleIndex - 1; moduleIdx >= 0; moduleIdx--) {
+      const module = modules[moduleIdx];
+      const moduleSections = module.sections || [];
+      
+      // Search from end of module backwards
+      for (let sectionIdx = moduleSections.length - 1; sectionIdx >= 0; sectionIdx--) {
+        const section = moduleSections[sectionIdx];
+        const sectionItemsArray = sectionItems[section.sectionId] || [];
+        
+        // Search from end of section backwards
+        for (let i = sectionItemsArray.length - 1; i >= 0; i--) {
+          const item = sectionItemsArray[i];
+          if (item.type && item.type.toLowerCase() === 'video') {
+            return {
+              moduleId: module.moduleId,
+              sectionId: section.sectionId,
+              itemId: item._id
+            };
+          }
+        }
+      }
+    }
+
+    // No previous video item found
+    return null;
+  }, [courseVersionData, selectedModuleId, selectedSectionId, selectedItemId, sectionItems]);
+
+  // Handle navigation to previous video (used by quiz component)
+  const handlePrevVideo = useCallback(async () => {
+    // Set loading state
+    setIsNavigatingToNext(true);
+    
+    try {
+      // Stop current item before moving to previous video with proper cleanup
+      if (itemContainerRef.current) {
+        itemContainerRef.current.stopCurrentItem();
+        
+        // Allow a small delay for cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Find the previous video item
+      const prevVideoItem = findPreviousVideoItem();
+      
+      if (!prevVideoItem) {
+        console.log('No previous video item found');
+        setIsNavigatingToNext(false);
+        return;
+      }
+
+      const { moduleId, sectionId, itemId } = prevVideoItem;
+      
+      // Ensure all values are defined before switching
+      if (!moduleId || !sectionId || !itemId) {
+        console.log('Invalid previous video item data');
+        setIsNavigatingToNext(false);
+        return;
+      }
+
+      // Store current valid item before switching
+      if (selectedItemId && selectedSectionId && selectedModuleId) {
+        setPreviousValidItem({
+          moduleId: selectedModuleId,
+          sectionId: selectedSectionId,
+          itemId: selectedItemId
+        });
+      }
+
+      // Clear any existing item errors to ensure navigation works
+      setIsItemForbidden(false);
+      
+      // Update local state immediately to the previous video item
+      setSelectedModuleId(moduleId);
+      setSelectedSectionId(sectionId);
+      setSelectedItemId(itemId);
+
+      // Auto-expand the module and section
+      setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+      setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+      // Set active section to fetch items if not already loaded
+      if (!sectionItems[sectionId]) {
+        setActiveSectionInfo({
+          moduleId,
+          sectionId
+        });
+      }
+
+      // Update the course store with the previous video item
+      updateCourseNavigation(moduleId, sectionId, itemId);
+    } catch (error) {
+      console.error('Error navigating to previous video:', error);
+      // Clear loading state on error
+      setIsNavigatingToNext(false);
+    }
+  }, [
+    findPreviousVideoItem, 
+    selectedModuleId, 
+    selectedSectionId, 
+    selectedItemId, 
+    sectionItems, 
+    updateCourseNavigation
+  ]);
+
   // Handle going back to courses
   const handleGoBack = () => {
     // Stop current item before navigating away
@@ -574,7 +742,7 @@ export default function CoursePage() {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[1.15rem] font-bold leading-none">
-                  <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+                  <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
                 </span>
                 <p className="text-xs text-muted-foreground">Learning Platform</p>
               </div>
@@ -662,7 +830,7 @@ export default function CoursePage() {
                                       sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
                                         const itemId = item._id;
                                         const isCurrentItem = itemId === selectedItemId;
-
+                                        if (item.type === 'QUIZ') return null; // Skip quizzes in sidebar
                                         return (
                                           <SidebarMenuSubItem key={itemId}>
                                             <SidebarMenuSubButton
@@ -709,7 +877,27 @@ export default function CoursePage() {
             </ScrollArea>
           </SidebarContent>
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-            <FloatingVideo setDoGesture={setDoGesture} settings={proctoringData}></FloatingVideo>
+            <FloatingVideo 
+              isVisible={true}
+              onClose={() => {}}
+              onAnomalyDetected={() => {}}
+              setDoGesture={setDoGesture} 
+              settings={proctoringData || {
+                _id: "",
+                studentId: "",
+                versionId: "",
+                courseId: "",
+                settings: {
+                  proctors: {
+                    detectors: []
+                  }
+                }
+              }} 
+              rewindVid={rewindVid} 
+              setRewindVid={setRewindVid}
+              pauseVid={pauseVid}
+              setPauseVid={setPauseVid}
+            />
           </SidebarFooter>
           {/* Navigation Footer */}
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
@@ -794,54 +982,100 @@ export default function CoursePage() {
             {/* Ambient background effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
-            {/* ✅ Item Access Error Notification */}
-            {isItemForbidden && (
-              <Card className="fixed top-8 right-8 z-50 w-96 border-2 border-destructive/40 bg-destructive/95 text-destructive-foreground shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2 duration-300">
-                <CardContent className="flex items-center gap-4 px-6 py-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive-foreground/20">
-                    <AlertCircle className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Badge variant="outline" className="border-destructive-foreground/30 bg-destructive-foreground/10 text-destructive-foreground font-bold">
-                      Access Restricted
-                    </Badge>
-                    <p className="text-sm font-medium leading-relaxed">
-                      {previousValidItem 
-                        ? "Item not accessible. Returning to previous valid content in a moment..."
-                        : "The item does not match current progress. Please complete current item first."
-                      }
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsItemForbidden(false)}
-                    className="text-destructive-foreground hover:bg-destructive-foreground/10"
-                  >
-                    ×
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            {/* Notification Stack */}
+            <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-80">
+              {/* ✅ Item Access Error Notification */}
+              {isItemForbidden && (
+                <Card className="border border-red-400/40 bg-red-500/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                  <CardContent className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50/20">
+                      <AlertCircle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-xs font-medium">
+                        Access Restricted
+                      </Badge>
+                      <p className="text-xs font-medium leading-relaxed">
+                        {previousValidItem 
+                          ? "Item not accessible. Returning to previous valid content..."
+                          : "Complete current item first to access this content."
+                        }
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsItemForbidden(false)}
+                      className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
+                    >
+                      ×
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Gesture Popup */}
-            {doGesture && (
-              <Card className="fixed top-8 right-8 z-50 w-90 border-2 border-destructive/40 bg-destructive/95 text-destructive-foreground shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2 duration-300">
-                <CardContent className="flex items-center gap-4 px-6 py-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive-foreground/20 text-3xl">
-                    👍
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Badge variant="outline" className="border-destructive-foreground/30 bg-destructive-foreground/10 text-destructive-foreground font-bold">
-                      Gesture Required
-                    </Badge>
-                    <p className="text-sm font-medium">
-                      Please show a <strong>thumbs up</strong> to continue!
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+              {/* Gesture Notification */}
+              {doGesture && (
+                <Card className="border border-amber-400/40 bg-amber-500/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                  <CardContent className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50/20 text-lg">
+                      👍
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xs font-medium">
+                        Gesture Required
+                      </Badge>
+                      <p className="text-xs font-medium leading-relaxed">
+                        Please show a <strong>thumbs up</strong> to continue!
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Quiz Passed/Failed */}
+              {quizPassed !== 2 && (
+                <Card
+                  className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${
+                  quizPassed === 1
+                    ? "border-green-400/40 bg-green-500/95 text-green-50"
+                    : "border-red-400/40 bg-red-500/95 text-red-50"
+                  }`}
+                >
+                  <CardContent className="flex items-center gap-3 px-4 py-3">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                      quizPassed === 1 ? "bg-green-50/20" : "bg-red-50/20"
+                    }`}>
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Badge variant="outline" className={`text-xs font-medium ${
+                        quizPassed === 1 
+                          ? "border-green-50/30 bg-green-50/10 text-green-50" 
+                          : "border-red-50/30 bg-red-50/10 text-red-50"
+                      }`}>
+                        {quizPassed === 1 ? "Quiz Passed" : "Quiz Failed"}
+                      </Badge>
+                      <p className="text-xs font-medium leading-relaxed">
+                        {quizPassed === 1 ? "Congratulations! You passed the quiz." : "Redirecting to the previous video..."}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setQuizPassed(2)}
+                      className={`h-6 w-6 p-0 ${
+                        quizPassed === 1 
+                          ? "text-green-50 hover:bg-green-50/10" 
+                          : "text-red-50 hover:bg-red-50/10"
+                      }`}
+                    >
+                      ×
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
             {currentItem ? (
               <div className="relative z-10 h-full">
@@ -850,9 +1084,14 @@ export default function CoursePage() {
                   item={currentItem}
                   doGesture={doGesture}
                   onNext={handleNext}
+                  onPrevVideo={handlePrevVideo}
                   isProgressUpdating={isNavigatingToNext}
                   attemptId={attemptId || undefined}
                   setAttemptId={setAttemptId}
+                  rewindVid={rewindVid}
+                  pauseVid={pauseVid}
+                  displayNextLesson={false}
+                  setQuizPassed={setQuizPassed}
                 />
               </div>
             ) : (

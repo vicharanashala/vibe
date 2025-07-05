@@ -41,9 +41,14 @@ export interface ItemContainerProps {
   item: Item;
   doGesture: boolean;
   onNext: () => void;
+  onPrevVideo?: () => void;
   isProgressUpdating: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
+  rewindVid?: boolean;
+  pauseVid?: boolean;
+  displayNextLesson?: boolean;
+  setQuizPassed?: (passed: number) => void; // Function to update quizPassed
 }
 
 export interface ItemContainerRef {

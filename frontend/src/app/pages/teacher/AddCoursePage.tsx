@@ -15,8 +15,7 @@ import {
   useCreateCourseVersion,
   useCreateModule,
   useCreateSection,
-  useEnrollUser,
-  useUserByFirebaseUID,
+  useEnrollUser
 } from "@/hooks/hooks";
 
 import { auth } from "@/lib/firebase";
@@ -76,9 +75,6 @@ export default function AddCoursePage() {
   const { mutateAsync: createModule } = useCreateModule();
   const { mutateAsync: createSection } = useCreateSection();
   const { mutateAsync: enrollUser } = useEnrollUser();
-  const { data: user, error: userError } = useUserByFirebaseUID(
-    firebaseUID ?? ""
-  );
 
   const addModule = () => {
     const newId = `module-${Date.now() + Math.random()}`;

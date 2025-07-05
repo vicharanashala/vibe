@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef, use } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,19 +15,21 @@ import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, BufferLike, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
+import { start } from 'repl';
+import { on } from 'events';
 
 // Utility function to preprocess content for math rendering
 const preprocessMathContent = (content: string): string => {
   if (!content) return content;
-  
+
   let processedContent = content;
-  
+
   // Ensure math expressions are properly formatted
   // Convert \( \) to $ $ for inline math
   processedContent = processedContent.replace(/\\\((.*?)\\\)/gs, '$$$1$$');
   // Convert \[ \] to $$ $$ for display math
   processedContent = processedContent.replace(/\\\[(.*?)\\\]/gs, '$$$$1$$$$');
-  
+
   // Fix common LaTeX formatting issues
   // Ensure proper escaping for backslashes in math contexts
   processedContent = processedContent.replace(/\$\$(.*?)\$\$/gs, (_, mathContent) => {
@@ -35,7 +37,7 @@ const preprocessMathContent = (content: string): string => {
     const cleanMath = mathContent.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
     return `$$${cleanMath}$$`;
   });
-  
+
   return processedContent;
 };
 
@@ -57,7 +59,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   isProgressUpdating,
   attemptId,
   setAttemptId,
-  displayNextLesson
+  displayNextLesson,
+  onPrevVideo,
+  setQuizPassed
 }, ref) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
@@ -68,10 +72,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [, setCurrentConnecting] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [showHint, setShowHint] = useState(false);
+  const [dontStart, setDontStart] = useState(false);
   const processedQuizId = bufferToHex(quizId);
   // console.log('Quiz ID:', quizId);
   // Use the quiz attempt hook
-  const {data: attemptData, mutateAsync: attemptQuiz, isPending, error: attemptError } = useAttemptQuiz();
+  const { data: attemptData, mutateAsync: attemptQuiz, isPending, error: attemptError } = useAttemptQuiz();
 
   // Use the quiz submit hook
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
@@ -83,7 +88,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
 
   // Convert backend QuestionRenderView to frontend QuizQuestion format
-  const convertBackendQuestions = (questionRenderViews: QuestionRenderView[]): QuizQuestion[] => {
+  const convertBackendQuestions = useCallback((questionRenderViews: QuestionRenderView[]): QuizQuestion[] => {
     return questionRenderViews.map((question) => {
       // Convert BufferId to string using the bufferToHex utility
       let questionId: string;
@@ -136,7 +141,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       return baseQuestion;
     });
-  };
+  }, []);
 
   // Get stored attempt ID or fetch from API
   useEffect(() => {
@@ -180,11 +185,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }> => {
     return quizQuestions
-      .filter(question => {
-        const userAnswer = answers[question.id];
-        // Only include questions that have actual answers
-        return userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
-      })
       .map(question => {
         const userAnswer = answers[question.id];
         const saveAnswer: {
@@ -194,6 +194,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           value?: number;
           orders?: Order[];
         } = {};
+        if (!userAnswer) {
+          saveAnswer.lotItemId = '111111111111111111111111';
+          saveAnswer.lotItemIds = ['111111111111111111111111'];
+          saveAnswer.answerText = 'a';
+          saveAnswer.value = -1e40;
+          saveAnswer.orders = [];
+          return {
+            questionId: question.id,
+            questionType: question.type,
+            answer: saveAnswer
+          };
+        }
 
         switch (question.type) {
           case 'SELECT_ONE_IN_LOT':
@@ -284,22 +296,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
+  // Handle case where no questions are available - move to useEffect to prevent infinite re-renders
+  useEffect(() => {
+    if (!currentQuestion && currentQuestionIndex === 0 && quizQuestions.length === 0 && quizStarted) {
+      setQuizStarted(false);
+      setDontStart(true)}
+    else if (currentQuestion) 
+      setDontStart(false);
+  }, [currentQuestion, currentQuestionIndex, quizQuestions.length, quizStarted]);
+
+  useEffect(() => {
+    setDontStart(false);
+  }, [quizId, processedQuizId]);
+
+
   async function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
-    console.log({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
-    
     try {
       const response = await startItem.mutateAsync({
         params: {
@@ -314,7 +326,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
         }
       });
-      
+
+      if (!response?.watchItemId) {
+        console.error('No watchItemId returned from startItem');
+        return;
+      }
       if (response?.watchItemId) setWatchItemId(response.watchItemId);
       console.log(response);
       itemStartedRef.current = true;
@@ -329,17 +345,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       itemStartedRef.current = false;
       return;
     }
-    
+
     if (!itemStartedRef.current) {
       console.log('Item not started, no need to stop');
       return;
     }
-    
+
     console.log('Stopping item tracking', {
       watchItemId: currentCourse.watchItemId,
       itemId: currentCourse.itemId,
     });
-    
+
     stopItem.mutate({
       params: {
         path: {
@@ -367,7 +383,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (itemStartedRef.current) {
         handleStopItem();
       }
-      
+
       // Reset state
       setQuizStarted(false);
       setQuizCompleted(false);
@@ -378,7 +394,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
-  
+
   // ✅ Track if item has been started
   const itemStartedRef = useRef(false);
 
@@ -418,10 +434,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
 
       setQuizCompleted(true);
-      
+
       // ✅ Stop tracking item when quiz completes
       handleStopItem();
-      
+
       // Clear attempt ID from localStorage since quiz is completed
       localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
 
@@ -439,6 +455,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [quizQuestions, answers, attemptId, processedQuizId, submitQuiz, convertAnswersToSaveFormat, showScoreAfterSubmission]);
 
   const handleNextQuestion = useCallback(async () => {
+    // Clear the timer first to prevent race conditions
+    setTimeLeft(0);
+
     // Auto-save progress before moving to next question
     if (attemptId && quizQuestions.length > 0) {
       try {
@@ -484,20 +503,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useEffect(() => {
     // This will run when the component mounts with a new quizId
     console.log('Quiz component initialized with ID:', processedQuizId);
-    
     // Return cleanup function that runs when unmounting or when quizId changes
     return () => {
       console.log('Cleaning up quiz with ID:', processedQuizId);
-      
+
       // Stop the current item if it was started
       if (itemStartedRef.current) {
         console.log('Stopping item tracking on quiz cleanup');
         handleStopItem();
       }
-      
+
       // Clear any running timers
       setTimeLeft(0);
-      
+
       // Reset quiz state on unmount to ensure clean state for next quiz
       setQuizStarted(false);
       setQuizCompleted(false);
@@ -507,24 +525,33 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setCurrentConnecting(null);
       setShowHint(false);
       setSubmissionResults(null);
-      
+
       // We don't clear localStorage here because we might want to 
       // retain progress if the user comes back to this quiz
     };
   }, [quizId, processedQuizId]); // Dependencies include quizId so this runs on quiz changes
 
-  // ✅ Enhance the timer effect with better cleanup
+  // ✅ Timer effect - automatically advances to next question when time expires
   useEffect(() => {
-    if (!quizStarted || quizCompleted || timeLeft <= 0 || doGesture) return;
+    if (!quizStarted || quizCompleted || doGesture) return;
+    if (!timeLeft || timeLeft <= 0) return; // Don't start timer if no time left
 
-    console.log('Starting timer for question', currentQuestionIndex);
+    console.log('Starting timer for question', currentQuestionIndex, 'with', timeLeft, 'seconds');
+
+    let hasTriggeredNext = false; // Prevent multiple calls
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleNextQuestion();
+        if (prev <= 1 && !hasTriggeredNext) {
+          hasTriggeredNext = true;
+          console.log('Time expired for question', currentQuestionIndex, '- automatically advancing');
+          // Use setTimeout to ensure handleNextQuestion is called after state update
+          setTimeout(() => {
+            handleNextQuestion();
+          }, 50); // Small delay to ensure state is updated
           return 0;
         }
-        return prev - 1;
+        return prev > 0 ? prev - 1 : 0;
       });
     }, 1000);
 
@@ -547,20 +574,20 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setScore(0);
       setQuizQuestions([]);
       setSubmissionResults(null);
-      
+
       // Don't reset attemptId here - we'll check for an existing attempt in startQuiz
     }
   }, [processedQuizId]);
 
   // ✅ Modified startQuiz to better handle previous attempts
-  const startQuiz = async () => {
+  const startQuiz = useCallback(async () => {
     try {
       // If we're already tracking an item, stop it before starting a new one
       if (itemStartedRef.current) {
         console.log('Stopping previous item before starting quiz');
         handleStopItem();
       }
-      
+
       // Check if we already have an attempt ID stored
       let currentAttemptId = localStorage.getItem(`quiz-attempt-${processedQuizId}`);
       let questionsToUse = quizQuestions;
@@ -601,14 +628,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               localStorage.removeItem(`quiz-questions-${processedQuizId}`);
               localStorage.removeItem(`quiz-answers-${processedQuizId}`);
               // Restart the function
-              return startQuiz();
+              return;
             }
           } else {
             // No stored questions, need to restart
             localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
             localStorage.removeItem(`quiz-answers-${processedQuizId}`);
             // Restart the function
-            return startQuiz();
+            return;
           }
         } else {
           questionsToUse = quizQuestions;
@@ -631,49 +658,46 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.log(attemptData);
       // Handle error - maybe show a toast or alert
     }
-  };
+  }, [
+    itemStartedRef,
+    handleStopItem,
+    processedQuizId,
+    quizQuestions,
+    attemptQuiz,
+    convertBackendQuestions,
+    setAttemptId,
+    setQuizStarted,
+    setCurrentQuestionIndex,
+    setTimeLeft,
+    setQuizQuestions,
+    setAnswers,
+    handleSendStartItem,
+    attemptError,
+    attemptData
+  ]);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
-    if (answer === -1) return;
+    // Removed the condition that discards -1
+    if (answer === undefined) return;
     if (currentQuestion) {
       const newAnswers = {
         ...answers,
         [currentQuestion.id]: answer
       };
       setAnswers(newAnswers);
-      // Save answers to localStorage
       localStorage.setItem(`quiz-answers-${processedQuizId}`, JSON.stringify(newAnswers));
     }
   }, [currentQuestion, answers, processedQuizId]);
 
-  // Timer effect
-  useEffect(() => {
-    if (!quizStarted || quizCompleted || timeLeft <= 0 || doGesture) return;
 
-    console.log('Starting timer for question', currentQuestionIndex);
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleNextQuestion();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    // Enhanced cleanup
-    return () => {
-      console.log('Clearing timer for question', currentQuestionIndex);
-      clearInterval(timer);
-    };
-  }, [quizStarted, quizCompleted, timeLeft, currentQuestionIndex, handleNextQuestion, doGesture]);
 
   // Set timer for current question
   useEffect(() => {
-    if (quizStarted && currentQuestion?.timeLimit) {
+    if (quizStarted && !quizCompleted && currentQuestion?.timeLimit) {
+      console.log('Setting timer for question', currentQuestionIndex, 'to', currentQuestion.timeLimit, 'seconds');
       setTimeLeft(currentQuestion.timeLimit);
     }
-  }, [currentQuestionIndex, quizStarted, currentQuestion?.timeLimit]);
+  }, [currentQuestionIndex, quizStarted, quizCompleted, currentQuestion?.timeLimit]);
 
   const isAnswerValid = (question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
     if (answer === undefined || answer === null) return false;
@@ -784,6 +808,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     handleAnswer(currentRanking);
   }, [currentQuestion, answers, handleAnswer]);
 
+  // Auto-start quiz for NO_DEADLINE type - move to useEffect to prevent infinite re-renders
+  useEffect(() => {
+    if (!quizStarted && quizType === 'NO_DEADLINE'  && !dontStart) {
+      setQuizStarted(true);
+      // Automatically start quiz if no deadline
+      startQuiz();
+    }
+  }, [quizType, quizStarted, quizQuestions.length, startQuiz]);
+
+   useEffect(() => {
+    if (quizCompleted && quizType === 'NO_DEADLINE') {
+      setQuizCompleted(false);
+      if (submissionResults?.gradingStatus !== "FAILED") {setQuizPassed?.(1);onNext?.();}
+      else {setQuizPassed?.(0);onPrevVideo?.()};
+    }
+  }, [quizType, quizCompleted, quizQuestions.length, startQuiz]);
+
   // Quiz not started
   if (!quizStarted) {
     return (
@@ -830,7 +871,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
                 {attemptError && (
                   <div className="text-sm text-red-600 text-center max-w-[300px]">
-                    Failed to start quiz. Please try again.
+                    {attemptError || 'Failed to start quiz. Please try again later.'}
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground text-center max-w-[300px]">
@@ -910,7 +951,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   )}
                 </Button>
               </div>
-            )}
+            )}{!displayNextLesson && onPrevVideo && (
+              <div className="text-center pt-4">
+                <Button
+                  onClick={() => {
+                    onPrevVideo();
+                  }}
+                  disabled={isProgressUpdating}
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                >
+                  <ChevronLeft className="h-5 w-5 mr-3" />
+                  Rewatch Previous Video
+                </Button>
+              </div>
+            )
+            }
 
           </CardContent>
         </Card>
@@ -1060,51 +1117,62 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </div>
           </div>
 
-          <div className="text-center">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4">
+            {onPrevVideo && (
+              <Button
+              onClick={onPrevVideo}
+              disabled={isProgressUpdating}
+              variant="outline"
+              size="lg"
+              className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+              >
+              <ChevronLeft className="h-5 w-5 mr-3" />
+              Rewatch Previous Video
+              </Button>
+            )}
             <Button
               onClick={() => {
-                // Clear localStorage when retaking quiz
-                localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
-                localStorage.removeItem(`quiz-answers-${processedQuizId}`);
-                localStorage.removeItem(`quiz-questions-${processedQuizId}`);
-                setQuizStarted(false);
-                setQuizCompleted(false);
-                setCurrentQuestionIndex(0);
-                setAnswers({});
-                setScore(0);
-                setQuizQuestions([]);
-                setAttemptId(null);
-                setSubmissionResults(null);
+              // Clear localStorage when retaking quiz
+              localStorage.removeItem(`quiz-attempt-${processedQuizId}`);
+              localStorage.removeItem(`quiz-answers-${processedQuizId}`);
+              localStorage.removeItem(`quiz-questions-${processedQuizId}`);
+              setQuizStarted(false);
+              setQuizCompleted(false);
+              setCurrentQuestionIndex(0);
+              setAnswers({});
+              setScore(0);
+              setQuizQuestions([]);
+              setAttemptId(null);
+              setSubmissionResults(null);
               }}
               variant="outline"
               size="lg"
+              className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake Quiz
             </Button>
-
-            {/* Next Lesson Button for completed quiz */}
-            {onNext && (
+            {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
               <Button
-                onClick={onNext}
-                disabled={isProgressUpdating}
-                className="ml-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                size="lg"
+              onClick={onNext}
+              disabled={isProgressUpdating}
+              className="min-w-[220px] h-12 text-lg font-semibold ml-0 md:ml-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+              size="lg"
               >
-                {isProgressUpdating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                    Processing
-                  </>
-                ) : (
-                  <>
-                    Next Lesson
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
+              {isProgressUpdating ? (
+                <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                Processing
+                </>
+              ) : (
+                <>
+                Next Lesson
+                <ChevronRight className="h-4 w-4 ml-2" />
+                </>
+              )}
               </Button>
             )}
-          </div>
+            </div>
         </CardContent>
       </Card>
     );
@@ -1189,9 +1257,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
+              key={currentQuestion.id}
               name={`question-${currentQuestion.id}`}
-              value={answers[currentQuestion.id] !== undefined ? answers[currentQuestion.id].toString() : -1}
-              onValueChange={(value) => handleAnswer(value?parseInt(value): undefined)}
+              value={answers[currentQuestion.id] !== undefined ? answers[currentQuestion.id].toString() : undefined}
+              onValueChange={(value) => handleAnswer(value ? parseInt(value) : undefined)}
               className="space-y-3"
             >
               {currentQuestion.options.map((option, index) => (
@@ -1312,16 +1381,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         <Separator />
 
         {/* Navigation */}
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentQuestionIndex === 0}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
-
+        <div className="flex justify-end">
           <div className="flex gap-2">
             <Button
               variant="outline"

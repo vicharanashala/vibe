@@ -23,7 +23,11 @@ function FloatingVideo({
   onClose,
   onAnomalyDetected,
   setDoGesture,
-  settings
+  settings,
+  rewindVid,
+  setRewindVid,
+  pauseVid,
+  setPauseVid
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,6 +65,7 @@ function FloatingVideo({
   });
   const [penaltyPoints, setPenaltyPoints] = useState(-10);
   const [penaltyType, setPenaltyType] = useState("");
+  const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
 
   // Thumbs-up challenge states
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
@@ -253,9 +258,30 @@ function FloatingVideo({
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
         setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
+        
+        // Increment contiguous anomaly points
+        setContiguousAnomalyPoints(prev => {
+          const newContiguous = prev + newPenaltyPoints;
+          // Check if we've reached 20 contiguous points
+          if (newContiguous >= 8) {
+            console.log(`[FloatingVideo] Rewind triggered: 20 contiguous anomaly points reached`);
+            setRewindVid(true);
+            setPauseVid(true);  // Pause video after rewind
+            return 0; // Reset counter after triggering
+          }
+          return newContiguous;
+        });
       }
       else {
         setAnomaly(false);
+        // When anomalies are cleared, restore previous video state
+        if (rewindVid || pauseVid) {
+          console.log(`[FloatingVideo] Anomalies cleared - restoring video state`);
+          setRewindVid(false);
+          setPauseVid(false);  // Resume video when anomalies are cleared
+        }
+        // Reset contiguous anomaly points when no anomalies are detected
+        if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
     }, 1000); // Update every second
 
@@ -272,7 +298,12 @@ function FloatingVideo({
     isBlurDetectionEnabled,
     isFocusEnabled,
     data,
-    error
+    error,
+    rewindVid,
+    setRewindVid,
+    pauseVid,
+    setPauseVid,
+    contiguousAnomalyPoints
   ]);
   const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
   // Random thumbs-up challenge system - only run if gesture detection is enabled
@@ -557,7 +588,7 @@ function FloatingVideo({
     >
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
-        <div className="bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
+        <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <span className="font-medium truncate">
               {isThumbsUpChallenge
@@ -571,7 +602,7 @@ function FloatingVideo({
               variant="ghost"
               size="sm"
               onClick={toggleCollapse}
-              className="h-6 w-6 p-0 text-white hover:bg-red-700 hover:text-white flex-shrink-0"
+              className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white flex-shrink-0"
               title={isCollapsed ? 'Expand' : 'Collapse'}
             >
               {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}

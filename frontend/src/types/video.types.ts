@@ -7,6 +7,8 @@ export interface VideoProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  rewindVid: boolean;
+  pauseVid: boolean;
 }
 
 // Minimal YouTube Player instance interface
@@ -64,11 +66,15 @@ export interface StudentProctoringSettings {
 }
 
 export interface FloatingVideoProps {
-  isVisible?: boolean;
-  onClose?: () => void;
-  onAnomalyDetected?: (hasAnomaly: boolean) => void;
+  isVisible: boolean;
+  onClose: () => void;
+  onAnomalyDetected: (hasAnomaly: boolean) => void;
   setDoGesture: (value: boolean) => void;
-  settings?: StudentProctoringSettings;
+  settings: StudentProctoringSettings;
+  rewindVid: boolean;
+  setRewindVid: (value: boolean) => void;
+  pauseVid: boolean;
+  setPauseVid: (value: boolean) => void;
 }
 
 export interface ProctoringSettings {

@@ -6,6 +6,7 @@ import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
+import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
 
@@ -28,7 +29,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, doGesture = false, onNext, isProgressUpdating }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -36,9 +37,11 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(100);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  // Use the stored playback rate from the player store
+  const { playbackRate, setPlaybackRate } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
   const videoId = getYouTubeId(URL);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
@@ -54,6 +57,16 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
+  
+  // Track if video was playing before rewind pause
+  const wasPlayingBeforeRewind = useRef(false);
+  
+  // Track if rewind has been processed to prevent multiple triggers
+  const rewindProcessedRef = useRef(false);
+
+  useEffect(() => {
+    playerRef.current?.setPlaybackRate(playbackRate);
+  }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -94,6 +107,45 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doGesture]);
+
+  // Handle rewind functionality
+  useEffect(() => {
+    if (rewindVid && !rewindProcessedRef.current) {
+      const player = playerRef.current;
+      if (!player) return;
+      
+      // Store current playing state before rewind
+      wasPlayingBeforeRewind.current = playing;
+      const newTime = startTimeSeconds;
+      player.seekTo(newTime, true);
+      rewindProcessedRef.current = true;
+    } else if (!rewindVid) {
+      // Reset the flag when rewindVid becomes false
+      rewindProcessedRef.current = false;
+    }
+  }, [rewindVid, currentTime, startTimeSeconds, playing]);
+
+  // Handle pause functionality for anomaly detection
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    
+    if (pauseVid) {
+      // Pause video due to anomaly detection
+      if (playing) {
+        player.pauseVideo();
+        console.log('Video paused due to anomaly detection');
+      }
+    } else {
+      // Resume video when anomalies are cleared
+      // Only resume if it was playing before the rewind/pause
+      if (wasPlayingBeforeRewind.current) {
+        player.playVideo();
+        console.log('Video resumed after anomalies cleared');
+        wasPlayingBeforeRewind.current = false; // Reset the flag
+      }
+    }
+  }, [pauseVid, playing]);
 
   function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
@@ -158,6 +210,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
               setPlaying(true);
               if (!progressStartedRef.current) {
                 handleSendStartItem();
+                setVideoEnded(false);
                 progressStartedRef.current = true;
               }
             } else {
@@ -289,12 +342,16 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                 }
               });
             }
+            onNext();
             progressStoppedRef.current = true;
           }
           if (endTimeSeconds > 0 && time >= endTimeSeconds) {
             player.pauseVideo();
             player.seekTo(endTimeSeconds, true);
             setMaxTime(endTimeSeconds);
+            if (!videoEnded) {
+              setVideoEnded(true);
+            }
             return;
           }
 
@@ -311,7 +368,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds]);
+  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -519,7 +576,6 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                   step={0.05}
                   onValueChange={(value) => {
                     const rate = value[0];
-                    setPlaybackRate(rate);
                     const player = playerRef.current;
                     if (player && typeof player.getAvailablePlaybackRates === 'function') {
                       const availableRates = player.getAvailablePlaybackRates!();
@@ -528,9 +584,12 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                         if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
                       }
                       player.setPlaybackRate(closest);
+                      // Update both local state and global store
                       setPlaybackRate(closest);
                     } else {
                       playerRef.current?.setPlaybackRate(rate);
+                      // Update both local state and global store
+                      setPlaybackRate(rate);
                     }
                   }}
                   className="w-[50px]"
@@ -562,7 +621,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
           </div>
 
           {/* Next Lesson Button */}
-          {onNext && (
+          {/*onNext && (
             <div style={{
               borderTop: '1px solid hsl(var(--border))',
               paddingTop: '12px',
@@ -592,7 +651,7 @@ export default function Video({ URL, startTime, endTime, points, doGesture = fal
                 )}
               </Button>
             </div>
-          )}
+          )*/}
         </div>
       </div>
 

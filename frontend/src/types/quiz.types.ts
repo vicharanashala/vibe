@@ -46,10 +46,12 @@ export interface QuizProps {
   quizId: string | BufferLike;
   doGesture?: boolean;
   onNext?: () => void;
+  onPrevVideo?: () => void;
   isProgressUpdating?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;
+  setQuizPassed?: (passed: number) => void; // Function to update quizPassed
 }
 
 export interface QuizRef {

@@ -70,7 +70,7 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <span className="text-2xl font-bold">
-              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
             </span>
           )}
         </div>

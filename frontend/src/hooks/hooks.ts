@@ -718,27 +718,6 @@ export function useResetProgress(): {
   };
 }
 
-// User hooks
-
-export function useUserByFirebaseUID(firebaseUID: string): {
-  data: components['schemas']['UserByFirebaseUIDResponse'] | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
-  const result = api.useQuery("get", "/users/firebase/{firebaseUID}", {
-    params: { path: { firebaseUID } }
-  }, { enabled: !!firebaseUID });
-
-  return {
-    data: result.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch user by Firebase UID') : null,
-    refetch: result.refetch
-  };
-}
-
-// Types for quiz questions
 
 // Quiz hooks
 export function useAttemptQuiz(): {

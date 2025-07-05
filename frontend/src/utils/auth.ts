@@ -119,4 +119,4 @@ export function checkAuth() {
 
 // API-specific functions
 // Use openapi-react-query hooks from hooks.ts
-export { useLogin, useUserByFirebaseUID } from '../hooks/hooks';
+export { useLogin } from '../hooks/hooks';
