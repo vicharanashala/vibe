@@ -14,11 +14,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
-import { Link, Navigate } from "@tanstack/react-router";
+import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import ItemContainer from "@/components/Item-container";
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuroraText } from "@/components/magicui/aurora-text";
+import confetti from "canvas-confetti";
 import {
   ChevronRight,
   BookOpen,
@@ -68,6 +69,7 @@ const sortItemsByOrder = (items: any[]) => {
 export default function CoursePage() {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const { user } = useAuthStore();
+  const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
 
@@ -462,7 +464,45 @@ export default function CoursePage() {
       const nextItem = findNextItem();
       
       if (!nextItem) {
-        console.log('No next item found - course completed or end of content');
+        console.log('No next item found - course completed!');
+        
+        // Clear loading state
+        setIsNavigatingToNext(false);
+        
+        // Trigger confetti celebration
+        const end = Date.now() + 3 * 1000; // 3 seconds
+        const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+        
+        const frame = () => {
+          if (Date.now() > end) return;
+          
+          confetti({
+            particleCount: 2,
+            angle: 60,
+            spread: 55,
+            startVelocity: 60,
+            origin: { x: 0, y: 0.5 },
+            colors: colors,
+          });
+          confetti({
+            particleCount: 2,
+            angle: 120,
+            spread: 55,
+            startVelocity: 60,
+            origin: { x: 1, y: 0.5 },
+            colors: colors,
+          });
+          
+          requestAnimationFrame(frame);
+        };
+        
+        frame();
+        
+        // Redirect to dashboard after celebration
+        setTimeout(() => {
+          router.navigate({ to: '/student' });
+        }, 3500);
+        
         return;
       }
 
@@ -516,7 +556,8 @@ export default function CoursePage() {
     selectedSectionId, 
     selectedItemId, 
     sectionItems, 
-    updateCourseNavigation
+    updateCourseNavigation,
+    router
   ]);
 
   // Helper function to find the last video item before the current item

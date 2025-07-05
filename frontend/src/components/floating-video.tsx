@@ -34,11 +34,11 @@ function FloatingVideo({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
-  const [size, setSize] = useState({ width: 320, height: 280 });
+  const [size, setSize] = useState({ width: 224, height: 196 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [overlayPosition, setOverlayPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPoppedOut, setIsPoppedOut] = useState(true);
+  const [isPoppedOut, setIsPoppedOut] = useState(false);
   const [anomaly, setAnomaly] = useState(false);
   const [anomalyType, setAnomalyType] = useState("");
 
@@ -76,7 +76,6 @@ function FloatingVideo({
 
   // Helper function to check if a specific proctoring component is enabled
   const isComponentEnabled = useCallback((componentName: string): boolean => {
-    if (componentName === 'handGestureDetection') return false;
     if (!settings?.settings?.proctors?.detectors) return true;
     
     const detector = settings.settings.proctors.detectors.find(
@@ -305,7 +304,8 @@ function FloatingVideo({
     setPauseVid,
     contiguousAnomalyPoints
   ]);
-  const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
+  const min = 2 * 60 * 1000;
+  const max = 5 * 60 * 1000;
   // Random thumbs-up challenge system - only run if gesture detection is enabled
   useEffect(() => {
     if (!isHandGestureDetectionEnabled) return;
@@ -315,8 +315,8 @@ function FloatingVideo({
       const timeSinceLastChallenge = now - lastChallengeTime;
 
       // Only trigger if no active challenge and enough time has passed (2-5 minutes randomly)
-      if (!isThumbsUpChallenge && timeSinceLastChallenge > 3000 * mul) { // Minimum 30 seconds for testing
-        const randomInterval = Math.random() * (3000 * mul - 1200 * mul) + 1200 * mul; // 2-5 minutes
+      if (!isThumbsUpChallenge && timeSinceLastChallenge > 30000) { // Minimum 30 seconds for testing
+        const randomInterval = Math.random() * (max-min) + min; // 2-5 minutes
 
         if (timeSinceLastChallenge > randomInterval) {
           // Check if user is already showing thumbs-up when challenge starts

@@ -76,11 +76,34 @@ export default function InvitePage() {
         }
     }
 
-    // Handle updating invite email
+    // Handle updating invite email with smart space-separated parsing
     const updateInviteEmail = (index: number, email: string) => {
-        const newInvites = [...inviteEmails]
-        newInvites[index].email = email
-        setInviteEmails(newInvites)
+        // Check if the input contains multiple emails separated by spaces
+        const emailsArray = email.trim().split(/\s+/).filter(e => e.length > 0)
+        
+        if (emailsArray.length > 1) {
+            // Multiple emails detected - split them into separate rows
+            const newInvites = [...inviteEmails]
+            
+            // Update the current row with the first email
+            newInvites[index].email = emailsArray[0]
+            
+            // Create new rows for the remaining emails
+            const additionalInvites = emailsArray.slice(1).map(emailAddr => ({
+                email: emailAddr,
+                role: newInvites[index].role // Use the same role as the current row
+            }))
+            
+            // Insert the new rows after the current index
+            newInvites.splice(index + 1, 0, ...additionalInvites)
+            
+            setInviteEmails(newInvites)
+        } else {
+            // Single email - normal update
+            const newInvites = [...inviteEmails]
+            newInvites[index].email = email
+            setInviteEmails(newInvites)
+        }
     }
 
     // Handle updating invite role
@@ -246,7 +269,7 @@ export default function InvitePage() {
                                     <Input
                                         id={`email-${index}`}
                                         type="email"
-                                        placeholder="Enter email address"
+                                        placeholder="Enter email address (space-separated for multiple)"
                                         value={invite.email}
                                         onChange={(e) => updateInviteEmail(index, e.target.value)}
                                         className="h-9"
