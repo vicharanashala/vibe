@@ -25,6 +25,7 @@ import {
 import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import { QUIZZES_TYPES } from '#quizzes/types.js';
 import { WatchTime } from '../classes/transformers/WatchTime.js';
+import { CompletedProgressResponse } from '../classes/index.js';
 @injectable()
 class ProgressService extends BaseService {
   constructor(
@@ -343,6 +344,12 @@ class ProgressService extends BaseService {
     let currentSection: string = sectionId;
     let currentModule: string = moduleId;
 
+    const completedItems = await this.progressRepository.getCompletedItems(
+        userId,
+        courseVersion.courseId.toString(),
+        courseVersion._id.toString(),
+      )
+
     // Check if the moduleId is the last module in the course
     // 1. Sort modules by order
     const sortedModules = courseVersion.modules.sort((a, b) =>
@@ -495,18 +502,13 @@ class ProgressService extends BaseService {
       );
       // Get next itemId
       const nextItem = sortedItems[currentItemIndex + 1];
-      // fetch completed items
-      const completedItems = await this.progressRepository.getCompletedItems(
-        userId,
-        courseVersion.courseId.toString(),
-        courseVersion._id.toString(),
-      )
-      if (completedItems.includes(nextItem._id.toString())) {
-        return null;
-      }
       currentItem = nextItem._id.toString();
     }
-
+    if (currentItem) {
+      if (completedItems.includes(currentItem)) {
+        return null;
+      }
+    }
     return {
       completed,
       currentModule,
@@ -595,6 +597,53 @@ class ProgressService extends BaseService {
       }
 
       return Object.assign(new Progress(), progress);
+    });
+  }
+
+  async getUserProgressPercentage(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<CompletedProgressResponse> {
+    return this._withTransaction(async session => {
+      // Verify if the user, course, and course version exist
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const progress = await this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      if (!progress) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      const totalItems = await this.itemRepo.getTotalItemsCount(
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      const completedItemsArray = await this.progressRepository.getCompletedItems(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      // Use Set to ensure unique completed items and for efficient size comparison
+      const completedItemsSet = new Set(completedItemsArray);
+      
+      // Handle divide by zero case
+      const percentCompleted = totalItems > 0 ? completedItemsSet.size / totalItems : 0;
+
+      return {
+        completed: progress.completed,
+        percentCompleted,
+        totalItems: totalItems,
+        completedItems: completedItemsSet.size,
+      }
     });
   }
 
@@ -735,7 +784,6 @@ class ProgressService extends BaseService {
           );
         }
       }
-
       // Get the course version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
 
@@ -959,9 +1007,9 @@ class ProgressService extends BaseService {
     if (courseId && courseVersionId) await this.verifyDetails(userId, courseId, courseVersionId);
     const watchTime = await this.progressRepository.getWatchTime(
       userId,
+      itemId,
       courseId,
       courseVersionId,
-      itemId,
     );
 
     if (!watchTime) {

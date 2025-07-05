@@ -12,6 +12,7 @@ import {
   Body,
   Post,
   Patch,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -36,6 +37,7 @@ export class UserController {
     summary: 'Get user information by user ID',
     description: 'Retrieves user information based on the provided user ID.',
   })
+  @Authorized()
   @Get('/:userId')
   @HttpCode(200)
   @ResponseSchema(User, {
@@ -56,6 +58,7 @@ export class UserController {
     summary: 'Edit user information',
     description: 'Edit user information like first and last name.',
   })
+  @Authorized()
   @Patch('/edit')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -64,16 +67,21 @@ export class UserController {
   })
   async editUser(
     @Req() req: any,
-    @Body() body: EditUserBody
+    @Body() body: EditUserBody,
   ): Promise<void> {
-    const userId = await this.authService.getUserIdFromReq(req);
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    const userId = user._id.toString();
+    const firebaseUID = user.firebaseUID;
     await this.userService.editUser(userId, body);
+    await this.authService.updateFirebaseUser(firebaseUID, body);
   }
 
   @OpenAPI({
     summary: 'Make a user an admin',
     description: 'Promotes a user to admin status based on the provided user ID.',
   })
+  @Authorized()
   @Post('/make-admin/:userId')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {

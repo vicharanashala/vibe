@@ -16,6 +16,8 @@ import {MongoDatabase} from '../MongoDatabase.js';
 import {Course} from '#courses/classes/transformers/Course.js';
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {ProgressRepository} from './ProgressRepository.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -26,6 +28,8 @@ export class CourseRepository implements ICourseRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
+    @inject(USERS_TYPES.ProgressRepo)
+    private progressRepo: ProgressRepository,
   ) {}
 
   private async init() {
@@ -276,6 +280,9 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to update course');
       }
 
+      // delete watch time 
+      await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
+      
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
         {
@@ -327,7 +334,19 @@ export class CourseRepository implements ICourseRepository {
           section => section.sectionId === sectionId,
         );
         const itemGroupId = section?.itemsGroupId;
-
+        const items = await this.itemsGroupCollection.findOne(
+          {_id: new ObjectId(itemGroupId)},
+          {session},
+        );
+        if (items) {
+          // Delete watch time by item id
+          items.items.forEach(async item => {
+            await this.progressRepo.deleteWatchTimeByItemId(
+              item._id.toString(),
+              session,
+            );
+          });
+        }
         try {
           const itemDeletionResult = await this.itemsGroupCollection.deleteOne(
             {
@@ -421,19 +440,33 @@ export class CourseRepository implements ICourseRepository {
           section => new ObjectId(section.itemsGroupId),
         );
 
-        try {
-          const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
-            {
-              _id: {$in: itemGroupsIds},
-            },
+        // Get item ids from item groups before deletion and delete watch time by item id
+        for (const itemGroupId of itemGroupsIds) {
+          const items = await this.itemsGroupCollection.findOne(
+            {_id: itemGroupId},
             {session},
           );
 
-          if (itemDeletionResult.deletedCount === 0) {
-            throw new InternalServerError('Failed to delete item groups');
+          if (items) {
+            // Delete watch time by item id
+            items.items.forEach(async item => {
+              await this.progressRepo.deleteWatchTimeByItemId(
+                item._id.toString(),
+                session,
+              );
+            });
           }
-        } catch (error) {
-          throw new InternalServerError('Item deletion failed');
+        }
+
+        const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
+          {
+            _id: {$in: itemGroupsIds},
+          },
+          {session},
+        );
+
+        if (itemDeletionResult.deletedCount === 0) {
+          throw new InternalServerError('Failed to delete item groups');
         }
       }
 

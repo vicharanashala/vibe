@@ -21,7 +21,8 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
-import { ICourseVersion } from '#root/shared/index.js';
+import { ICourseVersion, ProgressRepository } from '#root/shared/index.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -30,6 +31,8 @@ export class ItemService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -126,6 +129,16 @@ export class ItemService extends BaseService {
         );
       }
 
+      if (version.totalItems) {
+        version.totalItems += 1; // Increment the total items count in the version.
+      } else {
+        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+          version.courseId.toString(),
+          version._id.toString(),
+          session,
+        )
+      }
+
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
       itemsGroup.items.push(newItemDB);
@@ -216,11 +229,32 @@ export class ItemService extends BaseService {
         session,
       );
       if (!deleted) throw new InternalServerError('Item deletion failed');
+      const version = await this.findVersion(itemsGroupId);
+      if (version.totalItems) {
+        version.totalItems -= 1;
+      } else {
+        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+          version.courseId.toString(),
+          version._id.toString(),
+          session,
+        )
+      }
+      await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
       const updatedItemsGroup = await this.itemRepo.readItemsGroup(
         itemsGroupId,
         session,
       );
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        version._id.toString(),
+        version,
+        session,
+      )
+
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update version after item deletion');
+      }
 
       return {deletedItemId: itemId, itemsGroup: updatedItemsGroup};
     });
@@ -285,5 +319,31 @@ export class ItemService extends BaseService {
       itemGroupId,
     );
     return version;
+  }
+
+  /**
+   * Get version and course information from an item ID
+   * Combines findItemsGroupIdByItemId and findVersionByItemGroupId
+   */
+  public async getCourseAndVersionByItemId(itemId: string): Promise<{
+    versionId: string;
+    courseId: string;
+  }> {
+    return this._withTransaction(async session => {
+      // Step 1: Find itemsGroup containing the item
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(itemId, session);
+      const itemsGroupId = itemsGroup?._id.toString();
+      // Step 2: Find version using existing function
+      const version = await this.courseRepo.findVersionByItemGroupId(itemsGroupId, session);
+      
+      if (!version) {
+        throw new NotFoundError(`Version for item ${itemId} not found`);
+      }
+      
+      return {
+        courseId: version.courseId.toString(),
+        versionId: version._id.toString(),
+      };
+    });
   }
 }

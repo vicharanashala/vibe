@@ -7,6 +7,7 @@ import {
   Params,
   Post,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -43,7 +44,7 @@ class AttemptController {
     summary: 'Start a new quiz attempt',
     description: 'Creates a new attempt for the specified quiz for the current user.',
   })
-  
+  @Authorized()
   @Post('/:quizId/attempt')
   @HttpCode(200)
   @ResponseSchema(CreateAttemptResponse, {
@@ -74,7 +75,7 @@ class AttemptController {
     summary: 'Save answers for an ongoing attempt',
     description: 'Saves the current answers for a quiz attempt without submitting.',
   })
-  
+  @Authorized()
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, { description: 'Bad Request', statusCode: 400 })
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Attempt or Quiz not found', statusCode: 404 })
@@ -105,7 +106,7 @@ class AttemptController {
     summary: 'Submit a quiz attempt',
     description: 'Submits the answers for a quiz attempt and returns the result.',
   })
-  
+  @Authorized()
   @Post('/:quizId/attempt/:attemptId/submit')
   @HttpCode(200)
   @ResponseSchema(SubmitAttemptResponse, {
@@ -142,7 +143,7 @@ class AttemptController {
     summary: 'Get details of a quiz attempt',
     description: 'Retrieves the details of a specific quiz attempt for the current user.',
   })
-  
+  @Authorized()
   @Get('/:quizId/attempt/:attemptId')
   @HttpCode(200)
   @ResponseSchema(GetAttemptResponse, {

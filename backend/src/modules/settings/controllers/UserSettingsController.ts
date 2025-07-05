@@ -41,7 +41,7 @@ export class UserSettingsController {
     private readonly userSettingsService: UserSettingsService,
   ) {}
 
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Post('/')
   @HttpCode(201)
   async create(@Body() body: CreateUserSettingsBody): Promise<UserSettings> {
@@ -53,7 +53,7 @@ export class UserSettingsController {
     return createdSettings;
   }
 
-  @Authorized(['admin', 'instructor', 'student'])
+  @Authorized()
   @Get('/:studentId/:courseId/:versionId')
   @HttpCode(200)
   async get(
@@ -71,7 +71,7 @@ export class UserSettingsController {
     return userSettings;
   }
 
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Put('/:studentId/:courseId/:versionId/proctoring')
   @HttpCode(200)
   async updateUserSettings(

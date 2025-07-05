@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateIf,
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -450,6 +451,48 @@ export class ProgressDataResponse implements IProgress{
   completed: boolean;
 }
 
+export class CompletedProgressResponse {
+  @JSONSchema({
+    description: 'Indicates whether the course has been completed',
+    example: true,
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  completed: boolean;
+
+  @JSONSchema({
+    description: 'Percentage of course completion',
+    example: 75,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  percentCompleted: number;
+
+  @JSONSchema({
+    description: 'Total number of items in the course',
+    example: 20,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  totalItems: number;
+
+  @JSONSchema({
+    description: 'Total number of completed items in the course',
+    example: 15,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  completedItems: number;
+}
+
 export class ProgressNotFoundErrorResponse {
   @JSONSchema({
     description: 'Error message indicating progress not found',
@@ -483,6 +526,28 @@ export class WatchTimeParams {
   itemId: string;
 }
 
+export class WatchTimeBody {
+  @JSONSchema({
+    description: 'Course ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Course version ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  versionId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -495,6 +560,8 @@ export const PROGRESS_VALIDATORS = [
   ResetCourseProgressBody,
   ResetCourseProgressParams,
   ProgressDataResponse,
+  CompletedProgressResponse,
   ProgressNotFoundErrorResponse,
-  WatchTimeParams
+  WatchTimeParams,
+  WatchTimeBody,
 ]

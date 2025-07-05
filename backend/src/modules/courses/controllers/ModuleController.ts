@@ -23,6 +23,7 @@ import {
   Put,
   Delete,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
@@ -45,6 +46,7 @@ export class ModuleController {
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Post('/versions/:versionId/modules')
   @HttpCode(201)
   @ResponseSchema(ModuleDataResponse, {
@@ -82,6 +84,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module updated successfully',
@@ -122,6 +125,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/move')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module moved successfully',
@@ -162,6 +166,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
+  @Authorized()
   @Delete('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDeletedResponse, {
     description: 'Module deleted successfully',

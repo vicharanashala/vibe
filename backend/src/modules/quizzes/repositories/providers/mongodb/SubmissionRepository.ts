@@ -55,12 +55,14 @@ class SubmissionRepository {
   }
   public async getById(
     submissionId: string,
+    quizId: string,
     session?: ClientSession,
   ): Promise<ISubmission> {
     await this.init();
     const result = await this.submissionResultCollection.findOne(
       {
         _id: new ObjectId(submissionId),
+        quizId: quizId,
       },
       {session},
     );

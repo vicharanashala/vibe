@@ -13,6 +13,8 @@ import {
   ProgressDataResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
+  WatchTimeBody,
+  CompletedProgressResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import { ProgressService } from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -29,6 +31,7 @@ import {
   BadRequestError,
   InternalServerError,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -52,6 +55,7 @@ class ProgressController {
     summary: 'Get user progress in a course version',
     description: 'Retrieves the progress of a user in a specific course version.',
   })
+  @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/')
   @HttpCode(200)
   @ResponseSchema(ProgressDataResponse, {
@@ -86,9 +90,48 @@ class ProgressController {
   }
 
   @OpenAPI({
+    summary: 'Get %age progress in a course version',
+    description: 'Retrieves the progress of a user in a specific course version.',
+  })
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/percentage')
+  @HttpCode(200)
+  @ResponseSchema(CompletedProgressResponse, {
+    description: 'User progress retrieved successfully',
+  })
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
+  async getUserProgressPercentage(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) {ability, user},
+  ): Promise<CompletedProgressResponse> {
+    const { courseId, versionId } = params;
+    const userId = user._id.toString();
+    
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission to view this progress');
+    }
+    
+    const progress = await this.progressService.getUserProgressPercentage(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    return progress;
+  }
+
+  @OpenAPI({
     summary: 'Start an item for user progress',
     description: 'Marks the start of an item for a user in a course version.',
   })
+  @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/start')
   @HttpCode(200)
   @ResponseSchema(StartItemResponse, {
@@ -136,6 +179,7 @@ class ProgressController {
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
   })
+  @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
   @OnUndefined(200)
   @ResponseSchema(ProgressNotFoundErrorResponse, {
@@ -197,6 +241,7 @@ If moduleId and sectionId are provided, resets to the beginning of the section.
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
 If none are provided, resets to the beginning of the course.`,
   })
+  @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -273,6 +318,7 @@ If none are provided, resets to the beginning of the course.`,
     summary: 'Get User Watch Time',
     description: `Gets the User Watch Time for the given Item Id`,
   })
+  @Authorized()
   @Get('/:userId/watchTime/item/:itemId/')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -285,12 +331,15 @@ If none are provided, resets to the beginning of the course.`,
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
+    @Body() body: WatchTimeBody,
   ): Promise<WatchTime[]> {
     const { userId, itemId } = params;
 
     const watchTime = await this.progressService.getWatchTime(
       userId,
-      itemId
+      itemId,
+      body.courseId,
+      body.versionId,
     )
     return watchTime;
   }

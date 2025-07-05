@@ -12,6 +12,7 @@ import {
   Delete,
   OnUndefined,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -43,6 +44,7 @@ export class CourseController {
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
+  @Authorized()
   @Post('/', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
@@ -71,6 +73,7 @@ Accessible to:
 - Users who are part of the course (students, teaching assistants, instructors, or managers)
 `,
   })
+  @Authorized()
   @Get('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
@@ -104,6 +107,7 @@ Accessible to:
 Accessible to:
 - Instructor or manager for the course.`,
   })
+  @Authorized()
   @Put('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
@@ -135,6 +139,7 @@ Accessible to:
     summary: 'Delete a course',
     description: 'Deletes a course by ID.',
   })
+  @Authorized()
   @Delete('/:courseId', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {

@@ -8,6 +8,7 @@ import {
   Body,
   ContentType,
   ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -38,6 +39,7 @@ export class InviteController {
     private readonly inviteService: InviteService,
   ) { }
 
+  @Authorized()
   @Post('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @ResponseSchema(InviteResponse, {
@@ -60,12 +62,18 @@ export class InviteController {
     const { courseId, versionId } = params;
     const { inviteData } = body;
     
-    // Build subject context first
-    const inviteContext = { courseId, versionId };
-    const inviteSubject = subject('Invite', inviteContext);
-    
-    if (!ability.can(InviteActions.Create, inviteSubject)) {
-      throw new ForbiddenError('You do not have permission to create invites for this course');
+    // Validate that the user can invite to each specific role
+    // This ensures students can only invite students, TAs can invite students/TAs, etc.
+    for (const invite of inviteData) {
+      const roleSpecificSubject = subject('Invite', { 
+        courseId, 
+        versionId, 
+        targetRole: invite.role 
+      });
+      
+      if (!ability.can(InviteActions.Create, roleSpecificSubject)) {
+        throw new ForbiddenError(`You do not have permission to invite users with the role: ${invite.role}`);
+      }
     }
     
     const results: InviteResult[] = await this.inviteService.inviteUserToCourse(
@@ -101,6 +109,7 @@ export class InviteController {
       return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
 
+  @Authorized()
   @Get('/courses/:courseId/versions/:versionId')
   @HttpCode(200)
   @OpenAPI({

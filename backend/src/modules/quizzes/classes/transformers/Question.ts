@@ -259,6 +259,35 @@ const natSolution: INATSolution = {
   expression: '',
 };
 
+class FlaggedQuestion {
+  _id?: string | ObjectId;
+  questionId: string;
+  courseId?: string;
+  versionId?: string;
+  flaggedBy: string;
+  reason: string;
+  createdAt: Date;
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED';
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  
+  constructor(
+    questionId: string,
+    userId: string,
+    reason: string,
+    courseId?: string,
+    versionId?: string,
+  ) {
+    this.questionId = questionId;
+    this.flaggedBy = userId;
+    this.reason = reason;
+    this.status = 'PENDING';
+    this.createdAt = new Date();
+    this.courseId = courseId;
+    this.versionId = versionId;
+  }
+}
+
 export {
   BaseQuestion,
   SOLQuestion,
@@ -267,4 +296,5 @@ export {
   NATQuestion,
   DESQuestion,
   QuestionFactory,
+  FlaggedQuestion,
 };
