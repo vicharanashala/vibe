@@ -27,5 +27,9 @@ export const appConfig = {
     privateKey: env('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n') || undefined,
     projectId: env('FIREBASE_PROJECT_ID') || undefined,
     apiKey: env('FIREBASE_API_KEY') || undefined,
+  },
+  aiServer: {
+    url: env('AI_SERVER_URL') || 'http://localhost:8000',
+    webhookSecret: env('WEBHOOK_SECRET') || 'default-webhook-secret',
   }
 };

@@ -251,6 +251,10 @@ export function generateOpenAPISpec(
           tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
         },
         {
+          name: 'GenAI',
+          tags: ['GenAI', 'Webhook'],
+        },
+        {
           name: 'Notifications',
           tags: ['Invites'],
         },
