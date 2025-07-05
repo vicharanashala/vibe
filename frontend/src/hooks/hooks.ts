@@ -12,6 +12,7 @@ import type { BufferId, LotItem, BaseQuestionRenderView, DescriptiveQuestionRend
 import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
+import { updateProctoringSettings } from '@/app/pages/testing-proctoring/proctoring';
 
 // Auth hooks
 
@@ -658,6 +659,32 @@ export function useUserProgress(courseId: string, courseVersionId: string): {
   };
 }
 
+// GET /users/progress/courses/{courseId}/versions/{courseVersionId}/percentage
+export function useUserProgressPercentage(courseId: string, courseVersionId: string): {
+  data: {
+    completed: boolean;
+    percentCompleted: number;
+    totalItems: number;
+    completedItems: number;
+  } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}/percentage", {
+    params: { path: { courseId, courseVersionId } }
+  }, { enabled: !!courseId && !!courseVersionId }
+  );
+  
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user progress percentage') : null,
+    refetch: result.refetch
+  };
+}
+
+
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/start
 export function useStartItem(): {
   mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['StartItemBody'] }) => void,
@@ -862,41 +889,14 @@ export function useEditProctoringSettings() {
     courseId: string,
     courseVersionId: string,
     detectors: { name: string; enabled: boolean }[],
-    isNew: boolean // true = create, false = update
+    isNew: boolean
   ) => {
     setLoading(true);
     setError(null);
-
-    const method = isNew ? 'POST' : 'PUT';
-    const url = isNew
-      ? '/api/settings/courses'
-      : `/api/settings/courses/${courseId}/${courseVersionId}/proctoring`;
-
-    const body = isNew
-      ? {
-        courseId,
-        courseVersionId,
-        detectors: detectors.map((d) => ({
-          detectorName: d.name,
-          settings: { enabled: d.enabled },
-        })),
-      }
-      : {
-        detectors: detectors.map((d) => ({
-          detectorName: d.name,
-          settings: { enabled: d.enabled },
-        })),
-      };
-
+    
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) throw new Error(`Failed to update settings: ${res.status}`);
-      return await res.json();
+      const result = await updateProctoringSettings(courseId, courseVersionId, detectors, isNew);
+      return result;
     } catch (err: any) {
       setError(err.message || 'Unknown error');
     } finally {
