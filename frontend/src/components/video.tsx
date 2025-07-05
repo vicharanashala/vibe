@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
+import { on } from 'events';
 
 
 // Helper to extract YouTube video ID from URL
@@ -29,7 +30,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -199,11 +200,13 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
         },
         events: {
           onReady: (event: { target: YTPlayerInstance }) => {
+            const dur = event.target.getDuration();
             setPlayerReady(true);
-            setDuration(event.target.getDuration());
+            setDuration(dur);
             setVolume(event.target.getVolume());
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
+            onDurationChange?.(dur);
           },
           onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
