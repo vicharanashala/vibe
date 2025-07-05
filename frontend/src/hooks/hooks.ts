@@ -659,6 +659,32 @@ export function useUserProgress(courseId: string, courseVersionId: string): {
   };
 }
 
+// GET /users/progress/courses/{courseId}/versions/{courseVersionId}/percentage
+export function useUserProgressPercentage(courseId: string, courseVersionId: string): {
+  data: {
+    completed: boolean;
+    percentCompleted: number;
+    totalItems: number;
+    completedItems: number;
+  } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}/percentage", {
+    params: { path: { courseId, courseVersionId } }
+  }, { enabled: !!courseId && !!courseVersionId }
+  );
+  
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user progress percentage') : null,
+    refetch: result.refetch
+  };
+}
+
+
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/start
 export function useStartItem(): {
   mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['StartItemBody'] }) => void,

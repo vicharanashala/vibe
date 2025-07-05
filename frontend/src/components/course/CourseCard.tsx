@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
-import { useCourseById } from "@/hooks/hooks";
+import { useCourseById, useUserProgressPercentage } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { bufferToHex } from "@/utils/helpers";
@@ -12,18 +12,20 @@ import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, variant = 'dashboard', className }: CourseCardProps) => {
   const courseId = bufferToHex(enrollment.courseId);
+  const versionId = bufferToHex(enrollment.courseVersionId) || "";
+  
   const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
+  const { data: progressData, isLoading: isProgressLoading } = useUserProgressPercentage(courseId, versionId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
 
-  // Mock progress data - replace with actual progress from enrollment
-  const progress = Math.floor(Math.random() * 100);
-  const totalLessons = Math.floor(Math.random() * 30) + 10;
+  // Use real progress data or fallback to 0
+  const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
+  const totalLessons = progressData?.totalItems || 0;
+  const completedLessons = progressData?.completedItems || 0;
+  const isCompleted = progressData?.completed || false;
 
   const handleContinue = () => {
-    // Extract both courseId and versionId from enrollment
-    const versionId = bufferToHex(enrollment.courseVersionId) || "";
-
     console.log("Setting course store:", {
       courseId: courseId,
       versionId: versionId
@@ -42,7 +44,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
     navigate({ to: "/student/learn" });
   };
 
-  if (isCourseLoading) {
+  if (isCourseLoading || isProgressLoading) {
     return <CourseCardSkeleton variant={variant} />;
   }
 
@@ -63,6 +65,11 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
               <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
                 Course
               </Badge>
+              {isCompleted && (
+                <Badge className="bg-green-100 text-green-800 border-0 font-normal ml-2">
+                  Completed
+                </Badge>
+              )}
             </div>
             <div className="text-sm text-muted-foreground">
               <div className="flex flex-col sm:flex-row sm:gap-8">
@@ -76,14 +83,13 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                 <div className="flex items-center gap-2 mb-1 sm:mb-0">
                   <span>Completion</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-secondary p-1">
-                      <div className="h-full w-full rounded-full bg-primary relative">
-                        <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary-foreground text-[8px]">
-                          {progress}%
-                        </span>
-                      </div>
+                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${progress}%` }}
+                      />
                     </div>
-                    <span>{progress}%</span>
+                    <span>{progress}% ({completedLessons}/{totalLessons})</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -104,15 +110,19 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
             {courseDetails?.name || `Course ${index + 1}`}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Next: Continue Learning
+            {isCompleted 
+              ? 'Course completed!' 
+              : progress === 0 
+                ? 'Start your learning journey' 
+                : 'Continue Learning'}
           </p>
           <div className="mt-auto">
             <Button
-              variant={progress === 0 ? "default" : "outline"}
-              className={progress === 0 ? "" : "border-accent hover:bg-accent/10"}
+              variant={progress === 0 ? "default" : isCompleted ? "secondary" : "outline"}
+              className={progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"}
               onClick={handleContinue}
             >
-              {progress === 0 ? 'Start' : 'Continue'}
+              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
           </div>
         </CardContent>
@@ -137,7 +147,14 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                 : "Unknown Instructor"}</b>
             </CardDescription>
           </div>
-          <Badge variant="outline">{progress}% complete</Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="outline">{progress}% complete</Badge>
+            {isCompleted && (
+              <Badge className="bg-green-100 text-green-800 border-0 font-normal">
+                Completed
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -146,9 +163,15 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
             {courseDetails.description}
           </p>
         )}
-        <Progress value={progress} />
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{completedLessons} of {totalLessons} lessons completed</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} />
+        </div>
         <Button className="w-full" onClick={handleContinue}>
-          Continue Learning
+          {progress === 0 ? 'Start Learning' : progress >= 100 ? 'Completed' : 'Continue Learning'}
         </Button>
       </CardContent>
     </Card>
