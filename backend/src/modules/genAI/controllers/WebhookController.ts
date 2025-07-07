@@ -43,8 +43,8 @@ export class WebhookController {
       throw new UnauthorizedError('Invalid webhook signature');
     }
 
-    const { task, status, jobId, data } = body;
+    const { task, jobId, data } = body;
 
-    await this.genAIService.updateJob(jobId, task, status, data);
+    await this.genAIService.updateJob(jobId, task, data);
   }
 }

@@ -13,14 +13,14 @@ import {
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Type } from 'class-transformer';
-import { LanguageType, JobType, TaskType, GenAI, TaskStatus } from '../transformers/GenAI.js';
+import { LanguageType, JobType, TaskType, GenAI, TaskStatus, audioData, contentUploadData, questionGenerationData, segmentationData, trascriptGenerationData } from '../transformers/GenAI.js';
 
 @JSONSchema({ title: 'TranscriptParameters' })
 class TranscriptParameters {
   @JSONSchema({
     title: 'Language',
     description: 'Language for the job',
-    example: 'en',
+    example: 'English',
     type: 'string',
   })
   @IsOptional()
@@ -305,7 +305,7 @@ class ApproveStartBody {
         return SegmentationParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
-      case TaskType.UPLOAD_QUESTION:
+      case TaskType.UPLOAD_CONTENT:
         return UploadParameters;
       default:
         return Object;
@@ -375,7 +375,7 @@ class ApproveContinueBody {
         return SegmentationParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
-      case TaskType.UPLOAD_QUESTION:
+      case TaskType.UPLOAD_CONTENT:
         return UploadParameters;
       default:
         return Object;
@@ -426,7 +426,7 @@ class RerunTaskBody {
         return SegmentationParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
-      case TaskType.UPLOAD_QUESTION:
+      case TaskType.UPLOAD_CONTENT:
         return UploadParameters;
       default:
         return Object;
@@ -557,16 +557,6 @@ class WebhookBody {
   task: TaskType;
 
   @JSONSchema({
-    title: 'Status',
-    description: 'The current status of the task',
-    enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'],
-    example: 'COMPLETED',
-  })
-  @IsNotEmpty()
-  @IsEnum(TaskStatus)
-  status: TaskStatus;
-
-  @JSONSchema({
     title: 'Job ID',
     description: 'The unique identifier for the genAI job',
     type: 'string',
@@ -585,7 +575,7 @@ class WebhookBody {
   @IsObject()
   @ValidateNested()
   @Type(() => Object)
-  data?: Record<string, any>;
+  data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
 }
 
 export {

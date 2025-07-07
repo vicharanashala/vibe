@@ -7,7 +7,7 @@ import { BaseService } from '#root/shared/classes/BaseService.js';
 import { MongoDatabase } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { NotFoundError } from 'routing-controllers';
-import { TaskStatus, TaskType } from '../classes/transformers/GenAI.js';
+import { audioData, contentUploadData, questionGenerationData, segmentationData, TaskStatus, TaskType, trascriptGenerationData } from '../classes/transformers/GenAI.js';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -85,7 +85,7 @@ export class GenAIService extends BaseService {
    * @param jobData Updated job data
    * @returns Updated job information
    */
-  async updateJob(jobId: string, task: string, status: string, jobData?: any): Promise<any> {
+  async updateJob(jobId: string, task: string, jobData?: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData): Promise<any> {
     return this._withTransaction(async session => {
       // Retrieve existing job
       const job = await this.genAIRepository.getById(jobId, session);
@@ -95,78 +95,44 @@ export class GenAIService extends BaseService {
       }
       switch (task) {
         case TaskType.AUDIO_EXTRACTION:
-          if (status === 'COMPLETED') {
-            job.jobStatus.audioExtraction = TaskStatus.COMPLETED;
-            if (taskData.audioExtraction) {
-              taskData.audioExtraction.push({status: TaskStatus.COMPLETED, ...jobData});
+          job.jobStatus.audioExtraction = jobData.status;
+          if (taskData.audioExtraction) {
+              taskData.audioExtraction.push({...jobData as audioData});
             } else {
-              taskData.audioExtraction = [{status: TaskStatus.COMPLETED, ...jobData}];
+              taskData.audioExtraction = [{...jobData as audioData}];
             }
-          } else if (status === 'FAILED') {
-            job.jobStatus.audioExtraction = TaskStatus.FAILED;
-            if (taskData.audioExtraction) {
-              taskData.audioExtraction.push({status: TaskStatus.FAILED});
-            } else {
-              taskData.audioExtraction = [{status: TaskStatus.FAILED}];
-            }
-          }
           break;
         case TaskType.TRANSCRIPT_GENERATION:
-          if (status === 'COMPLETED') {
-            job.jobStatus.transcriptGeneration = TaskStatus.COMPLETED;
-            if (taskData.transcriptGeneration) {
-              taskData.transcriptGeneration.push({status: TaskStatus.COMPLETED, ...jobData});
-            } else {
-              taskData.transcriptGeneration = [{status: TaskStatus.COMPLETED, ...jobData}];
-            }
-          } else if (status === 'FAILED') {
-            job.jobStatus.transcriptGeneration = TaskStatus.FAILED;
-            if (taskData.transcriptGeneration) {
-              taskData.transcriptGeneration.push({status: TaskStatus.FAILED});
-            } else {
-              taskData.transcriptGeneration = [{status: TaskStatus.FAILED}];
-            }
+          job.jobStatus.transcriptGeneration = jobData.status;
+          if (taskData.transcriptGeneration) {
+            taskData.transcriptGeneration.push({...jobData as trascriptGenerationData});
+          }
+          else {
+            taskData.transcriptGeneration = [{...jobData as trascriptGenerationData}];
           }
           break;
         case TaskType.SEGMENTATION:
-          if (status === 'COMPLETED') {
-            job.jobStatus.segmentation = TaskStatus.COMPLETED;
-            if (taskData.segmentation) {
-              taskData.segmentation.push({status: TaskStatus.COMPLETED, ...jobData});
-            } else {
-              taskData.segmentation = [{status: TaskStatus.COMPLETED, ...jobData}];
-            }
-          } else if (status === 'FAILED') {
-            job.jobStatus.segmentation = TaskStatus.FAILED;
-            if (taskData.segmentation) {
-              taskData.segmentation.push({status: TaskStatus.FAILED});
-            } else {
-              taskData.segmentation = [{status: TaskStatus.FAILED}];
-            }
+          job.jobStatus.segmentation = jobData.status;
+          if (taskData.segmentation) {
+            taskData.segmentation.push({...jobData as segmentationData});
+          } else {
+            taskData.segmentation = [{...jobData as segmentationData}];
           }
           break;
         case TaskType.QUESTION_GENERATION:
-          if (status === 'COMPLETED') {
-            job.jobStatus.questionGeneration = TaskStatus.COMPLETED;
-            if (taskData.questionGeneration) {
-              taskData.questionGeneration.push({status: TaskStatus.COMPLETED, ...jobData});
-            } else {
-              taskData.questionGeneration = [{status: TaskStatus.COMPLETED, ...jobData}];
-            }
-          } else if (status === 'FAILED') {
-            job.jobStatus.questionGeneration = TaskStatus.FAILED;
-            if (taskData.questionGeneration) {
-              taskData.questionGeneration.push({status: TaskStatus.FAILED});
-            } else {
-              taskData.questionGeneration = [{status: TaskStatus.FAILED}];
-            }
+          job.jobStatus.questionGeneration = jobData.status;
+          if (taskData.questionGeneration) {
+            taskData.questionGeneration.push({...jobData as questionGenerationData});
+          } else {
+            taskData.questionGeneration = [{...jobData as questionGenerationData}];
           }
           break;
-        case TaskType.UPLOAD_QUESTION:
-          if (status === 'COMPLETED') {
-            job.jobStatus.uploadQuestion = TaskStatus.COMPLETED;
-          } else if (status === 'FAILED') {
-            job.jobStatus.uploadQuestion = TaskStatus.FAILED;
+        case TaskType.UPLOAD_CONTENT:
+          job.jobStatus.uploadContent = jobData.status;
+          if (taskData.uploadContent) {
+            taskData.uploadContent.push({...jobData as contentUploadData});
+          } else {
+            taskData.uploadContent = [{...jobData as contentUploadData}];
           }
           break;
       }

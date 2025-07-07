@@ -13,12 +13,12 @@ export enum TaskType {
   TRANSCRIPT_GENERATION = 'TRANSCRIPT_GENERATION',
   SEGMENTATION = 'SEGMENTATION',
   QUESTION_GENERATION = 'QUESTION_GENERATION',
-  UPLOAD_QUESTION = 'UPLOAD_QUESTION'
+  UPLOAD_CONTENT = 'UPLOAD_CONTENT'
 }
 
 export enum LanguageType {
-  ENGLISH = 'en',
-  HINDI = 'hi',
+  ENGLISH = 'English',
+  HINDI = 'Hindi',
 }
 
 // Job status enum
@@ -55,31 +55,42 @@ interface UploadParameters {
 	beforeItemId?: string;
 }
 
-interface audioData {
+export interface audioData {
 	status: TaskStatus;
+	error: string;
 	fileName?: string;
 	fileUrl?: string;
 }
 
-interface trascriptGenerationData {
+export interface trascriptGenerationData {
 	status: TaskStatus;
+	error?: string;
 	fileName?: string;
 	fileUrl?: string;
 	newParamers?: TranscriptParameters;
 }
 
-interface segmentationData {
+export interface segmentationData {
 	status: TaskStatus;
+	error?: string;
 	fileName?: string;
 	fileUrl?: string;
 	newParameters?: SegmentationParameters;
 }
 
-interface questionGenerationData {
+export interface questionGenerationData {
 	status: TaskStatus;
+	error?: string;
 	questionType?: QuestionType;
 	question?: SOLQuestion | SMLQuestion | NATQuestion | OTLQuestion | DESQuestion;
 	newParameters?: QuestionGenerationParameters;
+}
+
+export interface contentUploadData {
+	status: TaskStatus;
+	error?: string;
+	courseId?: string;
+	versionId?: string;
 }
 
 export class JobStatus {
@@ -87,14 +98,14 @@ export class JobStatus {
 	transcriptGeneration: TaskStatus;
 	segmentation: TaskStatus;
 	questionGeneration: TaskStatus;
-	uploadQuestion: TaskStatus;
+	uploadContent: TaskStatus;
 
 	constructor() {
 		this.audioExtraction = TaskStatus.PENDING;
 		this.transcriptGeneration = TaskStatus.PENDING;
 		this.segmentation = TaskStatus.PENDING;
 		this.questionGeneration = TaskStatus.PENDING;
-		this.uploadQuestion = TaskStatus.PENDING;
+		this.uploadContent = TaskStatus.PENDING;
 	}
 }
 
@@ -121,4 +132,5 @@ export class TaskData {
 	transcriptGeneration?: trascriptGenerationData[]
 	segmentation?: segmentationData[];
 	questionGeneration?: questionGenerationData[];
+	uploadContent?: contentUploadData[];
 }
