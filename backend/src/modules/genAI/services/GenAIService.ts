@@ -31,10 +31,7 @@ export class GenAIService extends BaseService {
    */
   async startJob(userId: string, jobData: JobBody): Promise<{ jobId: string; result: string }> {
     return this._withTransaction(async session => {
-      // Prepare job data and send to AI server
-      if (!jobData.type || !['VIDEO', 'PLAYLIST'].includes(jobData.type)) {
-        throw new Error('Invalid job type. Must be "video" or "playlist".');
-      } 
+      // Prepare job data and send to AI server]
       const jobId = await this.genAIRepository.save(userId, jobData, session)
       const result = await this.webhookService.sendJobToAiServer(jobData, userId, jobId);
       await this.genAIRepository.createTaskData(jobId, session);
