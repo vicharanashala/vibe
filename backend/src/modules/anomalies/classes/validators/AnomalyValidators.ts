@@ -292,6 +292,94 @@ export class MultipartAnomalyData {
   data: string;
 }
 
+export class GetUserAnomaliesQuery {
+  @JSONSchema({
+    description: 'Filter by course version ID',
+    example: 'v1.0',
+  })
+  @IsString()
+  @IsOptional()
+  courseVersionId?: string;
+
+  @JSONSchema({
+    description: 'Filter by course ID',
+    example: '64f5e8b2c8a4d12345678902',
+  })
+  @IsString()
+  @IsOptional()
+  courseId?: string;
+
+  @JSONSchema({
+    description: 'Filter by module ID',
+    example: '64f5e8b2c8a4d12345678903',
+  })
+  @IsString()
+  @IsOptional()
+  moduleId?: string;
+
+  @JSONSchema({
+    description: 'Filter by section ID',
+    example: '64f5e8b2c8a4d12345678904',
+  })
+  @IsString()
+  @IsOptional()
+  sectionId?: string;
+
+  @JSONSchema({
+    description: 'Filter by item ID',
+    example: '64f5e8b2c8a4d12345678905',
+  })
+  @IsString()
+  @IsOptional()
+  itemId?: string;
+
+  @JSONSchema({
+    description: 'Filter by anomaly type',
+    enum: Object.values(AnomalyType),
+    example: AnomalyType.VOICE_DETECTION,
+  })
+  @IsEnum(AnomalyType)
+  @IsOptional()
+  anomalyType?: AnomalyType;
+
+  @JSONSchema({
+    description: 'Filter anomalies from this date (ISO 8601 format)',
+    example: '2024-01-01T00:00:00.000Z',
+    format: 'date-time',
+  })
+  @IsDateString()
+  @IsOptional()
+  anomaliesFrom?: string;
+
+  @JSONSchema({
+    description: 'Filter anomalies to this date (ISO 8601 format)',
+    example: '2024-12-31T23:59:59.999Z',
+    format: 'date-time',
+  })
+  @IsDateString()
+  @IsOptional()
+  anomaliesTo?: string;
+
+  @JSONSchema({
+    description: 'Page number for pagination',
+    example: 1,
+    minimum: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  page?: number;
+
+  @JSONSchema({
+    description: 'Number of items per page',
+    example: 20,
+    minimum: 1,
+    maximum: 100,
+  })
+  @IsNumber()
+  @IsOptional()
+  limit?: number;
+}
+
 export class AnomalyDataResponse {
   @JSONSchema({
     description: 'Success status',

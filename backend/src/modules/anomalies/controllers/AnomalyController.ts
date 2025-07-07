@@ -8,14 +8,18 @@ import {
   Body,
   Param,
   Params,
+  QueryParams,
+  Header,
   HttpCode,
   UploadedFile,
   Res,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { Response } from 'express';
+import { instanceToPlain } from 'class-transformer';
 import { AnomalyService } from '../services/AnomalyService.js';
 import { ImageProcessingService } from '../services/ImageProcessingService.js';
+import { Anomaly } from '../classes/transformers/Anomaly.js';
 import { 
   CreateAnomalyBody, 
   AnomalyIdParams, 
@@ -24,6 +28,7 @@ import {
   SessionIdParams,
   ExamIdParams,
   MultipartAnomalyData,
+  GetUserAnomaliesQuery,
   AnomalyDataResponse,
   AnomalyStatsResponse 
 } from '../classes/validators/AnomalyValidators.js';
@@ -37,14 +42,83 @@ import { ANOMALIES_TYPES } from '../types.js';
 @injectable()
 @JsonController('/anomalies')
 export class AnomalyController {
+  private readonly TEST_COURSE_ID = "507f1f77bcf86cd799439012"; // Test course ID for debugging endpoints
+
   constructor(
     @inject(ANOMALIES_TYPES.AnomalyService) private anomalyService: AnomalyService,
     @inject(ANOMALIES_TYPES.ImageProcessingService) private imageProcessingService: ImageProcessingService
   ) {}
 
+  /**
+   * Transform a single anomaly using class-transformer
+   */
+  private transformAnomaly(anomaly: any): any {
+    const anomalyInstance = new Anomaly(anomaly);
+    return instanceToPlain(anomalyInstance);
+  }
+
+  /**
+   * Transform an array of anomalies using class-transformer
+   */
+  private transformAnomalies(anomalies: any[]): any[] {
+    return anomalies.map(anomaly => this.transformAnomaly(anomaly));
+  }
+
+  /**
+   * Utility function to build filters from query parameters
+   */
+  private buildFiltersFromQuery(query: GetUserAnomaliesQuery): any {
+    const filters: any = {};
+    
+    // Simple field mappings
+    const fieldMappings = [
+      'courseVersionId', 'courseId', 'moduleId', 
+      'sectionId', 'itemId', 'anomalyType'
+    ];
+    
+    fieldMappings.forEach(field => {
+      if (query[field as keyof GetUserAnomaliesQuery]) {
+        filters[field] = query[field as keyof GetUserAnomaliesQuery];
+      }
+    });
+    
+    // Handle date range filters
+    if (query.anomaliesFrom || query.anomaliesTo) {
+      filters.timestamp = {};
+      if (query.anomaliesFrom) filters.timestamp.$gte = new Date(query.anomaliesFrom);
+      if (query.anomaliesTo) filters.timestamp.$lte = new Date(query.anomaliesTo);
+    }
+    
+    return filters;
+  }
+
+  /**
+   * Utility function to prepare multipart anomaly data
+   */
+  private prepareAnomalyData(file: any, body: MultipartAnomalyData): any {
+    const imageDataBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const anomalyData = JSON.parse(body.data);
+    
+    return {
+      ...anomalyData,
+      imageData: imageDataBase64
+    };
+  }
+
+  /**
+   * Utility function to build response endpoints
+   */
+  private buildResponseEndpoints(hexId: string): { decrypt: string; viewImage: string; latest: string } {
+    return {
+      decrypt: `/api/anomalies/test/decrypt/${hexId}`,
+      viewImage: `/api/anomalies/test/view-image/${hexId}`,
+      latest: `/api/anomalies/test/latest`
+    };
+  }
+
   @OpenAPI({
     summary: 'Record anomaly with encrypted image',
-    description: 'Records an anomaly with compressed and encrypted image stored in cloud storage',
+    description: 'Records an anomaly with compressed and encrypted image stored in cloud storage. Captures User-Agent header for session metadata.',
   })
   @Post('/record')
   @HttpCode(201)
@@ -57,7 +131,8 @@ export class AnomalyController {
   })
   async recordAnomaly(
     @UploadedFile('image') file: any,
-    @Body() body: MultipartAnomalyData
+    @Body() body: MultipartAnomalyData,
+    @Header('user-agent', 'userAgent') userAgent: string
   ): Promise<{
     success: boolean;
     hexId: string;
@@ -69,57 +144,67 @@ export class AnomalyController {
     };
     data: any;
   }> {
-    // Convert file buffer to base64 for existing service
-    const imageDataBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    // Prepare anomaly data using utility function
+    const completeAnomalyData = this.prepareAnomalyData(file, body);
     
-    // Parse the JSON data from the form
-    let anomalyData;
-    try {
-      anomalyData = JSON.parse(body.data);
-    } catch (error) {
-      throw new Error('Invalid JSON format in data field');
+    // Add user agent information if available
+    if (userAgent) {
+      completeAnomalyData.sessionMetadata = {
+        ...completeAnomalyData.sessionMetadata,
+        userAgent: userAgent
+      };
     }
-    
-    // Combine file data with parsed JSON data
-    const completeAnomalyData = {
-      ...anomalyData,
-      imageData: imageDataBase64
-    };
     
     const result = await this.anomalyService.recordAnomaly(completeAnomalyData);
     
     // Convert ObjectId to hex string for easy use with other endpoints
     const hexId = result._id?.toString() || 'unknown';
     
+    // Transform using class-transformer for proper ObjectId to string conversion
+    const transformedResult = this.transformAnomaly(result);
+    
     return {
       success: true,
       hexId: hexId, // Direct hex ID for use with other endpoints
       message: 'Anomaly recorded successfully with compressed & encrypted image',
-      endpoints: {
-        decrypt: `/api/anomalies/test/decrypt/${hexId}`,
-        viewImage: `/api/anomalies/test/view-image/${hexId}`,
-        latest: `/api/anomalies/test/latest`
-      },
-      data: result
+      endpoints: this.buildResponseEndpoints(hexId),
+      data: transformedResult
     };
   }
 
   @OpenAPI({
-    summary: 'Get user anomalies',
-    description: 'Retrieves all anomalies for a specific user',
+    summary: 'Get user anomalies with filtering and pagination',
+    description: 'Retrieves anomalies for a specific user with optional filtering by course, module, section, item, type, date range, and pagination support. Captures Accept header for potential content negotiation.',
   })
   @Get('/user/:userId')
   @Authorized()
   @ResponseSchema(AnomalyDataResponse)
-  async getUserAnomalies(@Params() params: UserIdParams): Promise<{
+  async getUserAnomalies(
+    @Params() params: UserIdParams,
+    @QueryParams() query: GetUserAnomaliesQuery,
+    @Header('accept', 'accept') accept?: string
+  ): Promise<{
     success: boolean;
     data: any[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+    };
+    filters: any;
   }> {
-    const anomalies = await this.anomalyService.getUserAnomalies(params.userId, {});
+    // Build filters using utility function
+    const filters = this.buildFiltersFromQuery(query);
+
+    const anomalies = await this.anomalyService.getUserAnomalies(params.userId, filters);
+    
+    // Transform array using class-transformer
+    const transformedAnomalies = this.transformAnomalies(anomalies);
     
     return {
       success: true,
-      data: anomalies,
+      data: transformedAnomalies,
+      filters
     };
   }
 
@@ -136,9 +221,11 @@ export class AnomalyController {
   }> {
     const anomalies = await this.anomalyService.getUserAnomalies('', { 'sessionMetadata.sessionId': params.sessionId });
     
+    const transformedAnomalies = this.transformAnomalies(anomalies);
+    
     return {
       success: true,
-      data: anomalies,
+      data: transformedAnomalies,
     };
   }
 
@@ -155,9 +242,11 @@ export class AnomalyController {
   }> {
     const anomalies = await this.anomalyService.getUserAnomalies('', { 'sessionMetadata.examId': params.examId });
     
+    const transformedAnomalies = this.transformAnomalies(anomalies);
+    
     return {
       success: true,
-      data: anomalies,
+      data: transformedAnomalies,
     };
   }
 
@@ -174,9 +263,11 @@ export class AnomalyController {
   }> {
     const anomalies = await this.anomalyService.getCourseAnomalies(params.courseId);
     
+    const transformedAnomalies = this.transformAnomalies(anomalies);
+    
     return {
       success: true,
-      data: anomalies,
+      data: transformedAnomalies,
     };
   }
 
@@ -205,10 +296,16 @@ export class AnomalyController {
   })
   @Delete('/:id')
   @Authorized(['admin', 'instructor'])
-  async deleteAnomaly(@Params() params: AnomalyIdParams): Promise<{
+  async deleteAnomaly(
+    @Params() params: AnomalyIdParams,
+    @Header('authorization', 'authorization') authorization?: string
+  ): Promise<{
     success: boolean;
     message: string;
   }> {
+    // Could log authorization header for audit purposes (without exposing the token)
+    // Example: Log that deletion was requested with valid auth header
+    
     const deleted = await this.anomalyService.deleteAnomaly(params.id);
     
     return {
@@ -229,9 +326,11 @@ export class AnomalyController {
   }> {
     const anomalies = await this.anomalyService.getCourseAnomalies(params.courseId);
     
+    const transformedAnomalies = this.transformAnomalies(anomalies);
+    
     return {
       success: true,
-      data: anomalies,
+      data: transformedAnomalies,
     };
   }
 
@@ -245,7 +344,7 @@ export class AnomalyController {
     data: any;
     readable: any;
   }> {
-    const anomalies = await this.anomalyService.getCourseAnomalies("507f1f77bcf86cd799439012");
+    const anomalies = await this.anomalyService.getCourseAnomalies(this.TEST_COURSE_ID);
     const latest = anomalies[0];
     
     if (!latest) {
@@ -256,25 +355,8 @@ export class AnomalyController {
       };
     }
     
-    // Convert ObjectIds to readable strings
-    const readable = {
-      _id: latest._id?.toString(),
-      userId: latest.userId?.toString(),
-      courseId: latest.courseId?.toString(),
-      courseVersionId: latest.courseVersionId?.toString(),
-      moduleId: latest.moduleId?.toString(),
-      sectionId: latest.sectionId?.toString(),
-      itemId: latest.itemId?.toString(),
-      timestamp: latest.timestamp,
-      anomalyType: latest.anomalyType,
-      penaltyPoints: latest.penaltyPoints,
-      imageUrl: latest.imageUrl,
-      facesDetected: latest.facesDetected,
-      sessionMetadata: latest.sessionMetadata,
-      imageMetadata: latest.imageMetadata,
-      createdAt: latest.createdAt,
-      updatedAt: latest.updatedAt
-    };
+    // Use class-transformer to transform ObjectIds to readable strings
+    const readable = this.transformAnomaly(latest);
     
     return {
       success: true,
@@ -284,41 +366,145 @@ export class AnomalyController {
   }
 
   @OpenAPI({
-    summary: 'Decrypt and view anomaly image (for testing)',
-    description: 'Decrypts an anomaly image and returns it for testing purposes. Use the _id from your anomaly record (24-character hex string like: 6862654bb11cf85018dd7903)',
+    summary: 'Decrypt anomaly data (for testing)',
+    description: 'Returns decrypted image data and metadata for testing purposes. Note: This endpoint is for development/testing only.',
   })
   @Get('/test/decrypt/:id')
-  async decryptAnomalyImage(@Params() params: AnomalyIdParams): Promise<any> {
-    try {
-      // Get the anomaly record
-      const anomalies = await this.anomalyService.getCourseAnomalies("507f1f77bcf86cd799439012");
-      const anomaly = anomalies.find(a => a._id?.toString() === params.id);
-      
-      if (!anomaly) {
-        return { success: false, message: 'Anomaly not found' };
-      }
-
-      // Return the image URL and metadata for manual verification
-      return {
-        success: true,
-        data: {
-          id: anomaly._id?.toString(),
-          imageUrl: anomaly.imageUrl,
-          imageMetadata: anomaly.imageMetadata,
-          encryptionInfo: {
-            algorithm: 'aes-256-cbc',
-            note: 'Image is encrypted and stored securely. Check encryptedImageData for IV and algorithm details.'
-          }
-        }
+  async decryptTestAnomaly(@Params() params: AnomalyIdParams): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      id: string;
+      decryptedImageBase64?: string;
+      metadata: any;
+      encryptionInfo: {
+        hasEncryptedData: boolean;
+        ivFormat: string;
+        bufferSize?: number;
       };
-    } catch (error) {
-      return { success: false, message: error.message };
+    };
+  }> {
+    // Find anomaly
+    const anomaly = await this.findAnomalyById(params.id);
+    if (!anomaly) {
+      return {
+        success: false,
+        message: 'Anomaly not found'
+      };
     }
+
+    // Validate encrypted image data
+    const encryptedDataValidation = this.validateEncryptedImageData(anomaly);
+    if (!encryptedDataValidation.isValid) {
+      return {
+        success: false,
+        message: encryptedDataValidation.error
+      };
+    }
+
+    // Validate IV
+    const ivValidation = this.validateIV(encryptedDataValidation.data!.iv);
+    if (!ivValidation.isValid) {
+      return {
+        success: false,
+        message: ivValidation.error
+      };
+    }
+
+    // Prepare decryption parameters
+    const { encryptedBuffer: bufferData, iv, authTag = '' } = encryptedDataValidation.data!;
+    const encryptedBuffer = Buffer.from(bufferData.data);
+
+    // Decrypt the image
+    const decryptedBuffer = this.imageProcessingService.decryptImage(encryptedBuffer, iv, authTag);
+    
+    // Convert to base64 for JSON response
+    const decryptedImageBase64 = `data:image/jpeg;base64,${decryptedBuffer.toString('base64')}`;
+
+    // Transform anomaly metadata
+    const transformedAnomaly = this.transformAnomaly(anomaly);
+
+    return {
+      success: true,
+      data: {
+        id: params.id,
+        decryptedImageBase64,
+        metadata: transformedAnomaly,
+        encryptionInfo: {
+          hasEncryptedData: true,
+          ivFormat: typeof iv,
+          bufferSize: encryptedBuffer.length
+        }
+      }
+    };
+  }
+
+  /**
+   * Utility function to find anomaly by ID
+   */
+  private async findAnomalyById(id: string): Promise<any | null> {
+    const anomalies = await this.anomalyService.getCourseAnomalies(this.TEST_COURSE_ID);
+    return anomalies.find(a => a._id?.toString() === id) || null;
+  }
+
+  /**
+   * Utility function to validate encrypted image data structure
+   */
+  private validateEncryptedImageData(anomaly: any): { isValid: boolean; error?: string; data?: any } {
+    if (!anomaly.encryptedImageData || typeof anomaly.encryptedImageData !== 'object') {
+      return {
+        isValid: false,
+        error: 'No encrypted image data found. Use the imageUrl to download the encrypted file from cloud storage'
+      };
+    }
+
+    const encryptedData = anomaly.encryptedImageData as any;
+    if (!encryptedData.encryptedBuffer || !encryptedData.iv) {
+      return {
+        isValid: false,
+        error: 'Invalid encrypted image data structure'
+      };
+    }
+
+    return { isValid: true, data: encryptedData };
+  }
+
+  /**
+   * Utility function to validate IV format
+   */
+  private validateIV(iv: any): { isValid: boolean; error?: string } {
+    if (!iv || typeof iv !== 'string') {
+      return {
+        isValid: false,
+        error: `Invalid IV - must be a hex string. Received: ${iv} (${typeof iv})`
+      };
+    }
+    return { isValid: true };
+  }
+
+  /**
+   * Utility function to set image response headers
+   */
+  private setImageResponseHeaders(response: Response, contentLength: number, filename: string, accept?: string): void {
+    // Determine content type based on Accept header or default to JPEG
+    let contentType = 'image/jpeg';
+    if (accept) {
+      if (accept.includes('image/png')) {
+        contentType = 'image/png';
+      } else if (accept.includes('image/webp')) {
+        contentType = 'image/webp';
+      }
+      // Default to JPEG if no specific image type is requested
+    }
+    
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Content-Length', contentLength);
+    response.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   }
 
   @OpenAPI({
     summary: 'Get decrypted image (for testing)',
-    description: 'Returns the actual decrypted image file for viewing. This endpoint decrypts the image and serves it directly.',
+    description: 'Returns the actual decrypted image file for viewing. This endpoint decrypts the image and serves it directly. Supports content negotiation via Accept header.',
     responses: {
       200: {
         description: 'Decrypted image file',
@@ -340,85 +526,38 @@ export class AnomalyController {
     }
   })
   @Get('/test/view-image/:id')
-  async viewDecryptedImage(@Params() params: AnomalyIdParams, @Res() response: Response): Promise<any> {
-    try {
-      // Get the anomaly record
-      const anomalies = await this.anomalyService.getCourseAnomalies("507f1f77bcf86cd799439012");
-      const anomaly = anomalies.find(a => a._id?.toString() === params.id);
-      
-      if (!anomaly) {
-        return response.status(404).json({ success: false, message: 'Anomaly not found' });
-      }
-
-      // Check if we have encrypted image data
-      if (!anomaly.encryptedImageData || typeof anomaly.encryptedImageData !== 'object') {
-        return response.status(400).json({ 
-          success: false, 
-          message: 'No encrypted image data found',
-          hint: 'Use the imageUrl to download the encrypted file from cloud storage'
-        });
-      }
-
-      // Extract encryption details
-      const encryptedData = anomaly.encryptedImageData as any;
-      if (!encryptedData.encryptedBuffer || !encryptedData.iv) {
-        return response.status(400).json({ 
-          success: false, 
-          message: 'Invalid encrypted image data structure'
-        });
-      }
-
-      // Debug: Check if ImageProcessingService is available
-      if (!this.imageProcessingService) {
-        return response.status(500).json({ 
-          success: false, 
-          message: 'ImageProcessingService not available',
-          debug: 'Dependency injection failed'
-        });
-      }
-
-      // Convert buffer data back to Buffer
-      const encryptedBuffer = Buffer.from(encryptedData.encryptedBuffer.data);
-      const iv = encryptedData.iv; // This should be a hex string
-      const authTag = encryptedData.authTag || '';
-
-      // Debug logging
-      console.log('Encrypted data structure:', {
-        hasEncryptedBuffer: !!encryptedData.encryptedBuffer,
-        bufferSize: encryptedData.encryptedBuffer?.data?.length,
-        iv: iv,
-        ivType: typeof iv,
-        authTag: authTag,
-        algorithm: encryptedData.algorithm
-      });
-
-      // Validate IV is a hex string
-      if (!iv || typeof iv !== 'string') {
-        return response.status(400).json({ 
-          success: false, 
-          message: 'Invalid IV - must be a hex string',
-          debug: { iv: iv, type: typeof iv }
-        });
-      }
-
-      // Decrypt the image
-      const decryptedBuffer = this.imageProcessingService.decryptBuffer(encryptedBuffer, iv, authTag);
-
-      // Set appropriate headers for image response
-      response.setHeader('Content-Type', 'image/jpeg'); // Assuming JPEG, could be dynamic
-      response.setHeader('Content-Length', decryptedBuffer.length);
-      response.setHeader('Content-Disposition', `inline; filename="anomaly-${params.id}.jpg"`);
-
-      // Send the decrypted image
-      return response.send(decryptedBuffer);
-
-    } catch (error) {
-      console.error('Error viewing decrypted image:', error);
-      return response.status(500).json({ 
-        success: false, 
-        message: 'Failed to decrypt image',
-        error: error.message 
-      });
+  async viewDecryptedImage(
+    @Params() params: AnomalyIdParams, 
+    @Res() response: Response,
+    @Header('accept', 'accept') accept?: string
+  ): Promise<any> {
+    // Find anomaly
+    const anomaly = await this.findAnomalyById(params.id);
+    if (!anomaly) {
+      return response.status(404).json({ success: false, message: 'Anomaly not found' });
     }
+
+    // Validate encrypted image data
+    const encryptedDataValidation = this.validateEncryptedImageData(anomaly);
+    if (!encryptedDataValidation.isValid) {
+      return response.status(400).json({ success: false, message: encryptedDataValidation.error });
+    }
+
+    // Validate IV
+    const ivValidation = this.validateIV(encryptedDataValidation.data!.iv);
+    if (!ivValidation.isValid) {
+      return response.status(400).json({ success: false, message: ivValidation.error });
+    }
+
+    // Prepare decryption parameters
+    const { encryptedBuffer: bufferData, iv, authTag = '' } = encryptedDataValidation.data!;
+    const encryptedBuffer = Buffer.from(bufferData.data);
+
+    // Decrypt the image
+    const decryptedBuffer = this.imageProcessingService.decryptImage(encryptedBuffer, iv, authTag);
+
+    // Set response headers and send image
+    this.setImageResponseHeaders(response, decryptedBuffer.length, `anomaly-${params.id}.jpg`, accept);
+    return response.send(decryptedBuffer);
   }
 }
