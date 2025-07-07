@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsObject, IsEnum, ValidateNested, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsObject, IsEnum, ValidateNested, IsArray, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
 
@@ -234,6 +234,62 @@ export class UserIdParams {
   @IsString()
   @IsNotEmpty()
   userId: string;
+}
+
+export class CourseIdParams {
+  @JSONSchema({
+    description: 'Course ID',
+    example: '64f5e8b2c8a4d12345678902',
+  })
+  @IsString()
+  @IsNotEmpty()
+  courseId: string;
+}
+
+export class SessionIdParams {
+  @JSONSchema({
+    description: 'Session ID',
+    example: 'session-12345',
+  })
+  @IsString()
+  @IsNotEmpty()
+  sessionId: string;
+}
+
+export class ExamIdParams {
+  @JSONSchema({
+    description: 'Exam ID',
+    example: 'exam-67890',
+  })
+  @IsString()
+  @IsNotEmpty()
+  examId: string;
+}
+
+export class MultipartAnomalyData {
+  @JSONSchema({
+    description: 'JSON string containing all anomaly data',
+    example: JSON.stringify({
+      userId: "507f1f77bcf86cd799439011",
+      courseId: "507f1f77bcf86cd799439012",
+      courseVersionId: "507f1f77bcf86cd799439016",
+      moduleId: "507f1f77bcf86cd799439013",
+      sectionId: "507f1f77bcf86cd799439014",
+      itemId: "507f1f77bcf86cd799439015",
+      anomalyType: "voiceDetection",
+      penaltyPoints: 5,
+      facesDetected: 1,
+      sessionMetadata: {
+        sessionId: "session-12345",
+        examId: "exam-67890",
+        browserInfo: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+    }),
+  })
+  @IsString()
+  @IsNotEmpty()
+  data: string;
 }
 
 export class AnomalyDataResponse {
