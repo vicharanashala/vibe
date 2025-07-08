@@ -1,7 +1,6 @@
 import { injectable } from 'inversify';
 import axios, { AxiosInstance } from 'axios';
 import { appConfig } from '#root/config/app.js';
-import { RerunTaskBody } from '../classes/validators/GenAIValidators.js';
 import { TranscriptParameters, SegmentationParameters, QuestionGenerationParameters } from '../classes/transformers/GenAI.js';
 
 @injectable()
