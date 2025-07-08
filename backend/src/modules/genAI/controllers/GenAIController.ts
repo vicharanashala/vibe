@@ -44,7 +44,7 @@ export class GenAIController {
   ) {}
 
   @OpenAPI({
-    summary: 'Start a new genAI',
+    summary: 'Start a new job',
     description: 'Starts a new genAI process. Can be of type Video or Playlist.',
   })
   @Post("/jobs")
@@ -67,17 +67,17 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Get genAI status',
-    description: 'Retrieves the current status of a genAI by ID.',
+    summary: 'Get job status',
+    description: 'Retrieves the current status of a job by ID.',
   })
   @Get("/jobs/:id")
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(JobStatusResponse, {
-    description: 'GenAI retrieved successfully'
+    description: 'Job retrieved successfully'
   })
   @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'GenAI not found',
+    description: 'Job not found',
     statusCode: 404,
   })
   async getStatus(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
@@ -105,7 +105,7 @@ export class GenAIController {
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'GenAI not found',
+    description: 'Job not found',
     statusCode: 404,
   })
   async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody) {
@@ -121,7 +121,7 @@ export class GenAIController {
   @OnUndefined(200)
   @Post("/:id/tasks/approve/continue")
   @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'GenAI not found',
+    description: 'Job not found',
     statusCode: 404,
   })
   async approveContinue(@Params() params: GenAIIdParams, @Body() body: ApproveContinueBody, @Ability(getGenAIAbility) {ability}) {
@@ -136,14 +136,14 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Abort genAI',
-    description: 'Aborts an in-progress genAI.',
+    summary: 'Abort job',
+    description: 'Aborts an in-progress job.',
   })
   @Post("/jobs/:id/abort")
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'GenAI not found',
+    description: 'job not found',
     statusCode: 404,
   })
   async abortJob(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
@@ -151,7 +151,7 @@ export class GenAIController {
 
     // Check if user has permission to abort jobs
     if (!ability.can('delete', 'GenAI')) {
-      throw new ForbiddenError('You do not have permission to abort this genAI');
+      throw new ForbiddenError('You do not have permission to abort this job');
     }
     
     await this.webhookService.abortJob(id);
@@ -159,7 +159,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Rerun current task',
-    description: 'Reruns the current task in the genAI.',
+    description: 'Reruns the current task in the job.',
   })
   @Post("/jobs/:id/tasks/rerun")
   @Authorized()
@@ -173,7 +173,7 @@ export class GenAIController {
 
     // Check if user has permission to rerun tasks
     if (!ability.can('update', 'GenAI')) {
-      throw new ForbiddenError('You do not have permission to rerun tasks in this genAI');
+      throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
 
     await this.webhookService.rerunTask(id, body);
@@ -181,7 +181,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a genAI.',
+    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
   })
   @Post("/jobs/:id/live")
   // SSE responses are handled differently, so no standard response schema
