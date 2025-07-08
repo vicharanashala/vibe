@@ -45,7 +45,7 @@ export class GenAIService extends BaseService {
    * @returns Job status data
    */
   async getJobStatus(jobId: string): Promise<any> {
-    this._withTransaction( async session => {
+    return this._withTransaction( async session => {
       const job = await this.genAIRepository.getById(jobId, session);
       if (!job) {
         throw new NotFoundError("job with the given Id not found");
@@ -56,7 +56,7 @@ export class GenAIService extends BaseService {
   }
 
   async getAllTasksStatus(jobId: string): Promise<any> {
-    this._withTransaction(async session => {
+    return this._withTransaction(async session => {
       const taskData = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!taskData) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);

@@ -31,7 +31,7 @@ export class GenAIRepository {
 			}
 			, { session }
 		);
-		return result?.insertedId.toString();
+		return result.insertedId?.toString();
 	}
 
 	async createTaskData(jobId: string, session?: ClientSession): Promise<string> {
@@ -39,14 +39,14 @@ export class GenAIRepository {
 		const result = await this.taskDataCollection.insertOne(
 			{ jobId: jobId }, { session }
 		)
-		return result?.insertedId.toString();
+		return result.insertedId?.toString();
 	}
 
 	async getById(jobId: string, session: ClientSession): Promise<GenAIBody> {
 		await this.init();
 		const result = await this.genAICollection.findOne(
 			{
-				_id: new ObjectId(jobId)
+				_id: new ObjectId(jobId),
 			},
 			{ session }
 		)

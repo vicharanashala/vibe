@@ -89,11 +89,7 @@ export class GenAIController {
     }
 
     const result = await this.genAIService.getJobStatus(id);
-    
-    if (!result) {
-      throw new NotFoundError(`Job with ID ${id} not found`);
-    }
-    
+
     return result;
   }
 
