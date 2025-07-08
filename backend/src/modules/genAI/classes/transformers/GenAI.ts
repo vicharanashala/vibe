@@ -31,22 +31,25 @@ export enum TaskStatus {
   ABORTED = 'ABORTED'
 }
 
-interface TranscriptParameters {
+export interface TranscriptParameters {
 	language?: LanguageType;
 	model?: string;
 }
 
-interface SegmentationParameters {
+export interface SegmentationParameters {
 	lambda?: number;
 	epochs?: number;
 }
 
-interface QuestionGenerationParameters {
-	prompt: string;
+export interface QuestionGenerationParameters {
 	model?: string;
+	SOL?: number;
+	SML?: number;
+	NAT?: number;
+	DES?: number;
 }
 
-interface UploadParameters {
+export interface UploadParameters {
 	courseId: string;
 	versionId: string;
 	moduleId: string;
@@ -89,8 +92,6 @@ export interface questionGenerationData {
 export interface contentUploadData {
 	status: TaskStatus;
 	error?: string;
-	courseId?: string;
-	versionId?: string;
 }
 
 export class JobStatus {

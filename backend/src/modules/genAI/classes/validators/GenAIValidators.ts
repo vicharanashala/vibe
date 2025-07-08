@@ -62,17 +62,7 @@ class SegmentationParameters {
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
-class QuestionGenerationParameters {
-  @JSONSchema({
-    title: 'Prompt',
-    description: 'Prompt for question generation',
-    example: 'Generate questions based on the provided transcript',
-    type: 'string',
-  })
-  @IsNotEmpty()
-  @IsString()
-  prompt: string;
-
+class QuestionGenerationParameters implements QuestionGenerationParameters {
   @JSONSchema({
     title: 'Model',
     description: 'Model to use for question generation',
@@ -82,6 +72,46 @@ class QuestionGenerationParameters {
   @IsOptional()
   @IsString()
   model?: string;
+
+  @JSONSchema({
+    title: 'SOL Number',
+    description: 'Number of select one in lot questions to be generated',
+    example: 2,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  SOL?: number;
+
+  @JSONSchema({
+    title: 'SML Number',
+    description: 'Number of select multiple in lot questions to be generated',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  SML?: number;
+
+  @JSONSchema({
+    title: 'NAT Number',
+    description: 'Number of natural questions to be generated',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  NAT?: number;
+
+  @JSONSchema({
+    title: 'DES Number',
+    description: 'Number of descriptive questions to be generated',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  DES?: number;
 }
 
 @JSONSchema({ title: 'UploadParameters' })
@@ -305,13 +335,11 @@ class ApproveStartBody {
         return SegmentationParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
-      case TaskType.UPLOAD_CONTENT:
-        return UploadParameters;
       default:
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
 }
 
 // Request body for approving task continuation
@@ -432,7 +460,7 @@ class RerunTaskBody {
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
 }
 
 // Task status

@@ -2,6 +2,7 @@ import { injectable } from 'inversify';
 import axios, { AxiosInstance } from 'axios';
 import { appConfig } from '#root/config/app.js';
 import { RerunTaskBody } from '../classes/validators/GenAIValidators.js';
+import { TranscriptParameters, SegmentationParameters, QuestionGenerationParameters } from '../classes/transformers/GenAI.js';
 
 @injectable()
 export class WebhookService {
@@ -43,23 +44,12 @@ export class WebhookService {
   }
 
   /**
-   * Update job parameters on AI server
-   * @param jobId The job ID
-   * @param taskParams Parameters for the task
-   * @returns Updated job data from AI server
-   */
-  async updateJobParameters(jobId: string, taskParams: any): Promise<any> {
-    const response = await this.httpClient.post(`/jobs/${jobId}/update`, taskParams);
-    return response.data;
-  }
-
-  /**
    * Approve task to start on AI server
    * @param jobId The job ID
    * @param taskParams Parameters for the task
    * @returns Updated job data from AI server
    */
-  async approveTaskStart(jobId: string, taskParams: any): Promise<any> {
+  async approveTaskStart(jobId: string, taskParams: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters): Promise<any> {
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, taskParams);
     return response.data;
   }
@@ -70,8 +60,8 @@ export class WebhookService {
    * @param approvalData Approval data for the task
    * @returns Updated job data from AI server
    */
-  async approveTaskContinue(jobId: string, approvalData: any): Promise<any> {
-    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/continue`, approvalData);
+  async approveTaskContinue(jobId: string): Promise<any> {
+    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/continue`);
     return response.data;
   }
 
@@ -90,8 +80,8 @@ export class WebhookService {
    * @param jobId The job ID
    * @returns Updated job data from AI server
    */
-  async rerunTask(jobId: string, body: RerunTaskBody): Promise<any> {
-    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`);
+  async rerunTask(jobId: string, taskParams: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters): Promise<any> {
+    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`, taskParams);
     return response.data;
   }
 
