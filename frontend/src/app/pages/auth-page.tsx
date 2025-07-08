@@ -456,14 +456,41 @@ export default function AuthPage() {
                   <CardHeader className="pb-4">
                     <Tabs
                       defaultValue="student"
-                      className="w-full"
+                      className="w-full flex justify-center"
                       onValueChange={(v: string) => setActiveRole(v as "student" | "teacher")}
                       value={activeRole}
                     >
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="student">Student</TabsTrigger>
-                        <TabsTrigger value="teacher">Teacher</TabsTrigger>
-
+                      <TabsList className="grid w-3/4 mx-auto grid-cols-2 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-1 border border-primary/20 shadow-lg">
+                        <TabsTrigger
+                          value="student"
+                          className={cn(
+                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            activeRole === "student"
+                              ? "bg-white border border-primary text-primary shadow-md"
+                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
+                          )}
+                        >
+                          <span className="flex items-center gap-2 justify-center">
+                            {/* Using Lucide icon for student */}
+                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill={activeRole === "student" ? "currentColor" : "#888"} /></svg>
+                            Student
+                          </span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="teacher"
+                          className={cn(
+                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            activeRole === "teacher"
+                              ? "bg-white border border-primary text-primary shadow-md"
+                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
+                          )}
+                        >
+                          <span className="flex items-center gap-2 justify-center">
+                            {/* Using Lucide icon for teacher */}
+                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6-2V7a6 6 0 1 0-12 0v1a2 2 0 0 0-2 2v2h16V9a2 2 0 0 0-2-2Z" fill={activeRole === "teacher" ? "currentColor" : "#888"} /></svg>
+                            Teacher
+                          </span>
+                        </TabsTrigger>
                       </TabsList>
                     </Tabs>
                   </CardHeader>

@@ -73,6 +73,28 @@ export default function CoursePage() {
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
 
+  // Check for microphone and camera access, otherwise redirect to dashboard
+  useEffect(() => {
+    async function checkMediaPermissions() {
+      try {
+        // Try to get both camera and microphone access
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        // If access denied or not available, redirect to dashboard
+        alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
+        try {
+          // Try to get both camera and microphone access
+          await navigator.mediaDevices.getUserMedia({ video: true, audio: true });}
+        catch(err) {
+          router.navigate({ to: '/student' });
+        }
+      }
+    }
+    checkMediaPermissions();
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
 
@@ -1024,21 +1046,21 @@ export default function CoursePage() {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
             {/* Notification Stack */}
-            <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-80">
+            <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90">
               {/* ✅ Item Access Error Notification */}
               {isItemForbidden && (
-                <Card className="border border-red-400/40 bg-red-500/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                  <CardContent className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50/20">
-                      <AlertCircle className="h-4 w-4" />
+                <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                  <CardContent className="flex items-center gap-3 px-4 py-0">
+                    <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
+                      <AlertCircle className="h-16 w-16" />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-xs font-medium">
+                      <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
                         Access Restricted
                       </Badge>
-                      <p className="text-xs font-medium leading-relaxed">
+                      <p className="text-md font-medium leading-relaxed">
                         {previousValidItem 
-                          ? "Item not accessible. Returning to previous valid content..."
+                          ? "Returning to previous valid content."
                           : "Complete current item first to access this content."
                         }
                       </p>
@@ -1056,18 +1078,18 @@ export default function CoursePage() {
               )}
 
               {/* Gesture Notification */}
-              {doGesture && (
-                <Card className="border border-amber-400/40 bg-amber-500/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                  <CardContent className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50/20 text-lg">
-                      👍
+              {doGesture && currentItem?.type!=='VIDEO' &&(
+                <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                  <CardContent className="flex items-center gap-3 px-4 py-0">
+                    <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
+                      <img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full"/>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xs font-medium">
+                    <div className="flex-1 space-y-1 py-3">
+                      <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xl font-bold">
                         Gesture Required
                       </Badge>
-                      <p className="text-xs font-medium leading-relaxed">
-                        Please show a <strong>thumbs up</strong> to continue!
+                      <p className="text-lg font-medium leading-relaxed m-1">
+                        Show a <strong>thumbs up</strong>!
                       </p>
                     </div>
                   </CardContent>
@@ -1076,43 +1098,54 @@ export default function CoursePage() {
 
               {/* Quiz Passed/Failed */}
               {quizPassed !== 2 && (
-                <Card
-                  className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${
+                <Card className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${
                   quizPassed === 1
-                    ? "border-green-400/40 bg-green-500/95 text-green-50"
-                    : "border-red-400/40 bg-red-500/95 text-red-50"
+                  ? "border-green-400/40 bg-green-500/95 text-green-50"
+                  : "border-red-400/40 bg-red-500/95 text-red-50"
+                }`}>
+                  <CardContent className="flex items-center gap-3 px-4 py-0">
+                  <div className={`flex h-22 w-22 items-center justify-center rounded-l ${
+                  quizPassed === 1
+                  ? "border-green-50/30 bg-green-50/10"
+                  : "border-red-50/30 bg-red-50/10"
+                  } text-4xl p-4`}>
+                  {quizPassed === 1 ? (
+                    <CheckCircle className="h-16 w-16" />
+                  ) : (
+                    // Use XCircle for fail/cross icon
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                  <Badge variant="outline" className={`text-lg font-bold ${
+                  quizPassed === 1
+                    ? "border-green-50/30 bg-green-50/10 text-green-50"
+                    : "border-red-50/30 bg-red-50/10 text-red-50"
+                  }`}>
+                  {quizPassed === 1 ? "Quiz Passed" : "Quiz Failed"}
+                  </Badge>
+                  <p className="text-md font-medium leading-relaxed">
+                  {quizPassed === 1
+                    ? "Congratulations! You passed the quiz."
+                    : "Redirecting to the previous video..."}
+                  </p>
+                  </div>
+                  <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setQuizPassed(2)}
+                  className={`h-6 w-6 p-0 ${
+                  quizPassed === 1
+                    ? "text-green-50 hover:bg-green-50/10"
+                    : "text-red-50 hover:bg-red-50/10"
                   }`}
-                >
-                  <CardContent className="flex items-center gap-3 px-4 py-3">
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                      quizPassed === 1 ? "bg-green-50/20" : "bg-red-50/20"
-                    }`}>
-                      <CheckCircle className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <Badge variant="outline" className={`text-xs font-medium ${
-                        quizPassed === 1 
-                          ? "border-green-50/30 bg-green-50/10 text-green-50" 
-                          : "border-red-50/30 bg-red-50/10 text-red-50"
-                      }`}>
-                        {quizPassed === 1 ? "Quiz Passed" : "Quiz Failed"}
-                      </Badge>
-                      <p className="text-xs font-medium leading-relaxed">
-                        {quizPassed === 1 ? "Congratulations! You passed the quiz." : "Redirecting to the previous video..."}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setQuizPassed(2)}
-                      className={`h-6 w-6 p-0 ${
-                        quizPassed === 1 
-                          ? "text-green-50 hover:bg-green-50/10" 
-                          : "text-red-50 hover:bg-red-50/10"
-                      }`}
-                    >
-                      ×
-                    </Button>
+                  >
+                  ×
+                  </Button>
                   </CardContent>
                 </Card>
               )}

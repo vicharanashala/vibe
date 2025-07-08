@@ -59,6 +59,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           setAttemptId={setAttemptId}
           displayNextLesson={displayNextLesson}
           setQuizPassed={setQuizPassed}
+          rewindVid={rewindVid}
         />;
 
       case 'article':

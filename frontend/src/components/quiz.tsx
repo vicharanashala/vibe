@@ -42,7 +42,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   setAttemptId,
   displayNextLesson,
   onPrevVideo,
-  setQuizPassed
+  setQuizPassed,
+  rewindVid
 }, ref) => {
   console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -496,10 +497,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
-  // ===== COMPUTED VALUES =====
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
-  // ===== QUIZ LIFECYCLE FUNCTIONS =====
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
     if (!currentQuestion) return;
@@ -557,6 +556,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useEffect(() => {
     resetQuiz();
   }, [processedQuizId, resetQuiz]);
+
+  useEffect(() => {
+    if (rewindVid){
+      onPrevVideo();
+      resetQuiz();
+      setQuizStarted(false);
+      setQuizCompleted(false);
+      setCurrentQuestionIndex(0);
+      setAnswers({});
+      setScore(0);
+      setQuizQuestions([]);
+      setAttemptId?.('');
+      setSubmissionResults(null);
+      setShowHint(false);
+      setTimeLeft(0);
+      quizAttemptedRef.current = false;
+    }}, [rewindVid]);
 
   // Timer effect
   useEffect(() => {

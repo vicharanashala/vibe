@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, JSX, use } from 'react';
 import ReactDOM from 'react-dom';
-import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, PictureInPicture, PictureInPicture2, SquareArrowOutDownLeft} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GestureDetector from './ai/GestureDetector';
 import BlurDetection from './ai/BlurDetector';
@@ -63,14 +63,14 @@ function FloatingVideo({
     backendStatus: 'loading'
 
   });
-  const [penaltyPoints, setPenaltyPoints] = useState(-10);
+  const [penaltyPoints, setPenaltyPoints] = useState(-90);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
 
   // Thumbs-up challenge states
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
   const [thumbsUpCountdown, setThumbsUpCountdown] = useState(0);
-  const [lastChallengeTime, setLastChallengeTime] = useState(0);
+  const [lastChallengeTime, setLastChallengeTime] = useState(Date.now());
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
 
@@ -229,12 +229,16 @@ function FloatingVideo({
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
+        setRewindVid(true);
+        setPauseVid(true);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
       // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
       if (facesCount !== 1 && isFaceCountDetectionEnabled) {
+        setRewindVid(true);
+        setPauseVid(true);
         newPenaltyType = "Faces Count";
         newPenaltyPoints += 1;
       }
@@ -262,7 +266,7 @@ function FloatingVideo({
         setContiguousAnomalyPoints(prev => {
           const newContiguous = prev + newPenaltyPoints;
           // Check if we've reached 20 contiguous points
-          if (newContiguous >= 8) {
+          if (newContiguous >= 10) {
             console.log(`[FloatingVideo] Rewind triggered: 20 contiguous anomaly points reached`);
             setRewindVid(true);
             setPauseVid(true);  // Pause video after rewind
@@ -282,7 +286,7 @@ function FloatingVideo({
         // Reset contiguous anomaly points when no anomalies are detected
         if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
-    }, 1000); // Update every second
+    }, 100); // Update every second
 
     return () => clearInterval(interval);
   }, [
@@ -334,7 +338,7 @@ function FloatingVideo({
             setDoGesture(true);
             console.log("[Challenge] 🎯 Starting new thumbs-up challenge");
             setIsThumbsUpChallenge(true);
-            setThumbsUpCountdown(5);
+            setThumbsUpCountdown(10);
             setLastChallengeTime(now);
           }
         }
@@ -605,7 +609,7 @@ function FloatingVideo({
               className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white flex-shrink-0"
               title={isCollapsed ? 'Expand' : 'Collapse'}
             >
-              {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              {isCollapsed ? <ChevronUp className="h-3 w-3" />: <ChevronDown className="h-3 w-3" /> }
             </Button>
             <Button
               variant="ghost"
@@ -617,7 +621,7 @@ function FloatingVideo({
               }}
               className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white flex-shrink-0"
             >
-              {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
             </Button>
           </div>
         </div>
@@ -643,7 +647,7 @@ function FloatingVideo({
               className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white"
               title={isCollapsed ? 'Expand' : 'Collapse'}
             >
-              {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              {isCollapsed ? <ChevronUp className="h-3 w-3" /> :<ChevronDown className="h-3 w-3" />}
             </Button>
             <Button
               variant="ghost"
@@ -655,7 +659,7 @@ function FloatingVideo({
               }}
               className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white"
             >
-              {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
             </Button>
           </div>
         </div>
