@@ -5,6 +5,8 @@ import { AnomalyController } from './controllers/AnomalyController.js';
 import { ANOMALIES_TYPES } from './types.js';
 import { CloudStorageService } from './services/CloudStorageService.js';
 import { ImageProcessingService } from './services/ImageProcessingService.js';
+import { AnomalyTransformationService } from './services/AnomalyTransformationService.js';
+import { AnomalyDecryptionService } from './services/AnomalyDecryptionService.js';
 
 export const anomaliesContainerModule = new ContainerModule(options => {
   // Repositories
@@ -14,6 +16,8 @@ export const anomaliesContainerModule = new ContainerModule(options => {
   options.bind(ANOMALIES_TYPES.ImageProcessingService).to(ImageProcessingService).inSingletonScope(); 
   options.bind(ANOMALIES_TYPES.AnomalyService).to(AnomalyService).inSingletonScope();
   options.bind(ANOMALIES_TYPES.CloudStorageService).to(CloudStorageService).inSingletonScope();
+  options.bind(ANOMALIES_TYPES.AnomalyTransformationService).to(AnomalyTransformationService).inSingletonScope();
+  options.bind(ANOMALIES_TYPES.AnomalyDecryptionService).to(AnomalyDecryptionService).inSingletonScope();
   
   // Controllers
   options.bind(AnomalyController).toSelf().inSingletonScope();

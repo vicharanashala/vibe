@@ -4,4 +4,6 @@ export const ANOMALIES_TYPES = {
   AnomalyRepository: Symbol.for('AnomalyRepository'),
   CloudStorageService: Symbol.for('CloudStorageService'),
   ImageProcessingService: Symbol.for('ImageProcessingService'),
+  AnomalyTransformationService: Symbol.for('AnomalyTransformationService'),
+  AnomalyDecryptionService: Symbol.for('AnomalyDecryptionService'),
 };

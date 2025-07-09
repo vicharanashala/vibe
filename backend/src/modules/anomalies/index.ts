@@ -43,6 +43,8 @@ export async function setupAnomaliesContainer(): Promise<void> {
 export * from './controllers/AnomalyController.js';
 export * from './services/AnomalyService.js';
 export * from './services/CloudStorageService.js';
+export * from './services/AnomalyTransformationService.js';
+export * from './services/AnomalyDecryptionService.js';
 export * from './repositories/providers/mongodb/AnomalyRepository.js';
 export * from './classes/transformers/Anomaly.js';
 export * from './classes/validators/AnomalyValidators.js';
