@@ -34,13 +34,10 @@ class ProgressRepository {
 
   async deleteWatchTimeByItemId(itemId: string, session?: ClientSession): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
+    await this.watchTimeCollection.deleteMany(
       { itemId: new ObjectId(itemId) },
       { session },
     );
-    if (result.deletedCount === 0) {
-      throw new Error(`No watch time records found for item ID: ${itemId}`);
-    }
   }
 
   async deleteWatchTimeByCourseId(courseId: string, session?: ClientSession): Promise<void> {
