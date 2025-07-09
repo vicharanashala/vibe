@@ -58,7 +58,7 @@ export function useSignup(): {
   mutate: (variables: { body: components['schemas']['SignUpBody'] }) => void,
   mutateAsync: (variables: { body: components['schemas']['SignUpBody'] }) => Promise<components['schemas']['SignUpResponse']>,
   data: components['schemas']['SignUpResponse'] | undefined,
-  error: string | null,
+  error: unknown | null,
   isPending: boolean,
   isSuccess: boolean,
   isError: boolean,
@@ -69,7 +69,7 @@ export function useSignup(): {
   const result = api.useMutation("post", "/auth/signup");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Signup failed') : null
+    error: result.error ? (result.error) : null
   };
 }
 

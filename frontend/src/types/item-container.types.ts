@@ -49,6 +49,7 @@ export interface ItemContainerProps {
   pauseVid?: boolean;
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
+  anomalies?: string[];
 }
 
 export interface ItemContainerRef {

@@ -8,10 +8,10 @@ import type { DashboardSidebarProps } from '@/types/dashboard.types';
 
 export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
   return (
-    <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border ${className || ''}`}>
+    <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
       <TodoList />
 
-      <Card className="border border-sidebar-border bg-secondary/50">
+      <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sidebar-foreground">Goals</h3>
@@ -44,7 +44,7 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
         </CardContent>
       </Card>
 
-      <Card className="border border-sidebar-border bg-secondary/50">
+      <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Upcoming Deadlines</h3>

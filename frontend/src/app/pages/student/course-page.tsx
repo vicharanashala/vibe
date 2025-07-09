@@ -101,6 +101,9 @@ export default function CoursePage() {
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
+  // Ref for autoscroll to selected sidebar item
+  const selectedItemRef = useRef<HTMLButtonElement | null>(null);
+
   // Helper function to update course store navigation state
   const updateCourseNavigation = useCallback((moduleId: string, sectionId: string, itemId: string) => {
     const currentCourse = useCourseStore.getState().currentCourse;
@@ -127,6 +130,7 @@ export default function CoursePage() {
   const [rewindVid, setRewindVid] = useState<boolean>(false);
   const [pauseVid, setPauseVid] = useState<boolean>(false);
   const [quizPassed, setQuizPassed] = useState(2);
+  const [anomalies, setAnomalies] = useState<string[]>([]);
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -752,6 +756,13 @@ export default function CoursePage() {
     window.history.back();
   };
 
+  // Autoscroll to selected sidebar item when selectedItemId changes
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedItemId]);
+
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
@@ -852,7 +863,7 @@ export default function CoursePage() {
                           <div className="font-medium text-xs truncate" title={module.name}>
                             {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
                           </div>
-                          <div className="text-[10px] text-muted-foreground truncate">
+                          <div className="text-[10px] text-muted-fore</div>ground truncate">
                             {module.sections?.length || 0} sections
                           </div>
                         </div>
@@ -900,6 +911,8 @@ export default function CoursePage() {
                                               onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                               isActive={isCurrentItem}
                                               className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                              // Assign ref only to the selected item for autoscroll
+                                              ref={isCurrentItem ? selectedItemRef : undefined}
                                             >
                                               <div className="flex items-center gap-2 w-full min-w-0">
                                                 <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
@@ -910,10 +923,24 @@ export default function CoursePage() {
                                                 </div>
                                                 <div className="flex-1 text-left min-w-0">
                                                   <div className="text-xs font-medium truncate w-full" title={currentItem?.name || 'Loading...'}>
-                                                    {selectedItemId === itemId && itemLoading ? 'Loading...' :
-                                                      selectedItemId === itemId && currentItem?.name ?
-                                                        (currentItem.name.length > 18 ? `${currentItem.name.substring(0, 19)}...` : currentItem.name) :
-                                                        `${item.name || item.type[0] + item.type.slice(1).toLowerCase() || ''} Item `}
+                                                    {(() => {
+                                                      // Find all non-QUIZ items in this section, sorted by order
+                                                      const itemsInSection = sortItemsByOrder(sectionItems[sectionId] || []).filter((i: any) => i.type !== 'QUIZ');
+                                                      // Find the index of this item among non-QUIZ items
+                                                      const itemIndex = itemsInSection.findIndex((i: any) => i._id === itemId);
+                                                      // Compose the label with numbering
+                                                      let label = '';
+                                                      if (selectedItemId === itemId && itemLoading) {
+                                                        label = 'Loading...';
+                                                      } else if (selectedItemId === itemId && currentItem?.name) {
+                                                        label = currentItem.name.length > 18 ? `${currentItem.name.substring(0, 15)}...` : currentItem.name;
+                                                      } else {
+                                                        label = ' ';
+                                                      }
+                                                      // Add numbering prefix (e.g., Video 1, Article 2, etc.)
+                                                      const typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1).toLowerCase();
+                                                      return label===' '?`${typeLabel} ${itemIndex + 1}`:`${label}`;
+                                                    })()}
                                                   </div>
                                                 </div>
                                               </div>
@@ -956,6 +983,8 @@ export default function CoursePage() {
                   }
                 }
               }} 
+              anomalies={anomalies}
+              setAnomalies={setAnomalies}
               rewindVid={rewindVid} 
               setRewindVid={setRewindVid}
               pauseVid={pauseVid}
@@ -1166,6 +1195,7 @@ export default function CoursePage() {
                   pauseVid={pauseVid}
                   displayNextLesson={false}
                   setQuizPassed={setQuizPassed}
+                  anomalies={anomalies}
                 />
               </div>
             ) : (

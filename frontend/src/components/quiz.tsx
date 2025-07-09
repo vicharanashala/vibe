@@ -15,6 +15,7 @@ import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
 import { preprocessMathContent } from '@/utils/utils';
+import Loader from './Loader';
 
 // Type for Order interface (if not defined elsewhere)
 interface Order {
@@ -661,148 +662,162 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== RENDER LOGIC =====
   // Quiz not started
   if (!quizStarted) {
-    return (
-      <div className="mx-auto space-y-8">
-        <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
-          <CardHeader className="pb-8">
-            <div className="flex items-center justify-between gap-8">
-              <div className="flex-1 space-y-4 text-left">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="w-8 h-8 text-primary" />
+    // console.log("QUIZTYPE:", quizType);
+    if (quizType === 'DEADLINE'){
+      return (
+        <div className="mx-auto space-y-8">
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
+            <CardHeader className="pb-8">
+              <div className="flex items-center justify-between gap-8">
+                <div className="flex-1 space-y-4 text-left">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="w-8 h-8 text-primary" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    Ready to Start Your Quiz?
+                  </CardTitle>
+                  <CardDescription className="text-lg text-muted-foreground max-w-lg">
+                    Test your knowledge and track your progress. Take your time to read through the information below before starting.
+                  </CardDescription>
                 </div>
-                <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                  Ready to Start Your Quiz?
-                </CardTitle>
-                <CardDescription className="text-lg text-muted-foreground max-w-lg">
-                  Test your knowledge and track your progress. Take your time to read through the information below before starting.
-                </CardDescription>
-              </div>
-              <div className="flex flex-col items-center space-y-4 min-w-fit">
-                {deadline && quizType !== 'NO_DEADLINE' && (
-                  <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
-                    <CardContent className="flex items-center space-x-3 px-4 py-0">
-                      <AlertCircle className="w-5 h-5 text-amber-600" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                          Deadline: {new Date(deadline).toLocaleDateString()} at {new Date(deadline).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Button
-                  onClick={startQuiz}
-                  size="lg"
-                  className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
-                  disabled={releaseTime && new Date() < releaseTime || isPending}
-                >
-                  <PlayCircle className="mr-3 h-6 w-6" />
-                  {isPending ? 'Starting Quiz...' :
-                    releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
-                </Button>
-
-                {attemptError && (
-                  <div className="text-sm text-red-600 text-center max-w-[300px]">
-                    {attemptError || 'Failed to start quiz. Please try again later.'}
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground text-center max-w-[300px]">
-                  Make sure you have a stable internet connection and enough time to complete the quiz.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            {/* Key Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-primary">
-                    {
-                      Array.isArray(questionBankRefs)
-                        ? questionBankRefs.reduce((sum, ref) => sum + (typeof ref === 'object' && ref !== null && 'count' in ref ? (ref as questionBankRef).count || 0 : 1), 0)
-                        : 0
-                    }
-                  </div>
-                  <div className="text-sm text-muted-foreground">Questions</div>
-                </div>
-              </Card>
-
-              <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                    <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-primary">{Math.round(passThreshold * 100)}%</div>
-                  <div className="text-sm text-muted-foreground">Pass Score</div>
-                </div>
-              </Card>
-              <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-primary">{maxAttempts}</div>
-                  <div className="text-sm text-muted-foreground">Max Attempts</div>
-                </div>
-              </Card>
-              <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
-                    <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-primary">{approximateTimeToComplete}</div>
-                  <div className="text-sm text-muted-foreground">Est. Time</div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Show Next Lesson button at the bottom if displayNextLesson is true */}
-            {displayNextLesson && onNext && (
-              <div className="text-center pt-4">
-                <Button
-                  onClick={onNext}
-                  disabled={isProgressUpdating}
-                  variant="outline"
-                  size="lg"
-                  className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                >
-                  {isProgressUpdating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3" />
-                      Processing
-                    </>
-                  ) : (
-                    <>
-                      Skip to Next Lesson
-                      <ChevronRight className="h-5 w-5 ml-3" />
-                    </>
+                <div className="flex flex-col items-center space-y-4 min-w-fit">
+                  {deadline && quizType !== 'NO_DEADLINE' && (
+                    <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
+                      <CardContent className="flex items-center space-x-3 px-4 py-0">
+                        <AlertCircle className="w-5 h-5 text-amber-600" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                            Deadline: {new Date(deadline).toLocaleDateString()} at {new Date(deadline).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
-                </Button>
+
+                  <Button
+                    onClick={startQuiz}
+                    size="lg"
+                    className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
+                    disabled={releaseTime && new Date() < releaseTime || isPending}
+                  >
+                    <PlayCircle className="mr-3 h-6 w-6" />
+                    {isPending ? 'Starting Quiz...' :
+                      releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
+                  </Button>
+
+                  {attemptError && (
+                    <div className="text-sm text-red-600 text-center max-w-[300px]">
+                      {attemptError || 'Failed to start quiz. Please try again later.'}
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground text-center max-w-[300px]">
+                    Make sure you have a stable internet connection and enough time to complete the quiz.
+                  </p>
+                </div>
               </div>
-            )}
-            {!displayNextLesson && onPrevVideo && (
-              <div className="text-center pt-4">
-                <Button
-                  onClick={onPrevVideo}
-                  disabled={isProgressUpdating}
-                  variant="outline"
-                  size="lg"
-                  className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                >
-                  <ChevronLeft className="h-5 w-5 mr-3" />
-                  Rewatch Previous Video
-                </Button>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Key Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-primary">
+                      {
+                        Array.isArray(questionBankRefs)
+                          ? questionBankRefs.reduce((sum, ref) => sum + (typeof ref === 'object' && ref !== null && 'count' in ref ? (ref as questionBankRef).count || 0 : 1), 0)
+                          : 0
+                      }
+                    </div>
+                    <div className="text-sm text-muted-foreground">Questions</div>
+                  </div>
+                </Card>
+
+                <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                      <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-primary">{Math.round(passThreshold * 100)}%</div>
+                    <div className="text-sm text-muted-foreground">Pass Score</div>
+                  </div>
+                </Card>
+                <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-primary">{maxAttempts}</div>
+                    <div className="text-sm text-muted-foreground">Max Attempts</div>
+                  </div>
+                </Card>
+                <Card className="text-center p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                      <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-primary">{approximateTimeToComplete}</div>
+                    <div className="text-sm text-muted-foreground">Est. Time</div>
+                  </div>
+                </Card>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
+
+              {/* Show Next Lesson button at the bottom if displayNextLesson is true */}
+              {displayNextLesson && onNext && (
+                <div className="text-center pt-4">
+                  <Button
+                    onClick={onNext}
+                    disabled={isProgressUpdating}
+                    variant="outline"
+                    size="lg"
+                    className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                  >
+                    {isProgressUpdating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3" />
+                        Processing
+                      </>
+                    ) : (
+                      <>
+                        Skip to Next Lesson
+                        <ChevronRight className="h-5 w-5 ml-3" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+              {!displayNextLesson && onPrevVideo && (
+                <div className="text-center pt-4">
+                  <Button
+                    onClick={onPrevVideo}
+                    disabled={isProgressUpdating}
+                    variant="outline"
+                    size="lg"
+                    className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                  >
+                    <ChevronLeft className="h-5 w-5 mr-3" />
+                    Rewatch Previous Video
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    else {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader />
+          <span
+          className='text-lg text-muted-foreground ml-4'
+          > Loading quiz...</span>
+        </div>
+      );
+    }
+
   }
 
   // Quiz completed

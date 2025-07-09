@@ -19,11 +19,13 @@ export interface YTPlayerInstance {
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
+  getPlaybackRate: () => number;
   getDuration: () => number;
   getVolume: () => number;
   setVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   getAvailablePlaybackRates?: () => number[];
+  anomalies?: string[];
 }
 
 // Extend Window object globally with YT namespace (YouTube IFrame API)
@@ -77,6 +79,8 @@ export interface FloatingVideoProps {
   setRewindVid: (value: boolean) => void;
   pauseVid: boolean;
   setPauseVid: (value: boolean) => void;
+  setAnomalies: (anomalies: any[]) => void;
+  anomalies?: string[];
 }
 
 export interface ProctoringSettings {

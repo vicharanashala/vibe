@@ -23,7 +23,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
   const totalLessons = progressData?.totalItems || 0;
   const completedLessons = progressData?.completedItems || 0;
-  const isCompleted = progressData?.completed || false;
+  const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;
 
   const handleContinue = () => {
     console.log("Setting course store:", {
@@ -50,7 +50,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
 
   if (variant === 'dashboard') {
     return (
-      <Card className={`border border-border overflow-hidden flex flex-row student-card-hover p-0 ${className || ''}`}>
+      <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
           <ImageWithFallback
             src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
@@ -118,7 +118,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
           </p>
           <div className="mt-auto">
             <Button
-              variant={progress === 0 ? "default" : isCompleted ? "secondary" : "outline"}
+              variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
               className={progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"}
               onClick={handleContinue}
             >

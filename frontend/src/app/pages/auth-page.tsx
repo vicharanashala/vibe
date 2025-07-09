@@ -33,6 +33,7 @@ const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
 
   // Determine which value to use (controlled or uncontrolled)
   const activeValue = value !== undefined ? value : internalValue;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Handle value change
   const handleValueChange = (newValue: string) => {
@@ -134,6 +135,8 @@ export default function AuthPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
+    if (!fullName) errors.fullName = "Name is required";
+    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
 
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
@@ -225,7 +228,7 @@ export default function AuthPage() {
 
   //SignUp
 
-  const signupMutation = useSignup();
+  const {mutateAsync: signupMutation, error: signupError, isError:isSignUpError} = useSignup();
 
   // New function for handling signup
   const handleEmailSignup = async () => {
@@ -256,16 +259,15 @@ export default function AuthPage() {
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
 
-      await signupMutation.mutateAsync({
+      await signupMutation({
         body: {
           email: email,
           password: password,
           firstName: firstName,
           lastName: lastName
         }
-
       });
       const result = await loginWithEmail(email, password);
 
@@ -282,15 +284,26 @@ export default function AuthPage() {
 
     } catch (error: any) {
       console.error("Email Signup Failed", error);
-      if (error?.code === "auth/email-already-in-use") {
+      console.log(signupError, isSignUpError);
+      if (isSignUpError) {
+        let message = "";
+        if (signupError?.message === "Invalid body, check 'errors' property for more info.") {
+          for (const error of signupError?.errors || []) {
+            message += `${Object.values(error.constraints).join(', ')}`;
+          }
+        }
+        else message = signupError?.message || "An error occurred during signup";
+        console.log(message)
+        console.log(signupError?.errors?.find((e: any) => e.property === 'firstName'));
+
         setFormErrors({
           ...formErrors,
-          auth: "This email is already in use. Please try logging in instead.",
-        });
-      } else {
-        setFormErrors({
-          ...formErrors,
-          auth: "Failed to create account. Please try again.",
+          auth: message || "Failed to create account. Please try again.",
+          email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
+          fullName: 
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') + 
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
         });
       }
     } finally {

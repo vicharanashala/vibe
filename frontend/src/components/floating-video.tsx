@@ -27,7 +27,9 @@ function FloatingVideo({
   rewindVid,
   setRewindVid,
   pauseVid,
-  setPauseVid
+  setPauseVid,
+  setAnomalies,
+  anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -88,7 +90,7 @@ function FloatingVideo({
   // Check which components are enabled
   const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
   const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
-  const isHandGestureDetectionEnabled = isComponentEnabled('handGestureDetection');
+  const isHandGestureDetectionEnabled = false; //isComponentEnabled('handGestureDetection');
   const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isFocusEnabled = isComponentEnabled('focus');
@@ -226,11 +228,13 @@ function FloatingVideo({
     const interval = setInterval(() => {
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
+      setAnomalies(['']);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
         setRewindVid(true);
         setPauseVid(true);
+        setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
@@ -239,25 +243,30 @@ function FloatingVideo({
       if (facesCount !== 1 && isFaceCountDetectionEnabled) {
         setRewindVid(true);
         setPauseVid(true);
+        setAnomalies([...anomalies, "faceCountDetection"]);
         newPenaltyType = "Faces Count";
         newPenaltyPoints += 1;
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
       if (isBlur === "Yes" && isBlurDetectionEnabled) {
+        setAnomalies([...anomalies, "blurDetection"]);
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
       }
 
       // Condition 4: If not focused (only if focus tracking is enabled)
       if (!isFocused && isFocusEnabled) {
+        setAnomalies([...anomalies, "focus"]);
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
+      console.log("[anomaly]",anomalies);
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
         setAnomaly(true);
+        // setAnomalies([]);
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
         setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
@@ -266,7 +275,7 @@ function FloatingVideo({
         setContiguousAnomalyPoints(prev => {
           const newContiguous = prev + newPenaltyPoints;
           // Check if we've reached 20 contiguous points
-          if (newContiguous >= 10) {
+          if (newContiguous >= 20) {
             console.log(`[FloatingVideo] Rewind triggered: 20 contiguous anomaly points reached`);
             setRewindVid(true);
             setPauseVid(true);  // Pause video after rewind
@@ -277,6 +286,7 @@ function FloatingVideo({
       }
       else {
         setAnomaly(false);
+        setAnomalies([]);
         // When anomalies are cleared, restore previous video state
         if (rewindVid || pauseVid) {
           console.log(`[FloatingVideo] Anomalies cleared - restoring video state`);
@@ -306,7 +316,7 @@ function FloatingVideo({
     setRewindVid,
     pauseVid,
     setPauseVid,
-    contiguousAnomalyPoints
+    contiguousAnomalyPoints,
   ]);
   const min = 2 * 60 * 1000;
   const max = 5 * 60 * 1000;

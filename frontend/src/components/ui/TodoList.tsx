@@ -83,9 +83,9 @@ export const TodoList = ({ className }: TodoListProps) => {
   const todoManager = useTodos();
 
   return (
-    <Card className={`border border-sidebar-border bg-secondary/50 overflow-hidden ${className || ''}`}>
+    <Card className={`border border-sidebar-border dark:bg-[#58442775] overflow-hidden ${className || ''}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">To-Do List</CardTitle>
+        <CardTitle className="text-sm font-bold">To-Do List</CardTitle>
         <CardDescription>
           {todoManager.todos.filter(t => !t.completed).length} tasks remaining
         </CardDescription>

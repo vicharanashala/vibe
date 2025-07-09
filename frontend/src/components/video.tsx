@@ -30,7 +30,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -71,12 +71,14 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
+
     const player = playerRef.current;
     if (!player || typeof player.pauseVideo !== 'function') return;
     if (playing) {
       player.pauseVideo();
     } else {
       player.playVideo();
+      setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
     }
   }, [playing]);
 
@@ -103,6 +105,7 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
       // Resume if it was playing before gesture
       if (wasPlayingBeforeGesture.current) {
         player.playVideo();
+        setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
         wasPlayingBeforeGesture.current = false;
       }
     }
@@ -143,6 +146,7 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
       // Only resume if it was playing before the rewind/pause
       if (wasPlayingBeforeRewind.current) {
         player.playVideo();
+        setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
         console.log('Video resumed after anomalies cleared');
         wasPlayingBeforeRewind.current = false; // Reset the flag
       }
@@ -494,13 +498,14 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
           {/* Anomaly Overlay */}
           {(rewindVid || doGesture) && (
             <div
+              className='shadow-2xl'
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: 'rgba(30,41,50,0.95)',
+                background: 'rgba(70,50,0,0.85)',
                 zIndex: 20,
                 display: 'flex',
                 flexDirection: 'column',
@@ -512,6 +517,7 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
               }}
             >
               <div
+                className='shadow-2xl'
                 style={{
                   background: 'rgba(255, 255, 255, 1)',
                   borderRadius: 16,
@@ -561,7 +567,7 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
                       />
                       <path
                         d="m -46.997381,124.54655 -62.501079,0 -62.50108,0 31.25054,-54.127524 31.25054,-54.127522 31.25054,54.127521 z"
-                        style={{ fill: "#ffcc00" }}
+                        style={{ fill: "#df0000" }}
                       />
                       <g transform="translate(-188.06236)">
                         <circle
@@ -577,7 +583,7 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
                       </g>
                     </g>
                   </svg>)}
-                  {doGesture && !rewindVid &&(<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full"/>)}
+                  {doGesture && !rewindVid && (<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />)}
                 </div>
                 <div
                   style={{
@@ -586,169 +592,202 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
                     padding: '14px 28px',
                     borderRadius: 10,
                     fontWeight: 1000,
-                    fontSize: 19,
-                    boxShadow: '0 2px 16px rgba(30,41,59,0.13)',
+                    fontSize: 21,
+                    boxShadow: '0 30px 16px rgba(30,41,59,0.13)',
                     textAlign: 'center',
                     letterSpacing: 0.1,
                     maxWidth: 340,
                     lineHeight: 1.2,
                     border: '1px solid #f59e42',
+
                   }}
                 >
-                  {rewindVid? `Anomalies Detected!` : `Gesture Needed!`}
-                  <br />
-                  <span style={{ fontWeight: 500, fontSize: 15 }} >
-                    {rewindVid
-                      ? `Please clear the anomalies to continue watching the video.`
-                      : <>Do a <strong>Thumbs up</strong> to continue watching the video.</>
-                    }
-                  </span>
-                </div>
+                  {rewindVid
+                    ? (
+                      <span style={{ fontWeight: 500, fontSize: 15 }}>
+                        {anomalies.includes("voiceDetection") ? (
+                          <div style={{ marginBottom: 6 }}>
+                            <strong>Don't speak!!</strong>
+                          </div>
+                        ) : <></>}
+                        {anomalies.includes("faceCountDetection") ? (
+                          <div style={{ marginBottom: 6 }}>
+                            <strong>Only one face!!</strong>
+                          </div>
+                        ) : <></>}
+                        {anomalies.includes("blurDetection") ? (
+                          <div style={{ marginBottom: 6 }}>
+                            <strong>Keep your camera clear!!</strong>
+                          </div>
+                        ) : <></>}
+                        {anomalies.includes("focus") ? (
+                          <div style={{ marginBottom: 6 }}>
+                            <strong>Stay focused!!</strong>
+                          </div>
+                        ) : <></>}
+                      </span>
+                    )
+                    : (
+                      <span style={{ fontWeight: 500, fontSize: 15 }}>
+                      `Gesture Needed!`
+                      <br />
+                      <>
+                        <span>
+                          To continue watching your lesson, please show a <strong>thumbs up gesture</strong> in front of your camera.
+                        </span>
+                        <br />
+                        <span style={{ fontWeight: 200, fontSize: 14 }}>
+                          This helps us know you’re present and engaged. Once we detect your gesture, the video will resume automatically.
+                        </span>
+                      </></span>
+                    )
+                  }
               </div>
             </div>
-          )
+            </div>
+        )
           }
+      </div>
+
+      {/* Custom Controls Below Video */}
+      <div
+        style={{
+          background: 'hsl(var(--card))',
+          padding: '8px 16px',
+          borderTop: '1px solid hsl(var(--primary) / 0.2)',
+          borderRadius: '0 0 12px 12px',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          flexShrink: 0,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Progress Bar - Visual indicator only, no seeking */}
+        <div style={{ marginBottom: 8 }}>
+          <Slider
+            value={[currentTime]}
+            min={startTimeSeconds}
+            max={endTimeSeconds > 0 ? endTimeSeconds : duration}
+            step={0.1}
+            onValueChange={() => {
+              // Disabled - no seeking allowed
+            }}
+            className="w-full pointer-events-none"
+            disabled
+          />
         </div>
 
-        {/* Custom Controls Below Video */}
-        <div
-          style={{
-            background: 'hsl(var(--card))',
-            padding: '8px 16px',
-            borderTop: '1px solid hsl(var(--primary) / 0.2)',
-            borderRadius: '0 0 12px 12px',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none',
-            flexShrink: 0,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Progress Bar - Visual indicator only, no seeking */}
-          <div style={{ marginBottom: 8 }}>
-            <Slider
-              value={[currentTime]}
-              min={startTimeSeconds}
-              max={endTimeSeconds > 0 ? endTimeSeconds : duration}
-              step={0.1}
-              onValueChange={() => {
-                // Disabled - no seeking allowed
+        {/* Control Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap'
+        }}>
+          {/* Left Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePlayPause();
               }}
-              className="w-full pointer-events-none"
-              disabled
-            />
+              size="icon"
+              variant={playing ? "default" : "secondary"}
+              className="rounded-full w-11 h-11 flex-shrink-0"
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <Pause className="h-7 w-7 scale-130" /> : <Play className="h-7 w-7 scale-130" />}
+            </Button>
+
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBackward();
+              }}
+              size="icon"
+              variant="secondary"
+              className="rounded-full w-11 h-11 flex-shrink-0"
+              aria-label="Back 10 seconds"
+            >
+              <SkipBack className="h-3 w-3 scale-130" />
+            </Button>
+
+            <span style={{
+              color: 'hsl(var(--foreground))',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 700,
+              minWidth: 80,
+              textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
+              flexShrink: 0
+            }}>
+              {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
+            </span>
           </div>
 
-          {/* Control Bar */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap'
-          }}>
-            {/* Left Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePlayPause();
-                }}
-                size="icon"
-                variant={playing ? "default" : "secondary"}
-                className="rounded-full w-9 h-9 flex-shrink-0"
-                aria-label={playing ? 'Pause' : 'Play'}
-              >
-                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
-
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleBackward();
-                }}
-                size="icon"
-                variant="secondary"
-                className="rounded-full w-8 h-8 flex-shrink-0"
-                aria-label="Back 10 seconds"
-              >
-                <SkipBack className="h-3 w-3" />
-              </Button>
-
-              <span style={{
-                color: 'hsl(var(--foreground))',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 12,
-                fontWeight: 500,
-                minWidth: 80,
-                textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
-                flexShrink: 0
-              }}>
-                {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
+          {/* Right Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            {/* Speed Control */}
+            <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+              <span className="text-md font-bold text-foreground min-w-[24px]">
+                Speed
               </span>
-            </div>
-
-            {/* Right Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-              {/* Speed Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <span className="text-xs font-medium text-foreground min-w-[24px]">
-                  Speed
-                </span>
-                <Slider
-                  value={[playbackRate]}
-                  min={0.25}
-                  max={2}
-                  step={0.05}
-                  onValueChange={(value) => {
-                    const rate = value[0];
-                    const player = playerRef.current;
-                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
-                      const availableRates = player.getAvailablePlaybackRates!();
-                      let closest = availableRates[0];
-                      for (const r of availableRates) {
-                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
-                      }
-                      player.setPlaybackRate(closest);
-                      // Update both local state and global store
-                      setPlaybackRate(closest);
-                    } else {
-                      playerRef.current?.setPlaybackRate(rate);
-                      // Update both local state and global store
-                      setPlaybackRate(rate);
+              <Slider
+                value={[playbackRate]}
+                min={0.25}
+                max={2}
+                step={0.05}
+                onValueChange={(value) => {
+                  const rate = value[0];
+                  const player = playerRef.current;
+                  if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                    const availableRates = player.getAvailablePlaybackRates!();
+                    let closest = availableRates[0];
+                    for (const r of availableRates) {
+                      if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
                     }
-                  }}
-                  className="w-[50px]"
-                />
-                <span className="text-xs font-semibold text-primary min-w-[24px] text-center">
-                  {playbackRate.toFixed(2)}x
-                </span>
-              </Card>
+                    player.setPlaybackRate(closest);
+                    // Update both local state and global store
+                    setPlaybackRate(closest);
+                  } else {
+                    playerRef.current?.setPlaybackRate(rate);
+                    // Update both local state and global store
+                    setPlaybackRate(rate);
+                  }
+                }}
+                className="w-[80px]"
+              />
+              <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                {playbackRate.toFixed(2)}x
+              </span>
+            </Card>
 
-              {/* Volume Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <Volume2 className="h-3 w-3 text-accent flex-shrink-0" />
-                <Slider
-                  value={[volume]}
-                  min={0}
-                  max={100}
-                  onValueChange={(value) => {
-                    const v = value[0];
-                    setVolume(v);
-                    playerRef.current?.setVolume(v);
-                  }}
-                  className="w-[40px]"
-                />
-                <span className="text-xs font-medium text-foreground min-w-[24px] text-center">
-                  {Math.round(volume)}%
-                </span>
-              </Card>
-            </div>
+            {/* Volume Control */}
+            <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+              <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+              <Slider
+                value={[volume]}
+                min={0}
+                max={100}
+                onValueChange={(value) => {
+                  const v = value[0];
+                  setVolume(v);
+                  playerRef.current?.setVolume(v);
+                }}
+                className="w-[80px]"
+              />
+              <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                {Math.round(volume)}%
+              </span>
+            </Card>
           </div>
+        </div>
 
-          {/* Next Lesson Button */}
-          {/*onNext && (
+        {/* Next Lesson Button */}
+        {/*onNext && (
             <div style={{
               borderTop: '1px solid hsl(var(--border))',
               paddingTop: '12px',
@@ -779,11 +818,11 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
               </Button>
             </div>
           )*/}
-        </div>
       </div>
+    </div>
 
-      {/* Global CSS to block YouTube interface */}
-      <style>{`
+      {/* Global CSS to block YouTube interface */ }
+  <style>{`
         iframe[src*="youtube.com"] {
           pointer-events: none !important;
         }
@@ -821,6 +860,6 @@ export default function Video({ URL, startTime, endTime, points, rewindVid, paus
           user-select: none !important;
         }
       `}</style>
-    </div>
+    </div >
   );
 }

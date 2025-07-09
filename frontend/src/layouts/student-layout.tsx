@@ -27,7 +27,7 @@ export default function StudentLayout() {
   // console.log('Current user role:', user?.role);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95 bg-gray-50/50 dark:bg-orange-950/70">
       {/* <FloatingVideo isVisible={user?.role === 'student'}></FloatingVideo> */}
 
       {/* Ambient background effect */}
