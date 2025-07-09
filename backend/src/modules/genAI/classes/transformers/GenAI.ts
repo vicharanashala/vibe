@@ -32,16 +32,19 @@ export enum TaskStatus {
 }
 
 export interface TranscriptParameters {
+	usePrevious?: number;
 	language?: LanguageType;
 	model?: string;
 }
 
 export interface SegmentationParameters {
+	usePrevious?: number;
 	lambda?: number;
 	epochs?: number;
 }
 
 export interface QuestionGenerationParameters {
+	usePrevious?: number;
 	model?: string;
 	SOL?: number;
 	SML?: number;
@@ -50,6 +53,7 @@ export interface QuestionGenerationParameters {
 }
 
 export interface UploadParameters {
+	usePrevious?: number;
 	courseId: string;
 	versionId: string;
 	moduleId: string;
