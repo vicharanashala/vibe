@@ -57,7 +57,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
-  const [dontStart, setDontStart] = useState();
+  const [dontStart, setDontStart] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -560,7 +560,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   useEffect(() => {
     if (rewindVid){
-      onPrevVideo();
+      onPrevVideo?.();
       resetQuiz();
       setQuizStarted(false);
       setQuizCompleted(false);
@@ -576,27 +576,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }}, [rewindVid]);
 
   // Timer effect
-  useEffect(() => {
-    if (!quizStarted || quizCompleted || doGesture || !timeLeft || timeLeft <= 0) return;
-
-    let hasTriggeredNext = false;
+   useEffect(() => {
+    if (!quizStarted || quizCompleted || doGesture || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1 && !hasTriggeredNext) {
-          hasTriggeredNext = true;
-          setTimeout(() => {
-            handleNextQuestion();
-          }, 50);
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Auto-advance to next question when time runs out (uncomment if needed)
+          handleNextQuestion();
           return 0;
         }
-        return prev > 0 ? prev - 1 : 0;
+        return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizStarted, quizCompleted, timeLeft, handleNextQuestion, doGesture]);
-
+  }, [quizStarted, quizCompleted, doGesture, timeLeft]);
   // Set timer for current question
   useEffect(() => {
     if (quizStarted && !quizCompleted && currentQuestion?.timeLimit) {
@@ -681,7 +676,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   </CardDescription>
                 </div>
                 <div className="flex flex-col items-center space-y-4 min-w-fit">
-                  {deadline && quizType !== 'NO_DEADLINE' && (
+                  {deadline && (
                     <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
                       <CardContent className="flex items-center space-x-3 px-4 py-0">
                         <AlertCircle className="w-5 h-5 text-amber-600" />

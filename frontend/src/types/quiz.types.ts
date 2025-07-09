@@ -52,6 +52,7 @@ export interface QuizProps {
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
+  rewindVid: boolean;
 }
 
 export interface QuizRef {

@@ -79,7 +79,7 @@ export interface FloatingVideoProps {
   setRewindVid: (value: boolean) => void;
   pauseVid: boolean;
   setPauseVid: (value: boolean) => void;
-  setAnomalies: (anomalies: any[]) => void;
+  setAnomalies: (anomalies: string[]) => void;
   anomalies?: string[];
 }
 
