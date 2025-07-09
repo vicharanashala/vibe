@@ -6,7 +6,7 @@ export interface IUser {
   firebaseUID: string;
   email: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   roles: 'admin' | 'user';
 }
 

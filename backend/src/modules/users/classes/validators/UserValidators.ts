@@ -71,7 +71,8 @@ export class GetUserResponse implements IUser {
     readOnly: true,
   })
   @IsString()
-  lastName: string;
+  @IsOptional()
+  lastName?: string;
 
   @JSONSchema({
     description: "User's roles",
