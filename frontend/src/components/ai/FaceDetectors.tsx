@@ -36,7 +36,7 @@ const isLookingAway = (face: Face): boolean => {
     console.log('[Trigger] Nose ratio is out of bounds:', noseRatio);
     return true;
   }
-  if (earVisibilityRatio < 0.4 || earVisibilityRatio > 0.6){
+  if (earVisibilityRatio < 0.37 || earVisibilityRatio > 0.63){
     console.log('[Trigger] Ear visibility ratio is out of bounds:', earVisibilityRatio);
     return true;
   }
