@@ -13,7 +13,10 @@ let lastLogTime = 0;
 async function initializeModel() {
   const backends = tf.engine().registry;
   const availableBackends = Object.keys(backends);
-  if("webgl"in availableBackends) await tf.setBackend("webgl"); else if ("wasm" in availableBackends) await tf.setBackend("wasm"); else await tf.setBackend("cpu");
+  console.log("Available TensorFlow.js backends:", availableBackends);
+  // if("webgl"in availableBackends) await tf.setBackend("webgl"); else if ("wasm" in availableBackends) await tf.setBackend("wasm"); else await tf.setBackend("cpu");
+  await tf.setBackend("webgl");
+  console.log("Using TensorFlow.js backend:", tf.getBackend());
   await tf.ready();
   const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
   const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = { runtime: "tfjs", maxFaces: 10 }; // TensorFlow.js backend

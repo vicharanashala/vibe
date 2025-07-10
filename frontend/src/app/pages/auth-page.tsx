@@ -196,8 +196,6 @@ export default function AuthPage() {
   };
 
   const handleEmailLogin = async () => {
-    if (!validateForm()) return;
-
     try {
       setLoading(true);
       setFormErrors({});
