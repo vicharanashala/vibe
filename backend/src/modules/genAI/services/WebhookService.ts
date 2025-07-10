@@ -29,13 +29,10 @@ export class WebhookService {
    * @returns Job ID and status from AI server
    */
   async sendJobToAiServer(jobData: any, userId: string, jobId: string): Promise<string> {
-    const webhookUrl = `${appConfig.url}${appConfig.routePrefix}/genai/webhook`;
     const payload = {
       data: jobData,
       userId,
-      jobId,
-      webhookUrl,
-      webhookSecret: this.webhookSecret
+      jobId
     };
     
     const response = await this.httpClient.post('/jobs', payload);

@@ -145,47 +145,18 @@ export class GenAIService extends BaseService {
     });
   }
 
-  /**
-   * Mark a job as complete
-   * @param jobId The job ID
-   * @param completionData Completion data
-   * @returns Completed job information
-   */
-  async completeJob(jobId: string, completionData: any): Promise<any> {
-    // In a real implementation, update database record
-    // const job = await this.jobRepository.findById(jobId);
-    // if (!job) {
-    //   throw new NotFoundError(`Job with ID ${jobId} not found`);
-    // }
-    
-    // Update job status to completed
-    // job.status = 'COMPLETED';
-    // job.completionData = completionData;
-    // const completedJob = await this.jobRepository.save(job);
-    
-    // For now, just return the data
-    return { ...completionData, jobId, status: 'COMPLETED' };
-  }
-
-  /**
-   * Mark a job as failed
-   * @param jobId The job ID
-   * @param failureData Failure data
-   * @returns Failed job information
-   */
-  async failJob(jobId: string, failureData: any): Promise<any> {
-    // In a real implementation, update database record
-    // const job = await this.jobRepository.findById(jobId);
-    // if (!job) {
-    //   throw new NotFoundError(`Job with ID ${jobId} not found`);
-    // }
-    
-    // Update job status to failed
-    // job.status = 'FAILED';
-    // job.error = failureData.error;
-    // const failedJob = await this.jobRepository.save(job);
-    
-    // For now, just return the data
-    return { ...failureData, jobId, status: 'FAILED' };
+  async getJobState(jobId: string): Promise<any> {
+    return this._withTransaction(async session => {
+      const job = await this.genAIRepository.getById(jobId, session);
+      if (!job) {
+        throw new NotFoundError(`Job with ID ${jobId} not found`);
+      }
+      job._id = job._id.toString();
+      const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
+      if (!task) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      
+    });
   }
 }
