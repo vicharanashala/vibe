@@ -575,28 +575,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       quizAttemptedRef.current = false;
     }}, [rewindVid]);
 
-  // Timer effect
-  useEffect(() => {
-    if (!quizStarted || quizCompleted || doGesture || !timeLeft || timeLeft <= 0) return;
-
-    let hasTriggeredNext = false;
+// Timer effect
+   useEffect(() => {
+    if (!quizStarted || quizCompleted || doGesture || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1 && !hasTriggeredNext) {
-          hasTriggeredNext = true;
-          setTimeout(() => {
-            handleNextQuestion();
-          }, 50);
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Auto-advance to next question when time runs out (uncomment if needed)
+          handleNextQuestion();
           return 0;
         }
-        return prev > 0 ? prev - 1 : 0;
+        return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizStarted, quizCompleted, timeLeft, handleNextQuestion, doGesture]);
-
+  }, [quizStarted, quizCompleted, doGesture, timeLeft]);
   // Set timer for current question
   useEffect(() => {
     if (quizStarted && !quizCompleted && currentQuestion?.timeLimit) {
