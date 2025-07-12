@@ -164,15 +164,15 @@ export class GenAIController {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async rerunTask(@Params() params: GenAIIdParams, @Body() body: RerunTaskBody, @Ability(getGenAIAbility) {ability}) {
+  async rerunTask(@Params() params: GenAIIdParams, @Body() body: RerunTaskBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
-
+    const userId = user._id.toString();
     // Check if user has permission to rerun tasks
     if (!ability.can('update', 'GenAI')) {
       throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
 
-    await this.webhookService.rerunTask(id, body.parameters);
+    await this.genAIService.rerunTask(id, userId, body.usePrevious, body.parameters);
   }
 
   @OpenAPI({

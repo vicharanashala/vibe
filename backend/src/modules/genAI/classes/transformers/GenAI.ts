@@ -107,7 +107,7 @@ export class JobStatus {
 	uploadContent: TaskStatus;
 
 	constructor() {
-		this.audioExtraction = TaskStatus.PENDING;
+		this.audioExtraction = TaskStatus.WAITING;
 		this.transcriptGeneration = TaskStatus.PENDING;
 		this.segmentation = TaskStatus.PENDING;
 		this.questionGeneration = TaskStatus.PENDING;
@@ -146,5 +146,5 @@ export class JobState {
 	taskStatus: TaskStatus;
 	url?: string;
 	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
-	file: string;
+	file?: string;
 }

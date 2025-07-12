@@ -48,9 +48,24 @@ export class GenAIService extends BaseService {
       if (job.userId !== userId) {
         throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
       }
-      const jobState = await this.getJobState(jobId);
+      const jobState = await this.getJobState(jobId, usePrevious);
       jobState.parameters = {...jobState.parameters, ...parameters};
       return this.webhookService.approveTaskStart(jobId, jobState);
+    });
+  }
+
+  async rerunTask(jobId: string, userId: string, usePrevious?: number, parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters>): Promise<any> {
+    return this._withTransaction(async session => {
+      const job = await this.genAIRepository.getById(jobId, session);
+      if (!job) {
+        throw new NotFoundError(`Job with ID ${jobId} not found`);
+      }
+      if (job.userId !== userId) {
+        throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
+      }
+      const jobState = await this.getJobState(jobId, usePrevious);
+      jobState.parameters = {...jobState.parameters, ...parameters};
+      return this.webhookService.rerunTask(jobId, jobState);
     });
   }
 
@@ -206,25 +221,29 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
       const jobState = new JobState();
-      if (job.jobStatus.audioExtraction === TaskStatus.WAITING || job.jobStatus.audioExtraction === TaskStatus.COMPLETED) {
+      if (job.jobStatus.audioExtraction === TaskStatus.WAITING || job.jobStatus.audioExtraction === TaskStatus.COMPLETED || job.jobStatus.audioExtraction === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.AUDIO_EXTRACTION;
+        if (job.jobStatus.audioExtraction === TaskStatus.WAITING) jobState.currentTask = null;
         jobState.taskStatus = job.jobStatus.audioExtraction;
         jobState.url = job.url;
       }
-      if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING || job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED) {
+      if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING || job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED || job.jobStatus.transcriptGeneration === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.TRANSCRIPT_GENERATION;
+        if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.AUDIO_EXTRACTION;
         jobState.taskStatus = job.jobStatus.transcriptGeneration;
         jobState.parameters = job.transcriptParameters;
         jobState.file = task.audioExtraction[usePrevious ? usePrevious : 0].fileUrl;
       }
-      if (job.jobStatus.segmentation === TaskStatus.WAITING || job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+      if (job.jobStatus.segmentation === TaskStatus.WAITING || job.jobStatus.segmentation === TaskStatus.COMPLETED || job.jobStatus.segmentation === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.SEGMENTATION;
+        if (job.jobStatus.segmentation === TaskStatus.WAITING) jobState.currentTask = TaskType.TRANSCRIPT_GENERATION;
         jobState.taskStatus = job.jobStatus.segmentation;
         jobState.parameters = job.segmentationParameters;
         jobState.file = task.transcriptGeneration[usePrevious ? usePrevious : 0].fileUrl;
       }
-      if (job.jobStatus.questionGeneration === TaskStatus.WAITING || job.jobStatus.questionGeneration === TaskStatus.COMPLETED) {
+      if (job.jobStatus.questionGeneration === TaskStatus.WAITING || job.jobStatus.questionGeneration === TaskStatus.COMPLETED || job.jobStatus.questionGeneration === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.QUESTION_GENERATION;
+        if (job.jobStatus.questionGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.SEGMENTATION;
         jobState.taskStatus = job.jobStatus.questionGeneration;
         jobState.parameters = job.questionGenerationParameters;
         jobState.file = task.segmentation[usePrevious ? usePrevious : 0].fileUrl;

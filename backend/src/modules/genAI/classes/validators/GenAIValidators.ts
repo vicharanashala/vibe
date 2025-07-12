@@ -401,6 +401,16 @@ class RerunTaskBody {
     }
   })
   parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
+  
+  @JSONSchema({
+    title: 'Use Previous',
+    description: 'Which previous task output to use for this task',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  usePrevious?: number;
 }
 
 // Task status

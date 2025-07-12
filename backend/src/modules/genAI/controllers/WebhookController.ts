@@ -46,7 +46,7 @@ export class WebhookController {
     }
 
     const { task, jobId, data } = body;
-
+    console.log('Webhook body:', body);
     await this.genAIService.updateJob(jobId, task, data);
   }
 
