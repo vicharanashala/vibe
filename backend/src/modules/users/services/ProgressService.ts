@@ -647,6 +647,29 @@ class ProgressService extends BaseService {
     });
   }
 
+  async getUserProgressPercentageWithoutTotal(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<number> {
+    return this._withTransaction(async session => {
+      // Verify if the user, course, and course version exist
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const completedItemsArray = await this.progressRepository.getCompletedItems(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      // Use Set to ensure unique completed items and for efficient size comparison
+      const completedItemsSet = new Set(completedItemsArray);
+
+      return completedItemsSet.size;
+    });
+  }
+
   async startItem(
     userId: string,
     courseId: string,

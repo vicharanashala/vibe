@@ -24,6 +24,7 @@ class ProgressRepository {
   }
 
   async getCompletedItems(userId: string, courseId: string, courseVersionId: string, session?: ClientSession): Promise<String[]> {
+    await this.init();
     const userProgress = await this.watchTimeCollection.find({
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
