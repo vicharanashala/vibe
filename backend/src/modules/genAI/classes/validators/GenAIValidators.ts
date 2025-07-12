@@ -340,76 +340,16 @@ class ApproveStartBody {
     }
   })
   parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
-}
-
-// Request body for approving task continuation
-class ApproveContinueBody {
-  @JSONSchema({
-    title: 'Task Type',
-    description: 'Type of task to continue',
-    enum: Object.values(TaskType),
-    example: 'TRANSCRIPT_GENERATION',
-  })
-  @IsNotEmpty()
-  @IsEnum(TaskType)
-  type: TaskType;
 
   @JSONSchema({
-    title: 'Approval',
-    description: 'Approval boolean for the task output',
-  })
-  @IsNotEmpty()
-  @IsBoolean()
-  approval: boolean;
-
-  @JSONSchema({
-    title: 'rerun task boolean',
-    description: 'Whether to rerun the current task',
-    example: false,
-    type: 'boolean',
-  })
-  @IsBoolean()
-  @IsOptional()
-  rerun?: boolean;
-
-  @JSONSchema({
-    title: 'Rerun Task Parameters',
-    description: 'Parameters for the task to continue',
-    oneOf: [
-      {
-        $ref: '#/components/schemas/TranscriptParameters',
-      },
-      {
-        $ref: '#/components/schemas/SegmentationParameters',
-      },
-      {
-        $ref: '#/components/schemas/QuestionGenerationParameters',
-      },
-      {
-        $ref: '#/components/schemas/UploadParameters',
-      },
-    ],
+    title: 'Use Previous',
+    description: 'Which previous task output to use for this task',
+    example: 1,
+    type: 'number',
   })
   @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type((opts) => {
-    const object = opts?.object;
-    if (!object) return Object;
-    switch (object.type) {
-      case TaskType.TRANSCRIPT_GENERATION:
-        return TranscriptParameters;
-      case TaskType.SEGMENTATION:
-        return SegmentationParameters;
-      case TaskType.QUESTION_GENERATION:
-        return QuestionGenerationParameters;
-      case TaskType.UPLOAD_CONTENT:
-        return UploadParameters;
-      default:
-        return Object;
-    }
-  })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+  @IsNumber()
+  usePrevious?: number;
 }
 
 class RerunTaskBody {
@@ -613,7 +553,6 @@ export {
   JobBody,
   GenAIIdParams,
   ApproveStartBody,
-  ApproveContinueBody,
   RerunTaskBody,
   TaskStatus,
   GenAINotFoundErrorResponse,
@@ -627,7 +566,6 @@ export const GENAI_VALIDATORS = [
   JobBody,
   GenAIIdParams,
   ApproveStartBody,
-  ApproveContinueBody,
   RerunTaskBody,
   TaskStatus,
   GenAINotFoundErrorResponse,

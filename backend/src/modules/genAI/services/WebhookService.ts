@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
 import axios, { AxiosInstance } from 'axios';
 import { appConfig } from '#root/config/app.js';
-import { TranscriptParameters, SegmentationParameters, QuestionGenerationParameters } from '../classes/transformers/GenAI.js';
+import { TranscriptParameters, SegmentationParameters, QuestionGenerationParameters, JobState } from '../classes/transformers/GenAI.js';
 
 @injectable()
 export class WebhookService {
@@ -45,8 +45,8 @@ export class WebhookService {
    * @param taskParams Parameters for the task
    * @returns Updated job data from AI server
    */
-  async approveTaskStart(jobId: string, taskParams: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters): Promise<any> {
-    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, taskParams);
+  async approveTaskStart(jobId: string, jobState: JobState): Promise<any> {
+    const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, jobState);
     return response.data;
   }
 

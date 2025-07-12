@@ -16,7 +16,6 @@ import {
   JobBody,
   GenAIIdParams,
   ApproveStartBody,
-  ApproveContinueBody,
   GenAIResponse,
   GenAINotFoundErrorResponse,
   RerunTaskBody,
@@ -104,9 +103,10 @@ export class GenAIController {
     description: 'Job not found',
     statusCode: 404,
   })
-  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody) {
+  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {user}) {
     const { id } = params;
-    await this.webhookService.approveTaskStart(id, body.parameters);
+    const userId = user._id.toString();
+    await this.genAIService.approveStartTask(id, userId, body.usePrevious, body.parameters);
   }
 
   @OpenAPI({
@@ -128,7 +128,7 @@ export class GenAIController {
       //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
 
-    await this.webhookService.approveTaskContinue(id);
+    await this.genAIService.approveTaskContinue(id);
   }
 
   @OpenAPI({

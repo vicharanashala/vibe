@@ -140,3 +140,11 @@ export class TaskData {
 	questionGeneration?: questionGenerationData[];
 	uploadContent?: contentUploadData[];
 }
+
+export class JobState {
+	currentTask: TaskType;
+	taskStatus: TaskStatus;
+	url?: string;
+	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
+	file: string;
+}
