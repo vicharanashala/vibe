@@ -35,6 +35,7 @@ export interface TranscriptParameters {
 	usePrevious?: number;
 	language?: LanguageType;
 	model?: string;
+	modelSize?: string;
 }
 
 export interface SegmentationParameters {

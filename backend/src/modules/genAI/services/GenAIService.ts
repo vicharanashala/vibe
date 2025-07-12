@@ -93,48 +93,57 @@ export class GenAIService extends BaseService {
       if (!job || !taskData) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      switch (task) {
-        case TaskType.AUDIO_EXTRACTION:
-          job.jobStatus.audioExtraction = jobData.status;
-          if (taskData.audioExtraction) {
-              taskData.audioExtraction.push({...jobData as audioData});
-            } else {
-              taskData.audioExtraction = [{...jobData as audioData}];
+      if (jobData.status === TaskStatus.COMPLETED || jobData.status === TaskStatus.FAILED) {
+        switch (task) {
+          case TaskType.AUDIO_EXTRACTION:
+            job.jobStatus.audioExtraction = jobData.status;
+            if (taskData.audioExtraction) {
+                taskData.audioExtraction.push({...jobData as audioData});
+              } else {
+                taskData.audioExtraction = [{...jobData as audioData}];
+              }
+            break;
+          case TaskType.TRANSCRIPT_GENERATION:
+            job.jobStatus.transcriptGeneration = jobData.status;
+            if (taskData.transcriptGeneration) {
+              taskData.transcriptGeneration.push({...jobData as trascriptGenerationData});
             }
-          break;
-        case TaskType.TRANSCRIPT_GENERATION:
-          job.jobStatus.transcriptGeneration = jobData.status;
-          if (taskData.transcriptGeneration) {
-            taskData.transcriptGeneration.push({...jobData as trascriptGenerationData});
-          }
-          else {
-            taskData.transcriptGeneration = [{...jobData as trascriptGenerationData}];
-          }
-          break;
-        case TaskType.SEGMENTATION:
-          job.jobStatus.segmentation = jobData.status;
-          if (taskData.segmentation) {
-            taskData.segmentation.push({...jobData as segmentationData});
-          } else {
-            taskData.segmentation = [{...jobData as segmentationData}];
-          }
-          break;
-        case TaskType.QUESTION_GENERATION:
-          job.jobStatus.questionGeneration = jobData.status;
-          if (taskData.questionGeneration) {
-            taskData.questionGeneration.push({...jobData as questionGenerationData});
-          } else {
-            taskData.questionGeneration = [{...jobData as questionGenerationData}];
-          }
-          break;
-        case TaskType.UPLOAD_CONTENT:
-          job.jobStatus.uploadContent = jobData.status;
-          if (taskData.uploadContent) {
-            taskData.uploadContent.push({...jobData as contentUploadData});
-          } else {
-            taskData.uploadContent = [{...jobData as contentUploadData}];
-          }
-          break;
+            else {
+              taskData.transcriptGeneration = [{...jobData as trascriptGenerationData}];
+            }
+            break;
+          case TaskType.SEGMENTATION:
+            job.jobStatus.segmentation = jobData.status;
+            if (taskData.segmentation) {
+              taskData.segmentation.push({...jobData as segmentationData});
+            } else {
+              taskData.segmentation = [{...jobData as segmentationData}];
+            }
+            break;
+          case TaskType.QUESTION_GENERATION:
+            job.jobStatus.questionGeneration = jobData.status;
+            if (taskData.questionGeneration) {
+              taskData.questionGeneration.push({...jobData as questionGenerationData});
+            } else {
+              taskData.questionGeneration = [{...jobData as questionGenerationData}];
+            }
+            break;
+        }
+      } else {
+        switch (task) {
+          case TaskType.AUDIO_EXTRACTION:
+            job.jobStatus.audioExtraction = jobData.status;
+            break;
+          case TaskType.TRANSCRIPT_GENERATION:
+            job.jobStatus.transcriptGeneration = jobData.status;
+            break;
+          case TaskType.SEGMENTATION:
+            job.jobStatus.segmentation = jobData.status;
+            break;
+          case TaskType.QUESTION_GENERATION:
+            job.jobStatus.questionGeneration = jobData.status;
+            break;
+        }
       }
       // Update job and task data
       const updatedJob = await this.genAIRepository.update(jobId, job, session);
@@ -155,6 +164,9 @@ export class GenAIService extends BaseService {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      const jobState = {
+        
       }
       
     });
