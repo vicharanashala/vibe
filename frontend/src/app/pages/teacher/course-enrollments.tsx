@@ -417,7 +417,7 @@ export default function CourseEnrollments() {
                             <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                               <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {(enrollment?.user?.firstName[0].toUpperCase() + enrollment?.user?.lastName[0]?.toUpperCase()) || '?'}
+                                {(enrollment?.user?.firstName?.[0].toUpperCase?.() + enrollment?.user?.lastName?.[0]?.toUpperCase?.()) || '?'}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">

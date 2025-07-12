@@ -23,7 +23,7 @@ import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 import CoursePage from '@/app/pages/student/course-page'
 import Dashboard from '@/app/pages/teacher/dashboard'
-import CreateCourse from '@/app/pages/teacher/create-course'
+import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import GetCourse from '@/app/pages/teacher/get-course'
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -294,6 +294,11 @@ const teacherGetCourseRoute = new Route({
   component: GetCourse,
 });
 
+const teacherViewCourseRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/view',
+  component: TeacherCoursePage, // View a specific course
+});
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -408,6 +413,7 @@ const routeTree = rootRoute.addChildren([
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
+    teacherViewCourseRoute,
     teacherTestingRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,

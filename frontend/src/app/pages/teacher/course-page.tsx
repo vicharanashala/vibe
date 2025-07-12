@@ -23,8 +23,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ProctoringModal } from "@/components/EditProctoringModal"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
+// import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+// import { Checkbox } from "@/components/ui/checkbox"
 import { Pagination } from "@/components/ui/Pagination"
 
 // Import the hooks and auth store
@@ -50,16 +50,14 @@ export default function TeacherCoursesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
-  // Get user from auth store
-  const { user } = useAuthStore()
-
   // Fetch user enrollments with pagination (use reasonable page size)
+  const {token} = useAuthStore()
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, true) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token) // Use pagination with 10 items per page
 
   const enrollments = enrollmentsResponse?.enrollments || []
   const totalPages = enrollmentsResponse?.totalPages || 1
@@ -234,8 +232,6 @@ function CourseCard({
   })
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { editSettings, loading, error } = useEditProctoringSettings()
-
-
   
   const queryClient = useQueryClient()
 
@@ -714,6 +710,20 @@ function VersionCard({
       to: "/teacher/courses/enrollments",
     })
   }
+  const sendInvites = () => {
+    // Set course info in store and navigate to invite page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/invite",
+    })
+  }
 
   const viewCourse = () => {
     // Set course info in store and navigate to course content
@@ -768,6 +778,10 @@ function VersionCard({
             <Button variant="outline" size="sm" onClick={viewEnrollments} className="h-7 text-xs cursor-pointer">
               <Users className="h-3 w-3 mr-1" />
               View Enrollments
+            </Button>
+            <Button variant="outline" size="sm" onClick={sendInvites} className="h-7 text-xs cursor-pointer">
+              <Users className="h-3 w-3 mr-1" />
+              Send Invites
             </Button>
             <Button variant="outline" size="sm" onClick={viewCourse} className="h-7 text-xs cursor-pointer">
               <Eye className="h-3 w-3 mr-1" />

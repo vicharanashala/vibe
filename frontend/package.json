@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "d": "pnpm vite build && firebase deploy",
     "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
     "build": "tsc -b && vite build",

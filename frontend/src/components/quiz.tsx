@@ -14,7 +14,7 @@ import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
-import { preprocessMathContent } from '@/utils/utils';
+import { preprocessMathContent, preprocessRemoveFromOptions } from '@/utils/utils';
 import Loader from './Loader';
 
 // Type for Order interface (if not defined elsewhere)
@@ -1098,7 +1098,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   <RadioGroupItem value={index.toString()} id={`option-${currentQuestion.id}-${index}`} />
                   <span className="flex-1">
                     <MathRenderer>
-                      {preprocessMathContent(option)}
+                      {preprocessMathContent(preprocessRemoveFromOptions(option))}
                     </MathRenderer>
                   </span>
                 </Label>
@@ -1130,7 +1130,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   />
                   <span className="flex-1">
                     <MathRenderer>
-                      {preprocessMathContent(option)}
+                      {preprocessMathContent(preprocessRemoveFromOptions(option))}
                     </MathRenderer>
                   </span>
                 </Label>
@@ -1194,7 +1194,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                     </Badge>
                     <span className="flex-1">
                       <MathRenderer>
-                        {preprocessMathContent(item)}
+                        {preprocessMathContent(preprocessRemoveFromOptions(item))}
                       </MathRenderer>
                     </span>
                   </div>
