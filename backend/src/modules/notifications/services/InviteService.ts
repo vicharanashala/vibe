@@ -41,9 +41,115 @@ export class InviteService extends BaseService {
     return {
       to: invite.email,
       subject: `Invitation to join course: ${course.name}`,
-      text: `You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite: ${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}`,
-      html: `<p>You have been invited to join the course ${course.name} as ${invite.role}. Click the link to accept the invite:</p>
-             <a href="${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}">Accept Invite</a>`,
+      text:
+        `Dear Participant,\n\n` +
+        `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
+        `Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:\n` +
+        `- Speaking is strictly prohibited. If the system detects speaking, there is zero tolerance, and the video will immediately roll back to the start, pausing with an alert dialog.\n` +
+        `- Ensure your camera remains uninterrupted. Any camera interruptions will be detected and may result in penalty score increases and video rollback.\n` +
+        `- Do not use a blurred background. The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.\n` +
+        `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
+        `- Allow microphone access. While no audio will be recorded or stored, the system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
+        `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
+        `To confirm your participation, please click the link below:\n${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}\n\n` +
+        `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`,
+      html:
+        `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--[if (gte mso 9)|(IE)]>
+  <style type="text/css">
+    table { border-collapse:collapse; border-spacing:0; mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    td, p { mso-line-height-rule:exactly; }
+  </style>
+  <![endif]-->
+  <title>Course Invitation</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f6f6f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f6f6f6">
+    <tr>
+      <td align="center" style="padding:20px;">
+        <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff"
+               style="border-collapse:collapse; border-radius:8px; overflow:hidden;">
+          
+          <!-- Header with logo -->
+          <tr>
+            <td align="center" style="padding:32px 24px;">
+              <img src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                   alt="ViBe Logo" width="120" style="display:block; border:0;">
+            </td>
+          </tr>
+
+          <!-- Intro greeting -->
+          <tr>
+            <td style="font-family:Arial, sans-serif; font-size:16px; line-height:1.6; padding:0 24px 24px;">
+              <p style="margin:0 0 16px;">
+                Dear Participant,
+              </p>
+              <p style="margin:0 0 16px;">
+                We are pleased to invite you to participate in your upcoming online course – 
+                <strong style="color:#ff9800;">${course.name}</strong>,
+                delivered via our Continuous Active Learning Platform, ViBe.
+              </p>
+              <p style="margin:0 0 16px;">
+                Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Instruction list -->
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <ul style="font-family:Arial, sans-serif; font-size:14px; line-height:1.6; margin:0; padding-left:16px;">
+                <li><strong style="color:#ff9800;">Speaking is strictly prohibited.</strong> If the system detects speaking, there is zero tolerance, and the video will immediately roll back to the start, pausing with an alert dialog..</li>
+                <li><strong style="color:#ff9800;">Ensure your camera remains uninterrupted.</strong> Any camera interruptions will be detected and may result in penalty score increases and video rollback.</li>
+                <li><strong style="color:#ff9800;">Do not use a blurred background.</strong> The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.</li>
+                <li><strong style="color:#ff9800;">No other person should appear near you during the session.</strong> The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.</li>
+                <li><strong style="color:#ff9800;">Allow microphone access.</strong> While no audio will be recorded or stored, the system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.</li>
+              </ul>
+            </td>
+          </tr>
+
+          <!-- Integrity & CTA -->
+          <tr>
+            <td style="padding:0 24px;">
+              <p style="margin:0 0 24px; font-family:Arial, sans-serif; font-size:14px; line-height:1.6;">
+                By following these rules, you help maintain the integrity and fairness of the course environment.&nbsp;
+              </p>
+              <!--[if gte mso 9]><br><![endif]-->
+                <tr>
+                  <td align="center" style="padding-bottom:24px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td bgcolor="#ff9800" style="border-radius:6px; padding:16px 40px; text-align:center;">
+                          <a href="${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}"
+                             style="font-family:Arial, sans-serif; font-size:20px; font-weight:bold; color:#ffffff; text-decoration:none; display:inline-block;">
+                            Accept Invite
+                          </a>
+                        </td>
+                      </tr>
+                  </td>
+                </tr>
+                <p style="margin:0 24px; padding-bottom:24px; font-family:Arial, sans-serif; font-size:13px; line-height:1.6;">
+                  We wish you a successful learning experience!<br>
+                  Best regards,<br>
+                  Technical Team, CBPAI, IIT Ropar&nbsp;
+                </p>
+                <!--[if gte mso 9]><br><![endif]-->
+              </table>
+
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
     };
   }
 
