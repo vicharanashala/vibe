@@ -300,7 +300,7 @@ export class EnrollmentController {
       skip,
       limit,
     );
-
+    
     if (!enrollments || enrollments.length === 0) {
       throw new NotFoundError('No enrollments found for the given course version.');
     }
