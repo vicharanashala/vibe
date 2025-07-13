@@ -52,7 +52,7 @@ function FloatingVideo({
   const [isBlur, setIsBlur] = useState("No");
   const [isSpeaking, setIsSpeaking] = useState("No");
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
-  const [isFocused, setIsFocused] = useState(false);
+  const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<FaceRecognition[]>([]);
   const [faceRecognitionDebug, setFaceRecognitionDebug] = useState<FaceRecognitionDebugInfo>({
@@ -93,7 +93,7 @@ function FloatingVideo({
   const isHandGestureDetectionEnabled = false; //isComponentEnabled('handGestureDetection');
   const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
-  const isFocusEnabled = isComponentEnabled('focus');
+  const isFocusEnabled = false; //isComponentEnabled('focus');
 
   // Log enabled components for debugging
   useEffect(() => {
@@ -920,7 +920,7 @@ function FloatingVideo({
           <FaceDetectors 
             key={`face-${faceDetectorsKey}`}
             faces={faces} 
-            setIsFocused={setIsFocused}
+            setIsFocused={()=>{}} // CHANGE THIS LATER.
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
             onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
