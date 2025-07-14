@@ -295,8 +295,8 @@ const teacherGetCourseRoute = new Route({
 });
 
 const teacherViewCourseRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/view',
+  getParentRoute: () => rootRoute,
+  path: '/teacher/courses/view',
   component: TeacherCoursePage, // View a specific course
 });
 // Teacher courses page route
