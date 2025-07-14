@@ -12,6 +12,7 @@ import CourseEnrollments from "../pages/teacher/course-enrollments";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
 import ViewProgress from "../pages/teacher/view-progress";
+import GenerateSectionPage from "@/app/pages/teacher/create-job";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -70,6 +71,10 @@ const teacherRoutes: RouteObject = {
       path: "courses/progress",
       element: <ViewProgress />, // View progress of courses
     },
+    {
+      path: "jobs/create",
+      element: <GenerateSectionPage />, // Page for generating sections using AI
+    }
   ],
 };
 

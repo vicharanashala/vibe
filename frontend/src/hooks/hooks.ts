@@ -13,6 +13,7 @@ import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportano
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { updateProctoringSettings } from '@/app/pages/testing-proctoring/proctoring';
+import { error } from 'console';
 
 // Auth hooks
 

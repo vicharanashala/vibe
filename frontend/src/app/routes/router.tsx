@@ -33,6 +33,7 @@ import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
 import ViewProgress from '../pages/teacher/view-progress'
+import GenerateSectionPage from '@/app/pages/teacher/create-job'
 
 
 const sampleText = `
@@ -342,6 +343,13 @@ const teacherViewProgressRoute = new Route({
   component: ViewProgress,
 });
 
+// Teacher generate section route
+const teacherGenerateSectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/jobs/create',
+  component: GenerateSectionPage,
+});
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -415,6 +423,7 @@ const routeTree = rootRoute.addChildren([
     teacherAddCourseRoute,
     teacherCourseInviteRoute,
     teacherViewProgressRoute,
+    teacherGenerateSectionRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
