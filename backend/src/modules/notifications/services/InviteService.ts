@@ -49,7 +49,7 @@ export class InviteService extends BaseService {
         `- Ensure your camera remains uninterrupted. Any camera interruptions will be detected and may result in penalty score increases and video rollback.\n` +
         `- Do not use a blurred background. The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.\n` +
         `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
-        `- Allow microphone access. While no audio will be recorded or stored, the system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
+        `- Allow microphone access. The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
         `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
         `To confirm your participation, please click the link below:\n${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}\n\n` +
         `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`,
@@ -107,7 +107,7 @@ export class InviteService extends BaseService {
                 <li><strong style="color:#ff9800;">Ensure your camera remains uninterrupted.</strong> Any camera interruptions will be detected and may result in penalty score increases and video rollback.</li>
                 <li><strong style="color:#ff9800;">Do not use a blurred background.</strong> The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.</li>
                 <li><strong style="color:#ff9800;">No other person should appear near you during the session.</strong> The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.</li>
-                <li><strong style="color:#ff9800;">Allow microphone access.</strong> While no audio will be recorded or stored, the system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.</li>
+                <li><strong style="color:#ff9800;">Allow microphone access.</strong> The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.</li>
               </ul>
             </td>
           </tr>
