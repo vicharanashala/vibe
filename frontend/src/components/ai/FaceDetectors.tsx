@@ -53,7 +53,7 @@ const isLookingAway = (face: Face): boolean => {
 const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate }) => {
 
   useEffect(() => {
-    const isFocused = !isLookingAway(faces[0]);
+    const isFocused = true;
     if (faces.length === 0) return setIsFocused(false);
     setIsFocused(isFocused);
   }, [faces, setIsFocused]);
