@@ -74,8 +74,9 @@ export default function TeacherCoursesPage() {
     return acc
   }, [])
 
+  const navigate = useNavigate()
   const createNewCourse = () => {
-    window.location.href = "/courses/add"
+    navigate({ to: "/teacher/courses/create" })
   }
 
   const handlePageChange = (newPage: number) => {
@@ -736,7 +737,7 @@ function VersionCard({
       watchItemId: null,
     })
     navigate({
-      to: "/student/learn",
+      to: "/teacher/courses/view",
     })
   }
 

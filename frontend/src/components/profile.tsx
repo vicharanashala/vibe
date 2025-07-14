@@ -8,12 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
-import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { useEditUser } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
+import { LogOut } from "lucide-react"
 
 export default function UserProfile({ role = "student" } : {role?: "student" | "teacher" | "admin"}) {
   const { user } = useAuthStore()
@@ -24,8 +24,8 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
     };
 
   // Fallback data if user is not available
-  let firstName = user?.name?.split(" ")[0] || ""
-  let lastName = user?.name?.split(" ")[1] || ""
+  const firstName = user?.name?.split(" ")[0] || ""
+  const lastName = user?.name?.split(" ")[1] || ""
   const displayName = user?.name || `${firstName || ""} ${lastName || ""}`.trim() || (role === "teacher" ? "Teacher" : "Student")
   const displayEmail = user?.email || "No email provided"
   const displayRole = role

@@ -17,6 +17,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import { useNavigate } from "@tanstack/react-router"
 
 export function NavMain({
   items,
@@ -32,6 +33,7 @@ export function NavMain({
     }[]
   }[]
 }) {
+  const navigate = useNavigate();
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -41,7 +43,7 @@ export function NavMain({
             <Collapsible
               key={item.title}
               asChild
-              defaultOpen={item.isActive}
+              defaultOpen={true}
               className="group/collapsible"
             >
               <SidebarMenuItem>
@@ -56,10 +58,8 @@ export function NavMain({
                   <SidebarMenuSub>
                     {item.items.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
+                        <SidebarMenuSubButton asChild onClick={() => navigate({ to: subItem.url })}>
                             <span>{subItem.title}</span>
-                          </a>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
@@ -69,8 +69,8 @@ export function NavMain({
             </Collapsible>
           ) : (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild tooltip={item.title}>
-                <a href={item.url}>
+              <SidebarMenuButton asChild tooltip={item.title} onClick={() => navigate({ to: item.url })}>
+                <a>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                 </a>

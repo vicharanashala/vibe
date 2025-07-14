@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -13,12 +13,8 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus
 } from "lucide-react";
 
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
-
-// import Article from "@/components/article";
-// import Video from "@/components/video";
-// import Quiz from "@/components/quiz";
-
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -29,11 +25,21 @@ const getItemIcon = (type: string) => {
   }
 };
 
-const generateId = () => Math.random().toString(36).substring(2, 10);
-
 export default function TeacherCoursePage() {
+
+
   const { currentCourse } = useCourseStore();
-  const [modules, setModules] = useState(currentCourse?.modules || []); // Wrong way, won't work.
+  // Use correct keys for course/version IDs
+  const courseId = currentCourse?.id || currentCourse?._id;
+  const versionId = currentCourse?.currentVersionId || currentCourse?.versionId;
+
+  // Fetch course version data (modules, sections, items)
+  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId);
+  // Some APIs return modules directly, some wrap in 'version'. Try both.
+  // @ts-ignore
+  const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
+
+
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [selectedEntity, setSelectedEntity] = useState<{
@@ -42,68 +48,114 @@ export default function TeacherCoursePage() {
     parentIds?: { moduleId: string; sectionId?: string };
   } | null>(null);
 
+  // Store items for each section
+  const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+  // Track which section to fetch items for
+  const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
+
+  // Fetch items for the active section
+  const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
+  const {
+    data: currentSectionItems,
+    isLoading: itemsLoading
+  } = useItemsBySectionId(
+    shouldFetchItems ? versionId : '',
+    shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
+    shouldFetchItems ? activeSectionInfo?.sectionId ?? '' : ''
+  );
+
+  // Fetch item details for selected item
+  const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
+  const {
+    data: selectedItemData
+  } = useItemById(
+    shouldFetchItem ? courseId : '',
+    shouldFetchItem ? versionId : '',
+    shouldFetchItem ? selectedEntity?.data?._id : ''
+  );
+
+
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({ ...prev, [moduleId]: !prev[moduleId] }));
   };
 
-  const toggleSection = (sectionId: string) => {
+  const toggleSection = (moduleId: string, sectionId: string) => {
     setExpandedSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
+    setActiveSectionInfo({ moduleId, sectionId });
   };
 
+
+  // CRUD hooks
+
+  const createModule = useCreateModule();
+  const updateModule = useUpdateModule();
+  const deleteModule = useDeleteModule();
+  const createSection = useCreateSection();
+  const updateSection = useUpdateSection();
+  const deleteSection = useDeleteSection();
+  const createItem = useCreateItem();
+  const updateItem = useUpdateItem();
+  const deleteItem = useDeleteItem();
+
+
+  // Refetch version data after successful mutations
+  useEffect(() => {
+    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess) {
+      refetchVersion();
+      // Also refetch items for active section
+      if (activeSectionInfo) {
+        setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess]);
+
+  // Update sectionItems state when items are fetched
+  useEffect(() => {
+    if (
+      shouldFetchItems &&
+      activeSectionInfo?.sectionId &&
+      currentSectionItems &&
+      !itemsLoading
+    ) {
+      const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+      setSectionItems(prev => ({
+        ...prev,
+        [activeSectionInfo.sectionId]: itemsArray
+      }));
+    }
+  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+
+  // Add Module
   const handleAddModule = () => {
-    const newModule = {
-      moduleId: generateId(),
-      name: "Untitled Module",
-      sections: [],
-    };
-    setModules((prev) => [...prev, newModule]);
-    setExpandedModules((prev) => ({ ...prev, [newModule.moduleId]: true }));
-    setSelectedEntity({ type: "module", data: newModule });
+    if (!versionId) return;
+    createModule.mutate({
+      params: { path: { versionId } },
+      body: { name: "Untitled Module", description: "Module description" }
+    });
   };
 
+  // Add Section
   const handleAddSection = (moduleId: string) => {
-    const newSection = {
-      sectionId: generateId(),
-      name: "New Section",
-      items: [],
-    };
-    setModules((prev) =>
-      prev.map((mod) =>
-        mod.moduleId === moduleId
-          ? { ...mod, sections: [...mod.sections, newSection] }
-          : mod
-      )
-    );
-    setSelectedEntity({ type: "section", data: newSection, parentIds: { moduleId } });
+    if (!versionId) return;
+    createSection.mutate({
+      params: { path: { versionId, moduleId } },
+      body: { name: "New Section", description: "Section description" }
+    });
   };
 
+  // Add Item
   const handleAddItem = (moduleId: string, sectionId: string, type: string) => {
-    const newItem = {
-      _id: generateId(),
-      type,
-      name: `New ${type}`,
-      content: "<p>Sample article content</p>",
+    if (!versionId) return;
+    // Map UI type to API type
+    const typeMap: Record<string, "VIDEO" | "QUIZ" | "BLOG"> = {
+      video: "VIDEO",
+      quiz: "QUIZ",
+      article: "BLOG"
     };
-
-    setModules((prev) =>
-      prev.map((mod) =>
-        mod.moduleId === moduleId
-          ? {
-              ...mod,
-              sections: mod.sections.map((sec) =>
-                sec.sectionId === sectionId
-                  ? { ...sec, items: [...sec.items, newItem] }
-                  : sec
-              ),
-            }
-          : mod
-      )
-    );
-
-    setSelectedEntity({
-      type: "item",
-      data: newItem,
-      parentIds: { moduleId, sectionId },
+    createItem.mutate({
+      params: { path: { versionId, moduleId, sectionId } },
+      body: { type: typeMap[type], name: `New ${typeMap[type]}`, content: "<p>Sample content</p>" }
     });
   };
 
@@ -125,7 +177,8 @@ export default function TeacherCoursePage() {
           <SidebarContent className="bg-card/50 pl-2">
             <ScrollArea className="flex-1">
               <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
-                {modules.map((module) => (
+                {/* TODO: Replace 'any' with correct Module type */}
+                {modules.map((module: any) => (
                   <SidebarMenuItem key={module.moduleId}>
                     <SidebarMenuButton
                       onClick={() => {
@@ -139,11 +192,11 @@ export default function TeacherCoursePage() {
 
                     {expandedModules[module.moduleId] && (
                       <SidebarMenuSub className="ml-2">
-                        {module.sections.map((section) => (
+                        {module.sections?.map((section: any) => (
                           <SidebarMenuSubItem key={section.sectionId}>
                             <SidebarMenuSubButton
                               onClick={() => {
-                                toggleSection(section.sectionId);
+                                toggleSection(module.moduleId, section.sectionId);
                                 setSelectedEntity({
                                   type: "section",
                                   data: section,
@@ -157,7 +210,7 @@ export default function TeacherCoursePage() {
 
                             {expandedSections[section.sectionId] && (
                               <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                {section.items.map((item) => (
+                                {(sectionItems[section.sectionId] || []).map((item: any) => (
                                   <SidebarMenuSubItem key={item._id}>
                                     <SidebarMenuSubButton
                                       className="justify-start"
@@ -238,79 +291,90 @@ export default function TeacherCoursePage() {
                   onChange={(e) => {
                     const newName = e.target.value;
                     const { type, parentIds } = selectedEntity;
-                    setModules((prev) =>
-                      prev.map((mod) => {
-                        if (type === "module" && mod.moduleId === selectedEntity.data.moduleId) {
-                          const updated = { ...mod, name: newName };
-                          setSelectedEntity({ type, data: updated });
-                          return updated;
-                        }
-                        if (type === "section" && mod.moduleId === parentIds?.moduleId) {
-                          const updatedSections = mod.sections.map((sec) =>
-                            sec.sectionId === selectedEntity.data.sectionId
-                              ? { ...sec, name: newName }
-                              : sec
-                          );
-                          return { ...mod, sections: updatedSections };
-                        }
-                        if (type === "item" && mod.moduleId === parentIds?.moduleId) {
-                          const updatedSections = mod.sections.map((sec) => {
-                            if (sec.sectionId === parentIds?.sectionId) {
-                              const updatedItems = sec.items.map((it) =>
-                                it._id === selectedEntity.data._id
-                                  ? (() => {
-                                      const updated = { ...it, name: newName };
-                                      setSelectedEntity({ type, data: updated, parentIds });
-                                      return updated;
-                                    })()
-                                  : it
-                              );
-                              return { ...sec, items: updatedItems };
-                            }
-                            return sec;
-                          });
-                          return { ...mod, sections: updatedSections };
-                        }
-                        return mod;
-                      })
-                    );
+                    if (type === "module" && versionId) {
+                      updateModule.mutate({
+                        params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                        body: { name: newName }
+                      });
+                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
+                    }
+                    if (type === "section" && versionId && parentIds?.moduleId) {
+                      updateSection.mutate({
+                        params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } },
+                        body: { name: newName }
+                      });
+                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
+                    }
+                    if (type === "item" && versionId && parentIds?.moduleId && parentIds?.sectionId) {
+                      updateItem.mutate({
+                        params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: parentIds.sectionId, itemId: selectedEntity.data._id } },
+                        body: { name: newName }
+                      });
+                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
+                    }
                   }}
                 />
+
+                {/* Update Button for Module/Section */}
+                {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      if (selectedEntity.type === "module" && versionId) {
+                        updateModule.mutate({
+                          params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                          body: {
+                            name: selectedEntity.data.name,
+                            description: selectedEntity.data.description || ""
+                          }
+                        });
+                      }
+                      if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
+                        updateSection.mutate({
+                          params: { path: { versionId, moduleId: selectedEntity.parentIds.moduleId, sectionId: selectedEntity.data.sectionId } },
+                          body: {
+                            name: selectedEntity.data.name,
+                            description: selectedEntity.data.description || ""
+                          }
+                        });
+                      }
+                    }}
+                    className="mr-2"
+                  >
+                    Update {selectedEntity.type}
+                  </Button>
+                )}
 
                 <Button
                   variant="destructive"
                   onClick={() => {
                     const { type, parentIds } = selectedEntity;
-                    setModules((prev) =>
-                      prev
-                        .map((mod) => {
-                          if (type === "module" && mod.moduleId === selectedEntity.data.moduleId) return null;
-                          if (type === "section" && mod.moduleId === parentIds?.moduleId) {
-                            return {
-                              ...mod,
-                              sections: mod.sections.filter(
-                                (sec) => sec.sectionId !== selectedEntity.data.sectionId
-                              ),
-                            };
-                          }
-                          if (type === "item" && mod.moduleId === parentIds?.moduleId) {
-                            const updatedSections = mod.sections.map((sec) =>
-                              sec.sectionId === parentIds.sectionId
-                                ? {
-                                    ...sec,
-                                    items: sec.items.filter(
-                                      (it) => it._id !== selectedEntity.data._id
-                                    ),
-                                  }
-                                : sec
-                            );
-                            return { ...mod, sections: updatedSections };
-                          }
-                          return mod;
-                        })
-                        .filter(Boolean)
-                    );
-                    setSelectedEntity(null);
+                    if (type === "module" && versionId) {
+                      if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
+                        deleteModule.mutate({
+                          params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
+                        });
+                        setSelectedEntity(null);
+                        setExpandedModules((prev) => ({ ...prev, [selectedEntity.data.moduleId]: false }));
+                      }
+                    }
+                    if (type === "section" && versionId && parentIds?.moduleId) {
+                      if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                        deleteSection.mutate({
+                          params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                        });
+                        setSelectedEntity(null);
+                        setExpandedSections((prev) => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                      }
+                    }
+                    if (type === "item" && parentIds?.sectionId && selectedEntity.data._id) {
+                      if (window.confirm("Are you sure you want to delete this item?")) {
+                        deleteItem.mutate({
+                          params: { path: { itemsGroupId: parentIds.sectionId, itemId: selectedEntity.data._id } }
+                        });
+                        setSelectedEntity(null);
+                      }
+                    }
                   }}
                 >
                   Delete {selectedEntity.type}
@@ -319,7 +383,11 @@ export default function TeacherCoursePage() {
                 <div className="mt-4 p-4 border rounded-md bg-muted/30">
                   <p className="text-sm font-medium mb-2 text-muted-foreground">Preview</p>
                   <div className="text-sm text-muted-foreground">
-                    Preview not available for this type.
+                    {selectedEntity.type === 'item' && selectedItemData ? (
+                      <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(selectedItemData, null, 2)}</pre>
+                    ) : (
+                      <>Preview not available for this type.</>
+                    )}
                   </div>
                 </div>
               </div>
