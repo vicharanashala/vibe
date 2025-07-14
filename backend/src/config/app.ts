@@ -29,7 +29,7 @@ export const appConfig = {
     apiKey: env('FIREBASE_API_KEY') || undefined,
   },
   aiServer: {
-    url: env('AI_SERVER_URL') || 'http://localhost:8000',
+    url: env('AI_SERVER_URL') || 'http://localhost:8017',
     webhookSecret: env('WEBHOOK_SECRET') || 'default-webhook-secret',
   }
 };
