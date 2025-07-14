@@ -42,11 +42,7 @@ export function inviteRedirectTemplate(message: string, redirectUrl: string): st
         <div class="message-box">
           <h2>${message}</h2>
           <div class="redirect">
-<<<<<<< HEAD
-            Redirecting you in 10 seconds...
-=======
             Redirecting you in 5 seconds...
->>>>>>> newbranch
             <br>
             <a href="${redirectUrl}">Click here if you are not redirected</a>
           </div>

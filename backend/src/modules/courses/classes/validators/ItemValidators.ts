@@ -501,7 +501,7 @@ class GetItemParams {
   })
   @IsMongoId()
   @IsString()
-  courseVersionId: string;
+  versionId: string;
 
   @JSONSchema({
     title: 'Item ID',

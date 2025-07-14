@@ -32,7 +32,7 @@ class CreateCourseVersionParams {
   })
   @IsMongoId()
   @IsString()
-  id: string;
+  courseId: string;
 }
 
 class ReadCourseVersionParams {
@@ -43,7 +43,7 @@ class ReadCourseVersionParams {
   })
   @IsMongoId()
   @IsString()
-  id: string;
+  versionId: string;
 }
 
 class DeleteCourseVersionParams {

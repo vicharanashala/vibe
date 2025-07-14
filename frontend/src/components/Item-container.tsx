@@ -6,7 +6,7 @@ import Article from './article';
 import type { ArticleRef } from "@/types/article.types";
 import type { Item, ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, isProgressUpdating, attemptId, setAttemptId}, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
 
   // ✅ Expose stop function to parent
@@ -31,6 +31,9 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           doGesture={doGesture}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
+          rewindVid={rewindVid || false}
+          pauseVid={pauseVid || false}
+          anomalies={anomalies}
         />;
 
       case 'quiz':
@@ -51,9 +54,13 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           quizId={item._id || ''}
           doGesture={doGesture}
           onNext={onNext}
+          onPrevVideo={onPrevVideo}
           isProgressUpdating={isProgressUpdating}
           attemptId={attemptId}
           setAttemptId={setAttemptId}
+          displayNextLesson={displayNextLesson}
+          setQuizPassed={setQuizPassed}
+          rewindVid={rewindVid}
         />;
 
       case 'article':

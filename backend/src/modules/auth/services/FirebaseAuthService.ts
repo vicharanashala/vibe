@@ -15,7 +15,6 @@ import { USERS_TYPES } from '#root/modules/users/types.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import { InviteService } from '#root/modules/notifications/services/InviteService.js';
-import { fi } from '@faker-js/faker';
 
 /**
  * Custom error thrown during password change operations.
@@ -68,8 +67,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           credential: admin.credential.applicationDefault(),
         });
       }
-      this.auth = admin.auth();
     }
+    this.auth = admin.auth();
   }
   async getCurrentUserFromToken(token: string): Promise<IUser> {
     // Verify the token and decode it to get the Firebase UID
@@ -79,9 +78,28 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // Retrieve the user from our database using the Firebase UID
     const user = await this.userRepository.findByFirebaseUID(firebaseUID);
     if (!user) {
-      throw new InternalServerError('User not found');
+      // get user data from Firebase
+      try {
+        const firebaseUser = await this.auth.getUser(firebaseUID);
+        if (!firebaseUser) {
+          throw new InternalServerError('Firebase user not found');
+        }
+        console.log('Firebase user retrieved:', firebaseUser);
+        // Map Firebase user data to our application user model
+        const userData: GoogleSignUpBody = {
+          email: firebaseUser.email,
+          firstName: firebaseUser.displayName?.split(' ')[0] || '',
+          lastName: firebaseUser.displayName?.split(' ')[1] || '',
+        };
+        const createdUser = await this.googleSignup(userData, token);
+        if (!createdUser) {
+          throw new InternalServerError('Failed to create the user');
+        }
+      } catch (error) {
+        throw new InternalServerError(`Failed to retrieve user from Firebase: ${error.message}`);
+      }
     }
-
+    user._id = user._id.toString();
     return user;
   }
   async getUserIdFromReq(req: any): Promise<string> {
@@ -121,7 +139,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         email: body.email,
         emailVerified: false,
         password: body.password,
-        displayName: `${body.firstName} ${body.lastName}`,
+        displayName: `${body.firstName} ${body.lastName || ''}`,
         disabled: false,
       });
     } catch (error) {
@@ -135,8 +153,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       firebaseUID: userRecord.uid,
       email: body.email,
       firstName: body.firstName,
-      lastName: body.lastName,
-      roles: ['user'],
+      lastName: body.lastName || '',
+      roles: 'user',
     };
 
     let createdUserId: string;
@@ -190,7 +208,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
-      roles: ['user'],
+      roles: 'user',
     };
 
     let createdUserId: string;
@@ -252,5 +270,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     });
 
     return {success: true, message: 'Password updated successfully'};
+  }
+
+  async updateFirebaseUser(firebaseUID: string, body: Partial<IUser>): Promise<void> {
+    // Update user in Firebase Auth
+    await this.auth.updateUser(firebaseUID, {
+      displayName: `${body.firstName} ${body.lastName}`,
+    });
   }
 }

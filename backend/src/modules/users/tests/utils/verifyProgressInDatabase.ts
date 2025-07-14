@@ -26,7 +26,7 @@ export async function verifyProgressInDatabase({
   // Find and verify the progress in the database
   const findUpdatedProgress = await request(app)
     .get(
-      `/users/${userId}/progress/courses/${courseId}/versions/${courseVersionId}`,
+      `/users/progress/courses/${courseId}/versions/${courseVersionId}`,
     )
     .expect(200);
 

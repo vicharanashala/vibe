@@ -7,7 +7,6 @@ import {
   MoveModuleBody,
 } from '../classes/validators/ModuleValidators.js';
 import {Module} from '../classes/transformers/Module.js';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
@@ -16,15 +15,19 @@ import {
 import {calculateNewOrder} from '../utils/calculateNewOrder.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
-
-import {COURSES_TYPES} from '../types.js';
 import {GLOBAL_TYPES} from '../../../types.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '../types.js';
+import { ICourseRepository, IItemRepository } from '#root/shared/database/interfaces/index.js';
+
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -125,6 +128,27 @@ export class ModuleService extends BaseService {
       );
       if (!deleted)
         throw new InternalServerError(`Failed to delete module ${moduleId}`);
+
+      // update total item count
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
+      version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+        version.courseId.toString(),
+        version._id.toString(),
+        session,
+      );
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      if (!updatedVersion) {
+        throw new InternalServerError(
+          `Failed to update version ${versionId} after module deletion`,
+        );
+      }
     });
   }
 }

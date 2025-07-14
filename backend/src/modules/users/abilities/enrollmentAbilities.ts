@@ -33,28 +33,34 @@ export function setupEnrollmentAbilities(
         can('manage', 'Enrollment');
         return;
     }
-
+    if (!user.enrollments || user.enrollments.length === 0) {
+        throw new Error('User has no enrollments');
+    }
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId };
 
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
                 can(EnrollmentActions.View, 'Enrollment', userBounded);
                 break;
-            case 'instructor':
-                can(EnrollmentActions.View, 'Enrollment', courseBounded);
-                cannot(EnrollmentActions.Delete, 'Enrollment', courseBounded);
-                cannot(EnrollmentActions.Modify, 'Enrollment', courseBounded);
+            case 'INSTRUCTOR':
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
                 can(EnrollmentActions.ViewAll, 'Enrollment', courseBounded);
+                const roleBounded = { courseId: enrollment.courseId, role: { $in: ['STUDENT', 'TA'] } };
+                can(EnrollmentActions.Delete, 'Enrollment', roleBounded);
+                can(EnrollmentActions.Modify, 'Enrollment', roleBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Enrollment', courseBounded);
                 break;
-            case 'ta':
-                can(EnrollmentActions.View, 'Enrollment', versionBounded);
-                cannot(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
+            case 'TA':
+                can(EnrollmentActions.View, 'Enrollment', userBounded);
+                can(EnrollmentActions.ViewAll, 'Enrollment', versionBounded);
+                const roleBoundedTa = { courseId: enrollment.courseId, versionId: enrollment.versionId , role: 'STUDENT' };
+                can(EnrollmentActions.Modify, 'Enrollment', roleBoundedTa);
+                can(EnrollmentActions.Delete, 'Enrollment', roleBoundedTa);
                 break;
         }
     });

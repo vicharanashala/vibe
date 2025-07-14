@@ -496,6 +496,15 @@ class QuizAttemptParam {
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
     description: 'ID of the attempt',
     type: 'string',
     example: '60d21b4667d0d8992e610c99',
@@ -507,6 +516,15 @@ class QuizSubmissionParam {
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
     description: 'ID of the submission',
     type: 'string',
     example: '60d21b4667d0d8992e610c77',
@@ -515,6 +533,15 @@ class QuizSubmissionParam {
 }
 
 class UpdateQuizSubmissionParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({
@@ -555,6 +582,15 @@ class RemoveQuestionBankParams {
 }
 
 class AddFeedbackParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({

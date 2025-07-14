@@ -3,7 +3,6 @@ import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
 import {injectable, inject} from 'inversify';
 import {
   JsonController,
-  Authorized,
   Post,
   HttpCode,
   Body,
@@ -12,6 +11,8 @@ import {
   Put,
   Delete,
   OnUndefined,
+  ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -23,6 +24,9 @@ import {
   CourseNotFoundErrorResponse,
   CourseIdParams,
 } from '#courses/classes/validators/CourseValidators.js';
+import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -40,7 +44,7 @@ export class CourseController {
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   @Post('/', {transformResponse: true})
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
@@ -50,7 +54,13 @@ export class CourseController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async create(@Body() body: CourseBody): Promise<Course> {
+  async create(@Body() body: CourseBody, @Ability(getCourseAbility) {ability}): Promise<Course> {
+    // Build subject context first
+    
+    if (!ability.can(CourseActions.Create, 'Course')) {
+      throw new ForbiddenError('You do not have permission to create courses');
+    }
+    
     const course = new Course(body);
     const createdCourse = await this.courseService.createCourse(course);
     return createdCourse;
@@ -63,8 +73,8 @@ Accessible to:
 - Users who are part of the course (students, teaching assistants, instructors, or managers)
 `,
   })
-  @Authorized(['admin', 'instructor'])
-  @Get('/:id', {transformResponse: true})
+  @Authorized()
+  @Get('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -76,9 +86,18 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async read(@Params() params: CourseIdParams) {
-    const {id} = params;
-    const course = await this.courseService.readCourse(id);
+  async read(@Params() params: CourseIdParams, @Ability(getCourseAbility) {ability}) {
+    const {courseId} = params;
+    
+    // Create a course resource object with the courseId for permission checking
+    const courseResource = subject('Course', { courseId });
+    
+    // Check permission using ability.can() with the actual course resource
+    if (!ability.can(CourseActions.View, courseResource)) {
+      throw new ForbiddenError('You do not have permission to view this course');
+    }
+    
+    const course = await this.courseService.readCourse(courseId);
     return course;
   }
 
@@ -88,8 +107,8 @@ Accessible to:
 Accessible to:
 - Instructor or manager for the course.`,
   })
-  @Authorized(['admin', 'instructor'])
-  @Put('/:id', {transformResponse: true})
+  @Authorized()
+  @Put('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -101,9 +120,18 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async update(@Params() params: CourseIdParams, @Body() body: CourseBody) {
-    const {id} = params;
-    const updatedCourse = await this.courseService.updateCourse(id, body);
+  async update(@Params() params: CourseIdParams, @Body() body: CourseBody, @Ability(getCourseAbility) {ability}) {
+    const {courseId} = params;
+    
+    // Create a course resource object with the courseId for permission checking
+    const courseResource = subject('Course', { courseId });
+    
+    // Check permission using ability.can() with the actual course resource
+    if (!ability.can(CourseActions.Modify, courseResource)) {
+      throw new ForbiddenError('You do not have permission to update this course');
+    }
+    
+    const updatedCourse = await this.courseService.updateCourse(courseId, body);
     return updatedCourse;
   }
 
@@ -111,8 +139,8 @@ Accessible to:
     summary: 'Delete a course',
     description: 'Deletes a course by ID.',
   })
-  @Authorized(['admin', 'instructor'])
-  @Delete('/:id', {transformResponse: true})
+  @Authorized()
+  @Delete('/:courseId', {transformResponse: true})
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -122,9 +150,18 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async delete(@Params() params: CourseIdParams) {
-    const {id} = params;
-    await this.courseService.deleteCourse(id);
+  async delete(@Params() params: CourseIdParams, @Ability(getCourseAbility) {ability}) {
+    const {courseId} = params;
+    
+    // Create a course resource object with the courseId for permission checking
+    const courseResource = subject('Course', { courseId });
+    
+    // Check permission using ability.can() with the actual course resource
+    if (!ability.can(CourseActions.Delete, courseResource)) {
+      throw new ForbiddenError('You do not have permission to delete this course');
+    }
+    
+    await this.courseService.deleteCourse(courseId);
   }
 }
 

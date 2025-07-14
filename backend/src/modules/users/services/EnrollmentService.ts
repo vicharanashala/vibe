@@ -1,10 +1,10 @@
-import {COURSES_TYPES} from '#courses/types.js';
+import { COURSES_TYPES } from '#courses/types.js';
 import { InviteStatus } from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
@@ -16,6 +16,7 @@ import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
 import {BadRequestError, NotFoundError} from 'routing-controllers';
+import { ProgressService } from './ProgressService.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -26,6 +27,7 @@ export class EnrollmentService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
+    @inject(USERS_TYPES.ProgressService) private readonly progressService: ProgressService,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -186,6 +188,21 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async getAllEnrollments(userId: string) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.getAllEnrollments(
+        userId,
+        session
+      );
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
+
   async getCourseVersionEnrollments(
     courseId: string,
     courseVersionId: string,
@@ -210,24 +227,39 @@ export class EnrollmentService extends BaseService {
         limit,
       );
       
-      // Create enriched enrollments with user data
-      const resultWithUsers = [];
-      for (var i = 0; i < result.length; i++) {
-        const user = await this.userRepo.findById(result[i].userId);
-        resultWithUsers.push({
-          ...result[i],
-          user: user,
-        });
-      }
+      // Create enriched enrollments with user data using Promise.all for concurrent fetching
+      const userPromises = result.map(async (enrollment) => {
+        try {
+          const user = await this.userRepo.findById(enrollment.userId);
+          const progress = await this.progressService.getUserProgressPercentageWithoutTotal(user._id.toString(), courseId, courseVersionId);
+          return {
+            ...enrollment,
+            user: user,
+            progress: progress,
+          };
+        } catch (error) {
+          console.log(enrollment.userId, error);
+        }
+      });
       
+      const resultWithUsers = await Promise.all(userPromises);
+      const totalItems = await this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session);
       // find user for each enrollment
       return resultWithUsers.map(enrollment => ({
-        ...enrollment,
-        _id: enrollment._id.toString(),
-        userId: enrollment.userId.toString(),
-        courseId: enrollment.courseId.toString(),
-        courseVersionId: enrollment.courseVersionId.toString(),
-      }));
+        role: enrollment.role,
+        status: enrollment.status,
+        enrollmentDate: enrollment.enrollmentDate,
+        user: {
+          firstName: enrollment.user.firstName,
+          lastName: enrollment.user.lastName,
+          email: enrollment.user.email,
+        },
+        progress: {
+          completedItems: enrollment.progress,
+          totalItems,
+          percentCompleted: enrollment.progress === 0 ? 0 : enrollment.progress / totalItems,
+        }
+    }));
     });
   }
 

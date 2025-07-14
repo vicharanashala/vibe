@@ -66,9 +66,6 @@ export class UserRepository implements IUserRepository {
   async findById(id: string | ObjectId): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({_id: new ObjectId(id)});
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
     return instanceToPlain(new User(user)) as IUser;
   }
 
@@ -81,36 +78,19 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne({firebaseUID}, {session});
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-    return instanceToPlain(new User(user)) as IUser;
+    return user;
   }
 
   /**
    * Adds a role to a user.
    */
-  async addRole(firebaseUID: string, role: string): Promise<IUser | null> {
+  async makeAdmin(userId: string, session?:ClientSession): Promise<void> {
     await this.init();
-    const result = await this.usersCollection.findOneAndUpdate(
-      {firebaseUID},
-      {$addToSet: {roles: role}},
-      {returnDocument: 'after'},
+    await this.usersCollection.updateOne(
+      {_id: new ObjectId(userId)},
+      {$set: {roles: 'admin'}},
+      {session},
     );
-    return instanceToPlain(new User(result)) as IUser;
-  }
-
-  /**
-   * Removes a role from a user.
-   */
-  async removeRole(firebaseUID: string, role: string): Promise<IUser | null> {
-    await this.init();
-    const result = await this.usersCollection.findOneAndUpdate(
-      {firebaseUID},
-      {$pull: {roles: role}},
-      {returnDocument: 'after'},
-    );
-    return instanceToPlain(new User(result)) as IUser;
   }
 
   /**

@@ -23,7 +23,7 @@ import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 import CoursePage from '@/app/pages/student/course-page'
 import Dashboard from '@/app/pages/teacher/dashboard'
-import CreateCourse from '@/app/pages/teacher/create-course'
+import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import GetCourse from '@/app/pages/teacher/get-course'
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -31,6 +31,8 @@ import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
+import InvitePage from '../pages/teacher/invite'
+import ViewProgress from '../pages/teacher/view-progress'
 
 
 const sampleText = `
@@ -279,11 +281,11 @@ const teacherAudioManagerRoute = new Route({
 });
 
 // Teacher create course route
-const teacherCreateCourseRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/create',
-  component: CreateCourse,
-});
+// const teacherCreateCourseRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/courses/create',
+//   component: CreateCourse,
+// });
 
 // Teacher get course route
 const teacherGetCourseRoute = new Route({
@@ -292,6 +294,11 @@ const teacherGetCourseRoute = new Route({
   component: GetCourse,
 });
 
+const teacherViewCourseRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/teacher/courses/view',
+  component: TeacherCoursePage, // View a specific course
+});
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -313,6 +320,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollments,
 });
 
+// Teacher Course Invites route
+const teacherCourseInviteRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/invite',
+  component: InvitePage,
+});
+
 // Testing face detection route
 const teacherTestingRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -322,10 +336,16 @@ const teacherTestingRoute = new Route({
 
 const teacherAddCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/add-course',
+  path: '/courses/create',
   component: AddCoursePage,
 });
 
+// Teacher view progress route
+const teacherViewProgressRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/progress',
+  component: ViewProgress,
+});
 
 // Student dashboard route
 const studentDashboardRoute = new Route({
@@ -389,15 +409,18 @@ const routeTree = rootRoute.addChildren([
   authRoute,
   teacherLayoutRoute.addChildren([
     teacherDashboardRoute,
-    teacherCreateCourseRoute,
+    // teacherCreateCourseRoute,
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
+    teacherViewCourseRoute,
     teacherTestingRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
+    teacherCourseInviteRoute,
+    teacherViewProgressRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

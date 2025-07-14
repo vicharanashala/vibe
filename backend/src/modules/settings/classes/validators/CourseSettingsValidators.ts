@@ -142,7 +142,7 @@ export class ReadCourseSettingsParams {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseVersionId: string;
+  versionId: string;
 }
 
 // This class represents the validation schema of Prameters for adding proctoring to a course.
@@ -167,7 +167,7 @@ export class AddCourseProctoringParams {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseVersionId: string;
+  versionId: string;
 }
 
 // This class represents the validation schema of body for adding proctoring to a course.
@@ -296,7 +296,7 @@ export class ReadUserSettingsParams {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseVersionId: string;
+  versionId: string;
 }
 
 // This class represents the validation schema of Parameters for adding proctoring to a user Setting.
@@ -332,7 +332,7 @@ export class AddUserProctoringParams {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseVersionId: string;
+  versionId: string;
 }
 
 // This class represents the validation schema of body for adding proctoring to a user Setting.

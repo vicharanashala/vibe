@@ -1,23 +1,77 @@
 import request from 'supertest';
 import Express from 'express';
-import {useExpressServer} from 'routing-controllers';
+import {Action, RoutingControllersOptions, useContainer, useExpressServer} from 'routing-controllers';
 import {faker} from '@faker-js/faker';
 import {CourseBody} from '../classes/validators/CourseValidators.js';
-import {describe, it, beforeEach, beforeAll, expect, vi} from 'vitest';
-import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
+import {describe, it, beforeEach, beforeAll, expect, vi, afterEach, afterAll} from 'vitest';
+import {coursesContainerModules, coursesModuleOptions, setupCoursesContainer} from '../index.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { Container } from 'inversify';
+import * as Current from '#root/shared/functions/currentUserChecker.js';
 
 describe('Course Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let currentUserCheckerSpy;
+
+  const user1 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'admin',
+  };
+  const user2 = {
+    _id: faker.database.mongodbObjectId(),
+    firebaseUID: faker.string.uuid(),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    roles: 'user',
+  };
 
   beforeAll(async () => {
-    await setupCoursesContainer();
-    app = useExpressServer(App, coursesModuleOptions);
+    const container = new Container();
+    await container.load(...coursesContainerModules);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
+
+    // Create the spy BEFORE using it in options
+    currentUserCheckerSpy = vi.spyOn(Current, 'currentUserChecker').mockImplementation(
+      async (action: Action) => {
+        if (action.request.headers.authorization) {
+          const token = action.request.headers.authorization.split(' ')[1];
+          if (token === 'user1') {
+            return user1;
+          } else if (token === 'user2') {
+            return user2;
+          }
+        }
+        return user2;
+      }
+    );
+
+    const options: RoutingControllersOptions = {
+      controllers: coursesModuleOptions.controllers,
+      middlewares: coursesModuleOptions.middlewares,
+      defaultErrorHandler: coursesModuleOptions.defaultErrorHandler,
+      authorizationChecker: coursesModuleOptions.authorizationChecker,
+      currentUserChecker: Current.currentUserChecker, // Use the spied function
+      validation: coursesModuleOptions.validation,
+    }
+    
+    app = useExpressServer(App, options);
   });
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  afterEach(() => {
+    // Don't restore all mocks, just clear the call history
+    currentUserCheckerSpy.mockClear();
   });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  })
 
   describe('COURSE CREATION', () => {
     describe('Success Scenario', () => {
@@ -29,6 +83,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -39,11 +94,28 @@ describe('Course Controller Integration Tests', () => {
     });
 
     describe('Errors Scenarios', () => {
+      it('returns 403 for a non admin user', async () => {
+        const coursePayload: CourseBody = {
+          name: 'New Course',
+          description: 'Course description',
+        };
+
+        const response = await request(app)
+          .post('/courses/')
+          .set('Authorization', 'Bearer user2') // Non-admin user
+          .send(coursePayload)
+          .expect(403);
+
+        expect(response.body.message).toContain(
+          'Access is denied for request on POST /courses/',
+        );
+      })
       it('should return 400 for invalid course data', async () => {
         const invalidPayload = {name: ''};
 
         const response = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1') // Add authorization header
           .send(invalidPayload)
           .expect(400);
         expect(response.body.message).toContain(
@@ -53,6 +125,7 @@ describe('Course Controller Integration Tests', () => {
     });
   });
 
+  // Add authorization headers to all your other tests
   describe('COURSE RETRIEVAL', () => {
     describe('Success Scenario', () => {
       it('should read a course by ID', async () => {
@@ -63,6 +136,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -70,6 +144,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response = await request(app)
           .get(`/courses/${courseId}`)
+          .set('Authorization', 'Bearer user1')
           .expect(200);
 
         expect(response.body.name).toBe('Existing Course');
@@ -82,6 +157,7 @@ describe('Course Controller Integration Tests', () => {
       it('should return 404 for a non-existing course', async () => {
         const response = await request(app)
           .get(`/courses/${faker.database.mongodbObjectId()}`)
+          .set('Authorization', 'Bearer user1')
           .expect(404);
         expect(response.body.message).toContain(
           'No course found with the specified ID. Please verify the ID and try again.',
@@ -100,6 +176,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -112,6 +189,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response = await request(app)
           .put(`/courses/${courseId}`)
+          .set('Authorization', 'Bearer user1')
           .send(updatedCoursePayload)
           .expect(200);
 
@@ -121,6 +199,7 @@ describe('Course Controller Integration Tests', () => {
 
         const readResponse = await request(app)
           .get(`/courses/${courseId}`)
+          .set('Authorization'  , 'Bearer user1')
           .expect(200);
 
         expect(readResponse.body.name).toBe('Updated Course');
@@ -131,10 +210,9 @@ describe('Course Controller Integration Tests', () => {
     });
     describe('Error Scenarios', () => {
       it('should return 404 for a non-existing course', async () => {
-        vi.restoreAllMocks();
-
         const response = await request(app)
           .put('/courses/67dd98f025dd87ebf639851c')
+          .set('Authorization', 'Bearer user1')
           .send({
             name: 'Updated Course',
             description: 'Updated course description',
@@ -150,6 +228,7 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
@@ -159,6 +238,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response = await request(app)
           .put(`/courses/${courseId}`)
+          .set('Authorization', 'Bearer user1')
           .send(invalidPayload)
           .expect(400);
 
@@ -170,6 +250,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response2 = await request(app)
           .put(`/courses/${courseId}`)
+          .set('Authorization', 'Bearer user1')
           .send(invalidPayload2)
           .expect(400);
 
@@ -181,6 +262,7 @@ describe('Course Controller Integration Tests', () => {
 
         const response3 = await request(app)
           .put(`/courses/${courseId}`)
+          .set('Authorization', 'Bearer user1')
           .send(invalidPayload3)
           .expect(400);
 
@@ -201,15 +283,15 @@ describe('Course Controller Integration Tests', () => {
 
         const createdCourseResponse = await request(app)
           .post('/courses/')
+          .set('Authorization', 'Bearer user1')
           .send(coursePayload)
           .expect(201);
 
         const courseId = createdCourseResponse.body._id;
 
-        const res = await request(app).delete(`/courses/${courseId}`);
-        console.log(res.body);
+        const res = await request(app).delete(`/courses/${courseId}`).set('Authorization', 'Bearer user1');
 
-        await request(app).get(`/courses/${courseId}`).expect(404);
+        await request(app).get(`/courses/${courseId}`).set('Authorization', 'Bearer user1').expect(404);
       }, 60000);
     });
 
@@ -217,7 +299,7 @@ describe('Course Controller Integration Tests', () => {
       it('should return 404 for a non-existing course', async () => {
         const fakeId = faker.database.mongodbObjectId();
 
-        await request(app).delete(`/courses/${fakeId}`).expect(404);
+        await request(app).delete(`/courses/${fakeId}`).set('Authorization', 'Bearer user1').expect(404);
       }, 60000);
     });
   });

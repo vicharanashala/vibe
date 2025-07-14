@@ -44,7 +44,6 @@ export class AuthController {
       'Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.',
   })
   @Post('/signup')
-  @UseBefore(AuthRateLimiter)
   @HttpCode(201)
   @OnUndefined(201)
   async signup(@Body() body: SignUpBody) {
@@ -60,7 +59,6 @@ export class AuthController {
       'Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.',
   })
   @Post('/signup/google')
-  @UseBefore(AuthRateLimiter)
   @HttpCode(201)
   async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);

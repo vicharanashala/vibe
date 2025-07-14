@@ -33,6 +33,7 @@ const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
 
   // Determine which value to use (controlled or uncontrolled)
   const activeValue = value !== undefined ? value : internalValue;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Handle value change
   const handleValueChange = (newValue: string) => {
@@ -134,6 +135,8 @@ export default function AuthPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
+    if (!fullName) errors.fullName = "Name is required";
+    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
 
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
@@ -160,7 +163,7 @@ export default function AuthPage() {
         const response = await fetch(backendUrl, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${result.user.getIdToken}`,
+            Authorization: `Bearer ${result._tokenResponse.idToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -193,8 +196,6 @@ export default function AuthPage() {
   };
 
   const handleEmailLogin = async () => {
-    if (!validateForm()) return;
-
     try {
       setLoading(true);
       setFormErrors({});
@@ -225,11 +226,11 @@ export default function AuthPage() {
 
   //SignUp
 
-  const signupMutation = useSignup();
+  const {mutateAsync: signupMutation, error: signupError, isError:isSignUpError} = useSignup();
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    if (!validateForm()) return;
+    // if (!validateForm()) return;
 
     if (!passwordsMatch) {
       setFormErrors({
@@ -256,16 +257,15 @@ export default function AuthPage() {
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
 
-      await signupMutation.mutateAsync({
+      await signupMutation({
         body: {
           email: email,
           password: password,
           firstName: firstName,
           lastName: lastName
         }
-
       });
       const result = await loginWithEmail(email, password);
 
@@ -282,15 +282,26 @@ export default function AuthPage() {
 
     } catch (error: any) {
       console.error("Email Signup Failed", error);
-      if (error?.code === "auth/email-already-in-use") {
+      console.log(signupError, isSignUpError);
+      if (isSignUpError) {
+        let message = "";
+        if (signupError?.message === "Invalid body, check 'errors' property for more info.") {
+          for (const error of signupError?.errors || []) {
+            message += `${Object.values(error.constraints).join(', ')}`;
+          }
+        }
+        else message = signupError?.message || "An error occurred during signup";
+        console.log(message)
+        console.log(signupError?.errors?.find((e: any) => e.property === 'firstName'));
+
         setFormErrors({
           ...formErrors,
-          auth: "This email is already in use. Please try logging in instead.",
-        });
-      } else {
-        setFormErrors({
-          ...formErrors,
-          auth: "Failed to create account. Please try again.",
+          auth: message || "Failed to create account. Please try again.",
+          email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
+          fullName: 
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') + 
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
         });
       }
     } finally {
@@ -338,7 +349,7 @@ export default function AuthPage() {
               />
             </div>
             <span className="text-3xl font-bold">
-              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
             </span>
           </div>
 
@@ -456,14 +467,41 @@ export default function AuthPage() {
                   <CardHeader className="pb-4">
                     <Tabs
                       defaultValue="student"
-                      className="w-full"
+                      className="w-full flex justify-center"
                       onValueChange={(v: string) => setActiveRole(v as "student" | "teacher")}
                       value={activeRole}
                     >
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="student">Student</TabsTrigger>
-                        <TabsTrigger value="teacher">Teacher</TabsTrigger>
-
+                      <TabsList className="grid w-3/4 mx-auto grid-cols-2 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-1 border border-primary/20 shadow-lg">
+                        <TabsTrigger
+                          value="student"
+                          className={cn(
+                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            activeRole === "student"
+                              ? "bg-white border border-primary text-primary shadow-md"
+                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
+                          )}
+                        >
+                          <span className="flex items-center gap-2 justify-center">
+                            {/* Using Lucide icon for student */}
+                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill={activeRole === "student" ? "currentColor" : "#888"} /></svg>
+                            Student
+                          </span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="teacher"
+                          className={cn(
+                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            activeRole === "teacher"
+                              ? "bg-white border border-primary text-primary shadow-md"
+                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
+                          )}
+                        >
+                          <span className="flex items-center gap-2 justify-center">
+                            {/* Using Lucide icon for teacher */}
+                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6-2V7a6 6 0 1 0-12 0v1a2 2 0 0 0-2 2v2h16V9a2 2 0 0 0-2-2Z" fill={activeRole === "teacher" ? "currentColor" : "#888"} /></svg>
+                            Teacher
+                          </span>
+                        </TabsTrigger>
                       </TabsList>
                     </Tabs>
                   </CardHeader>
@@ -525,7 +563,7 @@ export default function AuthPage() {
 
                     {/* Login Button */}
                     <Button
-                      className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
+                      className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       onClick={handleEmailLogin}
                       disabled={loading}
                     >

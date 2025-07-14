@@ -25,7 +25,7 @@ class User implements IUser {
   lastName: string;
 
   @Expose()
-  roles: string[];
+  roles: 'admin' | 'user';
 
   constructor(data: Partial<IUser>) {
     this._id = data._id ? new ObjectId(data._id) : null;
@@ -33,7 +33,7 @@ class User implements IUser {
     this.email = data.email;
     this.firstName = data.firstName;
     this.lastName = data.lastName;
-    this.roles = data.roles || [];
+    this.roles = data.roles || 'user';
   }
 }
 

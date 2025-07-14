@@ -1830,6 +1830,7 @@ export interface components {
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             moduleId: string;
+            attemptId?: string | null;
         };
         UpdateProgressBody: {
             /**

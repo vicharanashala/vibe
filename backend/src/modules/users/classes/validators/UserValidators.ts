@@ -1,5 +1,5 @@
 import { IUser } from '#root/shared/interfaces/models.js';
-import {IsNotEmpty, IsString, IsEmail} from 'class-validator';
+import {IsNotEmpty, IsString, IsEmail, IsOptional} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
 
@@ -10,7 +10,7 @@ import { ObjectId } from 'mongodb';
  */
 export class GetUserParams {
   @JSONSchema({
-    description: 'Firebase UID of the user to find',
+    description: 'User ID of the person',
     example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
     type: 'string',
   })
@@ -71,18 +71,16 @@ export class GetUserResponse implements IUser {
     readOnly: true,
   })
   @IsString()
-  lastName: string;
+  @IsOptional()
+  lastName?: string;
 
   @JSONSchema({
     description: "User's roles",
-    example: ['student'],
-    type: 'array',
-    items: {
-      type: 'string',
-    },
+    example: 'admin',
+    type: 'string',
     readOnly: true,
   })
-  roles: string[];
+  roles: 'admin' | 'user';
 }
 
 export class EditUserBody{
@@ -93,6 +91,7 @@ export class EditUserBody{
     readOnly: true,
   })
   @IsString()
+  @IsNotEmpty()
   firstName: string;
 
   @JSONSchema({
@@ -102,6 +101,7 @@ export class EditUserBody{
     readOnly: true,
   })
   @IsString()
+  @IsNotEmpty()
   lastName: string;
 }
 

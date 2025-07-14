@@ -25,6 +25,7 @@ import {
   IsInt,
   Max,
   Min,
+  Length,
 } from 'class-validator';
 import { ObjectId } from 'mongodb';
 import { NATQuestion } from '../transformers/Question.js';
@@ -535,6 +536,73 @@ class QuestionNotFoundErrorResponse {
   message: string;
 }
 
+/**
+ * Request body for flagging a question
+ */
+class FlagQuestionBody {
+  @IsNotEmpty()
+  @IsString()
+  @Length(10, 500)
+  @JSONSchema({
+    description: 'Reason for flagging the question',
+    type: 'string',
+    example: 'This question contains inappropriate content',
+    minLength: 10,
+    maxLength: 500,
+  })
+  reason: string;
+
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  @JSONSchema({
+    description: 'course id for the question',
+    type: 'string',
+    example: '6864be0c86bc95b1c9e49e19',
+  })
+  courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  @JSONSchema({
+    description: 'version id for the question',
+    type: 'string',
+    example: '6864be0c86bc95b1c9e49e19',
+  })
+  versionId?: string;
+}
+
+/**
+ * URL parameters for resolving a flag
+ */
+class FlagId {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the flag to resolve',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c87',
+  })
+  flagId: string;
+}
+
+/**
+ * Request body for resolving a flag
+ */
+class ResolveFlagBody {
+  @IsNotEmpty()
+  @IsString()
+  @IsEnum(['RESOLVED', 'REJECTED'])
+  @JSONSchema({
+    description: 'Status to set for the flag',
+    type: 'string',
+    enum: ['RESOLVED', 'REJECTED'],
+    example: 'RESOLVED',
+  })
+  status: 'RESOLVED' | 'REJECTED';
+}
+
 export {
   QuestionBody,
   QuestionId,
@@ -549,6 +617,9 @@ export {
   LotItem,
   LotOrder,
   QuestionNotFoundErrorResponse,
+  FlagQuestionBody,
+  FlagId,
+  ResolveFlagBody,
 };
 
 export const QUESTION_VALIDATORS = [
@@ -565,4 +636,7 @@ export const QUESTION_VALIDATORS = [
   LotItem,
   LotOrder,
   QuestionNotFoundErrorResponse,
+  FlagQuestionBody,
+  FlagId,
+  ResolveFlagBody,
 ]

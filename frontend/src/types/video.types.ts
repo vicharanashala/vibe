@@ -7,6 +7,10 @@ export interface VideoProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  rewindVid: boolean;
+  pauseVid: boolean;
+  onDurationChange?: (duration: number) => void;
+
 }
 
 // Minimal YouTube Player instance interface
@@ -15,11 +19,13 @@ export interface YTPlayerInstance {
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
+  getPlaybackRate: () => number;
   getDuration: () => number;
   getVolume: () => number;
   setVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   getAvailablePlaybackRates?: () => number[];
+  anomalies?: string[];
 }
 
 // Extend Window object globally with YT namespace (YouTube IFrame API)
@@ -64,11 +70,17 @@ export interface StudentProctoringSettings {
 }
 
 export interface FloatingVideoProps {
-  isVisible?: boolean;
-  onClose?: () => void;
-  onAnomalyDetected?: (hasAnomaly: boolean) => void;
+  isVisible: boolean;
+  onClose: () => void;
+  onAnomalyDetected: (hasAnomaly: boolean) => void;
   setDoGesture: (value: boolean) => void;
-  settings?: StudentProctoringSettings;
+  settings: StudentProctoringSettings;
+  rewindVid: boolean;
+  setRewindVid: (value: boolean) => void;
+  pauseVid: boolean;
+  setPauseVid: (value: boolean) => void;
+  setAnomalies: (anomalies: string[]) => void;
+  anomalies?: string[];
 }
 
 export interface ProctoringSettings {

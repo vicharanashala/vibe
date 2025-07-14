@@ -56,11 +56,13 @@ function DashboardContent() {
     }, 60000);
     return () => clearInterval(intervalId);
   }, []);
+  // Only fetch enrollments if user is authenticated (i.e., token is present)
+  const { token } = useAuthStore();
   const {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError
-  } = useUserEnrollments(1, 5, true);
+  } = useUserEnrollments(1, 5, !!token);
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;

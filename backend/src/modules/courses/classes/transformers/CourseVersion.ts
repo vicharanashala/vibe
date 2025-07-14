@@ -34,6 +34,10 @@ class CourseVersion implements ICourseVersion {
   modules: Module[];
 
   @Expose()
+  @Type(() => Number)
+  totalItems?: number;
+
+  @Expose()
   @Type(() => Date)
   createdAt: Date;
 

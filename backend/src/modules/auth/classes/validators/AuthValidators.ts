@@ -4,6 +4,8 @@ import {
   MinLength,
   IsAlpha,
   IsString,
+  Matches,
+  IsOptional,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -42,7 +44,7 @@ class SignUpBody {
     example: 'John',
     type: 'string',
   })
-  @IsAlpha()
+  @Matches(/^[A-Za-z ]+$/)
   firstName: string;
 
   @JSONSchema({
@@ -51,8 +53,9 @@ class SignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @IsAlpha()
-  lastName: string;
+  @Matches(/^[A-Za-z ]+$/)
+  @IsOptional()
+  lastName?: string;
 }
 
 class GoogleSignUpBody {
@@ -72,7 +75,7 @@ class GoogleSignUpBody {
     example: 'John',
     type: 'string',
   })
-  @IsAlpha()
+  @Matches(/^[A-Za-z ]+$/)
   firstName: string;
 
   @JSONSchema({
@@ -81,8 +84,9 @@ class GoogleSignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @IsAlpha()
-  lastName: string;
+  @Matches(/^[A-Za-z ]+$/)
+  @IsOptional()
+  lastName?: string;
 }
 
 class VerifySignUpProviderBody {

@@ -4,6 +4,7 @@ import { InviteScope, createAbilityBuilder } from './types.js';
 
 // Actions
 export enum InviteActions {
+    Create = "create",
     Modify = "modify",
     Process = "process",
     View = "view",
@@ -20,6 +21,11 @@ export type InviteAbility = [InviteActionsType, InviteSubjectType];
 
 /**
  * Setup notification abilities for a specific role
+ * Role-based invitation permissions:
+ * - STUDENT: Can only invite other students to their course version
+ * - TA: Can invite students and other TAs to their course version
+ * - INSTRUCTOR: Can invite anyone to their course (all versions)
+ * - MANAGER: Can invite anyone to their course (all versions)
  */
 export function setupInviteAbilities(
     builder: AbilityBuilder<any>,
@@ -33,24 +39,30 @@ export function setupInviteAbilities(
     }
     
     // Users can always view and manage their own notifications
-    can(InviteActions.Process, 'Invite', { userId: user.userId });
+    can(InviteActions.Process, 'Invite');
     
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
         
         switch (enrollment.role) {
-            case 'student':
+            case 'STUDENT':
+                // Students can only invite other students to their course version
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'STUDENT' });
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
+                can(InviteActions.Create, 'Invite', courseBounded);
                 can(InviteActions.Modify, 'Invite', courseBounded);
                 can(InviteActions.View, 'Invite', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Invite', courseBounded);
-                cannot(InviteActions.View, 'Invite', versionBounded);
                 break;
-            case 'ta':
+            case 'TA':
+                // TAs can invite students and other TAs to their course version
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'STUDENT' });
+                can(InviteActions.Create, 'Invite', { ...versionBounded, targetRole: 'TA' });
+                can(InviteActions.View, 'Invite', versionBounded);
                 break;
         }
     });

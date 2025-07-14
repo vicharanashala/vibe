@@ -9,21 +9,25 @@ import {
   ModuleDeletedResponse,
 } from '#courses/classes/validators/ModuleValidators.js';
 import {ModuleService} from '#courses/services/ModuleService.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {
   JsonController,
-  Authorized,
   Post,
   HttpCode,
   Params,
   Body,
   Put,
   Delete,
+  ForbiddenError,
+  Authorized,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Course Modules'],
@@ -42,7 +46,7 @@ export class ModuleController {
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized()
   @Post('/versions/:versionId/modules')
   @HttpCode(201)
   @ResponseSchema(ModuleDataResponse, {
@@ -59,7 +63,17 @@ Accessible to:
   async create(
     @Params() params: CreateModuleParams,
     @Body() body: CreateModuleBody,
+    @Ability(getCourseVersionAbility) {ability}
   ) {
+    const { versionId } = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to create modules in this course version');
+    }
+    
     const updated = await this.service.createModule(params.versionId, body);
     return {version: instanceToPlain(updated)};
   }
@@ -70,7 +84,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module updated successfully',
@@ -86,10 +100,20 @@ Accessible to:
   async update(
     @Params() params: VersionModuleParams,
     @Body() body: UpdateModuleBody,
+    @Ability(getCourseVersionAbility) {ability}
   ) {
+    const { versionId, moduleId } = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to update modules in this course version');
+    }
+    
     const updated = await this.service.updateModule(
-      params.versionId,
-      params.moduleId,
+      versionId,
+      moduleId,
       body,
     );
     return {version: instanceToPlain(updated)};
@@ -101,7 +125,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/move')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module moved successfully',
@@ -117,10 +141,20 @@ Accessible to:
   async move(
     @Params() params: VersionModuleParams,
     @Body() body: MoveModuleBody,
+    @Ability(getCourseVersionAbility) {ability}
   ) {
+    const { versionId, moduleId } = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to move modules in this course version');
+    }
+    
     const updated = await this.service.moveModule(
-      params.versionId,
-      params.moduleId,
+      versionId,
+      moduleId,
       body,
     );
     return {version: instanceToPlain(updated)};
@@ -132,7 +166,7 @@ Accessible to:
 Accessible to:
 - Instructors or managers of the course.`,
   })
-  @Authorized(['admin'])
+  @Authorized()
   @Delete('/versions/:versionId/modules/:moduleId')
   @ResponseSchema(ModuleDeletedResponse, {
     description: 'Module deleted successfully',
@@ -145,10 +179,22 @@ Accessible to:
     description: 'Module not found',
     statusCode: 404,
   })
-  async delete(@Params() params: VersionModuleParams) {
-    await this.service.deleteModule(params.versionId, params.moduleId);
+  async delete(
+    @Params() params: VersionModuleParams,
+    @Ability(getCourseVersionAbility) {ability}
+  ) {
+    const { versionId, moduleId } = params;
+    
+    // Build the subject context first
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to delete modules in this course version');
+    }
+    
+    await this.service.deleteModule(versionId, moduleId);
     return {
-      message: `Module ${params.moduleId} deleted in version ${params.versionId}`,
+      message: `Module ${moduleId} deleted in version ${versionId}`,
     };
   }
 }

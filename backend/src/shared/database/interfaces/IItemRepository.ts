@@ -30,6 +30,11 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
 
+  findItemsGroupByItemId(
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null>;
+
   getFirstOrderItems(
     courseVersionId: string,
     session?: ClientSession,
@@ -40,7 +45,12 @@ export interface IItemRepository {
   }>;
 
   createItem(item: Item, session?: ClientSession): Promise<Item | null>;
-
+  CalculateTotalItemsCount(courseId: string, versionId: string, session?: ClientSession): Promise<number>;
+  getTotalItemsCount(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<number>;
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
   // createBlogDetails(details: IBlogDetails): Promise<string>;

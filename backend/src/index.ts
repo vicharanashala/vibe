@@ -9,6 +9,7 @@ import {apiReference} from '@scalar/express-api-reference';
 import {loadAppModules} from './bootstrap/loadModules.js';
 import {printStartupSummary} from './utils/logDetails.js';
 import type { CorsOptions } from 'cors';
+import { authorizationChecker } from './shared/functions/authorizationChecker.js';
 import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 
 const app = express();
@@ -29,7 +30,7 @@ const moduleOptions: RoutingControllersOptions = {
   controllers: controllers,
   middlewares: [HttpErrorHandler],
   routePrefix: appConfig.routePrefix,
-  authorizationChecker: async () => true,
+  authorizationChecker: authorizationChecker,
   currentUserChecker: currentUserChecker,
   defaultErrorHandler: true,
   development: appConfig.isDevelopment,

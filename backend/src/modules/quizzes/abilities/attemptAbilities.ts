@@ -1,6 +1,8 @@
 import { AbilityBuilder, MongoAbility } from "@casl/ability";
 import { AuthenticatedUser, AuthenticatedUserEnrollements } from "#root/shared/interfaces/models.js";
 import { AttemptScope, createAbilityBuilder } from './types.js';
+import { getFromContainer, InternalServerError } from "routing-controllers";
+import { ProgressService } from "#root/modules/users/services/ProgressService.js";
 
 // Actions
 export enum AttemptActions {
@@ -22,7 +24,7 @@ export type AttemptAbility = [AttemptActionsType, AttemptSubjectType];
 /**
  * Setup attempt abilities for a specific role
  */
-export function setupAttemptAbilities(
+export async function setupAttemptAbilities(
     builder: AbilityBuilder<any>,
     user: AuthenticatedUser
 ) {
@@ -33,35 +35,49 @@ export function setupAttemptAbilities(
         return;
     }
 
-    user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
+    const progressService = getFromContainer(ProgressService);
+    
+    // Use Promise.all to handle async operations properly
+    await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
-        const courseVersionBounded = { courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
-        const userBounded = { userId: user.userId, courseId: enrollment.courseId, courseVersionId: enrollment.versionId };
+        const courseVersionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
 
         switch (enrollment.role) {
-            case 'student':
-                can(AttemptActions.Start, 'Attempt', userBounded);
-                can(AttemptActions.Save, 'Attempt', userBounded);
-                can(AttemptActions.Submit, 'Attempt', userBounded);
+            case 'STUDENT':
+                const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
+                const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
+                if (!progress) {
+                    throw new InternalServerError('No progress found for user');
+                }
+                const allowedItemIds = [...completedItems];
+                allowedItemIds.push(progress.currentItem.toString());
+                
+                // Grant permission for attempts on quizzes that correspond to allowed items
+                const attemptBounded = {
+                    quizId: { $in: allowedItemIds }
+                };
+                can(AttemptActions.Start, 'Attempt', attemptBounded);
+                can(AttemptActions.Save, 'Attempt', attemptBounded);
+                can(AttemptActions.Submit, 'Attempt', attemptBounded);
                 break;
-            case 'instructor':
+            case 'INSTRUCTOR':
                 can(AttemptActions.View, 'Attempt', courseBounded);
                 break;
-            case 'manager':
+            case 'MANAGER':
                 can('manage', 'Attempt', courseBounded);
                 break;
-            case 'ta':
+            case 'TA':
                 can(AttemptActions.View, 'Attempt', courseVersionBounded);
                 break;
         }
-    });
+    }));
 }
 
 /**
  * Get attempt abilities for a user - can be directly used by controllers
  */
-export function getAttemptAbility(user: AuthenticatedUser): MongoAbility<any> {
+export async function getAttemptAbility(user: AuthenticatedUser): Promise<MongoAbility<any>> {
     const builder = createAbilityBuilder();
-    setupAttemptAbilities(builder, user);
+    await setupAttemptAbilities(builder, user);
     return builder.build();
 }

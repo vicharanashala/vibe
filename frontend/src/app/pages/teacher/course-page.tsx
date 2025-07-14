@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -22,9 +22,10 @@ import {
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { ProctoringModal } from "../testing-proctoring/EditProctoringModal"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
+import { ProctoringModal } from "@/components/EditProctoringModal"
+// import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+// import { Checkbox } from "@/components/ui/checkbox"
+import { Pagination } from "@/components/ui/Pagination"
 
 // Import the hooks and auth store
 import {
@@ -38,6 +39,7 @@ import {
   useEditProctoringSettings
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
+import { useCourseStore } from "@/store/course-store"
 import { bufferToHex } from "@/utils/helpers"
 
 // Define types for better TypeScript support
@@ -45,23 +47,25 @@ import type { RawEnrollment } from "@/types/course.types"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
-  // Get user from auth store
-  const { user } = useAuthStore()
-
-  // Fetch user enrollments with higher limit to show all courses
+  // Fetch user enrollments with pagination (use reasonable page size)
+  const {token} = useAuthStore()
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(1, 100, true) // Increased limit to 100
+  } = useUserEnrollments(currentPage, 10, !!token) // Use pagination with 10 items per page
 
   const enrollments = enrollmentsResponse?.enrollments || []
+  const totalPages = enrollmentsResponse?.totalPages || 1
+  const totalDocuments = enrollmentsResponse?.totalDocuments || 0
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
-  const uniqueCourses = enrollments.reduce((acc: RawEnrollment[], enrollment: RawEnrollment) => {
+  // Since we're using pagination, we'll work with the current page data
+  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
     const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
@@ -74,11 +78,19 @@ export default function TeacherCoursesPage() {
     window.location.href = "/courses/add"
   }
 
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
   // Filter courses based on search query
-  const filteredCourses = uniqueCourses.filter((enrollment: RawEnrollment) => {
-    // We'll need to check this in the CourseCard component since we need to fetch course data first
-    return true // For now, show all enrollments
-  })
+  const filteredCourses = uniqueCourses
 
   // Invalidate all related queries
   const invalidateAllQueries = () => {
@@ -177,7 +189,7 @@ export default function TeacherCoursesPage() {
 
         {/* Courses List */}
         <div className="space-y-4">
-          {filteredCourses.map((enrollment: RawEnrollment) => (
+          {filteredCourses.map((enrollment: any) => (
             <CourseCard
               key={enrollment._id}
               enrollment={enrollment}
@@ -186,6 +198,16 @@ export default function TeacherCoursesPage() {
             />
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
     </div>
   )
@@ -210,8 +232,6 @@ function CourseCard({
   })
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { editSettings, loading, error } = useEditProctoringSettings()
-
-
   
   const queryClient = useQueryClient()
 
@@ -645,6 +665,7 @@ function VersionCard({
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { setCurrentCourse } = useCourseStore()
 
   // Fetch individual version data
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
@@ -676,10 +697,46 @@ function VersionCard({
   }
 
   const viewEnrollments = () => {
-    // Navigate to enrollments page with courseId and versionId as search parameters
+    // Set course info in store and navigate to enrollments page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
     navigate({
       to: "/teacher/courses/enrollments",
-      search: { courseId: courseId, versionId: versionId },
+    })
+  }
+  const sendInvites = () => {
+    // Set course info in store and navigate to invite page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/invite",
+    })
+  }
+
+  const viewCourse = () => {
+    // Set course info in store and navigate to course content
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/student/learn",
     })
   }
 
@@ -722,7 +779,11 @@ function VersionCard({
               <Users className="h-3 w-3 mr-1" />
               View Enrollments
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer">
+            <Button variant="outline" size="sm" onClick={sendInvites} className="h-7 text-xs cursor-pointer">
+              <Users className="h-3 w-3 mr-1" />
+              Send Invites
+            </Button>
+            <Button variant="outline" size="sm" onClick={viewCourse} className="h-7 text-xs cursor-pointer">
               <Eye className="h-3 w-3 mr-1" />
               View
             </Button>

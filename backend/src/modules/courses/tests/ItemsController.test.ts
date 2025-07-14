@@ -1,5 +1,5 @@
-import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
-import {useExpressServer, useContainer} from 'routing-controllers';
+import { coursesContainerModules, coursesModuleOptions, setupCoursesContainer } from '../index.js';
+import { useExpressServer, useContainer, RoutingControllersOptions } from 'routing-controllers';
 import Express from 'express';
 import request from 'supertest';
 import {
@@ -8,9 +8,9 @@ import {
   createSection,
   createVersion,
 } from './utils/creationFunctions.js';
-import {faker} from '@faker-js/faker';
-import {ItemType} from '#shared/interfaces/models.js';
-import {CreateItemBody} from '../classes/validators/ItemValidators.js';
+import { faker } from '@faker-js/faker';
+import { ItemType } from '#shared/interfaces/models.js';
+import { CreateItemBody } from '../classes/validators/ItemValidators.js';
 import {
   describe,
   it,
@@ -20,34 +20,118 @@ import {
   beforeEach,
   vi,
 } from 'vitest';
+import { SignUpBody } from '#root/modules/auth/classes/validators/AuthValidators.js';
+import * as CurrentUser from '#root/shared/functions/currentUserChecker.js'
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { Container } from 'inversify';
+import { CourseController } from '../controllers/CourseController.js';
+import { CourseVersionController } from '../controllers/CourseVersionController.js';
+import { ItemController } from '../controllers/ItemController.js';
+import { ModuleController } from '../controllers/ModuleController.js';
+import { SectionController } from '../controllers/SectionController.js';
+import { AuthController } from '#root/modules/auth/controllers/AuthController.js';
+import { EnrollmentController } from '#root/modules/users/controllers/EnrollmentController.js';
+import { afterEach } from 'node:test';
+
+const controllers: Function[] = [
+  CourseController,
+  CourseVersionController,
+  ModuleController,
+  SectionController,
+  ItemController,
+  AuthController,
+  EnrollmentController
+];
 
 describe('Item Controller Integration Tests', () => {
   const App = Express();
   let app;
+  let course;
+  let version;
+  let module;
+  let section;
+  let courseId: string;
+  let versionId: string;
+  let moduleId: string;
+  let sectionId: string;
+
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    await setupCoursesContainer();
-    app = useExpressServer(App, coursesModuleOptions);
+    const container = new Container();
+    await container.load(...coursesContainerModules);
+    const inversifyAdapter = new InversifyAdapter(container);
+    useContainer(inversifyAdapter);
+    const options: RoutingControllersOptions = {
+      controllers: controllers,
+      middlewares: coursesModuleOptions.middlewares,
+      defaultErrorHandler: coursesModuleOptions.defaultErrorHandler,
+      authorizationChecker: coursesModuleOptions.authorizationChecker,
+      validation: coursesModuleOptions.validation,
+    }
+    app = useExpressServer(App, options);
   });
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  beforeEach(async () => {
+    // create a user and enroll him in a course as a teacher
+    const email = faker.internet.email();
+    const password = faker.internet.password();
+    const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
+    const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
+    const signUpBody: SignUpBody = {email, password, firstName, lastName};
+
+    const signUpResponse = await request(app)
+      .post('/auth/signup')
+      .send(signUpBody)
+      .expect(201);
+
+    const userId = signUpResponse.body.userId;
+    vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+      _id: userId,
+      firebaseUID: faker.string.uuid(),
+      email,
+      firstName,
+      lastName,
+      roles: 'admin',
+    });
+    
+    course = await createCourse(app);
+    courseId = course._id.toString();
+    version = await createVersion(app, courseId);
+    versionId = version._id.toString();
+    module = await createModule(app, versionId);
+    moduleId = module.version.modules[0].moduleId.toString();
+    section = await createSection(
+      app,
+      versionId,
+      moduleId,
+    );
+    sectionId = section.version.modules[0].sections[0].sectionId.toString();
+    
+    // Enroll the user as a teacher in the course
+    const enrollmentResponse = await request(app)
+    .post(
+      `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}`,
+    )
+    .send({
+      role: 'INSTRUCTOR',
+    });
+    expect(enrollmentResponse.status).toBe(200);
+    vi.resetAllMocks();
+    vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+      _id: userId,
+      firebaseUID: faker.string.uuid(),
+      email,
+      firstName,
+      lastName,
+      roles: 'user',
+    });
   });
 
   describe('ITEM CREATION', () => {
     describe('Success Scenario', () => {
       describe('Create Quiz Item', () => {
         it('should create a quiz item', async () => {
-          const course = await createCourse(app);
-          const version = await createVersion(app, course._id.toString());
-          const module = await createModule(app, version._id.toString());
-          const section = await createSection(
-            app,
-            version._id.toString(),
-            module.version.modules[0].moduleId.toString(),
-          );
-
           const itemPayload: CreateItemBody = {
             name: faker.commerce.productName(),
             description: faker.commerce.productDescription(),
@@ -70,7 +154,7 @@ describe('Item Controller Integration Tests', () => {
 
           const itemResponse = await request(app)
             .post(
-              `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
+              `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
             )
             .send(itemPayload);
           expect(itemResponse.status).toBe(201);
@@ -79,15 +163,6 @@ describe('Item Controller Integration Tests', () => {
       });
       describe('Create Video Item', () => {
         it('should create a video item', async () => {
-          const course = await createCourse(app);
-          const version = await createVersion(app, course._id.toString());
-          const module = await createModule(app, version._id.toString());
-          const section = await createSection(
-            app,
-            version._id.toString(),
-            module.version.modules[0].moduleId.toString(),
-          );
-
           const itemPayload: CreateItemBody = {
             name: faker.commerce.productName(),
             description: faker.commerce.productDescription(),
@@ -102,7 +177,7 @@ describe('Item Controller Integration Tests', () => {
 
           const itemsGroupResponse = await request(app)
             .post(
-              `/courses/versions/${version._id}/modules/${module.version.modules[0].moduleId}/sections/${section.version.modules[0].sections[0].sectionId}/items`,
+              `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
             )
             .send(itemPayload);
           expect(itemsGroupResponse.status === 201);
@@ -111,25 +186,77 @@ describe('Item Controller Integration Tests', () => {
         }, 90000);
       });
     });
+
+    describe('Failure Scenario', () => {
+      it('forbids creation of item if done by a student', async () => {
+        const email = faker.internet.email();
+        const password = faker.internet.password();
+        const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
+        const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
+        const signUpBody: SignUpBody = {email, password, firstName, lastName};
+
+        const signUpResponse = await request(app)
+          .post('/auth/signup')
+          .send(signUpBody)
+          .expect(201);
+
+        const newUserId = signUpResponse.body.userId;
+        vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+          _id: newUserId,
+          firebaseUID: faker.string.uuid(),
+          email,
+          firstName,
+          lastName,
+          roles: 'admin',
+        });
+        const enrollmentResponse = await request(app)
+          .post(
+            `/users/${newUserId}/enrollments/courses/${courseId}/versions/${versionId}`,
+          )
+          .send({
+            role: 'STUDENT',
+          });
+        expect(enrollmentResponse.status).toBe(200);
+        vi.resetAllMocks();
+        vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+          _id: newUserId,
+          firebaseUID: faker.string.uuid(),
+          email,
+          firstName,
+          lastName,
+          roles: 'user',
+        });
+        // try to create an item as a student
+        const itemPayload: CreateItemBody = {
+          name: faker.commerce.productName(),
+          description: faker.commerce.productDescription(),
+          type: ItemType.QUIZ,
+          quizDetails: {
+            questionVisibility: 3,
+            allowPartialGrading: true,
+            deadline: faker.date.future(),
+            allowHint: true,
+            maxAttempts: 5,
+            releaseTime: faker.date.future(),
+            quizType: 'DEADLINE',
+            showCorrectAnswersAfterSubmission: true,
+            showExplanationAfterSubmission: true,
+            showScoreAfterSubmission: true,
+            approximateTimeToComplete: '00:30:00',
+            passThreshold: 0.7,
+          },
+        };
+        const itemResponse = await request(app)
+          .post(
+            `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items`,
+          )
+          .send(itemPayload)
+          .expect(403);
+      });
+    });
   });
 
   describe('ITEM READALL', () => {
-    const coursePayload = {
-      name: 'ReadAll Course',
-      description: 'desc',
-    };
-    const courseVersionPayload = {
-      version: 'v1',
-      description: 'desc',
-    };
-    const modulePayload = {
-      name: 'ReadAll Module',
-      description: 'desc',
-    };
-    const sectionPayload = {
-      name: 'ReadAll Section',
-      description: 'desc',
-    };
     const itemPayload1 = {
       name: 'ReadAll Item 1',
       description: faker.commerce.productDescription(),
@@ -170,31 +297,6 @@ describe('Item Controller Integration Tests', () => {
     };
 
     it('should read all items in a section', async () => {
-      const courseResponse = await request(app)
-        .post('/courses/')
-        .send(coursePayload)
-        .expect(201);
-      const courseId = courseResponse.body._id;
-
-      const versionResponse = await request(app)
-        .post(`/courses/${courseId}/versions`)
-        .send(courseVersionPayload)
-        .expect(201);
-      const versionId = versionResponse.body._id;
-
-      const moduleResponse = await request(app)
-        .post(`/courses/versions/${versionId}/modules`)
-        .send(modulePayload)
-        .expect(201);
-      const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-      const sectionResponse = await request(app)
-        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-        .send(sectionPayload)
-        .expect(201);
-      const sectionId =
-        sectionResponse.body.version.modules[0].sections[0].sectionId;
-
       // Add two items
       const item1 = await request(app)
         .post(
@@ -224,22 +326,6 @@ describe('Item Controller Integration Tests', () => {
   });
 
   describe('ITEM UPDATION', () => {
-    const coursePayload = {
-      name: 'Update Course',
-      description: 'desc',
-    };
-    const courseVersionPayload = {
-      version: 'v1',
-      description: 'desc',
-    };
-    const modulePayload = {
-      name: 'Update Module',
-      description: 'desc',
-    };
-    const sectionPayload = {
-      name: 'Update Section',
-      description: 'desc',
-    };
     const itemPayload: CreateItemBody = {
       name: faker.commerce.productName(),
       description: faker.commerce.productDescription(),
@@ -261,31 +347,6 @@ describe('Item Controller Integration Tests', () => {
     };
 
     it('should update an item in a section', async () => {
-      const courseResponse = await request(app)
-        .post('/courses/')
-        .send(coursePayload)
-        .expect(201);
-      const courseId = courseResponse.body._id;
-
-      const versionResponse = await request(app)
-        .post(`/courses/${courseId}/versions`)
-        .send(courseVersionPayload)
-        .expect(201);
-      const versionId = versionResponse.body._id;
-
-      const moduleResponse = await request(app)
-        .post(`/courses/versions/${versionId}/modules`)
-        .send(modulePayload)
-        .expect(201);
-      const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-      const sectionResponse = await request(app)
-        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-        .send(sectionPayload)
-        .expect(201);
-      const sectionId =
-        sectionResponse.body.version.modules[0].sections[0].sectionId;
-
       // Add item
       const itemResponse = await request(app)
         .post(
@@ -376,37 +437,16 @@ describe('Item Controller Integration Tests', () => {
       };
 
       it('should delete an item', async () => {
-        const courseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-
-        const courseId = courseResponse.body._id;
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-
-        const versionId = versionResponse.body._id;
-
-        const moduleResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-
-        const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-        const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-          .send(sectionPayload)
-          .expect(201);
-
-        const sectionId =
-          sectionResponse.body.version.modules[0].sections[0].sectionId;
-
+        vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+          _id: faker.database.mongodbObjectId(),
+          firebaseUID: faker.string.uuid(),
+          email: faker.internet.email(),
+          firstName: faker.person.firstName(),
+          lastName: faker.person.lastName(),
+          roles: 'admin',
+        });
         const itemsGroupId =
-          sectionResponse.body.version.modules[0].sections[0].itemsGroupId;
+          section.version.modules[0].sections[0].itemsGroupId.toString();
 
         const itemsGroupResponse = await request(app)
           .post(
@@ -429,6 +469,14 @@ describe('Item Controller Integration Tests', () => {
 
     describe('Failiure Scenario', () => {
       it('should fail to delete an item', async () => {
+        vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+          _id: faker.database.mongodbObjectId(),
+          firebaseUID: faker.string.uuid(),
+          email: faker.internet.email(),
+          firstName: faker.person.firstName(),
+          lastName: faker.person.lastName(),
+          roles: 'admin',
+        });
         // Testing for Invalid params
 
         const itemsResponse = await request(app)
@@ -437,6 +485,14 @@ describe('Item Controller Integration Tests', () => {
       }, 90000);
 
       it('should fail to delete an item', async () => {
+        vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+          _id: faker.database.mongodbObjectId(),
+          firebaseUID: faker.string.uuid(),
+          email: faker.internet.email(),
+          firstName: faker.person.firstName(),
+          lastName: faker.person.lastName(),
+          roles: 'admin',
+        });
         // Testing for Not found Case
         const itemsResponse = await request(app)
           .delete(
@@ -449,26 +505,6 @@ describe('Item Controller Integration Tests', () => {
 
   describe('ITEM MOVE', () => {
     describe('Success Scenario', () => {
-      const coursePayload = {
-        name: 'New Course',
-        description: 'Course description',
-      };
-
-      const courseVersionPayload = {
-        version: 'New Course Version',
-        description: 'Course version description',
-      };
-
-      const modulePayload = {
-        name: 'New Module',
-        description: 'Module description',
-      };
-
-      const sectionPayload = {
-        name: 'New Section',
-        description: 'Section description',
-      };
-
       const itemPayload1 = {
         name: 'Item 1',
         description: faker.commerce.productDescription(),
@@ -509,32 +545,6 @@ describe('Item Controller Integration Tests', () => {
       };
 
       it('should move an item after another item', async () => {
-        // Create course, version, module, section
-        const courseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-        const courseId = courseResponse.body._id;
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-        const versionId = versionResponse.body._id;
-
-        const moduleResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-        const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-        const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-          .send(sectionPayload)
-          .expect(201);
-        const sectionId =
-          sectionResponse.body.version.modules[0].sections[0].sectionId;
-
         // Add two items
         const item1Response = await request(app)
           .post(
@@ -557,7 +567,7 @@ describe('Item Controller Integration Tests', () => {
           .put(
             `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/${item2Id}/move`,
           )
-          .send({beforeItemId: item1Id})
+          .send({ beforeItemId: item1Id })
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
@@ -571,32 +581,6 @@ describe('Item Controller Integration Tests', () => {
       }, 90000);
 
       it('should move the third item before the first item in a list of three', async () => {
-        // Create course, version, module, section
-        const courseResponse = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-        const courseId = courseResponse.body._id;
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-        const versionId = versionResponse.body._id;
-
-        const moduleResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-        const moduleId = moduleResponse.body.version.modules[0].moduleId;
-
-        const sectionResponse = await request(app)
-          .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-          .send(sectionPayload)
-          .expect(201);
-        const sectionId =
-          sectionResponse.body.version.modules[0].sections[0].sectionId;
-
         // Add three items
         const item1Response = await request(app)
           .post(
@@ -647,7 +631,7 @@ describe('Item Controller Integration Tests', () => {
           .put(
             `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/${item3Id}/move`,
           )
-          .send({beforeItemId: item1Id})
+          .send({ beforeItemId: item1Id })
           .expect(200);
 
         const items = moveResponse.body.itemsGroup.items;
@@ -663,9 +647,8 @@ describe('Item Controller Integration Tests', () => {
     });
   });
   describe('ITEM SERVICE ERROR PATHS', () => {
-    let versionId: string;
-    let moduleId: string;
-    let sectionId: string;
+    // Mock the authorization checker to always return true
+    vi.resetAllMocks();
     let itemsGroupId: string;
     const itemPayload: CreateItemBody = {
       name: faker.commerce.productName(),
@@ -686,35 +669,20 @@ describe('Item Controller Integration Tests', () => {
         passThreshold: 0.7,
       },
     };
-
     beforeEach(async () => {
-      // Create course, version, module, section for valid IDs
-      const courseRes = await request(app)
-        .post('/courses/')
-        .send({name: 'ErrorPathCourse', description: 'desc'})
-        .expect(201);
-      const courseId = courseRes.body._id;
-
-      const versionRes = await request(app)
-        .post(`/courses/${courseId}/versions`)
-        .send({version: 'v1', description: 'desc'})
-        .expect(201);
-      versionId = versionRes.body._id;
-
-      const moduleRes = await request(app)
-        .post(`/courses/versions/${versionId}/modules`)
-        .send({name: 'mod', description: 'desc'})
-        .expect(201);
-      moduleId = moduleRes.body.version.modules[0].moduleId;
-
-      const sectionRes = await request(app)
-        .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-        .send({name: 'sec', description: 'desc'})
-        .expect(201);
-      sectionId = sectionRes.body.version.modules[0].sections[0].sectionId;
-      itemsGroupId =
-        sectionRes.body.version.modules[0].sections[0].itemsGroupId;
+      vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
+      _id: faker.database.mongodbObjectId(),
+      firebaseUID: faker.string.uuid(),
+      email: faker.internet.email(),
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      roles: 'admin',
     });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    })
 
     it('should return 404 if version does not exist on createItem', async () => {
       await request(app)
@@ -748,7 +716,7 @@ describe('Item Controller Integration Tests', () => {
         .put(
           `/courses/versions/fakeVersionId/modules/${moduleId}/sections/${sectionId}/items/fakeItemId`,
         )
-        .send({name: 'x'})
+        .send({ name: 'x' })
         .expect(400);
     }, 90000);
 
@@ -757,7 +725,7 @@ describe('Item Controller Integration Tests', () => {
         .put(
           `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId`,
         )
-        .send({name: 'x'})
+        .send({ name: 'x' })
         .expect(400);
     }, 90000);
 
@@ -796,7 +764,7 @@ describe('Item Controller Integration Tests', () => {
         .put(
           `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}/items/fakeItemId/move`,
         )
-        .send({beforeItemId: '62341aeb5be816967d8fc2db'})
+        .send({ beforeItemId: '62341aeb5be816967d8fc2db' })
         .expect(400);
     }, 90000);
   });

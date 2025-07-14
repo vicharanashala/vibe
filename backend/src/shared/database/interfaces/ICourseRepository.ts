@@ -45,4 +45,13 @@ export interface ICourseRepository {
     courseVersion: ICourseVersion,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
+  deleteModule(
+    versionId: string,
+    moduleId: string,
+    session?: ClientSession,
+  ): Promise<boolean | null>;
+  findVersionByItemGroupId(
+    itemGroupId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null>
 }

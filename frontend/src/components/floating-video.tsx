@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, JSX, use } from 'react';
 import ReactDOM from 'react-dom';
-import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, PictureInPicture, PictureInPicture2, SquareArrowOutDownLeft} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GestureDetector from './ai/GestureDetector';
 import BlurDetection from './ai/BlurDetector';
@@ -23,18 +23,24 @@ function FloatingVideo({
   onClose,
   onAnomalyDetected,
   setDoGesture,
-  settings
+  settings,
+  rewindVid,
+  setRewindVid,
+  pauseVid,
+  setPauseVid,
+  setAnomalies,
+  anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
-  const [size, setSize] = useState({ width: 320, height: 280 });
+  const [size, setSize] = useState({ width: 224, height: 196 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [overlayPosition, setOverlayPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPoppedOut, setIsPoppedOut] = useState(true);
+  const [isPoppedOut, setIsPoppedOut] = useState(false);
   const [anomaly, setAnomaly] = useState(false);
   const [anomalyType, setAnomalyType] = useState("");
 
@@ -46,7 +52,7 @@ function FloatingVideo({
   const [isBlur, setIsBlur] = useState("No");
   const [isSpeaking, setIsSpeaking] = useState("No");
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
-  const [isFocused, setIsFocused] = useState(false);
+  const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<FaceRecognition[]>([]);
   const [faceRecognitionDebug, setFaceRecognitionDebug] = useState<FaceRecognitionDebugInfo>({
@@ -59,13 +65,14 @@ function FloatingVideo({
     backendStatus: 'loading'
 
   });
-  const [penaltyPoints, setPenaltyPoints] = useState(-10);
+  const [penaltyPoints, setPenaltyPoints] = useState(-90);
   const [penaltyType, setPenaltyType] = useState("");
+  const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
 
   // Thumbs-up challenge states
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
   const [thumbsUpCountdown, setThumbsUpCountdown] = useState(0);
-  const [lastChallengeTime, setLastChallengeTime] = useState(0);
+  const [lastChallengeTime, setLastChallengeTime] = useState(Date.now());
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
 
@@ -83,10 +90,10 @@ function FloatingVideo({
   // Check which components are enabled
   const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
   const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
-  const isHandGestureDetectionEnabled = isComponentEnabled('handGestureDetection');
+  const isHandGestureDetectionEnabled = false; //isComponentEnabled('handGestureDetection');
   const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
-  const isFocusEnabled = isComponentEnabled('focus');
+  const isFocusEnabled = false; //isComponentEnabled('focus');
 
   // Log enabled components for debugging
   useEffect(() => {
@@ -221,42 +228,75 @@ function FloatingVideo({
     const interval = setInterval(() => {
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
+      setAnomalies(['']);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
+        setRewindVid(true);
+        setPauseVid(true);
+        setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
       // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
       if (facesCount !== 1 && isFaceCountDetectionEnabled) {
+        setRewindVid(true);
+        setPauseVid(true);
+        setAnomalies([...anomalies, "faceCountDetection"]);
         newPenaltyType = "Faces Count";
         newPenaltyPoints += 1;
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
       if (isBlur === "Yes" && isBlurDetectionEnabled) {
+        setAnomalies([...anomalies, "blurDetection"]);
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
       }
 
       // Condition 4: If not focused (only if focus tracking is enabled)
       if (!isFocused && isFocusEnabled) {
+        setAnomalies([...anomalies, "focus"]);
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
+      console.log("[anomaly]",anomalies);
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
         setAnomaly(true);
+        // setAnomalies([]);
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
         setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
+        
+        // Increment contiguous anomaly points
+        setContiguousAnomalyPoints(prev => {
+          const newContiguous = prev + newPenaltyPoints;
+          // Check if we've reached 20 contiguous points
+          if (newContiguous >= 20) {
+            console.log(`[FloatingVideo] Rewind triggered: 20 contiguous anomaly points reached`);
+            setRewindVid(true);
+            setPauseVid(true);  // Pause video after rewind
+            return 0; // Reset counter after triggering
+          }
+          return newContiguous;
+        });
       }
       else {
         setAnomaly(false);
+        setAnomalies([]);
+        // When anomalies are cleared, restore previous video state
+        if (rewindVid || pauseVid) {
+          console.log(`[FloatingVideo] Anomalies cleared - restoring video state`);
+          setRewindVid(false);
+          setPauseVid(false);  // Resume video when anomalies are cleared
+        }
+        // Reset contiguous anomaly points when no anomalies are detected
+        if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
-    }, 1000); // Update every second
+    }, 100); // Update every second
 
     return () => clearInterval(interval);
   }, [
@@ -271,9 +311,15 @@ function FloatingVideo({
     isBlurDetectionEnabled,
     isFocusEnabled,
     data,
-    error
+    error,
+    rewindVid,
+    setRewindVid,
+    pauseVid,
+    setPauseVid,
+    contiguousAnomalyPoints,
   ]);
-  const mul = 7; // For testing purposes, set to 1 for 3 seconds, change to 60 for real-time (2-5 minutes)
+  const min = 2 * 60 * 1000;
+  const max = 5 * 60 * 1000;
   // Random thumbs-up challenge system - only run if gesture detection is enabled
   useEffect(() => {
     if (!isHandGestureDetectionEnabled) return;
@@ -283,8 +329,8 @@ function FloatingVideo({
       const timeSinceLastChallenge = now - lastChallengeTime;
 
       // Only trigger if no active challenge and enough time has passed (2-5 minutes randomly)
-      if (!isThumbsUpChallenge && timeSinceLastChallenge > 3000 * mul) { // Minimum 30 seconds for testing
-        const randomInterval = Math.random() * (3000 * mul - 1200 * mul) + 1200 * mul; // 2-5 minutes
+      if (!isThumbsUpChallenge && timeSinceLastChallenge > 30000) { // Minimum 30 seconds for testing
+        const randomInterval = Math.random() * (max-min) + min; // 2-5 minutes
 
         if (timeSinceLastChallenge > randomInterval) {
           // Check if user is already showing thumbs-up when challenge starts
@@ -302,7 +348,7 @@ function FloatingVideo({
             setDoGesture(true);
             console.log("[Challenge] 🎯 Starting new thumbs-up challenge");
             setIsThumbsUpChallenge(true);
-            setThumbsUpCountdown(5);
+            setThumbsUpCountdown(10);
             setLastChallengeTime(now);
           }
         }
@@ -556,7 +602,7 @@ function FloatingVideo({
     >
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
-        <div className="bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
+        <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <span className="font-medium truncate">
               {isThumbsUpChallenge
@@ -570,10 +616,10 @@ function FloatingVideo({
               variant="ghost"
               size="sm"
               onClick={toggleCollapse}
-              className="h-6 w-6 p-0 text-white hover:bg-red-700 hover:text-white flex-shrink-0"
+              className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white flex-shrink-0"
               title={isCollapsed ? 'Expand' : 'Collapse'}
             >
-              {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              {isCollapsed ? <ChevronUp className="h-3 w-3" />: <ChevronDown className="h-3 w-3" /> }
             </Button>
             <Button
               variant="ghost"
@@ -585,7 +631,7 @@ function FloatingVideo({
               }}
               className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white flex-shrink-0"
             >
-              {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
             </Button>
           </div>
         </div>
@@ -611,7 +657,7 @@ function FloatingVideo({
               className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white"
               title={isCollapsed ? 'Expand' : 'Collapse'}
             >
-              {isCollapsed ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              {isCollapsed ? <ChevronUp className="h-3 w-3" /> :<ChevronDown className="h-3 w-3" />}
             </Button>
             <Button
               variant="ghost"
@@ -623,7 +669,7 @@ function FloatingVideo({
               }}
               className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white"
             >
-              {isPoppedOut ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
             </Button>
           </div>
         </div>
@@ -874,7 +920,7 @@ function FloatingVideo({
           <FaceDetectors 
             key={`face-${faceDetectorsKey}`}
             faces={faces} 
-            setIsFocused={setIsFocused}
+            setIsFocused={()=>{}} // CHANGE THIS LATER.
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
             onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}

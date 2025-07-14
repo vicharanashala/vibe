@@ -22,8 +22,7 @@ import { markdown } from '@yoopta/exports';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, ChevronRight } from "lucide-react";
-import { useStartItem, useStopItem } from "@/hooks/hooks";
-import { useAuthStore } from "@/store/auth-store";
+import { useStartItem, useStopItem} from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 
 
@@ -56,11 +55,16 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const startItem = useStartItem();
     const stopItem = useStopItem();
     
-    // ✅ Track if item has been started
+    // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
+    const startRequestSentRef = useRef(false);
 
     function handleSendStartItem() {
-        if (!currentCourse?.itemId) return;
+        if (!currentCourse?.itemId || startRequestSentRef.current) return;
+        
+        // Mark that we've sent the start request to prevent multiple calls
+        startRequestSentRef.current = true;
+        
         startItem.mutate({
             params: {
                 path: {
@@ -74,12 +78,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 sectionId: currentCourse.sectionId ?? '',
             }
         });
-        if (startItem.data?.watchItemId) setWatchItemId(startItem.data?.watchItemId);
-        itemStartedRef.current = true;
     }
 
     function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+        
         stopItem.mutate({
             params: {
                 path: {
@@ -97,10 +100,28 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         itemStartedRef.current = false;
     }
 
+    // ✅ Handle Next button click - send stop request only when user clicks Next
+    const handleNextClick = () => {
+        if (itemStartedRef.current) {
+            handleStopItem();
+        }
+        if (onNext) {
+            onNext();
+        }
+    };
+
     // ✅ Expose stop function to parent component
     useImperativeHandle(ref, () => ({
         stopItem: handleStopItem
     }));
+
+    // ✅ Watch for start request completion and update watchItemId
+    useEffect(() => {
+        if (startItem.data?.watchItemId && startRequestSentRef.current && !itemStartedRef.current) {
+            setWatchItemId(startItem.data.watchItemId);
+            itemStartedRef.current = true;
+        }
+    }, [startItem.data?.watchItemId, setWatchItemId]);
 
     // ✅ Load content from prop when component mounts or content changes
     useEffect(() => {
@@ -126,17 +147,18 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             setValue(deserializedValue);
             editor.setEditorValue(deserializedValue);
 
-            // ✅ Start tracking item when content is loaded
+            // ✅ Start tracking item when content is loaded (only once)
             handleSendStartItem();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, content]);
 
-    // ✅ Stop item when component unmounts
+    // ✅ Clean up on unmount - but don't send stop request here
     useEffect(() => {
         return () => {
-            if (itemStartedRef.current) {
-                handleStopItem();
-            }
+            // Reset refs on unmount
+            itemStartedRef.current = false;
+            startRequestSentRef.current = false;
         };
     }, []);
 
@@ -216,7 +238,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                     <div className="p-4 border-t border-border/20 bg-background/50 backdrop-blur-sm">
                         <div className="flex justify-end">
                             <Button
-                                onClick={onNext}
+                                onClick={handleNextClick}
                                 disabled={isProgressUpdating}
                                 className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                                 size="lg"

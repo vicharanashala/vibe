@@ -49,7 +49,7 @@ export function AppSidebar() {
         icon: BookOpen,
         items: [
           { title: "Add Course", url: "/teacher/courses/create" },
-          { title: "View Course", url: "/teacher/courses/get" },
+          { title: "View Course", url: "/teacher/courses/enrollments" },
           { title: "List Courses", url: "/teacher/courses/list" },
         ],
       }
@@ -70,7 +70,7 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <span className="text-2xl font-bold">
-              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}>Vibe</AuroraText>
+              <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
             </span>
           )}
         </div>

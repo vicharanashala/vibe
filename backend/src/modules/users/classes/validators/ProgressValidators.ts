@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateIf,
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -29,7 +30,7 @@ export class GetUserProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemBody {
@@ -86,7 +87,7 @@ export class StartItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StartItemResponse {
@@ -126,7 +127,7 @@ export class StopItemParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class StopItemBody {
@@ -173,6 +174,17 @@ export class StopItemBody {
   @IsString()
   @IsMongoId()
   moduleId: string;
+
+  @JSONSchema({
+    description: 'Attempt ID for quiz tracking',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  attemptId?: string;
 }
 
 export class UpdateProgressBody {
@@ -251,7 +263,7 @@ export class UpdateProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressParams {
@@ -283,7 +295,7 @@ export class ResetCourseProgressParams {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string;
+  versionId: string;
 }
 
 export class ResetCourseProgressBody {
@@ -439,6 +451,48 @@ export class ProgressDataResponse implements IProgress{
   completed: boolean;
 }
 
+export class CompletedProgressResponse {
+  @JSONSchema({
+    description: 'Indicates whether the course has been completed',
+    example: true,
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  completed: boolean;
+
+  @JSONSchema({
+    description: 'Percentage of course completion',
+    example: 75,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  percentCompleted: number;
+
+  @JSONSchema({
+    description: 'Total number of items in the course',
+    example: 20,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  totalItems: number;
+
+  @JSONSchema({
+    description: 'Total number of completed items in the course',
+    example: 15,
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  completedItems: number;
+}
+
 export class ProgressNotFoundErrorResponse {
   @JSONSchema({
     description: 'Error message indicating progress not found',
@@ -448,6 +502,50 @@ export class ProgressNotFoundErrorResponse {
   })
   @IsNotEmpty()
   message: string;
+}
+
+export class WatchTimeParams {
+  @JSONSchema({
+    description: 'user ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
+
+  @JSONSchema({
+    description: 'Item ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+}
+
+export class WatchTimeBody {
+  @JSONSchema({
+    description: 'Course ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Course version ID to get watch time for',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  versionId: string;
 }
 
 export const PROGRESS_VALIDATORS = [
@@ -462,5 +560,8 @@ export const PROGRESS_VALIDATORS = [
   ResetCourseProgressBody,
   ResetCourseProgressParams,
   ProgressDataResponse,
-  ProgressNotFoundErrorResponse
+  CompletedProgressResponse,
+  ProgressNotFoundErrorResponse,
+  WatchTimeParams,
+  WatchTimeBody,
 ]
