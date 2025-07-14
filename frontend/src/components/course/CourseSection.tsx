@@ -5,7 +5,6 @@ import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { CourseSectionProps } from '@/types/course.types';
 
-
 export const CourseSection = ({
   title,
   enrollments,
@@ -32,6 +31,9 @@ export const CourseSection = ({
     }
 
     if (error) {
+      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5"){
+        onRetry?.()
+      }
       return (
         <EmptyState
           title="Error loading courses"

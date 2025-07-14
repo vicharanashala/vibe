@@ -17,6 +17,8 @@ import {
   X,
   Loader2,
   Eye,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -78,6 +80,10 @@ export default function CourseEnrollments() {
   const studentEnrollments = enrollmentsData?.enrollments || []
   console.log("unfiltered Users:", studentEnrollments)
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
   const filteredUsers = studentEnrollments.filter(
     (enrollment: any) =>
       enrollment &&
@@ -87,7 +93,36 @@ export default function CourseEnrollments() {
        enrollment?.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
        (enrollment?.user?.firstName + " " + enrollment?.user?.lastName).toLowerCase().includes(searchQuery.toLowerCase()))
   )
-  console.log("Filtered Users:", filteredUsers)
+
+  // Sorting logic
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (sortBy === 'name') {
+      const nameA = ((a.user?.firstName || '') + ' ' + (a.user?.lastName || '')).toLowerCase()
+      const nameB = ((b.user?.firstName || '') + ' ' + (b.user?.lastName || '')).toLowerCase()
+      if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1
+      if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    } else if (sortBy === 'enrollmentDate') {
+      const dateA = new Date(a.enrollmentDate).getTime()
+      const dateB = new Date(b.enrollmentDate).getTime()
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    } else if (sortBy === 'progress') {
+      const progA = (a.progress?.percentCompleted || 0)
+      const progB = (b.progress?.percentCompleted || 0)
+      return sortOrder === 'asc' ? progA - progB : progB - progA
+    }
+    return 0
+  })
+
+  // Sorting handler
+  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -247,11 +282,22 @@ export default function CourseEnrollments() {
     return "bg-red-50 dark:bg-red-950/30"
   }
 
-  // Stats calculations based on current enrolled students
-  const totalUsers = studentEnrollments.length
-  // For now, we don't have progress data, so set completed users to 0
-  const completedUsers = 0
-  const averageProgress = 0
+  // Stats calculations based on filtered users (search results)
+  const totalUsers = filteredUsers.length
+  // Count users with 100% progress
+  const completedUsers = filteredUsers.filter(
+    (enrollment: any) => (enrollment.progress?.percentCompleted || 0) >= 1
+  ).length
+  // Calculate average progress (as percent, rounded to 1 decimal)
+  const averageProgress =
+    totalUsers > 0
+      ? (
+          filteredUsers.reduce(
+            (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
+            0
+          ) / totalUsers
+        ).toFixed(1)
+      : 0
 
   const stats = [
     {
@@ -385,7 +431,7 @@ export default function CourseEnrollments() {
             <CardTitle className="text-xl font-bold text-card-foreground">Enrolled Students</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {filteredUsers.length === 0 ? (
+            {sortedUsers.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
@@ -400,14 +446,31 @@ export default function CourseEnrollments() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border bg-muted/30">
-                      <TableHead className="font-bold text-foreground pl-6 w-[300px]">Student</TableHead>
-                      <TableHead className="font-bold text-foreground w-[120px]">Enrolled</TableHead>
-                      <TableHead className="font-bold text-foreground w-[200px]">Progress</TableHead>
+                      {[
+                        { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
+                        { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
+                        { key: 'progress', label: 'Progress', className: 'w-[200px]' },
+                      ].map(({ key, label, className }) => (
+                        <TableHead
+                          key={key}
+                          className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                          onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
+                        >
+                          <span className="flex items-center gap-1">
+                            {label}
+                            {sortBy === key && (
+                              sortOrder === 'asc'
+                                ? <ArrowUp size={16} className="text-foreground" />
+                                : <ArrowDown size={16} className="text-foreground" />
+                            )}
+                          </span>
+                        </TableHead>
+                      ))}
                       <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((enrollment, index) => (
+                    {sortedUsers.map((enrollment) => (
                       <TableRow
                         key={enrollment._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -438,11 +501,19 @@ export default function CourseEnrollments() {
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
-                          <div className="flex items-center gap-4 w-40">
+                          <div className={`flex items-center gap-4 w-40 ${getProgressBg(enrollment.progress?.percentCompleted * 100 || 0)}`}>
                             <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
-                              <div className="h-full rounded-full bg-gradient-to-r from-gray-400 to-gray-500 w-0" />
+                              <div
+                                className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(enrollment.progress?.percentCompleted * 100 || 0)}`}
+                                style={{
+                                  width: `${((enrollment.progress?.percentCompleted || 0) * 100).toFixed(1)}%`,
+                                  transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+                                }}
+                              />
                             </div>
-                            <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">0%</span>
+                            <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
+                              {((enrollment.progress?.percentCompleted || 0) * 100).toFixed(1)}%
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="py-6 pr-6">
