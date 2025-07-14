@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "d": "pnpm vite build && firebase deploy",
+    "d": "pnpm vite build && firebase deploy && prev_branch=$(git symbolic-ref --short HEAD) && git checkout deploy && git add -A && git commit -m \"Deploy: auto-commit on $(date '+%Y-%m-%d %H:%M:%S')\" && git push origin deploy && git checkout \"$prev_branch\"",
     "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
     "build": "tsc -b && vite build",
