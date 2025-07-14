@@ -10,7 +10,6 @@ import {
   OnUndefined,
   Req,
   Body,
-  Patch,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -56,7 +55,7 @@ export class UserController {
     summary: 'Edit user information',
     description: 'Retrieves user information based on the provided user ID.',
   })
-  @Patch('/edit')
+  @Get('/edit')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
