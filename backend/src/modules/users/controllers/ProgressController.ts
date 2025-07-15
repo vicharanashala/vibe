@@ -13,7 +13,6 @@ import {
   ProgressDataResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
-  WatchTimeBody,
   CompletedProgressResponse,
   WatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
@@ -324,8 +323,8 @@ If none are provided, resets to the beginning of the course.`,
     description: `Gets the User Watch Time for the given Item Id`,
   })
   @Authorized()
-  @Get('/:userId/watchTime/item/:itemId/')
-  @OnUndefined(200)
+  @Get('/:userId/watchTime/course/:courseId/version/versionId/item/:itemId/type/:type')
+  @HttpCode(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
@@ -336,11 +335,9 @@ If none are provided, resets to the beginning of the course.`,
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
-    @Body() body: WatchTimeBody,
     @Ability(getProgressAbility) {ability}
   ): Promise<WatchTimeResponse> {
-    const { userId, itemId } = params;
-    const { courseId, versionId, type } = body;
+    const { userId, courseId, versionId, itemId, type } = params;
 
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
