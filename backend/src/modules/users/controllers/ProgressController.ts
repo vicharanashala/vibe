@@ -15,6 +15,7 @@ import {
   WatchTimeParams,
   WatchTimeBody,
   CompletedProgressResponse,
+  WatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import { ProgressService } from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -36,9 +37,10 @@ import {
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { ProgressActions, getProgressAbility } from '../abilities/progressAbilities.js';
-import { WatchTime } from '../classes/transformers/WatchTime.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuizService } from '#root/modules/quizzes/services/index.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -49,6 +51,9 @@ class ProgressController {
   constructor(
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+
+    @inject(QUIZZES_TYPES.QuizService)
+    private readonly quizService: QuizService,
   ) { }
 
   @OpenAPI({
@@ -332,16 +337,33 @@ If none are provided, resets to the beginning of the course.`,
   async getWatchTime(
     @Params() params: WatchTimeParams,
     @Body() body: WatchTimeBody,
-  ): Promise<WatchTime[]> {
+    @Ability(getProgressAbility) {ability}
+  ): Promise<WatchTimeResponse> {
     const { userId, itemId } = params;
+    const { courseId, versionId, type } = body;
+
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission to view this progress');
+    }
 
     const watchTime = await this.progressService.getWatchTime(
       userId,
       itemId,
-      body.courseId,
-      body.versionId,
+      courseId,
+      versionId,
     )
-    return watchTime;
+
+    if (type === 'QUIZ'){
+      const quizMetrics = await this.quizService.getUserMetricsForQuiz(userId, itemId);
+      if (quizMetrics) {
+        return {watchTime, quizMetrics}
+      }
+    }
+
+    return {watchTime};
   }
 
   @OpenAPI({

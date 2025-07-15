@@ -1,4 +1,4 @@
-import {ID, IProgress} from '#root/shared/interfaces/models.js';
+import {ID, IProgress, ItemType} from '#root/shared/interfaces/models.js';
 import {Expose} from 'class-transformer';
 import {
   IsNotEmpty,
@@ -8,8 +8,11 @@ import {
   ValidateIf,
   IsBoolean,
   IsNumber,
+  IsEnum,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
+import { WatchTime } from '../transformers/WatchTime.js';
+import { UserQuizMetrics } from '#root/modules/quizzes/classes/index.js';
 
 export class GetUserProgressParams {
   @JSONSchema({
@@ -546,6 +549,33 @@ export class WatchTimeBody {
   @IsString()
   @IsMongoId()
   versionId: string;
+
+  @JSONSchema({
+    description: 'Type of the item (e.g., video, quiz)',
+    example: 'VIDEO',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsEnum(ItemType)
+  type: ItemType;
+}
+
+export class WatchTimeResponse {
+  @JSONSchema({
+    description: 'Array of watch time records',
+    type: 'array'
+  })
+  @IsNotEmpty()
+  watchTime: WatchTime[];
+
+  @JSONSchema({
+    description: 'Quiz metrics if applicable',
+    type: 'object',
+    nullable: true,
+  })
+  @IsOptional()
+  quizMetrics?: UserQuizMetrics;
 }
 
 export const PROGRESS_VALIDATORS = [
@@ -564,4 +594,5 @@ export const PROGRESS_VALIDATORS = [
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
   WatchTimeBody,
+  WatchTimeResponse
 ]
