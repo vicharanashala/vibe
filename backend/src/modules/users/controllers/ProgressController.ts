@@ -343,5 +343,19 @@ If none are provided, resets to the beginning of the course.`,
     )
     return watchTime;
   }
+
+  @OpenAPI({
+    summary: 'Get Total Watch Time of User',
+    description: `Gets the Total Watch Time of the User`,
+  })
+  @Authorized()
+  @Get('/watchtime/total')
+  @HttpCode(200)
+  async getTotalWatchtimeOfUser(@Ability(getProgressAbility) {user}): Promise<number> {
+    const userId = user._id.toString();
+    
+    const totalWatchTime = await this.progressService.getTotalWatchtimeOfUser(userId);
+    return totalWatchTime;
+  }
 }
 export { ProgressController };
