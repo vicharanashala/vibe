@@ -39,7 +39,7 @@ export class GenAIService extends BaseService {
     });
   }
 
-  async approveStartTask(jobId: string, userId: string, usePrevious?: number, parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters>): Promise<any> {
+  async approveTaskToStart(jobId: string, userId: string, usePrevious?: number, parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters>): Promise<any> {
     return this._withTransaction(async session => {
       const job = await this.genAIRepository.getById(jobId, session);
       if (!job) {
@@ -75,15 +75,16 @@ export class GenAIService extends BaseService {
       if (!job) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      if (job.jobStatus.audioExtraction === TaskStatus.WAITING) {
-        job.jobStatus.audioExtraction = TaskStatus.COMPLETED;
-      } else if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING) {
-        job.jobStatus.transcriptGeneration = TaskStatus.COMPLETED;
-      }
-      else if (job.jobStatus.segmentation === TaskStatus.WAITING) {
-        job.jobStatus.segmentation = TaskStatus.COMPLETED;
-      } else if (job.jobStatus.questionGeneration === TaskStatus.WAITING) {
-        job.jobStatus.questionGeneration = TaskStatus.COMPLETED;
+      if (job.jobStatus.uploadContent === TaskStatus.COMPLETED) {
+        console.log(`Job completed successfully.`);
+      } else if (job.jobStatus.questionGeneration === TaskStatus.COMPLETED) {
+        job.jobStatus.uploadContent = TaskStatus.WAITING;
+      } else if (job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+        job.jobStatus.questionGeneration = TaskStatus.WAITING;
+      } else if (job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED) {
+        job.jobStatus.segmentation = TaskStatus.WAITING;
+      } else if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED) {
+        job.jobStatus.questionGeneration = TaskStatus.WAITING;
       } else {
         throw new NotFoundError(`No active tasks found for job ID ${jobId}`);
       }

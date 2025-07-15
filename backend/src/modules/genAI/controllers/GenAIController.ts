@@ -106,7 +106,7 @@ export class GenAIController {
   async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {user}) {
     const { id } = params;
     const userId = user._id.toString();
-    await this.genAIService.approveStartTask(id, userId, body.usePrevious, body.parameters);
+    await this.genAIService.approveTaskToStart(id, userId, body.usePrevious, body.parameters);
   }
 
   @OpenAPI({
