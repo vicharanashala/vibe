@@ -323,7 +323,7 @@ If none are provided, resets to the beginning of the course.`,
     description: `Gets the User Watch Time for the given Item Id`,
   })
   @Authorized()
-  @Get('/:userId/watchTime/course/:courseId/version/versionId/item/:itemId/type/:type')
+  @Get('/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type')
   @HttpCode(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
