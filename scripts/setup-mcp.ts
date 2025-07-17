@@ -50,7 +50,7 @@ async function setupMcp() {
     await fs.writeFile(path.join('.vscode', 'mcp.json'), mcpJsonContent);
     
     console.log('\nMCP setup completed successfully!');
-    console.log('Additional steps:\n1. If the agent shows errors in loading tools, Open the .vscode/mcp.json file and click restart. \n2. Make sure that the setting `chat.mcp.enabled` is checked in vscode settings. To check, go to File > Preferences > Settings and search for the above setting. ');
+    console.log('Additional steps:\n1. If the agent show errors in loading tools, Open the .vscode/mcp.json file and click restart. \n2. Make sure that the setting `chat.mcp.enabled` is checked in vscode settings. To check, go to File > Preferences > Settings and search for the above setting. ');
   } catch (error) {
     console.error('Error during MCP setup:', error);
     process.exit(1);

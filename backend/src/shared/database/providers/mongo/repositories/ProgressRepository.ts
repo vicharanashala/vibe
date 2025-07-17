@@ -1,22 +1,20 @@
-import 'reflect-metadata';
-import {Collection, ObjectId} from 'mongodb';
-import {Inject, Service} from 'typedi';
-import {IEnrollment, IProgress, IWatchTime} from 'shared/interfaces/Models';
-import {CreateError, ReadError, UpdateError} from 'shared/errors/errors';
-import {MongoDatabase} from '../MongoDatabase';
-import {NotFoundError} from 'routing-controllers';
+import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ObjectId, ClientSession } from 'mongodb';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 type CurrentProgress = Pick<
   IProgress,
   'currentModule' | 'currentSection' | 'currentItem' | 'completed'
 >;
 
-@Service()
+@injectable()
 class ProgressRepository {
-  private progressCollection: Collection<IProgress>;
-  private watchTimeCollection: Collection<IWatchTime>;
+  private progressCollection!: Collection<IProgress>;
+  private watchTimeCollection!: Collection<IWatchTime>;
 
-  constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.progressCollection =
@@ -25,216 +23,229 @@ class ProgressRepository {
       await this.db.getCollection<IWatchTime>('watchTime');
   }
 
-  /**
-   * Find a progress record by useerId, courseId, and courseVersionId
-   * @param userId - The ID of the user
-   * @param courseId - The ID of the course
-   * @param courseVersionId - The ID of the course version
-   * @returns The progress record if found, or null if not found
-   */
-  async findProgress(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-  ): Promise<IProgress | null> {
+  async getCompletedItems(userId: string, courseId: string, courseVersionId: string, session?: ClientSession): Promise<String[]> {
     await this.init();
-    return await this.progressCollection.findOne({
+    const userProgress = await this.watchTimeCollection.find({
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-    });
+    }, {session}).project({ itemId: 1, _id: 0 }).toArray();
+    return userProgress.map(item => item.itemId.toString()) as String[];
   }
 
-  /**
-   * Find a progress record by ID
-   * @param id - The ID of the progress record
-   * @returns The progress record if found, or null if not found
-   */
-  async findById(id: string): Promise<IProgress | null> {
+  async deleteWatchTimeByItemId(itemId: string, session?: ClientSession): Promise<void> {
     await this.init();
-    return await this.progressCollection.findOne({_id: new ObjectId(id)});
+    const result = await this.watchTimeCollection.deleteMany(
+      { itemId: new ObjectId(itemId) },
+      { session },
+    );
   }
 
-  /**
-   * Update an existing progress record
-   */
-  async updateProgress(
-    userId: string,
+  async deleteWatchTimeByCourseId(courseId: string, session?: ClientSession): Promise<void> {
+    await this.init();
+    const result = await this.watchTimeCollection.deleteMany(
+      { courseId: new ObjectId(courseId) },
+      { session },
+    );
+    if (result.deletedCount === 0) {
+      throw new Error(`No watch time records found for course ID: ${courseId}`);
+    }
+  }
+
+  async deleteWatchTimeByVersionId(courseVersionId: string, session?: ClientSession): Promise<void> {
+    await this.init();
+    const result = await this.watchTimeCollection.deleteMany(
+      { courseVersionId: new ObjectId(courseVersionId) },
+      { session },
+    );
+    if (result.deletedCount === 0) {
+      throw new Error(`No watch time records found for version ID: ${courseVersionId}`);
+    }
+  }
+
+  async findProgress(
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
-    progress: Partial<CurrentProgress>,
+    session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
-    try {
-      const result = await this.progressCollection.findOneAndUpdate(
-        {
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-        },
-        {$set: progress},
-        {returnDocument: 'after'},
-      );
-      if (!result._id) {
-        console.log('Progress not found while updateing');
-        throw new NotFoundError('Progress not found');
-      }
-
-      return result;
-    } catch (error) {
-      throw new UpdateError(
-        `Failed to update progress tracking: ${error.message}`,
-      );
-    }
-  }
-
-  /**
-   * Create a new progress tracking record
-   */
-  async createProgress(progress: IProgress): Promise<IProgress> {
-    await this.init();
-    try {
-      const result = await this.progressCollection.insertOne(progress);
-      if (!result.acknowledged) {
-        throw new CreateError('Failed to create progress record');
-      }
-
-      const newProgress = await this.progressCollection.findOne({
-        _id: result.insertedId,
-      });
-
-      if (!newProgress) {
-        throw new NotFoundError('Newly created progress not found');
-      }
-
-      return newProgress;
-    } catch (error) {
-      throw new CreateError(
-        `Failed to create progress tracking: ${error.message}`,
-      );
-    }
-  }
-
-  /**
-   * Start watching an item
-   * @param userId - The ID of the user
-   * @param courseId - The ID of the course
-   * @param courseVersionId - The ID of the course version
-   * @param itemId - The ID of the item
-   */
-  async startItemTracking(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    itemId: string,
-  ): Promise<string> {
-    await this.init();
-    try {
-      const watchTime: IWatchTime = {
+    return await this.progressCollection.findOne(
+      {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
-        startTime: new Date(),
-        endTime: new Date(),
-      };
-      const result = await this.watchTimeCollection.insertOne(watchTime);
-
-      if (!result.acknowledged) {
-        throw new CreateError('Failed to start watching item');
-      }
-
-      return result.insertedId.toString();
-    } catch (error) {
-      throw new CreateError(`Failed to start watching item: ${error.message}`);
-    }
+      },
+      {
+        session,
+      },
+    );
   }
-  async stopItemTracking(
-    userId: string,
+
+  async findById(
+    id: string,
+    session: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    return await this.progressCollection.findOne(
+      { _id: new ObjectId(id) },
+      {
+        session,
+      },
+    );
+  }
+
+  async updateProgress(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    progress: Partial<CurrentProgress>,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const result = await this.progressCollection.findOneAndUpdate(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      { $set: progress },
+      { returnDocument: 'after', session },
+    );
+    return result;
+  }
+
+  async createProgress(
+    progress: IProgress,
+    session: ClientSession,
+  ): Promise<IProgress> {
+    await this.init();
+    const result = await this.progressCollection.insertOne(progress, { session });
+    const newProgress = await this.progressCollection.findOne(
+      {
+        _id: result.insertedId,
+      },
+      {
+        session,
+      },
+    );
+    return newProgress;
+  }
+
+  async startItemTracking(
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
     itemId: string,
-    watchTimeId: string,
-  ): Promise<IWatchTime | null> {
+    session?: ClientSession,
+  ): Promise<string | null> {
     await this.init();
-
-    try {
-      const result = await this.watchTimeCollection.findOneAndUpdate(
-        {
-          _id: new ObjectId(watchTimeId),
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          itemId: new ObjectId(itemId),
-        },
-        {$set: {endTime: new Date()}},
-        {returnDocument: 'after'},
-      );
-
-      if (!result) {
-        throw new NotFoundError('Watch time not found');
-      }
-
-      return result;
-    } catch (error) {
-      throw new UpdateError(`Failed to stop watching item: ${error.message}`);
-    }
-  }
-  async getWatchTime(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    itemId: string,
-  ): Promise<IWatchTime | null> {
-    await this.init();
-    const result = await this.watchTimeCollection.findOne({
+    const watchTime: IWatchTime = {
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       itemId: new ObjectId(itemId),
+      startTime: new Date(),
+    };
+    const result = await this.watchTimeCollection.insertOne(watchTime, {
+      session,
     });
-
+    if (result.acknowledged === false) {
+      return null;
+    }
+    return result.insertedId.toString();
+  }
+  async stopItemTracking(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    watchTimeId: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    const result = await this.watchTimeCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(watchTimeId),
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        itemId: new ObjectId(itemId),
+      },
+      { $set: { endTime: new Date() } },
+      { returnDocument: 'after', session },
+    );
     return result;
   }
 
-  async getWatchTimeById(id: string): Promise<IWatchTime | null> {
+  async getWatchTime(
+    userId: string | ObjectId,
+    itemId: string,
+    courseId?: string,
+    courseVersionId?: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime[] | null> {
     await this.init();
-    const result = await this.watchTimeCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    
+    // Build query dynamically and add logging
+    const query: any = {
+      userId: new ObjectId(userId),
+      itemId: new ObjectId(itemId),
+    };
+    
+    // Add optional courseId and courseVersionId if provided
+    if (courseId) {
+      query.courseId = new ObjectId(courseId);
+    }
+    if (courseVersionId) {
+      query.courseVersionId = new ObjectId(courseVersionId);
+    }
+    const result = await this.watchTimeCollection.find(query, { session }).toArray();
+    return result.map((item) => ({
+      ...item,
+      _id: item._id.toString(),
+      userId: item.userId.toString(),
+      courseId: item.courseId.toString(),
+      courseVersionId: item.courseVersionId.toString(),
+      itemId: item.itemId.toString(),
+    }));
+  }
 
+  async getWatchTimeById(
+    id: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    const result = await this.watchTimeCollection.findOne(
+      {
+        _id: new ObjectId(id),
+      },
+      {
+        session,
+      },
+    );
     return result;
   }
 
   async findAndReplaceProgress(
-    userId: string,
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
     progress: Partial<IProgress>,
+    session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
-    try {
-      const result = await this.progressCollection.findOneAndUpdate(
-        {
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-        },
-        {$set: progress},
-        {returnDocument: 'after'},
-      );
-
-      if (!result) {
-        throw new NotFoundError('Progress not found');
-      }
-
-      return result;
-    } catch (error) {
-      throw new UpdateError(
-        `Failed to update progress tracking: ${error.message}`,
-      );
-    }
+    const result = await this.progressCollection.findOneAndUpdate(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      { $set: progress },
+      { returnDocument: 'after', session },
+    );
+    return result;
   }
 }
 
-export {ProgressRepository};
+export { ProgressRepository };

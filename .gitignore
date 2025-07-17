@@ -51,6 +51,7 @@ node_modules/
 
 docs/static/openapi
 backend/openapi
+frontend/openapi.json
 
 # ignore sentry files
 .sentryclirc
@@ -60,3 +61,11 @@ backend/openapi
 .venv
 
 mcp
+frontend/public/models
+dist/
+
+config.json
+google_credentials.json
+backend/tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+frontend/.firebase

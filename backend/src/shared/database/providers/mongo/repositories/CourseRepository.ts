@@ -1,43 +1,36 @@
-import 'reflect-metadata';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
-import {Course} from 'modules/courses/classes/transformers/Course';
-import {CourseVersion} from 'modules/courses/classes/transformers/CourseVersion';
-import {Item, ItemsGroup} from 'modules/courses/classes/transformers/Item';
+import {injectable, inject} from 'inversify';
 import {
-  ClientSession,
   Collection,
-  DeleteResult,
   MongoClient,
+  ClientSession,
   ObjectId,
+  DeleteResult,
   UpdateResult,
 } from 'mongodb';
-import {ICourseRepository} from 'shared/database/interfaces/ICourseRepository';
-import {
-  CreateError,
-  DeleteError,
-  ReadError,
-  UpdateError,
-} from 'shared/errors/errors';
-import {
-  ICourse,
-  IModule,
-  IEnrollment,
-  IProgress,
-  ICourseVersion,
-  ISection,
-} from 'shared/interfaces/Models';
-import {Service, Inject} from 'typedi';
-import {MongoDatabase} from '../MongoDatabase';
-import {NotFoundError} from 'routing-controllers';
-import {Module, Section} from 'modules';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {Course} from '#courses/classes/transformers/Course.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {ProgressRepository} from './ProgressRepository.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 
-@Service()
+@injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
   private itemsGroupCollection: Collection<ItemsGroup>;
 
-  constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
+  constructor(
+    @inject(GLOBAL_TYPES.Database)
+    private db: MongoDatabase,
+    @inject(USERS_TYPES.ProgressRepo)
+    private progressRepo: ProgressRepository,
+  ) {}
 
   private async init() {
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
@@ -73,11 +66,14 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
   }
-  async read(id: string): Promise<ICourse | null> {
+  async read(id: string, session?: ClientSession): Promise<ICourse | null> {
     await this.init();
-    const course = await this.courseCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const course = await this.courseCollection.findOne(
+      {
+        _id: new ObjectId(id),
+      },
+      {session},
+    );
     if (course) {
       return Object.assign(new Course(), course) as Course;
     } else {
@@ -105,10 +101,63 @@ export class CourseRepository implements ICourseRepository {
       return null;
     }
   }
-  async delete(id: string): Promise<boolean> {
-    console.log('delete course', id);
-    throw new Error('Method not implemented.');
+
+  async delete(id: string, session?: ClientSession): Promise<boolean> {
+    await this.init();
+    // 1. Find the Course document to retrieve its list of version IDs
+    const courseDoc = await this.courseCollection.findOne(
+      {_id: new ObjectId(id)},
+      {session},
+    );
+    if (!courseDoc) {
+      throw new NotFoundError('Course not found');
+    }
+
+    // 2. If the course has versions, delete each one:
+    //    - Read raw version document from courseVersionCollection
+    //    - Extract all itemsGroupId values from its modules/sections
+    //    - Call deleteVersion(...) to delete the version and its items
+    const versionIds: string[] = Array.isArray((courseDoc as any).versions)
+      ? (courseDoc as any).versions.map((v: any) => v.toString())
+      : [];
+
+    for (const versionId of versionIds) {
+      // 2a. Fetch the raw CourseVersion document
+      const rawVersion = await this.courseVersionCollection.findOne(
+        {_id: new ObjectId(versionId)},
+        {session},
+      );
+      if (!rawVersion) {
+        throw new NotFoundError(`CourseVersion with ID ${versionId} not found`);
+      }
+
+      // 2b. Walk through modules → sections → collect all itemsGroupId
+      const itemGroupsIds: ObjectId[] = [];
+      if (Array.isArray((rawVersion as any).modules)) {
+        for (const mod of (rawVersion as any).modules as any[]) {
+          if (Array.isArray(mod.sections)) {
+            for (const sec of mod.sections as any[]) {
+              itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+            }
+          }
+        }
+      }
+
+      // 2c. Invoke the existing deleteVersion(...) method
+      await this.deleteVersion(id, versionId, itemGroupsIds, session);
+    }
+
+    // 3. Finally, delete the Course document itself
+    const deleteCourseResult = await this.courseCollection.deleteOne(
+      {_id: new ObjectId(id)},
+      {session},
+    );
+    if (deleteCourseResult.deletedCount !== 1) {
+      throw new InternalServerError('Failed to delete course');
+    }
+    return true;
   }
+
   async createVersion(
     courseVersion: CourseVersion,
     session?: ClientSession,
@@ -131,10 +180,10 @@ export class CourseRepository implements ICourseRepository {
           Object.assign(new CourseVersion(), newCourseVersion),
         ) as CourseVersion;
       } else {
-        throw new CreateError('Failed to create course version');
+        throw new InternalServerError('Failed to create course version');
       }
     } catch (error) {
-      throw new CreateError(
+      throw new InternalServerError(
         'Failed to create course version.\n More Details: ' + error,
       );
     }
@@ -163,7 +212,7 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      throw new ReadError(
+      throw new InternalServerError(
         'Failed to read course version.\n More Details: ' + error,
       );
     }
@@ -192,10 +241,10 @@ export class CourseRepository implements ICourseRepository {
           Object.assign(new CourseVersion(), updatedCourseVersion),
         ) as CourseVersion;
       } else {
-        throw new UpdateError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
     } catch (error) {
-      throw new UpdateError(
+      throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
       );
     }
@@ -217,7 +266,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (versionDeleteResult.deletedCount !== 1) {
-        throw new DeleteError('Failed to delete course version');
+        throw new InternalServerError('Failed to delete course version');
       }
 
       // 2. Remove courseVersionId from the course
@@ -228,9 +277,12 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update course');
+        throw new InternalServerError('Failed to update course');
       }
 
+      // delete watch time 
+      await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
+      
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
         {
@@ -240,7 +292,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (itemDeletionResult.deletedCount === 0) {
-        throw new DeleteError('Failed to delete item groups');
+        throw new InternalServerError('Failed to delete item groups');
       }
 
       // 4. Return the deleted course version
@@ -249,7 +301,7 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete course version.\n More Details: ' + error,
       );
     }
@@ -282,7 +334,19 @@ export class CourseRepository implements ICourseRepository {
           section => section.sectionId === sectionId,
         );
         const itemGroupId = section?.itemsGroupId;
-
+        const items = await this.itemsGroupCollection.findOne(
+          {_id: new ObjectId(itemGroupId)},
+          {session},
+        );
+        if (items) {
+          // Delete watch time by item id
+          items.items.forEach(async item => {
+            await this.progressRepo.deleteWatchTimeByItemId(
+              item._id.toString(),
+              session,
+            );
+          });
+        }
         try {
           const itemDeletionResult = await this.itemsGroupCollection.deleteOne(
             {
@@ -292,10 +356,10 @@ export class CourseRepository implements ICourseRepository {
           );
 
           if (!itemDeletionResult.acknowledged) {
-            throw new DeleteError('Failed to delete item groups');
+            throw new InternalServerError('Failed to delete item groups');
           }
         } catch (error) {
-          throw new DeleteError('Item deletion failed');
+          throw new InternalServerError('Item deletion failed');
         }
       } else {
         throw new NotFoundError('Section not found');
@@ -321,7 +385,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (updateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update Section');
+        throw new InternalServerError('Failed to update Section');
       }
 
       return updateResult;
@@ -329,10 +393,10 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      if (error instanceof DeleteError) {
+      if (error instanceof InternalServerError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete Section.\n More Details: ' + error,
       );
     }
@@ -341,6 +405,7 @@ export class CourseRepository implements ICourseRepository {
   async deleteModule(
     versionId: string,
     moduleId: string,
+    session?: ClientSession,
   ): Promise<boolean | null> {
     await this.init();
     try {
@@ -349,9 +414,12 @@ export class CourseRepository implements ICourseRepository {
       const moduleObjectId = new ObjectId(moduleId);
 
       // Find the course version
-      const courseVersion = await this.courseVersionCollection.findOne({
-        _id: versionObjectId,
-      });
+      const courseVersion = await this.courseVersionCollection.findOne(
+        {
+          _id: versionObjectId,
+        },
+        {session},
+      );
 
       if (!courseVersion) {
         throw new NotFoundError('Course Version not found');
@@ -372,18 +440,33 @@ export class CourseRepository implements ICourseRepository {
           section => new ObjectId(section.itemsGroupId),
         );
 
-        try {
-          const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
-            {
-              _id: {$in: itemGroupsIds},
-            },
+        // Get item ids from item groups before deletion and delete watch time by item id
+        for (const itemGroupId of itemGroupsIds) {
+          const items = await this.itemsGroupCollection.findOne(
+            {_id: itemGroupId},
+            {session},
           );
 
-          if (itemDeletionResult.deletedCount === 0) {
-            throw new DeleteError('Failed to delete item groups');
+          if (items) {
+            // Delete watch time by item id
+            items.items.forEach(async item => {
+              await this.progressRepo.deleteWatchTimeByItemId(
+                item._id.toString(),
+                session,
+              );
+            });
           }
-        } catch (error) {
-          throw new DeleteError('Item deletion failed');
+        }
+
+        const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
+          {
+            _id: {$in: itemGroupsIds},
+          },
+          {session},
+        );
+
+        if (itemDeletionResult.deletedCount === 0) {
+          throw new InternalServerError('Failed to delete item groups');
         }
       }
 
@@ -398,7 +481,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       if (updateResult.modifiedCount !== 1) {
-        throw new DeleteError('Failed to update course version');
+        throw new InternalServerError('Failed to update course version');
       }
 
       return true;
@@ -406,12 +489,30 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      if (error instanceof DeleteError) {
+      if (error instanceof InternalServerError) {
         throw error;
       }
-      throw new DeleteError(
+      throw new InternalServerError(
         'Failed to delete module.\n More Details: ' + error,
       );
     }
+  }
+
+  async findVersionByItemGroupId(
+    itemGroupId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null> {
+    await this.init();
+      const courseVersion = await this.courseVersionCollection.findOne({
+        'modules.sections.itemGroupId': itemGroupId,
+      }, { session });
+
+      if (!courseVersion) {
+        return null;
+      }
+
+      return instanceToPlain(
+        Object.assign(new CourseVersion(), courseVersion),
+      ) as CourseVersion;
   }
 }

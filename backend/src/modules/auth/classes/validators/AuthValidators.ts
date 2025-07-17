@@ -1,10 +1,11 @@
 import {
-  IsAlpha,
   IsEmail,
   IsNotEmpty,
-  Matches,
   MinLength,
+  IsAlpha,
   IsString,
+  Matches,
+  IsOptional,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -43,7 +44,7 @@ class SignUpBody {
     example: 'John',
     type: 'string',
   })
-  @IsAlpha()
+  @Matches(/^[A-Za-z ]+$/)
   firstName: string;
 
   @JSONSchema({
@@ -52,14 +53,46 @@ class SignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @IsAlpha()
-  lastName: string;
+  @Matches(/^[A-Za-z ]+$/)
+  @IsOptional()
+  lastName?: string;
+}
+
+class GoogleSignUpBody {
+  @JSONSchema({
+    title: 'Email Address',
+    description: 'Email address of the user, used as login identifier',
+    example: 'user@example.com',
+    type: 'string',
+    format: 'email',
+  })
+  @IsEmail()
+  email: string;
+
+  @JSONSchema({
+    title: 'First Name',
+    description: "User's first name (alphabetic characters only)",
+    example: 'John',
+    type: 'string',
+  })
+  @Matches(/^[A-Za-z ]+$/)
+  firstName: string;
+
+  @JSONSchema({
+    title: 'Last Name',
+    description: "User's last name (alphabetic characters only)",
+    example: 'Smith',
+    type: 'string',
+  })
+  @Matches(/^[A-Za-z ]+$/)
+  @IsOptional()
+  lastName?: string;
 }
 
 class VerifySignUpProviderBody {
   @JSONSchema({
-    title: 'Token',
-    description: 'Token used for signup verification',
+    title: 'Firebase Auth Token',
+    description: 'Firebase Auth Token',
     example: '43jdlsaksla;f328e9fjhsda',
     type: 'string',
   })
@@ -184,12 +217,47 @@ class AuthErrorResponse {
   message: string;
 }
 
-export {
+
+class LoginBody {
+  @JSONSchema({
+    title: 'Email Address',
+    description: 'Email address of the user'
+  })
+  @IsEmail()
+  email: string;  
+
+  @JSONSchema({
+    title: 'Password',
+    description: 'Password for account authentication',
+    example:'SecureP@ssw0rd',
+    minLength: 8,
+    writeOnly: true
+  })
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
+}
+
+export const AUTH_VALIDATORS = [
   SignUpBody,
+  GoogleSignUpBody,
   ChangePasswordBody,
   SignUpResponse,
   VerifySignUpProviderBody,
   ChangePasswordResponse,
   TokenVerificationResponse,
   AuthErrorResponse,
+  LoginBody,
+];
+
+export {
+  SignUpBody,
+  GoogleSignUpBody,
+  ChangePasswordBody,
+  SignUpResponse,
+  VerifySignUpProviderBody,
+  ChangePasswordResponse,
+  TokenVerificationResponse,
+  AuthErrorResponse,
+  LoginBody,
 };

@@ -1,9 +1,7 @@
 // tests/helpers.ts
 import request from 'supertest';
 import {faker} from '@faker-js/faker';
-import {useExpressServer} from 'routing-controllers';
 import Express from 'express';
-import {Version} from 'firebase-admin/lib/remote-config/remote-config-api';
 
 interface ItemData {
   itemIds: string[];

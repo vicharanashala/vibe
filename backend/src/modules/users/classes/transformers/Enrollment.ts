@@ -1,12 +1,16 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
 import {
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {IEnrollment} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
+} from '#root/shared/constants/transformerConstants.js';
+import {
+  EnrollmentRole,
+  EnrollmentStatus,
+  ID,
+  IEnrollment,
+} from '#root/shared/interfaces/models.js';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {Progress} from './Progress.js';
 
 @Expose()
 export class Enrollment implements IEnrollment {
@@ -31,7 +35,10 @@ export class Enrollment implements IEnrollment {
   courseVersionId: ID;
 
   @Expose()
-  status: 'active' | 'inactive';
+  role: EnrollmentRole;
+
+  @Expose()
+  status: EnrollmentStatus;
 
   @Expose()
   @Type(() => Date)
@@ -42,8 +49,56 @@ export class Enrollment implements IEnrollment {
       this.userId = new ObjectId(userId);
       this.courseId = new ObjectId(courseId);
       this.courseVersionId = new ObjectId(courseVersionId);
-      this.status = 'active';
+      this.status = 'ACTIVE';
       this.enrollmentDate = new Date();
     }
+  }
+}
+
+@Expose({toPlainOnly: true})
+export class EnrollUserResponse {
+  @Expose()
+  @Type(() => Enrollment)
+  enrollment: Enrollment;
+
+  @Expose()
+  @Type(() => Progress)
+  progress: Progress;
+
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  constructor(
+    enrollment: Enrollment,
+    progress: Progress,
+    role: EnrollmentRole,
+  ) {
+    this.enrollment = enrollment;
+    this.progress = progress;
+    this.role = role;
+  }
+}
+export class EnrolledUserResponse {
+  @Expose()
+  @Type(() => String)
+  role: EnrollmentRole;
+
+  @Expose()
+  @Type(() => String)
+  status: EnrollmentStatus;
+
+  @Expose()
+  @Type(() => Date)
+  enrollmentDate: Date;
+
+  constructor(
+    role: EnrollmentRole,
+    status: EnrollmentStatus,
+    enrollmentDate: Date,
+  ) {
+    this.role = role;
+    this.status = status;
+    this.enrollmentDate = enrollmentDate;
   }
 }

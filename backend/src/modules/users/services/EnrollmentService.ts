@@ -1,37 +1,47 @@
-import 'reflect-metadata';
-import {NotFoundError} from 'routing-controllers';
-import {Inject, Service} from 'typedi';
-import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {UserRepository} from 'shared/database/providers/mongo/repositories/UserRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {Enrollment} from '../classes/transformers/Enrollment';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {
+  EnrollmentRole,
+  ICourseVersion,
+} from '#root/shared/interfaces/models.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import {ICourseVersion} from 'shared/interfaces/Models';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
+import { ProgressService } from './ProgressService.js';
 
-@Service()
-export class EnrollmentService {
+@injectable()
+export class EnrollmentService extends BaseService {
   constructor(
-    @Inject('EnrollmentRepo')
+    @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
-    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
-    @Inject('UserRepo') private readonly userRepo: UserRepository,
-    @Inject('ItemRepo') private readonly itemRepo: ItemRepository,
-  ) {}
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+    @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
+    @inject(USERS_TYPES.ProgressService) private readonly progressService: ProgressService,
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
-  async enrollUser(userId: string, courseId: string, courseVersionId: string) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-
+  async enrollUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    role: EnrollmentRole,
+    throughInvite: boolean = false,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
       if (!user) throw new NotFoundError('User not found');
 
@@ -53,8 +63,16 @@ export class EnrollmentService {
         courseId,
         courseVersionId,
       );
-      if (existingEnrollment) {
-        throw new Error('User is already enrolled in this course version');
+
+      // If the user is already enrolled and not enrolling through an invite, throw an error
+      // This prevents duplicate enrollments unless it's through an invite
+      if (existingEnrollment && !throughInvite) {
+        throw new BadRequestError('User is already enrolled in this course version');
+      }
+      // If the user is already enrolled through an invite, we will skip the enrollment creation
+      if (existingEnrollment && throughInvite) {
+        let status: InviteStatus = 'ALREADY_ENROLLED'
+        return status;
       }
 
       const enrollment = new Enrollment(userId, courseId, courseVersionId);
@@ -62,7 +80,8 @@ export class EnrollmentService {
         userId: userId,
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        status: 'active',
+        role: role,
+        status: 'ACTIVE',
         enrollmentDate: new Date(),
       });
 
@@ -74,34 +93,52 @@ export class EnrollmentService {
         session,
       );
 
-      await session.commitTransaction();
       return {
         enrollment: createdEnrollment,
         progress: initialProgress,
+        role: role,
       };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
+  }
+  async findEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+      if (!existingEnrollment) {
+        throw new Error('User is not enrolled in this course version');
+      }
+
+      return existingEnrollment;
+    });
   }
   async unenrollUser(
     userId: string,
     courseId: string,
     courseVersionId: string,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-
+    return this._withTransaction(async (session: ClientSession) => {
       const enrollment = await this.enrollmentRepo.findEnrollment(
         userId,
         courseId,
@@ -127,18 +164,112 @@ export class EnrollmentService {
         session,
       );
 
-      await session.commitTransaction();
       return {
         enrollment: null,
         progress: null,
+        role: enrollment.role,
       };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    });
   }
+
+  async getEnrollments(userId: string, skip: number, limit: number) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.getEnrollments(
+        userId,
+        skip,
+        limit,
+      );
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
+
+  async getAllEnrollments(userId: string) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.getAllEnrollments(
+        userId,
+        session
+      );
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
+
+  async getCourseVersionEnrollments(
+    courseId: string,
+    courseVersionId: string,
+    skip: number,
+    limit: number,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+
+      const result = await this.enrollmentRepo.getCourseVersionEnrollments(
+        courseId,
+        courseVersionId,
+        skip,
+        limit,
+      );
+      
+      // Create enriched enrollments with user data using Promise.all for concurrent fetching
+      const userPromises = result.map(async (enrollment) => {
+        try {
+          const user = await this.userRepo.findById(enrollment.userId);
+          const progress = await this.progressService.getUserProgressPercentageWithoutTotal(user._id.toString(), courseId, courseVersionId);
+          return {
+            ...enrollment,
+            user: user,
+            progress: progress,
+          };
+        } catch (error) {
+          console.log(enrollment.userId, error);
+        }
+      });
+      
+      const resultWithUsers = await Promise.all(userPromises);
+      const totalItems = await this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session);
+      // find user for each enrollment
+      return resultWithUsers.map(enrollment => ({
+        role: enrollment.role,
+        status: enrollment.status,
+        enrollmentDate: enrollment.enrollmentDate,
+        user: {
+          firstName: enrollment.user.firstName,
+          lastName: enrollment.user.lastName,
+          email: enrollment.user.email,
+        },
+        progress: {
+          completedItems: enrollment.progress,
+          totalItems,
+          percentCompleted: enrollment.progress === 0 ? 0 : enrollment.progress / totalItems,
+        }
+    }));
+    });
+  }
+
+  async countEnrollments(userId: string) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.countEnrollments(userId);
+      return result;
+    });
+  }
+
   /**
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
@@ -188,56 +319,8 @@ export class EnrollmentService {
       courseVersionId: new ObjectId(courseVersionId),
       currentModule: firstModule.moduleId,
       currentSection: firstSection.sectionId,
-      currentItem: firstItem.itemId,
+      currentItem: firstItem._id,
       completed: false,
     });
-  }
-
-  async getEnrollments(userId: string, skip: number, limit: number) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-      const result = await this.enrollmentRepo.getEnrollments(
-        userId,
-        skip,
-        limit,
-      );
-      await session.commitTransaction();
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
-  }
-
-  async countEnrollments(userId: string) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-      const result = await this.enrollmentRepo.countEnrollments(userId);
-      await session.commitTransaction();
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
   }
 }

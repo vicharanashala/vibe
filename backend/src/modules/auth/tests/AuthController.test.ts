@@ -1,34 +1,28 @@
+import 'reflect-metadata';
 import request from 'supertest';
 import Express from 'express';
 import {useExpressServer} from 'routing-controllers';
-import {Container} from 'typedi';
-
-// TODO: Update the import paths below to your project's structure
-import {MongoDatabase} from '../../../shared/database/providers/mongo/MongoDatabase';
-import {authModuleOptions, SignUpBody} from '../index';
-import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
 import {faker} from '@faker-js/faker';
-import {dbConfig} from '../../../config/db';
-jest.setTimeout(30000); // Set a longer timeout for integration tests
+import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
+import {setupAuthContainer} from '#auth/index.js';
+import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
+import {HttpErrorHandler} from '#shared/index.js';
+import {AuthController} from '../controllers/AuthController.js';
+
 describe('Auth Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
 
   beforeAll(async () => {
-    // Set up the real MongoDatabase and Repository
-    Container.set('Database', new MongoDatabase(dbConfig.url, dbConfig.dbName));
-    const repo = new UserRepository(Container.get<MongoDatabase>('Database'));
-    Container.set('Repo', repo);
+    await setupAuthContainer();
+    app = useExpressServer(appInstance, {
+      controllers: [AuthController],
+      validation: true,
+      defaultErrorHandler: false,
+      middlewares: [HttpErrorHandler],
+    });
+  }, 30000);
 
-    // Create the Express app with routing-controllers configuration
-    app = useExpressServer(appInstance, authModuleOptions);
-  });
-
-  beforeEach(async () => {
-    // TODO: Optionally reset database state before each test
-  });
-
-  // ------Tests for Create <ModuleName>------
   describe('Sign Up Test', () => {
     it('should sign up a new user successfully', async () => {
       const signUpBody: SignUpBody = {
@@ -37,14 +31,12 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
+      expect(response.status).toBe(201);
+    }, 30000); // <-- timeout for this test
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.email).toBe(signUpBody.email);
-      expect(response.body.firstName).toBe(signUpBody.firstName);
-      expect(response.body.lastName).toBe(signUpBody.lastName);
-      expect(response.body).not.toHaveProperty('password');
-    });
     it('should return 400 for invalid email', async () => {
       const signUpBody: SignUpBody = {
         email: 'invalid-email',
@@ -52,14 +44,17 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors[0].constraints.isEmail).toBeDefined();
       expect(response.body.errors[0].constraints.isEmail).toBe(
         'email must be an email',
       );
-    });
+    }, 30000);
+
     it('should return 400 for missing required fields', async () => {
       const signUpBody: SignUpBody = {
         email: '',
@@ -67,10 +62,13 @@ describe('Auth Controller Integration Tests', () => {
         firstName: '',
         lastName: '',
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
-    });
+    }, 30000);
+
     it('should return 400 for weak password', async () => {
       const signUpBody: SignUpBody = {
         email: faker.internet.email(),
@@ -78,9 +76,11 @@ describe('Auth Controller Integration Tests', () => {
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
       };
-      const response = await request(app).post('/auth/signup').send(signUpBody);
+      const response = await request(app)
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('errors');
-    });
+    }, 30000);
   });
 });

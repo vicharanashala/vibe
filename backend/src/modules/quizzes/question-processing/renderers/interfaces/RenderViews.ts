@@ -1,34 +1,31 @@
-import {BaseQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
-import {ParameterMap} from '../../tag-parser';
+import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ILotItem} from '#root/shared/interfaces/quiz.js';
+
+import {ParameterMap} from '../../tag-parser/tags/Tag.js';
+
+export type ILotItemRenderView = Omit<ILotItem, 'explaination'>;
 
 interface IQuestionRenderView extends BaseQuestion {
   parameterMap?: ParameterMap;
 }
 
 interface SOLQuestionRenderView extends IQuestionRenderView {
-  lotItems: ILotItem[];
+  lotItems: ILotItemRenderView[];
 }
 
 interface SMLQuestionRenderView extends IQuestionRenderView {
-  lotItems: ILotItem[];
+  lotItems: ILotItemRenderView[];
 }
 
 interface OTLQuestionRenderView extends IQuestionRenderView {
-  lotItems: ILotItem[];
+  lotItems: ILotItemRenderView[];
 }
 
 interface NATQuestionRenderView extends IQuestionRenderView {
   decimalPrecision: number;
-  upperLimit: number;
-  lowerLimit: number;
-  value?: number;
-  expression?: string;
 }
 
-interface DESQuestionRenderView extends IQuestionRenderView {
-  solutionText: string;
-}
+type DESQuestionRenderView = IQuestionRenderView;
 
 export {
   IQuestionRenderView,

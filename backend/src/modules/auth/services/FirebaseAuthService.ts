@@ -1,26 +1,20 @@
-/**
- * @file FirebaseAuthService.ts
- * @description Firebase authentication service implementation.
- *
- * @category Auth/Services
- * @categoryDescription
- * Service implementing authentication logic using Firebase.
- * Handles user creation, token verification, and password updates.
- */
-
-import 'reflect-metadata';
-import {Auth} from 'firebase-admin/lib/auth/auth';
-
+import {SignUpBody, User, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
+import {IAuthService} from '#auth/interfaces/IAuthService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {injectable, inject} from 'inversify';
+import {InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
-import {UserRecord} from 'firebase-admin/lib/auth/user-record';
-import {applicationDefault} from 'firebase-admin/app';
-import {Inject, Service} from 'typedi';
-import {IUser} from 'shared/interfaces/Models';
-import {IUserRepository} from 'shared/database';
-import {IAuthService} from '../interfaces/IAuthService';
-import {ChangePasswordBody, SignUpBody} from '../classes/validators';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {CreateError} from 'shared/errors/errors';
+import {IUser} from '#root/shared/interfaces/models.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import { InviteRepository } from '#root/shared/index.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { InviteResult, MailService } from '#root/modules/notifications/index.js';
+import { appConfig } from '#root/config/app.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
+import { InviteService } from '#root/modules/notifications/services/InviteService.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -39,179 +33,222 @@ export class ChangePasswordError extends Error {
   }
 }
 
-/**
- * Service that implements authentication functionality using Firebase Auth.
- * Handles user registration, token verification, and password management.
- *
- * @category Auth/Services
- * @implements {IAuthService}
- */
-@Service()
-export class FirebaseAuthService implements IAuthService {
-  /**
-   * Firebase Auth instance used for authentication operations.
-   */
-  private auth: Auth;
-  private readonly transactionOptions = {
-    readPreference: ReadPreference.primary,
-    writeConcern: new WriteConcern('majority'),
-    readConcern: new ReadConcern('majority'),
-  };
-
-  /**
-   * Creates a new Firebase authentication service instance.
-   * Initializes Firebase Admin SDK with application default credentials.
-   *
-   * @param userRepository - Repository for storing and retrieving user data
-   */
+@injectable()
+export class FirebaseAuthService extends BaseService implements IAuthService {
+  private auth: any;
   constructor(
-    @Inject('UserRepository') private userRepository: IUserRepository,
+    @inject(GLOBAL_TYPES.UserRepo)
+    private userRepository: IUserRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteService)
+    private inviteService: InviteService,
+    @inject(GLOBAL_TYPES.InviteRepo)
+    private inviteRepository: InviteRepository,
+    @inject(USERS_TYPES.EnrollmentService)
+    private enrollmentService: EnrollmentService,
+    @inject(GLOBAL_TYPES.MailService)
+    private mailService: MailService,
+    @inject(GLOBAL_TYPES.Database)
+    private database: MongoDatabase,
   ) {
-    admin.initializeApp({
-      credential: applicationDefault(),
-    });
+    super(database);
+    if (!admin.apps.length) {
+      if (appConfig.isDevelopment) {
+        admin.initializeApp({
+          credential: admin.credential.cert(
+            {
+              clientEmail: appConfig.firebase.clientEmail,
+              privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+              projectId: appConfig.firebase.projectId,
+            }
+          ),
+        });
+      } else {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+      }
+    }
     this.auth = admin.auth();
   }
+  async getCurrentUserFromToken(token: string): Promise<IUser> {
+    // Verify the token and decode it to get the Firebase UID
+    const decodedToken = await this.auth.verifyIdToken(token);
+    const firebaseUID = decodedToken.uid;
 
-  /**
-   * Verifies a Firebase authentication token and returns the associated user.
-   *
-   * @param token - The Firebase ID token to verify
-   * @returns A promise that resolves to the user data associated with the token
-   * @throws Error - If the token is invalid or verification fails
-   */
-  async verifyToken(token: string): Promise<IUser> {
-    try {
-      // Decode and verify the Firebase token
-      const decodedToken = await this.auth.verifyIdToken(token);
-      // Retrieve the full user record from Firebase
-      const userRecord = await this.auth.getUser(decodedToken.uid);
-
-      // Map Firebase user data to our application user model
-      const user: IUser = {
-        firebaseUID: userRecord.uid,
-        email: userRecord.email || '',
-        firstName: userRecord.displayName?.split(' ')[0] || '',
-        lastName: userRecord.displayName?.split(' ')[1] || '',
-        roles: ['admin', 'student'], // Assuming roles are not stored in Firebase and defaulting to 'student'
-      };
-
-      return user;
-    } catch (error) {
-      throw new Error('Invalid token');
+    // Retrieve the user from our database using the Firebase UID
+    const user = await this.userRepository.findByFirebaseUID(firebaseUID);
+    if (!user) {
+      // get user data from Firebase
+      try {
+        const firebaseUser = await this.auth.getUser(firebaseUID);
+        if (!firebaseUser) {
+          throw new InternalServerError('Firebase user not found');
+        }
+        console.log('Firebase user retrieved:', firebaseUser);
+        // Map Firebase user data to our application user model
+        const userData: GoogleSignUpBody = {
+          email: firebaseUser.email,
+          firstName: firebaseUser.displayName?.split(' ')[0] || '',
+          lastName: firebaseUser.displayName?.split(' ')[1] || '',
+        };
+        const createdUser = await this.googleSignup(userData, token);
+        if (!createdUser) {
+          throw new InternalServerError('Failed to create the user');
+        }
+      } catch (error) {
+        throw new InternalServerError(`Failed to retrieve user from Firebase: ${error.message}`);
+      }
     }
+    user._id = user._id.toString();
+    return user;
+  }
+  async getUserIdFromReq(req: any): Promise<string> {
+    // Extract the token from the request headers
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      throw new InternalServerError('No token provided');
+    }
+    await this.verifyToken(token);
+    // Decode the token to get the Firebase UID
+    const decodedToken = await this.auth.verifyIdToken(token);
+    const firebaseUID = decodedToken.uid;
+    const user = await this.userRepository.findByFirebaseUID(firebaseUID);
+    if (!user) {
+      throw new InternalServerError('User not found');
+    }
+    return user._id.toString();
+  }
+  async verifyToken(token: string): Promise<boolean> {
+    // Decode and verify the Firebase token
+    const decodedToken = await this.auth.verifyIdToken(token);
+    // // Retrieve the full user record from Firebase
+    // const userRecord = await this.auth.getUser(decodedToken.uid);
+
+    // Map Firebase user data to our application user model
+    if (!decodedToken) {
+      return false;
+    }
+    return true;
   }
 
-  /**
-   * Registers a new user with Firebase Auth and stores user data in the repository.
-   *
-   * @param body - The validated signup information including email, password, and name
-   * @returns A promise resolving to the newly created user object
-   * @throws Error - If user creation fails in either Firebase or the repository
-   */
-  async signup(body: SignUpBody): Promise<IUser> {
-    let userRecord: UserRecord;
+  async signup(body: SignUpBody): Promise<any> {
+    let userRecord: any;
     try {
       // Create the user in Firebase Auth
       userRecord = await this.auth.createUser({
         email: body.email,
         emailVerified: false,
         password: body.password,
-        displayName: `${body.firstName} ${body.lastName}`,
+        displayName: `${body.firstName} ${body.lastName || ''}`,
         disabled: false,
       });
     } catch (error) {
-      throw new Error('Failed to create user in Firebase');
+      throw new InternalServerError(
+        `Failed to create user in Firebase: ${error.message}`,
+      );
     }
 
     // Prepare user object for storage in our database
-    const user: IUser = {
+    const user: Partial<IUser> = {
       firebaseUID: userRecord.uid,
       email: body.email,
       firstName: body.firstName,
-      lastName: body.lastName,
-      roles: ['student'],
+      lastName: body.lastName || '',
+      roles: 'user',
     };
 
-    let createdUser: IUser;
-    const session = (await this.userRepository.getDBClient()).startSession();
-    try {
-      await session.startTransaction(this.transactionOptions);
-      // Store the user in our application database
-      createdUser = await this.userRepository.create(user, session);
-      if (!createdUser) {
-        throw new CreateError('Failed to create the user');
+    let createdUserId: string;
+
+    await this._withTransaction(async session => {
+      const newUser = new User(user);
+      createdUserId = await this.userRepository.create(newUser, session);
+      if (!createdUserId) {
+        throw new InternalServerError('Failed to create the user');
       }
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw new Error('Failed to create user in the repository');
-    } finally {
-      await session.endSession();
-    }
+    });
+    
+    let enrolledInvites: InviteResult[] = [];
 
-    return createdUser;
-  }
-
-  /**
-   * Verifies a Firebase authentication token and returns the associated user.
-   *
-   * @param token - The Firebase ID token to verify
-   * @returns A promise that resolves to the user data associated with the token
-   * @throws Error - If the token is invalid or verification fails
-   */
-  async verifySignUpProvider(token: string): Promise<IUser> {
-    const session = (await this.userRepository.getDBClient()).startSession();
-    try {
-      // Decode and verify the Firebase token
-      const decodedToken = await this.auth.verifyIdToken(token);
-      // Retrieve the full user record from Firebase
-      const userRecord = await this.auth.getUser(decodedToken.uid);
-      if (!userRecord) {
-        throw new Error('User not found');
-      }
-
-      await session.startTransaction(this.transactionOptions);
-      const user = await this.userRepository.findByEmail(
-        userRecord.email,
-        session,
-      );
-      if (!user) {
-        // Map Firebase user data to our application user model
-        const user: IUser = {
-          firebaseUID: userRecord.uid,
-          email: userRecord.email || '',
-          firstName: userRecord.displayName?.split(' ')[0] || '',
-          lastName: userRecord.displayName?.split(' ')[1] || '',
-          roles: ['student'], // Assuming roles are not stored in Firebase and defaulting to 'student'
-        };
-        const createdUser = await this.userRepository.create(user, session);
-        if (!createdUser) {
-          throw new CreateError('Failed to create the user');
+    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    for (const invite of invites) {
+      if(invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        if(result && (result as any).enrollment) {
+          enrolledInvites.push(new InviteResult(
+            invite._id,
+            invite.email,
+            invite.inviteStatus,
+            invite.role,
+            invite.acceptedAt,
+            invite.courseId,
+            invite.courseVersionId,
+          ));
         }
-        await session.commitTransaction();
-        return createdUser;
-      } else {
-        await session.commitTransaction();
-        return user;
       }
-    } catch (error) {
-      await session.abortTransaction();
-      throw new Error('Invalid token');
-    } finally {
-      await session.endSession();
     }
+
+    return enrolledInvites.length > 0 ? {
+      userId: createdUserId,
+      invites: enrolledInvites,
+    }: {
+      userId: createdUserId,
+    };
   }
 
-  /**
-   * Changes a user's password in Firebase Auth.
-   * Verifies that passwords match and the user exists before making changes.
-   *
-   * @param body - Contains the new password and confirmation
-   * @param requestUser - The authenticated user requesting the password change
-   * @returns A promise resolving to a success confirmation object
-   * @throws ChangePasswordError - If passwords don't match or user doesn't exist
-   */
+  async googleSignup(
+    body: GoogleSignUpBody,
+    token: string,
+  ): Promise<any> {
+    await this.verifyToken(token);
+    // Decode the token to get the Firebase UID
+    const decodedToken = await this.auth.verifyIdToken(token);
+    const firebaseUID = decodedToken.uid;
+    const user: Partial<IUser> = {
+      firebaseUID: firebaseUID,
+      email: body.email,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      roles: 'user',
+    };
+
+    let createdUserId: string;
+
+    await this._withTransaction(async session => {
+      const newUser = new User(user);
+      createdUserId = await this.userRepository.create(newUser, session);
+      if (!createdUserId) {
+        throw new InternalServerError('Failed to create the user');
+      }
+    });
+
+    let enrolledInvites: InviteResult[] = [];
+
+    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    for (const invite of invites) {
+      if(invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        if(result && (result as any).enrollment) {
+          enrolledInvites.push(new InviteResult(
+            invite._id,
+            invite.email,
+            invite.inviteStatus,
+            invite.role,
+            invite.acceptedAt,
+            invite.courseId,
+            invite.courseVersionId,
+          ));
+        }
+      }
+    }
+
+    return enrolledInvites.length > 0 ? {
+      userId: createdUserId,
+      invites: enrolledInvites,
+    }: {
+      userId: createdUserId,
+    };
+  }
+
   async changePassword(
     body: ChangePasswordBody,
     requestUser: IUser,
@@ -233,5 +270,12 @@ export class FirebaseAuthService implements IAuthService {
     });
 
     return {success: true, message: 'Password updated successfully'};
+  }
+
+  async updateFirebaseUser(firebaseUID: string, body: Partial<IUser>): Promise<void> {
+    // Update user in Firebase Auth
+    await this.auth.updateUser(firebaseUID, {
+      displayName: `${body.firstName} ${body.lastName}`,
+    });
   }
 }

@@ -1,5 +1,5 @@
-import {IQuestionParameter} from 'shared/interfaces/quiz';
-import {Tag, ParameterMap} from './tags/Tag';
+import {IQuestionParameter} from '#shared/interfaces/quiz.js';
+import {Tag, ParameterMap} from './tags/Tag.js';
 
 class TagParser {
   constructor(private processors: Record<string, Tag>) {}

@@ -1,5 +1,5 @@
-import {ClientSession, MongoClient} from 'mongodb';
-import {IUser} from 'shared/interfaces/Models';
+import {IUser } from '#shared/interfaces/models.js';
+import {MongoClient, ClientSession, ObjectId} from 'mongodb';
 
 /**
  * Interface representing a repository for user-related operations.
@@ -15,7 +15,7 @@ export interface IUserRepository {
    * @param user - The user to create.
    * @returns A promise that resolves to the created user.
    */
-  create(user: IUser, session?: ClientSession): Promise<IUser>;
+  create(user: IUser, session?: ClientSession): Promise<string>;
 
   /**
    * Finds a user by their email.
@@ -30,15 +30,7 @@ export interface IUserRepository {
    * @param role - The role to add.
    * @returns A promise that resolves to the updated user if successful, or null if not.
    */
-  addRole(userId: string, role: string): Promise<IUser | null>;
-
-  /**
-   * Removes a role from a user.
-   * @param userId - The ID of the user to remove the role from.
-   * @param role - The role to remove.
-   * @returns A promise that resolves to the updated user if successful, or null if not.
-   */
-  removeRole(userId: string, role: string): Promise<IUser | null>;
+  makeAdmin(userId: string, session: ClientSession): Promise<void>;
 
   /**
    * Updates the password of a user.
@@ -47,4 +39,36 @@ export interface IUserRepository {
    * @returns A promise that resolves to the updated user if successful, or null if not.
    */
   updatePassword(userId: string, password: string): Promise<IUser | null>;
+
+  /**
+   * Finds a user by their Firebase UID.
+   * @param firebaseUID - The Firebase UID of the user to find.
+   * @returns A promise that resolves to the user if found, or null if not found.
+   */
+  findByFirebaseUID(
+    firebaseUID: string,
+    session?: ClientSession,
+  ): Promise<IUser | null>;
+
+  /**
+   * Finds a user by their ID.
+   * @param id - The ID of the user to find.
+   * @returns A promise that resolves to the user if found, or null if not found.
+   */
+  findById(id: string | ObjectId): Promise<IUser | null>;
+
+  /**
+   * Creates a User Anomaly Document to the database.
+   * @param anamoly - The anomaly document to create.
+   */
+
+  // createUserAnomaly(
+  //   anamoly: IUserAnomaly,
+  //   session?: ClientSession,
+  // ): Promise<IUserAnomaly | null>;
+  edit(
+    userId: string,
+    userData: Partial<IUser>,
+    session?: ClientSession,
+  ): Promise<void>;
 }

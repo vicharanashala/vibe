@@ -57,4 +57,4 @@ If you encounter issues:
 
 1. Verify your OpenAPI specification is valid
 2. Check that your MCP server is accessible
-3. Review the settings as mentioned above.
+4. Review the settings as mentioned above.

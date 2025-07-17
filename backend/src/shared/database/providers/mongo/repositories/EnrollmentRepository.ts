@@ -1,17 +1,16 @@
-import 'reflect-metadata';
-import {Collection, ObjectId} from 'mongodb';
-import {Service, Inject} from 'typedi';
-import {MongoDatabase} from '../MongoDatabase';
-import {IEnrollment, IProgress} from 'shared/interfaces/Models';
-import {CreateError, ReadError} from 'shared/errors/errors';
-import {NotFoundError} from 'routing-controllers';
+import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, Collection, ObjectId} from 'mongodb';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 
-@Service()
+@injectable()
 export class EnrollmentRepository {
-  private enrollmentCollection: Collection<IEnrollment>;
-  private progressCollection: Collection<IProgress>;
+  private enrollmentCollection!: Collection<IEnrollment>;
+  private progressCollection!: Collection<IProgress>;
 
-  constructor(@Inject(() => MongoDatabase) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
     this.enrollmentCollection =
@@ -28,7 +27,9 @@ export class EnrollmentRepository {
     try {
       return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
     } catch (error) {
-      throw new ReadError(`Failed to find enrollment by ID: ${error.message}`);
+      throw new InternalServerError(
+        `Failed to find enrollment by ID: ${error.message}`,
+      );
     }
   }
 
@@ -57,7 +58,7 @@ export class EnrollmentRepository {
     try {
       const result = await this.enrollmentCollection.insertOne(enrollment);
       if (!result.acknowledged) {
-        throw new CreateError('Failed to create enrollment record');
+        throw new InternalServerError('Failed to create enrollment record');
       }
 
       const newEnrollment = await this.enrollmentCollection.findOne({
@@ -70,7 +71,9 @@ export class EnrollmentRepository {
 
       return newEnrollment;
     } catch (error) {
-      throw new CreateError(`Failed to create enrollment: ${error.message}`);
+      throw new InternalServerError(
+        `Failed to create enrollment: ${error.message}`,
+      );
     }
   }
   /**
@@ -104,7 +107,7 @@ export class EnrollmentRepository {
     try {
       const result = await this.progressCollection.insertOne(progress);
       if (!result.acknowledged) {
-        throw new CreateError('Failed to create progress record');
+        throw new InternalServerError('Failed to create progress record');
       }
 
       const newProgress = await this.progressCollection.findOne({
@@ -117,7 +120,7 @@ export class EnrollmentRepository {
 
       return newProgress;
     } catch (error) {
-      throw new CreateError(
+      throw new InternalServerError(
         `Failed to create progress tracking: ${error.message}`,
       );
     }
@@ -145,8 +148,34 @@ export class EnrollmentRepository {
    */
   async getEnrollments(userId: string, skip: number, limit: number) {
     await this.init();
-    return this.enrollmentCollection
+    return await this.enrollmentCollection
       .find({userId})
+      .skip(skip)
+      .limit(limit)
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
+  async getAllEnrollments(userId: string, session?: ClientSession) {
+    await this.init();
+    return await this.enrollmentCollection
+      .find({userId}, {session})
+      .sort({enrollmentDate: -1})
+      .toArray();
+  }
+
+  async getCourseVersionEnrollments(
+    courseId: string,
+    courseVersionId: string,
+    skip: number,
+    limit: number,
+  ) {
+    await this.init();
+    return await this.enrollmentCollection
+      .find({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      })
       .skip(skip)
       .limit(limit)
       .sort({enrollmentDate: -1})
@@ -158,6 +187,6 @@ export class EnrollmentRepository {
    */
   async countEnrollments(userId: string) {
     await this.init();
-    return this.enrollmentCollection.countDocuments({userId});
+    return await this.enrollmentCollection.countDocuments({userId});
   }
 }

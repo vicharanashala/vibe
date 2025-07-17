@@ -1,6 +1,6 @@
-import {DESQuestion} from '../../classes/transformers/Question';
-import {TagParser} from 'modules/quizzes/question-processing/tag-parser/TagParser';
-import {BaseQuestionValidator} from './BaseQuestionValidator';
+import {DESQuestion} from '#quizzes/classes/transformers/Question.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {BaseQuestionValidator} from './BaseQuestionValidator.js';
 
 export class DESQuestionValidator extends BaseQuestionValidator {
   declare question: DESQuestion;

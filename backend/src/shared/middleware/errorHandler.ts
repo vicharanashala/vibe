@@ -1,5 +1,13 @@
-import {logger} from '@sentry/node';
-import {ValidationError} from 'class-validator';
+import {createLogger, format, transports} from 'winston';
+import {
+  IsArray,
+  IsDefined,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  ValidationError,
+} from 'class-validator';
 import {
   Middleware,
   ExpressErrorMiddlewareInterface,
@@ -7,7 +15,25 @@ import {
   UnauthorizedError,
 } from 'routing-controllers';
 import {Request, Response} from 'express';
-import {Service} from 'typedi';
+import {JSONSchema} from 'class-validator-jsonschema';
+import { Type } from 'class-transformer';
+
+const logger = createLogger({
+  level: 'info',
+  format: format.combine(format.timestamp(), format.prettyPrint()),
+  transports: [
+    //
+    // - Write all logs with importance level of `error` or higher to `error.log`
+    //   (i.e., error, fatal, but not other levels)
+    //
+    new transports.File({filename: 'error.log', level: 'error'}),
+    //
+    // - Write all logs with importance level of `info` or higher to `combined.log`
+    //   (i.e., fatal, error, warn, and info, but not trace)
+    //
+    //new transports.File({filename: 'combined.log'}), "uncomment this line to log all messages to combined.log",
+  ],
+});
 
 export class ErrorResponse<T> {
   message: string;
@@ -19,16 +45,6 @@ export class ErrorResponse<T> {
   }
 }
 
-import {
-  IsString,
-  IsOptional,
-  IsObject,
-  IsArray,
-  IsDefined,
-  ValidateNested,
-} from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-
 class ValidationErrorResponse {
   @JSONSchema({
     type: 'object',
@@ -36,7 +52,7 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsObject() // Ensures 'target' is an object
-  target: object;
+  target!: object;
 
   @JSONSchema({
     type: 'string',
@@ -45,7 +61,7 @@ class ValidationErrorResponse {
   })
   @IsString() // Ensures 'property' is a string
   @IsDefined() // Makes 'property' a required field
-  property: string;
+  property!: string;
 
   @JSONSchema({
     type: 'object',
@@ -60,7 +76,7 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsObject() // Ensures 'constraints' is an object
-  constraints: {[type: string]: string};
+  constraints!: {[type: string]: string};
 
   @JSONSchema({
     type: 'array',
@@ -69,8 +85,9 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsArray() // Ensures 'children' is an array
-  @ValidateNested({each: true}) // Ensures each element inside 'children' is validated
-  children: ValidationErrorResponse[];
+  @ValidateNested({each: true})
+  @Type(()=>ValidationErrorResponse) // Ensures each element inside 'children' is validated
+  children!: ValidationErrorResponse[];
 
   @JSONSchema({
     type: 'object',
@@ -79,7 +96,7 @@ class ValidationErrorResponse {
   })
   @IsObject() // Ensures 'contexts' is an object
   @IsOptional() // Makes 'contexts' optional
-  contexts: {[type: string]: any};
+  contexts!: {[type: string]: any};
 }
 
 class DefaultErrorResponse {
@@ -89,7 +106,7 @@ class DefaultErrorResponse {
     description: 'The error message.',
     readOnly: true,
   })
-  message: string;
+  message!: string;
 }
 
 class BadRequestErrorResponse {
@@ -99,7 +116,7 @@ class BadRequestErrorResponse {
     readOnly: true,
   })
   @IsString()
-  message: string;
+  message!: string;
 
   @JSONSchema({
     type: 'object',
@@ -111,10 +128,19 @@ class BadRequestErrorResponse {
   errors?: ValidationErrorResponse;
 }
 
-@Service()
 @Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {
+    logger.error({
+      message: error.message,
+      errors: error.errors,
+      stack: error.stack,
+      status: error.httpCode || 500,
+    });
+    if (response.headersSent) {
+      // If the response is already sent, don't try to send again
+      return;
+    }
     // class CustomValidationError {
     //     errors: ValidationError[];
     // }
@@ -181,7 +207,10 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
           ),
         );
     } else if (error instanceof HttpError) {
-      if ('errors' in error && error.errors[0] instanceof ValidationError) {
+      if (
+        'errors' in error &&
+        (error.errors as any)[0] instanceof ValidationError
+      ) {
         response
           .status(400)
           .json(

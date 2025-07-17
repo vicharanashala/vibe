@@ -1,45 +1,16 @@
-import {dbConfig} from '../../../config/db';
 import Express from 'express';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import Container from 'typedi';
-import {SectionService} from '../services/SectionService';
-import {CourseVersionService} from '../services';
 import {useExpressServer} from 'routing-controllers';
-import {coursesModuleOptions} from 'modules/courses';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
 import request from 'supertest';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-
-jest.setTimeout(90000);
+import {describe, expect, it, beforeAll} from 'vitest';
 
 describe('Section Controller Integration Tests', () => {
   const App = Express();
   let app;
 
   beforeAll(async () => {
-    // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
-    const itemRepo = new ItemRepository(
-      Container.get<MongoDatabase>('Database'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ItemRepo', itemRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-
-    const sectionService = new SectionService(
-      Container.get<ItemRepository>('ItemRepo'),
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    Container.set('SectionService', sectionService);
-
-    // Create the Express app with the routing controllers configuration
+    process.env.NODE_ENV = 'test';
+    await setupCoursesContainer();
     app = useExpressServer(App, coursesModuleOptions);
   });
 
@@ -95,7 +66,7 @@ describe('Section Controller Integration Tests', () => {
         expect(sectionResponse.body.version.modules[0].sections[0].name).toBe(
           sectionPayload.name,
         );
-      });
+      }, 90000);
     });
   });
 
@@ -129,7 +100,7 @@ describe('Section Controller Integration Tests', () => {
           URL: 'http://url.com',
           startTime: '00:00:00',
           endTime: '00:00:40',
-          points: '10.5',
+          points: 10.5,
         },
       };
 
@@ -168,7 +139,7 @@ describe('Section Controller Integration Tests', () => {
             `/courses/versions/${versionId}/modules/${moduleId}/sections/${sectionId}`,
           )
           .expect(200);
-      });
+      }, 90000);
     });
 
     describe('Failiure Scenario', () => {
@@ -178,7 +149,7 @@ describe('Section Controller Integration Tests', () => {
         const sectionResponse = await request(app)
           .delete('/courses/versions/123/modules/123/sections/123')
           .expect(400);
-      });
+      }, 90000);
 
       it('should fail to delete an item', async () => {
         // Testing for Not found Case
@@ -187,7 +158,7 @@ describe('Section Controller Integration Tests', () => {
             '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db/sections/62341aeb5be816967d8fc2db',
           )
           .expect(404);
-      });
+      }, 90000);
     });
   });
   describe('SECTION MOVE', () => {
@@ -269,7 +240,7 @@ describe('Section Controller Integration Tests', () => {
 
         // // section2 should now be before section1
         expect(idx2).toBeLessThan(idx1);
-      });
+      }, 90000);
 
       it('should move the third section before the first section in a list of three', async () => {
         // Create course, version, module, section
@@ -337,7 +308,7 @@ describe('Section Controller Integration Tests', () => {
 
         // section3 should now be before section1
         expect(idx3).toBeLessThan(idx1);
-      });
+      }, 90000);
     });
   });
 });

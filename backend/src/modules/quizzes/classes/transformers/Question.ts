@@ -1,25 +1,21 @@
-import {ObjectId} from 'mongodb';
 import {
-  ISOLSolution,
-  ISMLSolution,
-  IOTLSolution,
-  INATSolution,
-  IDESSolution,
-  ILotItem,
-  ISOLQuizView,
-  ISMLQuizView,
-  ILotOrder,
-  IOTLQuizView,
-  INATQuizView,
-  IDESQuizView,
-  IQuestionParameter,
   IQuestion,
   QuestionType,
-} from 'shared/interfaces/quiz';
-import {CreateQuestionBody} from '../validators/QuestionValidator';
+  IQuestionParameter,
+  ISOLSolution,
+  ILotItem,
+  ISMLSolution,
+  IOTLSolution,
+  ILotOrder,
+  INATSolution,
+  IDESSolution,
+} from '#shared/interfaces/quiz.js';
+import {ObjectId} from 'mongodb';
+import {QuestionBody} from '../validators/QuestionValidator.js';
 
 abstract class BaseQuestion implements IQuestion {
   _id?: string | ObjectId;
+  createdBy?: string;
   text: string;
   type: QuestionType;
   isParameterized: boolean;
@@ -28,8 +24,9 @@ abstract class BaseQuestion implements IQuestion {
   timeLimitSeconds: number;
   points: number;
 
-  constructor(question: IQuestion) {
+  constructor(question: IQuestion, userId: string) {
     this._id = question._id;
+    this.createdBy = userId;
     this.text = question.text;
     this.type = question.type;
     this.isParameterized = question.isParameterized;
@@ -44,17 +41,13 @@ class SOLQuestion extends BaseQuestion implements ISOLSolution {
   incorrectLotItems: ILotItem[];
   correctLotItem: ILotItem;
 
-  constructor(question: IQuestion, solution: ISOLSolution) {
-    super(question);
-    this.incorrectLotItems = solution.incorrectLotItems;
-    this.correctLotItem = solution.correctLotItem;
-  }
-
-  toQuizView(): ISOLQuizView {
-    return {
-      ...this,
-      lot: this.incorrectLotItems.concat(this.correctLotItem),
-    } as ISOLQuizView;
+  constructor(userId: string, question: IQuestion, solution: ISOLSolution) {
+    super(question, userId);
+    this.incorrectLotItems = ensureLotItemIds(solution.incorrectLotItems);
+    this.correctLotItem = {
+      ...solution.correctLotItem,
+      _id: solution.correctLotItem._id ?? new ObjectId(),
+    };
   }
 }
 
@@ -62,31 +55,25 @@ class SMLQuestion extends BaseQuestion implements ISMLSolution {
   incorrectLotItems: ILotItem[];
   correctLotItems: ILotItem[];
 
-  constructor(question: IQuestion, solution: ISMLSolution) {
-    super(question);
-    this.incorrectLotItems = solution.incorrectLotItems;
-    this.correctLotItems = solution.correctLotItems;
-  }
-  toQuizView(): ISMLQuizView {
-    return {
-      ...this,
-      lot: this.incorrectLotItems.concat(this.correctLotItems),
-    } as ISMLQuizView;
+  constructor(userId: string, question: IQuestion, solution: ISMLSolution) {
+    super(question, userId);
+    this.incorrectLotItems = ensureLotItemIds(solution.incorrectLotItems);
+    this.correctLotItems = ensureLotItemIds(solution.correctLotItems);
   }
 }
 
 class OTLQuestion extends BaseQuestion implements IOTLSolution {
   ordering: ILotOrder[];
 
-  constructor(question: IQuestion, solution: IOTLSolution) {
-    super(question);
-    this.ordering = solution.ordering;
-  }
-  toQuizView(): IOTLQuizView {
-    return {
-      ...this,
-      lot: this.ordering.map(lotOrder => lotOrder.lotItem),
-    } as IOTLQuizView;
+  constructor(userId: string, question: IQuestion, solution: IOTLSolution) {
+    super(question, userId);
+    this.ordering = solution.ordering.map(order => ({
+      ...order,
+      lotItem: {
+        ...order.lotItem,
+        _id: order.lotItem._id ?? new ObjectId(),
+      },
+    }));
   }
 }
 
@@ -97,50 +84,47 @@ class NATQuestion extends BaseQuestion implements INATSolution {
   value?: number;
   expression?: string;
 
-  constructor(question: IQuestion, solution: INATSolution) {
-    super(question);
+  constructor(userId: string, question: IQuestion, solution: INATSolution) {
+    super(question, userId);
     this.decimalPrecision = solution.decimalPrecision;
     this.upperLimit = solution.upperLimit;
     this.lowerLimit = solution.lowerLimit;
     this.value = solution.value;
     this.expression = solution.expression;
   }
-
-  toQuizView(): INATQuizView {
-    return {
-      ...this,
-    } as INATQuizView;
-  }
 }
 
 class DESQuestion extends BaseQuestion implements IDESSolution {
   solutionText: string;
-  constructor(question: IQuestion, solution: IDESSolution) {
-    super(question);
+  constructor(userId: string, question: IQuestion, solution: IDESSolution) {
+    super(question, userId);
     this.solutionText = solution.solutionText;
   }
-  toQuizView(): IDESQuizView {
-    return {
-      ...this,
-    } as IDESQuizView;
-  }
+}
+
+function ensureLotItemIds(items: ILotItem[]): ILotItem[] {
+  return items.map(item => ({
+    ...item,
+    _id: item._id ?? new ObjectId(),
+  }));
 }
 
 class QuestionFactory {
   static createQuestion(
-    body: CreateQuestionBody,
+    body: QuestionBody,
+    userId: string,
   ): SOLQuestion | SMLQuestion | OTLQuestion | NATQuestion | DESQuestion {
     switch (body.question.type) {
       case 'SELECT_ONE_IN_LOT':
-        return new SOLQuestion(body.question, body.solution as ISOLSolution);
+        return new SOLQuestion(userId, body.question, body.solution as ISOLSolution);
       case 'SELECT_MANY_IN_LOT':
-        return new SMLQuestion(body.question, body.solution as ISMLSolution);
+        return new SMLQuestion(userId, body.question, body.solution as ISMLSolution);
       case 'ORDER_THE_LOTS':
-        return new OTLQuestion(body.question, body.solution as IOTLSolution);
+        return new OTLQuestion(userId, body.question, body.solution as IOTLSolution);
       case 'NUMERIC_ANSWER_TYPE':
-        return new NATQuestion(body.question, body.solution as INATSolution);
+        return new NATQuestion(userId, body.question, body.solution as INATSolution);
       case 'DESCRIPTIVE':
-        return new DESQuestion(body.question, body.solution as IDESSolution);
+        return new DESQuestion(userId, body.question, body.solution as IDESSolution);
       default:
         throw new Error('Invalid question type');
     }
@@ -275,6 +259,35 @@ const natSolution: INATSolution = {
   expression: '',
 };
 
+class FlaggedQuestion {
+  _id?: string | ObjectId;
+  questionId: string;
+  courseId?: string;
+  versionId?: string;
+  flaggedBy: string;
+  reason: string;
+  createdAt: Date;
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED';
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  
+  constructor(
+    questionId: string,
+    userId: string,
+    reason: string,
+    courseId?: string,
+    versionId?: string,
+  ) {
+    this.questionId = questionId;
+    this.flaggedBy = userId;
+    this.reason = reason;
+    this.status = 'PENDING';
+    this.createdAt = new Date();
+    this.courseId = courseId;
+    this.versionId = versionId;
+  }
+}
+
 export {
   BaseQuestion,
   SOLQuestion,
@@ -283,4 +296,5 @@ export {
   NATQuestion,
   DESQuestion,
   QuestionFactory,
+  FlaggedQuestion,
 };

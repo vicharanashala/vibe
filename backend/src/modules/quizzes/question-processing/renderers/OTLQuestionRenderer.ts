@@ -1,8 +1,17 @@
-﻿import {OTLQuestion} from 'modules/quizzes/classes/transformers';
-import {ILotItem} from 'shared/interfaces/quiz';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {OTLQuestionRenderView} from './interfaces/RenderViews';
+﻿import {OTLQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ILotItem} from '#shared/interfaces/quiz.js';
+import {ParameterMap} from '../tag-parser/index.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {
+  ILotItemRenderView,
+  OTLQuestionRenderView,
+} from './interfaces/RenderViews.js';
+
+function toLotItemRenderView(item: ILotItem): ILotItemRenderView {
+  const {explaination, ...rest} = item;
+  return rest;
+}
 
 class OTLQuestionRenderer extends BaseQuestionRenderer {
   declare question: OTLQuestion;
@@ -22,11 +31,13 @@ class OTLQuestionRenderer extends BaseQuestionRenderer {
       order => order.lotItem,
     );
 
-    // Process text and explanation for each lot item
-    const processedLotItems = lotItems.map(item => ({
+    const lotItemsRenderView: ILotItemRenderView[] =
+      lotItems.map(toLotItemRenderView);
+
+    // Process text for each lot item
+    const processedLotItems = lotItemsRenderView.map(item => ({
       ...item,
       text: this.tagParser.processText(item.text, parameterMap),
-      explaination: this.tagParser.processText(item.explaination, parameterMap),
     }));
 
     // Shuffle the processed lot items

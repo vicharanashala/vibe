@@ -1,7 +1,8 @@
-﻿import {NATQuestion} from 'modules/quizzes/classes/transformers';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {NATQuestionRenderView} from './interfaces/RenderViews';
+﻿import {NATQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ParameterMap} from '../tag-parser/tags/Tag.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {NATQuestionRenderView} from './interfaces/RenderViews.js';
 
 class NATQuestionRenderer extends BaseQuestionRenderer {
   declare question: NATQuestion;
@@ -26,10 +27,6 @@ class NATQuestionRenderer extends BaseQuestionRenderer {
       points: renderedQuestion.points,
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       decimalPrecision: renderedQuestion.decimalPrecision,
-      upperLimit: renderedQuestion.upperLimit,
-      lowerLimit: renderedQuestion.lowerLimit,
-      value: renderedQuestion.value,
-      expression: renderedQuestion.expression,
       parameterMap: parameterMap,
     };
 

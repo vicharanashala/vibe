@@ -1,20 +1,8 @@
-import 'reflect-metadata';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
-import {ICourseVersion} from 'shared/interfaces/Models';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
-  @JSONSchema({
-    title: 'Course ID',
-    description: 'ID of the course this version belongs to (auto-managed)',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-    readOnly: true,
-  })
-  @IsEmpty()
-  courseId?: string;
-
   @JSONSchema({
     title: 'Version Label',
     description: 'The version label or identifier (e.g., v1.0, Fall 2025)',
@@ -40,35 +28,29 @@ class CreateCourseVersionParams {
   @JSONSchema({
     title: 'Course ID',
     description: 'ID of the course to attach the new version to',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
-  id: string;
+  courseId: string;
 }
 
 class ReadCourseVersionParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to retrieve',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
-  id: string;
+  versionId: string;
 }
 
 class DeleteCourseVersionParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to delete',
-    example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -77,9 +59,7 @@ class DeleteCourseVersionParams {
   @JSONSchema({
     title: 'Course ID',
     description: 'ID of the course to which the version belongs',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -91,7 +71,6 @@ class CourseVersionDataResponse {
     description: 'ID of the course version',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   id: string;
@@ -116,7 +95,6 @@ class CourseVersionDataResponse {
     description: 'ID of the course this version belongs to',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   courseId: string;
@@ -191,3 +169,13 @@ export {
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
 };
+
+export const COURSEVERSION_VALIDATORS = [
+  CreateCourseVersionBody,
+  CreateCourseVersionParams,
+  ReadCourseVersionParams,
+  DeleteCourseVersionParams,
+  CourseVersionDataResponse,
+  CourseVersionNotFoundErrorResponse,
+  CreateCourseVersionResponse,
+] 

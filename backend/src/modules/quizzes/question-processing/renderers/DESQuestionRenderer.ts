@@ -1,7 +1,8 @@
-import {DESQuestion} from 'modules/quizzes/classes/transformers';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {BaseQuestionRenderer} from './BaseQuestionRenderer';
-import {DESQuestionRenderView} from './interfaces/RenderViews';
+import {DESQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ParameterMap} from '../tag-parser/index.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {BaseQuestionRenderer} from './BaseQuestionRenderer.js';
+import {DESQuestionRenderView} from './interfaces/RenderViews.js';
 
 class DESQuestionRenderer extends BaseQuestionRenderer {
   declare question: DESQuestion;
@@ -29,7 +30,6 @@ class DESQuestionRenderer extends BaseQuestionRenderer {
       hint: renderedQuestion.hint,
       points: renderedQuestion.points,
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
-      solutionText: processedSolutionText,
       parameterMap: parameterMap,
     };
 

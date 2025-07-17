@@ -1,0 +1,47 @@
+﻿FROM node:22-alpine AS builder
+
+# Install git + pnpm via Corepack + optional bash
+RUN apk add --no-cache git bash \
+  && corepack enable \
+  && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package.json ./
+COPY tsconfig.json ./
+COPY . .
+RUN pnpm install
+
+# Build TypeScript
+ARG SENTRY_AUTH_TOKEN
+RUN pnpm tsc
+# RUN pnpm sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+# RUN pnpm sentry-cli sourcemaps inject --org dled --project backend-users ./build && pnpm sentry-cli sourcemaps upload --org dled --project backend-users ./build
+
+# ---- Production image ----
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install pnpm and bash for runtime if needed
+RUN apk add --no-cache git bash \
+  && corepack enable \
+  && corepack prepare pnpm@latest --activate
+
+# Copy only production dependencies and compiled code
+COPY package.json ./
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/build ./build
+RUN pnpm install
+
+# Set environment and port
+# ENV NODE_ENV=development
+# ENV MODULE=all
+# ENV SENTRY_PROJECT=vibe-backend
+# ENV SENTRY_ORG=dled
+ENV APP_PORT=4001
+EXPOSE 4001
+
+# Run the compiled JS
+CMD ["node", "build/index.js"]

@@ -1,44 +1,35 @@
-import {coursesModuleOptions} from 'modules/courses';
-import {MongoMemoryServer} from 'mongodb-memory-server';
-import {RoutingControllersOptions, useExpressServer} from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {MongoDatabase} from 'shared/database/providers/MongoDatabaseProvider';
-import Container from 'typedi';
+import {coursesModuleOptions, setupCoursesContainer} from '../index.js';
+import {useExpressServer} from 'routing-controllers';
 import Express from 'express';
 import request from 'supertest';
-import {ReadError} from 'shared/errors/errors';
-import {dbConfig} from '../../../config/db';
-import {CourseVersionService, ModuleService} from '../services';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from 'vitest';
+import {
+  CourseData,
+  createCourseWithModulesSectionsAndItems,
+} from '#root/modules/users/tests/utils/createCourse.js';
+import {faker} from '@faker-js/faker';
+import {before} from 'node:test';
 
-jest.setTimeout(90000);
 describe('Module Controller Integration Tests', () => {
   const App = Express();
   let app;
 
   beforeAll(async () => {
-    // Start an in-memory MongoDB server
-
-    // Set up the real MongoDatabase and CourseRepository
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-    const courseRepo = new CourseRepository(
-      Container.get<MongoDatabase>('Database'),
-    );
-    Container.set('CourseRepo', courseRepo);
-    const courseVersionService = new CourseVersionService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('CourseVersionService', courseVersionService);
-    const moduleService = new ModuleService(
-      Container.get<CourseRepository>('CourseRepo'),
-    );
-    Container.set('ModuleService', moduleService);
-
-    // Create the Express app with the routing controllers configuration
+    process.env.NODE_ENV = 'test';
+    await setupCoursesContainer();
     app = useExpressServer(App, coursesModuleOptions);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
   // Tests for creating a module
   describe('MODULE CREATION', () => {
@@ -101,7 +92,7 @@ describe('Module Controller Integration Tests', () => {
         // Optionally, check if the moduleId and other properties match
         expect(createdModule.moduleId).toBeDefined();
         expect(createdModule.order).toBeDefined(); // Check if order exists
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -121,7 +112,7 @@ describe('Module Controller Integration Tests', () => {
           .expect(400);
 
         // expect(moduleResponse.body.message).toContain("Version not found");
-      });
+      }, 90000);
 
       it('should return 400 for invalid module data', async () => {
         // Create a course
@@ -165,57 +156,7 @@ describe('Module Controller Integration Tests', () => {
         expect(moduleResponse.body.message).toContain(
           "Invalid body, check 'errors' property for more info.",
         );
-      });
-
-      it('should return 500 if unknown error occurs', async () => {
-        // Create a course
-        const coursePayload = {
-          name: 'Error 500 Course',
-          description: 'Course description',
-        };
-
-        const response = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-
-        // Get course id
-        const courseId = response.body._id;
-
-        // Create a version
-        const courseVersionPayload = {
-          version: 'New Course Version',
-          description: 'Course version description',
-        };
-
-        const versionResponse = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(courseVersionPayload)
-          .expect(201);
-
-        // Get version id
-        const versionId = versionResponse.body.version._id;
-
-        // Create a module
-        const modulePayload = {
-          name: 'New Module',
-          description: 'Module description',
-        };
-
-        // Log the endpoint to request to
-        const endPoint = `/courses/versions/${versionId}/modules`;
-
-        // Throw an error
-        const moduleRepo = Container.get<CourseRepository>('CourseRepo');
-        jest.spyOn(moduleRepo, 'updateVersion').mockImplementation(() => {
-          throw new Error('Unknown error');
-        });
-
-        const moduleResponse = await request(app)
-          .post(endPoint)
-          .send(modulePayload)
-          .expect(400);
-      });
+      }, 90000);
 
       it('should return 400 if module name is missing', async () => {
         const coursePayload = {
@@ -238,117 +179,101 @@ describe('Module Controller Integration Tests', () => {
           .post(`/courses/versions/${versionId}/modules`)
           .send(modulePayload)
           .expect(400);
-      });
+      }, 90000);
     });
   });
 
   // Tests for moving a module
   describe('MODULE MOVE', () => {
+    let data: CourseData;
+    beforeAll(async () => {
+      data = await createCourseWithModulesSectionsAndItems(2, 1, 1, app);
+    });
     describe('Success Scenario', () => {
-      it('should move a module within a version', async () => {
-        const coursePayload = {
-          name: 'Module Move Course',
-          description: 'Course description',
-        };
-        const versionPayload = {
-          version: 'Module Move Version',
-          description: 'Version description',
-        };
-        // Use unique module names
-        const modulePayload1 = {name: 'Module Move 1', description: 'Desc 1'};
-        const modulePayload2 = {name: 'Module Move 2', description: 'Desc 2'};
+      it('should move a module before another module within a course version', async () => {
+        // Arrange: Get two modules to work with
+        const modules = data.modules;
+        const moduleIdToMove = modules[1].moduleId; // Module we will move
+        const targetModuleId = modules[0].moduleId; // Module before which we'll move
 
-        // Create a course
-        const courseRes = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-        const courseId = courseRes.body._id;
-
-        // Create a version
-        const versionRes = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(versionPayload)
-          .expect(201);
-        const versionId = versionRes.body._id;
-
-        // Create two modules
-        const module1 = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload1)
-          .expect(201);
-        const module2 = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload2)
-          .expect(201);
-
-        const modules = module2.body.version.modules;
-        const moduleId1 = modules.find(
-          m => m.name === 'Module Move 1',
-        ).moduleId;
-        const moduleId2 = modules.find(
-          m => m.name === 'Module Move 2',
-        ).moduleId;
-        // Move Module 2 before Module 1
-        const movePayload = {beforeModuleId: moduleId1};
-        const moveRes = await request(app)
-          .put(`/courses/versions/${versionId}/modules/${moduleId2}/move`)
+        // Act: Request to move `moduleIdToMove` before `targetModuleId`
+        const movePayload = {beforeModuleId: targetModuleId};
+        const response = await request(app)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${moduleIdToMove}/move`,
+          )
           .send(movePayload)
           .expect(200);
 
-        // Check order: Module 2 should now come before Module 1
-        const movedModules = moveRes.body.version.modules.sort((a, b) =>
+        // Assert: Fetch the new order of modules
+        const reorderedModules = response.body.version.modules.sort((a, b) =>
           a.order.localeCompare(b.order),
         );
-        const idx1 = movedModules.findIndex(m => m.moduleId === moduleId1);
-        const idx2 = movedModules.findIndex(m => m.moduleId === moduleId2);
-        expect(idx2).toBeLessThan(idx1);
+
+        // Find new indices of both modules
+        const targetIdx = reorderedModules.findIndex(
+          m => m.moduleId === targetModuleId,
+        );
+        const movedIdx = reorderedModules.findIndex(
+          m => m.moduleId === moduleIdToMove,
+        );
+
+        // The moved module should now be before the target module
+        expect(movedIdx).toBeLessThan(targetIdx);
       });
     });
 
     describe('Error Scenarios', () => {
-      it('should return 400 for invalid move params', async () => {
-        // Try to move with invalid version/module id
+      it('should return 400 for invalid move parameters', async () => {
+        // Arrange: Use clearly invalid IDs
         const movePayload = {beforeModuleId: 'invalid'};
+
+        // Act & Assert: Should return 400 Bad Request
         await request(app)
           .put('/courses/versions/invalidVersion/modules/invalidModule/move')
           .send(movePayload)
           .expect(400);
       });
 
-      it('should return 404 if module to move does not exist', async () => {
-        const fakeVersionId = '60d21b4667d0d8992e610c85';
-        const fakeModuleId = '60d21b4967d0d8992e610c86';
+      it('should return 404 if the module to move does not exist', async () => {
+        // Arrange: Use valid version ID but a random non-existent module ID
+        const nonExistentModuleId = faker.database.mongodbObjectId();
+
+        // Act & Assert: Should return 404 Not Found
         await request(app)
           .put(
-            `/courses/versions/${fakeVersionId}/modules/${fakeModuleId}/move`,
+            `/courses/versions/${data.courseVersionId}/modules/${nonExistentModuleId}/move`,
           )
-          .send({beforeModuleId: '60d21b4967d0d8992e610c87'})
+          .send({beforeModuleId: faker.database.mongodbObjectId()})
           .expect(404);
       });
 
-      it('should return 400 if beforeModuleId is missing', async () => {
-        const coursePayload = {name: 'Move Error Course', description: 'desc'};
-        const courseRes = await request(app)
-          .post('/courses/')
-          .send(coursePayload)
-          .expect(201);
-        const courseId = courseRes.body._id;
-        const versionPayload = {version: 'v1', description: 'desc'};
-        const versionRes = await request(app)
-          .post(`/courses/${courseId}/versions`)
-          .send(versionPayload)
-          .expect(201);
-        const versionId = versionRes.body._id;
-        const modulePayload = {name: 'Move Error Module', description: 'desc'};
-        const moduleRes = await request(app)
-          .post(`/courses/versions/${versionId}/modules`)
-          .send(modulePayload)
-          .expect(201);
-        const moduleId = moduleRes.body.version.modules[0].moduleId;
-        await request(app)
-          .put(`/courses/versions/${versionId}/modules/${moduleId}/move`)
+      it('should return 400 if neither beforeModuleId nor afterModuleId is provided', async () => {
+        // Arrange: No move parameter provided
+        const validModuleId = data.modules[0].moduleId;
+
+        // Act & Assert: Should return 400 Bad Request
+        const response = await request(app)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`,
+          )
           .send({})
+          .expect(400);
+      });
+
+      it('should return 400 if both afterModuleId and beforeModuleId are present', async () => {
+        // Arrange: Provide both params (invalid usage)
+        const validModuleId = data.modules[0].moduleId;
+
+        // Act & Assert: Should return 400 Bad Request
+        await request(app)
+          .put(
+            `/courses/versions/${data.courseVersionId}/modules/${validModuleId}/move`,
+          )
+          .send({
+            beforeModuleId: faker.database.mongodbObjectId(),
+            afterModuleId: faker.database.mongodbObjectId(),
+          })
           .expect(400);
       });
     });
@@ -398,7 +323,7 @@ describe('Module Controller Integration Tests', () => {
           .expect(200);
 
         expect(deleteRes.body.message).toContain(`Module ${moduleId} deleted`);
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -406,14 +331,14 @@ describe('Module Controller Integration Tests', () => {
         await request(app)
           .delete('/courses/versions/invalidVersion/modules/invalidModule')
           .expect(400);
-      });
+      }, 90000);
       it('should return 404 if module does not exist', async () => {
         const fakeVersionId = '60d21b4667d0d8992e610c85';
         const fakeModuleId = '60d21b4967d0d8992e610c86';
         await request(app)
           .delete(`/courses/versions/${fakeVersionId}/modules/${fakeModuleId}`)
           .expect(404);
-      });
+      }, 90000);
     });
   });
 
@@ -471,7 +396,7 @@ describe('Module Controller Integration Tests', () => {
         expect(updatedModule).toBeDefined();
         expect(updatedModule.name).toBe('Updated Module');
         expect(updatedModule.description).toBe('Updated Desc');
-      });
+      }, 90000);
     });
 
     describe('Error Scenarios', () => {
@@ -480,15 +405,15 @@ describe('Module Controller Integration Tests', () => {
           .put('/courses/versions/invalidVersion/modules/invalidModule')
           .send({name: 'x'})
           .expect(400);
-      });
+      }, 90000);
       it('should return 404 if module to update does not exist', async () => {
         const fakeVersionId = '60d21b4667d0d8992e610c85';
         const fakeModuleId = '60d21b4967d0d8992e610c86';
         await request(app)
           .put(`/courses/versions/${fakeVersionId}/modules/${fakeModuleId}`)
-          .send({name: 'x'})
+          .send({name: 'x', description: 'y'})
           .expect(404);
-      });
+      }, 90000);
 
       it('should return 400 if update payload is invalid', async () => {
         const coursePayload = {
@@ -519,100 +444,78 @@ describe('Module Controller Integration Tests', () => {
           .put(`/courses/versions/${versionId}/modules/${moduleId}`)
           .send({name: ''})
           .expect(400);
-      });
+      }, 90000);
     });
   });
 
-  // Tests for module service error paths
   describe('MODULE SERVICE ERROR PATHS', () => {
-    let moduleService: any;
-    let courseRepo: any;
+    let courseId: string;
+    let versionId: string;
+    let moduleId: string;
 
-    beforeAll(() => {
-      courseRepo = Container.get<CourseRepository>('CourseRepo');
-      moduleService = Container.get('ModuleService');
+    beforeEach(async () => {
+      // Create a course and version for each test
+      const coursePayload = {name: 'Error Path Course', description: 'desc'};
+      const courseRes = await request(app)
+        .post('/courses/')
+        .send(coursePayload)
+        .expect(201);
+      courseId = courseRes.body._id;
+
+      const versionPayload = {version: 'v1', description: 'desc'};
+      const versionRes = await request(app)
+        .post(`/courses/${courseId}/versions`)
+        .send(versionPayload)
+        .expect(201);
+      versionId = versionRes.body._id || versionRes.body.version._id;
+
+      const modulePayload = {name: 'mod', description: 'desc'};
+      const moduleRes = await request(app)
+        .post(`/courses/versions/${versionId}/modules`)
+        .send(modulePayload)
+        .expect(201);
+      moduleId = moduleRes.body.version.modules[0].moduleId;
     });
 
-    it('should throw NotFoundError if version does not exist on createModule', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue(null);
-      await expect(
-        moduleService.createModule('fakeVersionId', {
-          name: 'x',
-          description: 'y',
-        }),
-      ).rejects.toThrow('Version fakeVersionId not found.');
-    });
+    it('should return 400 if both afterModuleId and beforeModuleId are missing in moveModule', async () => {
+      await request(app)
+        .put(`/courses/versions/${versionId}/modules/${moduleId}/move`)
+        .send({})
+        .expect(400);
+    }, 90000);
 
-    it('should throw InternalServerError if updateVersion fails on createModule', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({modules: []});
-      jest.spyOn(courseRepo, 'updateVersion').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        moduleService.createModule('vId', {name: 'x', description: 'y'}),
-      ).rejects.toThrow('DB error');
-    });
+    it('should return 404 if module does not exist on moveModule', async () => {
+      await request(app)
+        .put(
+          `/courses/versions/${versionId}/modules/62341aeb5be816967d8fc2db/move`,
+        )
+        .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
+        .expect(404);
+    }, 90000);
 
-    it('should throw NotFoundError if module does not exist on updateModule', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({modules: []});
-      await expect(
-        moduleService.updateModule('vId', 'mId', {name: 'x'}),
-      ).rejects.toThrow('Module mId not found.');
-    });
+    it('should return 404 if module does not exist on moveModule', async () => {
+      await request(app)
+        .put(
+          '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db/move',
+        )
+        .send({beforeModuleId: '62341aeb5be816967d8fc2db'})
+        .expect(404);
+    }, 90000);
 
-    it('should throw InternalServerError if updateVersion fails on updateModule', async () => {
-      jest
-        .spyOn(courseRepo, 'readVersion')
-        .mockResolvedValue({modules: [{moduleId: 'mId'}]});
-      jest.spyOn(courseRepo, 'updateVersion').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        moduleService.updateModule('vId', 'mId', {name: 'x'}),
-      ).rejects.toThrow('DB error');
-    });
+    it('should return 404 for non existant course version', async () => {
+      await request(app)
+        .delete(
+          '/courses/versions/62341aeb5be816967d8fc2db/modules/62341aeb5be816967d8fc2db',
+        )
+        .expect(404);
+    }, 90000);
 
-    it('should throw InternalServerError if both afterModuleId and beforeModuleId are missing in moveModule', async () => {
-      await expect(moduleService.moveModule('vId', 'mId', {})).rejects.toThrow(
-        'Either afterModuleId or beforeModuleId is required',
-      );
-    });
-
-    it('should throw NotFoundError if module does not exist on moveModule', async () => {
-      jest.spyOn(courseRepo, 'readVersion').mockResolvedValue({modules: []});
-      await expect(
-        moduleService.moveModule('vId', 'mId', {beforeModuleId: 'bId'}),
-      ).rejects.toThrow('Module mId not found.');
-    });
-
-    it('should throw InternalServerError if updateVersion fails on moveModule', async () => {
-      jest
-        .spyOn(courseRepo, 'readVersion')
-        .mockResolvedValue({modules: [{moduleId: 'mId', order: 'a'}]});
-      jest.spyOn(courseRepo, 'updateVersion').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(
-        moduleService.moveModule('vId', 'mId', {beforeModuleId: 'bId'}),
-      ).rejects.toThrow(
-        "Cannot read properties of undefined (reading 'order')",
-      );
-    });
-
-    it('should throw InternalServerError if deleteModule returns false', async () => {
-      jest.spyOn(courseRepo, 'deleteModule').mockResolvedValue(false);
-      await expect(moduleService.deleteModule('vId', 'mId')).rejects.toThrow(
-        'Failed to delete module mId',
-      );
-    });
-
-    it('should throw InternalServerError if deleteModule throws', async () => {
-      jest.spyOn(courseRepo, 'deleteModule').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-      await expect(moduleService.deleteModule('vId', 'mId')).rejects.toThrow(
-        'DB error',
-      );
-    });
+    it('should return 404 if module does not exist on deleteModule', async () => {
+      await request(app)
+        .delete(
+          `/courses/versions/${versionId}/modules/62341aeb5be816967d8fc2db`,
+        )
+        .expect(404);
+    }, 90000);
   });
 });

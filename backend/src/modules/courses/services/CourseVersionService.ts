@@ -1,40 +1,35 @@
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {ICourseRepository} from 'shared/database';
-import {Inject, Service} from 'typedi';
-import {CreateCourseVersionBody} from '../classes/validators';
-import {CourseVersion} from '../classes/transformers';
-import {ObjectId, ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {ICourseVersion} from 'shared/interfaces/Models';
-import {DeleteError} from 'shared/errors/errors';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {CreateCourseVersionBody} from '#courses/classes/validators/CourseVersionValidators.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {instanceToPlain} from 'class-transformer';
-
-@Service()
-export class CourseVersionService {
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+@injectable()
+export class CourseVersionService extends BaseService {
   constructor(
-    @Inject('CourseRepo')
+    @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) {}
 
-  private readonly transactionOptions = {
-    readPreference: ReadPreference.PRIMARY,
-    readConcern: new ReadConcern('majority'),
-    writeConcern: new WriteConcern('majority'),
-  };
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
   async createCourseVersion(
     courseId: string,
     body: CreateCourseVersionBody,
   ): Promise<CourseVersion> {
-    const course = await this.courseRepo.read(courseId);
-    if (!course) {
-      throw new NotFoundError('Course not found');
-    }
-
-    const session = (await this.courseRepo.getDBClient()).startSession();
-    let newVersion: CourseVersion;
-
-    try {
-      await session.startTransaction(this.transactionOptions);
+    return this._withTransaction(async session => {
+      const course = await this.courseRepo.read(courseId);
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      let newVersion: CourseVersion;
       // Step 2: Create new version
       newVersion = new CourseVersion(body);
       newVersion.courseId = new ObjectId(courseId);
@@ -65,28 +60,14 @@ export class CourseVersionService {
           'Failed to update course with new version.',
         );
       }
-
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
-
-    return newVersion;
+      return newVersion;
+    });
   }
 
   public async readCourseVersion(
     courseVersionId: string,
   ): Promise<CourseVersion> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    let version: CourseVersion;
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
+    return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.readVersion(
         courseVersionId,
         session,
@@ -95,32 +76,19 @@ export class CourseVersionService {
         throw new InternalServerError('Failed to read course version.');
       }
 
-      version = instanceToPlain(
+      const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
 
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
-
-    return version;
+      return version;
+    });
   }
 
   public async deleteCourseVersion(
     courseId: string,
     courseVersionId: string,
-  ): Promise<CourseVersion> {
-    const session = (await this.courseRepo.getDBClient()).startSession();
-
-    let removedVersion: CourseVersion;
-
-    try {
-      await session.startTransaction(this.transactionOptions);
-
+  ): Promise<Boolean> {
+    return this._withTransaction(async session => {
       const readCourseVersion = await this.courseRepo.readVersion(
         courseVersionId,
         session,
@@ -147,20 +115,9 @@ export class CourseVersionService {
         session,
       );
       if (versionDeleteResult.deletedCount !== 1) {
-        throw new DeleteError('Failed to delete course version');
+        throw new InternalServerError('Failed to delete course version');
       }
-
-      removedVersion = instanceToPlain(
-        Object.assign(new CourseVersion(), removedVersion),
-      ) as CourseVersion;
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
-
-    return removedVersion;
+      return true;
+    });
   }
 }

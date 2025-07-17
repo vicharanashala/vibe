@@ -1,14 +1,12 @@
-import 'reflect-metadata';
-import {Expose, Transform, Type} from 'class-transformer';
 import {
-  ObjectIdArrayToStringArray,
-  StringArrayToObjectIdArray,
   ObjectIdToString,
   StringToObjectId,
-} from 'shared/constants/transformerConstants';
-import {ICourse} from 'shared/interfaces/Models';
-import {ID} from 'shared/types';
-import {CreateCourseBody} from '../validators';
+  ObjectIdArrayToStringArray,
+  StringArrayToObjectIdArray,
+} from '#root/shared/constants/transformerConstants.js';
+import {ICourse, ID} from '#root/shared/interfaces/models.js';
+import {CourseBody} from '../validators/CourseValidators.js';
+import {Expose, Type, Transform} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 /**
@@ -23,7 +21,6 @@ class Course implements ICourse {
     description: 'Unique identifier for the course',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
   @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
@@ -57,7 +54,6 @@ class Course implements ICourse {
     type: 'array',
     items: {
       type: 'string',
-      format: 'Mongo Object ID',
     },
   })
   versions: ID[];
@@ -72,7 +68,6 @@ class Course implements ICourse {
     type: 'array',
     items: {
       type: 'string',
-      format: 'Mongo Object ID',
     },
   })
   instructors: ID[];
@@ -86,7 +81,7 @@ class Course implements ICourse {
     type: 'string',
     format: 'date-time',
   })
-  createdAt?: Date | null;
+  createdAt?: Date;
 
   @Expose()
   @Type(() => Date)
@@ -97,9 +92,9 @@ class Course implements ICourse {
     type: 'string',
     format: 'date-time',
   })
-  updatedAt?: Date | null;
+  updatedAt?: Date;
 
-  constructor(courseBody?: CreateCourseBody) {
+  constructor(courseBody?: CourseBody) {
     if (courseBody) {
       this.name = courseBody.name;
       this.description = courseBody.description;

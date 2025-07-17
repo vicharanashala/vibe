@@ -1,61 +1,59 @@
 import {instanceToPlain} from 'class-transformer';
-import 'reflect-metadata';
+import {injectable, inject} from 'inversify';
 import {
-  Authorized,
-  Body,
-  Delete,
-  HttpCode,
-  HttpError,
   JsonController,
-  Params,
+  Authorized,
   Post,
+  HttpCode,
+  Params,
+  Body,
+  InternalServerError,
+  HttpError,
   Put,
+  Delete,
+  BadRequestError,
+  ForbiddenError,
 } from 'routing-controllers';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {DeleteError, ReadError, UpdateError} from 'shared/errors/errors';
-import {Inject, Service} from 'typedi';
-import {ItemsGroup} from '../classes/transformers/Item';
-import {Section} from '../classes/transformers/Section';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
-  CreateSectionBody,
-  CreateSectionParams,
-  MoveSectionBody,
-  MoveSectionParams,
-  UpdateSectionBody,
-  UpdateSectionParams,
   SectionDataResponse,
   SectionNotFoundErrorResponse,
+  CreateSectionBody,
+  VersionModuleSectionParams,
+  UpdateSectionBody,
+  MoveSectionBody,
   SectionDeletedResponse,
-  DeleteSectionParams,
-} from '../classes/validators/SectionValidators';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {BadRequestErrorResponse} from 'shared/middleware/errorHandler';
-import {SectionService} from '../services/SectionService';
-import {CourseVersion} from '../classes/transformers';
-
+} from '#courses/classes/validators/SectionValidators.js';
+import {SectionService} from '#courses/services/SectionService.js';
+import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
+import {VersionModuleParams} from '../classes/validators/ModuleValidators.js';
+import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
 @OpenAPI({
   tags: ['Course Sections'],
 })
+@injectable()
 @JsonController('/courses')
-@Service()
 export class SectionController {
   constructor(
-    @Inject('CourseRepo') private readonly courseRepo: CourseRepository,
-    @Inject('ItemRepo') private readonly itemRepo: ItemRepository,
-    @Inject('SectionService')
+    @inject(COURSES_TYPES.SectionService)
     private readonly sectionService: SectionService,
   ) {
     if (!this.sectionService) {
       throw new Error('Course Service is not properly injected');
     }
-    if (!this.itemRepo) {
-      throw new Error('ItemRepository is not properly injected');
-    }
   }
 
-  @Authorized(['admin'])
+  @OpenAPI({
+    summary: 'Create a section',
+    description: `Creates a new section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
   @Post('/versions/:versionId/modules/:moduleId/sections')
   @HttpCode(201)
   @ResponseSchema(SectionDataResponse, {
@@ -69,24 +67,29 @@ export class SectionController {
     description: 'Section not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Create Section',
-    description:
-      'Creates a new section in the specified module and automatically generates an associated items group.',
-  })
   async create(
-    @Params() params: CreateSectionParams,
+    @Params() params: VersionModuleParams,
     @Body() body: CreateSectionBody,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
+    const {versionId, moduleId} = params;
+    
+    // Create a course version resource object for permission checking
+    const versionResource = subject('CourseVersion', { versionId });
+    
+    // Check permission using ability.can() with the actual version resource
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError('You do not have permission to modify this course version');
+    }
+    
     try {
-      const {versionId, moduleId} = params;
       const createdVersion = await this.sectionService.createSection(
         versionId,
         moduleId,
         body,
       );
       if (!createdVersion) {
-        throw new UpdateError('Failed to create section');
+        throw new InternalServerError('Failed to create section');
       }
       return {version: instanceToPlain(createdVersion)} as any;
     } catch (error) {
@@ -96,7 +99,13 @@ export class SectionController {
     }
   }
 
-  @Authorized(['admin'])
+  @OpenAPI({
+    summary: 'Update a section',
+    description: `Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDataResponse, {
     description: 'Section updated successfully',
@@ -109,17 +118,22 @@ export class SectionController {
     description: 'Section not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Update Section',
-    description:
-      "Updates an existing section's name or description within a module.",
-  })
   async update(
-    @Params() params: UpdateSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: UpdateSectionBody,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
+    const {versionId, moduleId, sectionId} = params;
+    
+    // Create a course version resource object for permission checking
+    const versionResource = subject('CourseVersion', { versionId });
+    
+    // Check permission using ability.can() with the actual version resource
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError('You do not have permission to modify this course version');
+    }
+    
     try {
-      const {versionId, moduleId, sectionId} = params;
       const updatedVersion = await this.sectionService.updateSection(
         versionId,
         moduleId,
@@ -127,7 +141,7 @@ export class SectionController {
         body,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to update section');
+        throw new InternalServerError('Failed to update section');
       }
       return instanceToPlain(
         Object.assign(new CourseVersion(), updatedVersion),
@@ -139,7 +153,13 @@ export class SectionController {
     }
   }
 
-  @Authorized(['admin'])
+  @OpenAPI({
+    summary: 'Reorder a section',
+    description: `Changes the position of a section within its module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
   @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/move')
   @ResponseSchema(SectionDataResponse, {
     description: 'Section moved successfully',
@@ -152,22 +172,27 @@ export class SectionController {
     description: 'Section not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Move Section',
-    description:
-      'Reorders a section within its module by placing it before or after another section.',
-  })
   async move(
-    @Params() params: MoveSectionParams,
+    @Params() params: VersionModuleSectionParams,
     @Body() body: MoveSectionBody,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
+    const {versionId, moduleId, sectionId} = params;
+    
+    // Create a course version resource object for permission checking
+    const versionResource = subject('CourseVersion', { versionId });
+    
+    // Check permission using ability.can() with the actual version resource
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError('You do not have permission to modify this course version');
+    }
+    
     try {
-      const {versionId, moduleId, sectionId} = params;
       const {afterSectionId, beforeSectionId} = body;
 
       if (!afterSectionId && !beforeSectionId) {
-        throw new UpdateError(
-          'Either afterModuleId or beforeModuleId is required',
+        throw new BadRequestError(
+          'Either afterSectionId or beforeSectionId is required',
         );
       }
 
@@ -179,7 +204,7 @@ export class SectionController {
         beforeSectionId,
       );
       if (!updatedVersion) {
-        throw new UpdateError('Failed to move section');
+        throw new InternalServerError('Failed to move section');
       }
 
       return instanceToPlain(
@@ -192,7 +217,13 @@ export class SectionController {
     }
   }
 
-  @Authorized(['admin'])
+  @OpenAPI({
+    summary: 'Delete a section',
+    description: `Deletes a section from a module in a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
   @Delete('/versions/:versionId/modules/:moduleId/sections/:sectionId')
   @ResponseSchema(SectionDeletedResponse, {
     description: 'Section deleted successfully',
@@ -205,24 +236,30 @@ export class SectionController {
     description: 'Section not found',
     statusCode: 404,
   })
-  @OpenAPI({
-    summary: 'Delete Section',
-    description: 'Permanently removes a section from a module.',
-  })
   async delete(
-    @Params() params: DeleteSectionParams,
+    @Params() params: VersionModuleSectionParams,
+    @Ability(getCourseVersionAbility) {ability}
   ): Promise<SectionDeletedResponse> {
     const {versionId, moduleId, sectionId} = params;
+    
+    // Create a course version resource object for permission checking
+    const versionResource = subject('CourseVersion', { versionId });
+    
+    // Check permission using ability.can() with the actual version resource
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError('You do not have permission to modify this course version');
+    }
+    
     const deletedSection = await this.sectionService.deleteSection(
       versionId,
       moduleId,
       sectionId,
     );
     if (!deletedSection) {
-      throw new DeleteError('Failed to delete section');
+      throw new InternalServerError('Failed to delete section');
     }
     return {
-      message: `Section ${params.sectionId} deleted in module ${params.moduleId}`,
+      message: `Section ${sectionId} deleted in module ${moduleId}`,
     };
   }
 }

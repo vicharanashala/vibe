@@ -61,6 +61,20 @@ interface IDESSolution {
   solutionText: string;
 }
 
+type ID = string | ObjectId;
+
+interface IQuestionBank {
+  _id?: string | ObjectId;
+  courseId?: string;
+  courseVersionId?: string;
+  questions: ID[];
+  tags?: string[];
+  title: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 type QuestionQuizView = Omit<IQuestion, 'hint'>;
 
 interface ISOLQuizView extends QuestionQuizView {
@@ -89,6 +103,7 @@ export {
   IDESSolution,
   ILotItem,
   ILotOrder,
+  IQuestionBank,
   ISOLQuizView,
   ISMLQuizView,
   IOTLQuizView,

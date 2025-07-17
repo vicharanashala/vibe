@@ -67,3 +67,13 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Sentry Config File
+.sentryclirc
+
+build/
+client/
+.
+tsconfig.tsbuildinfo
+client/
+build/

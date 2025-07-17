@@ -1,20 +1,31 @@
-import {env} from '../utils/env';
+import {env} from '#root/utils/env.js';
 
-function getAppPath() {
-  let currentDir = __dirname;
-  currentDir = currentDir.replace('/config', '');
+// src/constants/AppModule.ts (or a shared constants directory)
 
-  return currentDir;
+export enum AppModule {
+  All = 'all',
+  Auth = 'auth',
+  Users = 'users',
+  Courses = 'courses',
+  Quizzes = 'quizzes',
 }
 
 export const appConfig = {
-  node: env('NODE_ENV') || 'development',
   isProduction: env('NODE_ENV') === 'production',
   isStaging: env('NODE_ENV') === 'staging',
   isDevelopment: env('NODE_ENV') === 'development',
-  name: env('APP_NAME'),
-  port: Number(env('APP_PORT')) || 4000,
-  routePrefix: env('APP_ROUTE_PREFIX'),
+  port: Number(env('APP_PORT')) || 4001,
   url: env('APP_URL'),
-  appPath: getAppPath(),
+  origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:5173'],
+  module: env('APP_MODULE') || 'all',
+  routePrefix: env('APP_ROUTE_PREFIX') || '/api',
+  frontendUrl: env('FRONTEND_URL') || 'http://localhost:5173',
+  adminPassword: env('ADMIN_PASSWORD') || 'admin123',
+  // Only for development
+  firebase: {
+    clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,
+    privateKey: env('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n') || undefined,
+    projectId: env('FIREBASE_PROJECT_ID') || undefined,
+    apiKey: env('FIREBASE_API_KEY') || undefined,
+  }
 };

@@ -1,97 +1,40 @@
-import {
-  ExpressErrorMiddlewareInterface,
-  HttpError,
-  Middleware,
-  useContainer,
-} from 'routing-controllers';
-import {RoutingControllersOptions} from 'routing-controllers';
-import {Container, Service} from 'typedi';
-import {MongoDatabase} from 'shared/database/providers/mongo/MongoDatabase';
-import {EnrollmentRepository} from 'shared/database/providers/mongo/repositories/EnrollmentRepository';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
-import {ItemRepository} from 'shared/database/providers/mongo/repositories/ItemRepository';
-import {EnrollmentController} from './controllers/EnrollmentController';
-import {EnrollmentService} from './services';
-import {UserRepository} from 'shared/database/providers/MongoDatabaseProvider';
-import {dbConfig} from '../../config/db';
-import {ProgressRepository} from 'shared/database/providers/mongo/repositories/ProgressRepository';
-import {ProgressController} from './controllers/index';
-import {ProgressService} from './services/ProgressService';
-import {Course} from 'modules/courses';
-useContainer(Container);
+import {authContainerModule} from '#auth/container.js';
+import {sharedContainerModule} from '#root/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {Container, ContainerModule} from 'inversify';
+import {RoutingControllersOptions, useContainer} from 'routing-controllers';
+import {usersContainerModule} from './container.js';
+import {EnrollmentController} from './controllers/EnrollmentController.js';
+import {ProgressController} from './controllers/ProgressController.js';
+import {UserController} from './controllers/UserController.js';
+import { CourseController } from '../courses/controllers/CourseController.js';
+import { coursesContainerModule } from '../courses/container.js';
+import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
 
-export function setupUsersModuleDependencies(): void {
-  if (!Container.has('Database')) {
-    Container.set('Database', new MongoDatabase(dbConfig.url, 'vibe'));
-  }
 
-  if (!Container.has('EnrollmentRepo')) {
-    Container.set(
-      'EnrollmentRepo',
-      new EnrollmentRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
+export const usersContainerModules: ContainerModule[] = [
+  usersContainerModule,
+  sharedContainerModule,
+  authContainerModule,
+  coursesContainerModule,
+];
 
-  if (!Container.has('ProgressRepo')) {
-    Container.set(
-      'ProgressRepo',
-      new ProgressRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
+export const usersModuleControllers: Function[] = [
+  EnrollmentController,
+  ProgressController,
+  UserController,
+  CourseController,
+];
 
-  if (!Container.has('CourseRepo')) {
-    Container.set(
-      'CourseRepo',
-      new CourseRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('ItemRepo')) {
-    Container.set(
-      'ItemRepo',
-      new ItemRepository(
-        Container.get<MongoDatabase>('Database'),
-        Container.get<CourseRepository>('CourseRepo'),
-      ),
-    );
-  }
-
-  if (!Container.has('UserRepo')) {
-    Container.set(
-      'UserRepo',
-      new UserRepository(Container.get<MongoDatabase>('Database')),
-    );
-  }
-
-  if (!Container.has('EnrollmentService')) {
-    Container.set(
-      'EnrollmentService',
-      new EnrollmentService(
-        Container.get<EnrollmentRepository>('EnrollmentRepo'),
-        Container.get<CourseRepository>('CourseRepo'),
-        Container.get<UserRepository>('UserRepo'),
-        Container.get<ItemRepository>('ItemRepo'),
-      ),
-    );
-  }
-
-  if (!Container.has('ProgressService')) {
-    Container.set(
-      'ProgressService',
-      new ProgressService(
-        Container.get<ProgressRepository>('ProgressRepo'),
-        Container.get<CourseRepository>('CourseRepo'),
-        Container.get<UserRepository>('UserRepo'),
-        Container.get<ItemRepository>('ItemRepo'),
-      ),
-    );
-  }
+export async function setupUsersContainer(): Promise<void> {
+  const container = new Container();
+  await container.load(...usersContainerModules);
+  const inversifyAdapter = new InversifyAdapter(container);
+  useContainer(inversifyAdapter);
 }
 
-setupUsersModuleDependencies();
-
 export const usersModuleOptions: RoutingControllersOptions = {
-  controllers: [EnrollmentController, ProgressController],
+  controllers: usersModuleControllers,
   middlewares: [],
   defaultErrorHandler: true,
   authorizationChecker: async function () {
@@ -100,8 +43,8 @@ export const usersModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export * from './classes/validators/index';
-export * from './classes/transformers/index';
-export * from './controllers/index';
-
-export {EnrollmentController};
+export const usersModuleValidators: Function[] = [
+  ...ENROLLMENT_VALIDATORS,
+  ...PROGRESS_VALIDATORS,
+  ...USER_VALIDATORS
+]

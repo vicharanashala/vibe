@@ -1,6 +1,7 @@
-import {BaseQuestion} from 'modules/quizzes/classes/transformers';
-import {TagParser, ParameterMap} from '../tag-parser';
-import {IQuestionRenderView} from './interfaces/RenderViews';
+import {BaseQuestion} from '#quizzes/classes/transformers/Question.js';
+import {ParameterMap} from '../tag-parser/tags/Tag.js';
+import {TagParser} from '../tag-parser/TagParser.js';
+import {IQuestionRenderView} from './interfaces/RenderViews.js';
 
 class BaseQuestionRenderer {
   question: BaseQuestion;
@@ -11,7 +12,7 @@ class BaseQuestionRenderer {
     this.tagParser = tagParser;
   }
 
-  render(parameterMap: ParameterMap): BaseQuestion | IQuestionRenderView {
+  render(parameterMap?: ParameterMap): BaseQuestion | IQuestionRenderView {
     if (!this.question.isParameterized || !this.question.parameters?.length) {
       return this.question;
     }

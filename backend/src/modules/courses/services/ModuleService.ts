@@ -1,34 +1,45 @@
 import 'reflect-metadata';
-import {Service, Inject} from 'typedi';
-import {CourseRepository} from 'shared/database/providers/mongo/repositories/CourseRepository';
+import {inject, injectable} from 'inversify';
+import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import {
   CreateModuleBody,
   UpdateModuleBody,
   MoveModuleBody,
-} from '../classes/validators/ModuleValidators';
-import {Module} from '../classes/transformers/Module';
-import {ReadConcern, ReadPreference, WriteConcern} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {calculateNewOrder} from '../utils/calculateNewOrder';
+} from '../classes/validators/ModuleValidators.js';
+import {Module} from '../classes/transformers/Module.js';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+} from 'routing-controllers';
+import {calculateNewOrder} from '../utils/calculateNewOrder.js';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {GLOBAL_TYPES} from '../../../types.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '../types.js';
+import { ICourseRepository, IItemRepository } from '#root/shared/database/interfaces/index.js';
 
-@Service()
-export class ModuleService {
+@injectable()
+export class ModuleService extends BaseService {
   constructor(
-    @Inject('CourseRepo')
-    private readonly courseRepo: CourseRepository,
-  ) {}
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
 
-  public async createModule(versionId: string, body: CreateModuleBody) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
-    try {
-      await session.startTransaction(txOptions);
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
+
+  public async createModule(
+    versionId: string,
+    body: CreateModuleBody,
+  ): Promise<ICourseVersion> {
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
@@ -39,16 +50,11 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
 
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async updateModule(
@@ -56,16 +62,7 @@ export class ModuleService {
     moduleId: string,
     body: UpdateModuleBody,
   ) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       const module = version.modules.find(m => m.moduleId === moduleId);
       if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
@@ -78,17 +75,11 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
 
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async moveModule(
@@ -96,23 +87,13 @@ export class ModuleService {
     moduleId: string,
     body: MoveModuleBody,
   ) {
-    const {afterModuleId, beforeModuleId} = body;
-    if (!afterModuleId && !beforeModuleId) {
-      throw new InternalServerError(
-        'Either afterModuleId or beforeModuleId is required',
-      );
-    }
-
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
+    return this._withTransaction(async session => {
+      const {afterModuleId, beforeModuleId} = body;
+      if (!afterModuleId && !beforeModuleId) {
+        throw new BadRequestError(
+          'Either afterModuleId or beforeModuleId is required',
+        );
+      }
       const version = await this.courseRepo.readVersion(versionId, session);
       const sorted = version.modules
         .slice()
@@ -132,41 +113,42 @@ export class ModuleService {
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
       );
-
-      await session.commitTransaction();
       return updatedVersion;
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+    });
   }
 
   public async deleteModule(versionId: string, moduleId: string) {
-    const client = await this.courseRepo.getDBClient();
-    const session = client.startSession();
-    const txOptions = {
-      readPreference: ReadPreference.primary,
-      readConcern: new ReadConcern('snapshot'),
-      writeConcern: new WriteConcern('majority'),
-    };
-
-    try {
-      await session.startTransaction(txOptions);
-      const deleted = await this.courseRepo.deleteModule(versionId, moduleId);
+    return this._withTransaction(async session => {
+      const deleted = await this.courseRepo.deleteModule(
+        versionId,
+        moduleId,
+        session,
+      );
       if (!deleted)
         throw new InternalServerError(`Failed to delete module ${moduleId}`);
 
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof NotFoundError) throw error;
-      throw new InternalServerError(error.message);
-    } finally {
-      await session.endSession();
-    }
+      // update total item count
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
+      version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+        version.courseId.toString(),
+        version._id.toString(),
+        session,
+      );
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      if (!updatedVersion) {
+        throw new InternalServerError(
+          `Failed to update version ${versionId} after module deletion`,
+        );
+      }
+    });
   }
 }

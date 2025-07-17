@@ -1,0 +1,38 @@
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+import type { AnnouncementBannerProps } from "@/types/ui.types";
+
+export const AnnouncementBanner = ({ 
+  badge = "New", 
+  title, 
+  description, 
+  actionText = "View details", 
+  onAction, 
+  className 
+}: AnnouncementBannerProps) => {
+  return (
+    <div className={`bg-accent/20 border border-accent/30 rounded-lg p-4 mb-2 ${className || ''}`}>
+      <div className="flex items-start">
+        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium bg-primary text-primary-foreground rounded mr-3">
+          {badge}
+        </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-lg sm:text-xl mb-1">{title}</h3>
+          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+            {description}
+          </p>
+        </div>
+        {onAction && (
+          <Button 
+            variant="ghost" 
+            className="inline-flex items-center text-sm font-medium flex-shrink-0 self-start" 
+            onClick={onAction}
+          >
+            {actionText} <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
