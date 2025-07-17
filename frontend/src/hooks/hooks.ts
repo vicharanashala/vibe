@@ -684,6 +684,46 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
   };
 }
 
+// Add this hook to your hooks file
+export function useUserProgressPercentageByUserId(
+  userId: string, 
+  courseId: string, 
+  courseVersionId: string
+): {
+  data: {
+    completed: boolean;
+    percentCompleted: number;
+    totalItems: number;
+    completedItems: number;
+  } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get", 
+    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/percentage",
+    {
+      params: {
+        path: {
+          userId,
+          courseId,
+          courseVersionId
+        }
+      }
+    },
+    {
+      enabled: !!(userId && courseId && courseVersionId)
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user progress percentage') : null,
+    refetch: result.refetch
+  };
+}
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/start
 export function useStartItem(): {
@@ -738,7 +778,7 @@ export function useResetProgress(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/users/{userId}progress/courses/{courseId}/versions/{courseVersionId}/reset");
+  const result = api.useMutation("patch", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/reset");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to reset progress') : null
@@ -833,6 +873,89 @@ export function useSubmitQuiz(): {
     error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
   };
 }
+
+interface IAttemptDetails {
+  attemptId: string | ObjectId;
+  submissionResultId?: string | ObjectId;
+}
+
+interface UserQuizMetricsResponse {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptId?: string;
+  latestSubmissionResultId?: string;
+  remainingAttempts: number;
+  attempts: IAttemptDetails[];
+}
+
+// GET /quizzes/{quizId}/user/{userId}
+export function useUserQuizMetrics(quizId: string, userId: string): {
+  data: UserQuizMetricsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/quizzes/quiz/{quizId}/user/{userId}", {
+    params: { path: { quizId, userId } }
+  }, {enabled: !!quizId && !!userId});
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
+    refetch: result.refetch
+  };
+}
+
+// Types
+interface IQuestionAnswerFeedback {
+  questionId: string;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string; // Optional feedback for the answer
+}
+
+interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: string; // ISO date string
+  gradedBy?: string;
+}
+
+interface QuizSubmissionResponse {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  attemptId: string;
+  submittedAt: string; // ISO date string
+  gradingResult?: IGradingResult;
+}
+
+// GET /quiz/{quizId}/submissions/{submissionId}
+export function useQuizSubmission(quizId: string, submissionId: string): {
+  data: QuizSubmissionResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions/{submissionId}", {
+    params: { path: { quizId, submissionId } }
+  }, {enabled: !!quizId && !!submissionId}
+);
+  
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message ? result.error.message : "Cannot fetch Quiz submission details.") : null,
+    refetch: result.refetch
+  };
+}
+
+
 
 export function useReportAnomaly(): {
   mutate: (variables: { body: ReportAnomalyBody }) => void,
@@ -984,15 +1107,15 @@ export function useCancelInvite(): {
 }
 
 // GET /users/{id}/watchTime/item/itemId
-export function useWatchTimeByItemId(userId: string, itemId: string): {
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string ): {
   data:  undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/users/{id}/watchTime/item/{itemId}", {
-    params: { path: { id: userId, itemId } }
-  }, { enabled: !!userId && !!itemId });
+  const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type:type} },
+  }, { enabled: !!userId && !!itemId && !!type },);
 
   return {
     data: result.data,

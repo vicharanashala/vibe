@@ -32,7 +32,6 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
-import ViewProgress from '../pages/teacher/view-progress'
 
 
 const sampleText = `
@@ -344,13 +343,6 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
-// Teacher view progress route
-const teacherViewProgressRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/progress',
-  component: ViewProgress,
-});
-
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -423,8 +415,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
-    teacherCourseInviteRoute,
-    teacherViewProgressRoute,
+    teacherCourseInviteRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

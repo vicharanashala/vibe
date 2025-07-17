@@ -26,6 +26,7 @@ import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/Su
 import { QUIZZES_TYPES } from '#quizzes/types.js';
 import { WatchTime } from '../classes/transformers/WatchTime.js';
 import { CompletedProgressResponse } from '../classes/index.js';
+
 @injectable()
 class ProgressService extends BaseService {
   constructor(
@@ -890,6 +891,19 @@ class ProgressService extends BaseService {
 
     // Return the completed items
     return progress;
+  }
+
+  async getTotalWatchtimeOfUser(userId: string) {
+    const watchItems = await this.progressRepository.getAllWatchTime(userId);
+    let totalWatchTime = 0;
+    watchItems.forEach(watchItem => {
+      if (watchItem.startTime && watchItem.endTime) {
+        const startTime = new Date(watchItem.startTime);
+        const endTime = new Date(watchItem.endTime);
+        totalWatchTime += (endTime.getTime() - startTime.getTime()) / 1000; // Convert to seconds
+      }
+    })
+    return totalWatchTime;
   }
 
   async resetCourseProgressToModule(

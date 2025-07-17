@@ -85,17 +85,6 @@ export class EnrollmentDataResponse {
   user?:User
 
   @JSONSchema({
-    description: 'User ID associated with this enrollment',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: ID;
-
-  @JSONSchema({
     description: 'Course ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
@@ -203,6 +192,17 @@ export class EnrolledUserResponseData {
 }
 
 class UserResponse {
+  @JSONSchema({
+    description: 'Unique identifier for the user',
+    example: '60d5ec49b3f1c8e4a8f8b8d2',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
+
   @JSONSchema({
     description: 'First name of the user',
     example: 'John',
