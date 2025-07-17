@@ -10,7 +10,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
-export const CourseCard = ({ enrollment, index, variant = 'dashboard', className }: CourseCardProps) => {
+export const CourseCard = ({ enrollment, index, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   const courseId = bufferToHex(enrollment.courseId);
   const versionId = bufferToHex(enrollment.courseVersionId) || "";
   
@@ -24,6 +24,24 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   const totalLessons = progressData?.totalItems || 0;
   const completedLessons = progressData?.completedItems || 0;
   const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;
+
+  // Find if this courseVersionId is already in completion
+  const existingCompletionIndex = completion?.findIndex(
+    (c) => c.courseVersionId === versionId
+  );
+
+  // If not found, append the user progress percentage to the list
+  if (existingCompletionIndex === -1 && progressData) {
+    setCompletion?.([
+      ...(completion || []),
+      {
+        courseVersionId: versionId,
+        percentage: progressData.percentCompleted,
+        totalItems: progressData.totalItems,
+        completedItems: progressData.completedItems
+      },
+    ]);
+  }
 
   const handleContinue = () => {
     console.log("Setting course store:", {

@@ -6,7 +6,7 @@ IFS=$'\n\t'
 #========================================
 # Configuration
 #========================================
-DEPLOY_BRANCH="deploy"
+DEPLOY_BRANCH="saaransh/deploy"
 STASH_MSG="pre-deploy-stash"
 
 #========================================

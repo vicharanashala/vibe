@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
@@ -10,6 +10,7 @@ import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
+import type { CoursePctCompletion } from '@/types/course.types';
 
 export default function Page() {
   const { isAuthenticated } = useAuthStore();
@@ -66,10 +67,13 @@ function DashboardContent() {
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-  const totalProgress = enrollments.length > 0
-    ? Math.round(Math.random() * 100)
-    : 0;
+  const { data: watchtimeData } = useWatchtimeTotal();
 
+  const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
+  const totalProgress = Math.round(
+    completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
+  ) || 0;
+  
   return (
     <>
       {/* Greeting and Stat Cards in two separate flex boxes */}
@@ -86,7 +90,7 @@ function DashboardContent() {
         {/* Right: Stat Cards */}
         <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
           <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
-          <StatCard icon="⏱️" value="2.5h" label="Study Time" />
+          <StatCard icon="⏱️" value={`${(watchtimeData / 3600 || 0).toFixed(2)}h`} label="Study Time" />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
         </div>
       </div>
@@ -114,8 +118,10 @@ function DashboardContent() {
               title: "No courses enrolled yet",
               description: "Start your learning journey by enrolling in a course",
               actionText: "Browse Courses",
-              onAction: () => navigate({ to: '/student/courses' })
+              onAction: () => navigate({ to: '/student/courses' }),
             }}
+            completion={completion}
+            setCompletion={setCompletion}
             className="mb-8"
           />
           <CourseSection

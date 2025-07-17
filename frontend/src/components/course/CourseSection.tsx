@@ -17,7 +17,9 @@ export const CourseSection = ({
   variant = 'dashboard',
   skeletonCount = 3,
   emptyStateConfig,
-  className
+  className,
+  completion,
+  setCompletion
 }: CourseSectionProps) => {
   const renderContent = () => {
     if (isLoading) {
@@ -70,11 +72,7 @@ export const CourseSection = ({
       <>
         <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
           {enrollments.map((enrollment, index) => {
-            const courseId = enrollment.courseId && typeof enrollment.courseId === 'object' && 'buffer' in enrollment.courseId
-              ? Array.from(new Uint8Array((enrollment.courseId as { buffer: { data: number[] } })))
-                  .map((b) => b.toString(16).padStart(2, '0'))
-                  .join('')
-              : index.toString();
+            const courseId = enrollment.courseVersionId as string;
 
             return (
               <CourseCard 
@@ -82,6 +80,8 @@ export const CourseSection = ({
                 enrollment={enrollment} 
                 index={index} 
                 variant={variant}
+                completion={completion}
+                setCompletion={setCompletion}
               />
             );
           })}

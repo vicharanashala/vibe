@@ -1144,3 +1144,19 @@ export function useEditUser(): {
     error: result.error ? (result.error.message || 'Failed to edit user') : null
   };
 }
+
+export function useWatchtimeTotal(): {
+  data: number | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/watchTime/total");
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch total watch time') : null,
+    refetch: result.refetch
+  };
+}
