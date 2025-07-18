@@ -111,6 +111,7 @@
     "lexorank": "^1.0.5",
     "mathjs": "^14.5.2",
     "mongodb": "^6.17.0",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.3",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",

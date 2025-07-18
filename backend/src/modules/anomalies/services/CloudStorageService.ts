@@ -2,15 +2,8 @@ import { injectable, inject } from 'inversify';
 import { Storage } from '@google-cloud/storage';
 import { InternalServerError, BadRequestError } from 'routing-controllers';
 import { storageConfig } from '#root/config/storage.js';
-import { ImageProcessingService, IImageEncryptionResult } from './ImageProcessingService.js';
+import { ImageProcessingService } from './ImageProcessingService.js';
 import { ANOMALIES_TYPES } from '../types.js';
-
-export interface ICloudStorageResult {
-  imageUrl: string;
-  fileName: string;
-  encryptedImageData: IImageEncryptionResult;
-  imageMetadata: any;
-}
 
 @injectable()
 export class CloudStorageService {
@@ -36,58 +29,35 @@ export class CloudStorageService {
   async uploadAnomalyImage(
     imageBuffer: Buffer,
     userId: string,
-    timestamp: Date,
-    anomalyType: string
-  ): Promise<ICloudStorageResult> {
+    anomalyType: string,
+    timestamp: Date
+  ): Promise<string> {
     // Use ImageProcessingService to process image (compress + encrypt)
-    const { encryptionResult, compressionMetadata } = await this.imageProcessingService.processImage(imageBuffer);
+    const { encryptionResult } = await this.imageProcessingService.processImage(imageBuffer);
 
     // Generate unique filename
-    const timestampStr = timestamp.toISOString().replace(/[:.]/g, '-');
-    const fileName = `anomalies/${userId}/${timestampStr}_${anomalyType}.encrypted`;
+    const timestampStr = timestamp.toISOString().replace(/[:.-]/g, '');
+    const fileName = `${userId}/${anomalyType}/${timestampStr}.encrypted`;
 
     // Get bucket and file reference
     const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
-    try {
-      // Upload encrypted image with metadata
-      await file.save(encryptionResult.encryptedBuffer, {
+    // Upload encrypted image with metadata
+    await file.save(encryptionResult.encryptedBuffer, {
+      metadata: {
+        contentType: 'application/octet-stream',
         metadata: {
-          contentType: 'application/octet-stream',
-          metadata: {
-            userId,
-            timestamp: timestamp.toISOString(),
-            anomalyType,
-            uploadedAt: new Date().toISOString(),
-            // Encryption metadata
-            encrypted: 'true',
-            algorithm: encryptionResult.algorithm,
-            iv: encryptionResult.iv,
-            authTag: encryptionResult.authTag,
-            // Compression metadata
-            originalSize: String(compressionMetadata.originalSize),
-            compressedSize: String(compressionMetadata.compressedSize),
-            compressionRatio: String(compressionMetadata.compressionRatio),
-          },
+          anomalyType,
+          encrypted: 'true',
+          algorithm: encryptionResult.algorithm,
+          iv: encryptionResult.iv,
+          authTag: encryptionResult.authTag,
         },
-      });
-    } catch (error) {
-      throw new InternalServerError(`Failed to upload image to cloud storage: ${error.message}`);
-    }
-
-    // Generate signed URL (valid for 1 hour)
-    const [signedUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+      },
     });
 
-    return {
-      imageUrl: signedUrl,
-      fileName,
-      encryptedImageData: encryptionResult,
-      imageMetadata: compressionMetadata,
-    };
+    return fileName;
   }
 
   /**

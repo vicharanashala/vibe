@@ -4,21 +4,7 @@ import { AnomalyService } from './AnomalyService.js';
 import { ImageProcessingService } from './ImageProcessingService.js';
 import { AnomalyTransformationService } from './AnomalyTransformationService.js';
 import { ANOMALIES_TYPES } from '../types.js';
-
-export interface IDecryptionResult {
-  success: boolean;
-  message?: string;
-  data?: {
-    id: string;
-    decryptedImageBase64?: string;
-    metadata: any;
-    encryptionInfo: {
-      hasEncryptedData: boolean;
-      ivFormat: string;
-      bufferSize?: number;
-    };
-  };
-}
+import { IDecryptionResult } from '../classes/transformers/Anomaly.js';
 
 @injectable()
 export class AnomalyDecryptionService {

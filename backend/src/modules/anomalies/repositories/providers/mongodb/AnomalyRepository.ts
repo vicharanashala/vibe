@@ -1,119 +1,84 @@
 import { injectable, inject } from 'inversify';
 import { Collection, ClientSession, ObjectId } from 'mongodb';
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { IAnomalyRecord } from '#root/shared/interfaces/models.js';
-import { Anomaly } from '../../../classes/transformers/Anomaly.js';
 import { GLOBAL_TYPES } from '#root/types.js';
+import { IAnomalyData } from '#root/modules/anomalies/index.js';
 
 @injectable()
 export class AnomalyRepository {
-  private collection: Collection<IAnomalyRecord>;
+  private anomalyCollection: Collection<IAnomalyData>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database) private database: MongoDatabase
   ) {}
 
   private async init(): Promise<void> {
-    if (!this.collection) {
-      // Use the getCollection method which handles connection automatically
-      this.collection = await this.database.getCollection<IAnomalyRecord>('anomaly_records');
+    if (!this.anomalyCollection) {
+      this.anomalyCollection = await this.database.getCollection<IAnomalyData>('anomaly_records');
     }
   }
 
-  async createAnomaly(anomaly: Anomaly, session?: ClientSession): Promise<Anomaly> {
+  async createAnomaly(anomaly: IAnomalyData, session?: ClientSession): Promise<IAnomalyData> {
     await this.init();
-    
-    const result = await this.collection.insertOne(anomaly, { session });
+
+    const result = await this.anomalyCollection.insertOne(anomaly, { session });
+    if (!result.acknowledged) {
+      return null;
+    }
     
     return { ...anomaly, _id: result.insertedId };
   }
 
-  async getAnomaliesByUser(userId: string, filters: Record<string, any> = {}): Promise<IAnomalyRecord[]> {
+  async getByUser(
+    userId: string, 
+    courseId: string, 
+    versionId: string, 
+    session?: ClientSession
+  ): Promise<IAnomalyData[]> {
     await this.init();
+    const result = await this.anomalyCollection
+      .find({ userId: userId, courseId: courseId, versionId: versionId }, { session })
+      .toArray();
+    return result;
+  }
 
-    const query: Record<string, any> = {
-      userId: new ObjectId(userId),
-      ...filters,
-    };
+  async getById(anomalyId: string, courseId: string, versionId: string, session?: ClientSession): Promise<IAnomalyData | null> {
+    await this.init();
+    return await this.anomalyCollection.findOne({ _id: new ObjectId(anomalyId), courseId: courseId, versionId: versionId }, { session });
+  }
 
-    return await this.collection
-      .find(query)
-      .sort({ timestamp: -1 })
+  async getAnomaliesByCourse(courseId: string, versionId: string, session?: ClientSession): Promise<IAnomalyData[]> {
+    await this.init();
+    return await this.anomalyCollection
+      .find({ courseId: courseId, versionId: versionId }, { session })
       .toArray();
   }
 
-  async getAnomaliesBySession(sessionId: string, session?: ClientSession): Promise<IAnomalyRecord[]> {
+  async deleteAnomaly(anomalyId: string, courseId: string, versionId: string, session?: ClientSession): Promise<boolean> {
     await this.init();
-    
-    return await this.collection
-      .find({ 'sessionMetadata.sessionId': sessionId }, { session })
-      .sort({ timestamp: -1 })
-      .toArray();
-  }
-
-  async getAnomaliesByCourse(courseId: string, userId?: string, session?: ClientSession): Promise<IAnomalyRecord[]> {
-    await this.init();
-    
-    const filter: any = { courseId: new ObjectId(courseId) };
-    if (userId) {
-      filter.userId = new ObjectId(userId);
-    }
-    
-    return await this.collection
-      .find(filter, { session })
-      .sort({ timestamp: -1 })
-      .toArray();
-  }
-
-  async getAnomalyStats(userId: string, courseId?: string, session?: ClientSession): Promise<{
-    totalAnomalies: number;
-    totalPenalty: number;
-    anomalyTypes: Record<string, number>;
-    last24Hours: number;
-    averagePerDay: number;
-  }> {
-    await this.init();
-    
-    const filter: any = { userId: new ObjectId(userId) };
-    if (courseId) {
-      filter.courseId = new ObjectId(courseId);
-    }
-
-    const anomalies = await this.collection.find(filter, { session }).toArray();
-    
-    const now = new Date();
-    const last24Hours = anomalies.filter(a => 
-      (now.getTime() - a.timestamp.getTime()) < 24 * 60 * 60 * 1000
-    ).length;
-    
-    const daysSpanned = anomalies.length > 0 ? 
-      Math.max(1, Math.ceil((now.getTime() - anomalies[anomalies.length - 1].timestamp.getTime()) / (24 * 60 * 60 * 1000))) : 1;
-    
-    return {
-      totalAnomalies: anomalies.length,
-      totalPenalty: anomalies.reduce((sum, a) => sum + a.penaltyPoints, 0),
-      anomalyTypes: anomalies.reduce((acc, a) => {
-        acc[a.anomalyType] = (acc[a.anomalyType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      last24Hours,
-      averagePerDay: Math.round(anomalies.length / daysSpanned * 100) / 100,
-    };
-  }
-
-  async deleteAnomaly(anomalyId: string, session?: ClientSession): Promise<boolean> {
-    await this.init();
-    
-    const result = await this.collection.deleteOne(
-      { _id: new ObjectId(anomalyId) },
+    const result = await this.anomalyCollection.deleteOne(
+      { _id: new ObjectId(anomalyId), courseId: courseId, versionId: versionId },
       { session }
     );
-    
     return result.deletedCount > 0;
   }
 
-  async findAnomalyById(anomalyId: string, session?: ClientSession): Promise<IAnomalyRecord | null> {
+  async deleteAnomalysByUser(userId: string, courseId: string, versionId: string, session?: ClientSession): Promise<boolean> {
     await this.init();
-    return await this.collection.findOne({ _id: new ObjectId(anomalyId) }, { session });
+    const result = await this.anomalyCollection.deleteMany(
+      { userId: userId, courseId: courseId, versionId: versionId },
+      { session }
+    );
+    return result.deletedCount > 0;
+  }
+
+  async deleteAnomalyByCourse(courseId: string, versionId: string, session?: ClientSession): Promise<boolean> {
+    await this.init();
+
+    const result = await this.anomalyCollection.deleteMany(
+      { courseId: courseId, versionId: versionId },
+      { session }
+    );
+    return result.deletedCount > 0;
   }
 }

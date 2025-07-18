@@ -3,24 +3,7 @@ import sharp from 'sharp';
 import crypto from 'crypto';
 import { InternalServerError } from 'routing-controllers';
 import { storageConfig } from '#root/config/storage.js';
-
-export interface IImageCompressionResult {
-  compressedBuffer: Buffer;
-  metadata: {
-    originalSize: number;
-    compressedSize: number;
-    compressionRatio: number;
-    width: number;
-    height: number;
-  };
-}
-
-export interface IImageEncryptionResult {
-  encryptedBuffer: Buffer;
-  iv: string;
-  authTag: string;
-  algorithm: string;
-}
+import { IImageCompressionResult, IImageEncryptionResult } from '../classes/transformers/Anomaly.js';
 
 @injectable()
 export class ImageProcessingService {

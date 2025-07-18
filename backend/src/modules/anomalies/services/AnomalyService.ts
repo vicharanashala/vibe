@@ -2,17 +2,16 @@ import { injectable, inject } from 'inversify';
 import { BaseService } from '#root/shared/classes/BaseService.js';
 import { AnomalyRepository } from '../repositories/providers/mongodb/AnomalyRepository.js';
 import { CloudStorageService } from './CloudStorageService.js';
-import { Anomaly } from '../classes/transformers/Anomaly.js';
-import { CreateAnomalyBody } from '../classes/validators/AnomalyValidators.js';
-import { IAnomalyRecord } from '#root/shared/interfaces/models.js';
+import { AnomalyData, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
 import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { NotFoundError } from 'routing-controllers';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { COURSES_TYPES } from '#courses/types.js';
+import { FileType, IAnomalyData } from '../classes/transformers/Anomaly.js';
 
 @injectable()
 export class AnomalyService extends BaseService {
@@ -27,123 +26,112 @@ export class AnomalyService extends BaseService {
     super(db);
   }
 
-  async recordAnomaly(anomalyData: CreateAnomalyBody): Promise<Anomaly> {
+  async recordAnomaly(
+    userId: string,
+    anomalyData: NewAnomalyData,
+    file: Express.Multer.File,
+    fileType: FileType
+  ): Promise<AnomalyData> {
     return this._withTransaction(async (session) => {
-      const { userId, courseId, courseVersionId, moduleId, sectionId, itemId } = anomalyData;
+      const { courseId, versionId } = anomalyData;
 
-      const user = await this.userRepo.findById(userId);
-      if (!user) throw new NotFoundError('User not found');
-
-      const course = await this.courseRepo.read(courseId, session);
-      if (!course) throw new NotFoundError('Course not found');
-
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
+      const courseVersion = await this.courseRepo.readVersion(versionId, session);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found or does not belong to this course');
       }
-
-      const module = courseVersion.modules?.find(m => m.moduleId.toString() === moduleId);
-      if (!module) throw new NotFoundError('Module not found in this course version');
-
-      const section = module.sections?.find(s => s.sectionId.toString() === sectionId);
-      if (!section) throw new NotFoundError('Section not found in this module');
-
-      const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString(), session);
-      if (!itemsGroup || !itemsGroup.items?.find(i => i._id.toString() === itemId)) {
-        throw new NotFoundError('Item not found in this section');
-      }
       
-      // Upload compressed & encrypted image to cloud storage
-      const timestamp = new Date();
-      
-      // Convert base64 to Buffer
-      const base64Data = anomalyData.imageData.replace(/^data:image\/\w+;base64,/, '');
-      const imageBuffer = Buffer.from(base64Data, 'base64');
-      
-      const { imageUrl, encryptedImageData, imageMetadata } = await this.cloudStorageService.uploadAnomalyImage(
-        imageBuffer,
-        anomalyData.userId,
-        timestamp,
-        anomalyData.anomalyType
+      const anomaly = new IAnomalyData(
+        anomalyData,
+        userId
       );
 
-      // Create anomaly record
-      const anomaly = new Anomaly({
-        ...anomalyData,
-        timestamp,
-        imageUrl,
-        encryptedImageData,
-        imageMetadata,
-      });
+      const fileName = await this.cloudStorageService.uploadAnomalyImage(
+        file.buffer,
+        userId,
+        anomaly.type,
+        anomaly.createdAt
+      );
+
+      anomaly.fileName = fileName;
+      anomaly.fileType = fileType;
 
       // Save to database
       const savedAnomaly = await this.anomalyRepository.createAnomaly(anomaly, session);
-      
+      if (!savedAnomaly) {
+        throw new InternalServerError('Failed to save anomaly record');
+      }
+
+      savedAnomaly._id = savedAnomaly._id.toString();
       return savedAnomaly;
     });
   }
 
-  async getUserAnomalies(userId: string, filters: Record<string, any>): Promise<IAnomalyRecord[]> {
-    const user = await this.userRepo.findById(userId);
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-    if (filters.courseId) {
-        const course = await this.courseRepo.read(filters.courseId);
-        if (!course) throw new NotFoundError('Course specified in filters not found');
-    }
-    return await this.anomalyRepository.getAnomaliesByUser(userId, filters);
+  async getUserAnomalies(userId: string, courseId: string, versionId: string): Promise<AnomalyData[]> {
+    return await this._withTransaction(async (session) => {
+      const anomaly = await this.anomalyRepository.getByUser(userId, courseId, versionId, session);
+
+      if (!anomaly || anomaly.length === 0) {
+        throw new NotFoundError('No anomalies found for this user in the specified course and version');
+      }
+
+      return anomaly.map((a) => {
+        a._id = a._id.toString();
+        return a;
+      });
+    });
   }
 
-  async getCourseAnomalies(courseId: string, userId?: string): Promise<IAnomalyRecord[]> {
-    const course = await this.courseRepo.read(courseId);
-    if (!course) {
-        throw new NotFoundError('Course not found');
-    }
-    if (userId) {
-        const user = await this.userRepo.findById(userId);
-        if (!user) {
-            throw new NotFoundError('User not found');
-        }
-    }
-    return await this.anomalyRepository.getAnomaliesByCourse(courseId, userId);
+  async getCourseAnomalies(courseId: string, versionId: string): Promise<AnomalyData[]> {
+    return this._withTransaction(async (session) => {
+      const courseVersion = await this.courseRepo.readVersion(versionId);
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+          throw new NotFoundError('Course version not found');
+      }
+
+      const anomalies = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, session);
+      if (!anomalies || anomalies.length === 0) {
+          throw new NotFoundError('No anomalies found for this course version');
+      }
+
+      return anomalies.map((a) => {
+          a._id = a._id.toString();
+          return a;
+      });
+    });
   }
 
-  async getAnomalyStats(userId: string, courseId?: string) {
+  async getAnomalyStats(userId: string, courseId: string, versionId: string): Promise<any> {
     const user = await this.userRepo.findById(userId);
     if (!user) {
         throw new NotFoundError('User not found');
     }
-    if (courseId) {
-        const course = await this.courseRepo.read(courseId);
-        if (!course) {
-            throw new NotFoundError('Course not found');
-        }
+    const version = await this.courseRepo.readVersion(versionId);
+    if (!version || version.courseId.toString() !== courseId) {
+        throw new NotFoundError('Course version not found');
     }
-    return await this.anomalyRepository.getAnomalyStats(userId, courseId);
+    const anomalies = await this.anomalyRepository.getByUser(userId, courseId, versionId);
+
+    // percentage of eahc anomaly type
   }
 
-  async deleteAnomaly(anomalyId: string): Promise<boolean> {
+  async deleteAnomaly(anomalyId: string, courseId: string, versionId: string): Promise<void> {
     return this._withTransaction(async (session) => {
-      // Get anomaly to retrieve image URL for deletion
-      const anomaly = await this.anomalyRepository.findAnomalyById(anomalyId);
-      
-      if (!anomaly) {
-        throw new NotFoundError('Anomaly not found');
+      const anomaly = await this.anomalyRepository.getById(anomalyId, courseId, versionId, session);
+
+      // Delete from database
+      const result = await this.anomalyRepository.deleteAnomaly(anomalyId, courseId, versionId, session);
+
+      if (!result) {
+        throw new NotFoundError('Anomaly not found or could not be deleted');
       }
 
-      if (anomaly?.imageUrl) {
-        // Delete encrypted image from cloud storage
-        await this.cloudStorageService.deleteAnomalyImage(anomaly.imageUrl);
-      }
-      
-      // Delete from database
-      return await this.anomalyRepository.deleteAnomaly(anomalyId, session);
+      // Delete from cloud storage
+      await this.cloudStorageService.deleteAnomalyImage(anomaly.fileName);
     });
   }
 
-  async findAnomalyById(anomalyId: string): Promise<IAnomalyRecord | null> {
-    const result =  await this.anomalyRepository.findAnomalyById(anomalyId);
+  async findAnomalyById(anomalyId: string, courseId: string, versionId: string): Promise<IAnomalyData> {
+    const result =  await this.anomalyRepository.getById(anomalyId, courseId, versionId);
     if (!result) {
       throw new NotFoundError('Anomaly not found');
     }
