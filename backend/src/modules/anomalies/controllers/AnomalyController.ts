@@ -197,7 +197,7 @@ export class AnomalyController {
     description: 'Deletes an anomaly record and its encrypted image',
   })
   @Delete('/:id')
-  @Authorized(['admin', 'instructor'])
+  @Authorized()
   async deleteAnomaly(
     @Params() params: AnomalyIdParams,
     @Header('authorization', 'authorization') authorization?: string
