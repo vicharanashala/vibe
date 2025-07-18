@@ -327,7 +327,6 @@ export class GenAIService extends BaseService {
           throw new Error(`Failed to fetch or parse questions file from URL: ${jobState.file}. Error: ${error}`);
         }
         const questionsGroupedBySegment: Record<string, any[]> = {};
-        console.dir(allQuestionsData, { depth: null, colors: true });
         if (Array.isArray(allQuestionsData)) {
           for (const question of allQuestionsData) {
             const segId = (question as any).segmentId;
