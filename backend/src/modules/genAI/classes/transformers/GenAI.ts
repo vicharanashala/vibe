@@ -1,5 +1,4 @@
-import { DESQuestion, NATQuestion, OTLQuestion, SMLQuestion, SOLQuestion } from "#root/modules/quizzes/classes/index.js";
-import { ID, QuestionType } from "#root/shared/index.js";
+import { ID } from "#root/shared/index.js";
 
 // Enum for job types
 export enum JobType {
@@ -32,20 +31,18 @@ export enum TaskStatus {
 }
 
 export interface TranscriptParameters {
-	usePrevious?: number;
 	language?: LanguageType;
 	model?: string;
 	modelSize?: string;
 }
 
 export interface SegmentationParameters {
-	usePrevious?: number;
-	lambda?: number;
-	epochs?: number;
+	lam?: number;
+	runs?: number;
+	noiseId?: number
 }
 
 export interface QuestionGenerationParameters {
-	usePrevious?: number;
 	model?: string;
 	SOL?: number;
 	SML?: number;
@@ -54,13 +51,13 @@ export interface QuestionGenerationParameters {
 }
 
 export interface UploadParameters {
-	usePrevious?: number;
 	courseId: string;
 	versionId: string;
 	moduleId: string;
 	sectionId: string;
-	afterItemId?: string;
-	beforeItemId?: string;
+	videoItemBaseName: string;
+	quizItemBaseName: string;
+	questionsPerQuiz?: number;
 }
 
 export interface audioData {
@@ -81,16 +78,16 @@ export interface trascriptGenerationData {
 export interface segmentationData {
 	status: TaskStatus;
 	error?: string;
-	fileName?: string;
-	fileUrl?: string;
+	segmentationMap: Record<string, string>;
 	newParameters?: SegmentationParameters;
 }
 
 export interface questionGenerationData {
 	status: TaskStatus;
 	error?: string;
-	questionType?: QuestionType;
-	question?: SOLQuestion | SMLQuestion | NATQuestion | OTLQuestion | DESQuestion;
+	fileName?: string;
+	fileUrl?: string;
+	segmentMapUsed: Record<string, string>;
 	newParameters?: QuestionGenerationParameters;
 }
 
@@ -121,7 +118,7 @@ export class GenAI {
 	transcriptParameters?: TranscriptParameters;
 	segmentationParameters?: SegmentationParameters;
 	questionGenerationParameters?: QuestionGenerationParameters;
-	uploadParameters?: UploadParameters;
+	uploadParameters: UploadParameters;
 }
 
 export class GenAIBody extends GenAI {
@@ -145,6 +142,7 @@ export class JobState {
 	currentTask: TaskType;
 	taskStatus: TaskStatus;
 	url?: string;
-	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
+	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
 	file?: string;
+	segmentMap?: Record<string, string>;
 }
