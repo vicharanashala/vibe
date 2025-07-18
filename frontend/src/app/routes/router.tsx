@@ -32,12 +32,8 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
-<<<<<<< HEAD
-import ViewProgress from '../pages/teacher/view-progress'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
-=======
->>>>>>> upstream/main
 
 
 const sampleText = `
@@ -349,14 +345,6 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
-<<<<<<< HEAD
-// Teacher view progress route
-const teacherViewProgressRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/progress',
-  component: ViewProgress,
-});
-
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -371,8 +359,6 @@ const teacherAISectionRoute = new Route({
   component: AISectionPage,
 });
 
-=======
->>>>>>> upstream/main
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -445,14 +431,9 @@ const routeTree = rootRoute.addChildren([
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
-<<<<<<< HEAD
     teacherCourseInviteRoute,
-    teacherViewProgressRoute,
     teacherGenerateSectionRoute,
     teacherAISectionRoute,
-=======
-    teacherCourseInviteRoute
->>>>>>> upstream/main
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
