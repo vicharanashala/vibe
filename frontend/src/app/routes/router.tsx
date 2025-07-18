@@ -34,6 +34,7 @@ import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
 import ViewProgress from '../pages/teacher/view-progress'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
+import AISectionPage from '@/app/pages/teacher/AISectionPage';
 
 
 const sampleText = `
@@ -350,6 +351,13 @@ const teacherGenerateSectionRoute = new Route({
   component: GenerateSectionPage,
 });
 
+// Teacher AI Section route
+const teacherAISectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ai-section',
+  component: AISectionPage,
+});
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -424,6 +432,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseInviteRoute,
     teacherViewProgressRoute,
     teacherGenerateSectionRoute,
+    teacherAISectionRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
