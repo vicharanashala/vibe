@@ -17,11 +17,6 @@ export class AnomalyRepository {
     if (!this.collection) {
       // Use the getCollection method which handles connection automatically
       this.collection = await this.database.getCollection<IAnomalyRecord>('anomaly_records');
-      
-      // Create indexes for better performance
-      await this.collection.createIndex({ userId: 1, timestamp: -1 });
-      await this.collection.createIndex({ courseId: 1, timestamp: -1 });
-      await this.collection.createIndex({ 'sessionMetadata.sessionId': 1 });
     }
   }
 
@@ -47,16 +42,16 @@ export class AnomalyRepository {
       .toArray();
   }
 
-  async getAnomaliesBySession(sessionId: string): Promise<IAnomalyRecord[]> {
+  async getAnomaliesBySession(sessionId: string, session?: ClientSession): Promise<IAnomalyRecord[]> {
     await this.init();
     
     return await this.collection
-      .find({ 'sessionMetadata.sessionId': sessionId })
+      .find({ 'sessionMetadata.sessionId': sessionId }, { session })
       .sort({ timestamp: -1 })
       .toArray();
   }
 
-  async getAnomaliesByCourse(courseId: string, userId?: string): Promise<IAnomalyRecord[]> {
+  async getAnomaliesByCourse(courseId: string, userId?: string, session?: ClientSession): Promise<IAnomalyRecord[]> {
     await this.init();
     
     const filter: any = { courseId: new ObjectId(courseId) };
@@ -65,12 +60,12 @@ export class AnomalyRepository {
     }
     
     return await this.collection
-      .find(filter)
+      .find(filter, { session })
       .sort({ timestamp: -1 })
       .toArray();
   }
 
-  async getAnomalyStats(userId: string, courseId?: string): Promise<{
+  async getAnomalyStats(userId: string, courseId?: string, session?: ClientSession): Promise<{
     totalAnomalies: number;
     totalPenalty: number;
     anomalyTypes: Record<string, number>;
@@ -84,7 +79,7 @@ export class AnomalyRepository {
       filter.courseId = new ObjectId(courseId);
     }
 
-    const anomalies = await this.collection.find(filter).toArray();
+    const anomalies = await this.collection.find(filter, { session }).toArray();
     
     const now = new Date();
     const last24Hours = anomalies.filter(a => 
@@ -117,9 +112,8 @@ export class AnomalyRepository {
     return result.deletedCount > 0;
   }
 
-  async findAnomalyById(anomalyId: string): Promise<IAnomalyRecord | null> {
+  async findAnomalyById(anomalyId: string, session?: ClientSession): Promise<IAnomalyRecord | null> {
     await this.init();
-    
-    return await this.collection.findOne({ _id: new ObjectId(anomalyId) });
+    return await this.collection.findOne({ _id: new ObjectId(anomalyId) }, { session });
   }
 }

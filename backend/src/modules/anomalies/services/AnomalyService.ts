@@ -143,6 +143,10 @@ export class AnomalyService extends BaseService {
   }
 
   async findAnomalyById(anomalyId: string): Promise<IAnomalyRecord | null> {
-    return await this.anomalyRepository.findAnomalyById(anomalyId);
+    const result =  await this.anomalyRepository.findAnomalyById(anomalyId);
+    if (!result) {
+      throw new NotFoundError('Anomaly not found');
+    }
+    return result;
   }
 }

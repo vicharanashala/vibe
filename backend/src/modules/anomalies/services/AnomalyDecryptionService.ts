@@ -22,21 +22,11 @@ export interface IDecryptionResult {
 
 @injectable()
 export class AnomalyDecryptionService {
-  private readonly TEST_COURSE_ID = "507f1f77bcf86cd799439012"; // Test course ID for debugging endpoints
-
   constructor(
     @inject(ANOMALIES_TYPES.AnomalyService) private anomalyService: AnomalyService,
     @inject(ANOMALIES_TYPES.ImageProcessingService) private imageProcessingService: ImageProcessingService,
     @inject(ANOMALIES_TYPES.AnomalyTransformationService) private transformationService: AnomalyTransformationService
   ) {}
-
-  /**
-   * Find anomaly by ID
-   */
-  async findAnomalyById(id: string): Promise<any | null> {
-    const anomalies = await this.anomalyService.getCourseAnomalies(this.TEST_COURSE_ID);
-    return anomalies.find(a => a._id?.toString() === id) || null;
-  }
 
   /**
    * Set image response headers
@@ -59,11 +49,11 @@ export class AnomalyDecryptionService {
   }
 
   /**
-   * Decrypt anomaly data for testing
+   * Decrypt anomaly data
    */
   async decryptAnomalyData(id: string): Promise<IDecryptionResult> {
     // Find anomaly
-    const anomaly = await this.findAnomalyById(id);
+    const anomaly = await this.anomalyService.findAnomalyById(id);
     if (!anomaly) {
       return {
         success: false,
@@ -126,7 +116,7 @@ export class AnomalyDecryptionService {
     error?: string;
   }> {
     // Find anomaly
-    const anomaly = await this.findAnomalyById(id);
+    const anomaly = await this.anomalyService.findAnomalyById(id);
     if (!anomaly) {
       return {
         success: false,
