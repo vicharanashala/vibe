@@ -24,12 +24,29 @@ class ProgressRepository {
   }
 
   async getCompletedItems(userId: string, courseId: string, courseVersionId: string, session?: ClientSession): Promise<String[]> {
+    await this.init();
     const userProgress = await this.watchTimeCollection.find({
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
     }, {session}).project({ itemId: 1, _id: 0 }).toArray();
     return userProgress.map(item => item.itemId.toString()) as String[];
+  }
+
+  async getAllWatchTime(userId: string, session?: ClientSession): Promise<IWatchTime[]> {
+    await this.init();
+    const result = await this.watchTimeCollection.find(
+      { userId: new ObjectId(userId) },
+      { session },
+    ).toArray();
+    return result.map((item) => ({
+      ...item,
+      _id: item._id.toString(),
+      userId: item.userId.toString(),
+      courseId: item.courseId.toString(),
+      courseVersionId: item.courseVersionId.toString(),
+      itemId: item.itemId.toString(),
+    }));
   }
 
   async deleteWatchTimeByItemId(itemId: string, session?: ClientSession): Promise<void> {

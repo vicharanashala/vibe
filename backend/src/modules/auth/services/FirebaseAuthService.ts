@@ -99,7 +99,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError(`Failed to retrieve user from Firebase: ${error.message}`);
       }
     }
-
+    user._id = user._id.toString();
     return user;
   }
   async getUserIdFromReq(req: any): Promise<string> {
@@ -139,7 +139,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         email: body.email,
         emailVerified: false,
         password: body.password,
-        displayName: `${body.firstName} ${body.lastName}`,
+        displayName: `${body.firstName} ${body.lastName || ''}`,
         disabled: false,
       });
     } catch (error) {
@@ -153,7 +153,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       firebaseUID: userRecord.uid,
       email: body.email,
       firstName: body.firstName,
-      lastName: body.lastName,
+      lastName: body.lastName || '',
       roles: 'user',
     };
 

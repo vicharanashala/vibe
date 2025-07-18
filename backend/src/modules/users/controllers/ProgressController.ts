@@ -13,8 +13,8 @@ import {
   ProgressDataResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
-  WatchTimeBody,
   CompletedProgressResponse,
+  WatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import { ProgressService } from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -36,9 +36,10 @@ import {
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { ProgressActions, getProgressAbility } from '../abilities/progressAbilities.js';
-import { WatchTime } from '../classes/transformers/WatchTime.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuizService } from '#root/modules/quizzes/services/index.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -49,6 +50,9 @@ class ProgressController {
   constructor(
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+
+    @inject(QUIZZES_TYPES.QuizService)
+    private readonly quizService: QuizService,
   ) { }
 
   @OpenAPI({
@@ -319,8 +323,8 @@ If none are provided, resets to the beginning of the course.`,
     description: `Gets the User Watch Time for the given Item Id`,
   })
   @Authorized()
-  @Get('/:userId/watchTime/item/:itemId/')
-  @OnUndefined(200)
+  @Get('/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type')
+  @HttpCode(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
@@ -331,17 +335,46 @@ If none are provided, resets to the beginning of the course.`,
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
-    @Body() body: WatchTimeBody,
-  ): Promise<WatchTime[]> {
-    const { userId, itemId } = params;
+    @Ability(getProgressAbility) {ability}
+  ): Promise<WatchTimeResponse> {
+    const { userId, courseId, versionId, itemId, type } = params;
+
+    // Create a progress resource object for permission checking
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+    // Check permission using ability.can() with the actual progress resource
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission to view this progress');
+    }
 
     const watchTime = await this.progressService.getWatchTime(
       userId,
       itemId,
-      body.courseId,
-      body.versionId,
+      courseId,
+      versionId,
     )
-    return watchTime;
+
+    if (type === 'QUIZ'){
+      const quizMetrics = await this.quizService.getUserMetricsForQuiz(userId, itemId);
+      if (quizMetrics) {
+        return {watchTime, quizMetrics}
+      }
+    }
+
+    return {watchTime};
+  }
+
+  @OpenAPI({
+    summary: 'Get Total Watch Time of User',
+    description: `Gets the Total Watch Time of the User`,
+  })
+  @Authorized()
+  @Get('/watchtime/total')
+  @HttpCode(200)
+  async getTotalWatchtimeOfUser(@Ability(getProgressAbility) {user}): Promise<number> {
+    const userId = user._id.toString();
+    
+    const totalWatchTime = await this.progressService.getTotalWatchtimeOfUser(userId);
+    return totalWatchTime;
   }
 }
 export { ProgressController };
