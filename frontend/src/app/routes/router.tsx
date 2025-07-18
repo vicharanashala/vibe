@@ -34,6 +34,7 @@ import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
+import AISectionModal from '@/app/pages/teacher/components/AISectionModal';
 
 
 const sampleText = `
@@ -415,6 +416,13 @@ const notFoundRoute = new NotFoundRoute({
   component: NotFoundComponent,
 });
 
+// Remove TestAISectionModalPage and use AISectionPage for the test route
+const testAISectionModalRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/test-ai-section-modal',
+  component: AISectionPage,
+});
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -434,6 +442,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseInviteRoute,
     teacherGenerateSectionRoute,
     teacherAISectionRoute,
+    testAISectionModalRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
