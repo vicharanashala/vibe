@@ -482,7 +482,7 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
     params: { path: { courseId, versionId, itemId } }
   }, {enabled: !!courseId && !!versionId && !!itemId}
 );
-
+  console.log("here", courseId , versionId , itemId);
   return {
     data: result.data,
     isLoading: result.isLoading,

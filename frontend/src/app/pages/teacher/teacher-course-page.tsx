@@ -18,9 +18,9 @@ import { useCourseStore } from "@/store/course-store";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
-    case "article": return <FileText className="h-3 w-3" />;
-    case "video": return <VideoIcon className="h-3 w-3" />;
-    case "quiz": return <ListChecks className="h-3 w-3" />;
+    case "BLOG": return <FileText className="h-3 w-3" />;
+    case "VIDEO": return <VideoIcon className="h-3 w-3" />;
+    case "QUIZ": return <ListChecks className="h-3 w-3" />;
     default: return null;
   }
 };
@@ -30,8 +30,8 @@ export default function TeacherCoursePage() {
 
   const { currentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
-  const courseId = currentCourse?.id || currentCourse?._id;
-  const versionId = currentCourse?.currentVersionId || currentCourse?.versionId;
+  const courseId = currentCourse?.courseId;
+  const versionId = currentCourse?.versionId;
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId);
@@ -47,6 +47,8 @@ export default function TeacherCoursePage() {
     data: any;
     parentIds?: { moduleId: string; sectionId?: string };
   } | null>(null);
+
+  // const [itemData, setItemData] = useState<any>(null);
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
@@ -65,6 +67,7 @@ export default function TeacherCoursePage() {
   );
 
   // Fetch item details for selected item
+  console.log("Selected Entity:", selectedEntity, courseId, versionId);
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
     data: selectedItemData
@@ -226,6 +229,11 @@ export default function TeacherCoursePage() {
                                       }
                                     >
                                       {getItemIcon(item.type)}
+                                      <span className="ml-1 text-xs text-muted-foreground">
+                                        {item.type === "VIDEO" && `Video ${(sectionItems[section.sectionId] || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
+                                        {item.type === "QUIZ" && `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
+                                        {item.type === "BLOG" && `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
+                                      </span>
                                       <span className="ml-2 truncate">{item.name}</span>
                                     </SidebarMenuSubButton>
                                   </SidebarMenuSubItem>
@@ -287,7 +295,7 @@ export default function TeacherCoursePage() {
             {selectedEntity ? (
               <div className="space-y-4">
                 <Input
-                  value={selectedEntity.data?.name || ""}
+                  value={selectedEntity.type == 'item'? selectedItemData?.item.name :selectedEntity.data?.name || ""}
                   onChange={(e) => {
                     const newName = e.target.value;
                     const { type, parentIds } = selectedEntity;
