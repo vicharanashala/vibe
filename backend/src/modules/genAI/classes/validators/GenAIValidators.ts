@@ -48,17 +48,27 @@ class SegmentationParameters {
   })
   @IsOptional()
   @IsNumber()
-  lambda?: number;
+  lam?: number;
 
   @JSONSchema({
-    title: "Epochs",
-    description: 'Number of epochs for segmentation',
+    title: "Runs",
+    description: 'Number of runs for segmentation',
     example: 10,
     type: 'number',
   })
   @IsOptional()
   @IsNumber()
-  epochs?: number;
+  runs?: number;
+  
+  @JSONSchema({
+    title: 'Noise ID',
+    description: 'ID of the noise to be used for segmentation',
+    example: 123,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  noise_id?: number;
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
@@ -161,29 +171,37 @@ class UploadParameters {
   sectionId: string;
 
   @JSONSchema({
-    title: 'After Item ID',
-    description: 'ID of the item after which to insert the new content',
-    example: '60d5f484f1c4d8b3c8f8e4b5',
+    title: 'Video Item Base Name',
+    description: 'Base name for the video item to be created',
+    example: 'video_item',
     type: 'string',
   })
-  @IsOptional()
-  @IsMongoId()
+  @IsNotEmpty()
   @IsString()
-  afterItemId?: string;
+  videoItemBaseName: string;
 
   @JSONSchema({
-    title: 'Before Item ID',
-    description: 'ID of the item before which to insert the new content',
-    example: '60d5f484f1c4d8b3c8f8e4b6',
+    title: 'Quiz Item Base Name',
+    description: 'Base name for the quiz item to be created',
+    example: 'quiz_item',
     type: 'string',
   })
-  @IsOptional()
-  @IsMongoId()
+  @IsNotEmpty()
   @IsString()
-  beforeItemId?: string;
+	quizItemBaseName: string;
+
+  @JSONSchema({
+    title: 'Questions Per Quiz',
+    description: 'Number of questions to show per quiz item',
+    example: 5,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+	questionsPerQuiz?: number;
 }
 
-class GenAIResponse implements GenAI {
+class GenAIResponse{
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
     type: 'string',
@@ -278,7 +296,7 @@ class JobBody {
   @IsObject()
   @ValidateNested()
   @Type(() => UploadParameters)
-  uploadParameters?: UploadParameters;
+  uploadParameters: UploadParameters;
 }
 
 // Parameters for job ID
@@ -335,11 +353,13 @@ class ApproveStartBody {
         return SegmentationParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
+      case TaskType.UPLOAD_CONTENT:
+        return UploadParameters;
       default:
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
+  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
 
   @JSONSchema({
     title: 'Use Previous',
@@ -400,7 +420,7 @@ class RerunTaskBody {
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters;
+  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
   
   @JSONSchema({
     title: 'Use Previous',
