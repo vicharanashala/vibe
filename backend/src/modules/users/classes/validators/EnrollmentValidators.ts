@@ -8,6 +8,7 @@ import {
   IsInt,
   IsArray,
   ValidateNested,
+  IsEmail,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ProgressDataResponse} from './ProgressValidators.js';
@@ -82,17 +83,6 @@ export class EnrollmentDataResponse {
   })
   @ValidateNested()
   user?:User
-
-  @JSONSchema({
-    description: 'User ID associated with this enrollment',
-    example: '60d5ec49b3f1c8e4a8f8b8c1',
-    type: 'string',
-    format: 'Mongo Object ID',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsMongoId()
-  userId: ID;
 
   @JSONSchema({
     description: 'Course ID associated with this enrollment',
@@ -201,6 +191,132 @@ export class EnrolledUserResponseData {
   enrollmentDate: Date;
 }
 
+class UserResponse {
+  @JSONSchema({
+    description: 'Unique identifier for the user',
+    example: '60d5ec49b3f1c8e4a8f8b8d2',
+    type: 'string',
+    format: 'Mongo Object ID',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  userId: string;
+
+  @JSONSchema({
+    description: 'First name of the user',
+    example: 'John',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  firstName: string;
+
+  @JSONSchema({
+    description: 'Last name of the user',
+    example: 'Doe',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  lastName: string;
+
+  @JSONSchema({
+    description: 'Email address of the user',
+    example: 'user@example.com',
+    type: 'string',
+    format: 'email',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsEmail()
+  email: string;
+}
+
+class ProgressResponse {
+  @JSONSchema({
+    description: 'Number of items completed by the user',
+    example: 5,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  completedItems: number;
+
+  @JSONSchema({
+    description: 'Total number of items in the course',
+    example: 10,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalItems: number;
+
+  @JSONSchema({
+    description: 'Percentage of the course completed by the user',
+    example: 50,
+    type: 'number',
+    format: 'float',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  percentCompleted: number;
+}
+
+class AllEnrollmentsResponse {
+  @JSONSchema({
+    description: 'Role of the user',
+    example: 'INSTRUCTOR',
+    type: 'string',
+    enum: ['INSTRUCTOR', 'STUDENT'],
+  })
+  @IsNotEmpty()
+  @IsString()
+  role: EnrollmentRole;
+
+  
+  @JSONSchema({
+    description: 'Status of the enrollment',
+    example: 'active',
+    type: 'string',
+    enum: ['active', 'inactive'],
+  })
+  @IsNotEmpty()
+  @IsString()
+  status: EnrollmentStatus;
+
+  @JSONSchema({
+    description: 'Date when the user was enrolled',
+    example: '2023-10-01T12:00:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsNotEmpty()
+  @IsDate()
+  @Type(() => Date)
+  enrollmentDate: Date;
+
+  @JSONSchema({
+    description: 'User data associated with the enrollment',
+    type: 'object',
+    items: { $ref: '#/components/schemas/EnrolledUserResponseData' },
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => UserResponse)
+  user: UserResponse;
+
+  @JSONSchema({
+    description: 'Progress data for the user in the course',
+    type: 'object',
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => ProgressResponse)
+  progress: ProgressResponse;
+}
+
 export class EnrollmentResponse {
   @JSONSchema({
     description: 'Total number of documents in the response',
@@ -245,13 +361,13 @@ export class CourseVersionEnrollmentResponse {
   @JSONSchema({
     description: 'Array of enrollment data for the course version',
     type: 'array',
-    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
+    items: { $ref: '#/components/schemas/AllEnrollmentsResponse' },
   })
   @IsNotEmpty()
   @IsArray()
   @ValidateNested({each: true})
-  @Type(() => EnrollmentDataResponse)
-  enrollments: EnrollmentDataResponse[];
+  @Type(() => AllEnrollmentsResponse)
+  enrollments: AllEnrollmentsResponse[];
 }
 
 export class EnrollmentNotFoundErrorResponse {

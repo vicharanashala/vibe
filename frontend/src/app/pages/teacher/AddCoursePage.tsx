@@ -1,241 +1,157 @@
-"use client";
-
-import React, { useState, useRef, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { useCreateCourse, useCreateCourseVersion, useInviteUsers } from "@/hooks/hooks";
+import { useAuthStore } from "@/store/auth-store";
 
-import ModuleForm from "./components/ModuleForm";
-import { SidebarNavigation } from "./components/SidebarNavigation";
 
-import {
-  useCreateCourse,
-  useCreateCourseVersion,
-  useCreateModule,
-  useCreateSection,
-  useEnrollUser
-} from "@/hooks/hooks";
+export default function CreateCourse() {
+  const [name, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [showVersionForm, setShowVersionForm] = useState(false);
+  const [versionLabel, setVersionLabel] = useState("");
+  const [versionDescription, setVersionDescription] = useState("");
+  const [versionSuccess, setVersionSuccess] = useState(false);
+  const [versionError, setVersionError] = useState<string | null>(null);
+  // Removed unused courseVersionId state
 
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+  const createCourseMutation = useCreateCourse();
+  const createCourseVersionMutation = useCreateCourseVersion();
+  const inviteUsersMutation = useInviteUsers();
 
-export default function AddCoursePage() {
-  const [courseName, setCourseName] = useState("");
-  const [courseDescription, setCourseDescription] = useState("");
+  const teacherEmail = useAuthStore.getState().user?.email || "";
 
-  const [versionName, setVersionName] = useState("");
-  const [versionChangelog, setVersionChangelog] = useState("");
+  const handleCreateCourse = async () => {
+    setSuccess(false);
+    setError(null);
+    setShowVersionForm(false);
+    setCourseId(null);
+    // removed setCourseVersionId(null); (no longer used)
+    setVersionSuccess(false);
+    setVersionError(null);
 
-  const [firebaseUID, setFirebaseUID] = useState<string | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [modules, setModules] = useState([
-    {
-      id: `module-${Date.now()}`,
-      name: "",
-      sections: [],
-    },
-  ]);
-
-  const [selected, setSelected] = useState({
-    moduleId: null,
-    sectionId: null,
-    contentItemId: null,
-  });
-
-  const contentItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  useEffect(() => {
-    if (selected.contentItemId) {
-      const el = contentItemRefs.current.get(selected.contentItemId);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }
-  }, [selected.contentItemId]);
-
-  // ✅ Firebase Auth like before — No change
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setFirebaseUID(user.uid);
-        setFirebaseUser(user);
-      } else {
-        window.location.href = "/login";
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const { mutateAsync: createCourse } = useCreateCourse();
-  const { mutateAsync: createVersion } = useCreateCourseVersion();
-  const { mutateAsync: createModule } = useCreateModule();
-  const { mutateAsync: createSection } = useCreateSection();
-  const { mutateAsync: enrollUser } = useEnrollUser();
-
-  const addModule = () => {
-    const newId = `module-${Date.now() + Math.random()}`;
-    setModules((prev) => [
-      ...prev,
-      { id: newId, name: "", sections: [] },
-    ]);
-  };
-
-  const updateModule = (index: number, updatedModule: any) => {
-    setModules((prev) =>
-      prev.map((mod, i) => (i === index ? updatedModule : mod))
-    );
-  };
-
-  const handleSubmit = async () => {
     try {
-      if (!firebaseUID || !user?.data?._id) {
-        alert("You must be logged in as a teacher to create a course.");
-        return;
-      }
-      if (
-        !courseName.trim() ||
-        !courseDescription.trim() ||
-        !versionName.trim() ||
-        !versionChangelog.trim()
-      ) {
-        alert("Please fill all required fields.");
-        return;
-      }
-
-      setIsSubmitting(true);
-
-      // Step 1: Create course
-      const courseRes = await createCourse({
+      const res = await createCourseMutation.mutateAsync({
         body: {
-          name: courseName,
-          description: courseDescription,
-        },
+          name,
+          description
+        }
       });
-      const courseId = courseRes.data._id;
+      // Assume response contains id
+      const id = res?._id;
+      if (id) {
+        setCourseId(id);
+        setShowVersionForm(true);
+        setSuccess(true);
+        setTitle("");
+        setDescription("");
+      } else {
+        setError("Course created but no ID returned");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create course");
+    }
+  };
 
-      // Step 2: Create version
-      const versionRes = await createVersion({
+  const handleCreateVersion = async () => {
+    if (!courseId) return;
+    setVersionSuccess(false);
+    setVersionError(null);
+    try {
+      const res = await createCourseVersionMutation.mutateAsync({
         params: { path: { id: courseId } },
         body: {
-          name: versionName,
-          changelog: versionChangelog,
-        },
-      });
-      const versionId = versionRes.data._id;
-
-      // Step 3: Create modules and sections
-      for (const mod of modules) {
-        const moduleRes = await createModule({
-          params: { path: { versionId } },
-          body: { name: mod.name },
-        });
-        const moduleId = moduleRes.data._id;
-
-        for (const sec of mod.sections) {
-          await createSection({
-            params: { path: { versionId, moduleId } },
-            body: { name: sec.name },
-          });
+          version: versionLabel,
+          description: versionDescription
         }
-      }
-
-      // Step 4: Enroll teacher
-      await enrollUser({
-        params: {
-          path: {
-            userId: user.data._id,
-            courseId,
-            courseVersionId: versionId,
-          },
-        },
       });
-
-      alert("✅ Course created and teacher enrolled!");
-      window.location.href = "/dashboard/courses";
-    } catch (error) {
-      console.error("❌ Error during course creation:", error);
-      alert("Failed to create course. Check console.");
-    } finally {
-      setIsSubmitting(false);
+      const versionId = res?._id;
+      if (versionId) {
+        setVersionSuccess(true);
+        // Automatically send invite to teacher
+        await inviteUsersMutation.mutateAsync({
+          params: { path: { courseId, courseVersionId: versionId } },
+          body: {
+            inviteData: [
+              {
+                email: teacherEmail,
+                role: "INSTRUCTOR"
+              }
+            ]
+          }
+        });
+      } else {
+        setVersionError("Version created but no ID returned");
+      }
+    } catch (err) {
+      setVersionError(err instanceof Error ? err.message : "Failed to create course version");
     }
   };
 
-  const selectedModule = selected.moduleId
-    ? modules.find((m) => m.id === selected.moduleId)
-    : null;
-  const selectedSection = selectedModule?.sections.find(
-    (s) => s.id === selected.sectionId
-  );
-  const selectedContentItem = selectedSection?.contentItems?.find(
-    (c) => c.id === selected.contentItemId
-  );
-
   return (
-    <div className="flex h-screen">
-      <SidebarNavigation
-        modules={modules}
-        selected={selected}
-        onSelect={setSelected}
-      />
-      <div className="flex-1 p-8 space-y-6 overflow-y-auto">
-        <h1 className="text-2xl font-bold">Add New Course</h1>
-
-        {/* Course Info */}
-        {!selected.moduleId && (
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <Input
-                placeholder="Course Name"
-                value={courseName}
-                onChange={(e) => setCourseName(e.target.value)}
-              />
-              <Textarea
-                placeholder="Course Description"
-                value={courseDescription}
-                onChange={(e) => setCourseDescription(e.target.value)}
-              />
-              <Input
-                placeholder="Version Name (e.g., v1.0)"
-                value={versionName}
-                onChange={(e) => setVersionName(e.target.value)}
-              />
-              <Textarea
-                placeholder="Version Changelog (e.g., Initial Release)"
-                value={versionChangelog}
-                onChange={(e) => setVersionChangelog(e.target.value)}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Modules */}
-        <div className="space-y-4">
-          {modules.map((module, index) => (
-            <ModuleForm
-              key={module.id}
-              moduleIndex={index}
-              moduleData={module}
-              onModuleChange={(updated) => updateModule(index, updated)}
-              selected={selected}
-              contentItemRefs={contentItemRefs}
-            />
-          ))}
-
-          <Button onClick={addModule} variant="outline">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Module
-          </Button>
-        </div>
-
-        {/* Submit */}
-        <Button onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create Course"}
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Create New Course</h1>
+      <Card className="p-6 mb-6">
+        <Input
+          className="mb-4"
+          placeholder="Course Title"
+          value={name}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <Textarea
+          className="mb-4"
+          placeholder="Course Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <Button onClick={handleCreateCourse} disabled={createCourseMutation.isPending}>
+          {createCourseMutation.isPending ? "Creating..." : "Create Course"}
         </Button>
-      </div>
+        {success && (
+          <div className="text-green-600 mt-2">Course created successfully! Now create the first version for your course.</div>
+        )}
+        {error && (
+          <div className="text-red-500 mt-2">{error}</div>
+        )}
+      </Card>
+
+      {showVersionForm && (
+        <Card className="p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Create First Version</h2>
+          <Input
+            className="mb-4"
+            placeholder="Version Label (e.g. v1.0, Fall 2025)"
+            value={versionLabel}
+            onChange={(e) => setVersionLabel(e.target.value)}
+          />
+          <Textarea
+            className="mb-4"
+            placeholder="Version Description"
+            value={versionDescription}
+            onChange={(e) => setVersionDescription(e.target.value)}
+          />
+          <Button onClick={handleCreateVersion} disabled={createCourseVersionMutation.isPending || !versionLabel}>
+            {createCourseVersionMutation.isPending ? "Creating Version..." : "Create Version"}
+          </Button>
+          {versionSuccess && (
+            <div className="text-green-600 mt-2">Version created and invite sent to your email!</div>
+          )}
+          {versionError && (
+            <div className="text-red-500 mt-2">{versionError}</div>
+          )}
+          {inviteUsersMutation.isPending && (
+            <div className="text-blue-600 mt-2">Sending invite...</div>
+          )}
+          {inviteUsersMutation.isError && (
+            <div className="text-red-500 mt-2">{inviteUsersMutation.error}</div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

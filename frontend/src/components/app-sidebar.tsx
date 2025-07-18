@@ -27,15 +27,17 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAuthStore } from "@/store/auth-store"
 
 export function AppSidebar() {
+  // Set default state to "expanded"
   const { state } = useSidebar()
+  const { user } = useAuthStore.getState()
 
   const data = {
     user: {
-      name: "shadcn",
-      email: "m@example.com",
-      avatar: "/avatars/shadcn.jpg",
+      name: user?.name || "User",
+      avatar: user?.avatar,
     },
     navMain: [
       {
@@ -48,11 +50,10 @@ export function AppSidebar() {
         url: "#",
         icon: BookOpen,
         items: [
-          { title: "Add Course", url: "/teacher/courses/create" },
-          { title: "View Course", url: "/teacher/courses/enrollments" },
-          { title: "List Courses", url: "/teacher/courses/list" },
+          { title: "Create Course", url: "/teacher/courses/create" },
+          { title: "All Courses", url: "/teacher/courses/list" },
         ],
-      }
+      },
     ],
   }
 

@@ -24,6 +24,7 @@ class ProgressRepository {
   }
 
   async getCompletedItems(userId: string, courseId: string, courseVersionId: string, session?: ClientSession): Promise<String[]> {
+    await this.init();
     const userProgress = await this.watchTimeCollection.find({
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
@@ -32,15 +33,28 @@ class ProgressRepository {
     return userProgress.map(item => item.itemId.toString()) as String[];
   }
 
+  async getAllWatchTime(userId: string, session?: ClientSession): Promise<IWatchTime[]> {
+    await this.init();
+    const result = await this.watchTimeCollection.find(
+      { userId: new ObjectId(userId) },
+      { session },
+    ).toArray();
+    return result.map((item) => ({
+      ...item,
+      _id: item._id.toString(),
+      userId: item.userId.toString(),
+      courseId: item.courseId.toString(),
+      courseVersionId: item.courseVersionId.toString(),
+      itemId: item.itemId.toString(),
+    }));
+  }
+
   async deleteWatchTimeByItemId(itemId: string, session?: ClientSession): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
       { itemId: new ObjectId(itemId) },
       { session },
     );
-    if (result.deletedCount === 0) {
-      throw new Error(`No watch time records found for item ID: ${itemId}`);
-    }
   }
 
   async deleteWatchTimeByCourseId(courseId: string, session?: ClientSession): Promise<void> {

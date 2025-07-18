@@ -23,7 +23,7 @@ import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 import CoursePage from '@/app/pages/student/course-page'
 import Dashboard from '@/app/pages/teacher/dashboard'
-import CreateCourse from '@/app/pages/teacher/create-course'
+import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import GetCourse from '@/app/pages/teacher/get-course'
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -32,9 +32,12 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
+<<<<<<< HEAD
 import ViewProgress from '../pages/teacher/view-progress'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
+=======
+>>>>>>> upstream/main
 
 
 const sampleText = `
@@ -159,16 +162,20 @@ const rootRoute = new RootRoute({
   notFoundComponent: NotFoundComponent,
   errorComponent: ({ error }) => {
     console.error('Router error:', error);
+    // reload page on error
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center p-8 bg-red-50 rounded-lg shadow-lg max-w-md">
-          <h1 className="text-2xl font-bold text-red-800 mb-4">Something went wrong</h1>
+          <h1 className="text-2xl font-bold text-red-800 mb-4">Something went wrong. Please Reload if error Persists.</h1>
           <p className="text-red-600 mb-6">{error instanceof Error ? error.message : 'An unexpected error occurred'}</p>
           <button 
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             onClick={() => window.location.href = '/auth'}
           >
-            Go to Login
+            Go Back
           </button>
         </div>
       </div>
@@ -296,6 +303,11 @@ const teacherGetCourseRoute = new Route({
   component: GetCourse,
 });
 
+const teacherViewCourseRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/teacher/courses/view',
+  component: TeacherCoursePage, // View a specific course
+});
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -337,6 +349,7 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
+<<<<<<< HEAD
 // Teacher view progress route
 const teacherViewProgressRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -358,6 +371,8 @@ const teacherAISectionRoute = new Route({
   component: AISectionPage,
 });
 
+=======
+>>>>>>> upstream/main
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -424,15 +439,20 @@ const routeTree = rootRoute.addChildren([
     teacherCreateArticleRoute,
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
+    teacherViewCourseRoute,
     teacherTestingRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
+<<<<<<< HEAD
     teacherCourseInviteRoute,
     teacherViewProgressRoute,
     teacherGenerateSectionRoute,
     teacherAISectionRoute,
+=======
+    teacherCourseInviteRoute
+>>>>>>> upstream/main
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

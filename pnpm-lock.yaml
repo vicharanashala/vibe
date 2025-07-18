@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 lockfileVersion: '9.0'
 
 settings:
@@ -32131,3 +32132,5 @@ snapshots:
       use-sync-external-store: 1.5.0(react@19.1.0)
 
   zwitch@2.0.4: {}
+=======
+>>>>>>> upstream/main

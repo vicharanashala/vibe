@@ -27,3 +27,11 @@ export function preprocessMathContent(content: string): string {
 
   return processedContent;
 };
+
+export function preprocessRemoveFromOptions(content: string): string {
+  if (!content) return content;
+
+  // Remove ABCD options from the content
+  const optionRegex = /[A-Z]\)\s*/g;
+  return content.replace(optionRegex, '');
+}

@@ -6,9 +6,9 @@ import {ObjectId} from 'mongodb';
 
 class UserQuizMetrics implements IUserQuizMetrics {
   userId: string | ObjectId;
-  quizId: string;
+  quizId: string | ObjectId;
   remainingAttempts: number;
-  latestAttemptId?: string;
+  latestAttemptId?: string | ObjectId;
   latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
   attempts: IAttemptDetails[];
 
