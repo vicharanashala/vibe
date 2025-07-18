@@ -9,6 +9,8 @@ export interface CourseCardProps {
   index: number;
   variant?: 'dashboard' | 'courses';
   className?: string;
+  completion?: CoursePctCompletion[];
+  setCompletion?: (completion: CoursePctCompletion[]) => void;
 }
 
 export interface CourseSectionProps {
@@ -28,6 +30,8 @@ export interface CourseSectionProps {
     actionText?: string;
     onAction?: () => void;
   };
+  completion?: CoursePctCompletion[];
+  setCompletion?: (completion: CoursePctCompletion[]) => void;
   className?: string;
 }
 
@@ -68,4 +72,11 @@ export interface ResetProgressData {
   module?: string
   section?: string
   item?: string
+}
+
+export interface CoursePctCompletion {
+  courseVersionId: string
+  percentage: number
+  totalItems: number
+  completedItems: number
 }

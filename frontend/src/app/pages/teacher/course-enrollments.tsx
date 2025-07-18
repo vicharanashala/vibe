@@ -1,25 +1,8 @@
-"use client"
+"use client"  
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import {
-  Search,
-  Users,
-  TrendingUp,
-  CheckCircle,
-  RotateCcw,
-  UserX,
-  BookOpen,
-  FileText,
-  List,
-  Play,
-  AlertTriangle,
-  X,
-  Loader2,
-  Eye,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react"
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,23 +11,127 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
+import { WatchTimeDisplay } from "./WatchTimeDisplay"
 
-// Import hooks
+// Import hooks - including the new quiz hooks
 import {
   useCourseById,
   useCourseVersionById,
   useItemsBySectionId,
   useCourseVersionEnrollments,
   useResetProgress,
-  useUnenrollUser,
+  useUnenrollUser
 } from "@/hooks/hooks"
-
 import { useCourseStore } from "@/store/course-store"
-import type { EnrolledUser, EnrollmentsSearchParams } from "@/types/course.types"
+import type { EnrolledUser } from "@/types/course.types"
+
+// Types for quiz functionality
+interface IAttemptDetails {
+  attemptId: string | ObjectId;
+  submissionResultId?: string | ObjectId;
+}
+
+interface UserQuizMetricsResponse {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptId?: string;
+  latestSubmissionResultId?: string;
+  remainingAttempts: number;
+  attempts: IAttemptDetails[];
+}
+
+interface IQuestionAnswerFeedback {
+  questionId: string;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string;
+}
+
+interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: string;
+  gradedBy?: string;
+}
+
+interface QuizSubmissionResponse {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  attemptId: string;
+  submittedAt: string;
+  gradingResult?: IGradingResult;
+}
+
+// Helper function to generate default names for items with empty names
+function generateDefaultItemNames(items: any[]) {
+  const typeCounts: { [key: string]: number } = {}
+  return items.map((item) => {
+    if (!item.name || item.name.trim() === "") {
+      const type = item.type || "Item"
+      const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+      if (!typeCounts[type]) {
+        typeCounts[type] = 0
+      }
+      typeCounts[type]++
+      return {
+        ...item,
+        displayName: `${capitalizedType} ${typeCounts[type]}`,
+      }
+    }
+    return {
+      ...item,
+      displayName: item.name,
+    }
+  })
+}
+
+// Component to display progress for each enrolled user
+// Accepts either a number (percent or fraction) or an object with a progress property
+function EnrollmentProgress(props: { progress: number }) {
+  // Support both direct number and object prop
+  const progress = props.progress;
+  return (
+    <div className={`flex items-center gap-4 w-40 ${getProgressBg(progress)}`}>
+      <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
+          style={{
+            width: `${progress.toFixed(1)}%`,
+            transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+          }}
+        />
+      </div>
+      <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
+        {progress.toFixed(1)}%
+      </span>
+    </div>
+  )
+}
+
+const getProgressColor = (progress: number) => {
+  if (progress >= 80) return "from-emerald-500 to-emerald-600 dark:from-emerald-400 dark:to-emerald-500"
+  if (progress >= 50) return "from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500"
+  return "from-red-500 to-red-600 dark:from-red-400 dark:to-red-500"
+}
+
+const getProgressBg = (progress: number) => {
+  if (progress >= 80) return "bg-emerald-50 dark:bg-emerald-950/30"
+  if (progress >= 50) return "bg-amber-50 dark:bg-amber-950/30"
+  return "bg-red-50 dark:bg-red-950/30"
+}
+
+
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
-  
+
   // Get course info from store
   const { currentCourse } = useCourseStore()
   const courseId = currentCourse?.courseId
@@ -57,12 +144,20 @@ export default function CourseEnrollments() {
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
+
+  // New states for view progress functionality
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [selectedViewItem, setSelectedViewItem] = useState<string>("")
+  const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
+  const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
 
   // Fetch enrollments data
   const {
@@ -78,7 +173,6 @@ export default function CourseEnrollments() {
 
   // Show all enrollments regardless of role or status
   const studentEnrollments = enrollmentsData?.enrollments || []
-  console.log("unfiltered Users:", studentEnrollments)
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
@@ -87,12 +181,15 @@ export default function CourseEnrollments() {
   const filteredUsers = studentEnrollments.filter(
     (enrollment: any) =>
       enrollment &&
-      ( enrollment?.userID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (enrollment?.userID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         enrollment?.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       enrollment?.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       enrollment?.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       (enrollment?.user?.firstName + " " + enrollment?.user?.lastName).toLowerCase().includes(searchQuery.toLowerCase()))
+        enrollment?.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        enrollment?.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (enrollment?.user?.firstName + " " + enrollment?.user?.lastName)
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())),
   )
+
 
   // Sorting logic
   const sortedUsers = [...filteredUsers].sort((a, b) => {
@@ -113,6 +210,7 @@ export default function CourseEnrollments() {
     }
     return 0
   })
+  console.log("Sorted Users:", sortedUsers)
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
@@ -128,10 +226,20 @@ export default function CourseEnrollments() {
     if (isResetDialogOpen) {
       setResetScope("course")
       setSelectedModule("")
-      setSelectedSection("")  
+      setSelectedSection("")
       setSelectedItem("")
     }
   }, [isResetDialogOpen])
+
+  useEffect(() => {
+    if (isViewProgressDialogOpen) {
+      setExpandedModules(new Set())
+      setExpandedSections(new Set())
+      setSelectedViewItem("")
+      setSelectedViewItemType("")
+      setSelectedViewItemName("")
+    }
+  }, [isViewProgressDialogOpen])
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -139,12 +247,9 @@ export default function CourseEnrollments() {
   }
 
   const handleViewProgress = (user: EnrolledUser) => {
-    // Store the selected user's ID in localStorage for the view-progress page
-    localStorage.setItem('selectedUserId', user.email) // email field contains the actual userId
-    localStorage.setItem('selectedUserName', user.name)
-    
-    // Navigate to view-progress page
-    navigate({ to: "/teacher/courses/progress" })
+    console.log("Viewing progress for user:", user)
+    setSelectedUser(user)
+    setIsViewProgressDialogOpen(true)
   }
 
   const handleRemoveStudent = (user: EnrolledUser) => {
@@ -154,25 +259,22 @@ export default function CourseEnrollments() {
 
   const confirmRemoveStudent = async () => {
     if (userToRemove && courseId && versionId) {
+      console.log("Removing student:", userToRemove)
       try {
         await unenrollMutation.mutateAsync({
           params: {
             path: {
-              userId: userToRemove.email, // email field contains the actual userId
+              userId: userToRemove.id ,
               courseId: courseId,
               courseVersionId: versionId,
             },
           },
         })
-
-        console.log("Student removed successfully:", userToRemove)
         setIsRemoveDialogOpen(false)
         setUserToRemove(null)
-        // Refetch enrollments after removal
         refetchEnrollments()
       } catch (error) {
         console.error("Failed to remove student:", error)
-        // You might want to show an error toast here
       }
     }
   }
@@ -181,10 +283,7 @@ export default function CourseEnrollments() {
     if (!selectedUser || !courseId || !versionId) return
 
     try {
-      // Extract userId from the selected user (it's stored in the email field for our case)
-      const userId = selectedUser.email // This contains the actual userId
-
-      // Prepare the request body based on the selected scope
+      const userId = selectedUser.id;
       const requestBody: any = {}
 
       if (resetScope === "module" && selectedModule) {
@@ -197,7 +296,6 @@ export default function CourseEnrollments() {
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
       }
-      // For course scope, we send an empty body
 
       await resetProgressMutation.mutateAsync({
         params: {
@@ -210,14 +308,11 @@ export default function CourseEnrollments() {
         body: requestBody,
       })
 
-      console.log("Progress reset successfully")
       setIsResetDialogOpen(false)
       setSelectedUser(null)
-      // Refetch enrollments after reset
       refetchEnrollments()
     } catch (error) {
       console.error("Failed to reset progress:", error)
-      // You might want to show an error toast here
     }
   }
 
@@ -270,18 +365,26 @@ export default function CourseEnrollments() {
     }
   }
 
-  const getProgressColor = (progress: number) => {
-    if (progress >= 80) return "from-emerald-500 to-emerald-600 dark:from-emerald-400 dark:to-emerald-500"
-    if (progress >= 50) return "from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500"
-    return "from-red-500 to-red-600 dark:from-red-400 dark:to-red-500"
+  // Toggle functions for expanding/collapsing modules and sections
+  const toggleModule = (moduleId: string) => {
+    const newExpanded = new Set(expandedModules)
+    if (newExpanded.has(moduleId)) {
+      newExpanded.delete(moduleId)
+    } else {
+      newExpanded.add(moduleId)
+    }
+    setExpandedModules(newExpanded)
   }
 
-  const getProgressBg = (progress: number) => {
-    if (progress >= 80) return "bg-emerald-50 dark:bg-emerald-950/30"
-    if (progress >= 50) return "bg-amber-50 dark:bg-amber-950/30"
-    return "bg-red-50 dark:bg-red-950/30"
+  const toggleSection = (sectionId: string) => {
+    const newExpanded = new Set(expandedSections)
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId)
+    } else {
+      newExpanded.add(sectionId)
+    }
+    setExpandedSections(newExpanded)
   }
-
   // Stats calculations based on filtered users (search results)
   const totalUsers = filteredUsers.length
   // Count users with 100% progress
@@ -292,11 +395,11 @@ export default function CourseEnrollments() {
   const averageProgress =
     totalUsers > 0
       ? (
-          filteredUsers.reduce(
-            (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
-            0
-          ) / totalUsers
-        ).toFixed(1)
+        filteredUsers.reduce(
+          (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
+          0
+        ) / totalUsers
+      ).toFixed(1)
       : 0
 
   const stats = [
@@ -373,21 +476,21 @@ export default function CourseEnrollments() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-            className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer"
-            onClick={() => {
-              // Set course info in store and navigate to invite page
-              const { setCurrentCourse } = useCourseStore.getState();
-              setCurrentCourse({
-                courseId: courseId || "",
-                versionId: versionId || "",
-                moduleId: null,
-                sectionId: null,
-                itemId: null,
-                watchItemId: null,
-              });
-              navigate({to: "/teacher/courses/invite"});
-            }}>
+            <Button
+              className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer"
+              onClick={() => {
+                const { setCurrentCourse } = useCourseStore.getState()
+                setCurrentCourse({
+                  courseId: courseId || "",
+                  versionId: versionId || "",
+                  moduleId: null,
+                  sectionId: null,
+                  itemId: null,
+                  watchItemId: null,
+                })
+                navigate({ to: "/teacher/courses/invite" })
+              }}
+            >
               Send Invites
             </Button>
           </div>
@@ -478,16 +581,22 @@ export default function CourseEnrollments() {
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
                             <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={enrollment.userId} />
+                              <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {(enrollment?.user?.firstName?.[0].toUpperCase?.() + enrollment?.user?.lastName?.[0]?.toUpperCase?.()) || '?'}
+                                {[
+                                  enrollment?.user?.firstName?.[0],
+                                  enrollment?.user?.lastName?.[0],
+                                ]
+                                  .filter(Boolean)
+                                  .map((ch) => ch.toUpperCase())
+                                  .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <p className="font-bold text-foreground truncate text-lg">
-                                {(enrollment?.user?.firstName || "" + " " + enrollment?.user?.lastName|| "") || "Unknown User"}
+                                {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
                               </p>
-                              <p className="text-sm text-muted-foreground truncate">{(enrollment?.user?.email) || ""}</p>
+                              <p className="text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -501,20 +610,7 @@ export default function CourseEnrollments() {
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
-                          <div className={`flex items-center gap-4 w-40 ${getProgressBg(enrollment.progress?.percentCompleted * 100 || 0)}`}>
-                            <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
-                              <div
-                                className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(enrollment.progress?.percentCompleted * 100 || 0)}`}
-                                style={{
-                                  width: `${((enrollment.progress?.percentCompleted || 0) * 100).toFixed(1)}%`,
-                                  transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
-                                }}
-                              />
-                            </div>
-                            <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
-                              {((enrollment.progress?.percentCompleted || 0) * 100).toFixed(1)}%
-                            </span>
-                          </div>
+                          <EnrollmentProgress progress={(enrollment.progress?.percentCompleted || 0) * 100} />
                         </TableCell>
                         <TableCell className="py-6 pr-6">
                           <div className="flex items-center gap-3">
@@ -523,11 +619,11 @@ export default function CourseEnrollments() {
                               size="sm"
                               onClick={() =>
                                 handleViewProgress({
-                                  id: enrollment._id,
-                                  name: `User ${enrollment.userId}`,
-                                  email: enrollment.userId, // Store userId in email field for our use
+                                  id: enrollment.user.userId,
+                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                  email: enrollment.userId,
                                   enrolledDate: enrollment.enrollmentDate,
-                                  progress: 0,
+                                  progress: enrollment.progress?.percentCompleted,
                                 })
                               }
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
@@ -540,9 +636,9 @@ export default function CourseEnrollments() {
                               size="sm"
                               onClick={() =>
                                 handleResetProgress({
-                                  id: enrollment._id,
-                                  name: `User ${enrollment.userId}`,
-                                  email: enrollment.userId, // Store userId in email field for our use
+                                  id: enrollment.user.userId,
+                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                  email: enrollment.userId,
                                   enrolledDate: enrollment.enrollmentDate,
                                   progress: 0,
                                 })
@@ -562,9 +658,9 @@ export default function CourseEnrollments() {
                               size="sm"
                               onClick={() =>
                                 handleRemoveStudent({
-                                  id: enrollment._id,
-                                  name: `User ${enrollment.userId}`,
-                                  email: enrollment.userId,
+                                  id: enrollment.user.userId,
+                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                  email: enrollment.user.email,
                                   enrolledDate: enrollment.enrollmentDate,
                                   progress: 0,
                                 })
@@ -590,18 +686,154 @@ export default function CourseEnrollments() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Remove Student Confirmation Modal */}
-        {isRemoveDialogOpen && (
+        {/* Enhanced View Progress Modal */}
+        {isViewProgressDialogOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Enhanced Backdrop */}
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setIsViewProgressDialogOpen(false)}
+            />
+            {/* Enhanced Modal */}
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-4xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-card-foreground">Student Progress Details</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsViewProgressDialogOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Enhanced Student Info */}
+              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
+                <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
+                  <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
+                    {selectedUser.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
+                  <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Course Progress</p>
+                  <EnrollmentProgress progress={(selectedUser.progress || 0) * 100} />
+                </div>
+              </div>
+
+              {/* Course Structure */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
+                  {getAvailableModules().map((module: any) => (
+                    <div key={module.moduleId} className="space-y-2">
+                      {/* Module */}
+                      <div
+                        className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => toggleModule(module.moduleId)}
+                      >
+                        {expandedModules.has(module.moduleId) ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <BookOpen className="h-5 w-5 text-blue-600" />
+                        <span className="font-semibold text-foreground">{module.name}</span>
+                      </div>
+
+                      {/* Sections */}
+                      {expandedModules.has(module.moduleId) && (
+                        <div className="ml-6 space-y-2">
+                          {module.sections?.map((section: any) => (
+                            <div key={section.sectionId} className="space-y-2">
+                              <div
+                                className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
+                                onClick={() => toggleSection(section.sectionId)}
+                              >
+                                {expandedSections.has(section.sectionId) ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <FileText className="h-4 w-4 text-emerald-600" />
+                                <span className="font-medium text-foreground">{section.name}</span>
+                              </div>
+
+                              {/* Items */}
+                              {expandedSections.has(section.sectionId) && (
+                                <SectionItems
+                                  versionId={versionId!}
+                                  moduleId={module.moduleId}
+                                  sectionId={section.sectionId}
+                                  selectedViewItem={selectedViewItem}
+                                  onItemSelect={(itemId, itemType, itemName) => {
+                                    setSelectedViewItem(itemId)
+                                    setSelectedViewItemType(itemType)
+                                    setSelectedViewItemName(itemName)
+                                    console.log("Selected Item:", itemId, itemType, itemName)
+                                    console.log("selected vars", selectedViewItem, selectedViewItemType, selectedViewItemName)
+                                  }}
+                                  getItemIcon={getItemIcon}
+                                />
+                              )}
+                            </div>
+                          )) || <p className="text-sm text-muted-foreground ml-6">No sections in this module</p>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Item Details Display */}
+              {selectedViewItem && (
+                <div className="space-y-4">
+                  {selectedViewItemType?.toUpperCase() === 'QUIZ' ? (
+                    <QuizSubmissionDisplay
+                      userId={selectedUser.id}
+                      quizId={selectedViewItem}
+                      itemName={selectedViewItemName}
+                    />
+                  ) : (
+                    <WatchTimeDisplay
+                      userId={selectedUser.id}
+                      itemId={selectedViewItem}
+                      courseId={courseId!}
+                      courseVersionId={versionId}
+                      itemName={selectedViewItemName}
+                      itemType={selectedViewItemType}
+                    />
+                  )}
+                </div>
+              )}
+
+              {!selectedViewItem && (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Select an item from the course structure above to view details.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Remove Student Confirmation Modal */}
+        {isRemoveDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsRemoveDialogOpen(false)}
             />
-
-            {/* Enhanced Modal */}
             <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-10 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-card-foreground">Remove Student</h2>
                 <Button
@@ -614,7 +846,6 @@ export default function CourseEnrollments() {
                 </Button>
               </div>
 
-              {/* Content */}
               <div className="space-y-8">
                 <p className="text-lg text-card-foreground">
                   Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
@@ -624,7 +855,6 @@ export default function CourseEnrollments() {
                   ?
                 </p>
 
-                {/* Enhanced Warning Alert */}
                 <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
                   <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-red-800 dark:text-red-200">
@@ -634,7 +864,6 @@ export default function CourseEnrollments() {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   variant="outline"
@@ -666,15 +895,11 @@ export default function CourseEnrollments() {
         {/* Enhanced Reset Progress Modal */}
         {isResetDialogOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Enhanced Backdrop */}
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsResetDialogOpen(false)}
             />
-
-            {/* Enhanced Modal */}
             <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
                 <Button
@@ -687,7 +912,6 @@ export default function CourseEnrollments() {
                 </Button>
               </div>
 
-              {/* Enhanced Student Info */}
               {selectedUser && (
                 <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
                   <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
@@ -714,7 +938,6 @@ export default function CourseEnrollments() {
                 . This action cannot be undone.
               </p>
 
-              {/* Enhanced Form Content */}
               <div className="space-y-8">
                 <div className="space-y-3">
                   <Label htmlFor="reset-scope" className="text-sm font-bold text-foreground">
@@ -823,7 +1046,6 @@ export default function CourseEnrollments() {
                   />
                 )}
 
-                {/* Enhanced Warning Alert */}
                 <div className="flex gap-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
                   <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-amber-800 dark:text-amber-200">
@@ -833,7 +1055,6 @@ export default function CourseEnrollments() {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   variant="outline"
@@ -934,6 +1155,8 @@ function ItemSelector({
     }
   }
 
+  const itemsWithDefaultNames = generateDefaultItemNames(itemsResponse)
+
   return (
     <div className="space-y-3">
       <Label htmlFor="item" className="text-sm font-bold text-foreground">
@@ -944,12 +1167,12 @@ function ItemSelector({
           <SelectValue placeholder="Select item" />
         </SelectTrigger>
         <SelectContent className="bg-card border-border cursor-pointer">
-          {itemsResponse.map((item: any) => (
+          {itemsWithDefaultNames.map((item: any) => (
             <SelectItem key={item._id} value={item._id} className="cursor-pointer">
               <div className="flex items-center gap-3 py-2">
                 <span className="text-lg">{getItemIcon(item.type)}</span>
                 <div>
-                  <div className="font-semibold">{item.name}</div>
+                  <div className="font-semibold">{item.displayName}</div>
                   <div className="text-xs text-muted-foreground">{getItemTypeDisplay(item.type)}</div>
                 </div>
               </div>
@@ -957,6 +1180,67 @@ function ItemSelector({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  )
+}
+
+// Component to fetch and display items for a section
+function SectionItems({
+  versionId,
+  moduleId,
+  sectionId,
+  selectedViewItem,
+  onItemSelect,
+  getItemIcon,
+}: {
+  versionId: string
+  moduleId: string
+  sectionId: string
+  selectedViewItem: string
+  onItemSelect: (itemId: string, itemType: string, itemName: string) => void
+  getItemIcon: (type: string) => string
+}) {
+  const { data: itemsResponse, isLoading, error } = useItemsBySectionId(versionId, moduleId, sectionId)
+
+  if (isLoading) {
+    return (
+      <div className="ml-6 p-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading items...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !itemsResponse || !Array.isArray(itemsResponse) || itemsResponse.length === 0) {
+    return (
+      <div className="ml-6 p-2">
+        <p className="text-sm text-muted-foreground">
+          {error ? `Error loading items: ${error}` : "No items in this section"}
+        </p>
+      </div>
+    )
+  }
+
+  const itemsWithDefaultNames = generateDefaultItemNames(itemsResponse)
+
+  return (
+    <div className="ml-6 space-y-1">
+      {itemsWithDefaultNames.map((item: any) => (
+        <div
+          key={item._id}
+          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedViewItem === item._id ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/10"
+            }`}
+          onClick={() => onItemSelect(item._id, item.type, item.displayName)}
+        >
+          <span className="text-lg">{getItemIcon(item.type)}</span>
+          <span className="text-sm text-foreground">{item.displayName}</span>
+          <Badge variant="outline" className="ml-auto text-xs">
+            {item.type}
+          </Badge>
+        </div>
+      ))}
     </div>
   )
 }

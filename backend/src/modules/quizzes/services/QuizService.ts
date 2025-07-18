@@ -140,6 +140,7 @@ class QuizService extends BaseService {
         throw new NotFoundError('Metrics not found.');
       }
       metrics._id = metrics._id.toString();
+      metrics.quizId = metrics.quizId.toString();
       return metrics;
     });
   }

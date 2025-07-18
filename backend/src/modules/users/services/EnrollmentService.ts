@@ -179,12 +179,15 @@ export class EnrollmentService extends BaseService {
         skip,
         limit,
       );
-      return result.map(enrollment => ({
-        ...enrollment,
-        _id: enrollment._id.toString(),
-        courseId: enrollment.courseId.toString(),
-        courseVersionId: enrollment.courseVersionId.toString(),
-      }));
+      return result.map(enrollment => {
+        const {userId, ...rest} = enrollment;
+        return {
+          ...rest,
+          _id: enrollment._id.toString(),
+          courseId: enrollment.courseId.toString(),
+          courseVersionId: enrollment.courseVersionId.toString(),
+        }
+      });
     });
   }
 
@@ -250,6 +253,7 @@ export class EnrollmentService extends BaseService {
         status: enrollment.status,
         enrollmentDate: enrollment.enrollmentDate,
         user: {
+          userId: enrollment.userId.toString(),
           firstName: enrollment.user.firstName,
           lastName: enrollment.user.lastName,
           email: enrollment.user.email,
