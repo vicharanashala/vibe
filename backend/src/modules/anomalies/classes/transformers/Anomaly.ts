@@ -105,3 +105,9 @@ export class Anomaly implements IAnomalyRecord {
     this.updatedAt = new Date();
   }
 }
+
+export interface IValidationResult {
+  isValid: boolean;
+  error?: string;
+  data?: any;
+}

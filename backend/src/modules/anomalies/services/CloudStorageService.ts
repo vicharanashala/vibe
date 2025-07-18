@@ -14,7 +14,7 @@ export interface ICloudStorageResult {
 
 @injectable()
 export class CloudStorageService {
-  private storage: Storage;
+  private anomalyStorage: Storage;
   private bucketName: string;
 
   constructor(
@@ -24,15 +24,10 @@ export class CloudStorageService {
   }
 
   private initializeStorage(): void {
-    this.storage = new Storage({
-      projectId: storageConfig.googleCloud.projectId,
-      credentials: {
-        client_email: storageConfig.googleCloud.clientEmail,
-        private_key: storageConfig.googleCloud.privateKey,
-      },
+    this.anomalyStorage = new Storage({
+      projectId: storageConfig.googleCloud.projectId
     });
-
-    this.bucketName = storageConfig.googleCloud.bucketName;
+    this.bucketName = storageConfig.googleCloud.anomalyBucketName;
   }
 
   /**
@@ -52,7 +47,7 @@ export class CloudStorageService {
     const fileName = `anomalies/${userId}/${timestampStr}_${anomalyType}.encrypted`;
 
     // Get bucket and file reference
-    const bucket = this.storage.bucket(this.bucketName);
+    const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
     try {
@@ -99,7 +94,7 @@ export class CloudStorageService {
    * Delete anomaly image from cloud storage
    */
   async deleteAnomalyImage(fileName: string): Promise<void> {
-    const bucket = this.storage.bucket(this.bucketName);
+    const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
     try {
@@ -113,7 +108,7 @@ export class CloudStorageService {
    * Download and decrypt anomaly image
    */
   async downloadAndDecryptImage(fileName: string): Promise<Buffer> {
-    const bucket = this.storage.bucket(this.bucketName);
+    const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
     // Download file

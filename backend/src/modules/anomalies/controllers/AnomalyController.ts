@@ -6,21 +6,16 @@ import {
   Get,
   Delete,
   Body,
-  Param,
   Params,
   QueryParams,
   Header,
   HttpCode,
   UploadedFile,
-  Res,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { Response } from 'express';
 import { AnomalyService } from '../services/AnomalyService.js';
 import { AnomalyTransformationService } from '../services/AnomalyTransformationService.js';
-import { AnomalyDecryptionService } from '../services/AnomalyDecryptionService.js';
-import { 
-  CreateAnomalyBody, 
+import {
   AnomalyIdParams, 
   UserIdParams,
   CourseIdParams,

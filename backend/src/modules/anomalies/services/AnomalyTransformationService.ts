@@ -1,13 +1,7 @@
 import { injectable } from 'inversify';
 import { instanceToPlain } from 'class-transformer';
-import { Anomaly } from '../classes/transformers/Anomaly.js';
+import { Anomaly, IValidationResult } from '../classes/transformers/Anomaly.js';
 import { GetUserAnomaliesQuery, MultipartAnomalyData } from '../classes/validators/AnomalyValidators.js';
-
-export interface IValidationResult {
-  isValid: boolean;
-  error?: string;
-  data?: any;
-}
 
 @injectable()
 export class AnomalyTransformationService {
