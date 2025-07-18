@@ -95,7 +95,7 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
       }
       const jobState = await this.getJobState(jobId, usePrevious);
-      if (jobState.taskStatus !== TaskStatus.COMPLETED) {
+      if (jobState.taskStatus !== TaskStatus.COMPLETED && jobState.taskStatus !== TaskStatus.FAILED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} has not been completed yet, please approve the task to start.`);
       }
       jobState.parameters = {...jobState.parameters, ...parameters};
@@ -297,7 +297,7 @@ export class GenAIService extends BaseService {
         jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : 0].segmentMapUsed;
       }
       console.log(jobState)
-      if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION) {
+      if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION && jobState.currentTask) {
         if (!(jobState.file || jobState.segmentMap)) {
           throw new BadRequestError(`No file URL found for the current task: ${jobState.currentTask}`);
         }
