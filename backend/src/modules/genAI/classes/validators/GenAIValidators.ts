@@ -9,11 +9,10 @@ import {
   ValidateNested,
   IsUrl,
   IsNumber,
-  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Type } from 'class-transformer';
-import { LanguageType, JobType, TaskType, GenAI, TaskStatus, audioData, contentUploadData, questionGenerationData, segmentationData, trascriptGenerationData } from '../transformers/GenAI.js';
+import { LanguageType, JobType, TaskType, TaskStatus, audioData, contentUploadData, questionGenerationData, segmentationData, trascriptGenerationData } from '../transformers/GenAI.js';
 
 @JSONSchema({ title: 'TranscriptParameters' })
 class TranscriptParameters {
@@ -201,6 +200,83 @@ class UploadParameters {
 	questionsPerQuiz?: number;
 }
 
+@JSONSchema({ title: 'PartialUploadParameters' })
+class PartialUploadParameters {
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course to upload the content to',
+    example: '60d5f484f1c4d8b3c8f8e4b1',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  courseId?: string;
+
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version to upload the content to',
+    example: '60d5f484f1c4d8b3c8f8e4b2',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  versionId?: string;
+
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module to upload the content to',
+    example: '60d5f484f1c4d8b3c8f8e4b3',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  moduleId?: string;
+
+  @JSONSchema({
+    title: 'Section ID',
+    description: 'ID of the section to upload the content to',
+    example: '60d5f484f1c4d8b3c8f8e4b4',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  sectionId?: string;
+
+  @JSONSchema({
+    title: 'Video Item Base Name',
+    description: 'Base name for the video item to be created',
+    example: 'video_item',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  videoItemBaseName?: string;
+
+  @JSONSchema({
+    title: 'Quiz Item Base Name',
+    description: 'Base name for the quiz item to be created',
+    example: 'quiz_item',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+	quizItemBaseName?: string;
+
+  @JSONSchema({
+    title: 'Questions Per Quiz',
+    description: 'Number of questions to show per quiz item',
+    example: 5,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+	questionsPerQuiz?: number;
+}
+
 class GenAIResponse{
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
@@ -292,7 +368,7 @@ class JobBody {
     description: 'Parameters for uploading the content to a course',
     type: 'object',
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsObject()
   @ValidateNested()
   @Type(() => UploadParameters)
@@ -354,12 +430,12 @@ class ApproveStartBody {
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
       case TaskType.UPLOAD_CONTENT:
-        return UploadParameters;
+        return PartialUploadParameters;
       default:
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+  parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
 
   @JSONSchema({
     title: 'Use Previous',
@@ -415,12 +491,12 @@ class RerunTaskBody {
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
       case TaskType.UPLOAD_CONTENT:
-        return UploadParameters;
+        return PartialUploadParameters;
       default:
         return Object;
     }
   })
-  parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+  parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
   
   @JSONSchema({
     title: 'Use Previous',
