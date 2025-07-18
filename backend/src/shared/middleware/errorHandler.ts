@@ -17,6 +17,7 @@ import {
 import {Request, Response} from 'express';
 import {JSONSchema} from 'class-validator-jsonschema';
 import { Type } from 'class-transformer';
+import * as Sentry from '@sentry/node';
 
 const logger = createLogger({
   level: 'info',
@@ -38,10 +39,12 @@ const logger = createLogger({
 export class ErrorResponse<T> {
   message: string;
   errors?: T;
+  sentryEventId?: string;
 
-  constructor(message: string, errors?: T) {
+  constructor(message: string, errors?: T, sentryEventId?: string) {
     if (errors) this.errors = errors;
     this.message = message;
+    if (sentryEventId) this.sentryEventId = sentryEventId;
   }
 }
 
@@ -131,12 +134,22 @@ class BadRequestErrorResponse {
 @Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {
+    let eventId;
+    try {
+      eventId = Sentry.captureException(error);
+      console.log(`Error captured by Sentry in HttpErrorHandler with ID: ${eventId}`);
+    } catch (sentryError) {
+      console.error('Failed to capture error with Sentry in HttpErrorHandler:', sentryError);
+    }
+
     logger.error({
       message: error.message,
       errors: error.errors,
       stack: error.stack,
       status: error.httpCode || 500,
+      sentryEventId: eventId || 'unknown',
     });
+    
     if (response.headersSent) {
       // If the response is already sent, don't try to send again
       return;
@@ -204,6 +217,8 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
         .json(
           new ErrorResponse<null>(
             'You are not authorized to access this resource.',
+            null,
+            eventId
           ),
         );
     } else if (error instanceof HttpError) {
@@ -214,19 +229,21 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
         response
           .status(400)
           .json(
-            new ErrorResponse<typeof error.errors>(error.message, error.errors),
+            new ErrorResponse<typeof error.errors>(error.message, error.errors, eventId),
           );
       } else {
         response
           .status(error.httpCode)
-          .json(new ErrorResponse<null>(error.message));
+          .json(new ErrorResponse<null>(error.message, null, eventId));
       }
     } else if (error instanceof Error) {
-      response.status(500).json(new ErrorResponse<null>(error.message));
+      response.status(500).json(
+        new ErrorResponse<null>(error.message, null, eventId)
+      );
     } else {
       response
         .status(500)
-        .json(new ErrorResponse<null>('An unexpected error occurred.'));
+        .json(new ErrorResponse<null>('An unexpected error occurred.', null, eventId));
     }
   }
 }
