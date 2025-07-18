@@ -28,15 +28,9 @@ export class WebhookService {
    * @param jobData The job data to be processed
    * @returns Job ID and status from AI server
    */
-  async sendJobToAiServer(jobData: any, userId: string, jobId: string): Promise<string> {
-    const payload = {
-      data: jobData,
-      userId,
-      jobId
-    };
-    
-    const response = await this.httpClient.post('/jobs', payload);
-    return response.data;
+  async AIServerCheck(): Promise<number> {
+    const response = await this.httpClient.get('/');
+    return response.status;
   }
 
   /**
