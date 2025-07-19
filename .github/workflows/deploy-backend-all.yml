@@ -99,6 +99,7 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            ALL_PROXY="socks5h://localhost:1055"
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -138,4 +139,5 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            ALL_PROXY="socks5h://localhost:1055"
           flags: --allow-unauthenticated
