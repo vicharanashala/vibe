@@ -9,7 +9,7 @@ export class WebhookService {
   private readonly aiServerUrl: string;
   
   constructor() {
-    this.aiServerUrl = aiConfig.serverIP + ':' + aiConfig.serverPort;
+    this.aiServerUrl = 'http://' + aiConfig.serverIP + ':' + aiConfig.serverPort;
 
     this.httpClient = axios.create({
       baseURL: this.aiServerUrl,
