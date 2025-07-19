@@ -14,7 +14,7 @@ import { EnrollmentService } from './modules/users/services/EnrollmentService.js
 
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
-  const dbName = 'vibe';
+  const dbName = dbConfig.dbName;
 
   options.bind(GLOBAL_TYPES.uri).toConstantValue(uri);
   options.bind(GLOBAL_TYPES.dbName).toConstantValue(dbName);

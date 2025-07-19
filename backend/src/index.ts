@@ -4,7 +4,6 @@ console.log(`Loading Sentry for ${NODE_ENV} environment`);
 await import('./instrument.js');
 
 import * as Sentry from '@sentry/node';
-import { setupSentryErrorHandling } from './instrument.js';
 import express from 'express';
 import cors from 'cors';
 import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
@@ -54,31 +53,6 @@ app.use(
   }),
 );
 
-// Start server
-useExpressServer(app, moduleOptions);
-
-app.get("/debug-sentry", function mainHandler(req, res) {
-  try {
-    const eventId = Sentry.captureMessage("Test message from debug-sentry endpoint");
-    console.log(`Sentry test message captured with ID: ${eventId}`);
-    
-    res.status(200).send({
-      message: "Sentry test message captured successfully",
-      sentryEventId: eventId,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).send({
-      message: "Failed to capture Sentry message",
-      error: error.message
-    });
-  }
-});
-
-app.get("/debug-sentry-error", function errorHandler(req, res) {
-  throw new Error("Sentry error test!");
-});
-
 // Health check endpoint for Cloud Run
 app.get("/health", (req, res) => {
   res.status(200).json({
@@ -90,23 +64,11 @@ app.get("/health", (req, res) => {
 
 if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
   console.log('Setting up Sentry error handling - test for production and staging environment');
-  setupSentryErrorHandling(app);
+  Sentry.setupExpressErrorHandler(app);
 }
-app.use(function onError(err, req, res, next) {
-  let eventId;
-  try {
-    eventId = Sentry.captureException(err);
-    console.log(`Error captured in final handler with Sentry ID: ${eventId}`);
-  } catch (sentryError) {
-    console.error('Failed to capture error with Sentry:', sentryError);
-  }
-  
-  res.status(500).json({
-    error: err.message,
-    sentryEventId: eventId || 'unknown',
-    timestamp: new Date().toISOString()
-  });
-});
+
+// Start server
+useExpressServer(app, moduleOptions);
 
 app.listen(appConfig.port, () => {
   printStartupSummary();
