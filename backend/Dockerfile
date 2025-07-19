@@ -30,8 +30,8 @@ COPY scripts ./scripts
 RUN npm install
 
 COPY --from=builder /app/build ./build
-
 COPY --from=builder /app/src/modules ./src/modules
+COPY --from=builder /app/scripts/start-backend.sh ./start.sh
 
 # Tailscale Setup
 
@@ -52,4 +52,4 @@ ARG APP_PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:${APP_PORT}/health || exit 1
 
-CMD ["dumb-init", "node", "build/index.js"]
+CMD ["/app/start.sh"]
