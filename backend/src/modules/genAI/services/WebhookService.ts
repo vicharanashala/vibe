@@ -1,24 +1,21 @@
 import { injectable } from 'inversify';
 import axios, { AxiosInstance } from 'axios';
-import { appConfig } from '#root/config/app.js';
-import { TranscriptParameters, SegmentationParameters, QuestionGenerationParameters, JobState } from '../classes/transformers/GenAI.js';
+import { JobState } from '../classes/transformers/GenAI.js';
+import { aiConfig } from '#root/config/ai.js';
 
 @injectable()
 export class WebhookService {
   private readonly httpClient: AxiosInstance;
   private readonly aiServerUrl: string;
-  private readonly webhookSecret: string;
   
   constructor() {
-    this.aiServerUrl = appConfig.aiServer.url;
-    this.webhookSecret = appConfig.aiServer.webhookSecret;
-    
+    this.aiServerUrl = aiConfig.serverIP + ':' + aiConfig.serverPort;
+
     this.httpClient = axios.create({
       baseURL: this.aiServerUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': this.webhookSecret
       }
     });
   }
@@ -75,20 +72,5 @@ export class WebhookService {
     console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`, jobState);
     return response.data;
-  }
-
-  /**
-   * Verify webhook signature from AI server
-   * @param signature The signature from request headers
-   * @param body The request body
-   * @returns Boolean indicating if signature is valid
-   */
-  verifyWebhookSignature(signature: string): boolean {
-    if (!signature) {
-      return false;
-    }
-    
-    // Simple signature verification
-    return signature === this.webhookSecret;
   }
 }

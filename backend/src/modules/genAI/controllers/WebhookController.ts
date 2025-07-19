@@ -1,12 +1,10 @@
 import { injectable, inject } from 'inversify';
 import { 
-  Body, 
-  HeaderParam,
+  Body,
   JsonController, 
   Post,
   HttpCode,
   BadRequestError,
-  UnauthorizedError,
   OnUndefined,
   Get,
   Param
@@ -36,15 +34,8 @@ export class WebhookController {
   @Post('/')
   @OnUndefined(200)
   async handleWebhook(
-    @HeaderParam('x-webhook-signature') signature: string,
     @Body() body: WebhookBody,
   ) {
-    // Verify webhook signature
-    console.log('Received webhook with signature:', signature);
-    if (!this.webhookService.verifyWebhookSignature(signature)) {
-      throw new UnauthorizedError('Invalid webhook signature');
-    }
-
     const { task, jobId, data } = body;
     console.log('Webhook body:', body);
     await this.genAIService.updateJob(jobId, task, data);
@@ -53,15 +44,8 @@ export class WebhookController {
   @Get('/job/:jobId')
   @HttpCode(200)
   async getJobStatus(
-    @HeaderParam('x-webhook-signature') signature: string,
     @Param('jobId') jobId: string
   ) {
-    // Verify webhook signature
-    console.log('Received job status request with signature:', signature);
-    if (!this.webhookService.verifyWebhookSignature(signature)) {
-      throw new UnauthorizedError('Invalid webhook signature');
-    }
-
     if (!jobId) {
       throw new BadRequestError('Job ID is required');
     }
@@ -69,5 +53,4 @@ export class WebhookController {
     const jobStatus = await this.genAIService.getJobState(jobId);
     return jobStatus;
   }
-
 }
