@@ -10,14 +10,16 @@ import {
   HttpCode,
   UploadedFile,
   OnUndefined,
+  QueryParams,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetUserAnomalyParams, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, FileType } from '../classes/transformers/Anomaly.js';
+import { PaginationQuery } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -31,8 +33,8 @@ export class AnomalyController {
   ) {}
 
   @OpenAPI({
-    summary: 'Record anomaly with encrypted image',
-    description: 'Records an anomaly with compressed and encrypted image stored in cloud storage. Captures User-Agent header for session metadata.',
+    summary: 'Record anomaly image',
+    description: 'Records an anomaly image stored in cloud storage.',
   })
   @Post('/record/image')
   @HttpCode(201)
@@ -55,8 +57,8 @@ export class AnomalyController {
   }
 
   @OpenAPI({
-    summary: 'Record anomaly with encrypted audio',
-    description: 'Records an anomaly with compressed and encrypted audio stored in cloud storage. Captures User-Agent header for session metadata.',
+    summary: 'Record anomaly with audio',
+    description: 'Records an anomaly udio stored in cloud storage.',
   })
   @Post('/record/audio')
   @HttpCode(201)
@@ -103,9 +105,12 @@ export class AnomalyController {
   @ResponseSchema(AnomalyData)
   async getUserAnomalies(
     @Params() params: GetUserAnomalyParams,
+    @QueryParams() query: PaginationQuery
   ): Promise<AnomalyData[]> {
     const { courseId, versionId, userId } = params;
-    const anomalies = await this.anomalyService.getUserAnomalies(userId, courseId, versionId);
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
+    const anomalies = await this.anomalyService.getUserAnomalies(userId, courseId, versionId, limit, skip);
 
     return anomalies;
   }
@@ -117,13 +122,37 @@ export class AnomalyController {
   @Get('/course/:courseId/version/:versionId')
   @Authorized()
   @ResponseSchema(AnomalyData)
-  async getCourseAnomalies(@Params() params: GetCourseAnomalyParams): Promise<AnomalyData[]> {
+  async getCourseAnomalies(
+    @Params() params: GetCourseAnomalyParams,
+    @QueryParams() query: PaginationQuery
+  ): Promise<AnomalyData[]> {
     const { courseId, versionId } = params;
-    const anomalies = await this.anomalyService.getCourseAnomalies(courseId, versionId);
+    const { page, limit } =  query
+    const skip = (page - 1) * limit;
+    const anomalies = await this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip);
 
     return anomalies;
   }
-  
+
+    @OpenAPI({
+    summary: 'Get Item anomalies',
+    description: 'Retrieves all anomalies for a specific item',
+  })
+  @Get('/course/:courseId/version/:versionId/item/:itemId')
+  @Authorized()
+  @ResponseSchema(AnomalyData)
+  async getItemAnomalies(
+    @Params() params: GetItemAnomalyParams,
+    @QueryParams() query: PaginationQuery
+  ): Promise<AnomalyData[]> {
+    const { courseId, versionId, itemId } = params;
+    const { page, limit } =  query
+    const skip = (page - 1) * limit;
+    const anomalies = await this.anomalyService.getCourseItemAnomalies(courseId, versionId, itemId, limit, skip);
+
+    return anomalies;
+  }
+    
   @OpenAPI({
     summary: 'Delete anomaly',
     description: 'Deletes an anomaly record and its encrypted image',

@@ -1,5 +1,5 @@
 
-import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
+import { EnrollmentRole, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -20,10 +20,10 @@ import {
   Params,
   Get,
   Param,
-  QueryParam,
   BadRequestError,
   NotFoundError,
   Body,
+  QueryParams,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 
@@ -126,16 +126,10 @@ export class EnrollmentController {
   })
   async getUserEnrollments(
     @Param('userId') userId: string,
-    @QueryParam('page') page = 1,
-    @QueryParam('limit') limit = 10,
+    @QueryParams() query: PaginationQuery
   ): Promise<EnrollmentResponse> {
-    //convert page and limit to integers
-    page = parseInt(page as unknown as string, 10);
-    limit = parseInt(limit as unknown as string, 10);
+    const { page, limit } = query
 
-    if (page < 1 || limit < 1) {
-      throw new BadRequestError('Page and limit must be positive integers.');
-    }
     const skip = (page - 1) * limit;
 
     const enrollments = await this.enrollmentService.getEnrollments(

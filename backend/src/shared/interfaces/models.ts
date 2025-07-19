@@ -1,5 +1,7 @@
 import {ObjectId} from 'mongodb';
 import {ProctoringComponent} from '../database/index.js';
+import { Type } from 'class-transformer';
+import { IsOptional, IsInt, Min } from 'class-validator';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -416,4 +418,18 @@ export interface ICourseSettings {
   courseVersionId: string | ObjectId;
   courseId: string | ObjectId;
   settings: ISettings;
+}
+
+export class PaginationQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 }

@@ -32,7 +32,24 @@ export class AnomalyRepository {
   async getByUser(
     userId: string, 
     courseId: string, 
-    versionId: string, 
+    versionId: string,
+    limit: number,
+    skip: number,
+    session?: ClientSession
+  ): Promise<IAnomalyData[]> {
+    await this.init();
+    const result = await this.anomalyCollection
+      .find({ userId: userId, courseId: courseId, versionId: versionId }, { session })
+      .limit(limit)
+      .skip(skip)
+      .toArray();
+    return result;
+  }
+
+   async getAllByUser(
+    userId: string, 
+    courseId: string, 
+    versionId: string,
     session?: ClientSession
   ): Promise<IAnomalyData[]> {
     await this.init();
@@ -47,18 +64,35 @@ export class AnomalyRepository {
     return await this.anomalyCollection.findOne({ _id: new ObjectId(anomalyId), courseId: courseId, versionId: versionId }, { session });
   }
 
-  async getAnomaliesByCourse(courseId: string, versionId: string, session?: ClientSession): Promise<IAnomalyData[]> {
+  async getAnomaliesByCourse(
+    courseId: string,
+    versionId: string,
+    limit: number,
+    skip: number,
+    session?: ClientSession
+  ): Promise<IAnomalyData[]> {
     await this.init();
     return await this.anomalyCollection
       .find({ courseId: courseId, versionId: versionId }, { session })
+      .limit(limit)
+      .skip(skip)
       .toArray();
   }
 
 
-  async getAnomaliesByItem(courseId: string, versionId: string, itemId: string, session?: ClientSession): Promise<IAnomalyData[]> {
+  async getAnomaliesByItem(
+    courseId: string,
+    versionId: string,
+    itemId: string,
+    limit: number,
+    skip: number,
+    session?: ClientSession
+  ): Promise<IAnomalyData[]> {
     await this.init();
     return await this.anomalyCollection
       .find({ courseId: courseId, versionId: versionId, itemId: itemId }, { session })
+      .limit(limit)
+      .skip(skip)
       .toArray();
   }
 

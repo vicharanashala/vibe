@@ -66,9 +66,9 @@ export class AnomalyService extends BaseService {
     });
   }
 
-  async getUserAnomalies(userId: string, courseId: string, versionId: string): Promise<AnomalyData[]> {
+  async getUserAnomalies(userId: string, courseId: string, versionId: string, limit: number, skip: number): Promise<AnomalyData[]> {
     return await this._withTransaction(async (session) => {
-      const anomaly = await this.anomalyRepository.getByUser(userId, courseId, versionId, session);
+      const anomaly = await this.anomalyRepository.getByUser(userId, courseId, versionId, limit, skip, session);
 
       if (!anomaly || anomaly.length === 0) {
         throw new NotFoundError('No anomalies found for this user in the specified course and version');
@@ -83,14 +83,14 @@ export class AnomalyService extends BaseService {
     });
   }
 
-  async getCourseAnomalies(courseId: string, versionId: string): Promise<AnomalyData[]> {
+  async getCourseAnomalies(courseId: string, versionId: string, limit: number, skip: number): Promise<AnomalyData[]> {
     return this._withTransaction(async (session) => {
       const courseVersion = await this.courseRepo.readVersion(versionId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
           throw new NotFoundError('Course version not found');
       }
 
-      const anomalies = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, session);
+      const anomalies = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, limit, skip, session);
       if (!anomalies || anomalies.length === 0) {
           throw new NotFoundError('No anomalies found for this course version');
       }
@@ -104,14 +104,14 @@ export class AnomalyService extends BaseService {
     });
   }
 
-  async getCourseItemAnomalies(courseId: string, versionId: string, itemId: string): Promise<AnomalyData[]> {
+  async getCourseItemAnomalies(courseId: string, versionId: string, itemId: string, limit: number, skip: number): Promise<AnomalyData[]> {
     return this._withTransaction(async (session) => {
       const courseVersion = await this.courseRepo.readVersion(versionId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
           throw new NotFoundError('Course version not found');
       }
 
-      const anomalies = await this.anomalyRepository.getAnomaliesByItem(courseId, versionId, itemId, session);
+      const anomalies = await this.anomalyRepository.getAnomaliesByItem(courseId, versionId, itemId, limit, skip, session);
       if (!anomalies || anomalies.length === 0) {
           throw new NotFoundError('No anomalies found for this course version');
       }
@@ -134,9 +134,9 @@ export class AnomalyService extends BaseService {
     if (!version || version.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found');
     }
-    const anomalies = await this.anomalyRepository.getByUser(userId, courseId, versionId);
+    const anomalies = await this.anomalyRepository.getAllByUser(userId, courseId, versionId);
 
-    // percentage of eahc anomaly type
+    // percentage of each anomaly type
   }
 
   async deleteAnomaly(anomalyId: string, courseId: string, versionId: string): Promise<void> {

@@ -120,6 +120,17 @@ export class GetUserAnomalyParams extends GetCourseAnomalyParams {
   userId: string;
 }
 
+export class GetItemAnomalyParams extends GetCourseAnomalyParams {
+  @JSONSchema({
+    description: 'Item ID to filter anomalies',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
 export class AnomalyIdParams {
   @JSONSchema({
     description: 'Anomaly ID to identify the anomaly record',
