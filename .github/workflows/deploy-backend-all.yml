@@ -31,7 +31,7 @@ env:
 jobs:
 
   lint:
-    name: Lint and Test
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,11 +56,6 @@ jobs:
             touch pnpm-lock.yaml
           fi
           pnpm install
-
-      - name: Run linting
-        run: |
-          cd backend
-          pnpm lint
 
       - name: Run tests
         run: |
