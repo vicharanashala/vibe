@@ -71,3 +71,13 @@ export class IAnomalyData {
 export class AnomalyDataResponse extends IAnomalyData {
   fileUrl: string
 }
+
+export class AnomalyStats {
+  VOICE_DETECTION: number;
+  NO_FACE: number;
+  MULTIPLE_FACES: number;
+  BLUR_DETECTION: number;
+  FOCUS: number;
+  HAND_GESTURE_DETECTION: number;
+  FACE_RECOGNITION: number;
+}

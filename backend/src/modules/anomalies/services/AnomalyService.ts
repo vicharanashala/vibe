@@ -125,16 +125,12 @@ export class AnomalyService extends BaseService {
     });
   }
 
-  async getAnomalyStats(userId: string, courseId: string, versionId: string): Promise<any> {
-    const user = await this.userRepo.findById(userId);
-    if (!user) {
-        throw new NotFoundError('User not found');
-    }
+  async getAnomalyStats(courseId: string, versionId: string, itemId?: string, userId?: string): Promise<any> {
     const version = await this.courseRepo.readVersion(versionId);
     if (!version || version.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found');
     }
-    const anomalies = await this.anomalyRepository.getAllByUser(userId, courseId, versionId);
+    const anomalies = await this.anomalyRepository.getCustomAnomalies(courseId, versionId);
 
     // percentage of each anomaly type
   }

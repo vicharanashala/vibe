@@ -161,11 +161,12 @@ export class AnomalyController {
   @Authorized()
   @ResponseSchema(AnomalyStats)
   async getAnomalyStats(
-    @Params() params: GetItemAnomalyParams,
+    @Params() params: GetCourseAnomalyParams,
     @QueryParams() query: StatsQueryParams
   ): Promise<AnomalyStats> {
-    const { courseId, versionId, itemId } = params;
-    return this.anomalyService.getAnomalyStats(courseId, versionId, itemId);
+    const { courseId, versionId } = params;
+    const { userId, itemId } = query;
+    return this.anomalyService.getAnomalyStats(courseId, versionId, userId, itemId);
   }
 
   @OpenAPI({

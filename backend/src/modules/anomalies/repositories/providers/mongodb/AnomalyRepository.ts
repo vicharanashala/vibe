@@ -96,6 +96,27 @@ export class AnomalyRepository {
       .toArray();
   }
 
+  async getCustomAnomalies(
+    courseId: string,
+    versionId: string,
+    itemId?: string,
+    userId?: string,
+    session?: ClientSession
+  ): Promise<IAnomalyData[]> {
+    await this.init();
+    // optionally filter by itemId and userId
+    const query: any = { courseId: courseId, versionId: versionId };
+    if (itemId) {
+      query.itemId = itemId;
+    }
+    if (userId) {
+      query.userId = userId;
+    }
+    return await this.anomalyCollection
+      .find(query, { session })
+      .toArray();
+  }
+
   async deleteAnomaly(anomalyId: string, courseId: string, versionId: string, session?: ClientSession): Promise<boolean> {
     await this.init();
     const result = await this.anomalyCollection.deleteOne(
