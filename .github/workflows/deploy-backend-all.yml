@@ -31,7 +31,6 @@ env:
 jobs:
   build:
     name: Build and Push
-    needs: [lint]
     runs-on: ubuntu-latest
     environment:
       name: build
