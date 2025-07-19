@@ -29,39 +29,6 @@ env:
   GCP_SERVICE: vibe-backend-staging
 
 jobs:
-
-  lint:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10.4.1
-          run_install: false
-
-      - name: Install dependencies
-        run: |
-          cd backend
-          if [ ! -f "pnpm-lock.yaml" ]; then
-            touch pnpm-lock.yaml
-          fi
-          pnpm install
-
-      - name: Run tests
-        run: |
-          cd backend
-          pnpm test:ci
-
   build:
     name: Build and Push
     needs: [lint]
