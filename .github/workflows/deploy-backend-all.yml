@@ -60,12 +60,12 @@ jobs:
       - name: Run linting
         run: |
           cd backend
-          pnpm lint || echo "Linting completed with warnings"
+          pnpm lint
 
       - name: Run tests
         run: |
           cd backend
-          pnpm test:ci || echo "Tests completed with warnings"
+          pnpm test:ci
 
   build:
     name: Build and Push
@@ -122,6 +122,8 @@ jobs:
           image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           env_vars: |
+            AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
+            AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=staging
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}
@@ -159,6 +161,8 @@ jobs:
           image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           env_vars: |
+            AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
+            AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=production
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}

@@ -53,7 +53,7 @@ jobs:
       - name: Run linting
         run: |
           cd frontend
-          pnpm lint || echo "Linting completed with warnings"
+          pnpm lint
 
   build:
     name: Build
