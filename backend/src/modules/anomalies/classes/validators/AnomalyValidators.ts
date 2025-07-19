@@ -1,4 +1,4 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString, isString, IsUrl,  } from "class-validator";
+import { IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
 import { AnomalyType, FileType, IAnomalyData } from "../../index.js";
 import { ObjectId } from "mongodb";
@@ -149,4 +149,15 @@ export class DeleteAnomalyBody {
   @IsMongoId()
   @IsString()
   versionId: string;
+}
+
+export class GetAnomalyParams extends GetCourseAnomalyParams {
+  @JSONSchema({
+    description: 'Anomaly ID to retrieve specific anomaly details',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsMongoId()
+  @IsString()
+  anomalyId: string;
 }

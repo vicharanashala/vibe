@@ -4,12 +4,9 @@ import Express from 'express';
 import { useContainer, useExpressServer } from 'routing-controllers';
 import { faker } from '@faker-js/faker';
 import { describe, it, beforeEach, beforeAll, expect, vi } from 'vitest';
-import { anomaliesContainerModules, setupAnomaliesContainer } from '../index.js';
-import { CreateAnomalyBody, AnomalyType } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyController } from '../controllers/AnomalyController.js';
 import { HttpErrorHandler, ItemType } from '#shared/index.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { coursesContainerModules } from '#root/modules/courses/index.js';
 import { Container, ContainerModule } from 'inversify';
 import { AuthController } from '#root/modules/auth/controllers/AuthController.js';
 import { createCourse, createVersion, createModule, createSection } from '#root/modules/courses/tests/utils/creationFunctions.js';
@@ -26,6 +23,8 @@ import { notificationsContainerModule } from '#root/modules/notifications/contai
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { usersContainerModule } from '#root/modules/users/container.js';
 import { anomaliesContainerModule } from '../container.js';
+import { AnomalyData, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyType } from '../classes/transformers/Anomaly.js';
 const ContainerModules: ContainerModule[] = [
   anomaliesContainerModule,
   coursesContainerModule,
@@ -40,7 +39,7 @@ const validImageBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HA
 describe('Anomaly Controller Integration Tests', () => {
   const appInstance = Express();
   let app;
-  let anomalyData: CreateAnomalyBody;
+  let anomalyData: NewAnomalyData;
 
   beforeAll(async () => {
     const container = new Container();
@@ -102,26 +101,10 @@ describe('Anomaly Controller Integration Tests', () => {
     const userId = user.body.userId;
     // Arrange
     anomalyData = {
-      userId: userId,
       courseId: course._id.toString(),
-      courseVersionId: version._id.toString(),
-      moduleId: module.version.modules[0].moduleId.toString(),
-      sectionId: section.version.modules[0].sections[0].sectionId.toString(),
+      versionId: version._id.toString(),
       itemId: itemResponse.body.itemsGroup.items[0]._id.toString(),
-      anomalyType: AnomalyType.VOICE_DETECTION,
-      penaltyPoints: 5,
-      facesDetected: 1,
-      imageData: `data:image/jpeg;base64,${faker.string.alphanumeric(
-        100,
-      )}`,
-      sessionMetadata: {
-        sessionId: faker.database.mongodbObjectId(),
-        examId: faker.database.mongodbObjectId(),
-        browserInfo:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
+      type: AnomalyType.VOICE_DETECTION,
     };
   }, 30000);
 

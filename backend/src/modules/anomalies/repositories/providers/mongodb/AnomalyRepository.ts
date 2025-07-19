@@ -54,6 +54,14 @@ export class AnomalyRepository {
       .toArray();
   }
 
+
+  async getAnomaliesByItem(courseId: string, versionId: string, itemId: string, session?: ClientSession): Promise<IAnomalyData[]> {
+    await this.init();
+    return await this.anomalyCollection
+      .find({ courseId: courseId, versionId: versionId, itemId: itemId }, { session })
+      .toArray();
+  }
+
   async deleteAnomaly(anomalyId: string, courseId: string, versionId: string, session?: ClientSession): Promise<boolean> {
     await this.init();
     const result = await this.anomalyCollection.deleteOne(

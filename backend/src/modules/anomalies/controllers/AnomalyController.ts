@@ -16,8 +16,8 @@ import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetCourseAnomalyParams, GetUserAnomalyParams, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
-import { FileType } from '../classes/transformers/Anomaly.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetUserAnomalyParams, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyDataResponse, FileType } from '../classes/transformers/Anomaly.js';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -45,11 +45,12 @@ export class AnomalyController {
     statusCode: 400,
   })
   async recordImageAnomaly(
-    @UploadedFile("image", { required: true, options: () => imageUploadOptions })
+    @UploadedFile("image", { required: true, options: imageUploadOptions })
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
+    const userId = 'will be implemented after merge';
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
   }
 
@@ -68,12 +69,29 @@ export class AnomalyController {
     statusCode: 400,
   })
   async recordAudioAnomaly(
-    @UploadedFile("audio", { required: true, options: () => audioUploadOptions })
+    @UploadedFile("audio", { required: true, options: audioUploadOptions })
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
+    const userId = 'will be implemented after merge';
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.AUDIO);
+  }
+
+  @OpenAPI({
+    summary: 'Get a particular anomaly',
+    description: 'Retrieves a specific anomaly for a user',
+  })
+  @Get('/:anomalyId/course/:courseId/version/:versionId')
+  @Authorized()
+  @ResponseSchema(AnomalyDataResponse)
+  async getAnomaly(
+    @Params() params: GetAnomalyParams,
+  ): Promise<AnomalyDataResponse> {
+    const { courseId, versionId, anomalyId } = params;
+
+    const anomaly = await this.anomalyService.findAnomalyById(anomalyId, courseId, versionId);
+    return anomaly;
   }
 
   @OpenAPI({

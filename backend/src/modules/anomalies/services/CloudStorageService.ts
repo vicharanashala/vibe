@@ -1,22 +1,14 @@
-import { injectable, inject } from 'inversify';
+import { injectable } from 'inversify';
 import { Storage } from '@google-cloud/storage';
-import { InternalServerError, BadRequestError } from 'routing-controllers';
+import { InternalServerError } from 'routing-controllers';
 import { storageConfig } from '#root/config/storage.js';
-import { ImageProcessingService } from './ImageProcessingService.js';
-import { ANOMALIES_TYPES } from '../types.js';
 
 @injectable()
 export class CloudStorageService {
   private anomalyStorage: Storage;
   private bucketName: string;
 
-  constructor(
-    @inject(ANOMALIES_TYPES.ImageProcessingService) private imageProcessingService: ImageProcessingService
-  ) {
-    this.initializeStorage();
-  }
-
-  private initializeStorage(): void {
+  constructor() {
     this.anomalyStorage = new Storage({
       projectId: storageConfig.googleCloud.projectId
     });
@@ -24,46 +16,35 @@ export class CloudStorageService {
   }
 
   /**
-   * Upload anomaly image to cloud storage
+   * Upload anomaly to cloud storage
    */
-  async uploadAnomalyImage(
-    imageBuffer: Buffer,
+  async uploadAnomaly(
+    file: Express.Multer.File,
     userId: string,
     anomalyType: string,
-    timestamp: Date
+    timestamp: Date,
+    type: string,
   ): Promise<string> {
-    // Use ImageProcessingService to process image (compress + encrypt)
-    const { encryptionResult } = await this.imageProcessingService.processImage(imageBuffer);
-
-    // Generate unique filename
-    const timestampStr = timestamp.toISOString().replace(/[:.-]/g, '');
-    const fileName = `${userId}/${anomalyType}/${timestampStr}.encrypted`;
-
-    // Get bucket and file reference
+    const ext = type.split('/')[1];
+    const filename = `${userId}/${anomalyType}/${timestamp.toISOString()}.${ext}`;
     const bucket = this.anomalyStorage.bucket(this.bucketName);
-    const file = bucket.file(fileName);
+    const createdFile = bucket.file(filename);
 
-    // Upload encrypted image with metadata
-    await file.save(encryptionResult.encryptedBuffer, {
+    // Upload file with metadata
+    await createdFile.save(file.buffer, {
       metadata: {
         contentType: 'application/octet-stream',
-        metadata: {
-          anomalyType,
-          encrypted: 'true',
-          algorithm: encryptionResult.algorithm,
-          iv: encryptionResult.iv,
-          authTag: encryptionResult.authTag,
-        },
+        anomalyType: anomalyType,
       },
     });
 
-    return fileName;
+    return filename;
   }
 
   /**
-   * Delete anomaly image from cloud storage
+   * Delete anomaly from cloud storage
    */
-  async deleteAnomalyImage(fileName: string): Promise<void> {
+  async deleteAnomaly(fileName: string): Promise<void> {
     const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
@@ -74,30 +55,18 @@ export class CloudStorageService {
     }
   }
 
-  /**
-   * Download and decrypt anomaly image
-   */
-  async downloadAndDecryptImage(fileName: string): Promise<Buffer> {
+  async getSignedUrl(fileName: string): Promise<string> {
     const bucket = this.anomalyStorage.bucket(this.bucketName);
     const file = bucket.file(fileName);
 
-    // Download file
-    const [fileBuffer] = await file.download();
-    const [metadata] = await file.getMetadata();
-
-    // Extract encryption data from metadata
-    const encryptionMetadata = metadata.metadata;
-    if (!encryptionMetadata.encrypted || !encryptionMetadata.iv || !encryptionMetadata.authTag) {
-      throw new BadRequestError('File is not properly encrypted or missing encryption metadata');
+    try {
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
+      return url;
+    } catch (error) {
+      throw new InternalServerError(`Failed to get signed URL: ${error.message}`);
     }
-
-    // Use ImageProcessingService to decrypt file
-    const decryptedBuffer = this.imageProcessingService.decryptImage(
-      fileBuffer,
-      String(encryptionMetadata.iv),
-      String(encryptionMetadata.authTag)
-    );
-
-    return decryptedBuffer;
   }
 }

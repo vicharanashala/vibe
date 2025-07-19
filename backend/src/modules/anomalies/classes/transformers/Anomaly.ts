@@ -22,21 +22,9 @@ export interface IValidationResult {
   data?: any;
 }
 
-export interface IImageCompressionResult {
-  compressedBuffer: Buffer;
-  metadata: {
-    originalSize: number;
-    compressedSize: number;
-    compressionRatio: number;
-    width: number;
-    height: number;
-  };
-}
-
-export interface IImageEncryptionResult {
+export interface IEncryptionResult {
   encryptedBuffer: Buffer;
   iv: string;
-  authTag: string;
   algorithm: string;
 }
 
@@ -78,4 +66,8 @@ export class IAnomalyData {
         this.itemId = data.itemId;
         this.createdAt = new Date();
     }
+}
+
+export class AnomalyDataResponse extends IAnomalyData {
+  fileUrl: string
 }

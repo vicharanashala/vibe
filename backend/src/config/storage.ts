@@ -7,6 +7,6 @@ export const storageConfig = {
     facesBucketName: env('GOOGLE_FACES_BUCKET') || 'vibe-faces-data',
   },
   encryption: {
-    imageEncryptionKey: env('IMAGE_ENCRYPTION_KEY'),
+    mediaEncryptionKey: env('MEDIA_ENCRYPTION_KEY'),
   },
 };
