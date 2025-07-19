@@ -39,4 +39,4 @@ ARG APP_PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:${APP_PORT}/health || exit 1
 
-CMD ["/app/scripts/start.sh"]
+CMD ["sh", "/app/scripts/start.sh"]
