@@ -100,9 +100,6 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=staging
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-            SENTRY_ORG=${{ secrets.SENTRY_ORG }}
-            SENTRY_PROJECT=${ secrets.SENTRY_PROJECT }
             APP_PORT=${{ secrets.APP_PORT }}
 
   deploy_staging:
