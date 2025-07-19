@@ -12,7 +12,7 @@ export class WebhookService {
   constructor() {
     this.aiServerUrl = 'http://' + aiConfig.serverIP + ':' + aiConfig.serverPort;
 
-    const agent = new SocksProxyAgent('socks5h://localhost:1055');
+    const agent = aiConfig.proxyAddress ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
 
     this.httpClient = axios.create({
       httpAgent: agent,
