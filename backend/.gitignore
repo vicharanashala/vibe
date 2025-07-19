@@ -69,6 +69,10 @@ node_modules/
 .dataconnect
 
 # Sentry Config File
+.sentryclirc
+
+build/
+client/
 .
 tsconfig.tsbuildinfo
 client/

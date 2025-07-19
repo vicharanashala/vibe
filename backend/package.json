@@ -9,11 +9,12 @@
     "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
     "watch:compile": "tsc --watch",
     "watch:build": "nodemon --watch build --ext js --exec \"node build/index.js\"",
-    "build": "tsc",
+    "build": "tsc && pnpm sentry:sourcemaps",
     "generate": "plop",
     "test": "vitest --ui",
     "test:watch": "vitest run --watch",
-    "test:ci": "vitest run --coverage --reporter=html"
+    "test:ci": "vitest run --coverage --reporter=html",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
   },
   "imports": {
     "#root/*.js": "./build/*.js",
@@ -84,9 +85,10 @@
     "@casl/ability": "^6.7.3",
     "@microsoft/kiota-bundle": "1.0.0-preview.96",
     "@scalar/express-api-reference": "^0.7.6",
-    "@sentry/cli": "^2.43.0",
-    "@sentry/node": "^9.27.0",
+    "@sentry/cli": "^2.50.0",
+    "@sentry/node": "^9.30.0",
     "@sentry/profiling-node": "^9.27.0",
+    "@types/cors": "^2.8.19",
     "@types/nodemailer": "^6.4.17",
     "axios": "^1.9.0",
     "bcrypt": "^5.1.1",

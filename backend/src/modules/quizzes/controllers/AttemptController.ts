@@ -57,6 +57,7 @@ class AttemptController {
     @Params() params: CreateAttemptParams,
     @Ability(getAttemptAbility) {ability, user}
   ): Promise<CreateAttemptResponse> {
+    console.log('Attempting quiz with params:', params);
     const {quizId} = params;
     const userId = user._id.toString();
     // Build subject context first

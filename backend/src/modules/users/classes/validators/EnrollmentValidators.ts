@@ -17,6 +17,7 @@ import {
   EnrollmentStatus,
   ID,
 } from '#root/shared/interfaces/models.js';
+import { User } from '#root/modules/auth/classes/index.js';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -73,6 +74,7 @@ export class EnrollmentDataResponse {
   @IsString()
   @IsMongoId()
   _id?: ID;
+
 
   @JSONSchema({
     description: 'Course ID associated with this enrollment',

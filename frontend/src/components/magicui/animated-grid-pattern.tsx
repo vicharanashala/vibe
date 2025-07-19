@@ -9,20 +9,8 @@ import {
   useState,
 } from "react";
 
-import { cn } from "@/lib/utils";
-
-export interface AnimatedGridPatternProps
-  extends ComponentPropsWithoutRef<"svg"> {
-  width?: number;
-  height?: number;
-  x?: number;
-  y?: number;
-  strokeDasharray?: any;
-  numSquares?: number;
-  maxOpacity?: number;
-  duration?: number;
-  repeatDelay?: number;
-}
+import { cn } from "@/utils/utils";
+import type { AnimatedGridPatternProps } from "@/types/ui.types";
 
 export function AnimatedGridPattern({
   width = 40,

@@ -6,14 +6,23 @@
         "moduleResolution": "nodenext",
         "lib": ["ESNext"],
         "outDir": "build",
-        "rootDir": "src", // Changed back to "." to include scripts directory
+
+        // Changed back to "." to include scripts directory
+        "rootDir": "src",
+
         "sourceMap": true,
         "strict": false,
         "esModuleInterop": true,
-        "sourceRoot": "C:\\Users\\Aditya\\OneDrive\\Desktop\\vibe-jest-fix\\vibe\\backend\\src",
+
+        // Set `sourceRoot` to  "/" to strip the build path prefix
+        // from generated source code references.
+        // This improves issue grouping in Sentry.
+        "sourceRoot": "/",
+
         "resolveJsonModule": true,
         "allowArbitraryExtensions": false,
         "incremental": true,
+
         "paths": {
             "#root/*": ["./*"],
             "#shared/*": ["./shared/*"],
@@ -23,11 +32,13 @@
             "#quizzes/*": ["./modules/quizzes/*"],
             "#settings/*": ["./modules/settings/*"],
         },
+
         "types": ["node", "express"],
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "noEmitOnError": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "inlineSources": true
     },
     "exclude": [
         "build",
