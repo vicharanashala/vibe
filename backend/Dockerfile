@@ -10,28 +10,25 @@ COPY scripts ./scripts
 RUN pnpm install
 
 COPY . .
-RUN pnpm tsc || echo "TypeScript compilation had errors but continuing build"
+RUN pnpm tsc
 
 FROM node:22-alpine
 
-RUN apk add --no-cache dumb-init git wget
+RUN apk add --no-cache dumb-init wget
 
 WORKDIR /app
 
 COPY package.json ./
 COPY scripts ./scripts
-RUN npm install
 
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/src/modules ./src/modules
+COPY --from=builder /app/node_modules ./node_modules
 
 # Tailscale Setup
 
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /app/tailscale
 RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
-
-ARG APP_PORT
 
 # Cloud Run will automatically handles port binding (TODO: remove this after cloud run deployment)
 # EXPOSE 8080
