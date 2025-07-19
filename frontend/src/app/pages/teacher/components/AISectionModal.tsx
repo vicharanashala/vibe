@@ -39,6 +39,8 @@ interface TaskRuns {
   upload: TaskRun[];
 }
 
+
+
 const fakeApiCall = () => new Promise((res) => setTimeout(res, 1200));
 
 // YouTube URL validation function
@@ -64,7 +66,10 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
   }>({});
   const [segParams, setSegParams] = useState({ segments: 5 });
   const [urlError, setUrlError] = useState<string | null>(null);
+ 
 
+
+  
   const handleCreateJob = async () => {
     // Validate YouTube URL
     if (!youtubeUrl.trim()) {
@@ -147,7 +152,7 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
           onOpenChange(false);
         }, 1500);
       }
-    } catch (error) {
+    } catch () {
       // Update run status to failed
       setTaskRuns(prev => ({
         ...prev,
