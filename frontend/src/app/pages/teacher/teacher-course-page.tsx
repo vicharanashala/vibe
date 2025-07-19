@@ -10,17 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil
 } from "lucide-react";
 
 import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
+import VideoModal from "./components/Video-modal";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
-    case "article": return <FileText className="h-3 w-3" />;
-    case "video": return <VideoIcon className="h-3 w-3" />;
-    case "quiz": return <ListChecks className="h-3 w-3" />;
+    case "BLOG": return <FileText className="h-3 w-3" />;
+    case "VIDEO": return <VideoIcon className="h-3 w-3" />;
+    case "QUIZ": return <ListChecks className="h-3 w-3" />;
     default: return null;
   }
 };
@@ -30,11 +31,12 @@ export default function TeacherCoursePage() {
 
   const { currentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
-  const courseId = currentCourse?.id || currentCourse?._id;
-  const versionId = currentCourse?.currentVersionId || currentCourse?.versionId;
+  const courseId = currentCourse?.courseId;
+  const versionId = currentCourse?.versionId;
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId);
+  console.log("Version Data:", versionData);
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
@@ -46,6 +48,13 @@ export default function TeacherCoursePage() {
     type: "module" | "section" | "item";
     data: any;
     parentIds?: { moduleId: string; sectionId?: string };
+  } | null>(null);
+  const [isEditingItem, setIsEditingItem] = useState(false);
+
+  // Add this state for the add video modal
+  const [showAddVideoModal, setShowAddVideoModal] = useState<{
+    moduleId: string;
+    sectionId: string;
   } | null>(null);
 
   // Store items for each section
@@ -65,6 +74,7 @@ export default function TeacherCoursePage() {
   );
 
   // Fetch item details for selected item
+  console.log("Selected Entity:", selectedEntity, courseId, versionId);
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
     data: selectedItemData
@@ -144,19 +154,46 @@ export default function TeacherCoursePage() {
     });
   };
 
-  // Add Item
-  const handleAddItem = (moduleId: string, sectionId: string, type: string) => {
+  // Add Item (now only for article/quiz, video handled via modal)
+  const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
-    // Map UI type to API type
     const typeMap: Record<string, "VIDEO" | "QUIZ" | "BLOG"> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG"
     };
-    createItem.mutate({
-      params: { path: { versionId, moduleId, sectionId } },
-      body: { type: typeMap[type], name: `New ${typeMap[type]}`, content: "<p>Sample content</p>" }
-    });
+    if (type === "VIDEO" && videoData) {
+      createItem.mutate({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {
+          type: "VIDEO",
+          name: videoData.name,
+          description: videoData.description,
+          videoDetails: {
+        URL: videoData.details.URL,
+        startTime: convertToMinSecMs(videoData.details.startTime),
+        endTime: convertToMinSecMs(videoData.details.endTime),
+        points: videoData.details.points,
+          }
+        }
+      });
+
+    // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
+    function convertToMinSecMs(time: number) {
+      // If time is in ms, convert to seconds
+      const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
+      const minutes = Math.floor(totalMs / 60000);
+      const seconds = Math.floor((totalMs % 60000) / 1000);
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    }
+      return;
+    }
+    if (type !== "VIDEO") {
+      createItem.mutate({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: { type: typeMap[type], name: `New ${typeMap[type]}`, content: "<p>Sample content</p>" }
+      });
+    }
   };
 
   return (
@@ -226,6 +263,11 @@ export default function TeacherCoursePage() {
                                       }
                                     >
                                       {getItemIcon(item.type)}
+                                      <span className="ml-1 text-xs text-muted-foreground">
+                                        {item.type === "VIDEO" && `Video ${(sectionItems[section.sectionId] || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
+                                        {item.type === "QUIZ" && `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
+                                        {item.type === "BLOG" && `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
+                                      </span>
                                       <span className="ml-2 truncate">{item.name}</span>
                                     </SidebarMenuSubButton>
                                   </SidebarMenuSubItem>
@@ -237,14 +279,21 @@ export default function TeacherCoursePage() {
                                     onChange={(e) => {
                                       const type = e.target.value;
                                       if (type) {
-                                        handleAddItem(module.moduleId, section.sectionId, type);
+                                        if (type === "VIDEO") {
+                                          setShowAddVideoModal({
+                                            moduleId: module.moduleId,
+                                            sectionId: section.sectionId,
+                                          });
+                                        } else {
+                                          handleAddItem(module.moduleId, section.sectionId, type);
+                                        }
                                         e.target.value = "";
                                       }
                                     }}
                                   >
                                     <option value="" disabled>Add Item</option>
                                     <option value="article">Article</option>
-                                    <option value="video">Video</option>
+                                    <option value="VIDEO">Video</option>
                                     <option value="quiz">Quiz</option>
                                   </select>
                                 </div>
@@ -281,41 +330,63 @@ export default function TeacherCoursePage() {
 
         {/* Course Editor Area */}
         <SidebarInset className="flex-1 bg-background overflow-y-auto">
-          <div className="w-full max-w-3xl p-6">
+          <div className="w-full p-6">
             <h2 className="text-lg font-semibold mb-4">Course Editor</h2>
 
             {selectedEntity ? (
               <div className="space-y-4">
-                <Input
-                  value={selectedEntity.data?.name || ""}
-                  onChange={(e) => {
-                    const newName = e.target.value;
-                    const { type, parentIds } = selectedEntity;
-                    if (type === "module" && versionId) {
-                      updateModule.mutate({
-                        params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
-                        body: { name: newName }
-                      });
-                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
+                {(selectedEntity.type !== "item") && (
+                  <Input
+                    value={
+                      selectedEntity.type === "item"
+                        ? selectedItemData?.item?.name ?? ""
+                        : selectedEntity.data?.name ?? ""
                     }
-                    if (type === "section" && versionId && parentIds?.moduleId) {
-                      updateSection.mutate({
-                        params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } },
-                        body: { name: newName }
-                      });
-                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
+                    onChange={e =>
+                      setSelectedEntity({
+                        ...selectedEntity,
+                        data: { ...selectedEntity.data, name: e.target.value }
+                      })
                     }
-                    if (type === "item" && versionId && parentIds?.moduleId && parentIds?.sectionId) {
-                      updateItem.mutate({
-                        params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: parentIds.sectionId, itemId: selectedEntity.data._id } },
-                        body: { name: newName }
-                      });
-                      setSelectedEntity({ ...selectedEntity, data: { ...selectedEntity.data, name: newName } });
-                    }
-                  }}
-                />
+                  />
+                )}
 
-                {/* Update Button for Module/Section */}
+                {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                  <div className="flex gap-6 text-xs text-muted-foreground">
+                    <div>
+                      <span className="font-semibold">Created:</span>{" "}
+                      {selectedEntity.data?.createdAt
+                        ? new Date(selectedEntity.data.createdAt).toLocaleString()
+                        : "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Updated:</span>{" "}
+                      {selectedEntity.data?.updatedAt
+                        ? new Date(selectedEntity.data.updatedAt).toLocaleString()
+                        : "N/A"}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedEntity.type !== "item") && (
+                  <textarea
+                    value={
+                      selectedEntity.type === "item"
+                        ? selectedItemData?.item?.description ?? ""
+                        : selectedEntity.data?.description ?? ""
+                    }
+                    onChange={e =>
+                      setSelectedEntity({
+                        ...selectedEntity,
+                        data: { ...selectedEntity.data, description: e.target.value }
+                      })
+                    }
+                    placeholder="Description"
+                    rows={5}
+                    className="w-full rounded border px-3 py-2 text-sm"
+                  />
+                )}
+
                 {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
                   <Button
                     variant="secondary"
@@ -331,7 +402,29 @@ export default function TeacherCoursePage() {
                       }
                       if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
                         updateSection.mutate({
-                          params: { path: { versionId, moduleId: selectedEntity.parentIds.moduleId, sectionId: selectedEntity.data.sectionId } },
+                          params: {
+                            path: {
+                              versionId,
+                              moduleId: selectedEntity.parentIds.moduleId,
+                              sectionId: selectedEntity.data.sectionId
+                            }
+                          },
+                          body: {
+                            name: selectedEntity.data.name,
+                            description: selectedEntity.data.description || ""
+                          }
+                        });
+                      }
+                      if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
+                        updateItem.mutate({
+                          params: {
+                            path: {
+                              versionId,
+                              moduleId: selectedEntity.parentIds.moduleId,
+                              sectionId: selectedEntity.parentIds.sectionId,
+                              itemId: selectedEntity.data._id
+                            }
+                          },
                           body: {
                             name: selectedEntity.data.name,
                             description: selectedEntity.data.description || ""
@@ -345,57 +438,116 @@ export default function TeacherCoursePage() {
                   </Button>
                 )}
 
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    const { type, parentIds } = selectedEntity;
-                    if (type === "module" && versionId) {
-                      if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                        deleteModule.mutate({
-                          params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                        });
-                        setSelectedEntity(null);
-                        setExpandedModules((prev) => ({ ...prev, [selectedEntity.data.moduleId]: false }));
+                {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      const { type, parentIds } = selectedEntity;
+                      if (type === "module" && versionId) {
+                        if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
+                          deleteModule.mutate({
+                            params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
+                          });
+                          setSelectedEntity(null);
+                          setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
+                        }
                       }
-                    }
-                    if (type === "section" && versionId && parentIds?.moduleId) {
-                      if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                        deleteSection.mutate({
-                          params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                        });
-                        setSelectedEntity(null);
-                        setExpandedSections((prev) => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                      if (type === "section" && versionId && parentIds?.moduleId) {
+                        if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                          deleteSection.mutate({
+                            params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                          });
+                          setSelectedEntity(null);
+                          setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                        }
                       }
-                    }
-                    if (type === "item" && parentIds?.sectionId && selectedEntity.data._id) {
-                      if (window.confirm("Are you sure you want to delete this item?")) {
-                        deleteItem.mutate({
-                          params: { path: { itemsGroupId: parentIds.sectionId, itemId: selectedEntity.data._id } }
-                        });
-                        setSelectedEntity(null);
-                      }
-                    }
-                  }}
-                >
-                  Delete {selectedEntity.type}
-                </Button>
+                    }}
+                  >
+                    Delete {selectedEntity.type}
+                  </Button>
+                )}
 
-                <div className="mt-4 p-4 border rounded-md bg-muted/30">
-                  <p className="text-sm font-medium mb-2 text-muted-foreground">Preview</p>
-                  <div className="text-sm text-muted-foreground">
-                    {selectedEntity.type === 'item' && selectedItemData ? (
-                      <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(selectedItemData, null, 2)}</pre>
-                    ) : (
-                      <>Preview not available for this type.</>
-                    )}
-                  </div>
-                </div>
+                {selectedEntity.type === "item" && (
+                  <VideoModal
+                    action={isEditingItem ? "edit" : "view"}
+                    item={selectedItemData?.item}
+                    onClose={() => setIsEditingItem(false)}
+                    onSave={video => {
+                      if (
+                        selectedEntity.parentIds?.moduleId &&
+                        selectedEntity.parentIds?.sectionId &&
+                        selectedEntity.data?._id &&
+                        versionId
+                      ) {
+                        updateItem.mutate({
+                          params: {
+                            path: {
+                              versionId,
+                              moduleId: selectedEntity.parentIds.moduleId,
+                              sectionId: selectedEntity.parentIds.sectionId,
+                              itemId: selectedEntity.data._id,
+                            }
+                          },
+                          body: { ...video, type: "VIDEO" },
+                        });
+                        setIsEditingItem(false);
+                      }
+                    }}
+                    onDelete={() => {
+                      if (
+                        selectedEntity.parentIds?.sectionId &&
+                        selectedEntity.data?._id
+                      ) {
+                        if (window.confirm("Are you sure you want to delete this item?")) {
+                          deleteItem.mutate({
+                            params: { path: { itemsGroupId: selectedEntity.parentIds.sectionId, itemId: selectedEntity.data._id } }
+                          });
+                          setSelectedEntity(null);
+                          setIsEditingItem(false);
+                        }
+                      }
+                    }}
+                    onEdit={() => setIsEditingItem(true)}
+                  />
+                )}
               </div>
             ) : (
               <p className="text-muted-foreground">Select a module, section, or item to begin editing.</p>
             )}
           </div>
         </SidebarInset>
+
+        {/* Add Video Modal */}
+        {showAddVideoModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              background: "rgba(0,0,0,0.25)",
+              zIndex: 1000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <VideoModal
+              action="add"
+              onClose={() => setShowAddVideoModal(null)}
+              onSave={video => {
+                handleAddItem(
+                  showAddVideoModal.moduleId,
+                  showAddVideoModal.sectionId,
+                  "VIDEO",
+                  video
+                );
+                setShowAddVideoModal(null);
+              }}
+            />
+          </div>
+        )}
       </div>
     </SidebarProvider>
   );
