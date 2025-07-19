@@ -2,6 +2,7 @@ import { injectable } from 'inversify';
 import axios, { AxiosInstance } from 'axios';
 import { JobState } from '../classes/transformers/GenAI.js';
 import { aiConfig } from '#root/config/ai.js';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 
 @injectable()
 export class WebhookService {
@@ -11,7 +12,11 @@ export class WebhookService {
   constructor() {
     this.aiServerUrl = 'http://' + aiConfig.serverIP + ':' + aiConfig.serverPort;
 
+    const agent = new SocksProxyAgent('socks5h://localhost:1055');
+
     this.httpClient = axios.create({
+      httpAgent: agent,
+      httpsAgent: agent,
       baseURL: this.aiServerUrl,
       timeout: 30000,
       headers: {
