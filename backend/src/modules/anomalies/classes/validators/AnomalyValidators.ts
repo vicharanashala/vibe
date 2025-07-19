@@ -172,3 +172,23 @@ export class GetAnomalyParams extends GetCourseAnomalyParams {
   @IsString()
   anomalyId: string;
 }
+
+export class StatsQueryParams {
+  @JSONSchema({
+    description: 'Item ID to filter anomaly statistics',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  itemId?: string;
+
+  @JSONSchema({
+    description: 'User ID to filter anomaly statistics',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  userId?: string;
+}

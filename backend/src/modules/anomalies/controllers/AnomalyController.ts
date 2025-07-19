@@ -17,7 +17,7 @@ import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 
@@ -134,9 +134,9 @@ export class AnomalyController {
     return anomalies;
   }
 
-    @OpenAPI({
-    summary: 'Get Item anomalies',
-    description: 'Retrieves all anomalies for a specific item',
+  @OpenAPI({
+  summary: 'Get Item anomalies',
+  description: 'Retrieves all anomalies for a specific item',
   })
   @Get('/course/:courseId/version/:versionId/item/:itemId')
   @Authorized()
@@ -152,7 +152,22 @@ export class AnomalyController {
 
     return anomalies;
   }
-    
+
+  @OpenAPI({
+    summary: 'Get anomaly statistics',
+    description: 'Retrieves statistics for a specific anomaly item',
+  })
+  @Get('/course/:courseId/version/:versionId/stats')
+  @Authorized()
+  @ResponseSchema(AnomalyStats)
+  async getAnomalyStats(
+    @Params() params: GetItemAnomalyParams,
+    @QueryParams() query: StatsQueryParams
+  ): Promise<AnomalyStats> {
+    const { courseId, versionId, itemId } = params;
+    return this.anomalyService.getAnomalyStats(courseId, versionId, itemId);
+  }
+
   @OpenAPI({
     summary: 'Delete anomaly',
     description: 'Deletes an anomaly record and its encrypted image',
