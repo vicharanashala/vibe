@@ -13,9 +13,10 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil
 } from "lucide-react";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizSubmissions, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
+import QuizEditor from "./components/quiz-editor";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -84,6 +85,13 @@ export default function TeacherCoursePage() {
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
 
+  const selectedQuizId = selectedEntity?.type === 'item' && selectedEntity?.data?.type === 'QUIZ' ? selectedEntity.data._id : null;
+
+  const { data: quizDetails } = useQuizDetails(selectedQuizId);
+  const { data: quizAnalytics } = useQuizAnalytics(selectedQuizId);
+  const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId);
+  const { data: quizPerformance } = useQuizPerformance(selectedQuizId);
+  const { data: quizResults } = useQuizResults(selectedQuizId);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -467,7 +475,7 @@ export default function TeacherCoursePage() {
                   </Button>
                 )}
 
-                {selectedEntity.type === "item" && (
+                {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
                   <VideoModal
                     action={isEditingItem ? "edit" : "view"}
                     item={selectedItemData?.item}
@@ -508,6 +516,17 @@ export default function TeacherCoursePage() {
                       }
                     }}
                     onEdit={() => setIsEditingItem(true)}
+                  />
+                )}
+
+                {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && (
+                  <QuizEditor
+                    quizId={selectedQuizId}
+                    details={quizDetails}
+                    analytics={quizAnalytics}
+                    submissions={quizSubmissions}
+                    performance={quizPerformance}
+                    results={quizResults}
                   />
                 )}
               </div>

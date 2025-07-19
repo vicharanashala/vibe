@@ -8,11 +8,14 @@ import { api } from '../lib/openapi';
 import { components } from '../types/schema';
 import { useState } from 'react';
 
-import type { BufferId, LotItem, BaseQuestionRenderView, DescriptiveQuestionRenderView, SelectManyInLotQuestionRenderView, OrderTheLotsQuestionRenderView, NumericAnswerQuestionRenderView, SelectOneInLotQuestionRenderView, QuestionRenderView, SaveQuestion, IQuestionAnswerFeedback, SubmitQuizResponse } from '../types/quiz.types';
-import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportanomaly.types';
+import type {QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults } from '../types/quiz.types';
+import type {
+  NewAnomalyData,
+  AnomalyData,
+  DeleteAnomalyBody
+} from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
-import { updateProctoringSettings } from '@/app/pages/testing-proctoring/proctoring';
 
 // Auth hooks
 
@@ -190,15 +193,7 @@ export function useDeleteCourse(): {
   const result = api.useMutation("delete", "/courses/{id}");
 
   return {
-    mutate: result.mutate,
-    mutateAsync: result.mutateAsync,
-    data: result.data as void,
-    isPending: result.isPending,
-    isSuccess: result.isSuccess,
-    isError: result.isError,
-    isIdle: result.isIdle,
-    reset: result.reset,
-    status: result.status,
+    ...result,
     error: result.error ? (result.error || 'Failed to delete course') : null
   };
 }
@@ -482,7 +477,7 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
     params: { path: { courseId, versionId, itemId } }
   }, {enabled: !!courseId && !!versionId && !!itemId}
 );
-  console.log("here", courseId , versionId , itemId);
+  // console.log("here", courseId , versionId , itemId);
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -892,7 +887,7 @@ interface UserQuizMetricsResponse {
 
 // GET /quizzes/{quizId}/user/{userId}
 export function useUserQuizMetrics(quizId: string, userId: string): {
-  data: UserQuizMetricsResponse | undefined,
+  data: UserQuizMetrics | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -907,32 +902,6 @@ export function useUserQuizMetrics(quizId: string, userId: string): {
     error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
     refetch: result.refetch
   };
-}
-
-// Types
-interface IQuestionAnswerFeedback {
-  questionId: string;
-  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
-  score: number;
-  answerFeedback?: string; // Optional feedback for the answer
-}
-
-interface IGradingResult {
-  totalScore?: number;
-  totalMaxScore?: number;
-  overallFeedback?: IQuestionAnswerFeedback[];
-  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
-  gradedAt?: string; // ISO date string
-  gradedBy?: string;
-}
-
-interface QuizSubmissionResponse {
-  _id?: string;
-  quizId: string;
-  userId: string;
-  attemptId: string;
-  submittedAt: string; // ISO date string
-  gradingResult?: IGradingResult;
 }
 
 // GET /quiz/{quizId}/submissions/{submissionId}
@@ -955,37 +924,8 @@ export function useQuizSubmission(quizId: string, submissionId: string): {
   };
 }
 
-
-
-export function useReportAnomaly(): {
-  mutate: (variables: { body: ReportAnomalyBody }) => void,
-  mutateAsync: (variables: { body: ReportAnomalyBody }) => Promise<ReportAnomalyResponse>,
-  data: ReportAnomalyResponse | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
-  const result = api.useMutation("post", "/users/anomaly/");
-  return {
-    mutate: result.mutate,
-    mutateAsync: result.mutateAsync,
-    data: result.data,
-    isPending: result.isPending,
-    isSuccess: result.isSuccess,
-    isError: result.isError,
-    isIdle: result.isIdle,
-    reset: result.reset,
-    status: result.status,
-    error: result.error ? (result.error || 'Failed to report anomaly') : null
-  };
-}
-
 export function useProctoringSettings(courseId: string, versionId: string): {
-  data: | undefined,
+  data: ProctoringSettings | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1160,3 +1100,359 @@ export function useWatchtimeTotal(): {
     refetch: result.refetch
   };
 }
+
+
+// --- AnomalyController Hooks ---
+
+// POST /anomalies/record/image
+export function useReportAnomalyImage(): {
+  mutate: (variables: { body: NewAnomalyData; file: File }) => void,
+  mutateAsync: (variables: { body: NewAnomalyData; file: File }) => Promise<AnomalyData>,
+  data: AnomalyData | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  // This assumes api.useMutation supports multipart/form-data
+  const result = api.useMutation("post", "/anomalies/record/image", { isMultipart: true });
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to record anomaly image') : null
+  };
+}
+
+// POST /anomalies/record/audio
+export function useReportAnomalyAudio(): {
+  mutate: (variables: { body: NewAnomalyData; file: File }) => void,
+  mutateAsync: (variables: { body: NewAnomalyData; file: File }) => Promise<AnomalyData>,
+  data: AnomalyData | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  // This assumes api.useMutation supports multipart/form-data
+  const result = api.useMutation("post", "/anomalies/record/audio", { isMultipart: true });
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to record anomaly audio') : null
+  };
+}
+
+// GET /anomalies/course/:courseId/version/:versionId/user/:userId
+export function useUserAnomalies(courseId: string, versionId: string, userId: string): {
+  data: AnomalyData[] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/anomalies/course/{courseId}/version/{versionId}/user/{userId}",
+    { params: { path: { courseId, versionId, userId } } },
+    { enabled: !!courseId && !!versionId && !!userId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user anomalies') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /anomalies/course/:courseId/version/:versionId
+export function useCourseAnomalies(courseId: string, versionId: string): {
+  data: AnomalyData[] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/anomalies/course/{courseId}/version/{versionId}",
+    { params: { path: { courseId, versionId } } },
+    { enabled: !!courseId && !!versionId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch course anomalies') : null,
+    refetch: result.refetch
+  };
+}
+
+// DELETE /anomalies/:id
+export function useDeleteAnomaly(): {
+  mutate: (variables: { params: { path: { id: string } }, body: DeleteAnomalyBody }) => void,
+  mutateAsync: (variables: { params: { path: { id: string } }, body: DeleteAnomalyBody }) => Promise<void>,
+  data: void | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("delete", "/anomalies/{id}");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to delete anomaly') : null
+  };
+}
+
+
+// PUT /quizzes/questions/{questionId}
+
+// DELETE /quizzes/questions/{questionId}
+
+// POST /quizzes/questions/{questionId}/flag
+export function useFlagQuestion(): {
+  mutate: (variables: { params: { path: { questionId: string } }, body: components['schemas']['FlagQuestionBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { questionId: string } }, body: components['schemas']['FlagQuestionBody'] }) => Promise<void>,
+  data: void | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/questions/{questionId}/flag");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to flag question') : null
+  };
+}
+
+// POST /quizzes/questions/flags/{flagId}/resolve
+
+// POST /quizzes/question-bank
+
+// GET /quizzes/quiz/{quizId}/results
+
+/**
+ * Quiz item hooks
+ * These hooks use the OpenAPI schema types for strong typing.
+ */
+
+
+// --- Custom Types for Quiz Hooks ---
+
+export interface GetAllSubmissionsResponse {
+  submissions: {
+    _id: string;
+    quizId: string;
+    userId: string;
+    attemptId: string;
+    submittedAt: string;
+    gradingResult?: {
+      totalScore?: number;
+      totalMaxScore?: number;
+      overallFeedback?: any[];
+      gradingStatus: string;
+      gradedAt?: string;
+      gradedBy?: string;
+    };
+  }[];
+}
+
+export interface QuizDetailsResponse {
+  _id?: string;
+  name: string;
+  description: string;
+  type: string;
+  details?: any;
+}
+
+export interface QuizAnalyticsResponse {
+  totalAttempts: number;
+  submissions: number;
+  passRate: number;
+  averageScore: number;
+}
+
+export interface QuizPerformanceResponse {
+  questionId: string;
+  correctRate: number;
+  averageScore: number;
+}
+
+export interface QuizResultsResponse {
+  studentId: string;
+  attemptId: string;
+  score: number;
+  status: string;
+}
+
+// GET /quizzes/quiz/{quizId}/submissions
+export function useQuizSubmissions(quizId: string): {
+  data: GetAllSubmissionsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/submissions",
+    { params: { path: { quizId } } },
+    { enabled: !!quizId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz submissions') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/details
+export function useQuizDetails(quizId: string): {
+  data: QuizDetails | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/details",
+    { params: { path: { quizId } } },
+    { enabled: !!quizId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz details') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/analytics
+export function useQuizAnalytics(quizId: string): {
+  data: QuizAnalytics | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/analytics",
+    { params: { path: { quizId } } },
+    { enabled: !!quizId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz analytics') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/performance
+export function useQuizPerformance(quizId: string): {
+  data: QuizPerformanceResponse[] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/performance",
+    { params: { path: { quizId } } },
+    { enabled: !!quizId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz performance') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/results
+export function useQuizResults(quizId: string): {
+  data: QuizResultsResponse[] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/results",
+    { params: { path: { quizId } } },
+    { enabled: !!quizId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz results') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/flagged
+export function useGetFlaggedQuestionsForQuiz(quizId: string): {
+  data: components['schemas']['FlaggedQuestionResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/quizzes/quiz/{quizId}/flagged", {
+    params: { path: { quizId } }
+  }, { enabled: !!quizId });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch flagged questions') : null,
+    refetch: result.refetch
+  };
+}
+
+// POST /quizzes/questions
+export function useCreateQuestion(): {
+  mutate: (variables: { body: components['schemas']['QuestionBody'] }) => void,
+  mutateAsync: (variables: { body: components['schemas']['QuestionBody'] }) => Promise<components['schemas']['QuestionId']>,
+  data: components['schemas']['QuestionId'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/questions");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Question creation failed') : null
+  };
+}
+
+// GET /quizzes/quiz/{quizId}/attempts/{attemptId}
+export function useGetQuizAttempt(quizId: string, attemptId: string): {
+  data: components['schemas']['QuizAttemptResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/quizzes/quiz/{quizId}/attempts/{attemptId}", {
+    params: { path: { quizId, attemptId } }
+  }, { enabled: !!quizId && !!attemptId });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch quiz attempt') : null,
+    refetch: result.refetch
+  };
+}
+

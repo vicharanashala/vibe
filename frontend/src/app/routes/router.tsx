@@ -27,7 +27,7 @@ import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import GetCourse from '@/app/pages/teacher/get-course'
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
-import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
+// import FaceDetectors from '@/app/pages/testing-proctoring/face-detectors'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
@@ -330,12 +330,6 @@ const teacherCourseInviteRoute = new Route({
   component: InvitePage,
 });
 
-// Testing face detection route
-const teacherTestingRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/testing',
-  component: FaceDetectors,
-});
 
 const teacherAddCourseRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -410,7 +404,7 @@ const routeTree = rootRoute.addChildren([
     teacherGetCourseRoute,
     teacherCoursesPageRoute,
     teacherViewCourseRoute,
-    teacherTestingRoute,
+    // teacherTestingRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
