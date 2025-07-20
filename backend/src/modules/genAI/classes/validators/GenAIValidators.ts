@@ -69,7 +69,7 @@ class SegmentationParameters {
   })
   @IsOptional()
   @IsNumber()
-  noise_id?: number;
+  noiseId?: number;
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
