@@ -29,14 +29,14 @@ class TranscriptParameters {
   language?: LanguageType;
 
   @JSONSchema({
-    title: 'Model',
-    description: 'Model to use for the job',
-    example: 'default',
+    title: 'Model Size',
+    description: 'Model size to use for the job',
+    example: 'small',
     type: 'string',
   })
   @IsOptional()
   @IsString()
-  model?: string;
+  modelSize?: string;
 }
 
 @JSONSchema({ title: 'SegmentationParameters' })

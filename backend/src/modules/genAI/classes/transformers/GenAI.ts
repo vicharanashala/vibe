@@ -16,8 +16,8 @@ export enum TaskType {
 }
 
 export enum LanguageType {
-  ENGLISH = 'English',
-  HINDI = 'Hindi',
+  ENGLISH = 'en',
+  HINDI = 'hi',
 }
 
 // Job status enum
@@ -32,7 +32,6 @@ export enum TaskStatus {
 
 export interface TranscriptParameters {
 	language?: LanguageType;
-	model?: string;
 	modelSize?: string;
 }
 
