@@ -83,6 +83,7 @@
   },
   "dependencies": {
     "@casl/ability": "^6.7.3",
+    "@google-cloud/storage": "^7.16.0",
     "@microsoft/kiota-bundle": "1.0.0-preview.96",
     "@scalar/express-api-reference": "^0.7.6",
     "@sentry/cli": "^2.50.0",

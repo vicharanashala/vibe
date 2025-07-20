@@ -78,7 +78,8 @@ export interface trascriptGenerationData {
 export interface segmentationData {
 	status: TaskStatus;
 	error?: string;
-	segmentationMap: Record<string, string>;
+	segmentationMap: Array<number>;
+	transcriptFileUrl?: string;
 	newParameters?: SegmentationParameters;
 }
 
@@ -87,7 +88,7 @@ export interface questionGenerationData {
 	error?: string;
 	fileName?: string;
 	fileUrl?: string;
-	segmentMapUsed: Record<string, string>;
+	segmentMapUsed: Array<number>;
 	newParameters?: QuestionGenerationParameters;
 }
 
@@ -144,5 +145,5 @@ export class JobState {
 	url?: string;
 	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
 	file?: string;
-	segmentMap?: Record<string, string>;
+	segmentMap?: Array<number>;
 }

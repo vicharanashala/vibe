@@ -16,7 +16,9 @@ import { QuestionBank } from '#root/modules/quizzes/classes/transformers/Questio
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { QuestionBankService, QuizService } from '#root/modules/quizzes/services/index.js';
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { Storage } from '@google-cloud/storage';
 import axios from 'axios';
+import { appConfig } from '#root/config/app.js';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -41,6 +43,10 @@ export class GenAIService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
+
+    private storage = new Storage({
+      projectId: appConfig.firebase.projectId,
+    })
   ) {
     super(mongoDatabase);
   }
@@ -64,6 +70,11 @@ export class GenAIService extends BaseService {
     });
   }
 
+  removeUndefined(obj: any) {
+    if (!obj) return null;
+    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+  }
+
   async approveTaskToStart(jobId: string, userId: string, usePrevious?: number, parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters>): Promise<any> {
     return this._withTransaction(async session => {
       const job = await this.genAIRepository.getById(jobId, session);
@@ -74,12 +85,14 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
       }
       const jobState = await this.getJobState(jobId, usePrevious);
-      jobState.parameters = {...jobState.parameters, ...parameters};
+      jobState.parameters = {...jobState.parameters, ...this.removeUndefined(parameters)};
       if (jobState.taskStatus == TaskStatus.COMPLETED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} is already completed, you can either rerun the task or approve to move to the next taask.`);
       }
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
-        return await this.uploadContent(jobId, jobState);
+        const result =  await this.uploadContent(jobId, jobState);
+        console.log(result);
+        return result;
       }
       return this.webhookService.approveTaskStart(jobId, jobState);
     });
@@ -98,9 +111,11 @@ export class GenAIService extends BaseService {
       if (jobState.taskStatus !== TaskStatus.COMPLETED && jobState.taskStatus !== TaskStatus.FAILED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} has not been completed yet, please approve the task to start.`);
       }
-      jobState.parameters = {...jobState.parameters, ...parameters};
+      jobState.parameters = {...jobState.parameters, ...this.removeUndefined(parameters)};
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
-        return await this.uploadContent(jobId, jobState);
+        const result =  await this.uploadContent(jobId, jobState);
+        console.log(result);
+        return result;
       }
       return this.webhookService.rerunTask(jobId, jobState);
     });
@@ -146,6 +161,64 @@ export class GenAIService extends BaseService {
       job._id = job._id.toString();
       return job;
     })
+  }
+
+  /**
+   * Get task status by job ID and task type
+   * @param jobId The job ID to retrieve task status for
+   * @param type The type of task to retrieve status for
+   * @returns Task status data
+   */
+  async getTaskStatus(jobId: string, type: TaskType): Promise<audioData[] | trascriptGenerationData[] | segmentationData[] | questionGenerationData[] | contentUploadData[]> {
+    return this._withTransaction(async session => {
+      const taskData = await this.genAIRepository.getTaskDataByJobId(jobId, session);
+      if (!taskData) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      switch (type) {
+        case TaskType.AUDIO_EXTRACTION:
+          return taskData.audioExtraction;
+        case TaskType.TRANSCRIPT_GENERATION:
+          return taskData.transcriptGeneration;
+        case TaskType.SEGMENTATION:
+          return taskData.segmentation;
+        case TaskType.QUESTION_GENERATION:
+          return taskData.questionGeneration;
+        case TaskType.UPLOAD_CONTENT:
+          return taskData.uploadContent;
+        default:
+          throw new BadRequestError(`Invalid task type: ${type}`);
+      }
+    });
+  }
+
+  async editSegmentMap(jobId: string, segmentMap: Array<number>, index: number): Promise<void> {
+    return this._withTransaction(async session => {
+      const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
+      if (!task) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      task.segmentation[index].segmentationMap = segmentMap;
+      const updatedTask = await this.genAIRepository.updateTaskData(jobId, task, session);
+      if (!updatedTask) {
+        throw new InternalServerError(`Failed to update task for job ID ${jobId}`);
+      }
+    });
+  }
+  async editQuestionData(jobId: string, questionData: JSON, index: number): Promise<void> {
+    return this._withTransaction(async session => {
+      const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
+      if (!task) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      const fileName = task.questionGeneration[index].fileName;
+      const newFileName = fileName.replace(/\.json$/, '_updated.json');
+      const data = JSON.stringify(questionData); // pretty JSON
+      await this.storage.bucket(appConfig.firebase.storageBucket).file(newFileName).save(Buffer.from(data), { contentType: 'application/json', });
+      task.questionGeneration[index].fileName = newFileName;
+      task.questionGeneration[index].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+      await this.genAIRepository.updateTaskData(jobId, task, session);
+    });
   }
 
   async getAllTasksStatus(jobId: string): Promise<any> {
@@ -284,17 +357,17 @@ export class GenAIService extends BaseService {
         if (job.jobStatus.questionGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.SEGMENTATION;
         jobState.taskStatus = job.jobStatus.questionGeneration;
         jobState.parameters = job.questionGenerationParameters;
-        jobState.file = null;
+        jobState.file = task.segmentation[usePrevious ? usePrevious : 0]?.transcriptFileUrl;
         jobState.segmentMap = task.segmentation[usePrevious ? usePrevious : 0]?.segmentationMap;
       }
       // if all the previous task are completed
-      if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED && job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED && job.jobStatus.segmentation === TaskStatus.COMPLETED && job.jobStatus.questionGeneration === TaskStatus.COMPLETED && job.jobStatus.uploadContent === TaskStatus.WAITING) {
+      if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED && job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED && job.jobStatus.segmentation === TaskStatus.COMPLETED && job.jobStatus.questionGeneration === TaskStatus.COMPLETED && job.jobStatus.uploadContent !== TaskStatus.PENDING) {
         console.log("All previous tasks completed, setting current task to UPLOAD_CONTENT");
         jobState.currentTask = TaskType.UPLOAD_CONTENT
         jobState.taskStatus = job.jobStatus.uploadContent;
         jobState.parameters = job.uploadParameters;
-        jobState.file = task.questionGeneration[usePrevious ? usePrevious : 0].fileUrl
-        jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : 0].segmentMapUsed;
+        jobState.file = task.questionGeneration[usePrevious ? usePrevious : 0]?.fileUrl;
+        jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : 0]?.segmentMapUsed;
       }
       console.log(jobState)
       if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION && jobState.currentTask) {
@@ -304,6 +377,18 @@ export class GenAIService extends BaseService {
       }
       return jobState;
     });
+  }
+
+  secondsToTimeString(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    // Format with leading zeros and 3 decimal places for seconds
+    return [
+      hours.toString().padStart(2, '0'),
+      minutes.toString().padStart(2, '0'),
+      secs.toFixed(3).padStart(6, '0')
+    ].join(':');
   }
 
   async uploadContent(jobId: string, jobState: JobState): Promise<any> {
@@ -330,23 +415,11 @@ export class GenAIService extends BaseService {
         if (Array.isArray(allQuestionsData)) {
           for (const question of allQuestionsData) {
             const segId = (question as any).segmentId;
-            // Handle numeric segmentId matching with floating point precision
-            const segIdStr = segId?.toString();
-            const segIdKey = Object.keys(jobState.segmentMap).find(key => 
-              Math.abs(parseFloat(key) - parseFloat(segIdStr)) < 0.001 || key === segIdStr
-            );
-            
-            if (segIdKey && jobState.segmentMap[segIdKey]) {
-              if (!questionsGroupedBySegment[segIdKey]) {
-                questionsGroupedBySegment[segIdKey] = [];
-              }
-              questionsGroupedBySegment[segIdKey].push(question);
-            } else {
-              console.warn(
-                `Question found without a valid segmentId ("${segId}") or segmentId not in segmentsMap.`,
-                question,
-              );
+            console.log(jobState.segmentMap.find((s) => s === Number(segId)));
+            if (!questionsGroupedBySegment[segId]) {
+              questionsGroupedBySegment[segId] = [];
             }
+            questionsGroupedBySegment[segId].push(question);
           }
         }
 
@@ -373,29 +446,11 @@ export class GenAIService extends BaseService {
           questionIds: string[];
         }> = [];
 
-        // Helper function to convert time strings (like "5:15" or "1:02:30") to seconds for correct sorting
-        const timeToSeconds = (timeStr: string): number => {
-          const parts = timeStr.split(':').map(Number).reverse(); // [ss, mm, hh]
-          let seconds = 0;
-          if (parts[0]) seconds += parts[0]; // seconds
-          if (parts[1]) seconds += parts[1] * 60; // minutes
-          if (parts[2]) seconds += parts[2] * 3600; // hours
-          return seconds;
-        };
+        let previousSegmentEndTime = 0.0;
 
-        const sortedSegmentIds = Object.keys(jobState.segmentMap).sort((a, b) =>
-          timeToSeconds(a) - timeToSeconds(b)
-        );
-        let previousSegmentEndTime = '0:00:00';
-
-        for (const currentSegmentId of sortedSegmentIds) {
-          const segmentText = jobState.segmentMap[currentSegmentId];
+        for (const currentSegmentId of jobState.segmentMap) {
           const segmentStartTime = previousSegmentEndTime;
           const currentSegmentEndTime = currentSegmentId;
-          const segmentTextPreview = segmentText
-            ? segmentText.substring(0, 70) +
-              (segmentText.length > 70 ? '...' : '')
-            : 'No content';
 
           // Create Video Item for the segment
           const videoSegName = jobData.uploadParameters.videoItemBaseName;
@@ -406,23 +461,23 @@ export class GenAIService extends BaseService {
             type: ItemType.VIDEO,
             videoDetails: {
               URL: jobData.url,
-              startTime: segmentStartTime,
-              endTime: currentSegmentEndTime,
+              startTime: this.secondsToTimeString(segmentStartTime),
+              endTime: this.secondsToTimeString(currentSegmentEndTime),
               points: 10,
             },
           };
           const createdVideoItem = await this.itemService.createItem(
-            jobData.uploadParameters.versionId,
-            jobData.uploadParameters.moduleId,
-            jobData.uploadParameters.sectionId,
+            (jobState.parameters as UploadParameters).versionId,
+            (jobState.parameters as UploadParameters).moduleId,
+            (jobState.parameters as UploadParameters).sectionId,
             videoItemBody,
           );
                   createdVideoItemsInfo.push({
             id: createdVideoItem.createdItem?._id?.toString(),
             name: videoSegName,
-            segmentId: currentSegmentId,
-            startTime: segmentStartTime,
-            endTime: currentSegmentEndTime,
+            segmentId: String(currentSegmentId),
+            startTime: this.secondsToTimeString(segmentStartTime),
+            endTime: this.secondsToTimeString(currentSegmentEndTime),
             points: 10,
           });
 
@@ -433,9 +488,9 @@ export class GenAIService extends BaseService {
             const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
             const questionBank = new QuestionBank({
               title: questionBankName,
-              description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. Content: "${segmentTextPreview}"`,
-              courseId: jobData.uploadParameters.courseId,
-              courseVersionId: jobData.uploadParameters.versionId,
+              description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}."`,
+              courseId: (jobState.parameters as UploadParameters).courseId,
+              courseVersionId: (jobState.parameters as UploadParameters).versionId,
               questions: [], // Will be populated after creating questions
               tags: [`segment_${currentSegmentId}`, 'ai_generated'],
             });
@@ -471,7 +526,7 @@ export class GenAIService extends BaseService {
             createdQuestionBanksInfo.push({
               id: questionBankId,
               name: questionBankName,
-              segmentId: currentSegmentId,
+              segmentId: String(currentSegmentId),
               questionCount: createdQuestionIds.length,
               questionIds: createdQuestionIds,
             });
@@ -479,8 +534,8 @@ export class GenAIService extends BaseService {
             const quizSegName = jobData.uploadParameters.quizItemBaseName;
 
             const quizItemBody: CreateItemBody = {
-              name: quizSegName,
-              description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. Content: "${segmentTextPreview}". This quiz's points are based on its questions.`,
+                name: quizSegName,
+                description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. This quiz's points are based on its questions.`,
               type: ItemType.QUIZ,
               quizDetails: {
                 passThreshold: 0.7,
@@ -499,9 +554,9 @@ export class GenAIService extends BaseService {
             };
             
             const createdQuizItem = await this.itemService.createItem(
-              jobData.uploadParameters.versionId,
-              jobData.uploadParameters.moduleId,
-              jobData.uploadParameters.sectionId,
+              (jobState.parameters as UploadParameters).versionId,
+              (jobState.parameters as UploadParameters).moduleId,
+              (jobState.parameters as UploadParameters).sectionId,
               quizItemBody,
             );
 
@@ -525,13 +580,13 @@ export class GenAIService extends BaseService {
             createdQuizItemsInfo.push({
               id: createdQuizItem.createdItem?._id?.toString(),
               name: quizSegName,
-              segmentId: currentSegmentId,
+              segmentId: String(currentSegmentId),
               questionCount: createdQuestionIds.length,
             });
           }
           
           previousSegmentEndTime = currentSegmentEndTime;
-                }
+        }
         jobData.jobStatus.uploadContent = TaskStatus.COMPLETED;
         const taskDAta = await this.genAIRepository.getTaskDataByJobId(jobId, session);
         if (!taskDAta.uploadContent) {
@@ -547,7 +602,7 @@ export class GenAIService extends BaseService {
             'Video items, Quiz items, and Question banks for segments generated successfully from video.',
           videoURL: jobData.url,
           generatedItemsSummary: {
-            totalSegmentsProcessed: sortedSegmentIds.length,
+            totalSegmentsProcessed: jobState.segmentMap.length,
             totalVideoItemsCreated: createdVideoItemsInfo.length,
             totalQuizItemsCreated: createdQuizItemsInfo.length,
             totalQuestionBanksCreated: createdQuestionBanksInfo.length,

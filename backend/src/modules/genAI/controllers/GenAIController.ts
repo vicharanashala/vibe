@@ -10,6 +10,7 @@ import {
   Authorized,
   ForbiddenError,
   OnUndefined,
+  Patch,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import {
@@ -20,6 +21,9 @@ import {
   GenAINotFoundErrorResponse,
   RerunTaskBody,
   JobStatusResponse,
+  EditSegmentMapBody,
+  EditQuestionData,
+  TaskStatusParams,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
@@ -88,6 +92,33 @@ export class GenAIController {
     }
 
     const result = await this.genAIService.getJobStatus(id);
+
+    return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get task status',
+    description: 'Retrieves the status of a specific task in a job.',
+  })
+  @Get("/:id/tasks/:type/status")
+  @Authorized()
+  @HttpCode(200)
+  // @ResponseSchema(GenAIResponse, {
+  //   description: 'Task status retrieved successfully'
+  // })
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'Job not found',
+    statusCode: 404,
+  })
+  async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
+    const { id, type } = params;
+
+    // Check if user has permission to view the genAI job
+    if (!ability.can('read', 'GenAI')) {
+      //throw new ForbiddenError('You do not have permission to view this genAI');
+    }
+
+    const result = await this.genAIService.getTaskStatus(id, type);
 
     return result;
   }
@@ -173,6 +204,65 @@ export class GenAIController {
     }
 
     await this.genAIService.rerunTask(id, userId, body.usePrevious, body.parameters);
+  }
+
+  @OpenAPI({
+    summary: 'Edit segment map',
+    description: 'Edits the segment map of a job.',
+  })
+  @Patch("/jobs/:id/edit/segment-map")
+  @Authorized()
+  @OnUndefined(200)
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ForbiddenError, {
+    description: 'Forbidden Error',
+    statusCode: 403,
+  })
+  async editSegmentMap(@Params() params: GenAIIdParams, @Body() body: EditSegmentMapBody, @Ability(getGenAIAbility) {ability}) {
+    const { id } = params;
+    // Check if user has permission to edit segment map
+    if (!ability.can('update', 'GenAI')) {
+      //throw new ForbiddenError('You do not have permission to edit the segment map of this job');
+    }
+    
+    await this.genAIService.editSegmentMap(id, body.segmentMap, body.index);
+  }
+
+  @OpenAPI({
+    summary: 'Edit question data',
+    description: 'Edits the question data of a job.',
+  })
+  @Patch("/jobs/:id/edit/question")
+  @Authorized()
+  @OnUndefined(200)
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ForbiddenError, {
+    description: 'Forbidden Error',
+    statusCode: 403,
+  })
+  async editQuestionData(@Params() params: GenAIIdParams, @Body() body: EditQuestionData, @Ability(getGenAIAbility) {ability}) {
+    const { id } = params;
+    const { questionData, index } = body;
+    // Check if user has permission to edit question data
+    if (!ability.can('update', 'GenAI')) {
+      //throw new ForbiddenError('You do not have permission to edit question data of this job');
+    }
+
+    await this.genAIService.editQuestionData(id, questionData, index);
   }
 
   @OpenAPI({

@@ -9,6 +9,8 @@ import {
   ValidateNested,
   IsUrl,
   IsNumber,
+  IsArray,
+  IsJSON,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Type } from 'class-transformer';
@@ -75,7 +77,7 @@ class QuestionGenerationParameters implements QuestionGenerationParameters {
   @JSONSchema({
     title: 'Model',
     description: 'Model to use for question generation',
-    example: 'default',
+    example: 'deepseek-r1:70b',
     type: 'string',
   })
   @IsOptional()
@@ -386,6 +388,17 @@ class GenAIIdParams {
   id: string;
 }
 
+class TaskStatusParams extends GenAIIdParams {
+  @JSONSchema({
+    description: 'Type of task to get status for',
+    enum: Object.values(TaskType),
+    example: 'TRANSCRIPT_GENERATION',
+  })
+  @IsNotEmpty()
+  @IsEnum(TaskType)
+  type: TaskType;
+}
+
 // Request body for approving task start
 class ApproveStartBody {
   @JSONSchema({
@@ -652,17 +665,61 @@ class WebhookBody {
   data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
 }
 
+class EditSegmentMapBody {
+  @JSONSchema({
+    title: 'Segment Map',
+    description: 'Map of segments to edit',
+    type: 'object',
+  })
+  @IsNotEmpty()
+  @IsArray()
+  segmentMap: Array<number>;
+
+  @JSONSchema({
+    title: 'Index',
+    description: 'Index of the segment to edit',
+    type: 'number',
+    example: 0,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  index: number;
+}
+
+class EditQuestionData {
+  @JSONSchema({
+    title: 'Question Data',
+    description: 'The question data to edit',
+    type: 'object',
+  })
+  @IsNotEmpty()
+  questionData: JSON;
+
+  @JSONSchema({
+    title: 'Index',
+    description: 'Index of the question to edit',
+    type: 'number',
+    example: 0,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  index: number;
+}
+
 export {
   JobType,
   GenAIResponse,
   JobStatusResponse,
   JobBody,
   GenAIIdParams,
+  TaskStatusParams,
   ApproveStartBody,
   RerunTaskBody,
   TaskStatus,
   GenAINotFoundErrorResponse,
   WebhookBody,
+  EditSegmentMapBody,
+  EditQuestionData,
 };
 
 export const GENAI_VALIDATORS = [
@@ -676,4 +733,6 @@ export const GENAI_VALIDATORS = [
   TaskStatus,
   GenAINotFoundErrorResponse,
   WebhookBody,
+  EditSegmentMapBody,
+  EditQuestionData,
 ];
