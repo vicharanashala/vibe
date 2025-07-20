@@ -7,7 +7,7 @@ import { BaseService } from '#root/shared/classes/BaseService.js';
 import { ItemType, MongoDatabase } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
-import { audioData, contentUploadData, JobState, questionGenerationData, QuestionGenerationParameters, segmentationData, SegmentationParameters, TaskData, TaskStatus, TaskType, TranscriptParameters, trascriptGenerationData, UploadParameters } from '../classes/transformers/GenAI.js';
+import { audioData, contentUploadData, GenAIBody, JobState, JobStatus, questionGenerationData, QuestionGenerationParameters, segmentationData, SegmentationParameters, TaskData, TaskStatus, TaskType, TranscriptParameters, trascriptGenerationData, UploadParameters } from '../classes/transformers/GenAI.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { CreateItemBody } from '#root/modules/courses/classes/index.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -154,7 +154,7 @@ export class GenAIService extends BaseService {
    * @param jobId The jobjobState ID to retrieve status for
    * @returns Job status data
    */
-  async getJobStatus(jobId: string): Promise<any> {
+  async getJobStatus(jobId: string): Promise<GenAIBody> {
     return this._withTransaction( async session => {
       const job = await this.genAIRepository.getById(jobId, session);
       if (!job) {

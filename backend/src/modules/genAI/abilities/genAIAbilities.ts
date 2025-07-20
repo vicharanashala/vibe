@@ -1,59 +1,59 @@
 import { AbilityBuilder, createMongoAbility, MongoAbility } from "@casl/ability";
-import { AuthenticatedUser, AuthenticatedUserEnrollements } from "#root/shared/interfaces/models.js";
+import { AuthenticatedUser } from "#root/shared/interfaces/models.js";
+import { GenAIScope, createAbilityBuilder } from "./types.js";
 
-// Actions
+// Use enum for actions
 export enum GenAIActions {
-    Create = "create",
-    Modify = "modify",
-    Delete = "delete",
-    View = "view"
+  Create = 'create',
+  Modify = 'modify',
 }
-
-// Subjects
-export type GenAISubjectType = 'GenAI';
-
-// Actions
 export type GenAIActionsType = GenAIActions | 'manage';
-
-// Abilities
+export type GenAISubjectType = GenAIScope | 'GenAI';
 export type GenAIAbility = [GenAIActionsType, GenAISubjectType];
 
 /**
- * Setup genAI abilities for a specific role
+ * Setup GenAI abilities for a specific role
  */
 export function setupGenAIAbilities(
-    builder: AbilityBuilder<any>,
-    user: AuthenticatedUser
+  builder: AbilityBuilder<any>,
+  user: AuthenticatedUser
 ) {
-    const { can, cannot } = builder;
+  const { can } = builder;
 
-    if (user.globalRole === 'admin') {
-        can('manage', 'GenAI');
-        return;
-    }
+  if (user.globalRole === 'admin') {
+    can('manage', 'GenAI');
+    return;
+  }
 
-    user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
+  // Allow manage for MANAGER, INSTRUCTOR, TA roles in enrollments
+  if (user.enrollments && Array.isArray(user.enrollments)) {
+    for (const enrollment of user.enrollments) {
         const courseBounded = { courseId: enrollment.courseId };
-
+        const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
+        const userBounded = { userId: user.userId };
         switch (enrollment.role) {
-            case 'STUDENT':
+            case 'MANAGER':
                 break;
             case 'INSTRUCTOR':
-                can(GenAIActions.View, 'GenAI', courseBounded);
-                cannot(GenAIActions.Delete, 'GenAI', courseBounded);
-                break;
-            case 'MANAGER':
-                can('manage', 'GenAI', courseBounded);
-                cannot(GenAIActions.Delete, 'GenAI', courseBounded);
+                can(GenAIActions.Create, 'GenAI', courseBounded);
+                can(GenAIActions.Modify, 'GenAI', userBounded);
                 break;
             case 'TA':
+                can(GenAIActions.Create, 'GenAI', versionBounded);
+                can(GenAIActions.Modify, 'GenAI', userBounded);
                 break;
-        }
-    });
+            case 'STUDENT':
+                break;
+      }
+    }
+  }
 }
 
+/**
+ * Get GenAI abilities for a user - can be directly used by controllers
+ */
 export function getGenAIAbility(user: AuthenticatedUser): MongoAbility<any> {
-    const builder = new AbilityBuilder(createMongoAbility);
-    setupGenAIAbilities(builder, user);
-    return builder.build();
+  const builder = createAbilityBuilder();
+  setupGenAIAbilities(builder, user);
+  return builder.build();
 }

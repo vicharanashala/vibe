@@ -6,7 +6,6 @@ import {
   Post, 
   Get, 
   HttpCode,
-  NotFoundError,
   Authorized,
   ForbiddenError,
   OnUndefined,
@@ -31,6 +30,7 @@ import { GENAI_TYPES } from '../types.js';
 import { BadRequestErrorResponse } from "#root/shared/index.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { getGenAIAbility } from "../abilities/genAIAbilities.js";
+import { subject } from "@casl/ability";
 
 @OpenAPI({
   tags: ['GenAI'],
@@ -61,12 +61,13 @@ export class GenAIController {
     statusCode: 400,
   })
   async start(@Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
-    // Check if user has permission to create a genAI job
-    if (!ability.can('create', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to create a genAI job');
+
+    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+    if (!ability.can('create', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to create a genAI job');
     }
-    const result = await this.genAIService.startJob(user._id.toString(), body);
-    return result;
+
+    return await this.genAIService.startJob(user._id.toString(), body);
   }
 
   @OpenAPI({
@@ -85,10 +86,11 @@ export class GenAIController {
   })
   async getStatus(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to view the genAI job
-    if (!ability.can('read', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to view this genAI');
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to view this genAI');
     }
 
     const result = await this.genAIService.getJobStatus(id);
@@ -103,19 +105,17 @@ export class GenAIController {
   @Get("/:id/tasks/:type/status")
   @Authorized()
   @HttpCode(200)
-  // @ResponseSchema(GenAIResponse, {
-  //   description: 'Task status retrieved successfully'
-  // })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
   })
   async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
     const { id, type } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to view the genAI job
-    if (!ability.can('read', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to view this genAI');
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to view this genAI');
     }
 
     const result = await this.genAIService.getTaskStatus(id, type);
@@ -134,9 +134,16 @@ export class GenAIController {
     description: 'Job not found',
     statusCode: 404,
   })
-  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {user}) {
+  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
     const userId = user._id.toString();
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
+    }
+
     await this.genAIService.approveTaskToStart(id, userId, body.usePrevious, body.parameters);
   }
 
@@ -153,10 +160,11 @@ export class GenAIController {
   })
   async approveContinue(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to approve tasks
-    if (!ability.can('update', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
 
     await this.genAIService.approveTaskContinue(id);
@@ -175,9 +183,10 @@ export class GenAIController {
   })
   async abortJob(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to abort jobs
-    if (!ability.can('delete', 'GenAI')) {
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to abort this job');
     }
     
@@ -198,8 +207,10 @@ export class GenAIController {
   async rerunTask(@Params() params: GenAIIdParams, @Body() body: RerunTaskBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
     const userId = user._id.toString();
-    // Check if user has permission to rerun tasks
-    if (!ability.can('update', 'GenAI')) {
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
 
@@ -227,9 +238,11 @@ export class GenAIController {
   })
   async editSegmentMap(@Params() params: GenAIIdParams, @Body() body: EditSegmentMapBody, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
-    // Check if user has permission to edit segment map
-    if (!ability.can('update', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to edit the segment map of this job');
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to edit the segment map of this job');
     }
     
     await this.genAIService.editSegmentMap(id, body.segmentMap, body.index);
@@ -257,9 +270,11 @@ export class GenAIController {
   async editQuestionData(@Params() params: GenAIIdParams, @Body() body: EditQuestionData, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
     const { questionData, index } = body;
-    // Check if user has permission to edit question data
-    if (!ability.can('update', 'GenAI')) {
-      //throw new ForbiddenError('You do not have permission to edit question data of this job');
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { userId: job.userId });
+    if (!ability.can('modify', genaiRes)) {
+      throw new ForbiddenError('You do not have permission to edit question data of this job');
     }
 
     await this.genAIService.editQuestionData(id, questionData, index);
