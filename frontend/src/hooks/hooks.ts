@@ -12,7 +12,7 @@ import type { BufferId, LotItem, BaseQuestionRenderView, DescriptiveQuestionRend
 import type { ReportAnomalyBody, ReportAnomalyResponse } from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
-import { updateProctoringSettings } from '@/app/pages/testing-proctoring/proctoring';
+import { getProctoringSettings, updateProctoringSettings } from '@/app/pages/testing-proctoring/proctoring';
 
 // Auth hooks
 
@@ -480,9 +480,9 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
 } {
   const result = api.useQuery("get", "/courses/{courseId}/versions/{versionId}/item/{itemId}", {
     params: { path: { courseId, versionId, itemId } }
-  }, {enabled: !!courseId && !!versionId && !!itemId}
-);
-  console.log("here", courseId , versionId , itemId);
+  }, { enabled: !!courseId && !!versionId && !!itemId }
+  );
+  console.log("here", courseId, versionId, itemId);
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -675,7 +675,7 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
     params: { path: { courseId, courseVersionId } }
   }, { enabled: !!courseId && !!courseVersionId }
   );
-  
+
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -686,8 +686,8 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
 
 // Add this hook to your hooks file
 export function useUserProgressPercentageByUserId(
-  userId: string, 
-  courseId: string, 
+  userId: string,
+  courseId: string,
   courseVersionId: string
 ): {
   data: {
@@ -701,7 +701,7 @@ export function useUserProgressPercentageByUserId(
   refetch: () => void
 } {
   const result = api.useQuery(
-    "get", 
+    "get",
     "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/percentage",
     {
       params: {
@@ -899,7 +899,7 @@ export function useUserQuizMetrics(quizId: string, userId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/user/{userId}", {
     params: { path: { quizId, userId } }
-  }, {enabled: !!quizId && !!userId});
+  }, { enabled: !!quizId && !!userId });
 
   return {
     data: result.data,
@@ -944,9 +944,9 @@ export function useQuizSubmission(quizId: string, submissionId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions/{submissionId}", {
     params: { path: { quizId, submissionId } }
-  }, {enabled: !!quizId && !!submissionId}
-);
-  
+  }, { enabled: !!quizId && !!submissionId }
+  );
+
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -1016,7 +1016,7 @@ export function useEditProctoringSettings() {
   ) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await updateProctoringSettings(courseId, courseVersionId, detectors, isNew);
       return result;
@@ -1028,6 +1028,30 @@ export function useEditProctoringSettings() {
   };
 
   return { editSettings, loading, error };
+}
+
+export function useGetProcotoringSettings() {
+  const [settingLoading, setSettingLoading] = useState(false);
+  const [settingError, setSettingError] = useState<string | null>(null);
+
+  const getSettings = async (
+    courseId: string,
+    courseVersionId: string
+  ) => {
+    setSettingLoading(true);
+    setSettingError(null);
+
+    try {
+      const result = await getProctoringSettings(courseId, courseVersionId);
+      return result;
+    } catch (err: any) {
+      setSettingError(err.message || 'Unknown error');
+    } finally {
+      setSettingLoading(false);
+    }
+  };
+
+  return { getSettings, settingLoading, settingError };
 }
 
 export function useInviteUsers(): {
@@ -1107,14 +1131,14 @@ export function useCancelInvite(): {
 }
 
 // GET /users/{id}/watchTime/item/itemId
-export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string ): {
-  data:  undefined,
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
+  data: undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type:type} },
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
   }, { enabled: !!userId && !!itemId && !!type },);
 
   return {

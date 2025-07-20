@@ -59,7 +59,7 @@ export interface IDetectorSettings {
 
 export interface StudentProctoringSettings {
   _id: string;
-  studentId: string;
+  studentId?: string;
   versionId: string;
   courseId: string;
   settings: {

@@ -23,7 +23,8 @@
     "#users/*.js": "./build/modules/users/*.js",
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
     "#settings/*.js": "./build/modules/settings/*.js",
-    "#temp/*.js": "./build/modules/temp/*.js"
+    "#temp/*.js": "./build/modules/temp/*.js",
+    "#setting/*.js": "./build/modules/setting/*.js"
   },
   "type": "module",
   "keywords": [],

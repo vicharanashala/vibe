@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -37,6 +37,8 @@ import {
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
+import { StudentProctoringSettings } from "@/types/video.types";
+import { getProctoringSettings } from "../testing-proctoring/proctoring";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -75,6 +77,8 @@ export default function CoursePage() {
   const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
+  const { getSettings, settingLoading: proctoringLoading, settingError } = useGetProcotoringSettings();
+
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -154,8 +158,7 @@ export default function CoursePage() {
     useUserProgress(COURSE_ID, VERSION_ID);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
-  const { data: proctoringData, isLoading: proctoringLoading } =
-    useProctoringSettings(COURSE_ID, VERSION_ID);
+  const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
@@ -234,10 +237,11 @@ export default function CoursePage() {
 
   // Log proctoring settings when loaded (only logs once when data is available)
   useEffect(() => {
-    if (proctoringData) {
-      console.log('Proctoring settings loaded:', proctoringData);
+    async function fetch() {
+      setProctoringData(await getSettings(COURSE_ID, VERSION_ID))
     }
-  }, [proctoringData]);
+    fetch();
+  }, []);
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -813,7 +817,7 @@ export default function CoursePage() {
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
           </DialogHeader>
-            <ul className="text-base text-foreground mb-4 list-disc pl-6 space-y-2">
+          <ul className="text-base text-foreground mb-4 list-disc pl-6 space-y-2">
             <li>
               I understand that my camera and microphone will be used for proctoring during this exam.
             </li>
@@ -823,9 +827,9 @@ export default function CoursePage() {
             <li>
               I acknowledge that the microphone is used for monitoring purposes only, and that no audio or video will be recorded or stored elsewhere.
             </li>
-            </ul>
+          </ul>
           <div className="w-full flex justify-end">
-            <Button onClick={() => {setShowProctorDialog(false)}} className="w-full">ACCEPT</Button>
+            <Button onClick={() => { setShowProctorDialog(false) }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1157,13 +1161,13 @@ export default function CoursePage() {
                 {/* Quiz Passed/Failed */}
                 {quizPassed !== 2 && (
                   <Card className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${quizPassed === 1
-                      ? "border-green-400/40 bg-green-500/95 text-green-50"
-                      : "border-red-400/40 bg-red-500/95 text-red-50"
+                    ? "border-green-400/40 bg-green-500/95 text-green-50"
+                    : "border-red-400/40 bg-red-500/95 text-red-50"
                     }`}>
                     <CardContent className="flex items-center gap-3 px-4 py-0">
                       <div className={`flex h-22 w-22 items-center justify-center rounded-l ${quizPassed === 1
-                          ? "border-green-50/30 bg-green-50/10"
-                          : "border-red-50/30 bg-red-50/10"
+                        ? "border-green-50/30 bg-green-50/10"
+                        : "border-red-50/30 bg-red-50/10"
                         } text-4xl p-4`}>
                         {quizPassed === 1 ? (
                           <CheckCircle className="h-16 w-16" />
@@ -1178,8 +1182,8 @@ export default function CoursePage() {
                       </div>
                       <div className="flex-1 space-y-1">
                         <Badge variant="outline" className={`text-lg font-bold ${quizPassed === 1
-                            ? "border-green-50/30 bg-green-50/10 text-green-50"
-                            : "border-red-50/30 bg-red-50/10 text-red-50"
+                          ? "border-green-50/30 bg-green-50/10 text-green-50"
+                          : "border-red-50/30 bg-red-50/10 text-red-50"
                           }`}>
                           {quizPassed === 1 ? "Quiz Passed" : "Quiz Failed"}
                         </Badge>
@@ -1194,8 +1198,8 @@ export default function CoursePage() {
                         size="sm"
                         onClick={() => setQuizPassed(2)}
                         className={`h-6 w-6 p-0 ${quizPassed === 1
-                            ? "text-green-50 hover:bg-green-50/10"
-                            : "text-red-50 hover:bg-red-50/10"
+                          ? "text-green-50 hover:bg-green-50/10"
+                          : "text-red-50 hover:bg-red-50/10"
                           }`}
                       >
                         ×

@@ -260,7 +260,7 @@ export function generateOpenAPISpec(
         },
         {
           name: 'Settings',
-          tags: ['Course Settings', 'User Settings'],
+          tags: ['Course Settings', 'User Settings', 'Course Setting'],
         },
         {
           name: 'Data Models',
