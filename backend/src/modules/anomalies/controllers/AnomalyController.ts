@@ -11,6 +11,7 @@ import {
   UploadedFile,
   OnUndefined,
   QueryParams,
+  ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { AnomalyService } from '../services/AnomalyService.js';
@@ -20,6 +21,9 @@ import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fi
 import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -50,9 +54,16 @@ export class AnomalyController {
     @UploadedFile("image", { required: true, options: imageUploadOptions })
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
+    @Ability(getAnomalyAbility) {ability, user}
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
-    const userId = 'will be implemented after merge';
+    const userId = user._id.toString();
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+
+    if (!ability.can('create', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to create an anomaly');
+    }
+    
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
   }
 
@@ -74,9 +85,16 @@ export class AnomalyController {
     @UploadedFile("audio", { required: true, options: audioUploadOptions })
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
+    @Ability(getAnomalyAbility) {ability, user}
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
-    const userId = 'will be implemented after merge';
+    const userId = user._id.toString();
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('create', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to create an anomaly');
+    }
+
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.AUDIO);
   }
 
@@ -89,9 +107,14 @@ export class AnomalyController {
   @ResponseSchema(AnomalyDataResponse)
   async getAnomaly(
     @Params() params: GetAnomalyParams,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<AnomalyDataResponse> {
     const { courseId, versionId, anomalyId } = params;
 
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('view', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to view this anomaly');
+    }
     const anomaly = await this.anomalyService.findAnomalyById(anomalyId, courseId, versionId);
     return anomaly;
   }
@@ -105,11 +128,17 @@ export class AnomalyController {
   @ResponseSchema(AnomalyData)
   async getUserAnomalies(
     @Params() params: GetUserAnomalyParams,
-    @QueryParams() query: PaginationQuery
+    @QueryParams() query: PaginationQuery,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<AnomalyData[]> {
     const { courseId, versionId, userId } = params;
     const { page, limit } = query;
     const skip = (page - 1) * limit;
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('view', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to view anomalies for this user');
+    }
     const anomalies = await this.anomalyService.getUserAnomalies(userId, courseId, versionId, limit, skip);
 
     return anomalies;
@@ -124,11 +153,18 @@ export class AnomalyController {
   @ResponseSchema(AnomalyData)
   async getCourseAnomalies(
     @Params() params: GetCourseAnomalyParams,
-    @QueryParams() query: PaginationQuery
+    @QueryParams() query: PaginationQuery,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<AnomalyData[]> {
     const { courseId, versionId } = params;
     const { page, limit } =  query
     const skip = (page - 1) * limit;
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('view', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to view anomalies for this course');
+    }
+
     const anomalies = await this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip);
 
     return anomalies;
@@ -143,11 +179,18 @@ export class AnomalyController {
   @ResponseSchema(AnomalyData)
   async getItemAnomalies(
     @Params() params: GetItemAnomalyParams,
-    @QueryParams() query: PaginationQuery
+    @QueryParams() query: PaginationQuery,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<AnomalyData[]> {
     const { courseId, versionId, itemId } = params;
     const { page, limit } =  query
     const skip = (page - 1) * limit;
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId, itemId });
+    if (!ability.can('view', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to view anomalies for this item');
+    }
+
     const anomalies = await this.anomalyService.getCourseItemAnomalies(courseId, versionId, itemId, limit, skip);
 
     return anomalies;
@@ -162,10 +205,17 @@ export class AnomalyController {
   @ResponseSchema(AnomalyStats)
   async getAnomalyStats(
     @Params() params: GetCourseAnomalyParams,
-    @QueryParams() query: StatsQueryParams
+    @QueryParams() query: StatsQueryParams,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<AnomalyStats> {
     const { courseId, versionId } = params;
     const { userId, itemId } = query;
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('view', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to view anomaly statistics for this course');
+    }
+
     return this.anomalyService.getAnomalyStats(courseId, versionId, userId, itemId);
   }
 
@@ -179,8 +229,14 @@ export class AnomalyController {
   async deleteAnomaly(
     @Params() params: AnomalyIdParams,
     @Body() body: DeleteAnomalyBody,
+    @Ability(getAnomalyAbility) {ability}
   ): Promise<void> {
     const { courseId, versionId } = body;
+
+    const anomalyRes = subject('Anomaly', { courseId, versionId });
+    if (!ability.can('delete', anomalyRes)) {
+      throw new ForbiddenError('You do not have permission to delete this anomaly');
+    }
 
     await this.anomalyService.deleteAnomaly(params.id, courseId, versionId);
   }
