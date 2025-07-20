@@ -56,7 +56,8 @@ export function ProctoringModal({
     const fetchSettings = async () => {
       try {
         const settings = await getSettings(courseId, courseVersionId);
-        setDetectors(settings.settings.proctors.detectors.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+        console.log(settings);
+        setDetectors(settings?.settings.proctors.detectors.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
       }
@@ -68,7 +69,7 @@ export function ProctoringModal({
   }, [open])
 
   const toggle = (name: string) => {
-    setDetectors((prev) =>
+    setDetectors((prev) =>  
       prev.map((d) =>
         d.name === name ? { ...d, enabled: !d.enabled } : d
       )
