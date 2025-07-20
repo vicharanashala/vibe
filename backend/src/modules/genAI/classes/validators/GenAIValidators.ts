@@ -73,7 +73,7 @@ class SegmentationParameters {
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
-class QuestionGenerationParameters implements QuestionGenerationParameters {
+class QuestionGenerationParameters {
   @JSONSchema({
     title: 'Model',
     description: 'Model to use for question generation',
@@ -123,6 +123,16 @@ class QuestionGenerationParameters implements QuestionGenerationParameters {
   @IsOptional()
   @IsNumber()
   DES?: number;
+
+  @JSONSchema({
+    title: 'Prompt',
+    description: 'Prompt to use for question generation',
+    example: 'Generate questions based on the provided transcript.',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  prompt?: string
 }
 
 @JSONSchema({ title: 'UploadParameters' })

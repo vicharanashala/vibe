@@ -48,6 +48,7 @@ export interface QuestionGenerationParameters {
 	SML?: number;
 	NAT?: number;
 	DES?: number;
+	prompt?: string;
 }
 
 export interface UploadParameters {
