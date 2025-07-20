@@ -18,6 +18,8 @@ import { QuestionBankService, QuizService } from '#root/modules/quizzes/services
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 import { Storage } from '@google-cloud/storage';
 import axios from 'axios';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { aiConfig } from '#root/config/ai.js';
 import { appConfig } from '#root/config/app.js';
 
 @injectable()
@@ -401,7 +403,14 @@ export class GenAIService extends BaseService {
         // Fetch and parse the .json questions file from GCloud link
         let allQuestionsData: any[] = [];
         try {
-          const response = await axios.get(jobState.file);
+          const agent = aiConfig.proxyAddress ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
+
+          const axiosOptions = {
+            httpAgent: agent,
+            httpsAgent: agent,
+          };
+
+          const response = await axios.get(jobState.file, axiosOptions);
           // Expecting { segmentsMap: {...}, questionsData: [...] }
           if (response.data) {
             allQuestionsData = response.data;

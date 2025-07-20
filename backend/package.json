@@ -116,6 +116,7 @@
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
+    "socks-proxy-agent": "^8.0.5",
     "typedi": "^0.10.0",
     "winston": "^3.17.0"
   }
