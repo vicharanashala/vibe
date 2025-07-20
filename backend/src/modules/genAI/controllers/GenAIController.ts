@@ -88,7 +88,7 @@ export class GenAIController {
     const { id } = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to view this genAI');
     }
@@ -113,7 +113,7 @@ export class GenAIController {
     const { id, type } = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to view this genAI');
     }
@@ -139,7 +139,7 @@ export class GenAIController {
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
@@ -162,7 +162,7 @@ export class GenAIController {
     const { id } = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
@@ -185,7 +185,7 @@ export class GenAIController {
     const { id } = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to abort this job');
     }
@@ -209,7 +209,7 @@ export class GenAIController {
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
@@ -240,7 +240,7 @@ export class GenAIController {
     const { id } = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to edit the segment map of this job');
     }
@@ -272,7 +272,7 @@ export class GenAIController {
     const { questionData, index } = body;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { userId: job.userId });
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
     if (!ability.can('modify', genaiRes)) {
       throw new ForbiddenError('You do not have permission to edit question data of this job');
     }

@@ -30,17 +30,18 @@ export function setupGenAIAbilities(
     for (const enrollment of user.enrollments) {
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
-        const userBounded = { userId: user.userId };
+
         switch (enrollment.role) {
             case 'MANAGER':
+                can('manage', 'GenAI', courseBounded);
                 break;
             case 'INSTRUCTOR':
                 can(GenAIActions.Create, 'GenAI', courseBounded);
-                can(GenAIActions.Modify, 'GenAI', userBounded);
+                can(GenAIActions.Modify, 'GenAI', courseBounded);
                 break;
             case 'TA':
                 can(GenAIActions.Create, 'GenAI', versionBounded);
-                can(GenAIActions.Modify, 'GenAI', userBounded);
+                can(GenAIActions.Modify, 'GenAI', versionBounded);
                 break;
             case 'STUDENT':
                 break;
