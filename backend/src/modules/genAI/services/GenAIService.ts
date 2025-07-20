@@ -403,7 +403,7 @@ export class GenAIService extends BaseService {
         // Fetch and parse the .json questions file from GCloud link
         let allQuestionsData: any[] = [];
         try {
-          const agent = aiConfig.proxyAddress ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
+          const agent = appConfig.isProduction || appConfig.isStaging ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
 
           const axiosOptions = {
             httpAgent: agent,
