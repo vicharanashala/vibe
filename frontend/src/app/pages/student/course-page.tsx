@@ -263,7 +263,7 @@ export default function CoursePage() {
       }));
     }
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
-  console.log('Section items:', sectionItems);
+  // console.log('Section items:', sectionItems);
 
   // Notification effects
   useEffect(() => {

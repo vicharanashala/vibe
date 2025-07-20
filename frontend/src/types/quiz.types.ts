@@ -1,4 +1,20 @@
+export interface QuizSubmissionResponse {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  attemptId: string;
+  submittedAt: string; // ISO date string
+  gradingResult?: IGradingResult;
+}
 
+export interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: IQuestionAnswerFeedback[];
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: string; // ISO date string
+  gradedBy?: string;
+}
 // Enhanced question types based on backend QuestionRenderView
 export interface QuizQuestion {
   id: string;
@@ -140,4 +156,115 @@ export interface SubmitQuizResponse {
   gradingStatus: 'PENDING' | 'PASSED' | 'FAILED';
   gradedAt?: string;
   gradedBy?: string;
+}
+
+export interface FlaggedQuestionResponse {
+  // Not yet implemented
+}
+
+export interface QuestionBank {
+  _id?: string;
+  courseId?: string;
+  courseVersionId?: string;
+  questions: string[];
+  tags?: string[];
+  title: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface QuestionBankRef {
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+  type?: string;
+}
+
+export interface Attempt {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  questionDetails: QuestionDetails[];
+  answers?: QuestionAnswer[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface QuestionDetails {
+  questionId: string;
+  parameterMap?: Record<string, any>;
+}
+
+export interface QuestionAnswer {
+  questionId: string;
+  questionType: QuestionType;
+  answer: any;
+}
+
+export type QuestionType = 
+  | 'SELECT_ONE_IN_LOT'
+  | 'SELECT_MANY_IN_LOT'
+  | 'ORDER_THE_LOTS'
+  | 'NUMERIC_ANSWER_TYPE'
+  | 'DESCRIPTIVE';
+
+export interface Submission {
+  _id?: string;
+  quizId: string;
+  userId: string;
+  attemptId: string;
+  submittedAt: Date;
+  gradingResult?: any;
+}
+
+export interface UserQuizMetrics {
+  userId: string;
+  quizId: string;
+  remainingAttempts: number;
+  latestAttemptId?: string;
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  attempts: AttemptDetails[];
+}
+
+export interface AttemptDetails {
+  attemptId: string;
+  submissionResultId?: string;
+}
+
+export interface QuizDetails {
+  questionBankRefs: QuestionBankRef[];
+  passThreshold: number;
+  maxAttempts: number;
+  quizType: 'DEADLINE' | 'NO_DEADLINE';
+  releaseTime: Date;
+  questionVisibility: number;
+  deadline?: Date;
+  approximateTimeToComplete: string;
+  allowPartialGrading: boolean;
+  allowHint: boolean;
+  showCorrectAnswersAfterSubmission: boolean;
+  showExplanationAfterSubmission: boolean;
+  showScoreAfterSubmission: boolean;
+}
+
+export interface QuizAnalytics {
+  totalAttempts: number;
+  submissions: number;
+  passRate: number;
+  averageScore: number;
+}
+
+export interface QuizPerformance {
+  questionId: string;
+  correctRate: number;
+  averageScore: number;
+}
+
+export interface QuizResults {
+  studentId: string;
+  attemptId: string;
+  score: number;
+  status: 'PENDING' | 'PASSED' | 'FAILED';
 }
