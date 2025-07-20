@@ -38,7 +38,7 @@ export interface TranscriptParameters {
 export interface SegmentationParameters {
 	lam?: number;
 	runs?: number;
-	noiseId?: number
+	noise_id?: number;
 }
 
 export interface QuestionGenerationParameters {
