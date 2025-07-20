@@ -6,12 +6,30 @@ import { comlink } from "vite-plugin-comlink";
 // https://vitejs.dev/config/
 export default defineConfig({
   worker: {
-    plugins: () => [comlink()]
+    format: 'es',
+    plugins: () => [comlink()],
+    rollupOptions: {
+      output: {
+        entryFileNames: 'worker/[name]-[hash].js',
+        chunkFileNames: 'worker/[name]-[hash].js',
+        assetFileNames: 'worker/[name]-[hash][ext]',
+      },
+    },
   },
   plugins: [react()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+      },
     },
   },
 });

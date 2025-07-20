@@ -1,108 +1,143 @@
-﻿name: Deploy Backend (all modules in a single container) to Google Cloud
+name: Backend CI/CD (Staging & Optional Production)
 
 on:
   push:
-    branches: [master, staging]
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend-all.yml'
   workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: "Also deploy to production?"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   contents: write
   packages: write
+  id-token: write
+
+env:
+  NODE_VERSION: '22'
+  DOCKER_IMAGE: vibe-backend
+  GCP_REGION: asia-south1
+  GCP_SERVICE: vibe-backend-staging
 
 jobs:
-  versioning:
-    name: Versioning
+  build:
+    name: Build and Push
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.versioning.outputs.new_version }}
+    environment:
+      name: build
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - id: versioning
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag_prefix: "v"
-          default_bump: "patch"
-          fetch_all_tags: true
-          release_branches: "master,staging"
-          create_annotated_tag: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  build:
-    name: Build & Push Docker Images
-    needs: versioning
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Docker Login
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build all images with Docker Compose
-        run: |
-          VERSION=v${{ needs.versioning.outputs.new_version }}
-          docker build -f Dockerfile-all -t all --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} .
-        working-directory: backend
-        env:
-          DB_URL: ${{ secrets.DB_URL }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
-      - name: Tag and Push image
-        run: |
-          VERSION=v${{ needs.versioning.outputs.new_version }}
-          docker tag all:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION
-        working-directory: backend
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:staging
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=staging
+            APP_PORT=${{ secrets.APP_PORT }}
 
   deploy_staging:
-    name: Deploy All Modules to Staging
-    needs: [versioning, build]
+    name: Deploy to Cloud Run (Staging)
+    needs: [build]
     runs-on: ubuntu-latest
-    environment: staging
+    environment:
+      name: staging
     steps:
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Deploy services to Cloud Run (staging)
-        run: |
-          VERSION=v${{ needs.versioning.outputs.new_version }}
-          REGION=asia-south2
-          PROJECT=${{ secrets.GCP_PROJECT_ID }}
-          gcloud run deploy all-staging \
-            --image=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION \
-            --region=$REGION \
-            --project=$PROJECT \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars=NODE_ENV=staging
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: ${{ env.GCP_SERVICE }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          env_vars: |
+            AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
+            AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
+            NODE_ENV=staging
+            APP_PORT=${{ secrets.APP_PORT }}
+            APP_URL=${{ secrets.APP_URL }}
+            APP_ORIGINS=${{ secrets.APP_ORIGINS }}
+            APP_MODULE=${{ secrets.APP_MODULE }}
+            APP_ROUTE_PREFIX=${{ secrets.APP_ROUTE_PREFIX }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            DB_URL=${{ secrets.DB_URL }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            AI_PROXY_ADDRESS="socks5h://localhost:1055"
+          flags: --allow-unauthenticated
 
   deploy_production:
-    name: Deploy All Modules to Production
-    needs: [versioning, build, deploy_staging]
+    name: Deploy to Cloud Run (Production)
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_production == 'true'
+    needs: [build]
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
     steps:
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Deploy services to Cloud Run (production)
-        run: |
-          VERSION=v${{ needs.versioning.outputs.new_version }}
-          REGION=asia-south2
-          PROJECT=${{ secrets.GCP_PROJECT_ID }}
-          gcloud run deploy all-production \
-            --image=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/all:$VERSION \
-            --region=$REGION \
-            --project=$PROJECT \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars=NODE_ENV=production
+      - name: Deploy to Cloud Run (Production)
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: vibe-backend-production
+          region: ${{ env.GCP_REGION }}
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          env_vars: |
+            AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
+            AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
+            NODE_ENV=production
+            APP_PORT=${{ secrets.APP_PORT }}
+            APP_URL=${{ secrets.APP_URL }}
+            APP_ORIGINS=${{ secrets.APP_ORIGINS }}
+            APP_MODULE=${{ secrets.APP_MODULE }}
+            APP_ROUTE_PREFIX=${{ secrets.APP_ROUTE_PREFIX }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            DB_URL=${{ secrets.DB_URL }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            AI_PROXY_ADDRESS="socks5h://localhost:1055"
+          flags: --allow-unauthenticated

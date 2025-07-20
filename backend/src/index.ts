@@ -1,3 +1,9 @@
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+console.log(`Loading Sentry for ${NODE_ENV} environment`);
+await import('./instrument.js');
+
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
@@ -47,8 +53,23 @@ app.use(
   }),
 );
 
+// Health check endpoint for Cloud Run
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV
+  });
+});
+
+if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
+  console.log('Setting up Sentry error handling - test for production and staging environment');
+  Sentry.setupExpressErrorHandler(app);
+}
+
 // Start server
 useExpressServer(app, moduleOptions);
+
 app.listen(appConfig.port, () => {
   printStartupSummary();
 });

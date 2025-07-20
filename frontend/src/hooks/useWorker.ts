@@ -11,9 +11,12 @@ export function useWorker(messageEventHandler: MessageEventHandler): Worker {
 }
 
 function createWorker(messageEventHandler: MessageEventHandler): Worker {
-    const worker = new Worker(new URL("../../public/workers/whisperWorker.js", import.meta.url), {
+    const workerUrl = new URL("../../public/workers/whisperWorker.js", import.meta.url);
+    const worker = new Worker(workerUrl, {
         type: "module",
+        name: "whisper-worker"
     });
+    
     // Listen for messages from the Web Worker
     worker.addEventListener("message", messageEventHandler);
     return worker;

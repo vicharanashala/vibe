@@ -39,8 +39,15 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
-    // Original initialization code
-    this.client = new MongoClient(uri); // Removed options parameter
+    this.client = new MongoClient(uri, {
+      ssl: true,
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false,
+      retryWrites: true,
+      connectTimeoutMS: 30000,
+      socketTimeoutMS: 30000
+    });
   }
 
   /**

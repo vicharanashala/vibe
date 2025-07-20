@@ -51,7 +51,7 @@ class ProgressRepository {
 
   async deleteWatchTimeByItemId(itemId: string, session?: ClientSession): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
+    await this.watchTimeCollection.deleteMany(
       { itemId: new ObjectId(itemId) },
       { session },
     );

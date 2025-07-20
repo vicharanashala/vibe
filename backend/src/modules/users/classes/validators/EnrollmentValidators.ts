@@ -77,14 +77,6 @@ export class EnrollmentDataResponse {
 
 
   @JSONSchema({
-    description: 'User object associated with this enrollment',
-    type: 'object',
-    items: { $ref: '#/components/schemas/User' },
-  })
-  @ValidateNested()
-  user?:User
-
-  @JSONSchema({
     description: 'Course ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
