@@ -16,7 +16,7 @@ import {
 import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizSubmissions, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
-import QuizEditor from "./components/quiz-editor";
+import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -199,7 +199,7 @@ export default function TeacherCoursePage() {
     if (type !== "VIDEO") {
       createItem.mutate({
         params: { path: { versionId, moduleId, sectionId } },
-        body: { type: typeMap[type], name: `New ${typeMap[type]}`, content: "<p>Sample content</p>" }
+        body: { type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content" }
       });
     }
   };
@@ -519,9 +519,11 @@ export default function TeacherCoursePage() {
                   />
                 )}
 
-                {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && (
-                  <QuizEditor
+                {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
+                  <EnhancedQuizEditor
                     quizId={selectedQuizId}
+                    courseId={courseId}
+                    courseVersionId={versionId}
                     details={quizDetails}
                     analytics={quizAnalytics}
                     submissions={quizSubmissions}
