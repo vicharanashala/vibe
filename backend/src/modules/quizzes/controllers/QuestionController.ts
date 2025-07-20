@@ -102,10 +102,7 @@ class QuestionController {
       throw new ForbiddenError('You do not have permission to view this question');
     }
     
-    const ques = await this.questionService.getById(questionId, true);
-    const questionProcessor = new QuestionProcessor(ques);
-    const renderedQues = questionProcessor.render();
-    return renderedQues;
+    return await this.questionService.getById(questionId, true);
   }
 
   @OpenAPI({
