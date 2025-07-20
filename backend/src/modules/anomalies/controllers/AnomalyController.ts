@@ -18,7 +18,7 @@ import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
 import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
-import { AnomalyDataResponse, FileType } from '../classes/transformers/Anomaly.js';
+import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 
 @OpenAPI({

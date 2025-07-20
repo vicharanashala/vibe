@@ -24,6 +24,9 @@ importers:
       '@casl/ability':
         specifier: ^6.7.3
         version: 6.7.3
+      '@google-cloud/storage':
+        specifier: ^7.16.0
+        version: 7.16.0
       '@microsoft/kiota-bundle':
         specifier: 1.0.0-preview.96
         version: 1.0.0-preview.96
@@ -105,6 +108,9 @@ importers:
       mongodb:
         specifier: ^6.17.0
         version: 6.17.0
+      multer:
+        specifier: ^2.0.2
+        version: 2.0.2
       nodemailer:
         specifier: ^7.0.3
         version: 7.0.3
@@ -6905,6 +6911,10 @@ packages:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
     engines: {'0': node >= 0.8}
 
+  concat-stream@2.0.0:
+    resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
+    engines: {'0': node >= 6.0}
+
   concurrently@9.1.2:
     resolution: {integrity: sha512-H9MWcoPsYddwbOGM6difjVwVZHl63nwMEwDJG/L7VGtuaJhb12h2caPG2tVPWs7emuYix252iGfqOyrz1GczTQ==}
     engines: {node: '>=18'}
@@ -10692,6 +10702,10 @@ packages:
     engines: {node: '>= 6.0.0'}
     deprecated: Multer 1.x is impacted by a number of vulnerabilities, which have been patched in 2.x. You should upgrade to the latest 2.x version.
 
+  multer@2.0.2:
+    resolution: {integrity: sha512-u7f2xaZ/UG8oLXHvtF/oWTRvT44p9ecwBBqTwgJVq0+4BW1g8OW01TyMEGWBHbyMOYVHXslaut7qEQ1meATXgw==}
+    engines: {node: '>= 10.16.0'}
+
   multicast-dns@7.2.5:
     resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
     hasBin: true
@@ -13047,10 +13061,12 @@ packages:
   superagent@10.2.1:
     resolution: {integrity: sha512-O+PCv11lgTNJUzy49teNAWLjBZfc+A1enOwTpLlH6/rsvKcTwcdTT8m9azGkVqM7HBl5jpyZ7KTPhHweokBcdg==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supertest@7.1.1:
     resolution: {integrity: sha512-aI59HBTlG9e2wTjxGJV+DygfNLgnWbGdZxiA/sgrnNNikIW8lbDvCtF6RnhZoJ82nU7qv7ZLjrvWqCEm52fAmw==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to supertest v7.1.3+, see release notes at https://github.com/forwardemail/supertest/releases/tag/v7.1.3 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supports-color@5.5.0:
     resolution: {integrity: sha512-QjVjwdXIt408MIiAqCX4oUKsgU2EqAGzs2Ppkm4aQYbjm+ZEWEcW4SfFNTr4uMNZma0ey4f5lgLrkB0aX0QMow==}
@@ -13446,10 +13462,6 @@ packages:
   type-fest@2.19.0:
     resolution: {integrity: sha512-RAH822pAdBgcNMAfWnCBU3CFZcfZ/i1eZjwFU/dsLKumyuuP3niueg2UAukXYF0E2AAoc82ZSSf9J0WQBinzHA==}
     engines: {node: '>=12.20'}
-
-  type-fest@4.39.1:
-    resolution: {integrity: sha512-uW9qzd66uyHYxwyVBYiwS4Oi0qZyUqwjU+Oevr6ZogYiXt99EOYtwvzMSLw1c3lYo2HzJsep/NB23iEVEgjG/w==}
-    engines: {node: '>=16'}
 
   type-fest@4.41.0:
     resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
@@ -17294,13 +17306,10 @@ snapshots:
     dependencies:
       arrify: 2.0.1
       extend: 3.0.2
-    optional: true
 
-  '@google-cloud/projectify@4.0.0':
-    optional: true
+  '@google-cloud/projectify@4.0.0': {}
 
-  '@google-cloud/promisify@4.0.0':
-    optional: true
+  '@google-cloud/promisify@4.0.0': {}
 
   '@google-cloud/storage@7.16.0':
     dependencies:
@@ -17322,7 +17331,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   '@grpc/grpc-js@1.13.3':
     dependencies:
@@ -19972,8 +19980,7 @@ snapshots:
 
   '@tokenizer/token@0.3.0': {}
 
-  '@tootallnate/once@2.0.0':
-    optional: true
+  '@tootallnate/once@2.0.0': {}
 
   '@trysound/sax@0.2.0': {}
 
@@ -20032,8 +20039,7 @@ snapshots:
     dependencies:
       '@types/node': 22.15.21
 
-  '@types/caseless@0.12.5':
-    optional: true
+  '@types/caseless@0.12.5': {}
 
   '@types/chai@5.2.2':
     dependencies:
@@ -20444,7 +20450,6 @@ snapshots:
       '@types/node': 22.15.21
       '@types/tough-cookie': 4.0.5
       form-data: 2.5.3
-    optional: true
 
   '@types/retry@0.12.0': {}
 
@@ -21266,7 +21271,6 @@ snapshots:
   abort-controller@3.0.0:
     dependencies:
       event-target-shim: 5.0.1
-    optional: true
 
   accepts@1.3.8:
     dependencies:
@@ -21417,8 +21421,7 @@ snapshots:
       normalize-path: 3.0.0
       picomatch: 2.3.1
 
-  append-field@1.0.0:
-    optional: true
+  append-field@1.0.0: {}
 
   aproba@2.0.0: {}
 
@@ -21455,8 +21458,7 @@ snapshots:
 
   arrify@1.0.1: {}
 
-  arrify@2.0.1:
-    optional: true
+  arrify@2.0.1: {}
 
   asap@2.0.6: {}
 
@@ -21500,7 +21502,6 @@ snapshots:
   async-retry@1.3.3:
     dependencies:
       retry: 0.13.1
-    optional: true
 
   async@0.2.10: {}
 
@@ -21916,7 +21917,6 @@ snapshots:
   busboy@1.6.0:
     dependencies:
       streamsearch: 1.1.0
-    optional: true
 
   bytes@3.0.0: {}
 
@@ -22351,6 +22351,13 @@ snapshots:
       readable-stream: 2.3.8
       typedarray: 0.0.6
     optional: true
+
+  concat-stream@2.0.0:
+    dependencies:
+      buffer-from: 1.1.2
+      inherits: 2.0.4
+      readable-stream: 3.6.2
+      typedarray: 0.0.6
 
   concurrently@9.1.2:
     dependencies:
@@ -23211,7 +23218,6 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
       stream-shift: 1.0.3
-    optional: true
 
   dynamic-dedupe@0.3.0:
     dependencies:
@@ -23312,7 +23318,6 @@ snapshots:
   end-of-stream@1.4.4:
     dependencies:
       once: 1.4.0
-    optional: true
 
   enhanced-resolve@5.18.1:
     dependencies:
@@ -23651,8 +23656,7 @@ snapshots:
       '@types/node': 22.15.21
       require-like: 0.1.2
 
-  event-target-shim@5.0.1:
-    optional: true
+  event-target-shim@5.0.1: {}
 
   eventemitter3@4.0.7: {}
 
@@ -23871,7 +23875,6 @@ snapshots:
   fast-xml-parser@4.5.3:
     dependencies:
       strnum: 1.1.2
-    optional: true
 
   fastq@1.19.1:
     dependencies:
@@ -24175,7 +24178,6 @@ snapshots:
       es-set-tostringtag: 2.1.0
       mime-types: 2.1.35
       safe-buffer: 5.2.1
-    optional: true
 
   form-data@4.0.2:
     dependencies:
@@ -24964,7 +24966,6 @@ snapshots:
       debug: 4.4.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   http-proxy-middleware@2.0.9(@types/express@4.17.21):
     dependencies:
@@ -27290,8 +27291,7 @@ snapshots:
 
   mime@2.6.0: {}
 
-  mime@3.0.0:
-    optional: true
+  mime@3.0.0: {}
 
   mimic-fn@2.1.0: {}
 
@@ -27465,7 +27465,7 @@ snapshots:
       path-to-regexp: 6.3.0
       picocolors: 1.1.1
       strict-event-emitter: 0.5.1
-      type-fest: 4.39.1
+      type-fest: 4.41.0
       yargs: 17.7.2
     optionalDependencies:
       typescript: 5.8.3
@@ -27482,6 +27482,16 @@ snapshots:
       type-is: 1.6.18
       xtend: 4.0.2
     optional: true
+
+  multer@2.0.2:
+    dependencies:
+      append-field: 1.0.0
+      busboy: 1.6.0
+      concat-stream: 2.0.0
+      mkdirp: 0.5.6
+      object-assign: 4.1.1
+      type-is: 1.6.18
+      xtend: 4.0.2
 
   multicast-dns@7.2.5:
     dependencies:
@@ -29461,7 +29471,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   retry@0.13.1: {}
 
@@ -30104,13 +30113,10 @@ snapshots:
   stream-events@1.0.5:
     dependencies:
       stubs: 3.0.0
-    optional: true
 
-  stream-shift@1.0.3:
-    optional: true
+  stream-shift@1.0.3: {}
 
-  streamsearch@1.1.0:
-    optional: true
+  streamsearch@1.1.0: {}
 
   streamx@2.22.0:
     dependencies:
@@ -30206,16 +30212,14 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
-  strnum@1.1.2:
-    optional: true
+  strnum@1.1.2: {}
 
   strtok3@9.1.1:
     dependencies:
       '@tokenizer/token': 0.3.0
       peek-readable: 5.4.2
 
-  stubs@3.0.0:
-    optional: true
+  stubs@3.0.0: {}
 
   style-mod@4.1.2: {}
 
@@ -30374,7 +30378,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   template-url@1.0.0: {}
 
@@ -30664,8 +30667,6 @@ snapshots:
 
   type-fest@2.19.0: {}
 
-  type-fest@4.39.1: {}
-
   type-fest@4.41.0: {}
 
   type-is@1.6.18:
@@ -30685,8 +30686,7 @@ snapshots:
     dependencies:
       is-typedarray: 1.0.0
 
-  typedarray@0.0.6:
-    optional: true
+  typedarray@0.0.6: {}
 
   typedi@0.10.0: {}
 

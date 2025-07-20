@@ -9,7 +9,7 @@ import { ANOMALIES_TYPES } from '../types.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { AnomalyDataResponse, FileType, IAnomalyData } from '../classes/transformers/Anomaly.js';
+import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType, IAnomalyData } from '../classes/transformers/Anomaly.js';
 
 @injectable()
 export class AnomalyService extends BaseService {
@@ -125,14 +125,41 @@ export class AnomalyService extends BaseService {
     });
   }
 
-  async getAnomalyStats(courseId: string, versionId: string, itemId?: string, userId?: string): Promise<any> {
-    const version = await this.courseRepo.readVersion(versionId);
-    if (!version || version.courseId.toString() !== courseId) {
-        throw new NotFoundError('Course version not found');
-    }
-    const anomalies = await this.anomalyRepository.getCustomAnomalies(courseId, versionId);
-
-    // percentage of each anomaly type
+  async getAnomalyStats(courseId: string, versionId: string, itemId?: string, userId?: string): Promise<AnomalyStats> {
+    return this._withTransaction(async (session) => {
+      const version = await this.courseRepo.readVersion(versionId);
+      if (!version || version.courseId.toString() !== courseId) {
+          throw new NotFoundError('Course version not found');
+      }
+      const anomalies = await this.anomalyRepository.getCustomAnomalies(courseId, versionId, itemId, userId, session);
+      const stats = new AnomalyStats();
+      anomalies.forEach((anomaly) => {
+        switch (anomaly.type) {
+          case AnomalyType.VOICE_DETECTION:
+            stats.VOICE_DETECTION++;
+            break;
+          case AnomalyType.NO_FACE:
+            stats.NO_FACE++;
+            break;
+          case AnomalyType.MULTIPLE_FACES:
+            stats.MULTIPLE_FACES++;
+            break;
+          case AnomalyType.BLUR_DETECTION:
+            stats.BLUR_DETECTION++;
+            break;
+          case AnomalyType.FOCUS:
+            stats.FOCUS++;
+            break;
+          case AnomalyType.HAND_GESTURE_DETECTION:
+            stats.HAND_GESTURE_DETECTION++;
+            break;
+          case AnomalyType.FACE_RECOGNITION:
+            stats.FACE_RECOGNITION++;
+            break;
+        }
+      });
+      return stats;
+    });
   }
 
   async deleteAnomaly(anomalyId: string, courseId: string, versionId: string): Promise<void> {
