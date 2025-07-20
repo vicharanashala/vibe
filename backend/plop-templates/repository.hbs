@@ -1,0 +1,15 @@
+import {injectable, inject} from 'inversify';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+
+@injectable()
+export class {{name}}Repository {
+  constructor(
+    @inject(GLOBAL_TYPES.Database)
+    private readonly db: MongoDatabase,
+  ) {}
+
+  async create(data: any) {
+    // implement MongoDB insert logic here
+  }
+}

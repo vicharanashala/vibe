@@ -1,0 +1,18 @@
+import { {{injects "injectable" repository}} } from 'inversify';
+import { {{constantCase module}}_TYPES } from '../types.js';
+
+{{#if repository}}
+import { {{name}}Repository } from '../repositories/providers/mongodb/{{name}}Repository.js';
+{{/if}}
+
+@injectable()
+export class {{name}}Service {
+  constructor(
+    {{#if repository}}@inject({{constantCase module}}_TYPES.{{name}}Repo)
+     private readonly repository: {{name}}Repository{{/if}}
+  ) {}
+
+  async create(data: any): Promise<any> {
+    {{#if repository}}return this.repository.create(data);{{else}}return data;{{/if}}
+  }
+}
