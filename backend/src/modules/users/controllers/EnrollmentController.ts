@@ -1,4 +1,5 @@
-import { EnrollmentRole, IEnrollment, IProgress } from '#root/shared/interfaces/models.js';
+
+import { EnrollmentRole, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -20,12 +21,12 @@ import {
   Params,
   Get,
   Param,
-  QueryParam,
   BadRequestError,
   NotFoundError,
   Body,
   ForbiddenError,
   Authorized,
+  QueryParams,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions, getEnrollmentAbility } from '../abilities/enrollmentAbilities.js';
@@ -164,25 +165,11 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async getUserEnrollments(
-    @QueryParam('page') page = 1,
-    @QueryParam('limit') limit = 10,
-    @Ability(getEnrollmentAbility) {ability, user}
+    @Param('userId') userId: string,
+    @QueryParams() query: PaginationQuery
   ): Promise<EnrollmentResponse> {
-    //convert page and limit to integers
-    page = parseInt(page as unknown as string, 10);
-    limit = parseInt(limit as unknown as string, 10);
-    const userId = user._id.toString();
-    // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', { userId });
-    
-    // Check permission using ability.can() with the actual enrollment resource
-    if (!ability.can(EnrollmentActions.View, enrollmentResource)) {
-      throw new ForbiddenError('You do not have permission to view these enrollments');
-    }
-    
-    if (page < 1 || limit < 1) {
-      throw new BadRequestError('Page and limit must be positive integers.');
-    }
+    const { page, limit } = query
+
     const skip = (page - 1) * limit;
 
     const enrollments = await this.enrollmentService.getEnrollments(
@@ -270,8 +257,7 @@ export class EnrollmentController {
   async getCourseVersionEnrollments(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
-    @QueryParam('page') page = 1,
-    @QueryParam('limit') limit = 10,
+    @QueryParams() query: PaginationQuery,
     @Ability(getEnrollmentAbility) {ability}
   ): Promise<CourseVersionEnrollmentResponse> {
     // Create an enrollment resource object for permission checking
@@ -284,10 +270,8 @@ export class EnrollmentController {
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to view enrollments for this course');
     }
-    
-    // Convert page and limit to integers
-    page = parseInt(page as unknown as string, 10);
-    limit = parseInt(limit as unknown as string, 10);
+
+    const { page, limit } = query;
 
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');

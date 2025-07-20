@@ -12,6 +12,8 @@ import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService
 import { ProgressService } from './modules/users/services/ProgressService.js';
 import { EnrollmentService } from './modules/users/services/EnrollmentService.js';
 
+
+
 export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
   const dbName = dbConfig.dbName;
@@ -36,4 +38,5 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
-});
+}); 
+
