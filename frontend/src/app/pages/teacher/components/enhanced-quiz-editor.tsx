@@ -12,12 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Plus,
-  Edit2,
   Trash2,
   Eye,
   BookOpen,
@@ -25,17 +21,11 @@ import {
   Settings,
   BarChart3,
   Users,
-  Copy,
   RefreshCw,
-  ChevronDown,
-  ChevronRight,
-  Save,
-  X
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
   useQuestionBankById,
-  useQuestionById,
   useCreateQuestionBank,
   useAddQuestionBankToQuiz,
   useRemoveQuestionBankFromQuiz,
@@ -43,9 +33,12 @@ import {
   useReplaceQuestionWithDuplicate,
   useDeleteQuestion,
   useUpdateItem,
-  useUpdateQuestion,
-  useCreateQuestion
+  useCreateQuestion,
+  useQuestionById
 } from '@/hooks/hooks';
+
+import ExpandableQuestionCard from './expandable-question-card';
+import SubmissionDetailsDialog from './submission-details-dialog';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -53,12 +46,10 @@ interface EnhancedQuizEditorProps {
   courseVersionId: string;
   moduleId: string;
   sectionId: string;
-  itemId: string;
   details: any;
   analytics: any;
   submissions: any;
   performance: any;
-  results: any;
 }
 
 interface QuestionFormData {
@@ -86,18 +77,81 @@ const QUESTION_TYPES = [
   { value: 'DESCRIPTIVE', label: 'Descriptive Answer' }
 ];
 
+// Question Performance Row Component
+interface QuestionPerformanceRowProps {
+  performance: {
+    questionId: string;
+    correctRate: number;
+  };
+}
+
+const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance }) => {
+  const { data: questionData } = useQuestionById(performance.questionId);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="space-y-1">
+          <p className="font-medium text-sm text-muted-foreground">
+            ID: {performance.questionId.slice(-8)}
+          </p>
+          {questionData?.text ? (
+            <p className="text-sm">
+              {questionData.text.length > 100 
+                ? `${questionData.text.substring(0, 100)}...`
+                : questionData.text
+              }
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading question...</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <span>{(performance.correctRate * 100).toFixed(1)}%</span>
+          <Progress value={performance.correctRate * 100} className="w-20" />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Utility function to calculate performance from submissions
+const calculatePerformanceFromSubmissions = (submissions: any[]): { questionId: string; correctRate: number }[] => {
+  if (!submissions || submissions.length === 0) return [];
+
+  const questionStats: Record<string, { correct: number; total: number }> = {};
+
+  submissions.forEach(submission => {
+    submission.gradingResult?.overallFeedback?.forEach((feedback: any) => {
+      const questionId = feedback.questionId;
+      if (!questionStats[questionId]) {
+        questionStats[questionId] = { correct: 0, total: 0 };
+      }
+      questionStats[questionId].total++;
+      if (feedback.status === 'CORRECT') {
+        questionStats[questionId].correct++;
+      }
+    });
+  });
+
+  return Object.entries(questionStats).map(([questionId, stats]) => ({
+    questionId,
+    correctRate: stats.total > 0 ? stats.correct / stats.total : 0
+  }));
+};
+
 const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   quizId,
   courseId,
   courseVersionId,
   moduleId,
   sectionId,
-  itemId,
   details,
   analytics,
   submissions,
-  performance,
-  results
+  performance
 }) => {
   const [selectedTab, setSelectedTab] = useState('overview');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
@@ -107,6 +161,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [showCreateQuestionDialog, setShowCreateQuestionDialog] = useState(false);
   const [showEditQuestionDialog, setShowEditQuestionDialog] = useState(false);
   const [editQuizSettings, setEditQuizSettings] = useState(false);
+  const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
 
   // Form states
   const [bankForm, setBankForm] = useState({ title: '', description: '' });
@@ -205,7 +261,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
             versionId: courseVersionId,
             moduleId,
             sectionId,
-            itemId
+            itemId: quizId || ''
           }
         },
         body: requestBody
@@ -252,6 +308,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         params: { path: { quizId } },
         body: { 
           bankId: result.questionBankId,
+          questionBankId: result.questionBankId,
           count: 10 // Default count
         }
       });
@@ -484,7 +541,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Initialize question bank selection
   useEffect(() => {
-    if (questionBanks && questionBanks.length > 0 && !selectedQuestionBank) {
+    if (questionBanks && questionBanks?.length > 0 && !selectedQuestionBank) {
       setSelectedQuestionBank(questionBanks[0].bankId);
     }
   }, [questionBanks]);
@@ -801,8 +858,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {results && results.length > 0 ? `${((results.filter((r: any) => r.status === 'PASSED').length / results.length) * 100).toFixed(1)}%` : '0%'}
-                    <Progress value={results && results.length > 0 ? ((results.filter((r: any) => r.status === 'PASSED').length / results.length) * 100) : 0} className="mt-2" />
+                    <div className="text-2xl font-bold">
+                      {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
+                    </div>
+                    <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" />
                   </CardContent>
                 </Card>
                 <Card>
@@ -810,49 +869,27 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <CardTitle className="text-sm font-medium">Average Score</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.averageScore?.toFixed(1) ?? 0}</div>
+                    <div className="text-2xl font-bold">
+                      {submissions && submissions.length > 0 
+                        ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)}%`
+                        : '0%'}
+                    </div>
+                    <Progress value={submissions && submissions.length > 0 
+                      ? parseFloat((submissions.reduce((acc: number, sub: any) => {
+                          if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                            return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                          }
+                          return acc;
+                        }, 0) / submissions.length).toFixed(1))
+                      : 0} className="mt-2" />
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Submissions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Student ID</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Submitted At</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {submissions?.submissions?.slice(0, 5).map((sub: any) => (
-                        <TableRow key={sub._id}>
-                          <TableCell className="font-medium">{sub.userId}</TableCell>
-                          <TableCell>{sub.gradingResult?.totalScore ?? 'N/A'}</TableCell>
-                          <TableCell>
-                            <Badge variant={sub.gradingResult?.totalScore >= 70 ? 'default' : 'destructive'}>
-                              {sub.gradingResult?.totalScore >= 70 ? 'Pass' : 'Fail'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{new Date(sub.submittedAt).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      )) || (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground">
-                              No submissions yet
-                            </TableCell>
-                          </TableRow>
-                        )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -863,7 +900,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <div className="p-4 border-b">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold">Question Banks</h3>
+                      <h3 className="font-bold text-lg">Question Banks</h3>
                     </div>
                     <Dialog open={showCreateBankDialog} onOpenChange={setShowCreateBankDialog}>
                       <DialogTrigger asChild>
@@ -913,15 +950,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     {questionBanks?.map((bank: any) => (
                       <Card
                         key={bank.bankId}
-                        className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === bank.bankId ? 'border-primary bg-accent' : ''
+                        className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === bank.bankId ? 'border-primary bg-accent/40' : ''
                           }`}
                         onClick={() => setSelectedQuestionBank(bank.bankId)}
                       >
-                        <CardContent className="p-3">
+                        <CardContent className="px-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium text-sm">Bank {bank.bankId.slice(-8)}</span>
+                              <BookOpen className="h-5 w-5 text-muted-foreground" />
+                              <span className="font-medium text-md font-semibold ">Bank {bank.bankId.slice(-8)}</span>
                             </div>
                             <Button
                               variant="ghost"
@@ -942,10 +979,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       </Card>
                     ))}
 
-                    {(!questionBanks || questionBanks.length === 0) && (
+                    {(!questionBanks || questionBanks?.length === 0) && (
                       <div className="text-center text-muted-foreground py-8">
                         <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No question banks</p>
+                        <p className="text-md">No question banks</p>
                         <p className="text-xs">Create one to get started</p>
                       </div>
                     )}
@@ -1003,7 +1040,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           />
                         ))}
 
-                        {(!selectedBankData?.questions || selectedBankData.questions.length === 0) && (
+                        {(!selectedBankData?.questions || selectedBankData.questions?.length === 0) && (
                           <div className="text-center text-muted-foreground py-12">
                             <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <h3 className="font-medium mb-2">No questions yet</h3>
@@ -1064,28 +1101,26 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Question ID</TableHead>
+                          <TableHead>Question</TableHead>
                           <TableHead>Correct Rate</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {performance && performance.length > 0 ? (
-                          performance.map((p: any) => (
-                            <TableRow key={p.questionId}>
-                              <TableCell>{p.questionId.slice(-8)}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <span>{(p.correctRate * 100).toFixed(1)}%</span>
-                                  <Progress value={p.correctRate * 100} className="w-20" />
-                                </div>
-                              </TableCell>
+                        {(() => {
+                          const performanceData = performance && performance.length > 0 
+                            ? performance 
+                            : calculatePerformanceFromSubmissions(submissions || []);
+                          
+                          return performanceData?.length > 0 ? (
+                            performanceData.map((p: any) => (
+                              <QuestionPerformanceRow key={p.questionId} performance={p} />
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={2} className="text-center">No performance data available</TableCell>
                             </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={2} className="text-center">No performance data available</TableCell>
-                          </TableRow>
-                        )}
+                          );
+                        })()}
                       </TableBody>
                     </Table>
                   </CardContent>
@@ -1105,14 +1140,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {results && results.length > 0 ? (
-                          results.map((r: any) => (
-                            <TableRow key={r.attemptId}>
-                              <TableCell>{r.studentId}</TableCell>
-                              <TableCell>{r.score}</TableCell>
+                        {submissions && submissions?.length > 0 ? (
+                          submissions.map((r: any) => (
+                            <TableRow key={r._id}>
+                              <TableCell>{r.userId}</TableCell>
+                              <TableCell>{r.gradingResult?.totalScore ?? 'N/A'}</TableCell>
                               <TableCell>
-                                <Badge variant={r.status === 'PASSED' ? 'default' : 'destructive'}>
-                                  {r.status}
+                                <Badge variant={r.gradingResult?.gradingStatus === 'PASSED' ? 'default' : 'destructive'}>
+                                  {r.gradingResult?.gradingStatus ?? 'N/A'}
                                 </Badge>
                               </TableCell>
                             </TableRow>
@@ -1145,27 +1180,48 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       <TableRow>
                         <TableHead>Student ID</TableHead>
                         <TableHead>Score</TableHead>
-                        <TableHead>Total Questions</TableHead>
-                        <TableHead>Correct Answers</TableHead>
+                        <TableHead>Max Score</TableHead>
+                        <TableHead>Percentage</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Submitted At</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {submissions?.submissions?.map((sub: any) => (
+                      {submissions?.map((sub: any) => (
                         <TableRow key={sub._id}>
                           <TableCell className="font-medium">{sub.userId}</TableCell>
+                          <TableCell>{sub.gradingResult?.totalScore ?? 'N/A'}</TableCell>
+                          <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
                           <TableCell>
-                            <Badge variant={sub.gradingResult?.totalScore >= 70 ? 'default' : 'destructive'}>
-                              {sub.gradingResult?.totalScore ?? 'N/A'}%
+                            <Badge variant={
+                              sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore
+                                ? (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) >= 0.7 
+                                  ? 'default' 
+                                  : 'destructive'
+                                : 'secondary'
+                            }>
+                              {sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore 
+                                ? `${((sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) * 100).toFixed(1)}%`
+                                : 'N/A'}
                             </Badge>
                           </TableCell>
-                          <TableCell>{sub.gradingResult?.totalQuestions ?? 'N/A'}</TableCell>
-                          <TableCell>{sub.gradingResult?.correctAnswers ?? 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={sub.gradingResult?.gradingStatus === 'PASSED' ? 'default' : 'destructive'}>
+                              {sub.gradingResult?.gradingStatus ?? 'N/A'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{new Date(sub.submittedAt).toLocaleString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedSubmission(sub);
+                                  setShowSubmissionDialog(true);
+                                }}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm">
@@ -1176,7 +1232,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         </TableRow>
                       )) || (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                               No submissions yet
                             </TableCell>
                           </TableRow>
@@ -1189,1005 +1245,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Submission Details Dialog */}
+      <SubmissionDetailsDialog
+        isOpen={showSubmissionDialog}
+        onClose={() => {
+          setShowSubmissionDialog(false);
+          setSelectedSubmission(null);
+        }}
+        submission={selectedSubmission}
+      />
     </div>
-  );
-};
-
-// Expandable Question Card Component
-interface ExpandableQuestionCardProps {
-  questionId: string;
-  onDelete: () => void;
-  onDuplicate: () => void;
-}
-
-const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
-  questionId,
-  onDelete,
-  onDuplicate
-}) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<QuestionFormData>({
-    question: {
-      text: '',
-      type: 'SELECT_ONE_IN_LOT',
-      isParameterized: false,
-      timeLimitSeconds: 60,
-      points: 1
-    },
-    solution: {}
-  });
-
-  const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
-  const updateQuestion = useUpdateQuestion();
-  console.log('Question data:', question);
-
-  // Initialize edit form when question data is loaded
-  useEffect(() => {
-    if (question && !isEditing) {
-      setEditForm({
-        question: {
-          text: question.text || '',
-          type: question.type || 'SELECT_ONE_IN_LOT',
-          isParameterized: question.isParameterized || false,
-          parameters: question.parameters || [],
-          hint: question.hint || '',
-          timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1
-        },
-        solution: {
-          // Map backend solution fields to frontend format
-          correctLotItem: question.correctLotItem,
-          incorrectLotItems: question.incorrectLotItems,
-          correctLotItems: question.correctLotItems,
-          ordering: question.ordering,
-          solutionText: question.solutionText,
-          decimalPrecision: question.decimalPrecision,
-          upperLimit: question.upperLimit,
-          lowerLimit: question.lowerLimit,
-          value: question.value,
-          expression: question.expression
-        }
-      });
-    }
-  }, [question, isEditing]);
-
-  const handleStartEdit = () => {
-    setIsEditing(true);
-    if (question) {
-      setEditForm({
-        question: {
-          text: question.text || '',
-          type: question.type || 'SELECT_ONE_IN_LOT',
-          isParameterized: question.isParameterized || false,
-          parameters: question.parameters || [],
-          hint: question.hint || '',
-          timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1
-        },
-        solution: {
-          // Map backend solution fields to frontend format
-          correctLotItem: question.correctLotItem,
-          incorrectLotItems: question.incorrectLotItems,
-          correctLotItems: question.correctLotItems,
-          ordering: question.ordering,
-          solutionText: question.solutionText,
-          decimalPrecision: question.decimalPrecision,
-          upperLimit: question.upperLimit,
-          lowerLimit: question.lowerLimit,
-          value: question.value,
-          expression: question.expression
-        }
-      });
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    if (question) {
-      // Reset form to original question data from details
-      const details = question as any || {};
-      setEditForm({
-        question: {
-          text: details.text || '',
-          type: details.type || 'SELECT_ONE_IN_LOT',
-          isParameterized: details.isParameterized || false,
-          parameters: details.parameters || [],
-          hint: details.hint || '',
-          timeLimitSeconds: details.timeLimitSeconds || 60,
-          points: details.points || 1
-        },
-        solution: {
-          // Map backend solution fields to frontend format
-          correctLotItem: details.correctLotItem,
-          incorrectLotItems: details.incorrectLotItems,
-          correctLotItems: details.correctLotItems,
-          ordering: details.ordering,
-          solutionText: details.solutionText,
-          decimalPrecision: details.decimalPrecision,
-          upperLimit: details.upperLimit,
-          lowerLimit: details.lowerLimit,
-          value: details.value,
-          expression: details.expression
-        }
-      });
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    try {
-      const cleanLotItem = (item: any) => {
-        if (!item) return item;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _id, ...rest } = item;
-        return rest;
-      };
-
-      const solutionForBackend = {
-        correctLotItem: editForm.solution.correctLotItem ? cleanLotItem(editForm.solution.correctLotItem) : undefined,
-        incorrectLotItems: editForm.solution.incorrectLotItems?.map(cleanLotItem),
-        correctLotItems: editForm.solution.correctLotItems?.map(cleanLotItem),
-        ordering: editForm.solution.ordering,
-        solutionText: editForm.solution.solutionText,
-        decimalPrecision: editForm.solution.decimalPrecision,
-        upperLimit: editForm.solution.upperLimit,
-        lowerLimit: editForm.solution.lowerLimit,
-        value: editForm.solution.value,
-        expression: editForm.solution.expression
-      };
-
-      await updateQuestion.mutateAsync({
-        params: { path: { questionId } },
-        body: {
-          question: {
-            text: editForm.question.text,
-            type: editForm.question.type,
-            isParameterized: editForm.question.isParameterized,
-            parameters: editForm.question.parameters,
-            hint: editForm.question.hint,
-            timeLimitSeconds: editForm.question.timeLimitSeconds,
-            points: editForm.question.points
-          },
-          solution: solutionForBackend
-        }
-      });
-
-      console.log('Successfully updated question:', questionId);
-      setIsEditing(false);
-
-      // Refetch the question data to get the latest updates
-      await refetchQuestion();
-
-    } catch (error) {
-      console.error('Failed to update question:', error);
-      // TODO: Add proper error notification/toast here
-    }
-  };
-
-  // Helper functions for managing options
-  const updateOption = (optionId: string, updates: { text?: string; explaination?: string }) => {
-    const newSolution = { ...editForm.solution };
-
-    // Find and update the option in the appropriate array
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      if (newSolution.correctLotItem && (newSolution.correctLotItem._id === optionId || newSolution.correctLotItem._id === undefined)) {
-        newSolution.correctLotItem = {
-          ...newSolution.correctLotItem,
-          ...updates,
-          _id: optionId
-        };
-      } else if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      if (newSolution.correctLotItems) {
-        newSolution.correctLotItems = newSolution.correctLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('correct'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-      if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
-  };
-
-  const setSingleCorrectOption = (selectedOptionId: string) => {
-    const newSolution = { ...editForm.solution };
-
-    // Get all options
-    const allOptions: Array<{
-      id: string;
-      text: string;
-      isCorrect: boolean;
-      explaination?: string;
-    }> = [];
-
-    // Add correct option
-    if (newSolution.correctLotItem) {
-      allOptions.push({
-        id: newSolution.correctLotItem._id || `correct-${Date.now()}`,
-        text: newSolution.correctLotItem.text || '',
-        isCorrect: true,
-        explaination: newSolution.correctLotItem.explaination || ''
-      });
-    }
-
-    // Add incorrect options
-    if (newSolution.incorrectLotItems) {
-      newSolution.incorrectLotItems.forEach((item: any, index: number) => {
-        allOptions.push({
-          id: item._id || `incorrect-${index}-${Date.now()}`,
-          text: item.text || '',
-          isCorrect: false,
-          explaination: item.explaination || ''
-        });
-      });
-    }
-
-    // Find the selected option
-    const selectedOption = allOptions.find(opt => opt.id === selectedOptionId);
-    if (!selectedOption) return;
-
-    // Reset the solution
-    newSolution.correctLotItem = null;
-    newSolution.incorrectLotItems = [];
-
-    // Set the selected option as correct and all others as incorrect
-    allOptions.forEach(option => {
-      const optionData = {
-        _id: option.id,
-        text: option.text,
-        explaination: option.explaination
-      };
-
-      if (option.id === selectedOptionId) {
-        newSolution.correctLotItem = optionData;
-      } else {
-        newSolution.incorrectLotItems.push(optionData);
-      }
-    });
-
-    setEditForm({ ...editForm, solution: newSolution });
-  };
-
-  const toggleCorrectOption = (optionId: string, isCorrect: boolean) => {
-    const newSolution = { ...editForm.solution };
-
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      // For single choice questions, use the dedicated function instead
-      if (isCorrect) {
-        setSingleCorrectOption(optionId);
-        return;
-      }
-
-      // For unsetting (making incorrect), just use the regular logic
-      let targetOption: any = null;
-
-      // Find the option to move
-      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
-        targetOption = newSolution.correctLotItem;
-        newSolution.correctLotItem = null;
-      }
-
-      if (targetOption) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-        newSolution.incorrectLotItems.push(targetOption);
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      // For multiple choice, move between correct and incorrect arrays
-      let targetOption: any = null;
-
-      // Find and remove from current array
-      if (newSolution.correctLotItems) {
-        const index = newSolution.correctLotItems.findIndex((item: any) => item._id === optionId);
-        if (index !== -1) {
-          targetOption = newSolution.correctLotItems[index];
-          newSolution.correctLotItems.splice(index, 1);
-        }
-      }
-
-      if (!targetOption && newSolution.incorrectLotItems) {
-        const index = newSolution.incorrectLotItems.findIndex((item: any) => item._id === optionId);
-        if (index !== -1) {
-          targetOption = newSolution.incorrectLotItems[index];
-          newSolution.incorrectLotItems.splice(index, 1);
-        }
-      }
-
-      // Add to target array
-      if (targetOption) {
-        if (isCorrect) {
-          newSolution.correctLotItems = newSolution.correctLotItems || [];
-          newSolution.correctLotItems.push(targetOption);
-        } else {
-          newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-          newSolution.incorrectLotItems.push(targetOption);
-        }
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
-  };
-
-  const removeOption = (optionId: string) => {
-    const newSolution = { ...editForm.solution };
-
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
-        newSolution.correctLotItem = null;
-      } else if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      if (newSolution.correctLotItems) {
-        newSolution.correctLotItems = newSolution.correctLotItems.filter((item: any) => item._id !== optionId);
-      }
-      if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
-  };
-
-  const addNewOption = () => {
-    const newOption = {
-      _id: `option-${Date.now()}`,
-      text: '',
-      explaination: ''
-    };
-
-    const newSolution = { ...editForm.solution };
-
-    // Add as incorrect option by default
-    newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-    newSolution.incorrectLotItems.push(newOption);
-
-    setEditForm({ ...editForm, solution: newSolution });
-  };
-
-  const renderEditForm = () => (
-    <div className="space-y-6 mt-6 p-6 border rounded-lg bg-muted/30">
-      <div className="grid grid-cols-1 gap-6">
-        {/* Question Type */}
-        <div>
-          <Label htmlFor="questionType" className="text-sm font-medium">Question Type</Label>
-          <Select
-            value={editForm.question.type}
-            onValueChange={(value: QuestionFormData['question']['type']) => {
-              const newForm = { ...editForm, question: { ...editForm.question, type: value } };
-              if (editForm.question.type === 'SELECT_ONE_IN_LOT' && value === 'SELECT_MANY_IN_LOT') {
-                if (newForm.solution.correctLotItem) {
-                  newForm.solution.correctLotItems = [
-                    ...(newForm.solution.correctLotItems || []),
-                    newForm.solution.correctLotItem
-                  ];
-                  newForm.solution.correctLotItem = null;
-                }
-              } else if (editForm.question.type === 'SELECT_MANY_IN_LOT' && value === 'SELECT_ONE_IN_LOT') {
-                if (newForm.solution.correctLotItems && newForm.solution.correctLotItems.length > 0) {
-                  const [firstCorrect, ...restCorrect] = newForm.solution.correctLotItems;
-                  newForm.solution.correctLotItem = firstCorrect;
-                  newForm.solution.incorrectLotItems = [
-                    ...(newForm.solution.incorrectLotItems || []),
-                    ...restCorrect
-                  ];
-                  newForm.solution.correctLotItems = [];
-                }
-              }
-              setEditForm(newForm);
-            }}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {QUESTION_TYPES.map(type => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Question Text */}
-        <div>
-          <Label htmlFor="questionText" className="text-sm font-medium">Question Text</Label>
-          <Textarea
-            id="questionText"
-            placeholder="Enter your question here..."
-            value={editForm.question.text || ''}
-            onChange={(e) => setEditForm({
-              ...editForm,
-              question: { ...editForm.question, text: e.target.value }
-            })}
-            className="mt-1 min-h-[100px]"
-            rows={4}
-          />
-        </div>
-
-        {/* Hint field */}
-        <div>
-          <Label htmlFor="hint" className="text-sm font-medium">Hint (Optional)</Label>
-          <Textarea
-            id="hint"
-            placeholder="Enter a hint for this question..."
-            value={editForm.question.hint || ''}
-            onChange={(e) => setEditForm({
-              ...editForm,
-              question: { ...editForm.question, hint: e.target.value }
-            })}
-            className="mt-1"
-            rows={2}
-          />
-        </div>
-
-        {/* Answer Options for Multiple Choice */}
-        {(editForm.question.type === 'SELECT_ONE_IN_LOT' || editForm.question.type === 'SELECT_MANY_IN_LOT') && (
-          <div className="space-y-4">
-            <Label className="text-sm font-medium">Answer Options</Label>
-            <div className="space-y-3">
-              {/* Render all options with correct/incorrect toggle */}
-              {(() => {
-                // Combine all options into a single array with metadata
-                const allOptions: Array<{
-                  id: string;
-                  text: string;
-                  isCorrect: boolean;
-                  explaination?: string;
-                }> = [];
-
-                // Add correct options
-                if (editForm.question.type === 'SELECT_ONE_IN_LOT' && editForm.solution?.correctLotItem) {
-                  allOptions.push({
-                    id: editForm.solution.correctLotItem._id || `correct-${Date.now()}`,
-                    text: editForm.solution.correctLotItem.text || '',
-                    isCorrect: true,
-                    explaination: editForm.solution.correctLotItem.explaination || ''
-                  });
-                }
-
-                if (editForm.question.type === 'SELECT_MANY_IN_LOT' && editForm.solution?.correctLotItems) {
-                  editForm.solution.correctLotItems.forEach((item: any, index: number) => {
-                    allOptions.push({
-                      id: item._id || `correct-${index}-${Date.now()}`,
-                      text: item.text || '',
-                      isCorrect: true,
-                      explaination: item.explaination || ''
-                    });
-                  });
-                }
-
-                // Add incorrect options
-                if (editForm.solution?.incorrectLotItems) {
-                  editForm.solution.incorrectLotItems.forEach((item: any, index: number) => {
-                    allOptions.push({
-                      id: item._id || `incorrect-${index}-${Date.now()}`,
-                      text: item.text || '',
-                      isCorrect: false,
-                      explaination: item.explaination || ''
-                    });
-                  });
-                }
-
-                // If no options exist, create a default correct option
-                if (allOptions.length === 0) {
-                  allOptions.push({
-                    id: `option-${Date.now()}`,
-                    text: '',
-                    isCorrect: true,
-                    explaination: ''
-                  });
-                }
-
-                return (
-                  <div className="space-y-3">
-                    {editForm.question.type === 'SELECT_ONE_IN_LOT' ? (
-                      <RadioGroup
-                        value={allOptions.find(opt => opt.isCorrect)?.id || ''}
-                        onValueChange={(value) => {
-                          // Use the dedicated function for single choice selection
-                          setSingleCorrectOption(value);
-                        }}
-                        className="space-y-3"
-                      >
-                        {allOptions.map((option, index) => (
-                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
-                            <div className="flex gap-3 items-start">
-                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                                {index + 1}.
-                              </span>
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  placeholder={`Option ${index + 1}`}
-                                  value={option.text}
-                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
-                                  className="flex-1"
-                                />
-                                <Input
-                                  placeholder="explaination (optional)"
-                                  value={option.explaination}
-                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
-                                  className="flex-1 text-sm"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem
-                                    value={option.id}
-                                    id={`correct-${option.id}`}
-                                  />
-                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
-                                    Correct
-                                  </Label>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeOption(option.id)}
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={allOptions.length <= 1}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    ) : (
-                      <div className="space-y-3">
-                        {allOptions.map((option, index) => (
-                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
-                            <div className="flex gap-3 items-start">
-                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                                {index + 1}.
-                              </span>
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  placeholder={`Option ${index + 1}`}
-                                  value={option.text}
-                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
-                                  className="flex-1"
-                                />
-                                <Input
-                                  placeholder="explaination (optional)"
-                                  value={option.explaination}
-                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
-                                  className="flex-1 text-sm"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`correct-${option.id}`}
-                                    checked={option.isCorrect}
-                                    onCheckedChange={(checked) => toggleCorrectOption(option.id, checked as boolean)}
-                                  />
-                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
-                                    Correct
-                                  </Label>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeOption(option.id)}
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={allOptions.length <= 1}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addNewOption}
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Option
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Numeric Answer Type Fields */}
-        {editForm.question.type === 'NUMERIC_ANSWER_TYPE' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="lowerLimit" className="text-sm font-medium">Lower Limit</Label>
-                <Input
-                  id="lowerLimit"
-                  type="number"
-                  value={editForm?.solution?.lowerLimit || ''}
-                  onChange={(e) => setEditForm({
-                    ...editForm,
-                    solution: { ...editForm.solution, lowerLimit: parseFloat(e.target.value) }
-                  })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="upperLimit" className="text-sm font-medium">Upper Limit</Label>
-                <Input
-                  id="upperLimit"
-                  type="number"
-                  value={editForm?.solution?.upperLimit || ''}
-                  onChange={(e) => setEditForm({
-                    ...editForm,
-                    solution: { ...editForm.solution, upperLimit: parseFloat(e.target.value) }
-                  })}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="decimalPrecision" className="text-sm font-medium">Decimal Precision</Label>
-              <Input
-                id="decimalPrecision"
-                type="number"
-                min="0"
-                value={editForm?.solution?.decimalPrecision || ''}
-                onChange={(e) => setEditForm({
-                  ...editForm,
-                  solution: { ...editForm.solution, decimalPrecision: parseInt(e.target.value) }
-                })}
-                className="mt-1"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Descriptive Answer Fields */}
-        {editForm.question.type === 'DESCRIPTIVE' && (
-          <div>
-            <Label htmlFor="solutionText" className="text-sm font-medium">Expected Answer/Solution</Label>
-            <Textarea
-              id="solutionText"
-              placeholder="Enter the expected answer or solution..."
-              value={editForm?.solution?.solutionText || ''}
-              onChange={(e) => setEditForm({
-                ...editForm,
-                solution: { ...editForm.solution, solutionText: e.target.value }
-              })}
-              className="mt-1"
-              rows={3}
-            />
-          </div>
-        )}
-
-        {/* Points and Time Limit */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="points" className="text-sm font-medium">Points</Label>
-            <Input
-              id="points"
-              type="number"
-              min="1"
-              value={editForm.question.points || ''}
-              onChange={(e) => setEditForm({
-                ...editForm,
-                question: { ...editForm.question, points: parseInt(e.target.value) }
-              })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="timeLimit" className="text-sm font-medium">Time Limit (seconds)</Label>
-            <Input
-              id="timeLimit"
-              type="number"
-              min="1"
-              value={editForm.question.timeLimitSeconds || ''}
-              onChange={(e) => setEditForm({
-                ...editForm,
-                question: { ...editForm.question, timeLimitSeconds: parseInt(e.target.value) }
-              })}
-              className="mt-1"
-            />
-          </div>
-        </div>
-
-        {/* Parameterized Question */}
-        <div className="flex items-center space-x-3">
-          <input
-            type="checkbox"
-            id="isParameterized"
-            checked={editForm.question.isParameterized || false}
-            onChange={(e) => setEditForm({
-              ...editForm,
-              question: { ...editForm.question, isParameterized: e.target.checked }
-            })}
-            className="rounded"
-          />
-          <Label htmlFor="isParameterized" className="text-sm cursor-pointer">
-            Is Parameterized Question
-          </Label>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderQuestionContent = () => {
-    if (!question) return <div className="text-sm text-muted-foreground">Loading question...</div>;
-
-    return (
-      <div className="space-y-4 p-4">
-        <div>
-          <h4 className="font-medium text-sm mb-2">Question:</h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">{question.text || 'No question text'}</p>
-        </div>
-
-        {question.hint && (
-          <div>
-            <h4 className="font-medium text-sm mb-2">Hint:</h4>
-            <p className="text-sm text-muted-foreground italic">{question.hint}</p>
-          </div>
-        )}
-
-        {(question.type === 'SELECT_ONE_IN_LOT' || question.type === 'SELECT_MANY_IN_LOT') && (
-          <div>
-            <h4 className="font-medium text-sm mb-3">Options:</h4>
-            <div className="space-y-2">
-              {/* Combine and display all options with their status */}
-              {(() => {
-                const allOptions: Array<{
-                  text: string;
-                  isCorrect: boolean;
-                  explaination?: string;
-                }> = [];
-
-                // Add correct options
-                if (question.type === 'SELECT_ONE_IN_LOT' && question.correctLotItem) {
-                  allOptions.push({
-                    text: question.correctLotItem.text,
-                    isCorrect: true,
-                    explaination: question.correctLotItem.explaination
-                  });
-                }
-
-                if (question.type === 'SELECT_MANY_IN_LOT' && question.correctLotItems) {
-                  question.correctLotItems.forEach((item: any) => {
-                    allOptions.push({
-                      text: item.text,
-                      isCorrect: true,
-                      explaination: item.explaination
-                    });
-                  });
-                }
-
-                // Add incorrect options
-                if (question.incorrectLotItems) {
-                  question.incorrectLotItems.forEach((item: any) => {
-                    allOptions.push({
-                      text: item.text,
-                      isCorrect: false,
-                      explaination: item.explaination
-                    });
-                  });
-                }
-
-                return allOptions.map((option, index) => (
-                  <div key={index} className={`p-3 rounded-lg border ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'bg-muted/50 border-border'}`}>
-                    <div className="flex items-start gap-3">
-                      <span className="text-sm text-muted-foreground font-medium min-w-[20px]">
-                        {index + 1}.
-                      </span>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <span className={`text-sm font-medium ${option.isCorrect ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
-                            {option.text}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className={`text-xs ${option.isCorrect ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}
-                          >
-                            {option.isCorrect ? 'Correct' : 'Incorrect'}
-                          </Badge>
-                        </div>
-                        {option.explaination && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">
-                            {option.explaination}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
-
-        {question.type === 'NUMERIC_ANSWER_TYPE' && (
-          <div>
-            <h4 className="font-medium text-sm mb-2">Answer Range:</h4>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              {question.value && <p>Expected Value: {question.value}</p>}
-              {question.expression && <p>Expression: {question.expression}</p>}
-              {question.lowerLimit !== undefined && question.upperLimit !== undefined && (
-                <p>Range: {question.lowerLimit} - {question.upperLimit}</p>
-              )}
-              {question.decimalPrecision !== undefined && (
-                <p>Decimal Precision: {question.decimalPrecision}</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {question.type === 'DESCRIPTIVE' && question.solutionText && (
-          <div>
-            <h4 className="font-medium text-sm mb-2">Expected Answer:</h4>
-            <p className="text-sm text-muted-foreground">{question.solutionText}</p>
-          </div>
-        )}
-
-        {question.type === 'ORDER_THE_LOTS' && question.ordering && (
-          <div>
-            <h4 className="font-medium text-sm mb-3">Correct Order:</h4>
-            <div className="space-y-2">
-              {question.ordering.map((order: any, index: number) => (
-                <div key={index} className="flex items-start gap-3 p-2 rounded border">
-                  <span className="text-sm text-muted-foreground font-medium min-w-[20px]">{order.order}.</span>
-                  <span className="text-sm flex-1 text-muted-foreground">
-                    {order.lotItem.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-6 text-xs text-muted-foreground pt-3 border-t">
-          {question.points && (
-            <span className="font-medium">Points: {question.points}</span>
-          )}
-          {question.timeLimitSeconds && (
-            <span className="font-medium">Time Limit: {question.timeLimitSeconds}s</span>
-          )}
-          {question.isParameterized && (
-            <span className="font-medium text-blue-600">Parameterized</span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary">
-      <CardContent className="p-0">
-        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-          <CollapsibleTrigger asChild>
-            <div className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <Badge variant="outline" className="font-medium">
-                        {question?.type?.replace(/_/g, ' ') || 'Unknown'}
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                      ID: {questionId.slice(-8)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                    {(question as any)?.text || 'Question text not available'}
-                  </p>
-                  
-                  {/* Quick info */}
-                  <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
-                    {(question as any)?.points && (
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                        {(question as any).points} pts
-                      </span>
-                    )}
-                    {(question as any)?.timeLimitSeconds && (
-                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded">
-                        {(question as any).timeLimitSeconds}s
-                      </span>
-                    )}
-                    {(question as any)?.lotItems && (
-                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                        {(question as any).lotItems.length} options
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-1 ml-6" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-8 w-8 p-0">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={onDelete} 
-                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent>
-            <div className="border-t bg-muted/20">
-              {isEditing ? renderEditForm() : renderQuestionContent()}
-              
-              <div className="flex justify-end gap-3 p-6 bg-background border-t">
-                {isEditing ? (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleCancelEdit}
-                      disabled={updateQuestion.isPending}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={handleSaveEdit}
-                      disabled={updateQuestion.isPending}
-                    >
-                      {updateQuestion.isPending ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Edit Question
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </CardContent>
-    </Card>
   );
 };
 

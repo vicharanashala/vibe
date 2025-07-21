@@ -106,7 +106,7 @@
   --radius: 0.5rem;
 }
 
-/* DARK MODE - untouched */
+/* DARK MODE */
 .dark {
   --background: 30 100% 4% / 1;
   --foreground: 60 9.1% 97.8%;
@@ -123,7 +123,7 @@
 
   --muted: 12 6.5% 15.1%;
   --muted-foreground: 24 5.4% 63.9%;
-  --accent: 36 90% 45%;
+  --accent: 36 90% 60%;
   --accent-foreground: 60 9.1% 97.8%;
 
   --destructive: 0 62.8% 30.6%;

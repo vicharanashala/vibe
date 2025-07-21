@@ -91,7 +91,6 @@ export default function TeacherCoursePage() {
   const { data: quizAnalytics } = useQuizAnalytics(selectedQuizId);
   const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId);
   const { data: quizPerformance } = useQuizPerformance(selectedQuizId);
-  const { data: quizResults } = useQuizResults(selectedQuizId);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -276,7 +275,6 @@ export default function TeacherCoursePage() {
                                         {item.type === "QUIZ" && `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
                                         {item.type === "BLOG" && `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
                                       </span>
-                                      <span className="ml-2 truncate">{item.name}</span>
                                     </SidebarMenuSubButton>
                                   </SidebarMenuSubItem>
                                 ))}
@@ -522,13 +520,14 @@ export default function TeacherCoursePage() {
                 {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                   <EnhancedQuizEditor
                     quizId={selectedQuizId}
+                    moduleId={selectedEntity.parentIds?.moduleId || ""}
+                    sectionId={selectedEntity.parentIds?.sectionId || ""}
                     courseId={courseId}
                     courseVersionId={versionId}
                     details={quizDetails}
                     analytics={quizAnalytics}
                     submissions={quizSubmissions}
                     performance={quizPerformance}
-                    results={quizResults}
                   />
                 )}
               </div>

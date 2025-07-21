@@ -1656,7 +1656,7 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
-  mutateAsync: (variables: { body: QuestionBody }) => Promise<QuestionResponse>,
+  mutateAsync: (variables: { body: QuestionBody }) => Promise<{questionId: string}>,
   data: QuestionResponse | undefined,
   error: string | null,
   isPending: boolean,
