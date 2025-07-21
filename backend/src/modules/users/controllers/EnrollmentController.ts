@@ -165,11 +165,11 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async getUserEnrollments(
-    @Param('userId') userId: string,
-    @QueryParams() query: PaginationQuery
+    @QueryParams() query: PaginationQuery,
+    @Ability(getEnrollmentAbility) {user},
   ): Promise<EnrollmentResponse> {
     const { page, limit } = query
-
+    const userId = user._id.toString();
     const skip = (page - 1) * limit;
 
     const enrollments = await this.enrollmentService.getEnrollments(
