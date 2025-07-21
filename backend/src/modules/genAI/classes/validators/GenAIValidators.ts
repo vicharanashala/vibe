@@ -21,7 +21,7 @@ class TranscriptParameters {
   @JSONSchema({
     title: 'Language',
     description: 'Language for the job',
-    example: 'English',
+    example: 'en',
     type: 'string',
   })
   @IsOptional()
@@ -31,7 +31,7 @@ class TranscriptParameters {
   @JSONSchema({
     title: 'Model Size',
     description: 'Model size to use for the job',
-    example: 'small',
+    example: 'large',
     type: 'string',
   })
   @IsOptional()
@@ -44,7 +44,7 @@ class SegmentationParameters {
   @JSONSchema({
     title: "Lambda",
     description: 'Lambda parameter for segmentation',
-    example: 0.5,
+    example: 4.6,
     type: 'number',
   })
   @IsOptional()
@@ -54,7 +54,7 @@ class SegmentationParameters {
   @JSONSchema({
     title: "Runs",
     description: 'Number of runs for segmentation',
-    example: 10,
+    example: 25,
     type: 'number',
   })
   @IsOptional()
@@ -64,7 +64,7 @@ class SegmentationParameters {
   @JSONSchema({
     title: 'Noise ID',
     description: 'ID of the noise to be used for segmentation',
-    example: 123,
+    example: -1,
     type: 'number',
   })
   @IsOptional()
