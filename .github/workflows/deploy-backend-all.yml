@@ -57,8 +57,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:staging
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=staging
             APP_PORT=${{ secrets.APP_PORT }}
