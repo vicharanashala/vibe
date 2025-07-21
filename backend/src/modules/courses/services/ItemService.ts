@@ -21,7 +21,7 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
-import { ICourseVersion, ProgressRepository } from '#root/shared/index.js';
+import { ICourseVersion, ItemType, ProgressRepository } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 
 @injectable()
@@ -194,30 +194,13 @@ export class ItemService extends BaseService {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      const module = version.modules.find(m => m.moduleId === moduleId)!;
-      const section = module.sections.find(s => s.sectionId === sectionId)!;
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        section.itemsGroupId.toString(),
-        session,
-      );
-
-      const item = itemsGroup.items.find(i => i._id.toString() === itemId)!;
-      Object.assign(item, body);
-      section.updatedAt = new Date();
-      module.updatedAt = new Date();
-      version.updatedAt = new Date();
-
-      const updatedItemsGroup = await this.itemRepo.updateItemsGroup(
-        section.itemsGroupId.toString(),
-        itemsGroup,
-        session,
-      );
+      await this.itemRepo.updateItem(itemId, body, session);
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return {itemsGroup: null, version: updatedVersion};
     });
   }
 

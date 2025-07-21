@@ -30,6 +30,12 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
 
+  updateItem(
+    itemId: string,
+    item: Item,
+    session?: ClientSession
+  ): Promise<Item>
+
   findItemsGroupByItemId(
     itemId: string,
     session?: ClientSession,

@@ -32,6 +32,9 @@ import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 
+@OpenAPI({
+  tags: ['Course Items'],
+})
 @injectable()
 @JsonController('/courses')
 export class ItemController {

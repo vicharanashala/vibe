@@ -212,14 +212,9 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
-  async updateItem(item: Item, session?: ClientSession): Promise<Item> {
+  async updateItem(itemId: string, item: Item, session?: ClientSession): Promise<Item> {
     await this.init();
-
-    const {_id, type} = item;
-    if (!_id) {
-      throw new InternalServerError('Item ID is required for update.');
-    }
-
+    const type = item.type;
     let collection: Collection<any>;
     switch (type) {
       case ItemType.VIDEO:
@@ -237,8 +232,8 @@ export class ItemRepository implements IItemRepository {
         );
     }
 
-    const result = await collection.updateOne(
-      {_id: new ObjectId(_id)},
+    const result = await collection.findOneAndUpdate(
+      {_id: new ObjectId(itemId)},
       {
         $set: {
           name: item.name,
@@ -249,18 +244,16 @@ export class ItemRepository implements IItemRepository {
       {session},
     );
 
-    if (result.modifiedCount === 0) {
-      throw new InternalServerError(`Failed to update item of type ${type}.`);
+    if (!result) {
+      throw new NotFoundError(`Item ${itemId} not found.`);
     }
 
     // Also update the embedded item in the itemsGroup (for UI sync, etc.)
     const updateInGroup = await this.itemsGroupCollection.updateOne(
-      {'items._id': new ObjectId(_id)},
+      {'items._id': new ObjectId(itemId)},
       {
         $set: {
-          'items.$.name': item.name,
-          'items.$.description': item.description,
-          'items.$.details': item.details,
+          'items.$.type': type,
         },
       },
       {session},
@@ -268,22 +261,10 @@ export class ItemRepository implements IItemRepository {
 
     if (updateInGroup.modifiedCount === 0) {
       throw new InternalServerError(
-        `Failed to update item in itemsGroup for ID ${_id}.`,
+        `Failed to update item in itemsGroup for ID ${itemId}.`,
       );
     }
-
-    const updatedItem = await collection.findOne(
-      {_id: new ObjectId(_id)},
-      {session},
-    );
-
-    if (!updatedItem) {
-      throw new InternalServerError(
-        `Failed to fetch updated item with ID ${_id}.`,
-      );
-    }
-
-    return instanceToPlain(updatedItem) as Item;
+    return instanceToPlain(result) as Item;
   }
 
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
