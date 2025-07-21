@@ -13,11 +13,16 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil
 } from "lucide-react";
 
+import { Link } from "@tanstack/react-router";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Home, GraduationCap } from "lucide-react";
+
 import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizSubmissions, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 import QuizWizardModal from "./components/quiz-wizard";
+import { useAuthStore } from "@/store/auth-store";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -29,8 +34,7 @@ const getItemIcon = (type: string) => {
 };
 
 export default function TeacherCoursePage() {
-
-
+  const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
@@ -73,7 +77,8 @@ export default function TeacherCoursePage() {
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
   const {
     data: currentSectionItems,
-    isLoading: itemsLoading
+    isLoading: itemsLoading,
+    refetch: refetchItems
   } = useItemsBySectionId(
     shouldFetchItems ? versionId || "" : '',
     shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
@@ -139,6 +144,7 @@ export default function TeacherCoursePage() {
       // Quiz wizard just closed, reload items for the section
       setActiveSectionInfo({ moduleId: quizModuleId, sectionId: quizSectionId });
       refetchVersion();
+      refetchItems();
     }
   }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion]);
 
@@ -157,6 +163,7 @@ export default function TeacherCoursePage() {
       }));
     }
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+
 
   // Add Module
   const handleAddModule = () => {
@@ -356,9 +363,59 @@ export default function TeacherCoursePage() {
               </SidebarMenu>
             </ScrollArea>
           </SidebarContent>
-          <SidebarFooter className="border-t px-3 py-2">
-            <ThemeToggle />
-          </SidebarFooter>
+            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+              <SidebarMenu className="space-y-1 pl-2 py-3">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                asChild
+                className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                <Link to="/teacher" className="flex items-center gap-3">
+                  <div className="p-1 rounded-md bg-accent/15">
+                  <Home className="h-4 w-4 text-accent-foreground" />
+                  </div>
+                  <span className="text-sm font-medium">Dashboard</span>
+                </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                asChild
+                className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                <Link to="/teacher/courses/list" className="flex items-center gap-3">
+                  <div className="p-1 rounded-md bg-accent/15">
+                  <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                  </div>
+                  <span className="text-sm font-medium">Courses</span>
+                </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <Separator className="my-2 opacity-50" />
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                asChild
+                className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                <Link to="/teacher/profile" className="flex items-center gap-3">
+                  <Avatar className="h-6 w-6 border border-border/20">
+                  <AvatarImage src={user?.avatar} alt={user?.name} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left min-w-0">
+                  <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                  <div className="text-xs text-muted-foreground">View Profile</div>
+                  </div>
+                </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
         </Sidebar>
 
         {/* Course Editor Area */}
@@ -566,7 +623,7 @@ export default function TeacherCoursePage() {
 
         {/* Add Video Modal */}
         {showAddVideoModal && (
-          <div
+            <div
             style={{
               position: "fixed",
               top: 0,
@@ -578,8 +635,10 @@ export default function TeacherCoursePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              backdropFilter: "blur(6px)", // <-- add blur effect
+              WebkitBackdropFilter: "blur(6px)", // for Safari support
             }}
-          >
+            >
             <VideoModal
               action="add"
               onClose={() => setShowAddVideoModal(null)}
