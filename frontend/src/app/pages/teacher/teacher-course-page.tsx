@@ -17,6 +17,7 @@ import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
+import QuizWizardModal from "./components/quiz-wizard";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -30,13 +31,13 @@ const getItemIcon = (type: string) => {
 export default function TeacherCoursePage() {
 
 
-  const { currentCourse } = useCourseStore();
+  const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
 
   // Fetch course version data (modules, sections, items)
-  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId);
+  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId || "");
   console.log("Version Data:", versionData);
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
@@ -58,6 +59,11 @@ export default function TeacherCoursePage() {
     sectionId: string;
   } | null>(null);
 
+  // Add this state for the quiz wizard modal
+  const [quizWizardOpen, setQuizWizardOpen] = useState(false);
+  const [quizModuleId, setQuizModuleId] = useState<string>("");
+  const [quizSectionId, setQuizSectionId] = useState<string>("");
+
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
   // Track which section to fetch items for
@@ -69,7 +75,7 @@ export default function TeacherCoursePage() {
     data: currentSectionItems,
     isLoading: itemsLoading
   } = useItemsBySectionId(
-    shouldFetchItems ? versionId : '',
+    shouldFetchItems ? versionId || "" : '',
     shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
     shouldFetchItems ? activeSectionInfo?.sectionId ?? '' : ''
   );
@@ -126,6 +132,15 @@ export default function TeacherCoursePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess]);
+
+  // Reload items when quiz wizard closes
+  useEffect(() => {
+    if (!quizWizardOpen && quizModuleId && quizSectionId) {
+      // Quiz wizard just closed, reload items for the section
+      setActiveSectionInfo({ moduleId: quizModuleId, sectionId: quizSectionId });
+      refetchVersion();
+    }
+  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion]);
 
   // Update sectionItems state when items are fetched
   useEffect(() => {
@@ -290,6 +305,18 @@ export default function TeacherCoursePage() {
                                             moduleId: module.moduleId,
                                             sectionId: section.sectionId,
                                           });
+                                        } else if (type === "quiz") {
+                                          setQuizModuleId(module.moduleId);
+                                          setQuizSectionId(section.sectionId);
+                                          // Update course store with current context
+                                          if (currentCourse) {
+                                            setCurrentCourse({
+                                              ...currentCourse,
+                                              moduleId: module.moduleId,
+                                              sectionId: section.sectionId
+                                            });
+                                          }
+                                          setQuizWizardOpen(true);
                                         } else {
                                           handleAddItem(module.moduleId, section.sectionId, type);
                                         }
@@ -568,6 +595,12 @@ export default function TeacherCoursePage() {
             />
           </div>
         )}
+
+        {/* Add Quiz Modal */}
+        <QuizWizardModal
+          quizWizardOpen={quizWizardOpen}
+          setQuizWizardOpen={setQuizWizardOpen}
+        />
       </div>
     </SidebarProvider>
   );

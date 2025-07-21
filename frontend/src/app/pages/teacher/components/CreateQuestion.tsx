@@ -420,8 +420,8 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                 disabled={
                                     !questionForm.text.trim() ||
                                     questionForm.options.filter(o => o.isCorrect).length === 0 ||
-                                    questionForm.options.filter(o => !o.isCorrect).length === 0 ||
-                                    questionForm.options.some(o => !o.text.trim())
+                                    questionForm.options.filter(o => !o.isCorrect).length === 0
+                                    // questionForm.options.some(o => !o.text.trim())
                                 }
                             >
                                 Create Question
