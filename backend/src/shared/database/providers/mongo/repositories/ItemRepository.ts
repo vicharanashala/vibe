@@ -14,6 +14,7 @@ import {
   BlogItem,
   Item,
 } from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -212,7 +213,7 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
-  async updateItem(itemId: string, item: Item, session?: ClientSession): Promise<Item> {
+  async updateItem(itemId: string, item: UpdateItemBody, session?: ClientSession): Promise<Item> {
     await this.init();
     const type = item.type;
     let collection: Collection<any>;
@@ -248,7 +249,7 @@ export class ItemRepository implements IItemRepository {
       throw new NotFoundError(`Item ${itemId} not found.`);
     }
 
-    return instanceToPlain(result) as Item;
+    return result;
   }
 
   async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {

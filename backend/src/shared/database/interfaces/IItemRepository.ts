@@ -1,4 +1,5 @@
 import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
@@ -32,7 +33,7 @@ export interface IItemRepository {
 
   updateItem(
     itemId: string,
-    item: Item,
+    item: UpdateItemBody,
     session?: ClientSession
   ): Promise<Item>
 

@@ -212,6 +212,7 @@ export class ItemService extends BaseService {
       if (!updatedVersion) {
         throw new InternalServerError('Failed to update version after item update');
       }
+      result._id = result._id.toString();
       return result;
     });
   }
