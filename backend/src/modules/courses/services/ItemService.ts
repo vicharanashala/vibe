@@ -186,21 +186,33 @@ export class ItemService extends BaseService {
 
   public async updateItem(
     versionId: string,
-    moduleId: string,
-    sectionId: string,
     itemId: string,
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      await this.itemRepo.updateItem(itemId, body, session);
+      const item = await this.itemRepo.readItem(
+        versionId,
+        itemId,
+        session,
+      );
+      if (!item) throw new NotFoundError(`Item ${itemId} not found in version ${versionId}.`);
+      if (item.type !== body.type) {
+        throw new InternalServerError(
+          `Item type mismatch: expected ${item.type}, got ${body.type}.`,
+        );
+      }
+      const result = await this.itemRepo.updateItem(itemId, body, session);
+      version.updatedAt = new Date();
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
       );
-
-      return {itemsGroup: null, version: updatedVersion};
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update version after item update');
+      }
+      return result;
     });
   }
 

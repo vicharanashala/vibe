@@ -241,29 +241,13 @@ export class ItemRepository implements IItemRepository {
           details: item.details,
         },
       },
-      {session},
+      {returnDocument: 'after', session},
     );
 
     if (!result) {
       throw new NotFoundError(`Item ${itemId} not found.`);
     }
 
-    // Also update the embedded item in the itemsGroup (for UI sync, etc.)
-    const updateInGroup = await this.itemsGroupCollection.updateOne(
-      {'items._id': new ObjectId(itemId)},
-      {
-        $set: {
-          'items.$.type': type,
-        },
-      },
-      {session},
-    );
-
-    if (updateInGroup.modifiedCount === 0) {
-      throw new InternalServerError(
-        `Failed to update item in itemsGroup for ID ${itemId}.`,
-      );
-    }
     return instanceToPlain(result) as Item;
   }
 

@@ -460,6 +460,26 @@ class VersionModuleSectionItemParams {
   itemId: string;
 }
 
+class VersionItemParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
 class DeleteItemParams {
   @JSONSchema({
     title: 'Items Group ID',
@@ -636,6 +656,7 @@ export {
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
@@ -651,6 +672,7 @@ export const ITEM_VALIDATORS = [
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
