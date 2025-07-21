@@ -214,11 +214,42 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
       const fileName = task.questionGeneration[index].fileName;
-      const newFileName = fileName.replace(/\.json$/, '_updated.json');
-      const data = JSON.stringify(questionData); // pretty JSON
+      let newFileName: string;
+      if (/_updated(?:_\d+)?\.json$/.test(fileName)) {
+        newFileName = fileName.replace(/_updated(?:_(\d+))?\.json$/, (match, p1) => {
+          const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
+          return `_updated_${nextNum}.json`;
+        });
+      } else {
+        newFileName = fileName.replace(/\.json$/, '_updated.json');
+      }
+      const data = JSON.stringify(questionData);
       await this.storage.bucket(appConfig.firebase.storageBucket).file(newFileName).save(Buffer.from(data), { contentType: 'application/json', });
       task.questionGeneration[index].fileName = newFileName;
       task.questionGeneration[index].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+      await this.genAIRepository.updateTaskData(jobId, task, session);
+    });
+  }
+  async editTranscript(jobId: string, transcript: JSON, index: number): Promise<void> {
+    return this._withTransaction(async session => {
+      const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
+      if (!task) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      const fileName = task.transcriptGeneration[index].fileName;
+      let newFileName: string;
+      if (/_updated(?:_\d+)?\.json$/.test(fileName)) {
+        newFileName = fileName.replace(/_updated(?:_(\d+))?\.json$/, (match, p1) => {
+          const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
+          return `_updated_${nextNum}.json`;
+        });
+      } else {
+        newFileName = fileName.replace(/\.json$/, '_updated.json');
+      }
+      const data = JSON.stringify(transcript);
+      await this.storage.bucket(appConfig.firebase.storageBucket).file(newFileName).save(Buffer.from(data), { contentType: 'application/json', });
+      task.transcriptGeneration[index].fileName = newFileName;
+      task.transcriptGeneration[index].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
       await this.genAIRepository.updateTaskData(jobId, task, session);
     });
   }
@@ -345,22 +376,22 @@ export class GenAIService extends BaseService {
         if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.AUDIO_EXTRACTION;
         jobState.taskStatus = job.jobStatus.transcriptGeneration;
         jobState.parameters = job.transcriptParameters;
-        jobState.file = task.audioExtraction[usePrevious ? usePrevious : 0]?.fileUrl;
+        jobState.file = task.audioExtraction[usePrevious ? usePrevious : task.audioExtraction.length - 1]?.fileUrl;
       }
       if (job.jobStatus.segmentation === TaskStatus.WAITING || job.jobStatus.segmentation === TaskStatus.COMPLETED || job.jobStatus.segmentation === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.SEGMENTATION;
         if (job.jobStatus.segmentation === TaskStatus.WAITING) jobState.currentTask = TaskType.TRANSCRIPT_GENERATION;
         jobState.taskStatus = job.jobStatus.segmentation;
         jobState.parameters = job.segmentationParameters;
-        jobState.file = task.transcriptGeneration[usePrevious ? usePrevious : 0]?.fileUrl;
+        jobState.file = task.transcriptGeneration[usePrevious ? usePrevious : task.transcriptGeneration.length - 1]?.fileUrl;
       }
       if (job.jobStatus.questionGeneration === TaskStatus.WAITING || job.jobStatus.questionGeneration === TaskStatus.COMPLETED || job.jobStatus.questionGeneration === TaskStatus.FAILED) {
         jobState.currentTask = TaskType.QUESTION_GENERATION;
         if (job.jobStatus.questionGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.SEGMENTATION;
         jobState.taskStatus = job.jobStatus.questionGeneration;
         jobState.parameters = job.questionGenerationParameters;
-        jobState.file = task.segmentation[usePrevious ? usePrevious : 0]?.transcriptFileUrl;
-        jobState.segmentMap = task.segmentation[usePrevious ? usePrevious : 0]?.segmentationMap;
+        jobState.file = task.segmentation[usePrevious ? usePrevious : task.segmentation.length - 1]?.transcriptFileUrl;
+        jobState.segmentMap = task.segmentation[usePrevious ? usePrevious : task.segmentation.length - 1]?.segmentationMap;
       }
       // if all the previous task are completed
       if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED && job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED && job.jobStatus.segmentation === TaskStatus.COMPLETED && job.jobStatus.questionGeneration === TaskStatus.COMPLETED && job.jobStatus.uploadContent !== TaskStatus.PENDING) {
@@ -368,8 +399,8 @@ export class GenAIService extends BaseService {
         jobState.currentTask = TaskType.UPLOAD_CONTENT
         jobState.taskStatus = job.jobStatus.uploadContent;
         jobState.parameters = job.uploadParameters;
-        jobState.file = task.questionGeneration[usePrevious ? usePrevious : 0]?.fileUrl;
-        jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : 0]?.segmentMapUsed;
+        jobState.file = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.fileUrl;
+        jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.segmentMapUsed;
       }
       console.log(jobState)
       if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION && jobState.currentTask) {
@@ -462,7 +493,7 @@ export class GenAIService extends BaseService {
           const currentSegmentEndTime = currentSegmentId;
 
           // Create Video Item for the segment
-          const videoSegName = jobData.uploadParameters.videoItemBaseName;
+          const videoSegName = jobData.uploadParameters.videoItemBaseName ? jobData.uploadParameters.videoItemBaseName : `Video`;
 
           const videoItemBody: CreateItemBody = {
             name: videoSegName,
@@ -540,7 +571,7 @@ export class GenAIService extends BaseService {
               questionIds: createdQuestionIds,
             });
 
-            const quizSegName = jobData.uploadParameters.quizItemBaseName;
+            const quizSegName = jobData.uploadParameters.quizItemBaseName ? jobData.uploadParameters.quizItemBaseName : `Quiz`;
 
             const quizItemBody: CreateItemBody = {
                 name: quizSegName,

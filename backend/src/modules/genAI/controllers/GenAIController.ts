@@ -1,4 +1,5 @@
 import { injectable, inject } from "inversify";
+import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import { 
   Body, 
   JsonController, 
@@ -10,6 +11,8 @@ import {
   ForbiddenError,
   OnUndefined,
   Patch,
+  Req,
+  Res,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import {
@@ -23,6 +26,7 @@ import {
   EditSegmentMapBody,
   EditQuestionData,
   TaskStatusParams,
+  EditTranscript,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
@@ -31,6 +35,7 @@ import { BadRequestErrorResponse } from "#root/shared/index.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { getGenAIAbility } from "../abilities/genAIAbilities.js";
 import { subject } from "@casl/ability";
+import { SseService } from "../services/sseService.js";
 
 @OpenAPI({
   tags: ['GenAI'],
@@ -43,7 +48,9 @@ export class GenAIController {
     @inject(GENAI_TYPES.GenAIService)
     private readonly genAIService: GenAIService,
     @inject(GENAI_TYPES.WebhookService)
-    private readonly webhookService: WebhookService
+    private readonly webhookService: WebhookService,
+    @inject(GENAI_TYPES.SseService)
+    private readonly sseService: SseService
   ) {}
 
   @OpenAPI({
@@ -281,22 +288,56 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
+    summary: 'Edit transcript',
+    description: 'Edits the transcript of a job.',
   })
-  @Post("/jobs/:id/live")
-  // SSE responses are handled differently, so no standard response schema
+  @Patch("/jobs/:id/edit/transcript")
+  @Authorized()
+  @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async getLiveUpdates(@Params() params: GenAIIdParams) {
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ForbiddenError, {
+    description: 'Forbidden Error',
+    statusCode: 403,
+  })
+  async editTranscript(@Params() params: GenAIIdParams, @Body() body: EditTranscript, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
-    
-    // In a real implementation, we would set up SSE
-    return { 
-      jobId: id, 
-      message: "Live connection established" 
-    };
+    const { transcript, index } = body;
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to edit transcript of this job');
+    }
+
+    await this.genAIService.editTranscript(id, transcript, index);
+  }
+
+  @OpenAPI({
+    summary: 'Get live status updates',
+    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
+  })
+  @Get("/:id/live")
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  async getLiveUpdates(
+    @Params() params: GenAIIdParams,
+    @Res() res: Response,
+    @Req() req: Request
+  ) {
+    const { id } = params;
+    this.sseService.init(
+      req as unknown as ExpressRequest,
+      res as unknown as ExpressResponse,
+      id
+    );
   }
 }

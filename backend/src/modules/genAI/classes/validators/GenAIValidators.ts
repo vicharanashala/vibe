@@ -165,10 +165,10 @@ class UploadParameters {
     example: '60d5f484f1c4d8b3c8f8e4b3',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   @IsString()
-  moduleId: string;
+  moduleId?: string;
 
   @JSONSchema({
     title: 'Section ID',
@@ -176,10 +176,10 @@ class UploadParameters {
     example: '60d5f484f1c4d8b3c8f8e4b4',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   @IsString()
-  sectionId: string;
+  sectionId?: string;
 
   @JSONSchema({
     title: 'Video Item Base Name',
@@ -189,7 +189,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-  videoItemBaseName: string;
+  videoItemBaseName?: string;
 
   @JSONSchema({
     title: 'Quiz Item Base Name',
@@ -199,7 +199,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-	quizItemBaseName: string;
+	quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -716,6 +716,26 @@ class EditQuestionData {
   index: number;
 }
 
+class EditTranscript {
+  @JSONSchema({
+    title: 'Transcript',
+    description: 'The transcript to edit',
+    type: 'object',
+  })
+  @IsNotEmpty()
+  transcript: JSON;
+
+  @JSONSchema({
+    title: 'Index',
+    description: 'Index of the transcript to edit',
+    type: 'number',
+    example: 0,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  index: number;
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -730,6 +750,7 @@ export {
   WebhookBody,
   EditSegmentMapBody,
   EditQuestionData,
+  EditTranscript,
 };
 
 export const GENAI_VALIDATORS = [
@@ -745,4 +766,5 @@ export const GENAI_VALIDATORS = [
   WebhookBody,
   EditSegmentMapBody,
   EditQuestionData,
+  EditTranscript,
 ];
