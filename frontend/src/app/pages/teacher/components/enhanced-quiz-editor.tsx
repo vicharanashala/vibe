@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
@@ -33,12 +33,13 @@ import {
   useReplaceQuestionWithDuplicate,
   useDeleteQuestion,
   useUpdateItem,
-  useCreateQuestion,
   useQuestionById
 } from '@/hooks/hooks';
 
 import ExpandableQuestionCard from './expandable-question-card';
 import SubmissionDetailsDialog from './submission-details-dialog';
+import CreateQuestionDialog from './CreateQuestion';
+import CreateQuestionBankDialog from './CreateQuestionBank';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -195,7 +196,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Fetch data
   const { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
-  const { data: selectedBankData } = useQuestionBankById(selectedQuestionBank || '');
+  const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
@@ -335,34 +336,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     }
   };
 
-  const handleCreateQuestion = async () => {
-    if (!selectedQuestionBank || !questionForm.question.type) return;
 
-    try {
-      // For now, we'll create a placeholder question
-      // This would need to be implemented based on your question creation endpoint
-      console.log('Creating question:', questionForm);
-
-      // You would need to add a useCreateQuestion hook that calls POST /questions endpoint
-      // await createQuestion.mutateAsync({ body: questionForm });
-
-      setQuestionForm({ question: {
-        text: '',
-        type: 'SELECT_ONE_IN_LOT',
-        isParameterized: false,
-        timeLimitSeconds: 60,
-        points: 1
-      }, solution: {} });
-
-      const createQuestion = useCreateQuestion();
-      await createQuestion.mutateAsync({
-        body: questionForm
-      });
-      setShowCreateQuestionDialog(false);
-    } catch (error) {
-      console.error('Failed to create question:', error);
-    }
-  };
 
   const handleDeleteQuestion = async (questionId: string) => {
     if (!selectedQuestionBank) return;
@@ -373,7 +347,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       });
       await deleteQuestion.mutateAsync({
         params: { path: { questionId } }
-      });
+      }); 
+      refetchSelectedBank();
       // Refetch bank data to update questions list
     } catch (error) {
       console.error('Failed to delete question:', error);
@@ -545,6 +520,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       setSelectedQuestionBank(questionBanks[0].bankId);
     }
   }, [questionBanks]);
+
+  useEffect(() => {
+    if (!showCreateQuestionDialog) {
+      refetchSelectedBank(); // Refetch selected bank data when dialog is closed
+    }
+  }, [showCreateQuestionDialog]);
+  useEffect(() => {
+    if (!showCreateBankDialog) {
+      refetchQuestionBanks();
+    }
+  }, [showCreateBankDialog]);
 
   return (
     <div className="h-full flex flex-col">
@@ -844,7 +830,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           <TabsContent value="overview" className="h-full m-0">
             <div className="p-6 space-y-6">
               {/* Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">Submissions</CardTitle>
@@ -866,7 +852,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                    <CardTitle className="text-sm font-medium">Average Score %</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
@@ -889,6 +875,23 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       : 0} className="mt-2" />
                   </CardContent>
                 </Card>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {submissions && submissions.length > 0 
+                        ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + sub.gradingResult.totalScore;
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)} `
+                        : 'Loading...'}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </TabsContent>
@@ -897,54 +900,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
             <div className="h-full flex">
               {/* Question Banks Sidebar */}
               <div className="w-80 border-r bg-muted/50">
-                <div className="p-4 border-b">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-lg">Question Banks</h3>
-                    </div>
-                    <Dialog open={showCreateBankDialog} onOpenChange={setShowCreateBankDialog}>
-                      <DialogTrigger asChild>
-                        <Button size="sm">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Create Question Bank</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="bankName">Title</Label>
-                            <Input
-                              id="bankName"
-                              value={bankForm.title}
-                              onChange={(e) => setBankForm({ ...bankForm, title: e.target.value })}
-                              placeholder="Enter bank title"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="bankDescription">Description</Label>
-                            <Textarea
-                              id="bankDescription"
-                              value={bankForm.description}
-                              onChange={(e) => setBankForm({ ...bankForm, description: e.target.value })}
-                              placeholder="Enter bank description"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2 mt-6">
-                          <Button variant="outline" onClick={() => setShowCreateBankDialog(false)}>
-                            Cancel
-                          </Button>
-                          <Button onClick={handleCreateQuestionBank} disabled={createQuestionBank.isPending}>
-                            {createQuestionBank.isPending ? 'Creating...' : 'Create'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-
+                <CreateQuestionBankDialog
+                  showCreateBankDialog={showCreateBankDialog}
+                  setShowCreateBankDialog={setShowCreateBankDialog}
+                  quizId={quizId}
+                />
                 <ScrollArea className="h-[calc(100vh-200px)]">
                   <div className="p-4 space-y-2">
                     {questionBanks?.map((bank: any) => (
@@ -994,39 +954,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               <div className="flex-1">
                 {selectedQuestionBank ? (
                   <div className="h-full flex flex-col">
-                    <div className="p-4 border-b">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">Questions</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedBankData?.questions?.length || 0} questions in this bank
-                          </p>
-                        </div>
-                        <Dialog open={showCreateQuestionDialog} onOpenChange={setShowCreateQuestionDialog}>
-                          <DialogTrigger asChild>
-                            <Button>
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Question
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Create Question</DialogTitle>
-                            </DialogHeader>
-                            {renderQuestionForm()}
-                            <div className="flex justify-end gap-2 mt-6">
-                              <Button variant="outline" onClick={() => setShowCreateQuestionDialog(false)}>
-                                Cancel
-                              </Button>
-                              <Button onClick={handleCreateQuestion}>
-                                Create Question
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-
+                    <CreateQuestionDialog
+                      showCreateQuestionDialog={showCreateQuestionDialog}
+                      setShowCreateQuestionDialog={setShowCreateQuestionDialog}
+                      selectedBankId={selectedQuestionBank}
+                    />
                     <ScrollArea className="flex-1">
                       <div className="p-4 space-y-4">
                         {selectedBankData?.questions?.map((questionId: string) => (
@@ -1144,7 +1076,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           submissions.map((r: any) => (
                             <TableRow key={r._id}>
                               <TableCell>{r.userId}</TableCell>
-                              <TableCell>{r.gradingResult?.totalScore ?? 'N/A'}</TableCell>
+                              <TableCell>{r.gradingResult?.totalScore?.toFixed(2) ?? 'N/A'}</TableCell>
                               <TableCell>
                                 <Badge variant={r.gradingResult?.gradingStatus === 'PASSED' ? 'default' : 'destructive'}>
                                   {r.gradingResult?.gradingStatus ?? 'N/A'}
@@ -1195,15 +1127,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
                           <TableCell>
                             <Badge variant={
-                              sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore
-                                ? (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) >= 0.7 
-                                  ? 'default' 
-                                  : 'destructive'
-                                : 'secondary'
+                              sub.gradingResult?.gradingStatus === 'PASSED' 
+                              ? 'default' 
+                              : 'destructive'
                             }>
-                              {sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore 
+                              {sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore
                                 ? `${((sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) * 100).toFixed(1)}%`
-                                : 'N/A'}
+                                : '0%'}
                             </Badge>
                           </TableCell>
                           <TableCell>

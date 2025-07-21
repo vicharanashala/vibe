@@ -1405,12 +1405,6 @@ export interface ReplaceQuestionResponse {
   newQuestionId: string;
 }
 
-// Quiz types
-export interface AddQuestionBankBody {
-  questionBankId: string;
-  questionsCount?: number;
-}
-
 export interface RemoveQuestionBankParams {
   quizId: string;
   questionBankId: string;
@@ -1657,7 +1651,7 @@ export function useQuestionById(questionId: string): {
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
   mutateAsync: (variables: { body: QuestionBody }) => Promise<{questionId: string}>,
-  data: QuestionResponse | undefined,
+  data: { questionId: string } | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
