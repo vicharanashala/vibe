@@ -49,8 +49,8 @@ const config: Config = {
     [
     '@scalar/docusaurus',
     {
-      label: 'Scalar',
-      route: '/vibe/scalar',
+      label: 'API Documentation',
+      route: '/vibe/api',
       showNavLink: true,
       configuration: {
         content: function() {
