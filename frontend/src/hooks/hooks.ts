@@ -1758,7 +1758,7 @@ export function useQuestionBankById(questionBankId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/question-bank/{questionBankId}", {
     params: { path: { questionBankId } }
-  }, { enabled: !!questionBankId });
+  }, { enabled: !!questionBankId && questionBankId !== '' });
 
   return {
     data: result.data,

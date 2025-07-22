@@ -40,6 +40,7 @@ import SubmissionDetailsDialog from './submission-details-dialog';
 import CreateQuestionDialog from './CreateQuestion';
 import CreateQuestionBankDialog from './CreateQuestionBank';
 import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
+import ConfirmationModal from './confirmation-modal';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -51,6 +52,7 @@ interface EnhancedQuizEditorProps {
   analytics: any;
   submissions: any;
   performance: any;
+  onDelete: () => void;
 }
 
 interface QuestionFormData {
@@ -152,7 +154,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   details,
   analytics,
   submissions,
-  performance
+  performance,
+  onDelete,
 }) => {
   const [selectedTab, setSelectedTab] = useState('overview');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
@@ -164,6 +167,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [editQuizSettings, setEditQuizSettings] = useState(false);
   const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+
+  // Confirmation modal states
+  const [showDeleteQuizModal, setShowDeleteQuizModal] = useState(false);
+  const [showDeleteQuestionBankModal, setShowDeleteQuestionBankModal] = useState(false);
+  const [showDeleteQuestionModal, setShowDeleteQuestionModal] = useState(false);
+  const [questionBankToDelete, setQuestionBankToDelete] = useState<string | null>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
 
   // Form states
   const [bankForm, setBankForm] = useState({ title: '', description: '' });
@@ -323,35 +333,61 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   };
 
   const handleRemoveQuestionBank = async (bankId: string) => {
+    setQuestionBankToDelete(bankId);
+    setShowDeleteQuestionBankModal(true);
+  };
+
+  const confirmDeleteQuestionBank = async () => {
+    if (!questionBankToDelete) return;
+
     try {
       await removeQuestionBankFromQuiz.mutateAsync({
-        params: { path: { quizId, questionBankId: bankId } }
+        params: { path: { quizId, questionBankId: questionBankToDelete } }
       });
       refetchQuestionBanks();
-      if (selectedQuestionBank === bankId) {
+      if (selectedQuestionBank === questionBankToDelete) {
         setSelectedQuestionBank(null);
       }
+      setShowDeleteQuestionBankModal(false);
+      setQuestionBankToDelete(null);
     } catch (error) {
       console.error('Failed to remove question bank:', error);
     }
   };
 
-
-
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!selectedQuestionBank) return;
+    setQuestionToDelete(questionId);
+    setShowDeleteQuestionModal(true);
+  };
+
+  const confirmDeleteQuestion = async () => {
+    if (!selectedQuestionBank || !questionToDelete) return;
 
     try {
       await removeQuestionFromBank.mutateAsync({
-        params: { path: { questionBankId: selectedQuestionBank, questionId } }
+        params: { path: { questionBankId: selectedQuestionBank, questionId: questionToDelete } }
       });
       await deleteQuestion.mutateAsync({
-        params: { path: { questionId } }
+        params: { path: { questionId: questionToDelete } }
       }); 
       refetchSelectedBank();
-      // Refetch bank data to update questions list
+      setShowDeleteQuestionModal(false);
+      setQuestionToDelete(null);
     } catch (error) {
       console.error('Failed to delete question:', error);
+    }
+  };
+
+  const handleDeleteQuiz = () => {
+    setShowDeleteQuizModal(true);
+  };
+
+  const confirmDeleteQuiz = async () => {
+    try {
+      await onDelete();
+      setShowDeleteQuizModal(false);
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
     }
   };
 
@@ -549,6 +585,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               <Button variant="outline" size="sm" onClick={() => setEditQuizSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteQuiz}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Quiz
               </Button>
             </div>
           </div>
@@ -945,6 +985,46 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           setSelectedSubmission(null);
         }}
         submission={selectedSubmission}
+      />
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showDeleteQuizModal}
+        onClose={() => setShowDeleteQuizModal(false)}
+        onConfirm={confirmDeleteQuiz}
+        title="Delete Quiz"
+        description="Are you sure you want to delete this quiz? This action cannot be undone and will permanently remove all questions and submissions associated with this quiz."
+        confirmText="Delete Quiz"
+        isDestructive={true}
+        isLoading={false}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteQuestionBankModal}
+        onClose={() => {
+          setShowDeleteQuestionBankModal(false);
+          setQuestionBankToDelete(null);
+        }}
+        onConfirm={confirmDeleteQuestionBank}
+        title="Remove Question Bank"
+        description="Are you sure you want to remove this question bank from the quiz? This will remove all questions in this bank from the quiz."
+        confirmText="Remove Bank"
+        isDestructive={true}
+        isLoading={removeQuestionBankFromQuiz.isPending}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteQuestionModal}
+        onClose={() => {
+          setShowDeleteQuestionModal(false);
+          setQuestionToDelete(null);
+        }}
+        onConfirm={confirmDeleteQuestion}
+        title="Delete Question"
+        description="Are you sure you want to delete this question? This action cannot be undone and will permanently remove the question from all question banks."
+        confirmText="Delete Question"
+        isDestructive={true}
+        isLoading={deleteQuestion.isPending || removeQuestionFromBank.isPending}
       />
     </div>
   );

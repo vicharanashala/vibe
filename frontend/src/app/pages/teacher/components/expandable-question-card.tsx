@@ -25,6 +25,31 @@ import {
   useUpdateQuestion,
 } from '@/hooks/hooks';
 
+interface QuestionFormData {
+  question: {
+    text: string;
+    type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
+    isParameterized: boolean;
+    parameters?: Array<{
+      name: string;
+      possibleValues: string[];
+      type: 'number' | 'string';
+    }>;
+    hint?: string;
+    timeLimitSeconds: number;
+    points: number;
+  };
+  solution: any; // This would be the appropriate solution type based on question type
+}
+
+const QUESTION_TYPES = [
+  { value: 'SELECT_ONE_IN_LOT', label: 'Single Choice' },
+  { value: 'SELECT_MANY_IN_LOT', label: 'Multiple Choice' },
+  { value: 'ORDER_THE_LOTS', label: 'Order The Items' },
+  { value: 'NUMERIC_ANSWER_TYPE', label: 'Numeric Answer' },
+  { value: 'DESCRIPTIVE', label: 'Descriptive Answer' }
+];
+
 
 
 // Expandable Question Card Component

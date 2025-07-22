@@ -1,7 +1,7 @@
-"use client"  
+"use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "@tanstack/react-router"
+import { redirect, useNavigate } from "@tanstack/react-router"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
@@ -137,6 +137,11 @@ export default function CourseEnrollments() {
   const courseId = currentCourse?.courseId
   const versionId = currentCourse?.versionId
 
+  if (!currentCourse || !courseId || !versionId) {
+    navigate({ to: '/teacher/courses/list' });
+    return null
+  }
+
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
@@ -264,7 +269,7 @@ export default function CourseEnrollments() {
         await unenrollMutation.mutateAsync({
           params: {
             path: {
-              userId: userToRemove.id ,
+              userId: userToRemove.id,
               courseId: courseId,
               courseVersionId: versionId,
             },

@@ -199,22 +199,22 @@ export default function TeacherCoursePage() {
           name: videoData.name,
           description: videoData.description,
           videoDetails: {
-        URL: videoData.details.URL,
-        startTime: convertToMinSecMs(videoData.details.startTime),
-        endTime: convertToMinSecMs(videoData.details.endTime),
-        points: videoData.details.points,
+            URL: videoData.details.URL,
+            startTime: convertToMinSecMs(videoData.details.startTime),
+            endTime: convertToMinSecMs(videoData.details.endTime),
+            points: videoData.details.points,
           }
         }
       });
 
-    // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
-    function convertToMinSecMs(time: number) {
-      // If time is in ms, convert to seconds
-      const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
-      const minutes = Math.floor(totalMs / 60000);
-      const seconds = Math.floor((totalMs % 60000) / 1000);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    }
+      // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
+      function convertToMinSecMs(time: number) {
+        // If time is in ms, convert to seconds
+        const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
+        const minutes = Math.floor(totalMs / 60000);
+        const seconds = Math.floor((totalMs % 60000) / 1000);
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      }
       return;
     }
     if (type !== "VIDEO") {
@@ -363,33 +363,33 @@ export default function TeacherCoursePage() {
               </SidebarMenu>
             </ScrollArea>
           </SidebarContent>
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-              <SidebarMenu className="space-y-1 pl-2 py-3">
+          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+            <SidebarMenu className="space-y-1 pl-2 py-3">
               <SidebarMenuItem>
                 <SidebarMenuButton
-                asChild
-                className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  asChild
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
-                <Link to="/teacher" className="flex items-center gap-3">
-                  <div className="p-1 rounded-md bg-accent/15">
-                  <Home className="h-4 w-4 text-accent-foreground" />
-                  </div>
-                  <span className="text-sm font-medium">Dashboard</span>
-                </Link>
+                  <Link to="/teacher" className="flex items-center gap-3">
+                    <div className="p-1 rounded-md bg-accent/15">
+                      <Home className="h-4 w-4 text-accent-foreground" />
+                    </div>
+                    <span className="text-sm font-medium">Dashboard</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                asChild
-                className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  asChild
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
-                <Link to="/teacher/courses/list" className="flex items-center gap-3">
-                  <div className="p-1 rounded-md bg-accent/15">
-                  <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                  </div>
-                  <span className="text-sm font-medium">Courses</span>
-                </Link>
+                  <Link to="/teacher/courses/list" className="flex items-center gap-3">
+                    <div className="p-1 rounded-md bg-accent/15">
+                      <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                    </div>
+                    <span className="text-sm font-medium">Courses</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -397,25 +397,25 @@ export default function TeacherCoursePage() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                asChild
-                className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  asChild
+                  className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
-                <Link to="/teacher/profile" className="flex items-center gap-3">
-                  <Avatar className="h-6 w-6 border border-border/20">
-                  <AvatarImage src={user?.avatar} alt={user?.name} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 text-left min-w-0">
-                  <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                  <div className="text-xs text-muted-foreground">View Profile</div>
-                  </div>
-                </Link>
+                  <Link to="/teacher/profile" className="flex items-center gap-3">
+                    <Avatar className="h-6 w-6 border border-border/20">
+                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                      <div className="text-xs text-muted-foreground">View Profile</div>
+                    </div>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
+            </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
 
         {/* Course Editor Area */}
@@ -612,6 +612,12 @@ export default function TeacherCoursePage() {
                     analytics={quizAnalytics}
                     submissions={quizSubmissions}
                     performance={quizPerformance}
+                    onDelete={() => {
+                      deleteItem.mutate({
+                        params: { path: { itemsGroupId: selectedEntity.parentIds?.sectionId || "", itemId: selectedQuizId } }
+                      });
+                      setSelectedEntity(null);
+                    }}
                   />
                 )}
               </div>
@@ -623,7 +629,7 @@ export default function TeacherCoursePage() {
 
         {/* Add Video Modal */}
         {showAddVideoModal && (
-            <div
+          <div
             style={{
               position: "fixed",
               top: 0,
@@ -638,7 +644,7 @@ export default function TeacherCoursePage() {
               backdropFilter: "blur(6px)", // <-- add blur effect
               WebkitBackdropFilter: "blur(6px)", // for Safari support
             }}
-            >
+          >
             <VideoModal
               action="add"
               onClose={() => setShowAddVideoModal(null)}
