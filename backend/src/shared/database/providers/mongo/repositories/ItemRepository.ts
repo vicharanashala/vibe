@@ -119,7 +119,7 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup | null> {
     await this.init();
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      { 'items._id': new ObjectId(itemId) },
+      { 'items._id': itemId },
       { session }
     );
     

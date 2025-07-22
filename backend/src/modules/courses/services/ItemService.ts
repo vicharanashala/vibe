@@ -328,6 +328,9 @@ export class ItemService extends BaseService {
     return this._withTransaction(async session => {
       // Step 1: Find itemsGroup containing the item
       const itemsGroup = await this.itemRepo.findItemsGroupByItemId(itemId, session);
+      if (!itemsGroup) {
+        throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
+      }
       const itemsGroupId = itemsGroup?._id.toString();
       // Step 2: Find version using existing function
       const version = await this.courseRepo.findVersionByItemGroupId(itemsGroupId, session);
