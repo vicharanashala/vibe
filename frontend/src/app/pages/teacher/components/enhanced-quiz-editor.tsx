@@ -41,6 +41,7 @@ import CreateQuestionDialog from './CreateQuestion';
 import CreateQuestionBankDialog from './CreateQuestionBank';
 import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
 import ConfirmationModal from './confirmation-modal';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -86,10 +87,23 @@ interface QuestionPerformanceRowProps {
     questionId: string;
     correctRate: number;
   };
+  onCacheUpdate?: () => void;
 }
 
-const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance }) => {
+var questionTextCache: Record<string, { text: string, points: number }> = {};
+
+const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance, onCacheUpdate }) => {
   const { data: questionData } = useQuestionById(performance.questionId);
+  useEffect(() => {
+    if (questionData && questionData.text) {
+      questionTextCache[performance.questionId] = { text: questionData.text, points: questionData.points || 1 };
+      console.log(`Cached question text for ${performance.questionId}: ${questionData.text}`);
+      // Trigger parent component to update
+      if (onCacheUpdate) {
+        onCacheUpdate();
+      }
+    }
+  }, [questionData, performance.questionId, onCacheUpdate]);
 
   return (
     <TableRow>
@@ -100,7 +114,7 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
           </p>
           {questionData?.text ? (
             <p className="text-sm">
-              {questionData.text.length > 100 
+              {questionData.text.length > 100
                 ? `${questionData.text.substring(0, 100)}...`
                 : questionData.text
               }
@@ -157,8 +171,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   performance,
   onDelete,
 }) => {
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
+  const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
 
   // Dialog states
   const [showCreateBankDialog, setShowCreateBankDialog] = useState(false);
@@ -239,6 +254,25 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     }
   }, [details]);
 
+  // Memoized chart data that updates when questionTextCache changes
+  const chartData = React.useMemo(() => {
+    const performanceData = performance && performance.length > 0
+      ? performance
+      : calculatePerformanceFromSubmissions(submissions || []);
+
+    return performanceData.map((p: any) => ({
+      questionId: p.questionId.slice(-8),
+      questionText: questionTextCache[p.questionId]?.text,
+      correctRate: (p.correctRate * 100).toFixed(1),
+      averageScore: p.averageScore ? (p.averageScore / (questionTextCache[p.questionId]?.points || 1) * 100).toFixed(1) : '0'
+    }));
+  }, [performance, submissions, questionCacheUpdateTrigger]);
+
+  // Function to trigger chart data update when cache changes
+  const handleCacheUpdate = React.useCallback(() => {
+    setQuestionCacheUpdateTrigger(prev => prev + 1);
+  }, []);
+
   const handleSaveQuizSettings = async () => {
     try {
       const quizDetails: any = {
@@ -317,9 +351,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       // Add the question bank to the quiz
       await addQuestionBankToQuiz.mutateAsync({
         params: { path: { quizId } },
-        body: { 
+        body: {
           bankId: result.questionBankId,
-          questionBankId: result.questionBankId,
           count: 10 // Default count
         }
       });
@@ -369,7 +402,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       });
       await deleteQuestion.mutateAsync({
         params: { path: { questionId: questionToDelete } }
-      }); 
+      });
       refetchSelectedBank();
       setShowDeleteQuestionModal(false);
       setQuestionToDelete(null);
@@ -390,6 +423,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       console.error('Failed to delete quiz:', error);
     }
   };
+  console.log(questionTextCache);
 
   const renderQuestionForm = () => (
     <div className="space-y-4">
@@ -397,9 +431,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         <Label htmlFor="questionType">Question Type</Label>
         <Select
           value={questionForm.question.type}
-          onValueChange={(value: QuestionFormData['question']['type']) => 
-            setQuestionForm({ 
-              ...questionForm, 
+          onValueChange={(value: QuestionFormData['question']['type']) =>
+            setQuestionForm({
+              ...questionForm,
               question: { ...questionForm.question, type: value }
             })
           }
@@ -558,6 +592,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }, [questionBanks]);
 
   useEffect(() => {
+    setSelectedQuestionBank('');
+  }, [quizId]);
+
+  useEffect(() => {
     if (!showCreateQuestionDialog) {
       refetchSelectedBank(); // Refetch selected bank data when dialog is closed
     }
@@ -606,17 +644,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6">
           <TabsList>
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              Overview
+              Analytics
             </TabsTrigger>
             <TabsTrigger value="questions" className="flex items-center gap-2">
               <HelpCircle className="h-4 w-4" />
               Questions
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Analytics
             </TabsTrigger>
             <TabsTrigger value="submissions" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -628,75 +662,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
       <div className="flex-1 overflow-hidden">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsContent value="overview" className="h-full m-0">
-            <div className="p-6 space-y-6">
-              {/* Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Submissions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.submissions ?? 0}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
-                    </div>
-                    <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Average Score %</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {submissions && submissions.length > 0 
-                        ? `${(submissions.reduce((acc: number, sub: any) => {
-                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
-                              return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
-                            }
-                            return acc;
-                          }, 0) / submissions.length).toFixed(1)}%`
-                        : '0%'}
-                    </div>
-                    <Progress value={submissions && submissions.length > 0 
-                      ? parseFloat((submissions.reduce((acc: number, sub: any) => {
-                          if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
-                            return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
-                          }
-                          return acc;
-                        }, 0) / submissions.length).toFixed(1))
-                      : 0} className="mt-2" />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {submissions && submissions.length > 0 
-                        ? `${(submissions.reduce((acc: number, sub: any) => {
-                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
-                              return acc + sub.gradingResult.totalScore;
-                            }
-                            return acc;
-                          }, 0) / submissions.length).toFixed(1)} `
-                        : 'Loading...'}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
           <TabsContent value="questions" className="h-full m-0">
             <div className="h-full flex">
               {/* Question Banks Sidebar */}
@@ -825,8 +790,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           <TabsContent value="analytics" className="h-full m-0">
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
+              <div className="grid grid-cols-1 md:grid-rows-3 md:grid-cols-5 gap-6">
+                <Card className="col-span-3 row-span-2">
                   <CardHeader>
                     <CardTitle>Question Performance</CardTitle>
                   </CardHeader>
@@ -840,13 +805,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       </TableHeader>
                       <TableBody>
                         {(() => {
-                          const performanceData = performance && performance.length > 0 
-                            ? performance 
+                          const performanceData = performance && performance.length > 0
+                            ? performance
                             : calculatePerformanceFromSubmissions(submissions || []);
-                          
+
                           return performanceData?.length > 0 ? (
                             performanceData.map((p: any) => (
-                              <QuestionPerformanceRow key={p.questionId} performance={p} />
+                              <QuestionPerformanceRow key={p.questionId} performance={p} onCacheUpdate={handleCacheUpdate} />
                             ))
                           ) : (
                             <TableRow>
@@ -858,44 +823,115 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     </Table>
                   </CardContent>
                 </Card>
-
-                <Card>
+                <Card className="col-span-2 row-span-2 bg-muted/50 text-muted-foreground">
                   <CardHeader>
-                    <CardTitle>Student Results</CardTitle>
+                    <CardTitle className="text-muted-foreground">Question Performance Chart</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Student ID</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {submissions && submissions?.length > 0 ? (
-                          submissions.map((r: any) => (
-                            <TableRow key={r._id}>
-                              <TableCell>{r.userId}</TableCell>
-                              <TableCell>{r.gradingResult?.totalScore?.toFixed(2) ?? 'N/A'}</TableCell>
-                              <TableCell>
-                                <Badge variant={r.gradingResult?.gradingStatus === 'PASSED' ? 'default' : 'destructive'}>
-                                  {r.gradingResult?.gradingStatus ?? 'N/A'}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center">No results available</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                  <CardContent className="h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData}
+                        margin={{
+                          top: 20,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                        <XAxis dataKey="questionId" stroke="rgba(255, 255, 255, 0.7)" />
+                        <YAxis stroke="rgba(255, 255, 255, 0.7)" />
+                        <Tooltip
+                          content={({ payload }) => {
+                            if (payload && payload.length) {
+                              const { questionText, correctRate } = payload[0].payload;
+                              return (
+                                <div style={{ backgroundColor: "#1e1e2f", padding: "10px", borderRadius: "5px", color: "#ffffff" }}>
+                                  <p><strong>Question:</strong> {questionText || "Loading..."}</p>
+                                  <p><strong>Correct Rate:</strong> {correctRate}%</p>
+                                  <p><strong>Average Score:</strong> {payload[0].payload.averageScore}%</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                          cursor={{ fill: "rgba(255, 255, 255, 0.1)" }}
+                        />
+                        <Legend verticalAlign="top" height={36} iconSize={10} iconType="circle" />
+
+                        <Legend />
+                        <Bar dataKey="correctRate" fill="#4caf50" name="Correct Rate (%)" />
+                        <Bar dataKey="averageScore" fill="#2196f3" name="Average Score" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-4 gap-4 col-span-5 row-span-1">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Submissions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.submissions ?? 0}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
+                      </div>
+                      <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Average Score %</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions.length > 0
+                          ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)}%`
+                          : '0%'}
+                      </div>
+                      <Progress value={submissions && submissions.length > 0
+                        ? parseFloat((submissions.reduce((acc: number, sub: any) => {
+                          if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                            return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                          }
+                          return acc;
+                        }, 0) / submissions.length).toFixed(1))
+                        : 0} className="mt-2" />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions.length > 0
+                          ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + sub.gradingResult.totalScore;
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)} `
+                          : 'Loading...'}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
+
           </TabsContent>
 
           <TabsContent value="submissions" className="h-full m-0">
@@ -928,9 +964,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
                           <TableCell>
                             <Badge variant={
-                              sub.gradingResult?.gradingStatus === 'PASSED' 
-                              ? 'default' 
-                              : 'destructive'
+                              sub.gradingResult?.gradingStatus === 'PASSED'
+                                ? 'default'
+                                : 'destructive'
                             }>
                               {sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore
                                 ? `${((sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) * 100).toFixed(1)}%`
@@ -945,8 +981,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           <TableCell>{new Date(sub.submittedAt).toLocaleString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => {
                                   setSelectedSubmission(sub);

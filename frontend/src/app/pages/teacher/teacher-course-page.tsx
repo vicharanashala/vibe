@@ -53,7 +53,7 @@ export default function TeacherCoursePage() {
   const [selectedEntity, setSelectedEntity] = useState<{
     type: "module" | "section" | "item";
     data: any;
-    parentIds?: { moduleId: string; sectionId?: string };
+    parentIds?: { moduleId: string; sectionId?: string; itemsGroupId?: string };
   } | null>(null);
   const [isEditingItem, setIsEditingItem] = useState(false);
 
@@ -287,6 +287,7 @@ export default function TeacherCoursePage() {
                                           parentIds: {
                                             moduleId: module.moduleId,
                                             sectionId: section.sectionId,
+                                            itemsGroupId: section.itemsGroupId,
                                           },
                                         })
                                       }
@@ -590,7 +591,7 @@ export default function TeacherCoursePage() {
                       ) {
                         if (window.confirm("Are you sure you want to delete this item?")) {
                           deleteItem.mutate({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds.sectionId, itemId: selectedEntity.data._id } }
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                           });
                           setSelectedEntity(null);
                           setIsEditingItem(false);
@@ -614,7 +615,7 @@ export default function TeacherCoursePage() {
                     performance={quizPerformance}
                     onDelete={() => {
                       deleteItem.mutate({
-                        params: { path: { itemsGroupId: selectedEntity.parentIds?.sectionId || "", itemId: selectedQuizId } }
+                        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                       });
                       setSelectedEntity(null);
                     }}

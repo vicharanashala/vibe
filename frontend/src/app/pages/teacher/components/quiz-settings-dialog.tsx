@@ -24,6 +24,17 @@ interface QuizSettingsForm {
   deadline: string;
 }
 
+interface ValidationErrors {
+  name?: string;
+  description?: string;
+  passThreshold?: string;
+  maxAttempts?: string;
+  approximateTimeToComplete?: string;
+  questionVisibility?: string;
+  releaseTime?: string;
+  deadline?: string;
+}
+
 interface QuizSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +44,62 @@ interface QuizSettingsDialogProps {
   isSaving: boolean;
 }
 
+const validateForm = (form: QuizSettingsForm): ValidationErrors => {
+  const errors: ValidationErrors = {};
+
+  // Name validation (required, non-empty string)
+  if (!form.name || form.name.trim() === '') {
+    errors.name = 'Quiz name is required';
+  }
+
+  // Description validation (required, non-empty string)
+  if (!form.description || form.description.trim() === '') {
+    errors.description = 'Quiz description is required';
+  }
+
+  // Pass threshold validation (0-1 range)
+  if (form.passThreshold < 0 || form.passThreshold > 1) {
+    errors.passThreshold = 'Pass threshold must be between 0 and 1';
+  }
+
+  // Max attempts validation (minimum -1)
+  if (form.maxAttempts < -1) {
+    errors.maxAttempts = 'Max attempts must be -1 or greater';
+  }
+
+  // Approximate time validation (HH:MM:SS format)
+  const timeRegex = /^(\d{1,2}:)?\d{1,2}:\d{2}$/;
+  if (!form.approximateTimeToComplete || !timeRegex.test(form.approximateTimeToComplete)) {
+    errors.approximateTimeToComplete = 'Time must be in HH:MM:SS format';
+  }
+
+  // Question visibility validation (minimum 1)
+  if (form.questionVisibility < 1) {
+    errors.questionVisibility = 'Question visibility must be at least 1';
+  }
+
+  // Release time validation (required)
+  if (!form.releaseTime) {
+    errors.releaseTime = 'Release time is required';
+  }
+
+  // Deadline validation (required if quiz type is DEADLINE)
+  if (form.quizType === 'DEADLINE' && !form.deadline) {
+    errors.deadline = 'Deadline is required for deadline-based quizzes';
+  }
+
+  // Validate deadline is after release time
+  if (form.releaseTime && form.deadline && form.quizType === 'DEADLINE') {
+    const releaseDate = new Date(form.releaseTime);
+    const deadlineDate = new Date(form.deadline);
+    if (deadlineDate <= releaseDate) {
+      errors.deadline = 'Deadline must be after release time';
+    }
+  }
+
+  return errors;
+};
+
 const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
   open,
   onOpenChange,
@@ -41,6 +108,25 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
   onSave,
   isSaving
 }) => {
+  const [validationErrors, setValidationErrors] = React.useState<ValidationErrors>({});
+
+  const handleSave = () => {
+    const errors = validateForm(quizSettingsForm);
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length === 0) {
+      onSave();
+    }
+  };
+
+  const handleFieldChange = (field: keyof QuizSettingsForm, value: any) => {
+    setQuizSettingsForm({ ...quizSettingsForm, [field]: value });
+    
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[field as keyof ValidationErrors]) {
+      setValidationErrors({ ...validationErrors, [field]: undefined });
+    }
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -57,19 +143,27 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Input
                   id="quizName"
                   value={quizSettingsForm.name}
-                  onChange={(e) => setQuizSettingsForm({ ...quizSettingsForm, name: e.target.value })}
+                  onChange={(e) => handleFieldChange('name', e.target.value)}
                   placeholder="Enter quiz name"
+                  className={validationErrors.name ? 'border-red-500' : ''}
                 />
+                {validationErrors.name && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.name}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="quizDescription">Description</Label>
                 <Textarea
                   id="quizDescription"
                   value={quizSettingsForm.description}
-                  onChange={(e) => setQuizSettingsForm({ ...quizSettingsForm, description: e.target.value })}
+                  onChange={(e) => handleFieldChange('description', e.target.value)}
                   placeholder="Enter quiz description"
                   rows={3}
+                  className={validationErrors.description ? 'border-red-500' : ''}
                 />
+                {validationErrors.description && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.description}</p>
+                )}
               </div>
             </div>
           </div>
@@ -86,14 +180,15 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   min="0"
                   max="100"
                   value={Math.round(quizSettingsForm.passThreshold * 100)}
-                  onChange={(e) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    passThreshold: parseInt(e.target.value) / 100
-                  })}
+                  onChange={(e) => handleFieldChange('passThreshold', parseInt(e.target.value) / 100)}
+                  className={validationErrors.passThreshold ? 'border-red-500' : ''}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Minimum percentage required to pass (0-100%)
                 </p>
+                {validationErrors.passThreshold && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.passThreshold}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="maxAttempts">Max Attempts</Label>
@@ -102,21 +197,22 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   type="number"
                   min="-1"
                   value={quizSettingsForm.maxAttempts}
-                  onChange={(e) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    maxAttempts: parseInt(e.target.value)
-                  })}
+                  onChange={(e) => handleFieldChange('maxAttempts', parseInt(e.target.value))}
+                  className={validationErrors.maxAttempts ? 'border-red-500' : ''}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Maximum attempts allowed
+                  Maximum attempts allowed (-1 for unlimited)
                 </p>
+                {validationErrors.maxAttempts && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.maxAttempts}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="quizType">Quiz Type</Label>
                 <Select
                   value={quizSettingsForm.quizType}
                   onValueChange={(value: 'DEADLINE' | 'NO_DEADLINE') =>
-                    setQuizSettingsForm({ ...quizSettingsForm, quizType: value })
+                    handleFieldChange('quizType', value)
                   }
                 >
                   <SelectTrigger>
@@ -133,12 +229,13 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Input
                   id="approximateTime"
                   value={quizSettingsForm.approximateTimeToComplete}
-                  onChange={(e) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    approximateTimeToComplete: e.target.value
-                  })}
+                  onChange={(e) => handleFieldChange('approximateTimeToComplete', e.target.value)}
                   placeholder="00:30:00"
+                  className={validationErrors.approximateTimeToComplete ? 'border-red-500' : ''}
                 />
+                {validationErrors.approximateTimeToComplete && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.approximateTimeToComplete}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="questionVisibility">Questions Visible to Students</Label>
@@ -147,11 +244,12 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   type="number"
                   min="1"
                   value={quizSettingsForm.questionVisibility}
-                  onChange={(e) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    questionVisibility: parseInt(e.target.value)
-                  })}
+                  onChange={(e) => handleFieldChange('questionVisibility', parseInt(e.target.value))}
+                  className={validationErrors.questionVisibility ? 'border-red-500' : ''}
                 />
+                {validationErrors.questionVisibility && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.questionVisibility}</p>
+                )}
               </div>
             </div>
           </div>
@@ -166,11 +264,12 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   id="releaseTime"
                   type="datetime-local"
                   value={quizSettingsForm.releaseTime}
-                  onChange={(e) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    releaseTime: e.target.value
-                  })}
+                  onChange={(e) => handleFieldChange('releaseTime', e.target.value)}
+                  className={validationErrors.releaseTime ? 'border-red-500' : ''}
                 />
+                {validationErrors.releaseTime && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.releaseTime}</p>
+                )}
               </div>
               {quizSettingsForm.quizType === 'DEADLINE' && (
                 <div>
@@ -179,11 +278,12 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                     id="deadline"
                     type="datetime-local"
                     value={quizSettingsForm.deadline}
-                    onChange={(e) => setQuizSettingsForm({
-                      ...quizSettingsForm,
-                      deadline: e.target.value
-                    })}
+                    onChange={(e) => handleFieldChange('deadline', e.target.value)}
+                    className={validationErrors.deadline ? 'border-red-500' : ''}
                   />
+                  {validationErrors.deadline && (
+                    <p className="text-xs text-red-500 mt-1">{validationErrors.deadline}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -203,10 +303,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Switch
                   id="allowPartialGrading"
                   checked={quizSettingsForm.allowPartialGrading}
-                  onCheckedChange={(checked) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    allowPartialGrading: checked
-                  })}
+                  onCheckedChange={(checked) => handleFieldChange('allowPartialGrading', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -219,10 +316,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Switch
                   id="allowHint"
                   checked={quizSettingsForm.allowHint}
-                  onCheckedChange={(checked) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    allowHint: checked
-                  })}
+                  onCheckedChange={(checked) => handleFieldChange('allowHint', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -235,10 +329,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Switch
                   id="showCorrectAnswers"
                   checked={quizSettingsForm.showCorrectAnswersAfterSubmission}
-                  onCheckedChange={(checked) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    showCorrectAnswersAfterSubmission: checked
-                  })}
+                  onCheckedChange={(checked) => handleFieldChange('showCorrectAnswersAfterSubmission', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -251,10 +342,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Switch
                   id="showExplanations"
                   checked={quizSettingsForm.showExplanationAfterSubmission}
-                  onCheckedChange={(checked) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    showExplanationAfterSubmission: checked
-                  })}
+                  onCheckedChange={(checked) => handleFieldChange('showExplanationAfterSubmission', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -267,10 +355,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 <Switch
                   id="showScore"
                   checked={quizSettingsForm.showScoreAfterSubmission}
-                  onCheckedChange={(checked) => setQuizSettingsForm({
-                    ...quizSettingsForm,
-                    showScoreAfterSubmission: checked
-                  })}
+                  onCheckedChange={(checked) => handleFieldChange('showScoreAfterSubmission', checked)}
                 />
               </div>
             </div>
@@ -281,7 +366,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             Cancel
           </Button>
           <Button
-            onClick={onSave}
+            onClick={handleSave}
             disabled={isSaving}
           >
             {isSaving ? 'Saving...' : 'Save Settings'}
