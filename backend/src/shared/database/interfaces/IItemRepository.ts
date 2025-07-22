@@ -13,7 +13,7 @@ export interface IItemRepository {
     itemGroupsId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<boolean>;
+  ): Promise<ItemsGroup | null>;
 
   createItemsGroup(
     itemsGroup: ItemsGroup,

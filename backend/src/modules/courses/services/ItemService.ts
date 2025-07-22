@@ -237,11 +237,6 @@ export class ItemService extends BaseService {
       }
       await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
-      const updatedItemsGroup = await this.itemRepo.readItemsGroup(
-        itemsGroupId,
-        session,
-      );
-
       const updatedVersion = await this.courseRepo.updateVersion(
         version._id.toString(),
         version,
@@ -251,8 +246,8 @@ export class ItemService extends BaseService {
       if (!updatedVersion) {
         throw new InternalServerError('Failed to update version after item deletion');
       }
-
-      return {deletedItemId: itemId, itemsGroup: updatedItemsGroup};
+      deleted._id = deleted._id.toString();
+      return {deletedItemId: itemId, itemsGroup: deleted};
     });
   }
 
@@ -314,6 +309,10 @@ export class ItemService extends BaseService {
     const version = await this.courseRepo.findVersionByItemGroupId(
       itemGroupId,
     );
+    if (!version) {
+      throw new NotFoundError(`Version for item group ${itemGroupId} not found`);
+    }
+    console.log(version)
     return version;
   }
 

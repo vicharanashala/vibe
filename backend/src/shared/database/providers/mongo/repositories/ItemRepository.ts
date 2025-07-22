@@ -252,21 +252,34 @@ export class ItemRepository implements IItemRepository {
     return result;
   }
 
-  async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
+  async deleteItem(itemGroupsId: string, itemId: string, session?: ClientSession): Promise<ItemsGroup> {
     await this.init();
-    const itemsGroup = await this.readItemsGroup(itemGroupsId);
+    const itemsGroup = await this.readItemsGroup(itemGroupsId, session);
     if (!itemsGroup) {
       throw new NotFoundError('ItemsGroup not found.');
     }
-    const result = await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemGroupsId)},
-      {$pull: {items: {_id: new ObjectId(itemId)}}},
-    );
-    if (result.modifiedCount === 1) {
-      return true;
-    } else {
-      throw new NotFoundError('Failed to delete item');
+    // Find the item to delete
+    const itemIndex = itemsGroup.items.findIndex(item => item._id.toString() === itemId);
+    if (itemIndex === -1) {
+      throw new NotFoundError(`Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`);
     }
+    // If the item is a video, delete it from the video collection
+    if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
+      await this.videoCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
+      await this.quizCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
+      await this.blogCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else {
+      throw new InternalServerError(`Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`);
+    }
+    itemsGroup.items.splice(itemIndex, 1);
+    await this.itemsGroupCollection.updateOne(
+      {_id: new ObjectId(itemGroupsId)},
+      {$set: {items: itemsGroup.items}},
+      {session},
+    );
+    return itemsGroup;
   }
 
   async getFirstOrderItems(
