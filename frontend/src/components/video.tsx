@@ -140,6 +140,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
       if (playing) {
         player.pauseVideo();
         console.log('Video paused due to anomaly detection');
+         wasPlayingBeforeRewind.current = true; // Remember it was playing
       }
     } else {
       // Resume video when anomalies are cleared
@@ -496,7 +497,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
           />
 
           {/* Anomaly Overlay */}
-          {(rewindVid || doGesture) && (
+          {(rewindVid || doGesture || pauseVid) && (
             <div
               className='shadow-2xl'
               style={{
@@ -545,7 +546,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
                   }}
                 >
                   {/* Warning SVG icon */}
-                  {rewindVid && (<svg
+                  {(rewindVid || pauseVid) && (<svg
                     width="140"
                     height="140"
                     viewBox="0 0 156.262 144.407"
@@ -583,7 +584,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
                       </g>
                     </g>
                   </svg>)}
-                  {doGesture && !rewindVid && (<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />)}
+                  {doGesture && !rewindVid && !pauseVid && (<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />)}
                 </div>
                 <div
                   style={{
@@ -602,7 +603,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
 
                   }}
                 >
-                  {rewindVid
+                  {rewindVid || pauseVid
                     ? (
                       <span style={{ fontWeight: 500, fontSize: 15 }}>
                         {anomalies.includes("voiceDetection") ? (
