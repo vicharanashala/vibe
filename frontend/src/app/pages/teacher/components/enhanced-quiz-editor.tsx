@@ -7,14 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus,
-  Edit2,
   Trash2,
   Eye,
   BookOpen,
@@ -22,21 +20,28 @@ import {
   Settings,
   BarChart3,
   Users,
-  Copy,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
   useQuestionBankById,
-  useQuestionById,
   useCreateQuestionBank,
   useAddQuestionBankToQuiz,
   useRemoveQuestionBankFromQuiz,
   useRemoveQuestionFromBank,
   useReplaceQuestionWithDuplicate,
   useDeleteQuestion,
-  useUpdateItem
+  useUpdateItem,
+  useQuestionById
 } from '@/hooks/hooks';
+
+import ExpandableQuestionCard from './expandable-question-card';
+import SubmissionDetailsDialog from './submission-details-dialog';
+import CreateQuestionDialog from './CreateQuestion';
+import CreateQuestionBankDialog from './CreateQuestionBank';
+import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
+import ConfirmationModal from './confirmation-modal';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -44,26 +49,115 @@ interface EnhancedQuizEditorProps {
   courseVersionId: string;
   moduleId: string;
   sectionId: string;
-  itemId: string;
   details: any;
   analytics: any;
   submissions: any;
   performance: any;
-  results: any;
+  onDelete: () => void;
 }
 
 interface QuestionFormData {
-  type: string;
-  details: any;
+  question: {
+    text: string;
+    type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
+    isParameterized: boolean;
+    parameters?: Array<{
+      name: string;
+      possibleValues: string[];
+      type: 'number' | 'string';
+    }>;
+    hint?: string;
+    timeLimitSeconds: number;
+    points: number;
+  };
+  solution: any; // This would be the appropriate solution type based on question type
 }
 
 const QUESTION_TYPES = [
-  { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice' },
-  { value: 'TRUE_FALSE', label: 'True/False' },
-  { value: 'SHORT_ANSWER', label: 'Short Answer' },
-  { value: 'ESSAY', label: 'Essay' },
-  { value: 'FILL_IN_BLANK', label: 'Fill in the Blank' }
+  { value: 'SELECT_ONE_IN_LOT', label: 'Single Choice' },
+  { value: 'SELECT_MANY_IN_LOT', label: 'Multiple Choice' },
+  { value: 'ORDER_THE_LOTS', label: 'Order The Items' },
+  { value: 'NUMERIC_ANSWER_TYPE', label: 'Numeric Answer' },
+  { value: 'DESCRIPTIVE', label: 'Descriptive Answer' }
 ];
+
+// Question Performance Row Component
+interface QuestionPerformanceRowProps {
+  performance: {
+    questionId: string;
+    correctRate: number;
+  };
+  onCacheUpdate?: () => void;
+}
+
+var questionTextCache: Record<string, { text: string, points: number }> = {};
+
+const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance, onCacheUpdate }) => {
+  const { data: questionData } = useQuestionById(performance.questionId);
+  useEffect(() => {
+    if (questionData && questionData.text) {
+      questionTextCache[performance.questionId] = { text: questionData.text, points: questionData.points || 1 };
+      console.log(`Cached question text for ${performance.questionId}: ${questionData.text}`);
+      // Trigger parent component to update
+      if (onCacheUpdate) {
+        onCacheUpdate();
+      }
+    }
+  }, [questionData, performance.questionId, onCacheUpdate]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="space-y-1">
+          <p className="font-medium text-sm text-muted-foreground">
+            ID: {performance.questionId.slice(-8)}
+          </p>
+          {questionData?.text ? (
+            <p className="text-sm">
+              {questionData.text.length > 100
+                ? `${questionData.text.substring(0, 100)}...`
+                : questionData.text
+              }
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading question...</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <span>{(performance.correctRate * 100).toFixed(1)}%</span>
+          <Progress value={performance.correctRate * 100} className="w-20" />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Utility function to calculate performance from submissions
+const calculatePerformanceFromSubmissions = (submissions: any[]): { questionId: string; correctRate: number }[] => {
+  if (!submissions || submissions.length === 0) return [];
+
+  const questionStats: Record<string, { correct: number; total: number }> = {};
+
+  submissions.forEach(submission => {
+    submission.gradingResult?.overallFeedback?.forEach((feedback: any) => {
+      const questionId = feedback.questionId;
+      if (!questionStats[questionId]) {
+        questionStats[questionId] = { correct: 0, total: 0 };
+      }
+      questionStats[questionId].total++;
+      if (feedback.status === 'CORRECT') {
+        questionStats[questionId].correct++;
+      }
+    });
+  });
+
+  return Object.entries(questionStats).map(([questionId, stats]) => ({
+    questionId,
+    correctRate: stats.total > 0 ? stats.correct / stats.total : 0
+  }));
+};
 
 const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   quizId,
@@ -71,34 +165,49 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   courseVersionId,
   moduleId,
   sectionId,
-  itemId,
   details,
   analytics,
   submissions,
   performance,
-  results
+  onDelete,
 }) => {
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
+  const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
 
   // Dialog states
   const [showCreateBankDialog, setShowCreateBankDialog] = useState(false);
   const [showCreateQuestionDialog, setShowCreateQuestionDialog] = useState(false);
   const [showEditQuestionDialog, setShowEditQuestionDialog] = useState(false);
   const [editQuizSettings, setEditQuizSettings] = useState(false);
+  const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+
+  // Confirmation modal states
+  const [showDeleteQuizModal, setShowDeleteQuizModal] = useState(false);
+  const [showDeleteQuestionBankModal, setShowDeleteQuestionBankModal] = useState(false);
+  const [showDeleteQuestionModal, setShowDeleteQuestionModal] = useState(false);
+  const [questionBankToDelete, setQuestionBankToDelete] = useState<string | null>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
 
   // Form states
-  const [bankForm, setBankForm] = useState({ name: '', description: '' });
+  const [bankForm, setBankForm] = useState({ title: '', description: '' });
   const [questionForm, setQuestionForm] = useState<QuestionFormData>({
-    type: 'MULTIPLE_CHOICE',
-    details: {}
+    question: {
+      text: '',
+      type: 'SELECT_ONE_IN_LOT',
+      isParameterized: false,
+      timeLimitSeconds: 60,
+      points: 1
+    },
+    solution: {}
   });
-  const [quizSettingsForm, setQuizSettingsForm] = useState({
+  const [quizSettingsForm, setQuizSettingsForm] = useState<QuizSettingsForm>({
     name: '',
     description: '',
     passThreshold: 0.7,
     maxAttempts: 3,
-    quizType: 'NO_DEADLINE' as 'DEADLINE' | 'NO_DEADLINE',
+    quizType: 'NO_DEADLINE',
     approximateTimeToComplete: '00:05:00',
     allowPartialGrading: true,
     allowHint: true,
@@ -112,7 +221,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Fetch data
   const { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
-  const { data: selectedBankData } = useQuestionBankById(selectedQuestionBank || '');
+  const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
@@ -129,21 +238,40 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       setQuizSettingsForm({
         name: details.name || '',
         description: details.description || '',
-        passThreshold: details.details?.passThreshold || 0.7,
-        maxAttempts: details.details?.maxAttempts || 3,
-        quizType: details.details?.quizType || 'NO_DEADLINE',
-        approximateTimeToComplete: details.details?.approximateTimeToComplete || '00:05:00',
-        allowPartialGrading: details.details?.allowPartialGrading ?? true,
-        allowHint: details.details?.allowHint ?? true,
-        showCorrectAnswersAfterSubmission: details.details?.showCorrectAnswersAfterSubmission ?? true,
-        showExplanationAfterSubmission: details.details?.showExplanationAfterSubmission ?? true,
-        showScoreAfterSubmission: details.details?.showScoreAfterSubmission ?? true,
-        questionVisibility: details.details?.questionVisibility || 4,
-        releaseTime: details.details?.releaseTime ? new Date(details.details.releaseTime).toISOString().slice(0, 16) : '',
-        deadline: details.details?.deadline ? new Date(details.details.deadline).toISOString().slice(0, 16) : ''
+        passThreshold: details.details.passThreshold || 0.7,
+        maxAttempts: details.details.maxAttempts || 3,
+        quizType: details.details.quizType || 'NO_DEADLINE',
+        approximateTimeToComplete: details.details.approximateTimeToComplete || '00:05:00',
+        allowPartialGrading: details.details.allowPartialGrading ?? true,
+        allowHint: details.details.allowHint ?? true,
+        showCorrectAnswersAfterSubmission: details.details.showCorrectAnswersAfterSubmission ?? true,
+        showExplanationAfterSubmission: details.details.showExplanationAfterSubmission ?? true,
+        showScoreAfterSubmission: details.details.showScoreAfterSubmission ?? true,
+        questionVisibility: details.details.questionVisibility || 4,
+        releaseTime: details.details.releaseTime ? new Date(details.details.releaseTime).toISOString().slice(0, 16) : '',
+        deadline: details.details.deadline ? new Date(details.details.deadline).toISOString().slice(0, 16) : ''
       });
     }
   }, [details]);
+
+  // Memoized chart data that updates when questionTextCache changes
+  const chartData = React.useMemo(() => {
+    const performanceData = performance && performance.length > 0
+      ? performance
+      : calculatePerformanceFromSubmissions(submissions || []);
+
+    return performanceData.map((p: any) => ({
+      questionId: p.questionId.slice(-8),
+      questionText: questionTextCache[p.questionId]?.text,
+      correctRate: (p.correctRate * 100).toFixed(1),
+      averageScore: p.averageScore ? (p.averageScore / (questionTextCache[p.questionId]?.points || 1) * 100).toFixed(1) : '0'
+    }));
+  }, [performance, submissions, questionCacheUpdateTrigger]);
+
+  // Function to trigger chart data update when cache changes
+  const handleCacheUpdate = React.useCallback(() => {
+    setQuestionCacheUpdateTrigger(prev => prev + 1);
+  }, []);
 
   const handleSaveQuizSettings = async () => {
     try {
@@ -178,7 +306,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
             versionId: courseVersionId,
             moduleId,
             sectionId,
-            itemId
+            itemId: quizId || ''
           }
         },
         body: requestBody
@@ -207,12 +335,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }
 
   const handleCreateQuestionBank = async () => {
-    if (!bankForm.name.trim()) return;
+    if (!bankForm.title.trim()) return;
 
     try {
       const result = await createQuestionBank.mutateAsync({
         body: {
-          name: bankForm.name,
+          title: bankForm.title,
           description: bankForm.description,
           courseId,
           courseVersionId,
@@ -223,10 +351,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       // Add the question bank to the quiz
       await addQuestionBankToQuiz.mutateAsync({
         params: { path: { quizId } },
-        body: { questionBankId: result.questionBankId }
+        body: {
+          bankId: result.questionBankId,
+          count: 10 // Default count
+        }
       });
 
-      setBankForm({ name: '', description: '' });
+      setBankForm({ title: '', description: '' });
       setShowCreateBankDialog(false);
       refetchQuestionBanks();
     } catch (error) {
@@ -234,64 +365,78 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     }
   };
 
-  const handleRemoveQuestionBank = async (questionBankId: string) => {
+  const handleRemoveQuestionBank = async (bankId: string) => {
+    setQuestionBankToDelete(bankId);
+    setShowDeleteQuestionBankModal(true);
+  };
+
+  const confirmDeleteQuestionBank = async () => {
+    if (!questionBankToDelete) return;
+
     try {
       await removeQuestionBankFromQuiz.mutateAsync({
-        params: { path: { quizId, questionBankId } }
+        params: { path: { quizId, questionBankId: questionBankToDelete } }
       });
       refetchQuestionBanks();
-      if (selectedQuestionBank === questionBankId) {
+      if (selectedQuestionBank === questionBankToDelete) {
         setSelectedQuestionBank(null);
       }
+      setShowDeleteQuestionBankModal(false);
+      setQuestionBankToDelete(null);
     } catch (error) {
       console.error('Failed to remove question bank:', error);
     }
   };
 
-  const handleCreateQuestion = async () => {
-    if (!selectedQuestionBank || !questionForm.type) return;
-
-    try {
-      // For now, we'll create a placeholder question
-      // This would need to be implemented based on your question creation endpoint
-      console.log('Creating question:', questionForm);
-
-      // You would need to add a useCreateQuestion hook that calls POST /questions endpoint
-      // await createQuestion.mutateAsync({ body: questionForm });
-
-      setQuestionForm({ type: 'MULTIPLE_CHOICE', details: {} });
-      setShowCreateQuestionDialog(false);
-
-      // Show success message
-      alert('Question creation would happen here - implement the POST /questions endpoint');
-    } catch (error) {
-      console.error('Failed to create question:', error);
-    }
+  const handleDeleteQuestion = async (questionId: string) => {
+    setQuestionToDelete(questionId);
+    setShowDeleteQuestionModal(true);
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!selectedQuestionBank) return;
+  const confirmDeleteQuestion = async () => {
+    if (!selectedQuestionBank || !questionToDelete) return;
 
     try {
       await removeQuestionFromBank.mutateAsync({
-        params: { path: { questionBankId: selectedQuestionBank, questionId } }
+        params: { path: { questionBankId: selectedQuestionBank, questionId: questionToDelete } }
       });
       await deleteQuestion.mutateAsync({
-        params: { path: { questionId } }
+        params: { path: { questionId: questionToDelete } }
       });
-      // Refetch bank data to update questions list
+      refetchSelectedBank();
+      setShowDeleteQuestionModal(false);
+      setQuestionToDelete(null);
     } catch (error) {
       console.error('Failed to delete question:', error);
     }
   };
+
+  const handleDeleteQuiz = () => {
+    setShowDeleteQuizModal(true);
+  };
+
+  const confirmDeleteQuiz = async () => {
+    try {
+      await onDelete();
+      setShowDeleteQuizModal(false);
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
+    }
+  };
+  console.log(questionTextCache);
 
   const renderQuestionForm = () => (
     <div className="space-y-4">
       <div>
         <Label htmlFor="questionType">Question Type</Label>
         <Select
-          value={questionForm.type}
-          onValueChange={(value) => setQuestionForm({ ...questionForm, type: value })}
+          value={questionForm.question.type}
+          onValueChange={(value: QuestionFormData['question']['type']) =>
+            setQuestionForm({
+              ...questionForm,
+              question: { ...questionForm.question, type: value }
+            })
+          }
         >
           <SelectTrigger>
             <SelectValue />
@@ -311,87 +456,155 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         <Textarea
           id="questionText"
           placeholder="Enter your question here..."
-          value={questionForm.details.questionText || ''}
+          value={questionForm.question.text || ''}
           onChange={(e) => setQuestionForm({
             ...questionForm,
-            details: { ...questionForm.details, questionText: e.target.value }
+            question: { ...questionForm.question, text: e.target.value }
           })}
         />
       </div>
 
-      {questionForm.type === 'MULTIPLE_CHOICE' && (
+      {/* Hint field for all question types */}
+      <div>
+        <Label htmlFor="hint">Hint (Optional)</Label>
+        <Textarea
+          id="hint"
+          placeholder="Enter a hint for this question..."
+          value={questionForm.question.hint || ''}
+          onChange={(e) => setQuestionForm({
+            ...questionForm,
+            question: { ...questionForm.question, hint: e.target.value }
+          })}
+        />
+      </div>
+
+      {(questionForm.question.type === 'SELECT_ONE_IN_LOT' || questionForm.question.type === 'SELECT_MANY_IN_LOT') && (
         <div>
           <Label>Answer Options</Label>
           <div className="space-y-2">
-            {[0, 1, 2, 3].map(index => (
-              <Input
-                key={index}
-                placeholder={`Option ${index + 1}`}
-                value={questionForm.details.options?.[index] || ''}
-                onChange={(e) => {
-                  const options = [...(questionForm.details.options || ['', '', '', ''])];
-                  options[index] = e.target.value;
+            {(questionForm.solution?.incorrectLotItems || []).concat(questionForm.solution?.correctLotItems || [questionForm.solution?.correctLotItem].filter(Boolean) || []).map((item: any, index: number) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  placeholder={`Option ${index + 1}`}
+                  value={item.text || ''}
+                  onChange={(e) => {
+                    // Handle lot item updates based on question type
+                    const newValue = { ...item, text: e.target.value };
+                    if (questionForm.question.type === 'SELECT_ONE_IN_LOT') {
+                      if (index === 0) {
+                        setQuestionForm({
+                          ...questionForm,
+                          solution: { ...questionForm.solution, correctLotItem: newValue }
+                        });
+                      } else {
+                        const incorrectItems = [...(questionForm.solution?.incorrectLotItems || [])];
+                        incorrectItems[index - 1] = newValue;
+                        setQuestionForm({
+                          ...questionForm,
+                          solution: { ...questionForm.solution, incorrectLotItems: incorrectItems }
+                        });
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Handle removing lot items
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // Handle adding new lot items
+                const newItem = { text: '', explaination: '' };
+                if (questionForm.question.type === 'SELECT_ONE_IN_LOT') {
+                  const incorrectItems = [...(questionForm.solution?.incorrectLotItems || []), newItem];
                   setQuestionForm({
                     ...questionForm,
-                    details: { ...questionForm.details, options }
+                    solution: { ...questionForm.solution, incorrectLotItems: incorrectItems }
                   });
-                }}
-              />
-            ))}
-          </div>
-          <div className="mt-2">
-            <Label htmlFor="correctAnswer">Correct Answer Index (0-3)</Label>
-            <Input
-              id="correctAnswer"
-              type="number"
-              min="0"
-              max="3"
-              value={questionForm.details.correctAnswer || ''}
-              onChange={(e) => setQuestionForm({
-                ...questionForm,
-                details: { ...questionForm.details, correctAnswer: parseInt(e.target.value) }
-              })}
-            />
+                }
+              }}
+            >
+              Add Option
+            </Button>
           </div>
         </div>
       )}
 
-      {questionForm.type === 'TRUE_FALSE' && (
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="trueFalseAnswer">Correct Answer</Label>
-          <Select
-            value={questionForm.details.correctAnswer?.toString() || ''}
-            onValueChange={(value) => setQuestionForm({
+          <Label htmlFor="points">Points</Label>
+          <Input
+            id="points"
+            type="number"
+            min="1"
+            value={questionForm.question.points || ''}
+            onChange={(e) => setQuestionForm({
               ...questionForm,
-              details: { ...questionForm.details, correctAnswer: value === 'true' }
+              question: { ...questionForm.question, points: parseInt(e.target.value) }
             })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select correct answer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="true">True</SelectItem>
-              <SelectItem value="false">False</SelectItem>
-            </SelectContent>
-          </Select>
+          />
         </div>
-      )}
+        <div>
+          <Label htmlFor="timeLimit">Time Limit (seconds)</Label>
+          <Input
+            id="timeLimit"
+            type="number"
+            min="1"
+            value={questionForm.question.timeLimitSeconds || ''}
+            onChange={(e) => setQuestionForm({
+              ...questionForm,
+              question: { ...questionForm.question, timeLimitSeconds: parseInt(e.target.value) }
+            })}
+          />
+        </div>
+      </div>
 
-      <div>
-        <Label htmlFor="points">Points</Label>
-        <Input
-          id="points"
-          type="number"
-          min="1"
-          value={questionForm.details.points || ''}
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="isParameterized"
+          checked={questionForm.question.isParameterized || false}
           onChange={(e) => setQuestionForm({
             ...questionForm,
-            details: { ...questionForm.details, points: parseInt(e.target.value) }
+            question: { ...questionForm.question, isParameterized: e.target.checked }
           })}
         />
+        <Label htmlFor="isParameterized">Is Parameterized</Label>
       </div>
     </div>
   );
+
+  // Initialize question bank selection
+  useEffect(() => {
+    if (questionBanks && questionBanks?.length > 0 && !selectedQuestionBank) {
+      setSelectedQuestionBank(questionBanks[0].bankId);
+    }
+  }, [questionBanks]);
+
+  useEffect(() => {
+    setSelectedQuestionBank('');
+  }, [quizId]);
+
+  useEffect(() => {
+    if (!showCreateQuestionDialog) {
+      refetchSelectedBank(); // Refetch selected bank data when dialog is closed
+    }
+  }, [showCreateQuestionDialog]);
+  useEffect(() => {
+    if (!showCreateBankDialog) {
+      refetchQuestionBanks();
+    }
+  }, [showCreateBankDialog]);
 
   return (
     <div className="h-full flex flex-col">
@@ -411,272 +624,33 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteQuiz}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Quiz
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Edit Quiz Settings Dialog */}
-        <Dialog open={editQuizSettings} onOpenChange={setEditQuizSettings}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Quiz Settings</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6">
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Basic Information</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <Label htmlFor="quizName">Quiz Name</Label>
-                    <Input
-                      id="quizName"
-                      value={quizSettingsForm.name}
-                      onChange={(e) => setQuizSettingsForm({ ...quizSettingsForm, name: e.target.value })}
-                      placeholder="Enter quiz name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="quizDescription">Description</Label>
-                    <Textarea
-                      id="quizDescription"
-                      value={quizSettingsForm.description}
-                      onChange={(e) => setQuizSettingsForm({ ...quizSettingsForm, description: e.target.value })}
-                      placeholder="Enter quiz description"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Quiz Configuration */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Quiz Configuration</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="passThreshold">Pass Threshold (%)</Label>
-                    <Input
-                      id="passThreshold"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={Math.round(quizSettingsForm.passThreshold * 100)}
-                      onChange={(e) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        passThreshold: parseInt(e.target.value) / 100
-                      })}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Minimum percentage required to pass (0-100%)
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="maxAttempts">Max Attempts</Label>
-                    <Input
-                      id="maxAttempts"
-                      type="number"
-                      min="-1"
-                      value={quizSettingsForm.maxAttempts}
-                      onChange={(e) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        maxAttempts: parseInt(e.target.value)
-                      })}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Maximum attempts allowed (-1 for unlimited)
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="quizType">Quiz Type</Label>
-                    <Select
-                      value={quizSettingsForm.quizType}
-                      onValueChange={(value: 'DEADLINE' | 'NO_DEADLINE') =>
-                        setQuizSettingsForm({ ...quizSettingsForm, quizType: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NO_DEADLINE">No Deadline</SelectItem>
-                        <SelectItem value="DEADLINE">With Deadline</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="approximateTime">Approximate Time (HH:MM:SS)</Label>
-                    <Input
-                      id="approximateTime"
-                      value={quizSettingsForm.approximateTimeToComplete}
-                      onChange={(e) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        approximateTimeToComplete: e.target.value
-                      })}
-                      placeholder="00:30:00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="questionVisibility">Questions Visible to Students</Label>
-                    <Input
-                      id="questionVisibility"
-                      type="number"
-                      min="1"
-                      value={quizSettingsForm.questionVisibility}
-                      onChange={(e) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        questionVisibility: parseInt(e.target.value)
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Time Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Time Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="releaseTime">Release Time</Label>
-                    <Input
-                      id="releaseTime"
-                      type="datetime-local"
-                      value={quizSettingsForm.releaseTime}
-                      onChange={(e) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        releaseTime: e.target.value
-                      })}
-                    />
-                  </div>
-                  {quizSettingsForm.quizType === 'DEADLINE' && (
-                    <div>
-                      <Label htmlFor="deadline">Deadline</Label>
-                      <Input
-                        id="deadline"
-                        type="datetime-local"
-                        value={quizSettingsForm.deadline}
-                        onChange={(e) => setQuizSettingsForm({
-                          ...quizSettingsForm,
-                          deadline: e.target.value
-                        })}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Student Experience */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Student Experience</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="allowPartialGrading">Allow Partial Grading</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Enable partial credit for multi-select questions
-                      </p>
-                    </div>
-                    <Switch
-                      id="allowPartialGrading"
-                      checked={quizSettingsForm.allowPartialGrading}
-                      onCheckedChange={(checked) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        allowPartialGrading: checked
-                      })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="allowHint">Allow Hints</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Let students see hints for questions
-                      </p>
-                    </div>
-                    <Switch
-                      id="allowHint"
-                      checked={quizSettingsForm.allowHint}
-                      onCheckedChange={(checked) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        allowHint: checked
-                      })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="showCorrectAnswers">Show Correct Answers</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Display correct answers after submission
-                      </p>
-                    </div>
-                    <Switch
-                      id="showCorrectAnswers"
-                      checked={quizSettingsForm.showCorrectAnswersAfterSubmission}
-                      onCheckedChange={(checked) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        showCorrectAnswersAfterSubmission: checked
-                      })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="showExplanations">Show Explanations</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Display explanations after submission
-                      </p>
-                    </div>
-                    <Switch
-                      id="showExplanations"
-                      checked={quizSettingsForm.showExplanationAfterSubmission}
-                      onCheckedChange={(checked) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        showExplanationAfterSubmission: checked
-                      })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="showScore">Show Score</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Display score immediately after submission
-                      </p>
-                    </div>
-                    <Switch
-                      id="showScore"
-                      checked={quizSettingsForm.showScoreAfterSubmission}
-                      onCheckedChange={(checked) => setQuizSettingsForm({
-                        ...quizSettingsForm,
-                        showScoreAfterSubmission: checked
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setEditQuizSettings(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveQuizSettings}
-                disabled={updateItem.isPending}
-              >
-                {updateItem.isPending ? 'Saving...' : 'Save Settings'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <QuizSettingsDialog
+          open={editQuizSettings}
+          onOpenChange={setEditQuizSettings}
+          quizSettingsForm={quizSettingsForm}
+          setQuizSettingsForm={setQuizSettingsForm}
+          onSave={handleSaveQuizSettings}
+          isSaving={updateItem.isPending}
+        />
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6">
           <TabsList>
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              Overview
+              Analytics
             </TabsTrigger>
             <TabsTrigger value="questions" className="flex items-center gap-2">
               <HelpCircle className="h-4 w-4" />
               Questions
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Analytics
             </TabsTrigger>
             <TabsTrigger value="submissions" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -688,149 +662,36 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
       <div className="flex-1 overflow-hidden">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsContent value="overview" className="h-full m-0">
-            <div className="p-6 space-y-6">
-              {/* Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Submissions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.submissions ?? 0}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {results && results.length > 0 ? `${((results.filter((r: any) => r.status === 'PASSED').length / results.length) * 100).toFixed(1)}%` : '0%'}
-                    <Progress value={results && results.length > 0 ? ((results.filter((r: any) => r.status === 'PASSED').length / results.length) * 100) : 0} className="mt-2" />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.averageScore?.toFixed(1) ?? 0}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Submissions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Student ID</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Submitted At</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {submissions?.submissions?.slice(0, 5).map((sub: any) => (
-                        <TableRow key={sub._id}>
-                          <TableCell className="font-medium">{sub.userId}</TableCell>
-                          <TableCell>{sub.gradingResult?.totalScore ?? 'N/A'}</TableCell>
-                          <TableCell>
-                            <Badge variant={sub.gradingResult?.totalScore >= 70 ? 'default' : 'destructive'}>
-                              {sub.gradingResult?.totalScore >= 70 ? 'Pass' : 'Fail'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{new Date(sub.submittedAt).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      )) || (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground">
-                              No submissions yet
-                            </TableCell>
-                          </TableRow>
-                        )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
           <TabsContent value="questions" className="h-full m-0">
             <div className="h-full flex">
               {/* Question Banks Sidebar */}
               <div className="w-80 border-r bg-muted/50">
-                <div className="p-4 border-b">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Question Banks</h3>
-                    <Dialog open={showCreateBankDialog} onOpenChange={setShowCreateBankDialog}>
-                      <DialogTrigger asChild>
-                        <Button size="sm">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Create Question Bank</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="bankName">Name</Label>
-                            <Input
-                              id="bankName"
-                              value={bankForm.name}
-                              onChange={(e) => setBankForm({ ...bankForm, name: e.target.value })}
-                              placeholder="Enter bank name"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="bankDescription">Description</Label>
-                            <Textarea
-                              id="bankDescription"
-                              value={bankForm.description}
-                              onChange={(e) => setBankForm({ ...bankForm, description: e.target.value })}
-                              placeholder="Enter bank description"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2 mt-6">
-                          <Button variant="outline" onClick={() => setShowCreateBankDialog(false)}>
-                            Cancel
-                          </Button>
-                          <Button onClick={handleCreateQuestionBank} disabled={createQuestionBank.isPending}>
-                            {createQuestionBank.isPending ? 'Creating...' : 'Create'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-
+                <CreateQuestionBankDialog
+                  showCreateBankDialog={showCreateBankDialog}
+                  setShowCreateBankDialog={setShowCreateBankDialog}
+                  quizId={quizId}
+                />
                 <ScrollArea className="h-[calc(100vh-200px)]">
                   <div className="p-4 space-y-2">
-                    {questionBanks?.questionBanks?.map((bank: any) => (
+                    {questionBanks?.map((bank: any) => (
                       <Card
-                        key={bank.questionBankId}
-                        className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === bank.questionBankId ? 'border-primary bg-accent' : ''
+                        key={bank.bankId}
+                        className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === bank.bankId ? 'border-primary bg-accent/40' : ''
                           }`}
-                        onClick={() => setSelectedQuestionBank(bank.questionBankId)}
+                        onClick={() => setSelectedQuestionBank(bank.bankId)}
                       >
-                        <CardContent className="p-3">
+                        <CardContent className="px-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium text-sm">Bank {bank.questionBankId.slice(-8)}</span>
+                              <BookOpen className="h-5 w-5 text-muted-foreground" />
+                              <span className="font-medium text-md font-semibold ">Bank {bank.bankId.slice(-8)}</span>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleRemoveQuestionBank(bank.questionBankId);
+                                handleRemoveQuestionBank(bank.bankId);
                               }}
                               className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                             >
@@ -838,16 +699,16 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                             </Button>
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {bank.questionsCount || 0} questions
+                            {bank.count || 0} questions selected
                           </div>
                         </CardContent>
                       </Card>
                     ))}
 
-                    {(!questionBanks?.questionBanks || questionBanks.questionBanks.length === 0) && (
+                    {(!questionBanks || questionBanks?.length === 0) && (
                       <div className="text-center text-muted-foreground py-8">
                         <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No question banks</p>
+                        <p className="text-md">No question banks</p>
                         <p className="text-xs">Create one to get started</p>
                       </div>
                     )}
@@ -859,49 +720,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               <div className="flex-1">
                 {selectedQuestionBank ? (
                   <div className="h-full flex flex-col">
-                    <div className="p-4 border-b">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">Questions</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedBankData?.questions?.length || 0} questions in this bank
-                          </p>
-                        </div>
-                        <Dialog open={showCreateQuestionDialog} onOpenChange={setShowCreateQuestionDialog}>
-                          <DialogTrigger asChild>
-                            <Button>
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Question
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Create Question</DialogTitle>
-                            </DialogHeader>
-                            {renderQuestionForm()}
-                            <div className="flex justify-end gap-2 mt-6">
-                              <Button variant="outline" onClick={() => setShowCreateQuestionDialog(false)}>
-                                Cancel
-                              </Button>
-                              <Button onClick={handleCreateQuestion}>
-                                Create Question
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-
+                    <CreateQuestionDialog
+                      showCreateQuestionDialog={showCreateQuestionDialog}
+                      setShowCreateQuestionDialog={setShowCreateQuestionDialog}
+                      selectedBankId={selectedQuestionBank}
+                    />
                     <ScrollArea className="flex-1">
                       <div className="p-4 space-y-4">
                         {selectedBankData?.questions?.map((questionId: string) => (
-                          <QuestionCard
+                          <ExpandableQuestionCard
                             key={questionId}
                             questionId={questionId}
-                            onEdit={() => {
-                              // You can implement edit functionality here  
-                              setShowEditQuestionDialog(true);
-                            }}
                             onDelete={() => handleDeleteQuestion(questionId)}
                             onDuplicate={() => replaceQuestionWithDuplicate.mutateAsync({
                               params: { path: { questionBankId: selectedQuestionBank, questionId } }
@@ -909,7 +738,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           />
                         ))}
 
-                        {(!selectedBankData?.questions || selectedBankData.questions.length === 0) && (
+                        {(!selectedBankData?.questions || selectedBankData.questions?.length === 0) && (
                           <div className="text-center text-muted-foreground py-12">
                             <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <h3 className="font-medium mb-2">No questions yet</h3>
@@ -961,8 +790,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           <TabsContent value="analytics" className="h-full m-0">
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
+              <div className="grid grid-cols-1 md:grid-rows-3 md:grid-cols-5 gap-6">
+                <Card className="col-span-3 row-span-2">
                   <CardHeader>
                     <CardTitle>Question Performance</CardTitle>
                   </CardHeader>
@@ -970,70 +799,139 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Question ID</TableHead>
+                          <TableHead>Question</TableHead>
                           <TableHead>Correct Rate</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {performance && performance.length > 0 ? (
-                          performance.map((p: any) => (
-                            <TableRow key={p.questionId}>
-                              <TableCell>{p.questionId.slice(-8)}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <span>{(p.correctRate * 100).toFixed(1)}%</span>
-                                  <Progress value={p.correctRate * 100} className="w-20" />
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={2} className="text-center">No performance data available</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                        {(() => {
+                          const performanceData = performance && performance.length > 0
+                            ? performance
+                            : calculatePerformanceFromSubmissions(submissions || []);
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Student Results</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Student ID</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {results && results.length > 0 ? (
-                          results.map((r: any) => (
-                            <TableRow key={r.attemptId}>
-                              <TableCell>{r.studentId}</TableCell>
-                              <TableCell>{r.score}</TableCell>
-                              <TableCell>
-                                <Badge variant={r.status === 'PASSED' ? 'default' : 'destructive'}>
-                                  {r.status}
-                                </Badge>
-                              </TableCell>
+                          return performanceData?.length > 0 ? (
+                            performanceData.map((p: any) => (
+                              <QuestionPerformanceRow key={p.questionId} performance={p} onCacheUpdate={handleCacheUpdate} />
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={2} className="text-center">No performance data available</TableCell>
                             </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center">No results available</TableCell>
-                          </TableRow>
-                        )}
+                          );
+                        })()}
                       </TableBody>
                     </Table>
                   </CardContent>
                 </Card>
+                <Card className="col-span-2 row-span-2 bg-muted/50 text-muted-foreground">
+                  <CardHeader>
+                    <CardTitle className="text-muted-foreground">Question Performance Chart</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData}
+                        margin={{
+                          top: 20,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                        <XAxis dataKey="questionId" stroke="rgba(255, 255, 255, 0.7)" />
+                        <YAxis stroke="rgba(255, 255, 255, 0.7)" />
+                        <Tooltip
+                          content={({ payload }) => {
+                            if (payload && payload.length) {
+                              const { questionText, correctRate } = payload[0].payload;
+                              return (
+                                <div style={{ backgroundColor: "#1e1e2f", padding: "10px", borderRadius: "5px", color: "#ffffff" }}>
+                                  <p><strong>Question:</strong> {questionText || "Loading..."}</p>
+                                  <p><strong>Correct Rate:</strong> {correctRate}%</p>
+                                  <p><strong>Average Score:</strong> {payload[0].payload.averageScore}%</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                          cursor={{ fill: "rgba(255, 255, 255, 0.1)" }}
+                        />
+                        <Legend verticalAlign="top" height={36} iconSize={10} iconType="circle" />
+
+                        <Legend />
+                        <Bar dataKey="correctRate" fill="#4caf50" name="Correct Rate (%)" />
+                        <Bar dataKey="averageScore" fill="#2196f3" name="Average Score" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-4 gap-4 col-span-5 row-span-1">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Submissions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.submissions ?? 0}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
+                      </div>
+                      <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Average Score %</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions.length > 0
+                          ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)}%`
+                          : '0%'}
+                      </div>
+                      <Progress value={submissions && submissions.length > 0
+                        ? parseFloat((submissions.reduce((acc: number, sub: any) => {
+                          if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                            return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
+                          }
+                          return acc;
+                        }, 0) / submissions.length).toFixed(1))
+                        : 0} className="mt-2" />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {submissions && submissions.length > 0
+                          ? `${(submissions.reduce((acc: number, sub: any) => {
+                            if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
+                              return acc + sub.gradingResult.totalScore;
+                            }
+                            return acc;
+                          }, 0) / submissions.length).toFixed(1)} `
+                          : 'Loading...'}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
+
           </TabsContent>
 
           <TabsContent value="submissions" className="h-full m-0">
@@ -1051,27 +949,46 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       <TableRow>
                         <TableHead>Student ID</TableHead>
                         <TableHead>Score</TableHead>
-                        <TableHead>Total Questions</TableHead>
-                        <TableHead>Correct Answers</TableHead>
+                        <TableHead>Max Score</TableHead>
+                        <TableHead>Percentage</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Submitted At</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {submissions?.submissions?.map((sub: any) => (
+                      {submissions?.map((sub: any) => (
                         <TableRow key={sub._id}>
                           <TableCell className="font-medium">{sub.userId}</TableCell>
+                          <TableCell>{sub.gradingResult?.totalScore ?? 'N/A'}</TableCell>
+                          <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
                           <TableCell>
-                            <Badge variant={sub.gradingResult?.totalScore >= 70 ? 'default' : 'destructive'}>
-                              {sub.gradingResult?.totalScore ?? 'N/A'}%
+                            <Badge variant={
+                              sub.gradingResult?.gradingStatus === 'PASSED'
+                                ? 'default'
+                                : 'destructive'
+                            }>
+                              {sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore
+                                ? `${((sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore) * 100).toFixed(1)}%`
+                                : '0%'}
                             </Badge>
                           </TableCell>
-                          <TableCell>{sub.gradingResult?.totalQuestions ?? 'N/A'}</TableCell>
-                          <TableCell>{sub.gradingResult?.correctAnswers ?? 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={sub.gradingResult?.gradingStatus === 'PASSED' ? 'default' : 'destructive'}>
+                              {sub.gradingResult?.gradingStatus ?? 'N/A'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{new Date(sub.submittedAt).toLocaleString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedSubmission(sub);
+                                  setShowSubmissionDialog(true);
+                                }}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm">
@@ -1082,7 +999,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         </TableRow>
                       )) || (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                               No submissions yet
                             </TableCell>
                           </TableRow>
@@ -1095,48 +1012,57 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Submission Details Dialog */}
+      <SubmissionDetailsDialog
+        isOpen={showSubmissionDialog}
+        onClose={() => {
+          setShowSubmissionDialog(false);
+          setSelectedSubmission(null);
+        }}
+        submission={selectedSubmission}
+      />
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showDeleteQuizModal}
+        onClose={() => setShowDeleteQuizModal(false)}
+        onConfirm={confirmDeleteQuiz}
+        title="Delete Quiz"
+        description="Are you sure you want to delete this quiz? This action cannot be undone and will permanently remove all questions and submissions associated with this quiz."
+        confirmText="Delete Quiz"
+        isDestructive={true}
+        isLoading={false}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteQuestionBankModal}
+        onClose={() => {
+          setShowDeleteQuestionBankModal(false);
+          setQuestionBankToDelete(null);
+        }}
+        onConfirm={confirmDeleteQuestionBank}
+        title="Remove Question Bank"
+        description="Are you sure you want to remove this question bank from the quiz? This will remove all questions in this bank from the quiz."
+        confirmText="Remove Bank"
+        isDestructive={true}
+        isLoading={removeQuestionBankFromQuiz.isPending}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteQuestionModal}
+        onClose={() => {
+          setShowDeleteQuestionModal(false);
+          setQuestionToDelete(null);
+        }}
+        onConfirm={confirmDeleteQuestion}
+        title="Delete Question"
+        description="Are you sure you want to delete this question? This action cannot be undone and will permanently remove the question from all question banks."
+        confirmText="Delete Question"
+        isDestructive={true}
+        isLoading={deleteQuestion.isPending || removeQuestionFromBank.isPending}
+      />
     </div>
-  );
-};
-
-// Question Card Component
-interface QuestionCardProps {
-  questionId: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-}
-
-const QuestionCard: React.FC<QuestionCardProps> = ({ questionId, onEdit, onDelete, onDuplicate }) => {
-  const { data: question } = useQuestionById(questionId);
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline">{question?.type || 'Unknown'}</Badge>
-              <span className="text-xs text-muted-foreground">ID: {questionId.slice(-8)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {question?.details?.questionText || 'Question text not available'}
-            </p>
-          </div>
-          <div className="flex gap-1 ml-4">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDuplicate}>
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 

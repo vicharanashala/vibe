@@ -17,6 +17,282 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 
+// Add missing ObjectId type
+type ObjectId = string;
+
+// Question types - matching backend validators
+export interface QuestionBody {
+  question: {
+    text: string;
+    type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
+    isParameterized: boolean;
+    parameters?: Array<{
+      name: string;
+      possibleValues: string[];
+      type: 'number' | 'string';
+    }>;
+    hint?: string;
+    timeLimitSeconds: number;
+    points: number;
+  };
+  solution: any; // Union type based on question type
+}
+
+export interface QuestionId {
+  questionId: string;
+}
+
+export interface QuestionResponse {
+  _id: string;
+  text: string;
+  type: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
+  isParameterized: boolean;
+  parameters?: Array<{
+    name: string;
+    possibleValues: string[];
+    type: 'number' | 'string';
+  }>;
+  hint?: string;
+  timeLimitSeconds: number;
+  points: number;
+  // Solution fields based on type
+  solutionText?: string;
+  decimalPrecision?: number;
+  upperLimit?: number;
+  lowerLimit?: number;
+  value?: number;
+  expression?: string;
+  ordering?: Array<{
+    lotItem: {
+      text: string;
+      explaination: string;
+    };
+    order: number;
+  }>;
+  correctLotItems?: Array<{
+    text: string;
+    explaination: string;
+  }>;
+  incorrectLotItems?: Array<{
+    text: string;
+    explaination: string;
+  }>;
+  correctLotItem?: {
+    text: string;
+    explaination: string;
+  };
+}
+
+export interface FlagQuestionBody {
+  reason: string;
+  courseId?: string;
+  versionId?: string;
+}
+
+export interface FlagId {
+  flagId: string;
+}
+
+export interface ResolveFlagBody {
+  status: 'RESOLVED' | 'REJECTED';
+}
+
+// Question Bank types - matching backend validators
+export interface CreateQuestionBankBody {
+  courseId?: string;
+  courseVersionId?: string;
+  questions?: string[];
+  tags?: string[];
+  title: string;
+  description?: string;
+}
+
+export interface CreateQuestionBankResponse {
+  questionBankId: string;
+}
+
+export interface GetQuestionBankByIdParams {
+  questionBankId: string;
+}
+
+export interface QuestionBankResponse {
+  _id?: string | ObjectId;
+  courseId?: string;
+  courseVersionId?: string;
+  questions?: string[];
+  tags?: string[];
+  title: string;
+  description: string;
+}
+
+export interface QuestionBankAndQuestionParams {
+  questionBankId: string;
+  questionId: string;
+}
+
+export interface ReplaceQuestionResponse {
+  newQuestionId: string;
+}
+
+// Quiz types - matching backend validators
+export interface AddQuestionBankBody {
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+}
+
+export interface RemoveQuestionBankParams {
+  quizId: string;
+  questionBankId: string;
+}
+
+export interface EditQuestionBankBody {
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+}
+
+export interface GetUserMatricesParams {
+  quizId: string;
+  userId: string;
+}
+
+export interface QuizAttemptParam {
+  quizId: string;
+  attemptId: string;
+}
+
+export interface UpdateQuizSubmissionParam {
+  quizId: string;
+  submissionId: string;
+  score: number;
+}
+
+export interface RegradeSubmissionBody {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: Array<{
+    questionId: string | ObjectId;
+    status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+    score: number;
+    answerFeedback?: string;
+  }>;
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED';
+}
+
+export interface AddFeedbackParams {
+  quizId: string;
+  submissionId: string;
+  questionId: string;
+}
+
+export interface AddFeedbackBody {
+  feedback: string;
+}
+
+export interface GetAllQuestionBanksResponse extends Array<{
+    bankId: string;
+    count: number;
+    difficulty?: string[];
+    tags?: string[];
+    type?: string;
+  }> {}
+
+// Attempt types - matching backend validators
+export interface CreateAttemptParams {
+  quizId: string;
+}
+
+export interface SaveAttemptParams {
+  quizId: string;
+  attemptId: string;
+}
+
+export interface SubmitAttemptParams {
+  quizId: string;
+  attemptId: string;
+}
+
+export interface QuestionAnswersBody {
+  answers: SaveQuestion[];
+}
+
+// Updated response types matching backend
+export interface CreateAttemptResponse {
+  attemptId: string;
+  questionRenderViews: QuestionRenderView[];
+}
+
+export interface SubmitAttemptResponse {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: Array<{
+    questionId: string | ObjectId;
+    status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+    score: number;
+    answerFeedback?: string;
+  }>;
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: Date;
+  gradedBy?: string;
+}
+
+export interface UserQuizMetricsResponse {
+  _id?: string | ObjectId;
+  quizId: string | ObjectId;
+  userId: string | ObjectId;
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptId?: string | ObjectId;
+  latestSubmissionResultId?: string | ObjectId;
+  remainingAttempts: number;
+  attempts: Array<{
+    attemptId: string | ObjectId;
+    submissionResultId?: string | ObjectId;
+  }>;
+}
+
+export interface QuizAttemptResponse {
+  _id?: string | ObjectId;
+  quizId: string | ObjectId;
+  userId: string | ObjectId;
+  questionDetails: Array<{
+    questionId: string | ObjectId;
+    parameterMap?: Record<string, string | number>;
+  }>;
+  answers?: Array<{
+    questionId: string;
+    questionType: 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
+    answer: any;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface IGradingResult {
+  totalScore?: number;
+  totalMaxScore?: number;
+  overallFeedback?: Array<{
+    questionId: string | ObjectId;
+    status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+    score: number;
+    answerFeedback?: string;
+  }>;
+  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradedAt?: Date;
+  gradedBy?: string;
+}
+
+export interface QuizSubmissionResponseUpdated {
+  _id?: string | ObjectId;
+  quizId: string | ObjectId;
+  userId: string | ObjectId;
+  attemptId: string | ObjectId;
+  submittedAt: Date;
+  gradingResult?: IGradingResult;
+}
+
 // Auth hooks
 
 // POST /auth/verify
@@ -1086,13 +1362,6 @@ export function useDeleteAnomaly(): {
   };
 }
 
-
-// Question types
-export interface QuestionBody {
-  type: string;
-  details: any;
-}
-
 export interface QuestionId {
   questionId: string;
 }
@@ -1122,11 +1391,12 @@ export interface ResolveFlagBody {
 
 // Question Bank types
 export interface CreateQuestionBankBody {
-  name: string;
-  description?: string;
-  courseId: string;
-  courseVersionId: string;
+  courseId?: string;
+  courseVersionId?: string;
   questions?: string[];
+  tags?: string[];
+  title: string;
+  description?: string;
 }
 
 export interface CreateQuestionBankResponse {
@@ -1155,12 +1425,6 @@ export interface QuestionBankAndQuestionParams {
 
 export interface ReplaceQuestionResponse {
   newQuestionId: string;
-}
-
-// Quiz types
-export interface AddQuestionBankBody {
-  questionBankId: string;
-  questionsCount?: number;
 }
 
 export interface RemoveQuestionBankParams {
@@ -1203,12 +1467,10 @@ export interface AddFeedbackBody {
   feedback: string;
 }
 
-export interface GetAllQuestionBanksResponse {
-  questionBanks: Array<{
+export interface GetAllQuestionBanksResponse extends Array<{
     questionBankId: string;
     questionsCount?: number;
-  }>;
-}
+  }> {}
 
 // Attempt types
 export interface CreateAttemptParams {
@@ -1233,14 +1495,8 @@ export interface QuestionAnswersBody {
 // Quiz hooks
 export function useAttemptQuiz(): {
   mutate: (variables: { params: { path: { quizId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<{
-    attemptId: string,
-    questionRenderViews: QuestionRenderView[]
-  }>,
-  data: {
-    attemptId: string,
-    questionRenderViews: QuestionRenderView[]
-  } | undefined,
+  mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<CreateAttemptResponse>,
+  data: CreateAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -1287,7 +1543,7 @@ export function useFlagQuestion(): {
 export function useSaveQuiz(): {
   mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => void,
   mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<void>,
-  data: void,
+  data: void | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -1307,14 +1563,14 @@ export function useSaveQuiz(): {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
-    error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+    error: result.error ? (result.error.message || 'Failed to save quiz') : null
   };
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => SubmitQuizResponse,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<SubmitQuizResponse>,
-  data: SubmitQuizResponse | undefined,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<SubmitAttemptResponse>,
+  data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -1334,7 +1590,7 @@ export function useSubmitQuiz(): {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
-    error: result.error ? (result.error.message || 'Failed to attempt quiz') : null
+    error: result.error ? (result.error.message || 'Failed to submit quiz') : null
   };
 }
 
@@ -1356,7 +1612,7 @@ interface UserQuizMetricsResponse {
 
 // GET /quizzes/{quizId}/user/{userId}
 export function useUserQuizMetrics(quizId: string, userId: string): {
-  data: UserQuizMetrics | undefined,
+  data: UserQuizMetricsResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1375,7 +1631,7 @@ export function useUserQuizMetrics(quizId: string, userId: string): {
 
 // GET /quiz/{quizId}/submissions/{submissionId}
 export function useQuizSubmission(quizId: string, submissionId: string): {
-  data: QuizSubmissionResponse | undefined,
+  data: QuizSubmissionResponseUpdated | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1410,6 +1666,26 @@ export function useQuestionById(questionId: string): {
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch question') : null,
     refetch: result.refetch
+  };
+}
+
+// POST /quizzes/questions
+export function useCreateQuestion(): {
+  mutate: (variables: { body: QuestionBody }) => void,
+  mutateAsync: (variables: { body: QuestionBody }) => Promise<{questionId: string}>,
+  data: { questionId: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/quizzes/questions");
+  return {  
+    ...result,
+    error: result.error ? (result.error.message || 'Question creation failed') : null
   };
 }
 
@@ -1452,9 +1728,6 @@ export function useDeleteQuestion(): {
     error: result.error ? (result.error.message || 'Question deletion failed') : null
   };
 }
-
-// POST /quizzes/questions/{questionId}/flag
-// (already exists)
 
 // POST /quizzes/questions/flags/{flagId}/resolve
 export function useResolveFlaggedQuestion(): {
@@ -1507,7 +1780,7 @@ export function useQuestionBankById(questionBankId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/question-bank/{questionBankId}", {
     params: { path: { questionBankId } }
-  }, { enabled: !!questionBankId });
+  }, { enabled: !!questionBankId && questionBankId !== '' });
 
   return {
     data: result.data,
@@ -1783,7 +2056,7 @@ export function useResetUserQuizAttempts(): {
 
 // GET /quizzes/{quizId}/attempt/{attemptId}
 export function useGetAttemptDetails(quizId: string, attemptId: string): {
-  data: components['schemas']['IAttempt'] | undefined,
+  data: QuizAttemptResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1802,7 +2075,12 @@ export function useGetAttemptDetails(quizId: string, attemptId: string): {
 
 // GET /quizzes/{quizId}/analytics
 export function useQuizAnalytics(quizId: string): {
-  data: components['schemas']['QuizAnalytics'] | undefined,
+  data: {
+    totalAttempts: number;
+    submissions: number;
+    passRate: number;
+    averageScore: number;
+  } | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1821,7 +2099,33 @@ export function useQuizAnalytics(quizId: string): {
 
 // GET /quizzes/{quizId}/details
 export function useQuizDetails(quizId: string): {
-  data: components['schemas']['QuizDetails'] | undefined,
+  data: {
+    _id?: string | ObjectId;
+    name: string;
+    description: string;
+    type: 'QUIZ';
+    details?: {
+      questionBankRefs: Array<{
+        bankId: string;
+        count: number;
+        difficulty?: string[];
+        tags?: string[];
+        type?: string;
+      }>;
+      passThreshold: number;
+      maxAttempts: number;
+      quizType: 'DEADLINE' | 'NO_DEADLINE';
+      releaseTime: Date;
+      questionVisibility: number;
+      deadline?: Date;
+      approximateTimeToComplete: string;
+      allowPartialGrading: boolean;
+      allowHint: boolean;
+      showCorrectAnswersAfterSubmission: boolean;
+      showExplanationAfterSubmission: boolean;
+      showScoreAfterSubmission: boolean;
+    };
+  } | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1840,7 +2144,11 @@ export function useQuizDetails(quizId: string): {
 
 // GET /quizzes/{quizId}/performance
 export function useQuizPerformance(quizId: string): {
-  data: components['schemas']['QuizPerformance'] | undefined,
+  data: Array<{
+    questionId: string;
+    correctRate: number;
+    averageScore: number;
+  }> | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1859,7 +2167,12 @@ export function useQuizPerformance(quizId: string): {
 
 // Get /quizzes/{quizId}/results
 export function useQuizResults(quizId: string): {
-  data: components['schemas']['QuizResults'] | undefined,
+  data: Array<{
+    studentId: string | ObjectId;
+    attemptId: string | ObjectId;
+    score: number;
+    status: 'PENDING' | 'PASSED' | 'FAILED';
+  }> | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -1877,7 +2190,7 @@ export function useQuizResults(quizId: string): {
 }
 
 export function useQuizSubmissions(quizId: string): {
-  data: components['schemas']['QuizSubmissionResponse'][] | undefined,
+  data: QuizSubmissionResponseUpdated[] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void

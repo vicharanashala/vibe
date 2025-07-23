@@ -13,10 +13,16 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil
 } from "lucide-react";
 
+import { Link } from "@tanstack/react-router";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Home, GraduationCap } from "lucide-react";
+
 import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizSubmissions, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
+import QuizWizardModal from "./components/quiz-wizard";
+import { useAuthStore } from "@/store/auth-store";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -28,15 +34,14 @@ const getItemIcon = (type: string) => {
 };
 
 export default function TeacherCoursePage() {
-
-
-  const { currentCourse } = useCourseStore();
+  const user = useAuthStore().user;
+  const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
 
   // Fetch course version data (modules, sections, items)
-  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId);
+  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId || "");
   console.log("Version Data:", versionData);
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
@@ -48,7 +53,7 @@ export default function TeacherCoursePage() {
   const [selectedEntity, setSelectedEntity] = useState<{
     type: "module" | "section" | "item";
     data: any;
-    parentIds?: { moduleId: string; sectionId?: string };
+    parentIds?: { moduleId: string; sectionId?: string; itemsGroupId?: string };
   } | null>(null);
   const [isEditingItem, setIsEditingItem] = useState(false);
 
@@ -57,6 +62,11 @@ export default function TeacherCoursePage() {
     moduleId: string;
     sectionId: string;
   } | null>(null);
+
+  // Add this state for the quiz wizard modal
+  const [quizWizardOpen, setQuizWizardOpen] = useState(false);
+  const [quizModuleId, setQuizModuleId] = useState<string>("");
+  const [quizSectionId, setQuizSectionId] = useState<string>("");
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
@@ -67,9 +77,10 @@ export default function TeacherCoursePage() {
   const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
   const {
     data: currentSectionItems,
-    isLoading: itemsLoading
+    isLoading: itemsLoading,
+    refetch: refetchItems
   } = useItemsBySectionId(
-    shouldFetchItems ? versionId : '',
+    shouldFetchItems ? versionId || "" : '',
     shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
     shouldFetchItems ? activeSectionInfo?.sectionId ?? '' : ''
   );
@@ -91,7 +102,6 @@ export default function TeacherCoursePage() {
   const { data: quizAnalytics } = useQuizAnalytics(selectedQuizId);
   const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId);
   const { data: quizPerformance } = useQuizPerformance(selectedQuizId);
-  const { data: quizResults } = useQuizResults(selectedQuizId);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -128,6 +138,16 @@ export default function TeacherCoursePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess]);
 
+  // Reload items when quiz wizard closes
+  useEffect(() => {
+    if (!quizWizardOpen && quizModuleId && quizSectionId) {
+      // Quiz wizard just closed, reload items for the section
+      setActiveSectionInfo({ moduleId: quizModuleId, sectionId: quizSectionId });
+      refetchVersion();
+      refetchItems();
+    }
+  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion]);
+
   // Update sectionItems state when items are fetched
   useEffect(() => {
     if (
@@ -143,6 +163,7 @@ export default function TeacherCoursePage() {
       }));
     }
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+
 
   // Add Module
   const handleAddModule = () => {
@@ -178,22 +199,22 @@ export default function TeacherCoursePage() {
           name: videoData.name,
           description: videoData.description,
           videoDetails: {
-        URL: videoData.details.URL,
-        startTime: convertToMinSecMs(videoData.details.startTime),
-        endTime: convertToMinSecMs(videoData.details.endTime),
-        points: videoData.details.points,
+            URL: videoData.details.URL,
+            startTime: convertToMinSecMs(videoData.details.startTime),
+            endTime: convertToMinSecMs(videoData.details.endTime),
+            points: videoData.details.points,
           }
         }
       });
 
-    // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
-    function convertToMinSecMs(time: number) {
-      // If time is in ms, convert to seconds
-      const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
-      const minutes = Math.floor(totalMs / 60000);
-      const seconds = Math.floor((totalMs % 60000) / 1000);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    }
+      // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
+      function convertToMinSecMs(time: number) {
+        // If time is in ms, convert to seconds
+        const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
+        const minutes = Math.floor(totalMs / 60000);
+        const seconds = Math.floor((totalMs % 60000) / 1000);
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      }
       return;
     }
     if (type !== "VIDEO") {
@@ -266,6 +287,7 @@ export default function TeacherCoursePage() {
                                           parentIds: {
                                             moduleId: module.moduleId,
                                             sectionId: section.sectionId,
+                                            itemsGroupId: section.itemsGroupId,
                                           },
                                         })
                                       }
@@ -276,7 +298,6 @@ export default function TeacherCoursePage() {
                                         {item.type === "QUIZ" && `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
                                         {item.type === "BLOG" && `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
                                       </span>
-                                      <span className="ml-2 truncate">{item.name}</span>
                                     </SidebarMenuSubButton>
                                   </SidebarMenuSubItem>
                                 ))}
@@ -292,6 +313,18 @@ export default function TeacherCoursePage() {
                                             moduleId: module.moduleId,
                                             sectionId: section.sectionId,
                                           });
+                                        } else if (type === "quiz") {
+                                          setQuizModuleId(module.moduleId);
+                                          setQuizSectionId(section.sectionId);
+                                          // Update course store with current context
+                                          if (currentCourse) {
+                                            setCurrentCourse({
+                                              ...currentCourse,
+                                              moduleId: module.moduleId,
+                                              sectionId: section.sectionId
+                                            });
+                                          }
+                                          setQuizWizardOpen(true);
                                         } else {
                                           handleAddItem(module.moduleId, section.sectionId, type);
                                         }
@@ -331,8 +364,58 @@ export default function TeacherCoursePage() {
               </SidebarMenu>
             </ScrollArea>
           </SidebarContent>
-          <SidebarFooter className="border-t px-3 py-2">
-            <ThemeToggle />
+          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+            <SidebarMenu className="space-y-1 pl-2 py-3">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                  <Link to="/teacher" className="flex items-center gap-3">
+                    <div className="p-1 rounded-md bg-accent/15">
+                      <Home className="h-4 w-4 text-accent-foreground" />
+                    </div>
+                    <span className="text-sm font-medium">Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                  <Link to="/teacher/courses/list" className="flex items-center gap-3">
+                    <div className="p-1 rounded-md bg-accent/15">
+                      <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                    </div>
+                    <span className="text-sm font-medium">Courses</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <Separator className="my-2 opacity-50" />
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                >
+                  <Link to="/teacher/profile" className="flex items-center gap-3">
+                    <Avatar className="h-6 w-6 border border-border/20">
+                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                      <div className="text-xs text-muted-foreground">View Profile</div>
+                    </div>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
 
@@ -508,7 +591,7 @@ export default function TeacherCoursePage() {
                       ) {
                         if (window.confirm("Are you sure you want to delete this item?")) {
                           deleteItem.mutate({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds.sectionId, itemId: selectedEntity.data._id } }
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                           });
                           setSelectedEntity(null);
                           setIsEditingItem(false);
@@ -522,13 +605,20 @@ export default function TeacherCoursePage() {
                 {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                   <EnhancedQuizEditor
                     quizId={selectedQuizId}
+                    moduleId={selectedEntity.parentIds?.moduleId || ""}
+                    sectionId={selectedEntity.parentIds?.sectionId || ""}
                     courseId={courseId}
                     courseVersionId={versionId}
                     details={quizDetails}
                     analytics={quizAnalytics}
                     submissions={quizSubmissions}
                     performance={quizPerformance}
-                    results={quizResults}
+                    onDelete={() => {
+                      deleteItem.mutate({
+                        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
+                      });
+                      setSelectedEntity(null);
+                    }}
                   />
                 )}
               </div>
@@ -552,6 +642,8 @@ export default function TeacherCoursePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              backdropFilter: "blur(6px)", // <-- add blur effect
+              WebkitBackdropFilter: "blur(6px)", // for Safari support
             }}
           >
             <VideoModal
@@ -569,6 +661,12 @@ export default function TeacherCoursePage() {
             />
           </div>
         )}
+
+        {/* Add Quiz Modal */}
+        <QuizWizardModal
+          quizWizardOpen={quizWizardOpen}
+          setQuizWizardOpen={setQuizWizardOpen}
+        />
       </div>
     </SidebarProvider>
   );
