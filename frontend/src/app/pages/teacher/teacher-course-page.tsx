@@ -121,20 +121,20 @@ export default function TeacherCoursePage() {
   const createModule = useCreateModule();
   const updateModule = useUpdateModule();
   const deleteModule = useDeleteModule();
-  const moveModule=useMoveModule();
+  const moveModule   = useMoveModule();
 
   const createSection = useCreateSection();
   const updateSection = useUpdateSection();
   const deleteSection = useDeleteSection();
-  const moveSection=useMoveSection();
+  const moveSection   = useMoveSection();
 
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
-  const moveItem=useMoveItem();
+  const moveItem   = useMoveItem();
 
   useEffect(() => {
-    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess) {
+    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess ||moveModule.isSuccess || moveSection.isSuccess || moveItem.isSuccess ) {
       refetchVersion();
       // Also refetch items for active section
       if (activeSectionInfo) {
@@ -142,7 +142,7 @@ export default function TeacherCoursePage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess]);
+  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess,moveModule.isSuccess, moveSection.isSuccess, moveItem.isSuccess]);
 
   // Reload items when quiz wizard closes
   useEffect(() => {
@@ -240,10 +240,10 @@ export default function TeacherCoursePage() {
     const newList = pendingOrder.current;
   const newIndex = newList.findIndex((mod:any) => mod.moduleId === moduleId);
 
-  const before = newList[newIndex - 1] || null;
-  const after = newList[newIndex + 1] || null;
-
-  
+  const before = newList[newIndex + 1] || null;
+  const after = newList[newIndex - 1] || null;
+console.log(before,after,newIndex)
+ 
     moveModule.mutate({
     params: {
       path: {
@@ -274,8 +274,8 @@ const handleMoveSection = (
   const movedIndex = order.findIndex((s) => s.sectionId === sectionId);
   if (movedIndex === -1) return;
 
-  const after = order[movedIndex + 1] || null;
-  const before = order[movedIndex - 1] || null;
+  const after = order[movedIndex - 1] || null;
+  const before = order[movedIndex + 1] || null;
 console.log(order)
   moveSection.mutate({
     params: {
@@ -308,8 +308,8 @@ const handleMoveItem = (
   const movedIndex = order.findIndex((i) => i._id === itemId);
   if (movedIndex === -1) return;
 
-  const after = order[movedIndex + 1] || null;
-  const before = order[movedIndex - 1] || null;
+  const after = order[movedIndex - 1] || null;
+  const before = order[movedIndex + 1] || null;
 
   moveItem.mutate({
     params: {
@@ -329,6 +329,8 @@ const handleMoveItem = (
     },
   });
 };
+
+console.log(expandedSections)
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full">
@@ -434,13 +436,13 @@ const handleMoveItem = (
                     {expandedSections[section.sectionId] && (
                       <Reorder.Group
                         axis="y"
-                        values={section.items||[]}
+                        values={sectionItems[section.sectionId]||[]}
                         onReorder={(newItemOrder) => {
                            pendingOrder.current[module.moduleId[section.sectionId]] = newItemOrder;
                         }}
                       >
                         <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                          {(section.items || []).map((item: any) => (
+                          {(sectionItems[section.sectionId] || []).map((item: any) => (
                             <Reorder.Item
                               key={item._id}
                               value={item}
@@ -465,7 +467,7 @@ const handleMoveItem = (
                                 handleMoveItem(module.moduleId, section.sectionId,item._id, versionId);
                               }}
                             >
-                              <SidebarMenuSubItem>
+                              <SidebarMenuSubItem key={item._id}>
                                 <SidebarMenuSubButton
                                   className="justify-start"
                                   onClick={() =>
@@ -493,7 +495,81 @@ const handleMoveItem = (
                               </SidebarMenuSubItem>
                             </Reorder.Item>
                           ))}
-                        </SidebarMenuSub>
+                        <div className="ml-6 mt-2">
+
+                                  <select
+
+                                    className="text-xs border rounded px-2 py-1 bg-background text-foreground"
+
+                                    defaultValue=""
+
+                                    onChange={(e) => {
+
+                                      const type = e.target.value;
+
+                                      if (type) {
+
+                                        if (type === "VIDEO") {
+
+                                          setShowAddVideoModal({
+
+                                            moduleId: module.moduleId,
+
+                                            sectionId: section.sectionId,
+
+                                          });
+
+                                        } else if (type === "quiz") {
+
+                                          setQuizModuleId(module.moduleId);
+
+                                          setQuizSectionId(section.sectionId);
+
+                                          // Update course store with current context
+
+                                          if (currentCourse) {
+
+                                            setCurrentCourse({
+
+                                              ...currentCourse,
+
+                                              moduleId: module.moduleId,
+
+                                              sectionId: section.sectionId
+
+                                            });
+
+                                          }
+
+                                          setQuizWizardOpen(true);
+
+                                        } else {
+
+                                          handleAddItem(module.moduleId, section.sectionId, type);
+
+                                        }
+
+                                        e.target.value = "";
+
+                                      }
+
+                                    }}
+
+                                  >
+
+                                    <option value="" disabled>Add Item</option>
+
+                                    <option value="article">Article</option>
+
+                                    <option value="VIDEO">Video</option>
+
+                                    <option value="quiz">Quiz</option>
+
+                                  </select>
+
+                                </div>
+
+                              </SidebarMenuSub>
                       </Reorder.Group>
                     )}
                   </SidebarMenuSubItem>
