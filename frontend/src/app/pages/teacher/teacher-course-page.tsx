@@ -137,6 +137,7 @@ export default function TeacherCoursePage() {
     if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess ||moveModule.isSuccess || moveSection.isSuccess || moveItem.isSuccess ) {
       refetchVersion();
       // Also refetch items for active section
+      
       if (activeSectionInfo) {
         setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
       }
@@ -330,7 +331,18 @@ const handleMoveItem = (
   });
 };
 
-console.log(expandedSections)
+
+useEffect(()=>{
+  if(modules.length>0)
+  {const sortedModules = [...modules].sort((a, b) => {
+  return a.order.localeCompare(b.order);
+ 
+});
+setInitialModules(sortedModules)
+ console.log(sortedModules)}
+},[modules])
+
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full">
