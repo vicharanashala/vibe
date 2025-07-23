@@ -62,10 +62,11 @@ export default function TeacherCoursesPage() {
   const enrollments = enrollmentsResponse?.enrollments || []
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
+  const filteredEnrollements = enrollments.filter((enrollment)=>enrollment.role !== "STUDENT");
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
-  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
+  const uniqueCourses = filteredEnrollements.reduce((acc: any[], enrollment: any) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
     const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
