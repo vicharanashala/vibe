@@ -243,7 +243,7 @@ export default function TeacherCoursePage() {
 
   const before = newList[newIndex + 1] || null;
   const after = newList[newIndex - 1] || null;
-console.log(before,after,newIndex)
+
  
     moveModule.mutate({
     params: {
@@ -277,7 +277,7 @@ const handleMoveSection = (
 
   const after = order[movedIndex - 1] || null;
   const before = order[movedIndex + 1] || null;
-console.log(order)
+
   moveSection.mutate({
     params: {
       path: {
@@ -303,7 +303,7 @@ const handleMoveItem = (
   itemId: string,
   versionId: string
 ) => {
-  const order = pendingOrder.current[module.moduleId[section.sectionId]];
+  const order = pendingOrder.current[moduleId[sectionId]];
   if (!order) return;
 
   const movedIndex = order.findIndex((i) => i._id === itemId);
@@ -334,12 +334,9 @@ const handleMoveItem = (
 
 useEffect(()=>{
   if(modules.length>0)
-  {const sortedModules = [...modules].sort((a, b) => {
-  return a.order.localeCompare(b.order);
- 
-});
-setInitialModules(sortedModules)
- console.log(sortedModules)}
+  {
+setInitialModules(modules)
+ }
 },[modules])
 
 
@@ -371,7 +368,10 @@ setInitialModules(sortedModules)
   values={initialModules}
 >
   <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
-    {initialModules.map((module: any) => (
+   {initialModules
+  .slice() 
+  .sort((a: any, b: any) => a.order.localeCompare(b.order)) 
+  .map((module: any) => (
       <SidebarMenuItem key={module.moduleId}>
         <Reorder.Item
           key={module.moduleId}
@@ -454,7 +454,10 @@ setInitialModules(sortedModules)
                         }}
                       >
                         <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                          {(sectionItems[section.sectionId] || []).map((item: any) => (
+                          {(sectionItems[section.sectionId] || [])
+  .slice() 
+  .sort((a: any, b: any) => a.order.localeCompare(b.order)) 
+  .map((item: any) => (
                             <Reorder.Item
                               key={item._id}
                               value={item}
