@@ -52,6 +52,7 @@ export default function TeacherCoursePage() {
 
   const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
 
+
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [selectedEntity, setSelectedEntity] = useState<{
@@ -74,6 +75,7 @@ export default function TeacherCoursePage() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+  
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -136,6 +138,7 @@ export default function TeacherCoursePage() {
   useEffect(() => {
     if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess ||moveModule.isSuccess || moveSection.isSuccess || moveItem.isSuccess ) {
       refetchVersion();
+      console.log("hello")
       // Also refetch items for active section
       
       if (activeSectionInfo) {
@@ -163,6 +166,7 @@ export default function TeacherCoursePage() {
       currentSectionItems &&
       !itemsLoading
     ) {
+      
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
       setSectionItems(prev => ({
         ...prev,
@@ -234,9 +238,12 @@ export default function TeacherCoursePage() {
 
   // Interim state of modules
   const pendingOrder = useRef<typeof module[]>(modules);
+
+  // Interim state of items
+  const pendingOrderItems = useRef<typeof sectionItems>(sectionItems);
  
   // Move module
-  const handleMoveModule=(moduleId: string, versionId: string )=>{
+  const handleMoveModule=(moduleId: string, versionId?: string )=>{
 
     const newList = pendingOrder.current;
   const newIndex = newList.findIndex((mod:any) => mod.moduleId === moduleId);
@@ -245,7 +252,7 @@ export default function TeacherCoursePage() {
   const after = newList[newIndex - 1] || null;
 
  
-    moveModule.mutate({
+    if(versionId&&moduleId){moveModule.mutate({
     params: {
       path: {
         versionId,
@@ -259,7 +266,7 @@ export default function TeacherCoursePage() {
       
       
     },
-  });
+  });}
   }
 
  // Move section
@@ -303,7 +310,7 @@ const handleMoveItem = (
   itemId: string,
   versionId: string
 ) => {
-  const order = pendingOrder.current[moduleId[sectionId]];
+  const order = pendingOrderItems.current[sectionId];
   if (!order) return;
 
   const movedIndex = order.findIndex((i) => i._id === itemId);
@@ -329,6 +336,7 @@ const handleMoveItem = (
         : {}),
     },
   });
+  refetchItems();
 };
 
 
@@ -338,7 +346,6 @@ useEffect(()=>{
 setInitialModules(modules)
  }
 },[modules])
-
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -450,7 +457,7 @@ setInitialModules(modules)
                         axis="y"
                         values={sectionItems[section.sectionId]||[]}
                         onReorder={(newItemOrder) => {
-                           pendingOrder.current[module.moduleId[section.sectionId]] = newItemOrder;
+                           pendingOrderItems.current[section.sectionId] = newItemOrder;
                         }}
                       >
                         <SidebarMenuSub className="ml-4 space-y-1 pt-1">
@@ -465,20 +472,19 @@ setInitialModules(modules)
                               className="focus:outline-none"
                               whileDrag={{ scale: 1.02 }}
                               onDragEnd={() => {
-                                setInitialModules((prev) =>
-                                  prev.map((mod) =>
-                                    mod.moduleId === module.moduleId
-                                      ? {
-                                          ...mod,
-                                          sections: mod.sections.map((sec) =>
-                                            sec.sectionId === section.sectionId
-                                              ? { ...sec, items:pendingOrder.current[module.moduleId[section.sectionId]] }
-                                              : sec
-                                          ),
-                                        }
-                                      : mod
-                                  )
-                                );
+                               
+     setSectionItems((prev) => {
+  const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
+
+  // Sort by LexoRank-compatible `order` string
+  const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
+
+  return {
+    ...prev,
+    [section.sectionId]: sortedItems
+  };
+});
+                               
                                 handleMoveItem(module.moduleId, section.sectionId,item._id, versionId);
                               }}
                             >
