@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
+import { Reorder } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -34,14 +35,6 @@ const getItemIcon = (type: string) => {
   }
 };
 
-// Helper function to reorder an array (for frontend state updates)
-const reorderArray = (list, startIndex, endIndex) => {
-  const result = Array.from(list);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
-  return result;
-};
-
 
 export default function TeacherCoursePage() {
   const user = useAuthStore().user;
@@ -52,11 +45,12 @@ export default function TeacherCoursePage() {
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId || "");
-  console.log("Version Data:", versionData);
+  // console.log("Version Data:", versionData);
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
 
+  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -96,7 +90,7 @@ export default function TeacherCoursePage() {
   );
 
   // Fetch item details for selected item
-  console.log("Selected Entity:", selectedEntity, courseId, versionId);
+  // console.log("Selected Entity:", selectedEntity, courseId, versionId);
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
     data: selectedItemData
@@ -138,22 +132,6 @@ export default function TeacherCoursePage() {
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
   const moveItem=useMoveItem();
-
-
-  // --- Drag and Drop State ---
-  const [draggedItem, setDraggedItem] = useState<{
-    type: "module" | "section" | "item";
-    id: string;
-    parentModuleId?: string;
-    parentSectionId?: string;
-    itemsGroupId?: string; // This might be needed for items
-  } | null>(null);
-
-  const [dragOverElement, setDragOverElement] = useState<{
-    type: "module" | "section" | "item" | "sidebar" | null;
-    id: string | null;
-    position: "top" | "bottom" | "middle" | null; // For visual feedback
-  }>({ type: null, id: null, position: null });
 
   useEffect(() => {
     if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess) {
@@ -253,209 +231,104 @@ export default function TeacherCoursePage() {
     }
   };
 
+  // Interim state of modules
+  const pendingOrder = useRef<typeof module[]>(modules);
+ 
+  // Move module
+  const handleMoveModule=(moduleId: string, versionId: string )=>{
 
-  // --- Drag and Drop Handlers ---
-  const handleDragStart = (e: React.DragEvent, type: "module" | "section" | "item", data: any, parentIds?: { moduleId?: string; sectionId?: string; itemsGroupId?: string }) => {
-    setDraggedItem({
-      type,
-      id: type === "module" ? data.moduleId : type === "section" ? data.sectionId : data._id,
-      parentModuleId: parentIds?.moduleId,
-      parentSectionId: parentIds?.sectionId,
-      itemsGroupId: parentIds?.itemsGroupId,
-    });
-    e.dataTransfer.setData("text/plain", JSON.stringify({
-      type,
-      id: type === "module" ? data.moduleId : type === "section" ? data.sectionId : data._id,
-      parentModuleId: parentIds?.moduleId,
-      parentSectionId: parentIds?.sectionId,
-      itemsGroupId: parentIds?.itemsGroupId,
-    }));
-    e.dataTransfer.effectAllowed = "move";
-  };
+    const newList = pendingOrder.current;
+  const newIndex = newList.findIndex((mod:any) => mod.moduleId === moduleId);
 
-  const handleDragOver = (e: React.DragEvent, type: "module" | "section" | "item" | "sidebar", targetId: string | null = null) => {
-    e.preventDefault(); // Essential to allow dropping
-    let position: "top" | "bottom" | "middle" | null = null;
-    if (type !== "sidebar") {
-      const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const offset = e.clientY - targetRect.top;
-      const threshold = targetRect.height * 0.3; // Top/bottom 30% for inserting before/after
+  const before = newList[newIndex - 1] || null;
+  const after = newList[newIndex + 1] || null;
 
-      if (offset < threshold) {
-        position = "top";
-      } else if (offset > targetRect.height - threshold) {
-        position = "bottom";
-      } else {
-        position = "middle"; // Dropping directly onto
-      }
-    }
-    setDragOverElement({ type, id: targetId, position });
-  };
+  
+    moveModule.mutate({
+    params: {
+      path: {
+        versionId,
+        moduleId,
+      },
+    },
+    body: {
+      ...(before
+        ? { beforeModuleId: before?.moduleId || "" }
+        : { afterModuleId: after?.moduleId || "" }),
+      
+      
+    },
+  });
+  }
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    setDragOverElement({ type: null, id: null, position: null });
-  };
+ // Move section
+const handleMoveSection = (
+  moduleId: string,
+  sectionId: string,
+  versionId: string
+) => {
+  const order = pendingOrder.current[moduleId];
 
-  const handleDrop = async (e: React.DragEvent, droppedOnType: "module" | "section" | "item" | "sidebar", droppedOnId: string | null = null, droppedOnParentIds?: { moduleId?: string; sectionId?: string; itemsGroupId?: string }) => {
-    e.preventDefault();
-    setDragOverElement({ type: null, id: null, position: null });
+  if (!order) return;
 
-    if (!draggedItem || !versionId) return;
+  const movedIndex = order.findIndex((s) => s.sectionId === sectionId);
+  if (movedIndex === -1) return;
 
-    const { type: draggedType, id: draggedId, parentModuleId, parentSectionId, itemsGroupId } = draggedItem;
-    const { position: dropPosition } = dragOverElement;
+  const after = order[movedIndex + 1] || null;
+  const before = order[movedIndex - 1] || null;
+console.log(order)
+  moveSection.mutate({
+    params: {
+      path: {
+        versionId,
+        moduleId,
+        sectionId,
+      },
+    },
+    body: {
+      ...(before
+        ? { beforeSectionId: before.sectionId }
+        : after
+        ? { afterSectionId: after.sectionId }
+        : {}),
+    },
+  });
+};
 
-    if (!draggedId) return;
+// Move item
+const handleMoveItem = (
+  moduleId: string,
+  sectionId: string,
+  itemId: string,
+  versionId: string
+) => {
+  const order = pendingOrder.current[module.moduleId[section.sectionId]];
+  if (!order) return;
 
-    let updatedModules = [...modules];
+  const movedIndex = order.findIndex((i) => i._id === itemId);
+  if (movedIndex === -1) return;
 
-    // Helper to find indices
-    const findModuleIndex = (mId) => updatedModules.findIndex(m => m.moduleId === mId);
-    const findSectionIndex = (mId, sId) => updatedModules[findModuleIndex(mId)]?.sections?.findIndex(s => s.sectionId === sId);
-    const findItemIndex = (sId, iId) => sectionItems[sId]?.findIndex(item => item._id === iId);
+  const after = order[movedIndex + 1] || null;
+  const before = order[movedIndex - 1] || null;
 
-
-    // --- Module Reordering ---
-    if (draggedType === "module") {
-      const draggedModuleIndex = findModuleIndex(draggedId);
-      const targetModuleIndex = findModuleIndex(droppedOnId);
-
-      if (draggedModuleIndex === -1 || targetModuleIndex === -1 || draggedModuleIndex === targetModuleIndex) return;
-
-      const [movedModule] = updatedModules.splice(draggedModuleIndex, 1);
-      updatedModules.splice(dropPosition === "bottom" ? targetModuleIndex + 1 : targetModuleIndex, 0, movedModule);
-
-      // Call API to update module order
-      const newOrder = updatedModules.map(m => m.moduleId);
-      console.log(`Reordering modules: ${draggedId} moved to new order. New order:`, newOrder);
-      // Example API call:
-      // updateModuleOrder.mutate({ versionId, newModuleOrder: newOrder });
-      // You'll need to implement an API endpoint for reordering collections.
-      // For now, we'll just refetch to update the UI
-      refetchVersion(); // Refetch to show the new order from backend
-    }
-
-    // --- Section Reordering ---
-    if (draggedType === "section") {
-        // Dragging section within the same module
-        if (droppedOnType === "section" && droppedOnParentIds?.moduleId === parentModuleId) {
-            const currentModuleIndex = findModuleIndex(parentModuleId);
-            if (currentModuleIndex === -1) return;
-
-            const currentSections = updatedModules[currentModuleIndex].sections;
-            const draggedSectionIndex = currentSections.findIndex(s => s.sectionId === draggedId);
-            const targetSectionIndex = currentSections.findIndex(s => s.sectionId === droppedOnId);
-
-            if (draggedSectionIndex === -1 || targetSectionIndex === -1 || draggedSectionIndex === targetSectionIndex) return;
-
-            const reorderedSections = reorderArray(currentSections, draggedSectionIndex, dropPosition === "bottom" ? targetSectionIndex + 1 : targetSectionIndex);
-            updatedModules[currentModuleIndex].sections = reorderedSections;
-
-            // Call API to update section order within module
-            const newSectionOrder = reorderedSections.map(s => s.sectionId);
-            console.log(`Reordering sections in module ${parentModuleId}. New order:`, newSectionOrder);
-            updateModule.mutate({
-                params: { path: { versionId, moduleId: parentModuleId } },
-                body: { sectionsOrder: newSectionOrder } // Assuming your updateModule API accepts sectionsOrder
-            });
-            refetchVersion();
-        }
-        // Dragging section to a different module (or to a module as a new child)
-        else if (droppedOnType === "module" && droppedOnId !== parentModuleId) {
-            const oldModuleIndex = findModuleIndex(parentModuleId);
-            const newModuleIndex = findModuleIndex(droppedOnId);
-
-            if (oldModuleIndex === -1 || newModuleIndex === -1) return;
-
-            const [movedSection] = updatedModules[oldModuleIndex].sections.splice(findSectionIndex(parentModuleId, draggedId), 1);
-            
-            // Determine the new position within the target module
-            let targetSections = updatedModules[newModuleIndex].sections || [];
-            let insertIndex = 0; // Default to top
-            if (dropPosition === "bottom") {
-                insertIndex = targetSections.length;
-            } else if (droppedOnType === "section" && droppedOnId) {
-                // If dropping directly onto a section in the new module
-                const targetSecIdx = targetSections.findIndex(s => s.sectionId === droppedOnId);
-                if (targetSecIdx !== -1) {
-                    insertIndex = dropPosition === "bottom" ? targetSecIdx + 1 : targetSecIdx;
-                }
-            }
-            
-            targetSections.splice(insertIndex, 0, movedSection);
-            updatedModules[newModuleIndex].sections = targetSections;
-
-            // Call APIs: 1. Remove from old module, 2. Add to new module with order
-            console.log(`Moving section ${draggedId} from module ${parentModuleId} to module ${droppedOnId}`);
-            updateSection.mutate({
-                params: { path: { versionId, moduleId: parentModuleId, sectionId: draggedId } },
-                body: { newModuleId: droppedOnId, newOrderIndex: insertIndex } // Assuming this API supports moving
-            });
-            refetchVersion();
-        }
-    }
-
-
-    // --- Item Reordering ---
-    if (draggedType === "item") {
-        // Dragging item within the same section
-        if (droppedOnType === "item" && droppedOnParentIds?.sectionId === parentSectionId) {
-            const currentItems = sectionItems[parentSectionId];
-            const draggedItemIndex = currentItems.findIndex(i => i._id === draggedId);
-            const targetItemIndex = currentItems.findIndex(i => i._id === droppedOnId);
-
-            if (draggedItemIndex === -1 || targetItemIndex === -1 || draggedItemIndex === targetItemIndex) return;
-
-            const reorderedItems = reorderArray(currentItems, draggedItemIndex, dropPosition === "bottom" ? targetItemIndex + 1 : targetItemIndex);
-            setSectionItems(prev => ({ ...prev, [parentSectionId]: reorderedItems }));
-
-            // Call API to update item order within section
-            const newOrder = reorderedItems.map(item => item._id);
-            console.log(`Reordering items in section ${parentSectionId}. New order:`, newOrder);
-            updateSection.mutate({
-                params: { path: { versionId, moduleId: parentModuleId, sectionId: parentSectionId } },
-                body: { itemsOrder: newOrder } // Assuming your updateSection API accepts itemsOrder
-            });
-        }
-        // Dragging item to a different section (or to a section as a new child)
-        else if (droppedOnType === "section" && droppedOnId !== parentSectionId) {
-            const oldSectionItems = [...sectionItems[parentSectionId]];
-            const newSectionItems = [...(sectionItems[droppedOnId] || [])];
-
-            const draggedItemData = oldSectionItems.find(i => i._id === draggedId);
-            if (!draggedItemData) return;
-
-            // Remove from old section
-            const oldDraggedItemIndex = oldSectionItems.findIndex(i => i._id === draggedId);
-            oldSectionItems.splice(oldDraggedItemIndex, 1);
-            setSectionItems(prev => ({ ...prev, [parentSectionId]: oldSectionItems }));
-
-            // Add to new section
-            let insertIndex = 0; // Default to top of new section
-            if (dropPosition === "bottom") {
-                insertIndex = newSectionItems.length;
-            } else if (droppedOnType === "item" && droppedOnId) {
-                // If dropping relative to an item in the new section
-                const targetItemIdx = newSectionItems.findIndex(i => i._id === droppedOnId);
-                if (targetItemIdx !== -1) {
-                    insertIndex = dropPosition === "bottom" ? targetItemIdx + 1 : targetItemIdx;
-                }
-            }
-
-            newSectionItems.splice(insertIndex, 0, draggedItemData);
-            setSectionItems(prev => ({ ...prev, [droppedOnId]: newSectionItems }));
-
-            // Call API to move item between sections and update order
-            console.log(`Moving item ${draggedId} from section ${parentSectionId} to section ${droppedOnId}`);
-            updateItem.mutate({
-                params: { path: { versionId, moduleId: parentModuleId, sectionId: parentSectionId, itemId: draggedId } },
-                body: { newModuleId: droppedOnParentIds?.moduleId, newSectionId: droppedOnId, newOrderIndex: insertIndex } // Assuming this API supports moving
-            });
-        }
-    }
-  };
-
-
+  moveItem.mutate({
+    params: {
+      path: {
+        versionId,
+        moduleId,
+        sectionId,
+        itemId,
+      },
+    },
+    body: {
+      ...(before
+        ? { beforeItemId: before._id }
+        : after
+        ? { afterItemId: after._id }
+        : {}),
+    },
+  });
+};
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full">
@@ -473,165 +346,185 @@ export default function TeacherCoursePage() {
 
           <SidebarContent
             className="bg-card/50 pl-2"
-            onDragOver={(e) => handleDragOver(e, "sidebar", null)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, "sidebar", null)}
+            
           >
             <ScrollArea className="flex-1">
-              <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
-                {modules.map((module: any) => (
-                  <SidebarMenuItem
-                    key={module.moduleId}
-                    className={`
-                      ${dragOverElement.type === "module" && dragOverElement.id === module.moduleId && dragOverElement.position === "top" ? 'border-t-2 border-blue-500' : ''}
-                      ${dragOverElement.type === "module" && dragOverElement.id === module.moduleId && dragOverElement.position === "bottom" ? 'border-b-2 border-blue-500' : ''}
-                      ${dragOverElement.type === "module" && dragOverElement.id === module.moduleId && dragOverElement.position === "middle" ? 'bg-blue-100/20' : ''}
-                    `}
-                    onDragOver={(e) => handleDragOver(e, "module", module.moduleId)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, "module", module.moduleId)}
-                  >
-                    <SidebarMenuButton
-                      draggable="true"
-                      onDragStart={(e) => handleDragStart(e, "module", module)}
+    <Reorder.Group
+  axis="y"
+  onReorder={(newOrder) => {
+    pendingOrder.current = newOrder;
+  }}
+  values={initialModules}
+>
+  <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
+    {initialModules.map((module: any) => (
+      <SidebarMenuItem key={module.moduleId}>
+        <Reorder.Item
+          key={module.moduleId}
+          value={module}
+          drag
+          className="focus:outline-none"
+          whileDrag={{ scale: 1.02 }}
+          onDragEnd={() => {
+            setInitialModules(pendingOrder.current);
+            handleMoveModule(module.moduleId, versionId);
+          }}
+        >
+          <SidebarMenuButton
+            onClick={() => {
+              toggleModule(module.moduleId);
+              setSelectedEntity({ type: "module", data: module });
+            }}
+          >
+            <ChevronRight
+              className={`h-3.5 w-3.5 transition-transform ${
+                expandedModules[module.moduleId] ? "rotate-90" : ""
+              }`}
+            />
+            <span className="ml-2 truncate">{module.name}</span>
+          </SidebarMenuButton>
+        </Reorder.Item>
+
+        {expandedModules[module.moduleId] && (
+          <Reorder.Group
+            axis="y"
+            values={module.sections}
+            onReorder={(newSectionOrder) => {
+              pendingOrder.current[module.moduleId] = newSectionOrder;
+            }}
+          >
+            <SidebarMenuSub className="ml-2">
+              {module.sections?.map((section: any) => (
+                <Reorder.Item
+                  key={section.sectionId}
+                  value={section}
+                  drag
+                  className="focus:outline-none"
+                  whileDrag={{ scale: 1.02 }}
+                  onDragEnd={() => {
+                    setInitialModules((prev) =>
+                      prev.map((mod) =>
+                        mod.moduleId === module.moduleId
+                          ? { ...mod, sections: pendingOrder.current[module.moduleId] }
+                          : mod
+                      )
+                    );
+                    handleMoveSection(module.moduleId,section.sectionId, versionId);
+                  }}
+                >
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
                       onClick={() => {
-                        toggleModule(module.moduleId);
-                        setSelectedEntity({ type: "module", data: module });
+                        toggleSection(module.moduleId, section.sectionId);
+                        setSelectedEntity({
+                          type: "section",
+                          data: section,
+                          parentIds: { moduleId: module.moduleId },
+                        });
                       }}
                     >
-                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""}`} />
-                      <span className="ml-2 truncate">{module.name}</span>
-                    </SidebarMenuButton>
+                      <ChevronRight
+                        className={`h-3 w-3 transition-transform ${
+                          expandedSections[section.sectionId] ? "rotate-90" : ""
+                        }`}
+                      />
+                      <span className="ml-2 truncate">{section.name}</span>
+                    </SidebarMenuSubButton>
 
-                    {expandedModules[module.moduleId] && (
-                      <SidebarMenuSub className="ml-2">
-                        {module.sections?.map((section: any) => (
-                          <SidebarMenuSubItem
-                            key={section.sectionId}
-                            className={`
-                              ${dragOverElement.type === "section" && dragOverElement.id === section.sectionId && dragOverElement.position === "top" ? 'border-t-2 border-green-500' : ''}
-                              ${dragOverElement.type === "section" && dragOverElement.id === section.sectionId && dragOverElement.position === "bottom" ? 'border-b-2 border-green-500' : ''}
-                              ${dragOverElement.type === "section" && dragOverElement.id === section.sectionId && dragOverElement.position === "middle" ? 'bg-green-100/20' : ''}
-                            `}
-                            onDragOver={(e) => handleDragOver(e, "section", section.sectionId)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, "section", section.sectionId, { moduleId: module.moduleId })}
-                          >
-                            <SidebarMenuSubButton
-                              draggable="true"
-                              onDragStart={(e) => handleDragStart(e, "section", section, { moduleId: module.moduleId })}
-                              onClick={() => {
-                                toggleSection(module.moduleId, section.sectionId);
-                                setSelectedEntity({
-                                  type: "section",
-                                  data: section,
-                                  parentIds: { moduleId: module.moduleId },
-                                });
+                    {expandedSections[section.sectionId] && (
+                      <Reorder.Group
+                        axis="y"
+                        values={section.items||[]}
+                        onReorder={(newItemOrder) => {
+                           pendingOrder.current[module.moduleId[section.sectionId]] = newItemOrder;
+                        }}
+                      >
+                        <SidebarMenuSub className="ml-4 space-y-1 pt-1">
+                          {(section.items || []).map((item: any) => (
+                            <Reorder.Item
+                              key={item._id}
+                              value={item}
+                              drag
+                              className="focus:outline-none"
+                              whileDrag={{ scale: 1.02 }}
+                              onDragEnd={() => {
+                                setInitialModules((prev) =>
+                                  prev.map((mod) =>
+                                    mod.moduleId === module.moduleId
+                                      ? {
+                                          ...mod,
+                                          sections: mod.sections.map((sec) =>
+                                            sec.sectionId === section.sectionId
+                                              ? { ...sec, items:pendingOrder.current[module.moduleId[section.sectionId]] }
+                                              : sec
+                                          ),
+                                        }
+                                      : mod
+                                  )
+                                );
+                                handleMoveItem(module.moduleId, section.sectionId,item._id, versionId);
                               }}
                             >
-                              <ChevronRight className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""}`} />
-                              <span className="ml-2 truncate">{section.name}</span>
-                            </SidebarMenuSubButton>
-
-                            {expandedSections[section.sectionId] && (
-                              <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                {(sectionItems[section.sectionId] || []).map((item: any) => (
-                                  <SidebarMenuSubItem
-                                    key={item._id}
-                                     draggable="true"
-                                    className={`
-                                      ${dragOverElement.type === "item" && dragOverElement.id === item._id && dragOverElement.position === "top" ? 'border-t-2 border-purple-500' : ''}
-                                      ${dragOverElement.type === "item" && dragOverElement.id === item._id && dragOverElement.position === "bottom" ? 'border-b-2 border-purple-500' : ''}
-                                      ${dragOverElement.type === "item" && dragOverElement.id === item._id && dragOverElement.position === "middle" ? 'bg-purple-100/20' : ''}
-                                    `}
-                                    onDragOver={(e) => handleDragOver(e, "item", item._id)}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={(e) => handleDrop(e, "item", item._id, { moduleId: module.moduleId, sectionId: section.sectionId, itemsGroupId: section.itemsGroupId })}
-                                  >
-                                    <SidebarMenuSubButton
-                                      className="justify-start"
-                                      onClick={() =>
-                                        setSelectedEntity({
-                                          type: "item",
-                                          data: item,
-                                          parentIds: {
-                                            moduleId: module.moduleId,
-                                            sectionId: section.sectionId,
-                                            itemsGroupId: section.itemsGroupId,
-                                          },
-                                        })
-                                      }
-                                    >
-                                      {getItemIcon(item.type)}
-                                      <span className="ml-1 text-xs text-muted-foreground">
-                                        {item.type === "VIDEO" && `Video ${(sectionItems[section.sectionId] || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
-                                        {item.type === "QUIZ" && `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
-                                        {item.type === "BLOG" && `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
-                                      </span>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                ))}
-                                <div className="ml-6 mt-2">
-                                  <select
-                                    className="text-xs border rounded px-2 py-1 bg-background text-foreground"
-                                    defaultValue=""
-                                    onChange={(e) => {
-                                      const type = e.target.value;
-                                      if (type) {
-                                        if (type === "VIDEO") {
-                                          setShowAddVideoModal({
-                                            moduleId: module.moduleId,
-                                            sectionId: section.sectionId,
-                                          });
-                                        } else if (type === "quiz") {
-                                          setQuizModuleId(module.moduleId);
-                                          setQuizSectionId(section.sectionId);
-                                          // Update course store with current context
-                                          if (currentCourse) {
-                                            setCurrentCourse({
-                                              ...currentCourse,
-                                              moduleId: module.moduleId,
-                                              sectionId: section.sectionId
-                                            });
-                                          }
-                                          setQuizWizardOpen(true);
-                                        } else {
-                                          handleAddItem(module.moduleId, section.sectionId, type);
-                                        }
-                                        e.target.value = "";
-                                      }
-                                    }}
-                                  >
-                                    <option value="" disabled>Add Item</option>
-                                    <option value="article">Article</option>
-                                    <option value="VIDEO">Video</option>
-                                    <option value="quiz">Quiz</option>
-                                  </select>
-                                </div>
-                              </SidebarMenuSub>
-                            )}
-                          </SidebarMenuSubItem>
-                        ))}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="ml-4 mt-2 h-6 text-xs"
-                          onClick={() => handleAddSection(module.moduleId)}
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Add Section
-                        </Button>
-                      </SidebarMenuSub>
+                              <SidebarMenuSubItem>
+                                <SidebarMenuSubButton
+                                  className="justify-start"
+                                  onClick={() =>
+                                    setSelectedEntity({
+                                      type: "item",
+                                      data: item,
+                                      parentIds: {
+                                        moduleId: module.moduleId,
+                                        sectionId: section.sectionId,
+                                        itemsGroupId: section.itemsGroupId,
+                                      },
+                                    })
+                                  }
+                                >
+                                  {getItemIcon(item.type)}
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    {item.type === "VIDEO" &&
+                                      `Video ${(section.items || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
+                                    {item.type === "QUIZ" &&
+                                      `Quiz ${(section.items || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
+                                    {item.type === "BLOG" &&
+                                      `Article ${(section.items || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
+                                  </span>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            </Reorder.Item>
+                          ))}
+                        </SidebarMenuSub>
+                      </Reorder.Group>
                     )}
-                  </SidebarMenuItem>
-                ))}
-                <div className="px-2 pt-3">
-                  <Button size="sm" className="w-full text-xs" onClick={handleAddModule}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Module
-                  </Button>
-                </div>
-              </SidebarMenu>
+                  </SidebarMenuSubItem>
+                </Reorder.Item>
+              ))}
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-4 mt-2 h-6 text-xs"
+                onClick={() => handleAddSection(module.moduleId)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Section
+              </Button>
+            </SidebarMenuSub>
+          </Reorder.Group>
+        )}
+      </SidebarMenuItem>
+    ))}
+
+    <div className="px-2 pt-3">
+      <Button size="sm" className="w-full text-xs" onClick={handleAddModule}>
+        <Plus className="h-3 w-3 mr-1" />
+        Add Module
+      </Button>
+    </div>
+  </SidebarMenu>
+</Reorder.Group>
+
+
             </ScrollArea>
           </SidebarContent>
           <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
