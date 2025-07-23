@@ -500,11 +500,11 @@ setInitialModules(modules)
                                   {getItemIcon(item.type)}
                                   <span className="ml-1 text-xs text-muted-foreground">
                                     {item.type === "VIDEO" &&
-                                      `Video ${(section.items || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
+                                      `Video ${(sectionItems[section.sectionId] || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
                                     {item.type === "QUIZ" &&
-                                      `Quiz ${(section.items || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
+                                      `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
                                     {item.type === "BLOG" &&
-                                      `Article ${(section.items || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
+                                      `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
                                   </span>
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
