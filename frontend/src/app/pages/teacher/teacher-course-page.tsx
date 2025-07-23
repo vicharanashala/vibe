@@ -133,10 +133,10 @@ export default function TeacherCoursePage() {
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
-  const moveItem   = useMoveItem();
+ const { mutateAsync, isPending, isError, error } = useMoveItem();
 
   useEffect(() => {
-    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess ||moveModule.isSuccess || moveSection.isSuccess || moveItem.isSuccess ) {
+    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess ||moveModule.isSuccess || moveSection.isSuccess  ) {
       refetchVersion();
       console.log("hello")
       // Also refetch items for active section
@@ -146,7 +146,7 @@ export default function TeacherCoursePage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess,moveModule.isSuccess, moveSection.isSuccess, moveItem.isSuccess]);
+  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess,moveModule.isSuccess, moveSection.isSuccess]);
 
   // Reload items when quiz wizard closes
   useEffect(() => {
@@ -304,7 +304,7 @@ const handleMoveSection = (
 };
 
 // Move item
-const handleMoveItem = (
+const handleMoveItem = async(
   moduleId: string,
   sectionId: string,
   itemId: string,
@@ -319,13 +319,13 @@ const handleMoveItem = (
   const after = order[movedIndex - 1] || null;
   const before = order[movedIndex + 1] || null;
 
-  moveItem.mutate({
+ mutateAsync({
     params: {
       path: {
         versionId,
         moduleId,
         sectionId,
-        itemId,
+        itemId, 
       },
     },
     body: {
@@ -335,8 +335,8 @@ const handleMoveItem = (
         ? { afterItemId: after._id }
         : {}),
     },
-  });
-  refetchItems();
+  }).then((res)=>{ refetchItems();})
+ 
 };
 
 
