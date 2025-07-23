@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle, Loader2, Play, Check } from "lucide-react";
 import { toast } from "sonner";
+import { aiSectionAPI, JobStatus } from "@/lib/genai-api";
 
 interface AISectionModalProps {
   open: boolean;
@@ -41,7 +42,7 @@ interface TaskRuns {
 
 
 
-const fakeApiCall = () => new Promise((res) => setTimeout(res, 1200));
+// Removed fakeApiCall - now using real API calls
 
 // YouTube URL validation function
 const isValidYouTubeUrl = (url: string): boolean => {
@@ -83,8 +84,19 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
     }
 
     setUrlError(null);
-    // Simulate job creation
-    setAiJobId("ai-job-" + Math.floor(Math.random() * 10000));
+    
+    try {
+      // Create a real GenAI job
+      console.log('Creating GenAI job...');
+      const { jobId } = await aiSectionAPI.createJob(youtubeUrl);
+      console.log('Job created with ID:', jobId);
+      
+      setAiJobId(jobId);
+      toast.success("AI job created successfully!");
+    } catch (error) {
+      console.error('Failed to create job:', error);
+      toast.error("Failed to create AI job. Please try again.");
+    }
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +124,11 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
   };
 
   const handleTask = async (task: keyof TaskRuns) => {
+    if (!aiJobId) {
+      toast.error("Please create an AI job first");
+      return;
+    }
+
     const runId = `run-${Date.now()}-${Math.random()}`;
     const newRun: TaskRun = {
       id: runId,
@@ -120,29 +137,67 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
       parameters: task === "segmentation" ? { ...segParams } : undefined,
     };
 
-    // Add new run
     setTaskRuns(prev => ({
       ...prev,
       [task]: [...prev[task], newRun],
     }));
 
     try {
-      await fakeApiCall();
+      // Map UI task to backend task type and params
+      let taskType = "";
+      let params: Record<string, any> | undefined = undefined;
+      switch (task) {
+        case "transcription":
+          taskType = "TRANSCRIPTION";
+          break;
+        case "segmentation":
+          taskType = "SEGMENTATION";
+          params = { segments: segParams.segments };
+          break;
+        case "question":
+          taskType = "QUESTION_GENERATION";
+          break;
+        case "upload":
+          taskType = "UPLOAD_TO_COURSE";
+          break;
+        default:
+          throw new Error(`Unknown task: ${task}`);
+      }
       
-      // Update run status to done
+      // Post the task to the job
+      await aiSectionAPI.postJobTask(aiJobId, taskType, params);
+
+      // Poll for completion
+      const finalStatus = await aiSectionAPI.pollForTaskCompletion(
+        aiJobId,
+        taskType,
+        (status: JobStatus) => {
+          setTaskRuns(prev => ({
+            ...prev,
+            [task]: prev[task].map(run =>
+              run.id === runId
+                ? {
+                    ...run,
+                    status:
+                      status.currentTask?.type === taskType && status.currentTask.status === "COMPLETED"
+                        ? "done"
+                        : status.currentTask?.type === taskType && status.currentTask.status === "FAILED"
+                        ? "failed"
+                        : "loading",
+                    result: status,
+                  }
+                : run
+            ),
+          }));
+        }
+      );
+
       setTaskRuns(prev => ({
         ...prev,
         [task]: prev[task].map(run => 
-          run.id === runId 
-            ? { ...run, status: "done", result: `Sample result for ${task} run ${prev[task].length}` }
-            : run
+          run.id === runId ? { ...run, status: "done", result: finalStatus } : run
         ),
       }));
-
-      // Remove auto-acceptance - let users manually accept any run
-      // if (!acceptedRuns[task] && taskRuns[task].length === 0) {
-      //   setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
-      // }
 
       if (task === "upload") {
         toast.success("Section successfully added to course!");
@@ -152,16 +207,14 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
           onOpenChange(false);
         }, 1500);
       }
-    } catch () {
-      // Update run status to failed
+    } catch (error) {
       setTaskRuns(prev => ({
         ...prev,
         [task]: prev[task].map(run => 
-          run.id === runId 
-            ? { ...run, status: "failed" }
-            : run
+          run.id === runId ? { ...run, status: "failed" } : run
         ),
       }));
+      toast.error(`Task ${task} failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
