@@ -13,7 +13,7 @@ interface LoadedModuleResult {
 export async function loadAppModules(moduleName: string): Promise<LoadedModuleResult> {
   const isAll = moduleName === 'all';
   let modulesDir;
-  if (appConfig.isProduction) {
+  if (appConfig.isProduction || appConfig.isStaging) {
     modulesDir = path.resolve('./build/modules');
   }
   else {

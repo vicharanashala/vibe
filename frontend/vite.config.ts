@@ -6,7 +6,15 @@ import { comlink } from "vite-plugin-comlink";
 // https://vitejs.dev/config/
 export default defineConfig({
   worker: {
-    plugins: () => [comlink()]
+    format: 'es',
+    plugins: () => [comlink()],
+    rollupOptions: {
+      output: {
+        entryFileNames: 'worker/[name]-[hash].js',
+        chunkFileNames: 'worker/[name]-[hash].js',
+        assetFileNames: 'worker/[name]-[hash][ext]',
+      },
+    },
   },
   plugins: [react()],
   resolve: {
@@ -37,6 +45,16 @@ export default defineConfig({
           proxy.on('proxyRes', (proxyRes, req, _res) => {
             console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
           });
+        },
+      },
+    },
+  },
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
         },
       },
     },
