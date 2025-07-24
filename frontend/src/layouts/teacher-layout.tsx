@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
 import { logout } from "@/utils/auth";
-import { LogOut, ArrowLeft } from "lucide-react";
+import { LogOut, ArrowLeft, UserRoundCheck } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,12 +23,14 @@ import {
 } from "@/components/ui/sidebar";
 
 import type { BreadcrumbItemment } from "@/types/layout.types";
+import InviteDropdown from "@/components/inviteDropDown";
 
 export default function TeacherLayout() {
   const matches = useMatches();
   const navigate = useNavigate();
   const { user } = useAuthStore(); // 🧠 from store
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [showInvites, setShowInvites] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -98,6 +100,22 @@ export default function TeacherLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowInvites((prev) => !prev)}
+                  className="relative h-9 px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                >
+                  <UserRoundCheck className="h-4 w-4" />
+                  <span className="hidden sm:block ml-2">Invites</span>
+                </Button>
+
+                {showInvites && <InviteDropdown />}
+              </div>
+
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -130,7 +148,7 @@ export default function TeacherLayout() {
         <div className="flex flex-1 flex-col p-6">
           <Outlet />
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </SidebarInset >
+    </SidebarProvider >
   );
 }

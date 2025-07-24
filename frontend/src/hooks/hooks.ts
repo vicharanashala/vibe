@@ -193,12 +193,12 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    bankId: string;
-    count: number;
-    difficulty?: string[];
-    tags?: string[];
-    type?: string;
-  }> {}
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+  type?: string;
+}> { }
 
 // Attempt types - matching backend validators
 export interface CreateAttemptParams {
@@ -412,6 +412,37 @@ export function useCreateCourse(): {
     ...result,
     error: result.error ? (result.error.message || 'Course creation failed') : null
   };
+}
+
+export async function useProcessInvites(inviteId: string): Promise<{
+  data: null,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+}> {
+  let isLoading = true;
+  const method = 'GET';
+  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
+  });
+
+  isLoading = false;
+
+  if (!res.ok) {
+    throw new Error(`Failed to update settings: ${res.status}`);
+  }
+
+  console.log(res);
+
+  return {
+    data: null,
+    isLoading: isLoading,
+    error: "",
+    refetch: () => { }
+  }
 }
 
 // GET /courses/{id}
@@ -1468,9 +1499,9 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    questionBankId: string;
-    questionsCount?: number;
-  }> {}
+  questionBankId: string;
+  questionsCount?: number;
+}> { }
 
 // Attempt types
 export interface CreateAttemptParams {
@@ -1672,7 +1703,7 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
-  mutateAsync: (variables: { body: QuestionBody }) => Promise<{questionId: string}>,
+  mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   data: { questionId: string } | undefined,
   error: string | null,
   isPending: boolean,
@@ -1683,7 +1714,7 @@ export function useCreateQuestion(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("post", "/quizzes/questions");
-  return {  
+  return {
     ...result,
     error: result.error ? (result.error.message || 'Question creation failed') : null
   };
@@ -1896,8 +1927,6 @@ export function useGetProcotoringSettings(): {
         headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
       });
 
-      console.log(res);
-
       if (!res.ok) {
         throw new Error(`Failed to update settings: ${res.status}`);
       }
@@ -1911,6 +1940,44 @@ export function useGetProcotoringSettings(): {
   };
 
   return { getSettings, settingLoading, settingError };
+}
+
+export function useInvites(): {
+  getInvites: () => Promise<any>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getInvites = async (): Promise<any> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const method = 'GET';
+      const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/`;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
+      });
+
+      console.log(res);
+
+      if (!res.ok) {
+        throw new Error(`Failed to update settings: ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { getInvites, loading, error };
 }
 
 // DELETE /quizzes/quiz/{quizId}/bank/{questionBankId}

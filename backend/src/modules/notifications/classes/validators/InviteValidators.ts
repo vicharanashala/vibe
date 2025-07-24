@@ -1,7 +1,8 @@
+import { Course } from '#root/modules/courses/classes/index.js';
 import { EnrollmentRole, ObjectIdToString, StringToObjectId } from '#root/shared/index.js';
 import { Expose, Transform, Type } from 'class-transformer';
-import {IsArray, IsEmail, ArrayNotEmpty, IsNumber, IsString, IsOptional, IsMongoId, IsNotEmpty, IsEnum, ValidateNested, IsIn } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { IsArray, IsEmail, ArrayNotEmpty, IsNumber, IsString, IsOptional, IsMongoId, IsNotEmpty, IsEnum, ValidateNested, IsIn } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
 
 
@@ -77,7 +78,7 @@ class InviteResult {
   })
   @IsString()
   @Transform(StringToObjectId.transformer, { toClassOnly: true })
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true }) 
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
   inviteId: ObjectId | string;
 
   @JSONSchema({
@@ -113,18 +114,19 @@ class InviteResult {
   @IsString()
   role: EnrollmentRole = 'STUDENT';
 
+  
   @IsString()
   @IsOptional()
   @Transform(StringToObjectId.transformer, { toClassOnly: true })
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
   courseId?: string | ObjectId;
-
+  
   @IsString()
   @IsOptional()
   @Transform(StringToObjectId.transformer, { toClassOnly: true })
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
   courseVersionId?: string | ObjectId;
-
+  
   @JSONSchema({
     description: 'Date when the invite was accepted',
     type: 'string',
@@ -134,12 +136,20 @@ class InviteResult {
   @IsOptional()
   @Type(() => Date)
   acceptedAt?: Date;
+  
+  @IsOptional()
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Type(() => Course)
+  @ValidateNested({ each: true })
+  course?: Course;
 
-  constructor(inviteId: ObjectId | string, email: string, inviteStatus: InviteStatus, role: EnrollmentRole = 'STUDENT', acceptedAt?: Date, courseId?: string | ObjectId, courseVersionId?: string | ObjectId) {
+  constructor(inviteId: ObjectId | string, email: string, inviteStatus: InviteStatus, role: EnrollmentRole = 'STUDENT', acceptedAt?: Date,  courseId?: string | ObjectId, courseVersionId?: string | ObjectId, course?: Course) {
     this.inviteId = inviteId;
     this.email = email;
     this.inviteStatus = inviteStatus;
     this.role = role;
+    this.course = course;
     this.courseId = courseId;
     this.courseVersionId = courseVersionId;
     if (inviteStatus == 'ACCEPTED' && acceptedAt) {

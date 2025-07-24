@@ -232,28 +232,28 @@ export class InviteService extends BaseService {
   }
 
   async processInvite(inviteId: string): Promise<{ message: string }> {
-    
+
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
 
-    if(invite.inviteStatus === 'CANCELLED'){
+    if (invite.inviteStatus === 'CANCELLED') {
       return {
         message: 'This invite has been cancelled.',
       }
     }
 
-    if(invite.inviteStatus === 'ACCEPTED') {
+    if (invite.inviteStatus === 'ACCEPTED') {
       return {
         message: 'You have already accepted this invite.',
       };
     }
     const date = new Date();
     // Validate the invite expiresAt < new Date() throw error
-    if (invite.expiresAt < date) {
-      throw new BadRequestError('Invite has expired');
-    }
+    // if (invite.expiresAt < date) {
+    //   throw new BadRequestError('Invite has expired');
+    // }
     // If enrolled, return
     if (invite.isAlreadyEnrolled) {
       return {
@@ -277,7 +277,7 @@ export class InviteService extends BaseService {
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');
       }
-      if(result == 'ALREADY_ENROLLED') {
+      if (result == 'ALREADY_ENROLLED') {
         return {
           message: 'You are already enrolled in this course.',
         };
@@ -327,7 +327,7 @@ export class InviteService extends BaseService {
     }
 
     const emailMessage = this.createInviteEmailMessage(invite, course, courseVersion);
-    
+
     try {
       await this.mailService.sendMail(emailMessage);
       return { message: 'Invite resent successfully.' };
@@ -382,15 +382,23 @@ export class InviteService extends BaseService {
     }
 
     const invites = await this.inviteRepo.findInvitesByEmail(user.email);
-    return invites.map(invite => {
+
+    const invitesWithCourse = await Promise.all(invites.map(async (invite) => {
+      const course = await this.courseRepo.read(invite.courseId);
+
       return new InviteResult(
         invite._id,
         invite.email,
         invite.inviteStatus,
         invite.role,
         invite.acceptedAt,
+        invite.courseId,
+        invite.courseVersionId,
+        course
       );
-    });
+    }));
+
+    return invitesWithCourse;
   }
 
   async findInviteById(inviteId: string): Promise<InviteResult> {

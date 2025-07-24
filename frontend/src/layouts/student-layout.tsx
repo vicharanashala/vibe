@@ -7,13 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
-import { LogOut, ArrowLeft } from "lucide-react"
+import { LogOut, ArrowLeft, UserRoundCheck } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
+import { useState } from "react"
+import InviteDropdown from "@/components/inviteDropDown"
 // import FloatingVideo from "@/components/floating-video";
 
 export default function StudentLayout() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const [showInvites, setShowInvites] = useState(false);
 
   const handleLogout = () => {
     logout()
@@ -95,6 +98,20 @@ export default function StudentLayout() {
                 <span className="relative z-10">Courses</span>
               </Link>
             </Button>
+
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInvites((prev) => !prev)}
+                className="relative h-9 px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+              >
+                <UserRoundCheck className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Invites</span>
+              </Button>
+
+              {showInvites && <InviteDropdown />}
+            </div>
 
             <Button
               variant="ghost"
