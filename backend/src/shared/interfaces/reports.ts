@@ -6,9 +6,10 @@ type EntityType =
     | 'ARTICLE'
     | 'QUESTION';
 
+type ReportStatus = 'REPORTED' | 'IN_REVIEW' | 'RESOLVED' | 'DISCARDED' | 'CLOSED';
 
 interface IStatus {
-    status: string;
+    status: ReportStatus;
     comment: string;
     createdAt: Date;
 }
@@ -21,12 +22,11 @@ interface IReport {
     entityType: EntityType;
     reportedBy: string | ObjectId;
     status: IStatus[];
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 
-
 export {
-    IReport, EntityType, IStatus
+    IReport, EntityType, IStatus, ReportStatus
 };
