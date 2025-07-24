@@ -141,6 +141,7 @@ export class ItemService extends BaseService {
 
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
+      newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
 
       //Step 5: Save the modified 'itemsGroup' (now containing the new item) back to the database.
