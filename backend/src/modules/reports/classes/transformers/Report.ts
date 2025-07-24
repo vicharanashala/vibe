@@ -10,9 +10,15 @@ import {
 import {Expose, Transform, Type} from 'class-transformer';
 import {IsEnum, IsIn, IsString, ValidateNested} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import { EntityTypeEnum, REPORT_STATUS_VALUES, ReportStatusEnum } from '../../constants.js';
-
-
+import {
+  EntityTypeEnum,
+  REPORT_STATUS_VALUES,
+  ReportStatusEnum,
+} from '../../constants.js';
+import {
+  ReportBody,
+  UpdateReportStatusBody,
+} from '../validators/ReportValidators.js';
 
 class ReportStatusEntry implements IStatus {
   @Expose()
@@ -173,26 +179,31 @@ class Report implements IReport {
   })
   updatedAt?: Date;
 
-  constructor(reportBody) {
-    if (reportBody) {
-      this.courseId = reportBody.course;
+  constructor(
+    reportBody: ReportBody | UpdateReportStatusBody,
+    reportedBy?: ID,
+  ) {
+    if ('courseId' in reportBody) {
+      this.courseId = reportBody.courseId;
       this.courseVersionId = reportBody.courseVersionId;
       this.entityId = reportBody.entityId;
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;
-      this.reportedBy = reportBody.reportedBy || ('' as ID);
-      if (reportBody.status && reportBody.comment) {
-        this.status = [
-          new ReportStatusEntry(reportBody.status, reportBody.comment),
-        ];
-      } else {
-        this.status = [
-          new ReportStatusEntry(ReportStatusEnum.REPORTED, 'Initial report created'),
-        ];
-      }
+      this.reportedBy = reportedBy || ('' as ID);
+
+      this.status = [
+        new ReportStatusEntry(
+          ReportStatusEnum.REPORTED,
+          'Initial report created',
+        ),
+      ];
+    } else {
+      this.status = [
+        new ReportStatusEntry(reportBody.status, reportBody.comment),
+      ];
+      this.createdAt = new Date();
+      this.updatedAt = new Date();
     }
-    this.createdAt = new Date();
-    this.updatedAt = new Date();
   }
 }
 

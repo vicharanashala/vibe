@@ -5,6 +5,8 @@ import {
   IsMongoId,
   IsOptional,
   ValidateNested,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
@@ -25,7 +27,7 @@ class ReportBody implements Partial<IReport>{
   })
   @IsNotEmpty()
   @IsMongoId()
-  course: ID;
+  courseId: ID;
 
   @JSONSchema({
     title: 'Course Version ID',
@@ -101,6 +103,51 @@ class ReportIdParams {
   @IsNotEmpty()
   @IsMongoId()
   reportId: string;
+}
+
+// Filter query params for instructor dashboard
+export class ReportFiltersQuery {
+  @JSONSchema({
+    description: 'Type of the reported entity (optional)',
+    example: 'quiz',
+    type: 'string',
+    enum: ENTITY_TYPE_VALUES,
+  })
+  @IsOptional()
+  @IsEnum(EntityTypeEnum)
+  entityType?: EntityType;
+
+  @JSONSchema({
+    description: 'Status of the report (optional)',
+    example: 'REPORTED',
+    type: 'string',
+    enum: REPORT_STATUS_VALUES,
+  })
+  @IsOptional()
+  @IsEnum(ReportStatusEnum)
+  status?: ReportStatus;
+
+  @JSONSchema({
+    description: 'Limit for pagination',
+    example: 10,
+    type: 'integer',
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number = 10;
+
+  @JSONSchema({
+    description: 'Offset for pagination',
+    example: 0,
+    type: 'integer',
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  offset?: number = 0;
 }
 
 class ReportDataResponse implements IReport{
@@ -185,6 +232,7 @@ export {
 export const REPORT_VALIDATORS = [
   ReportBody,
   UpdateReportStatusBody,
+  ReportFiltersQuery,
   ReportIdParams,
   ReportDataResponse,
   ReportNotFoundErrorResponse,

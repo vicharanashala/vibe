@@ -30,7 +30,7 @@ export const coursesContainerModule = new ContainerModule(options => {
     .to(ModuleService)
     .inSingletonScope();
   options
-    .bind(COURSES_TYPES.SectionService)
+    .bind(COURSES_TYPES.SectionService) 
     .to(SectionService)
     .inSingletonScope();
   options.bind(COURSES_TYPES.ItemService).to(ItemService).inSingletonScope();
