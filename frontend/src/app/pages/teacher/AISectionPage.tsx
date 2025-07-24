@@ -1029,9 +1029,9 @@ export default function AISectionPage() {
               ...prev,
               question: prev.question.map((run, idx) => {
                 if (idx === idxToUpdate) {
-                  // Only keep TaskRun properties
-                  const { id, timestamp, status, result, parameters } = run;
-                  return { id, timestamp, status, result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
+                  // Only keep TaskRun properties, and set status to 'done'
+                  const { id, timestamp, result, parameters } = run;
+                  return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
                 }
                 return run;
               }),
@@ -1510,8 +1510,8 @@ export default function AISectionPage() {
       setEditLoading(true);
       setEditError("");
       try {
-        // Use index 1 for now (can be parameterized if needed)
-        await editSegmentMap(aiJobId, editSegMap, 1);
+        // Use index 0 for the backend (fixes 500 error)
+        await editSegmentMap(aiJobId, editSegMap, 0);
         toast.success('Segment map updated successfully!');
         setEditModalOpen(false);
       } catch (e: any) {
@@ -1859,8 +1859,28 @@ export default function AISectionPage() {
               <QuestionEditForm
                 question={editQuestion}
                 onSave={async (edited) => {
-                  toast.success('Question updated successfully!');
-                  setEditingQuestion(null);
+                  if (!aiJobId || typeof aiSectionAPI.editQuestionData !== 'function') return;
+                  try {
+                    // Deep clone the original questions array
+                    const originalQuestions = questionsByRun[run.id] || [];
+                    const updatedQuestions = originalQuestions.map((q, idx) => {
+                      if (idx !== editingIdx) return q;
+                      return {
+                        ...q,
+                        question: {
+                          ...q.question,
+                          text: edited.text, // explicitly update text
+                        },
+                        solution: edited.solution, // replace solution entirely
+                      };
+                    });
+                    await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
+                    toast.success('Question updated successfully!');
+                    setEditingQuestion(null);
+                    setEditModalOpen(false);
+                  } catch (e) {
+                    toast.error('Failed to update question.');
+                  }
                 }}
                 onCancel={() => setEditingQuestion(null)}
               />
@@ -2263,32 +2283,22 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
     setSegmentMap(newMap);
   };
 
-  const handleSegmentTextChange = (idx: number, value: string) => {
-    const newTexts = [...segmentTexts];
-    newTexts[idx] = value;
-    setSegmentTexts(newTexts);
-  };
-
   const handleAddSegment = (idx: number) => {
     const newMap = [...segmentMap];
-    const newTexts = [...segmentTexts];
     const prev = idx === 0 ? 0 : newMap[idx - 1];
     const next = newMap[idx] ?? (prev + 10);
     const newEnd = prev + (next - prev) / 2;
     newMap.splice(idx, 0, newEnd);
-    newTexts.splice(idx, 0, '');
     setSegmentMap(newMap);
-    setSegmentTexts(newTexts);
+    // No change to segmentTexts
   };
 
   const handleRemoveSegment = (idx: number) => {
     if (segmentMap.length <= 1) return;
     const newMap = [...segmentMap];
-    const newTexts = [...segmentTexts];
     newMap.splice(idx, 1);
-    newTexts.splice(idx, 1);
     setSegmentMap(newMap);
-    setSegmentTexts(newTexts);
+    // No change to segmentTexts
   };
 
   const handleEdit = async () => {
@@ -2303,7 +2313,6 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
       const body = {
         segmentMap: segmentMap,
         index: 0,
-        // segmentTexts: segmentTexts // For future use if backend supports
       };
       let res = await fetch(url, {
         method: 'PATCH',
@@ -2352,12 +2361,13 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
                 onChange={e => handleSegmentChange(idx, e.target.value)}
                 className="w-20"
               />
+              {/* Display segment text as read-only (not editable) */}
               <Input
                 type="text"
                 value={segmentTexts[idx] || ''}
-                onChange={e => handleSegmentTextChange(idx, e.target.value)}
-                placeholder="Segment text"
-                className="flex-1"
+                readOnly
+                className="flex-1 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                tabIndex={-1}
               />
               <Button
                 variant="outline"
