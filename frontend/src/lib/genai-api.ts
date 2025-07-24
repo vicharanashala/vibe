@@ -451,8 +451,34 @@ export const rerunJobTask = async (
   return res;
 };
 
+export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
+  return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/question`, {
+    method: 'PATCH',
+    body: JSON.stringify({ index, questionData }),
+  });
+};
+
+export const editTranscriptData = async (jobId: string, index: number, transcript: any) => {
+  return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/transcript`, {
+    method: 'PATCH',
+    body: JSON.stringify({ index, transcript }),
+  });
+};
+
 // aiSectionAPI for modal usage
-export const aiSectionAPI = {
+export const aiSectionAPI: {
+  createJob: typeof createGenAIJob;
+  getJobStatus: typeof getJobStatus;
+  postJobTask: typeof postJobTask;
+  pollForTaskCompletion: typeof pollForTaskCompletion;
+  runTranscriptionWorkflow: typeof runTranscriptionWorkflow;
+  approveContinueTask: typeof approveContinueTask;
+  startAudioExtractionTask: typeof startAudioExtractionTask;
+  rerunJobTask: typeof rerunJobTask;
+  approveStartTask: typeof approveStartTask;
+  editQuestionData?: typeof editQuestionData;
+  editTranscriptData?: typeof editTranscriptData;
+} = {
   createJob: createGenAIJob,
   getJobStatus,
   postJobTask,
@@ -462,13 +488,7 @@ export const aiSectionAPI = {
   startAudioExtractionTask,
   rerunJobTask,
   approveStartTask,
-}; 
-
-export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
-  return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/question`, {
-    method: 'PATCH',
-    body: JSON.stringify({ index, questionData }),
-  });
 };
 
-aiSectionAPI.editQuestionData = editQuestionData; 
+aiSectionAPI.editQuestionData = editQuestionData;
+aiSectionAPI.editTranscriptData = editTranscriptData; 
