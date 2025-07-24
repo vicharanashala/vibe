@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useCourseStore } from "@/store/course-store";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -261,7 +262,7 @@ export default function AISectionPage() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [aiJobId, setAiJobId] = useState<string | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [segParams, setSegParams] = useState({ lam: 0.5, runs: 10, noiseId: 123 });
+  const [segParams, setSegParams] = useState({ lam: 4.6, runs: 25, noiseId: -1 });
   const [taskRuns, setTaskRuns] = useState<TaskRuns>({
     transcription: [],
     segmentation: [],
@@ -315,7 +316,7 @@ export default function AISectionPage() {
     SML: 0,
     NAT: 0,
     DES: 0,
-    PROMPT: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
+    prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
   });
 
   // AI Section Handlers
@@ -418,6 +419,8 @@ export default function AISectionPage() {
         }
         case "question":
           taskType = "QUESTION_GENERATION";
+          params = { ...questionGenParams };
+          break;
 
 
         case "upload":
@@ -428,25 +431,26 @@ export default function AISectionPage() {
       }
       setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
       await aiSectionAPI.postJobTask(aiJobId, taskType, params);
-      setTaskRuns(prev => ({
-        ...prev,
-        [task]: prev[task].map(run =>
-          run.id === runId ? { ...run, status: "done" } : run
-        ),
-      }));
-      if (task === "upload") {
-        toast.success("Section successfully added to course!");
-        setTimeout(() => {
-          setYoutubeUrl("");
-          setAiJobId(null);
-          setTaskRuns({
-            transcription: [],
-            segmentation: [],
-            question: [],
-            upload: [],
-          });
-        }, 1500);
-      }
+    
+if (task === "upload") {
+  setTaskRuns(prev => ({
+    ...prev,
+    [task]: prev[task].map(run =>
+      run.id === runId ? { ...run, status: "done" } : run
+    ),
+  }));
+  toast.success("Section successfully added to course!");
+  setTimeout(() => {
+    setYoutubeUrl("");
+    setAiJobId(null);
+    setTaskRuns({
+      transcription: [],
+      segmentation: [],
+      question: [],
+      upload: [],
+    });
+  }, 1500);
+}
     } catch (error) {
       setTaskRuns(prev => ({
         ...prev,
@@ -534,6 +538,11 @@ export default function AISectionPage() {
     console.log(`[TaskAccordion render] task: ${task}, runs:`, taskRuns[task]);
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
+    const { currentCourse } = useCourseStore();
+    // Add state for upload parameters
+    const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
+    const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
+    const [questionsPerQuiz, setQuestionsPerQuiz] = useState(5);
     return (
       <div className="space-y-3">
         {/* Always show transcription parameter inputs for 'transcription' task */}
@@ -618,18 +627,75 @@ export default function AISectionPage() {
               </div>
             </div>
             <div className="flex flex-col mt-2">
-              <label>PROMPT:</label>
+              <label>prompt:</label>
               <Textarea
-                value={questionGenParams.PROMPT}
-                onChange={e => setQuestionGenParams(p => ({ ...p, PROMPT: e.target.value }))}
+                value={questionGenParams.prompt}
+                onChange={e => setQuestionGenParams(p => ({ ...p, prompt: e.target.value }))}
                 className="w-full min-h-[80px]"
               />
             </div>
           </div>
         )}
+        {/* Upload to Course input fields */}
+        {task === 'upload' && (
+          <div className="flex flex-col gap-2 mb-2">
+            <label className="font-medium">Video Item Base Name</label>
+            <Input
+              value={videoItemBaseName}
+              onChange={e => setVideoItemBaseName(e.target.value)}
+              placeholder="video_item"
+              className="w-full"
+            />
+            <label className="font-medium">Quiz Item Base Name</label>
+            <Input
+              value={quizItemBaseName}
+              onChange={e => setQuizItemBaseName(e.target.value)}
+              placeholder="quiz_item"
+              className="w-full"
+            />
+            <label className="font-medium">Questions Per Quiz</label>
+            <Input
+              type="number"
+              min={1}
+              value={questionsPerQuiz}
+              onChange={e => setQuestionsPerQuiz(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <Button
-            onClick={task === 'question' ? handleStartQuestionGeneration : () => handleTask(task)}
+            onClick={async () => {
+              if (task === 'upload') {
+                // Use values from store and input fields
+                if (!aiJobId) return;
+                if (!currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
+                  toast.error('Missing course/module/section info');
+                  return;
+                }
+                const params = {
+                  courseId: currentCourse.courseId,
+                  versionId: currentCourse.versionId,
+                  moduleId: currentCourse.moduleId,
+                  sectionId: currentCourse.sectionId,
+                  videoItemBaseName,
+                  quizItemBaseName,
+                  questionsPerQuiz,
+                };
+                setTaskRuns(prev => ({ ...prev, upload: [...prev.upload, { id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'loading', parameters: params }] }));
+                try {
+                  await aiSectionAPI.postJobTask(aiJobId, 'UPLOAD_CONTENT', params);
+                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'done' } : run) }));
+                  toast.success('Section successfully uploaded to course!');
+                } catch (error) {
+                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'failed' } : run) }));
+                  toast.error('Upload to course failed.');
+                }
+                return;
+              }
+              // ... existing logic for other tasks ...
+              handleTask(task);
+            }}
             disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
             className="flex-1"
           >
@@ -1690,7 +1756,7 @@ export default function AISectionPage() {
         SML: Number(questionGenParams.SML),
         NAT: Number(questionGenParams.NAT),
         DES: Number(questionGenParams.DES),
-        PROMPT: questionGenParams.PROMPT
+        prompt: questionGenParams.prompt
       };
       if (hasQuestionRun) {
         // Rerun logic

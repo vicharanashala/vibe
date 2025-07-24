@@ -310,6 +310,14 @@ export default function SectionForm({
           >
             <PlusCircle className="mr-2 h-4 w-4" /> Add Content Item
           </Button>
+
+          <Button
+            variant="secondary"
+            className="mt-2"
+            onClick={() => { /* TODO: Bind AI generation logic here */ }}
+          >
+            Generate Using by AI
+          </Button>
         </CardContent>
       </Card>
       {/* <AISectionModal open={showAIModal} onOpenChange={setShowAIModal} /> */}
