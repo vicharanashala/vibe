@@ -13,7 +13,7 @@ export const reportsContainerModules: ContainerModule[] = [
 
 export const reportsModuleControllers: Function[] = [ReportController];
 
-export async function setupCoursesContainer(): Promise<void> {
+export async function setupReportsContainer(): Promise<void> {
   const container = new Container();
   await container.load(...reportsContainerModules);
   const inversifyAdapter = new InversifyAdapter(container);
