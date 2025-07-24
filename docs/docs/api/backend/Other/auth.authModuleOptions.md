@@ -1,3 +1,3 @@
 > `const` **authModuleOptions**: `RoutingControllersOptions`
 
-Defined in: [backend/src/modules/auth/index.ts:54](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/auth/index.ts#L54)
+Defined in: [auth/index.ts:35](https://github.com/AgamW017/vibe/blob/f011e99553eb05654c723a04e5f8a64502953f7a/backend/src/modules/auth/index.ts#L35)

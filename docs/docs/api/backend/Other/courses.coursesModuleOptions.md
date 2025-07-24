@@ -1,3 +1,3 @@
 > `const` **coursesModuleOptions**: `RoutingControllersOptions`
 
-Defined in: [backend/src/modules/courses/index.ts:34](https://github.com/continuousactivelearning/vibe/blob/2acbe3b478970855555eb5e714d2dc1713e5937b/backend/src/modules/courses/index.ts#L34)
+Defined in: [courses/index.ts:44](https://github.com/AgamW017/vibe/blob/f011e99553eb05654c723a04e5f8a64502953f7a/backend/src/modules/courses/index.ts#L44)

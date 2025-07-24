@@ -128,7 +128,7 @@ export class ItemService extends BaseService {
           'Persistence of item-specific details failed in the repository.',
         );
       }
-
+      createdItemDetailsPersistenceResult._id = createdItemDetailsPersistenceResult._id.toString();
       if (version.totalItems) {
         version.totalItems += 1; // Increment the total items count in the version.
       } else {
@@ -136,7 +136,7 @@ export class ItemService extends BaseService {
           version.courseId.toString(),
           version._id.toString(),
           session,
-        )
+        );
       }
 
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.

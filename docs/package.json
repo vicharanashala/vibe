@@ -5,7 +5,7 @@
   "scripts": {
     "docusaurus": "docusaurus",
     "copy": "mkdir -p static/openapi && cd ../backend && pnpx ts-node -r tsconfig-paths/register scripts/generate-openapi.ts --output ../../docs/static/openapi/openapi.json",
-    "start": "pnpm copy && docusaurus start",
+    "start": "docusaurus start",
     "build": "pnpm copy && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
