@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import {
   IsNotEmpty,
   IsString,
@@ -158,7 +159,7 @@ class ReportDataResponse implements IReport{
   courseId: ID;
 
   @JSONSchema({ description: 'Course Version ID', type: 'string' })
-  courseVersionId: ID;
+  versionId: ID;
 
   @JSONSchema({ description: 'Reported Entity ID', type: 'string' })
   entityId: ID;

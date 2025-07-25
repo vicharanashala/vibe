@@ -14,3 +14,7 @@ export enum EntityTypeEnum {
   QUESTION = 'question',
 }
 export const ENTITY_TYPE_VALUES = Object.values(EntityTypeEnum);
+
+export enum ReportPermissionSubject  {
+  REPORT = 'Report'
+}

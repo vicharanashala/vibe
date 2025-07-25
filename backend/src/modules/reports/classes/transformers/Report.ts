@@ -92,7 +92,7 @@ class Report implements IReport {
   })
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
-  courseVersionId: ID;
+  versionId: ID;
 
   @Expose()
   @JSONSchema({
@@ -185,7 +185,7 @@ class Report implements IReport {
   ) {
     if ('courseId' in reportBody) {
       this.courseId = reportBody.courseId;
-      this.courseVersionId = reportBody.courseVersionId;
+      this.versionId = reportBody.courseVersionId;
       this.entityId = reportBody.entityId;
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;

@@ -90,7 +90,7 @@ class ReportController {
   @ResponseSchema(ReportDataResponse, {isArray: true})
   async getFilteredReports(
     @QueryParams() filters: ReportFiltersQuery,
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) {ability,user},
   ): Promise<Report[]> {
     return [];
   }
