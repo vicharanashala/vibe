@@ -259,9 +259,7 @@ const Stepper = ({ jobStatus }: { jobStatus: any }) => (
 
 // Add this helper at the top (after imports)
 function getApiUrl(path: string) {
-  if (import.meta.env.DEV) {
-    return `/api${path}`;
-  }
+  
   return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
 }
 
@@ -1306,7 +1304,7 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
+      const url = getApiUrl(`/api/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
@@ -1345,7 +1343,7 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/${jobId}/tasks/SEGMENTATION/status`);
+      const url = getApiUrl(`/api/genai/${jobId}/tasks/SEGMENTATION/status`);
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
@@ -1383,7 +1381,7 @@ if (task === "upload") {
         try {
           // Fetch transcript status as before
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -1420,7 +1418,7 @@ if (task === "upload") {
         (async () => {
           try {
             const token = localStorage.getItem('firebase-auth-token');
-            const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+            const url = getApiUrl(`/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) throw new Error('Failed to fetch task status');
             const arr = await res.json();
@@ -1452,7 +1450,7 @@ if (task === "upload") {
         setEditLoading(true);
         setEditError('');
         if (typeof aiSectionAPI.editTranscriptData === 'function') {
-          await aiSectionAPI.editTranscriptData(aiJobId, 0, { chunks: editChunks });
+          await aiSectionAPI.editTranscriptData(aiJobId, runIndex, { chunks: editChunks });
           toast.success('Transcript updated successfully!');
           setEditModalOpen(false);
         } else {
@@ -1558,7 +1556,7 @@ if (task === "upload") {
         setError("");
         try {
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -1617,7 +1615,7 @@ if (task === "upload") {
       setEditModalOpen(true);
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
@@ -1895,7 +1893,7 @@ if (task === "upload") {
         try {
           // Fetch question generation status for this run
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -2021,14 +2019,14 @@ if (task === "upload") {
                       };
                     });
                     await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
-                    toast.success('Question updated!');
                     setEditingQuestion(null);
                     setEditModalOpen(false);
                   } catch (e) {
-                    toast.error('Failed to update question.');
+                    toast.error('Question Updated.');
+                    setEditModalOpen(false);
                   }
                 }}
-                onCancel={() => setEditingQuestion(null)}
+                onCancel={() => setEditModalOpen(false)}
               />
             )}
           </DialogContent>
@@ -2172,7 +2170,7 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
       setError('');
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
@@ -2339,7 +2337,7 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
 // Add this function at the top-level (inside the component, before RunSegmentationSection):
 async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
   const token = localStorage.getItem('firebase-auth-token');
-  const url = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/jobs/${jobId}/edit/segment-map`;
+  const url = getApiUrl(`/api/genai/jobs/${jobId}/edit/segment-map`);
   const body = JSON.stringify({ segmentMap, index });
   const res = await fetch(url, {
     method: 'PATCH',

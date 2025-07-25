@@ -31,7 +31,7 @@ export default function GenerateSectionPage() {
         }
         setIsLoading(true);
         try {
-            const res = await fetch(getApiUrl('/genai/jobs'), {
+            const res = await fetch(getApiUrl('/api/genai/jobs'), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -3,11 +3,6 @@
 
 // Environment-based API configuration
 const getApiBaseUrl = (): string => {
-  // Check if we're in development mode
-  if (import.meta.env.DEV) {
-    // For development, use the Vite proxy to avoid CORS issues
-    return '/api';
-  }
   // For production, use the staging backend directly
   return 'https://vibe-backend-staging-239934307367.asia-south1.run.app';
 };
@@ -18,6 +13,13 @@ const API_BASE_URL = getApiBaseUrl();
 const getAuthToken = (): string | null => {
   return localStorage.getItem('firebase-auth-token');
 };
+
+export function getApiUrl(path: string) {
+  if (import.meta.env.DEV) {
+    return `/api${path}`;
+  }
+  return 'https://vibe-backend-staging-239934307367.asia-south1.run.app/api' + path;
+}
 
 // Helper function to make authenticated API calls
 const makeAuthenticatedRequest = async (
@@ -422,35 +424,21 @@ export const rerunJobTask = async (
   params?: Record<string, any>
 ) => {
   const token = localStorage.getItem('firebase-auth-token');
-  const localUrl = `/api/genai/jobs/${jobId}/tasks/rerun`;
-  const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/jobs/${jobId}/tasks/rerun`;
-  let res = await fetch(localUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      type: taskType,
-      parameters: params || {},
-    }),
-  });
-  if (!res.ok) {
-    // Try backend URL directly if local proxy fails
-    res = await fetch(backendUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        type: taskType,
-        parameters: params || {},
-      }),
-    });
-  }
-  return res;
+  const url = getApiUrl(`/genai/jobs/${jobId}/tasks/rerun`);
+const res = await fetch(url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    type: taskType,
+    parameters: params || {},
+  }),
+});
+return res;
 };
+
 
 export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
   return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/question`, {
