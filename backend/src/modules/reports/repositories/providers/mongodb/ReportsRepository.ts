@@ -2,7 +2,7 @@ import {IReport, IStatus} from '#shared/interfaces/index.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId, Filter} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   Report,
@@ -62,10 +62,14 @@ class ReportRepository {
     reportId: string,
     session?: ClientSession,
   ): Promise<IReport | null> {
-    return this.reportCollection.findOne(
+    const report = this.reportCollection.findOne(
       {_id: new ObjectId(reportId)},
       {session},
     );
+    if(!report){
+      throw new NotFoundError(`Report with reportId:${reportId} not found`)
+    }
+    return report;
   }
   async create(report: Report, session?: ClientSession) {
     await this.init();

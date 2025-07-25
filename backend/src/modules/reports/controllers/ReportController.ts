@@ -92,7 +92,11 @@ class ReportController {
   ): Promise<void> {
     const {reportId} = params;
     const {status, comment} = body;
-    const reportResource = subject(ReportPermissionSubject.REPORT, {reportId});
+    const report = await this.reportService.getReportById(reportId);
+    console.log('Updating report data: ', report);
+    const reportResource = subject(ReportPermissionSubject.REPORT, {
+      courseId: report.courseId,
+    });
 
     if (!ability.can(ReportsActions.Modify, reportResource)) {
       throw new ForbiddenError(
@@ -123,7 +127,7 @@ class ReportController {
         'You do not have permission to view reports for this course',
       );
     }
-    const result = await this.reportService.getReport(courseId, filters);
+    const result = await this.reportService.getReports(courseId, filters);
     return result;
   }
 }

@@ -9,13 +9,15 @@ import {
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
 import {REPORT_TYPES} from '../types.js';
-import { NotFoundError} from 'routing-controllers';
+import {NotFoundError} from 'routing-controllers';
 import {
   Report,
+  ReportDataResponse,
   ReportFiltersQuery,
   ReportResponse,
 } from '../classes/index.js';
 import {ReportRepository} from '../repositories/index.js';
+import {plainToInstance} from 'class-transformer';
 
 @injectable()
 export class ReportService extends BaseService {
@@ -53,12 +55,18 @@ export class ReportService extends BaseService {
     });
   }
 
-  async getReport(
+  async getReports(
     courseId: string,
     filters: ReportFiltersQuery,
   ): Promise<ReportResponse> {
     return this._withTransaction(async _ => {
       return await this.reportsRepository.getByCourseId(courseId, filters);
     });
+  }
+
+  async getReportById(reportId: string): Promise<Report> {
+    const report = await this.reportsRepository.getById(reportId);
+    const reportInstance = plainToInstance(ReportDataResponse, report);
+    return reportInstance
   }
 }
