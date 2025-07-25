@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   JsonController,
+  Param,
   Params,
   Patch,
   Post,
@@ -17,9 +18,9 @@ import {ReportService} from '../services/ReportService.js';
 import {
   Report,
   ReportBody,
-  ReportDataResponse,
   ReportFiltersQuery,
-  ReportIdParams,
+  ReportResponse,
+  ReportUpdateParams,
   UpdateReportStatusBody,
 } from '../classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -48,9 +49,6 @@ class ReportController {
   @Authorized()
   @Post('/', {transformResponse: true})
   @HttpCode(201)
-  @ResponseSchema(ReportDataResponse, {
-    description: 'Report created successfully',
-  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -58,8 +56,8 @@ class ReportController {
   async create(
     @Body() body: ReportBody,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<Report | null> {
-    const {courseId, entityId, entityType, reason, versionId} = body;
+  ): Promise<void> {
+    const {courseId, versionId} = body;
     const reportedBy = user.userId;
     const reportResource = subject(ReportPermissionSubject.REPORT, {
       courseId,
@@ -69,19 +67,11 @@ class ReportController {
 
     if (!ability.can(ReportsActions.Create, reportResource)) {
       throw new ForbiddenError(
-        'You do not have permission to view this course',
+        'You do not have permission to create this report',
       );
     }
-
-    await this.reportService.createReport(
-      courseId,
-      versionId,
-      entityId,
-      entityType,
-      reportedBy,
-      reason,
-    );
-    return null;
+    const report = new Report(body, reportedBy);
+    await this.reportService.createReport(report);
   }
 
   @OpenAPI({
@@ -91,19 +81,26 @@ class ReportController {
   @Authorized()
   @Patch('/:reportId', {transformResponse: true})
   @HttpCode(200)
-  @ResponseSchema(ReportDataResponse, {
-    description: 'Report status updated successfully',
-  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
   async updateStatus(
-    @Params() params: ReportIdParams,
+    @Params() params: ReportUpdateParams,
     @Body() body: UpdateReportStatusBody,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<Report | null> {
-    return null;
+  ): Promise<void> {
+    const {reportId} = params;
+    const {status, comment} = body;
+    const reportResource = subject(ReportPermissionSubject.REPORT, {reportId});
+
+    if (!ability.can(ReportsActions.Modify, reportResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this report',
+      );
+    }
+
+    await this.reportService.updateReport(reportId, status, comment);
   }
 
   @OpenAPI({
@@ -111,14 +108,23 @@ class ReportController {
     description: 'Retrieves reports based on filtering criteria',
   })
   @Authorized()
-  @Get('/')
+  @Get('/:courseId')
   @HttpCode(200)
-  @ResponseSchema(ReportDataResponse, {isArray: true})
+  @ResponseSchema(ReportResponse, {isArray: true})
   async getFilteredReports(
+    @Param('courseId') courseId: string,
     @QueryParams() filters: ReportFiltersQuery,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<Report[]> {
-    return [];
+  ): Promise<ReportResponse> {
+    const reportResource = subject(ReportPermissionSubject.REPORT, {courseId});
+
+    if (!ability.can(ReportsActions.View, reportResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view reports for this course',
+      );
+    }
+    const result = await this.reportService.getReport(courseId, filters);
+    return result;
   }
 }
 
