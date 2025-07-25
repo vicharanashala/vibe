@@ -1160,26 +1160,3 @@ export function useWatchtimeTotal(): {
     refetch: result.refetch
   };
 }
-
-// --- AnomalyController Hooks ---
-
-// POST /anomalies/record/image
-export function useReportAnomalyImage(): {
-  mutate: (variables: { body: NewAnomalyData; file: File }) => void,
-  mutateAsync: (variables: { body: NewAnomalyData; file: File }) => Promise<AnomalyData>,
-  data: AnomalyData | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
-  // This assumes api.useMutation supports multipart/form-data
-  const result = api.useMutation("post", "/anomalies/record/image", { isMultipart: true });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Failed to record anomaly image') : null
-  };
-}
