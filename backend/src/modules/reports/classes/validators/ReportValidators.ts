@@ -3,7 +3,6 @@ import {
   IsNotEmpty,
   IsString,
   IsEnum,
-  IsMongoId,
   IsOptional,
   ValidateNested,
   IsInt,
@@ -27,7 +26,6 @@ class ReportBody implements Partial<IReport>{
     type: 'string',
   })
   @IsNotEmpty()
-  @IsMongoId()
   courseId: ID;
 
   @JSONSchema({
@@ -37,7 +35,6 @@ class ReportBody implements Partial<IReport>{
     type: 'string',
   })
   @IsNotEmpty()
-  @IsMongoId()
   versionId: ID;
 
   @JSONSchema({
@@ -47,7 +44,6 @@ class ReportBody implements Partial<IReport>{
     type: 'string',
   })
   @IsNotEmpty()
-  @IsMongoId()
   entityId: ID;
 
   @JSONSchema({
@@ -102,7 +98,6 @@ class ReportIdParams {
     type: 'string',
   })
   @IsNotEmpty()
-  @IsMongoId()
   reportId: string;
 }
 

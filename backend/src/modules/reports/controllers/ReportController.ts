@@ -2,6 +2,7 @@ import {inject, injectable} from 'inversify';
 import {
   Authorized,
   Body,
+  ForbiddenError,
   Get,
   HttpCode,
   JsonController,
@@ -24,6 +25,9 @@ import {
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {BadRequestErrorResponse, IReport} from '#root/shared/index.js';
+import {ReportsActions} from '../abilities/reportsAbilities.js';
+import {ReportPermissionSubject} from '../constants.js';
+import {subject} from '@casl/ability';
 
 @OpenAPI({
   tags: ['Reports'],
@@ -55,11 +59,28 @@ class ReportController {
     @Body() body: ReportBody,
     @Ability(getCourseAbility) {ability, user},
   ): Promise<Report | null> {
+    const {courseId, entityId, entityType, reason, versionId} = body;
+    const reportedBy = user.userId;
+    const reportResource = subject(ReportPermissionSubject.REPORT, {
+      courseId,
+      versionId,
+      reportedBy,
+    });
 
-    
+    if (!ability.can(ReportsActions.Create, reportResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this course',
+      );
+    }
 
-  // const reportedBy = user.userId;
-  //   await this.reportService.createReport();
+    await this.reportService.createReport(
+      courseId,
+      versionId,
+      entityId,
+      entityType,
+      reportedBy,
+      reason,
+    );
     return null;
   }
 
@@ -95,7 +116,7 @@ class ReportController {
   @ResponseSchema(ReportDataResponse, {isArray: true})
   async getFilteredReports(
     @QueryParams() filters: ReportFiltersQuery,
-    @Ability(getCourseAbility) {ability,user},
+    @Ability(getCourseAbility) {ability, user},
   ): Promise<Report[]> {
     return [];
   }

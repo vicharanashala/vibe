@@ -1,4 +1,4 @@
-import { BaseService, EntityType, IStatus, MongoDatabase } from '#root/shared/index.js';
+import { BaseService, EntityType, ID, IStatus, MongoDatabase } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { inject, injectable } from 'inversify';
 import { REPORT_TYPES } from '../types.js';
@@ -19,9 +19,9 @@ export class ReportService extends BaseService {
     }
 
     public async createReport(
-        courseId: string,
-        versionId: string,
-        entityId: string,
+        courseId: ID,
+        versionId: ID,
+        entityId: ID,
         entityType: EntityType,
         reportedBy: string,
         reason: string,
