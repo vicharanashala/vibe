@@ -46,7 +46,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   setQuizPassed,
   rewindVid
 }, ref) => {
-  console.log('Quiz component rendered with props:', {});
+  // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});

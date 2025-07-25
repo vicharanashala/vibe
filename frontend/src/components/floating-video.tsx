@@ -1,28 +1,28 @@
-import React, { useRef, useEffect, useState, useCallback, JSX, use } from 'react';
+import React, { useRef, useEffect, useState, useCallback, JSX} from 'react';
 import ReactDOM from 'react-dom';
-import { ChevronUp, ChevronDown, PictureInPicture, PictureInPicture2, SquareArrowOutDownLeft} from 'lucide-react';
+import { ChevronUp, ChevronDown, PictureInPicture2, SquareArrowOutDownLeft} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GestureDetector from './ai/GestureDetector';
 import BlurDetection from './ai/BlurDetector';
 import SpeechDetector from './ai/SpeechDetector';
 import FaceDetectors from './ai/FaceDetectors';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
-import { FaceRecognition, FaceRecognitionDebugInfo } from './ai/FaceRecognitionComponent';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
+
 import { useReportAnomaly, useReportAnomalyImage } from '@/hooks/hooks';
 import { AnomalyType } from '@/types/reportanomaly.types';
 
 import { useAuthStore } from '@/store/auth-store';
+
 import { useCourseStore } from '@/store/course-store';
 
-import type { IDetectorSettings, StudentProctoringSettings, FloatingVideoProps } from '@/types/video.types';
+import type { FloatingVideoProps } from '@/types/video.types';
+import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 
 let flag = 0;
 function FloatingVideo({
   isVisible = true,
-  onClose,
-  onAnomalyDetected,
   setDoGesture,
   settings,
   rewindVid,
@@ -44,6 +44,9 @@ function FloatingVideo({
   const [isPoppedOut, setIsPoppedOut] = useState(false);
   const [anomaly, setAnomaly] = useState(false);
   const [anomalyType, setAnomalyType] = useState("");
+   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
 
   // Original aspect ratio (maintain the initial component ratio)
@@ -55,17 +58,7 @@ function FloatingVideo({
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
   const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
-  const [recognizedFaces, setRecognizedFaces] = useState<FaceRecognition[]>([]);
-  const [faceRecognitionDebug, setFaceRecognitionDebug] = useState<FaceRecognitionDebugInfo>({
-    knownFacesCount: 0,
-    knownFaceLabels: [],
-    detectedPhotoFaces: 0,
-    currentFrameFaces: 0,
-    recognizedFaces: 0,
-    lastUpdateTime: Date.now(),
-    backendStatus: 'loading'
-
-  });
+  const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [penaltyPoints, setPenaltyPoints] = useState(-90);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
@@ -97,25 +90,22 @@ function FloatingVideo({
   const isFocusEnabled = false; //isComponentEnabled('focus');
 
   // Log enabled components for debugging
-  useEffect(() => {
-    if (settings) {
-      console.log('🔧 [FloatingVideo] Proctoring settings loaded:', {
-        blurDetection: isBlurDetectionEnabled,
-        faceCountDetection: isFaceCountDetectionEnabled,
-        handGestureDetection: isHandGestureDetectionEnabled,
-        voiceDetection: isVoiceDetectionEnabled,
-        faceRecognition: isFaceRecognitionEnabled,
-        focus: isFocusEnabled
-      });
-    }
-  }, [settings, isBlurDetectionEnabled, isFaceCountDetectionEnabled, isHandGestureDetectionEnabled, isVoiceDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled]);
+  // useEffect(() => {
+  //   if (settings) {
+  //     console.log('🔧 [FloatingVideo] Proctoring settings loaded:', {
+  //       blurDetection: isBlurDetectionEnabled,
+  //       faceCountDetection: isFaceCountDetectionEnabled,
+  //       handGestureDetection: isHandGestureDetectionEnabled,
+  //       voiceDetection: isVoiceDetectionEnabled,
+  //       faceRecognition: isFaceRecognitionEnabled,
+  //       focus: isFocusEnabled
+  //     });
+  //   }
+  // }, [settings, isBlurDetectionEnabled, isFaceCountDetectionEnabled, isHandGestureDetectionEnabled, isVoiceDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled]);
 
-  // Add the hooks
-  const { data, error, mutate: reportAnomaly } = useReportAnomaly();
-  const authStore = useAuthStore();
   const courseStore = useCourseStore();
   // Handle face recognition results
-  const handleFaceRecognitionResult = useCallback((recognitions: FaceRecognition[]) => {
+  const handleFaceRecognitionResult = useCallback((recognitions: any[]) => {
     console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
     setRecognizedFaces(recognitions);
 
@@ -129,10 +119,10 @@ function FloatingVideo({
   }, []);
 
   // Handle face recognition debug info updates
-  const handleFaceRecognitionDebugUpdate = useCallback((debugInfo: FaceRecognitionDebugInfo) => {
-    console.log('🔍 [FloatingVideo] Face recognition debug update:', debugInfo);
-    setFaceRecognitionDebug(debugInfo);
-  }, []);
+  // const handleFaceRecognitionDebugUpdate = useCallback((debugInfo: FaceRecognitionDebugInfo) => {
+  //   console.log('🔍 [FloatingVideo] Face recognition debug update:', debugInfo);
+  //   setFaceRecognitionDebug(debugInfo);
+  // }, []);
 
   // Store current media stream
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
@@ -234,6 +224,75 @@ const lastCalledRef = useRef<number>(0);
     }
     handleImageAnomaly();
   }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId]);
+ 
+  const reportAudio = useReportAnomalyAudio();
+  
+
+  // Audio recording for speech anomaly
+  useEffect(() => {
+    if (isSpeaking === "Yes" && isVoiceDetectionEnabled && !mediaRecorder) {
+      // Start recording
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        const recorder = new window.MediaRecorder(stream);
+        setAudioChunks([]);
+        setAudioStream(stream);
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            setAudioChunks(prev => [...prev, e.data]);
+          }
+        };
+        recorder.start();
+        setMediaRecorder(recorder);
+      }).catch(err => {
+        console.error("[FloatingVideo] Error accessing microphone for anomaly recording:", err);
+      });
+    }
+    // If isSpeaking goes to No and we have a recorder, stop and send
+    if (isSpeaking === "No" && mediaRecorder) {
+      mediaRecorder.stop();
+    }
+    // Cleanup on unmount
+    return () => {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSpeaking, isVoiceDetectionEnabled]);
+
+  // When recording stops, send audio to backend
+  useEffect(() => {
+    if (!mediaRecorder) return;
+    const handleStop = () => {
+      if (audioChunks.length > 0) {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        reportAudio.mutate({
+          body: {
+            type: "voiceDetection",
+            courseId: courseStore.currentCourse?.courseId || "",
+            versionId: courseStore.currentCourse?.versionId || "",
+            itemId: courseStore.currentCourse?.itemId || ""
+          },
+          file: audioBlob
+        });
+      }
+      setMediaRecorder(null);
+      setAudioChunks([]);
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+    };
+    mediaRecorder.addEventListener('stop', handleStop);
+    return () => {
+      mediaRecorder.removeEventListener('stop', handleStop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaRecorder, audioChunks, audioStream]);
+
 
   // Function to restart video stream
   const restartVideo = useCallback(async () => {
@@ -303,7 +362,7 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-        setRewindVid(true);
+        // setRewindVid(true);
         setPauseVid(true);
         setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
@@ -332,7 +391,7 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
-      console.log("[anomaly]",anomalies);
+      // console.log("[anomaly]",anomalies);
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
@@ -375,14 +434,14 @@ const lastCalledRef = useRef<number>(0);
     facesCount, 
     isBlur, 
     isFocused, 
-    reportAnomaly,
+    // reportAnomaly,
     courseStore.currentCourse,
     isVoiceDetectionEnabled,
     isFaceCountDetectionEnabled,
     isBlurDetectionEnabled,
     isFocusEnabled,
-    data,
-    error,
+    // data,
+    // error,
     rewindVid,
     setRewindVid,
     pauseVid,
@@ -994,7 +1053,7 @@ const lastCalledRef = useRef<number>(0);
             setIsFocused={()=>{}} // CHANGE THIS LATER.
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
-            onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
+            // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
             settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
           />
         )}

@@ -1,126 +1,63 @@
 #!/usr/bin/env bash
+set -e
 
-set -euo pipefail
-IFS=$'\n\t'
+LOG_FILE="deploy.log"
 
-#========================================
-# Configuration
-#========================================
-DEPLOY_BRANCH="saaransh/deploy"
-STASH_MSG="pre-deploy-stash"
-
-#========================================
-# Helpers
-#========================================
-error_exit() {
-  echo "❌ ERROR: $1"
-  cleanup
-  exit 1
+# Log a message with a timestamp
+log() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
 
-cleanup() {
-  # undo workspace changes
-  echo "⚠️  Cleaning up..."
-  # Reset any partial index changes
-  git reset --hard HEAD || true
-  # Return to previous branch if set
-  if [[ -n "${PREV_BRANCH:-}" ]]; then
-    git checkout "${PREV_BRANCH}" || true
-  fi
-  # Pop stash if still present
-  if git stash list | grep -q "${STASH_MSG}"; then
-    git stash pop --index || true
-  fi
+log "🚀 Starting deployment process"
+
+# Save current repo name and path
+CURRENT_REPO=$(basename "$(git rev-parse --show-toplevel)")
+CURRENT_PATH=$(pwd)
+
+log "📍 Current repo: $CURRENT_REPO"
+
+# Stash current changes
+log "💾 Stashing current changes..."
+git stash push -m "Deploy stash $(date '+%Y-%m-%d %H:%M:%S')"
+
+# Switch to deploy repo
+log "🔄 Switching to saaransh/deploy repo..."
+cd ../saaransh-deploy || {
+  log "❌ Deploy repo not found. Creating it..."
+  cd ..
+  git clone https://github.com/saaransh/deploy.git saaransh-deploy
+  cd saaransh-deploy
 }
 
-prompt_continue() {
-  local prompt_msg="$1"
-  read -rp "$prompt_msg [y/N]: " ans
-  case "$ans" in
-    [yY]|[yY][eE][sS]) return 0 ;;  *) return 1 ;;
-  esac
-}
+# Copy all files from source repo (excluding .git)
+log "📦 Copying code from $CURRENT_REPO..."
+rsync -av --exclude='.git' --exclude='node_modules' --delete "$CURRENT_PATH/" ./
 
-trap 'error_exit "An unexpected error occurred."' ERR
-trap 'echo "\nInterrupted."; cleanup; exit 1' INT TERM
-
-#========================================
-# Main flow
-#========================================
-
-# Save current branch
-PREV_BRANCH=$(git symbolic-ref --short HEAD) || error_exit "Could not determine current branch."
-
-echo "🔀 Switching from '$PREV_BRANCH' to '$DEPLOY_BRANCH'..."
-
-git stash push -u -m "$STASH_MSG" || error_exit "Failed to stash changes."
-
-git checkout "$DEPLOY_BRANCH" || error_exit "Failed to checkout '$DEPLOY_BRANCH'."
-
-# Update deploy branch
-echo "⬇️  Pulling latest '$DEPLOY_BRANCH'..."
-if ! git pull --ff-only; then
-  echo "⚠️  Merge required on '$DEPLOY_BRANCH'."
-  echo "Please resolve conflicts in '$DEPLOY_BRANCH' branch and then press Enter to continue..."
-  read -r
-  # Verify no unmerged files
-  if git diff --check; then
-    echo "✔️  Conflicts resolved."
-  else
-    error_exit "Unresolved conflicts remain on '$DEPLOY_BRANCH'."
-  fi
-fi
-
-# Reset index and working tree
-git rm -r --cached . || error_exit "Failed to clear index."
-
-# Restore files from prev branch
-echo "📂 Restoring files from '$PREV_BRANCH'..."
-if ! git checkout "$PREV_BRANCH" -- .; then
-  error_exit "Failed to restore files from '$PREV_BRANCH'."
-fi
-
-# Apply stashed changes
-echo "📦 Applying stashed changes..."
-if ! git stash pop --index; then
-  echo "⚠️  Could not apply stash cleanly. Please resolve conflicts and then continue..."
-  read -rp "Press Enter once manual resolution is done..."
-  # Check again
-  if ! git diff --check; then
-    error_exit "Unresolved conflicts after stash pop."
-  fi
-fi
-
-# Stage everything
-git add -A
-
-echo "📝 Staged changes:"
-git diff --cached --name-status
-
-# Confirm commit and push
-if prompt_continue "❓ Commit and push changes to '$DEPLOY_BRANCH'?"; then
-  echo "✅ Committing..."
-  git commit -m "Deploy: auto-commit on $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nothing to commit."
-  echo "🚀 Pushing to '$DEPLOY_BRANCH'..."
-  git push origin "$DEPLOY_BRANCH" || error_exit "Failed to push to '$DEPLOY_BRANCH'."
-else
-  echo "❌ Aborted by user."
-  cleanup
-  exit 1
-fi
+# Apply the stash to current repo
+log "🔧 Applying stashed changes..."
+git stash pop || log "⚠️ No stash to apply or conflicts occurred"
 
 # Build and deploy
-echo "🏗️  Building..."
-pnpm vite build || error_exit "Build failed."
+log "🏗️ Building project..."
+pnpm install
+pnpm vite build
 
-echo "☁️  Deploying..."
-firebase deploy || error_exit "Deploy failed."
+log "🚀 Deploying to Firebase..."
+firebase deploy
 
-# Switch back
-echo "🔀 Returning to '$PREV_BRANCH'..."
-git checkout "$PREV_BRANCH" || error_exit "Failed to checkout '$PREV_BRANCH'."
+# Commit changes with timestamp
+COMMIT_MSG="Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
+log "💾 Committing changes: $COMMIT_MSG"
+git add .
+git commit -m "$COMMIT_MSG" || log "⚠️ Nothing to commit"
+git push origin main || log "⚠️ Push failed"
 
-# Final cleanup (pop any remaining stash)
-cleanup
+# Go back to original repo
+log "🔙 Returning to $CURRENT_REPO..."
+cd "$CURRENT_PATH"
 
-echo "🎉 Deployment completed successfully."
+# Pop the stash back
+log "🔄 Restoring stashed changes..."
+git stash pop || log "⚠️ No stash to restore"
+
+log "✅ Deployment complete! Back to $CURRENT_REPO with original state restored."

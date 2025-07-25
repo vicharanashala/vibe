@@ -99,3 +99,16 @@ export interface ProctoringSettings {
     }
 }
 }
+
+export interface Video{
+  _id: string;
+  name: string;
+  description: string;
+  type: string;
+  details: {
+    URL: string;
+    startTime: string;
+    endTime: string;
+    points: number;
+  };
+}

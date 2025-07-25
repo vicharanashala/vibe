@@ -101,7 +101,7 @@ class QuestionController {
     if (!ability.can(QuestionActions.View, 'Question')) {
       throw new ForbiddenError('You do not have permission to view this question');
     }
-    
+
     return await this.questionService.getById(questionId, true);
   }
 
