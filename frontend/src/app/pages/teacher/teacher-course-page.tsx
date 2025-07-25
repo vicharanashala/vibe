@@ -345,15 +345,14 @@ export default function TeacherCoursePage() {
                                     className="ml-3 px-2 py-2 text-[11px] rounded flex items-center gap-1 shadow min-h-6 h-6"
                                     style={{ minWidth: 'unset' }}
                                     onClick={() => {
-                                      if (currentCourse && courseId && versionId) {
-                                        setCurrentCourse({
-                                          ...currentCourse,
-                                          courseId,
-                                          versionId,
-                                          moduleId: module.moduleId,
-                                          sectionId: section.sectionId,
-                                        });
-                                      }
+                                      setCurrentCourse({
+                                        courseId,
+                                        versionId,
+                                        moduleId: module.moduleId,
+                                        sectionId: section.sectionId,
+                                        itemId: null,
+                                        watchItemId: null,
+                                      });
                                       navigate({ to: '/teacher/ai-section' });
                                     }}
                                   >

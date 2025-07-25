@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { CheckCircle, Loader2, Play, Check } from "lucide-react";
 import { toast } from "sonner";
 import { aiSectionAPI, JobStatus } from "@/lib/genai-api";
+import { useCourseStore } from "@/store/course-store";
 
 interface AISectionModalProps {
   open: boolean;
@@ -84,11 +85,34 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
     }
 
     setUrlError(null);
-    
+    // Get courseId and versionId from store
+    const { currentCourse } = useCourseStore.getState();
+    if (!currentCourse?.courseId || !currentCourse?.versionId) {
+      toast.error("Missing course or version information");
+      return;
+    }
     try {
       // Create a real GenAI job
+      console.log("AISectionPage Job Params", {
+        videoUrl: youtubeUrl,
+        courseId: currentCourse.courseId,
+        versionId: currentCourse.versionId,
+        moduleId: currentCourse.moduleId,
+        sectionId: currentCourse.sectionId,
+        videoItemBaseName: 'video_item',
+        quizItemBaseName: 'quiz_item',
+      });
+      
       console.log('Creating GenAI job...');
-      const { jobId } = await aiSectionAPI.createJob(youtubeUrl);
+      const { jobId } = await aiSectionAPI.createJob({
+        videoUrl: youtubeUrl,
+        courseId: currentCourse.courseId,
+        versionId: currentCourse.versionId,
+        moduleId: currentCourse.moduleId,
+        sectionId: currentCourse.sectionId,
+        videoItemBaseName: 'video_item',
+        quizItemBaseName: 'quiz_item',
+      });
       console.log('Job created with ID:', jobId);
       
       setAiJobId(jobId);

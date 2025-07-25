@@ -82,38 +82,39 @@ export interface JobStatus {
 
 // 1. Create GenAI Job
 export const createGenAIJob = async (
-  videoUrl: string
+  params: {
+    videoUrl: string;
+    courseId: string;
+    versionId: string;
+    moduleId: string;
+    sectionId: string;
+    videoItemBaseName?: string;
+    quizItemBaseName?: string;
+  }
 ): Promise<{ jobId: string }> => {
+  const {
+    videoUrl,
+    courseId,
+    versionId,
+    moduleId,
+    sectionId,
+    videoItemBaseName = 'video_item',
+    quizItemBaseName = 'quiz_item',
+  } = params;
+  const uploadParameters: Record<string, any> = {
+    courseId,
+    versionId,
+    videoItemBaseName,
+    quizItemBaseName,
+  };
+  if (moduleId) uploadParameters.moduleId = moduleId;
+  if (sectionId) uploadParameters.sectionId = sectionId;
   const response = await makeAuthenticatedRequest('/api/genai/jobs', {
     method: 'POST',
     body: JSON.stringify({
       type: 'VIDEO',
       url: videoUrl,
-      transcriptParameters: {
-        language: 'en', // <-- change this to 'en'
-        model: 'default',
-      },
-      segmentationParameters: {
-        lam: 0.5,
-        runs: 10,
-        noise_id: 123,
-      },
-      questionGenerationParameters: {
-        model: 'default',
-        SOL: 2,
-        SML: 1,
-        NAT: 1,
-        DES: 1,
-      },
-      uploadParameters: {
-        courseId: '60d5f484f1c4d8b3c8f8e4b1',
-        versionId: '60d5f484f1c4d8b3c8f8e4b2',
-        moduleId: '60d5f484f1c4d8b3c8f8e4b3',
-        sectionId: '60d5f484f1c4d8b3c8f8e4b4',
-        videoItemBaseName: 'video_item',
-        quizItemBaseName: 'quiz_item',
-        questionsPerQuiz: 5,
-      },
+      uploadParameters,
     }),
   });
   const result = await response.json();
@@ -371,7 +372,7 @@ export const postJobTask = async (
       body: JSON.stringify({
         type: taskType,
         parameters: params || {},
-        usePrevious: typeof usePrevious === 'number' ? usePrevious : 1,
+        usePrevious: typeof usePrevious === 'number' ? usePrevious : 0,
       }),
     });
   }

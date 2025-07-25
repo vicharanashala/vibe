@@ -325,6 +325,8 @@ export default function AISectionPage() {
     return youtubeRegex.test(url);
   };
 
+  
+
   const handleCreateJob = async () => {
     if (!youtubeUrl.trim()) {
       setUrlError("YouTube URL is required");
@@ -335,8 +337,25 @@ export default function AISectionPage() {
       return;
     }
     setUrlError(null);
+    // Get courseId and versionId from store
+    const { currentCourse } = useCourseStore.getState();
+    if (!currentCourse?.courseId || !currentCourse?.versionId) {
+      toast.error("Missing course or version information");
+      return;
+    }
     try {
-      const { jobId } = await aiSectionAPI.createJob(youtubeUrl);
+
+      
+      
+      const { jobId } = await aiSectionAPI.createJob({
+        videoUrl: youtubeUrl,
+        courseId: currentCourse.courseId,
+        versionId: currentCourse.versionId,
+        moduleId: currentCourse.moduleId,
+        sectionId: currentCourse.sectionId,
+        videoItemBaseName: 'video_item',
+        quizItemBaseName: 'quiz_item',
+      });
       setAiJobId(jobId);
       console.log("[handleCreateJob] Set aiJobId:", jobId);
       toast.success("AI job created successfully!");
@@ -411,8 +430,9 @@ export default function AISectionPage() {
           await aiSectionAPI.approveContinueTask(aiJobId);
           // Find the accepted transcript run index (0-based)
           const acceptedTranscriptId = acceptedRuns.transcription;
-          const transcriptIndex = taskRuns.transcription.findIndex(run => run.id === acceptedTranscriptId);
-          const usePrevious = transcriptIndex >= 0 ? transcriptIndex : 0;
+          // Always use usePrevious = 0 as per user request
+          const usePrevious = 0;
+          // Always use the latest values from segParams for the payload
           params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
           await aiSectionAPI.postJobTask(aiJobId, taskType, params, usePrevious);
           return;
@@ -701,6 +721,44 @@ if (task === "upload") {
           >
             {title}
           </Button>
+          {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
+          {task === 'segmentation' && (
+            <div className="flex flex-row gap-3 items-center ml-4 bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-700">
+              <div className="flex flex-col items-start min-w-[80px]">
+                <label htmlFor="seg-lam" className="text-[11px] font-semibold mb-1 text-gray-300">lam</label>
+                <input
+                  id="seg-lam"
+                  type="text"
+                  value={segParams.lam}
+                  onChange={e => setSegParams(p => ({ ...p, lam: parseFloat(e.target.value) || 0 }))}
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  style={{ fontSize: '15px' }}
+                />
+              </div>
+              <div className="flex flex-col items-start min-w-[80px]">
+                <label htmlFor="seg-runs" className="text-[11px] font-semibold mb-1 text-gray-300">runs</label>
+                <input
+                  id="seg-runs"
+                  type="text"
+                  value={segParams.runs}
+                  onChange={e => setSegParams(p => ({ ...p, runs: parseInt(e.target.value) || 0 }))}
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  style={{ fontSize: '15px' }}
+                />
+              </div>
+              <div className="flex flex-col items-start min-w-[80px]">
+                <label htmlFor="seg-noiseId" className="text-[11px] font-semibold mb-1 text-gray-300">noiseId</label>
+                <input
+                  id="seg-noiseId"
+                  type="text"
+                  value={segParams.noiseId}
+                  onChange={e => setSegParams(p => ({ ...p, noiseId: parseInt(e.target.value) || 0 }))}
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  style={{ fontSize: '15px' }}
+                />
+              </div>
+            </div>
+          )}
           {/* Add Re-run Transcription button */}
           {task === 'transcription' && jobStatus?.transcriptGeneration === 'COMPLETED' && (
             <Button
@@ -773,7 +831,8 @@ if (task === "upload") {
               onClick={async () => {
                 if (!aiJobId) return;
                 try {
-                  const params = segParams;
+                  // Always use the latest values from segParams for the payload
+                  const params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
                   toast.success('Segmentation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
@@ -830,7 +889,7 @@ if (task === "upload") {
                     {run.status === "done" && (
                       task === "segmentation"
                         ? <>
-                            <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} />
+                            <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
                             <EditSegmentsModalButton aiJobId={aiJobId} run={run} runIndex={index} />
                           </>
                         : task === "question"
@@ -1434,7 +1493,7 @@ if (task === "upload") {
   }
 
   // Component to show segmentation for a run
-  function RunSegmentationSection({ aiJobId, run, acceptedRunId, onAccept }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void }) {
+  function RunSegmentationSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
     const [showSegmentation, setShowSegmentation] = useState(false);
     const [segments, setSegments] = useState<any[]>([]);
     const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
@@ -1468,43 +1527,41 @@ if (task === "upload") {
           }
           if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
           const arr = await res.json();
-          if (Array.isArray(arr) && arr.length > 0) {
-            if (arr[0].segmentationMap && Array.isArray(arr[0].segmentationMap) && arr[0].transcriptFileUrl) {
-              setSegmentationMap(arr[0].segmentationMap);
-              // Fetch transcript JSON
-              const transcriptRes = await fetch(arr[0].transcriptFileUrl);
-              if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-              const transcriptData = await transcriptRes.json();
-              const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
-              // Group transcript chunks by segment
-              const segMap = arr[0].segmentationMap;
-              const grouped: any[][] = [];
-              let segStart = 0;
-              for (let i = 0; i < segMap.length; ++i) {
-                const segEnd = segMap[i];
-                // Chunks whose timestamp[0] >= segStart and < segEnd
-                const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
-                  chunk.timestamp &&
-                  typeof chunk.timestamp[0] === 'number' &&
-                  chunk.timestamp[0] >= segStart &&
-                  chunk.timestamp[0] < segEnd
-                );
-                grouped.push(segChunks);
-                segStart = segEnd;
-              }
-              setSegmentationChunks(grouped);
-            } else if (arr[0].fileUrl) {
-              // fallback: fetch segments from fileUrl as before
-              const segs = await fetchSegmentationFromUrl(arr[0].fileUrl);
-              setSegments(segs);
-              setSegmentationMap(null);
-              setSegmentationChunks(null);
-            } else {
-              setError('Segmentation data not found.');
-              setSegmentationChunks(null);
+          // Use the correct run index for this run, just like transcript section
+          const segArrIdx = typeof runIndex === 'number' ? runIndex : 0;
+          const segData = Array.isArray(arr) && arr.length > segArrIdx ? arr[segArrIdx] : arr[0];
+          if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap) && segData.transcriptFileUrl) {
+            setSegmentationMap(segData.segmentationMap);
+            // Fetch transcript JSON
+            const transcriptRes = await fetch(segData.transcriptFileUrl);
+            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+            const transcriptData = await transcriptRes.json();
+            const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
+            // Group transcript chunks by segment
+            const segMap = segData.segmentationMap;
+            const grouped: any[][] = [];
+            let segStart = 0;
+            for (let i = 0; i < segMap.length; ++i) {
+              const segEnd = segMap[i];
+              // Chunks whose timestamp[0] >= segStart and < segEnd
+              const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
+                chunk.timestamp &&
+                typeof chunk.timestamp[0] === 'number' &&
+                chunk.timestamp[0] >= segStart &&
+                chunk.timestamp[0] < segEnd
+              );
+              grouped.push(segChunks);
+              segStart = segEnd;
             }
+            setSegmentationChunks(grouped);
+          } else if (segData && segData.fileUrl) {
+            // fallback: fetch segments from fileUrl as before
+            const segs = await fetchSegmentationFromUrl(segData.fileUrl);
+            setSegments(segs);
+            setSegmentationMap(null);
+            setSegmentationChunks(null);
           } else {
-            setError('Segmentation file URL not found.');
+            setError('Segmentation data not found.');
             setSegmentationChunks(null);
           }
         } catch (e: any) {
