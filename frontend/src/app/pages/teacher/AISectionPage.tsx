@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -256,6 +256,17 @@ const Stepper = ({ jobStatus }: { jobStatus: any }) => (
     })}
   </div>
 );
+
+// Add this helper at the top (after imports)
+function getApiUrl(path: string) {
+  // Always ensure a leading slash
+  const cleanPath = path.startsWith('/') ? path : '/' + path;
+  if (import.meta.env.DEV) {
+    // Always prepend /api in dev
+    return `/api${cleanPath}`;
+  }
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${cleanPath}`;
+}
 
 export default function AISectionPage() {
   // AI Section workflow state
@@ -1143,14 +1154,24 @@ if (task === "upload") {
   );
 };
 
+  // Track previous job status for transition detection
+  const prevJobStatusRef = useRef<any>(null);
+  // Track if this is the first status fetch after mount
+  const didMountRef = useRef(false);
+
   // New: Manual refresh handler
   const handleRefreshStatus = async () => {
     if (!aiJobId) return;
     try {
       const status = await aiSectionAPI.getJobStatus(aiJobId);
       setAiJobStatus(status);
-      // Update the most recent loading transcription run if completed
-      if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
+      const prevJobStatus = prevJobStatusRef.current;
+      // Only show toast if transitioning to COMPLETED and not on first mount
+      if (
+        didMountRef.current &&
+        status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
+        prevJobStatus?.transcriptGeneration !== 'COMPLETED'
+      ) {
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
@@ -1162,9 +1183,13 @@ if (task === "upload") {
             ),
           };
         });
+        toast.success('Transcription completed!');
       }
-      // Update the most recent loading segmentation run if completed
-      if (status.jobStatus?.segmentation === 'COMPLETED') {
+      if (
+        didMountRef.current &&
+        status.jobStatus?.segmentation === 'COMPLETED' &&
+        prevJobStatus?.segmentation !== 'COMPLETED'
+      ) {
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
@@ -1176,9 +1201,13 @@ if (task === "upload") {
             ),
           };
         });
+        toast.success('Segmentation completed!');
       }
-      // Update the most recent loading question run if completed and fetch fileUrl
-      if (status.jobStatus?.questionGeneration === 'COMPLETED') {
+      if (
+        didMountRef.current &&
+        status.jobStatus?.questionGeneration === 'COMPLETED' &&
+        prevJobStatus?.questionGeneration !== 'COMPLETED'
+      ) {
         // Fetch QUESTION_GENERATION task status for fileUrl
         const token = localStorage.getItem('firebase-auth-token');
         const localUrl = `/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`;
@@ -1192,14 +1221,12 @@ if (task === "upload") {
           setTaskRuns(prev => {
             const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
             const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
-            // Prefer updating the most recent 'loading' run, else the most recent 'done' run
             let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
             if (idxToUpdate === -1) return prev;
             return {
               ...prev,
               question: prev.question.map((run, idx) => {
                 if (idx === idxToUpdate) {
-                  // Only keep TaskRun properties, and set status to 'done'
                   const { id, timestamp, result, parameters } = run;
                   return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
                 }
@@ -1207,11 +1234,15 @@ if (task === "upload") {
               }),
             };
           });
+          toast.success('Questions generated!');
         }
       }
+      // Always update previous job status at the end
+      prevJobStatusRef.current = status.jobStatus;
+      // Mark didMount after first fetch
+      if (!didMountRef.current) didMountRef.current = true;
       if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
         setAiWorkflowStep('transcription_done');
-        toast.success('Transcript generation completed!');
         return;
       }
       if (status.jobStatus?.audioExtraction === 'COMPLETED') {
@@ -1278,19 +1309,9 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const localUrl = `/api/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`;
-      const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`;
-      console.log('Fetching transcript status:', localUrl, 'Token:', token);
-      let res = await fetch(localUrl, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        console.warn('Local proxy fetch failed, trying backend URL directly...');
-        res = await fetch(backendUrl, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
-      if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+      const url = getApiUrl(`/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
       if (Array.isArray(arr) && arr.length > 0 && arr[0].fileUrl) {
         const transcript = await fetchTranscriptFromUrl(arr[0].fileUrl);
@@ -1327,17 +1348,9 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const localUrl = `/api/genai/${jobId}/tasks/SEGMENTATION/status`;
-      const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${jobId}/tasks/SEGMENTATION/status`;
-      let res = await fetch(localUrl, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        res = await fetch(backendUrl, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
-      if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+      const url = getApiUrl(`/genai/${jobId}/tasks/SEGMENTATION/status`);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
       if (Array.isArray(arr) && arr.length > 0 && arr[0].fileUrl) {
         const segments = await fetchSegmentationFromUrl(arr[0].fileUrl);
@@ -1373,17 +1386,9 @@ if (task === "upload") {
         try {
           // Fetch transcript status as before
           const token = localStorage.getItem('firebase-auth-token');
-          const localUrl = `/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`;
-          const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`;
-          let res = await fetch(localUrl, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!res.ok) {
-            res = await fetch(backendUrl, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-          }
-          if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
           if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
             const transcriptRes = await fetch(arr[runIndex].fileUrl);
@@ -1418,13 +1423,9 @@ if (task === "upload") {
         (async () => {
           try {
             const token = localStorage.getItem('firebase-auth-token');
-            const localUrl = `/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`;
-            const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`;
-            let res = await fetch(localUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) {
-              res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-            }
-            if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+            const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Failed to fetch task status');
             const arr = await res.json();
             if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
               const transcriptRes = await fetch(arr[runIndex].fileUrl);
@@ -1560,17 +1561,9 @@ if (task === "upload") {
         setError("");
         try {
           const token = localStorage.getItem('firebase-auth-token');
-          const localUrl = `/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-          const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-          let res = await fetch(localUrl, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!res.ok) {
-            res = await fetch(backendUrl, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-          }
-          if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
           // Use the correct run index for this run, just like transcript section
           const segArrIdx = typeof runIndex === 'number' ? runIndex : 0;
@@ -1627,12 +1620,8 @@ if (task === "upload") {
       setEditModalOpen(true);
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const localUrl = `/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-        const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-        let res = await fetch(localUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) {
-          res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        }
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
@@ -1909,17 +1898,9 @@ if (task === "upload") {
         try {
           // Fetch question generation status for this run
           const token = localStorage.getItem('firebase-auth-token');
-          const localUrlQ = `/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`;
-          const backendUrlQ = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`;
-          let res = await fetch(localUrlQ, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!res.ok) {
-            res = await fetch(backendUrlQ, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-          }
-          if (!res.ok) throw new Error('Failed to fetch task status (proxy and direct)');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
           // Use runIndex if available, else fallback to 0
           const idx = typeof runIndex === 'number' ? runIndex : 0;
@@ -2043,7 +2024,7 @@ if (task === "upload") {
                       };
                     });
                     await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
-                    toast.success('Question updated successfully!');
+                    toast.success('Question updated!');
                     setEditingQuestion(null);
                     setEditModalOpen(false);
                   } catch (e) {
@@ -2194,12 +2175,8 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
       setError('');
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const localUrl = `/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-        const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/SEGMENTATION/status`;
-        let res = await fetch(localUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) {
-          res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        }
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length > 0 && arr[runIndex]?.segmentationMap && arr[runIndex]?.transcriptFileUrl) {

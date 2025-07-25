@@ -19,8 +19,7 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: '10.8.1'
+      
 
       - name: Remove lockfile
         run: rm pnpm-lock.yaml
