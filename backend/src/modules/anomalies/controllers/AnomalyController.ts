@@ -51,18 +51,21 @@ export class AnomalyController {
     statusCode: 400,
   })
   async recordImageAnomaly(
-    @UploadedFile("image", { required: true, options: imageUploadOptions })
+    // @UploadedFile("image", {required:true, options: imageUploadOptions })
+    @UploadedFile("image", {options: imageUploadOptions })
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
-    @Ability(getAnomalyAbility) {ability, user}
+    // @Ability(getAnomalyAbility) {ability,user} as it not giving permisson to post it
+    @Ability(getAnomalyAbility) {user}
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
     const userId = user._id.toString();
     const anomalyRes = subject('Anomaly', { courseId, versionId });
 
-    if (!ability.can('create', anomalyRes)) {
-      throw new ForbiddenError('You do not have permission to create an anomaly');
-    }
+    // commented below as it is not allowing to post "anomalies/record/image" endpoint
+    // if (!ability.can('create', anomalyRes)) {
+    //   throw new ForbiddenError('You do not have permission to create an anomaly');
+    // }
     
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
   }

@@ -10,7 +10,8 @@ import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 import { FaceRecognition, FaceRecognitionDebugInfo } from './ai/FaceRecognitionComponent';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
-import { useReportAnomaly } from '@/hooks/hooks';
+import { useReportAnomaly, useReportAnomalyImage } from '@/hooks/hooks';
+import { AnomalyType } from '@/types/reportanomaly.types';
 
 import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
@@ -149,20 +150,90 @@ function FloatingVideo({
       restartVideo();
     }, 100);
   }, [isPoppedOut]);
+
+
+// Image record anomaly effect
+const reportImage = useReportAnomalyImage();
+const lastCalledRef = useRef<number>(0);
   useEffect(() => {
-    if (anomaly) {
-      reportAnomaly({
-        body: {
-          courseId: courseStore.currentCourse?.courseId || "",
-          courseVersionId: courseStore.currentCourse?.versionId || "",
-          moduleId: courseStore.currentCourse?.moduleId || "",
-          sectionId: courseStore.currentCourse?.sectionId || "",
-          itemId: courseStore.currentCourse?.itemId || "",
-          anomalyType: anomalyType
+    const handleImageAnomaly = async () => {
+
+      // To ensure that there is a minimum gap of 1 second between each request
+      const now = Date.now();
+      if (now - lastCalledRef.current < 1000) {
+        // console.log("Throttled: waiting for 1 second gap");
+        return;
+      }
+      lastCalledRef.current = now;
+
+
+
+      if (anomaly && anomalyType !== "voiceDetection") {
+        const video = videoRef.current;
+        if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+          console.log("Video not ready for screenshot");
+          return;
         }
-      });
+
+        // to convert binary to File type
+        function dataURLtoFile(dataurl: string, filename: string) {
+          const arr = dataurl.split(',');
+          const match = arr[0].match(/:(.*?);/);
+          const mime = match ? match[1] : "image/png";
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          return new File([u8arr], filename, { type: mime });
+        }
+
+        // to take screen shot from video
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const screenshot = canvas.toDataURL("image/png");
+        const imageFile = dataURLtoFile(screenshot, "image");
+
+        // report anomaly type checking 
+        let reportAnomalyType;
+        if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
+        if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
+        if (facesCount === 0) reportAnomalyType = "NO_FACE";
+
+        // // Log for debugging
+        // console.log("Image File", imageFile);
+        // console.log('%c ', `font-size:1px; padding:40px 80px; background:url(${screenshot}); background-size:contain; background-repeat:no-repeat;`);
+        // console.log("anomalyType", reportAnomaly, "====", "anamoly=", anomaly);
+        // console.log("courseId", courseStore.currentCourse?.courseId);
+        // console.log("versionId", courseStore.currentCourse?.versionId);
+        // console.log("itemId", courseStore.currentCourse?.itemId);
+
+
+        try {
+          const response = await reportImage.mutateAsync({
+            body: {
+              type: reportAnomalyType as AnomalyType,
+              courseId: courseStore.currentCourse?.courseId || "",
+              versionId: courseStore.currentCourse?.versionId || "",
+              itemId: courseStore.currentCourse?.itemId || "",
+            },
+            file: imageFile,
+          });
+          // console.log("Post response", response);
+
+        } catch (error) {
+          console.log("Error while reporting image anomaly:", error);
+        }
+      }
     }
-  }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId, reportAnomaly]);
+    handleImageAnomaly();
+  }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId]);
 
   // Function to restart video stream
   const restartVideo = useCallback(async () => {

@@ -26,8 +26,8 @@ export class AnomalyService extends BaseService {
   async recordAnomaly(
     userId: string,
     anomalyData: NewAnomalyData,
-    file: Express.Multer.File,
-    fileType: FileType
+    file?: Express.Multer.File,
+    fileType?: FileType
   ): Promise<AnomalyData> {
     return this._withTransaction(async (session) => {
       const { courseId, versionId } = anomalyData;
@@ -41,17 +41,19 @@ export class AnomalyService extends BaseService {
         anomalyData,
         userId
       );
-
-      const fileName = await this.cloudStorageService.uploadAnomaly(
-        file,
-        userId,
-        anomaly.type,
-        anomaly.createdAt,
-        file.mimetype
-      );
-
-      anomaly.fileName = fileName;
-      anomaly.fileType = fileType;
+      // For now the file and fileType are optional
+      if(file && fileType){
+        const fileName = await this.cloudStorageService.uploadAnomaly(
+          file,
+          userId,
+          anomaly.type,
+          anomaly.createdAt,
+          file.mimetype
+        );
+        
+        anomaly.fileName = fileName;
+        anomaly.fileType = fileType;
+      }
 
       // Save to database
       const savedAnomaly = await this.anomalyRepository.createAnomaly(anomaly, session);
@@ -60,8 +62,10 @@ export class AnomalyService extends BaseService {
       }
 
       savedAnomaly._id = savedAnomaly._id.toString();
+      if(file && fileType) {
       delete savedAnomaly.fileName;
       delete savedAnomaly.fileType;
+      }
       return savedAnomaly;
     });
   }
