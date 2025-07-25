@@ -271,11 +271,7 @@ export default function AISectionPage() {
   });
   const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
 
-  // Quiz question editor state (unchanged)
-  const [showQuizQuestions, setShowQuizQuestions] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<{ segmentId: string; questionId: string } | null>(null);
-  const [editedQuestion, setEditedQuestion] = useState<Partial<Question>>({});
-  const [videoDataState, setVideoDataState] = useState<VideoData>(sampleVideoData);
+
 
   // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -991,27 +987,76 @@ if (task === "upload") {
   onSave: (edited: any) => void; 
   onCancel: () => void; 
 }) => {
-  if (question.type !== 'SELECT_ONE_IN_LOT' && question.type !== 'SELECT_MANY_IN_LOT') {
-    return <div className="p-4 text-center text-red-500">Editing only supported for single/multiple select questions.</div>;
-  }
+ 
 
-  const initialOptions = React.useMemo(() => {
-    const correct = question.solution?.correctLotItems || (question.solution?.correctLotItem ? [question.solution.correctLotItem] : []);
-    const incorrect = question.solution?.incorrectLotItems || [];
-    return [
-      ...correct.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true })),
-      ...incorrect.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false })),
-    ];
+  // Normalize question object to handle both flat and nested (with .question and .solution)
+  const typeMap: Record<string, string> = {
+    SOL: 'SELECT_ONE_IN_LOT',
+    MUL: 'SELECT_MANY_IN_LOT',
+    // Add more mappings if needed
+  };
+
+  const normalized = React.useMemo(() => {
+    if ('question' in question && typeof question.question === 'object') {
+      const mappedType = typeMap[question.question.type] || question.question.type;
+      return {
+        ...question.question,
+        type: mappedType,
+        solution: question.solution,
+      };
+    }
+    // If already flat, also map type
+    return {
+      ...question,
+      type: typeMap[question.type] || question.type,
+    };
   }, [question]);
 
-  const [questionText, setQuestionText] = React.useState(question.text || question.question || '');
+  const initialOptions = React.useMemo(() => {
+    if (normalized.solution) {
+      // Handle both correctLotItem (single correct) and correctLotItems (multiple correct)
+      const correct = normalized.solution.correctLotItems
+        ? normalized.solution.correctLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true }))
+        : normalized.solution.correctLotItem
+          ? [{ text: normalized.solution.correctLotItem.text, explaination: normalized.solution.correctLotItem.explaination, correct: true }]
+          : [];
+      const incorrect = normalized.solution.incorrectLotItems
+        ? normalized.solution.incorrectLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false }))
+        : [];
+      // Combine (correct first, then incorrect)
+      return [...correct, ...incorrect];
+    }
+    // fallback: if options array exists (for generated questions)
+    if (Array.isArray(normalized.options)) {
+      let correctIndices: number[] = [];
+      if (normalized.type === 'SELECT_ONE_IN_LOT' && typeof normalized.correctAnswer === 'number') {
+        correctIndices = [normalized.correctAnswer];
+      } else if (normalized.type === 'SELECT_MANY_IN_LOT' && Array.isArray(normalized.correctAnswer)) {
+        correctIndices = normalized.correctAnswer;
+      }
+      return normalized.options.map((opt: string, idx: number) => ({
+        text: opt,
+        explaination: '',
+        correct: correctIndices.includes(idx),
+      }));
+    }
+    return [];
+  }, [normalized]);
+
+  const [questionText, setQuestionText] = React.useState(normalized.text || normalized.question || '');
   const [options, setOptions] = React.useState(initialOptions);
+
+  // Sync state with normalized question
+  React.useEffect(() => {
+    setQuestionText(normalized.text || normalized.question || '');
+    setOptions(initialOptions);
+  }, [normalized, initialOptions]);
 
   const handleOptionText = (idx: number, value: string) => setOptions(opts => opts.map((o, i) => i === idx ? { ...o, text: value } : o));
   const handleOptionExplain = (idx: number, value: string) => setOptions(opts => opts.map((o, i) => i === idx ? { ...o, explaination: value } : o));
   const handleCorrect = (idx: number, checked: boolean) => {
     setOptions(opts => opts.map((o, i) =>
-      question.type === 'SELECT_ONE_IN_LOT'
+      normalized.type === 'SELECT_ONE_IN_LOT'
         ? { ...o, correct: i === idx }
         : i === idx ? { ...o, correct: checked } : o
     ));
@@ -1024,12 +1069,12 @@ if (task === "upload") {
   const buildSolution = () => {
     const correctOpts = options.filter(o => o.correct).map(o => ({ text: o.text, explaination: o.explaination }));
     const incorrectOpts = options.filter(o => !o.correct).map(o => ({ text: o.text, explaination: o.explaination }));
-    if (question.type === 'SELECT_ONE_IN_LOT') {
+    if (normalized.type === 'SELECT_ONE_IN_LOT') {
       return {
         correctLotItem: correctOpts[0] || { text: '', explaination: '' },
         incorrectLotItems: incorrectOpts,
       };
-    } else if (question.type === 'SELECT_MANY_IN_LOT') {
+    } else if (normalized.type === 'SELECT_MANY_IN_LOT') {
       return {
         correctLotItems: correctOpts,
         incorrectLotItems: incorrectOpts,
@@ -1039,7 +1084,7 @@ if (task === "upload") {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-[80vh] overflow-y-auto">
       <div>
         <Label htmlFor="question-text">Question Text</Label>
         <Textarea
@@ -1052,11 +1097,11 @@ if (task === "upload") {
       </div>
       <div>
         <Label>Options</Label>
-        <div className="space-y-2 mt-2">
+        <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto pr-2">
           {options.map((option, idx) => (
             <div key={idx} className="flex flex-col gap-1 border rounded p-2 bg-background">
               <div className="flex items-center gap-2">
-                {question.type === 'SELECT_ONE_IN_LOT' ? (
+                {normalized.type === 'SELECT_ONE_IN_LOT' ? (
                   <input type="radio" checked={option.correct} onChange={() => handleCorrect(idx, true)} />
                 ) : (
                   <input type="checkbox" checked={option.correct} onChange={e => handleCorrect(idx, e.target.checked)} />
@@ -1934,7 +1979,7 @@ if (task === "upload") {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q.question))); setEditModalOpen(true); }}>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
                           <Edit className="w-4 h-4" /> Edit
                         </Button>
                       </div>
@@ -2093,7 +2138,7 @@ if (task === "upload") {
                     <FileText className="w-5 h-5 text-blue-400" />
                     <span className="font-semibold text-xl">Transcription</span>
                   </div>
-              <TaskAccordion task="transcription" title="Transcription" jobStatus={aiJobStatus?.jobStatus} />
+              <TaskAccordion task="transcription" title="Audio Extraction" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
 
                 {/* Segmentation Section */}
@@ -2127,210 +2172,8 @@ if (task === "upload") {
           )}
         </div>
       </div>
-      {/* Quiz Questions Section */}
-      <div className="mt-8">
-        <div className="flex justify-start">
-          <Button
-            onClick={() => setShowQuizQuestions((prev) => !prev)}
-            className="px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
-            size="lg"
-          >
-            {showQuizQuestions ? "Hide Quiz Questions" : "Show Quiz Questions"}
-          </Button>
-        </div>
-
-        {showQuizQuestions && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-center mb-6">Quiz Questions Editor</h2>
-            {videoDataState?.segments.map((segment) => (
-              <Card key={segment.id} className="w-full">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Segment: {Math.floor(segment.startTime / 60)}min - {Math.floor(segment.endTime / 60)}min
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {segment.questions.map((question, index) => {
-                    const isEditing = editingQuestion && 
-                      editingQuestion.segmentId === segment.id && 
-                      editingQuestion.questionId === question.id;
-
-                    return (
-                      <Card key={question.id} className="border-2">
-                        <CardHeader className="pb-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">Q{index + 1}</Badge>
-                              <Badge className={getQuestionTypeColor(question.type)}>
-                                {getQuestionTypeLabel(question.type)}
-                              </Badge>
-                              <Badge className={getDifficultyColor(question.difficulty)}>
-                                {question.difficulty}
-                              </Badge>
-                              <Badge variant="outline" className="flex items-center gap-1">
-                                <Trophy className="h-3 w-3" />
-                                {question.points} pts
-                              </Badge>
-                              {question.timeLimit && (
-                                <Badge variant="outline" className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {question.timeLimit}s
-                                </Badge>
-                              )}
-                            </div>
-                            {!isEditing && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditClick(segment.id, question)}
-                                className="flex items-center gap-2"
-                              >
-                                <Edit className="h-4 w-4" />
-                                Edit
-                              </Button>
-                            )}
-                          </div>
-                          <div className="mt-2">
-                            <h3 className="font-medium">{question.question}</h3>
-                            {question.topic && (
-                              <p className="text-sm text-muted-foreground mt-1">Topic: {question.topic}</p>
-                            )}
-                            {question.hint && (
-                              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                                <Lightbulb className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm text-blue-700 dark:text-blue-300">{question.hint}</span>
-                              </div>
-                            )}
-                          </div>
-                        </CardHeader>
-
-                        <CardContent>
-                          {isEditing ? (
-                            <QuestionEditForm
-                              question={question}
-                              onSave={async (edited) => {
-                                toast.success('Question updated successfully!');
-                                setEditingQuestion(null);
-                              }}
-                              onCancel={() => setEditingQuestion(null)}
-                            />
-                          ) : (
-                            <div className="space-y-3">
-                              {/* Display question content based on type */}
-                              {question.type === 'SELECT_ONE_IN_LOT' && question.options && (
-                                <div className="space-y-2">
-                                  {question.options.map((option, optIndex) => (
-                                    <div
-                                      key={optIndex}
-                                      className={`p-3 rounded-lg border ${
-                                        optIndex === question.correctAnswer
-                                          ? 'bg-primary text-primary-foreground'
-                                          : 'bg-background'
-                                      }`}
-                                    >
-                                      <div className="flex items-center space-x-3">
-                                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium">
-                                          {String.fromCharCode(65 + optIndex)}
-                                        </span>
-                                        <span>{option}</span>
-                                        {optIndex === question.correctAnswer && (
-                                          <CheckCircle className="h-4 w-4 ml-auto" />
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {question.type === 'SELECT_MANY_IN_LOT' && question.options && (
-                                <div className="space-y-2">
-                                  {question.options.map((option, optIndex) => (
-                                    <div
-                                      key={optIndex}
-                                      className={`p-3 rounded-lg border ${
-                                        (question.correctAnswer as number[] || []).includes(optIndex)
-                                          ? 'bg-primary text-primary-foreground'
-                                          : 'bg-background'
-                                      }`}
-                                    >
-                                      <div className="flex items-center space-x-3">
-                                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium">
-                                          {String.fromCharCode(65 + optIndex)}
-                                        </span>
-                                        <span>{option}</span>
-                                        {(question.correctAnswer as number[] || []).includes(optIndex) && (
-                                          <CheckCircle className="h-4 w-4 ml-auto" />
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {question.type === 'ORDER_THE_LOTS' && question.options && (
-                                <div className="space-y-2">
-                                  <p className="text-sm text-muted-foreground mb-3">
-                                    Correct order (drag to reorder):
-                                  </p>
-                                  {question.options.map((option, optIndex) => (
-                                    <div
-                                      key={optIndex}
-                                      className="flex items-center space-x-3 p-3 bg-background border rounded-lg"
-                                    >
-                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                      <Badge variant="outline" className="min-w-[40px] justify-center">
-                                        {optIndex + 1}
-                                      </Badge>
-                                      <span className="flex-1">{option}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {question.type === 'NUMERIC_ANSWER_TYPE' && (
-                                <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    <span className="font-medium">Correct Answer:</span>
-                                    <span className="text-lg font-mono">{question.correctAnswer}</span>
-                                  </div>
-                                  {question.decimalPrecision && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      Decimal precision: {question.decimalPrecision} places
-                                    </p>
-                                  )}
-                                  {question.expression && (
-                                    <p className="text-sm text-muted-foreground">
-                                      Expression: {question.expression}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {question.type === 'DESCRIPTIVE' && (
-                                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                  <div className="flex items-start gap-2">
-                                    <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5" />
-                                    <div>
-                                      <span className="font-medium">Sample Answer:</span>
-                                      <p className="text-sm mt-1">{question.correctAnswer}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+     
+     
     </div>
   );
 } 
