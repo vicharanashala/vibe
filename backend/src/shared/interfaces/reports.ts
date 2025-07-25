@@ -17,7 +17,7 @@ interface IStatus {
 interface IReport {
     _id?: string | ObjectId;
     courseId: string | ObjectId;
-    courseVersionId: string | ObjectId;
+    versionId: string | ObjectId;
     entityId: string | ObjectId;
     entityType: EntityType;
     reportedBy: string | ObjectId;
