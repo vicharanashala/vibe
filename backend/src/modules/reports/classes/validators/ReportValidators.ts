@@ -38,7 +38,7 @@ class ReportBody implements Partial<IReport>{
   })
   @IsNotEmpty()
   @IsMongoId()
-  courseVersionId: ID;
+  versionId: ID;
 
   @JSONSchema({
     title: 'Entity ID',

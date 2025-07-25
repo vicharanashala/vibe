@@ -185,7 +185,7 @@ class Report implements IReport {
   ) {
     if ('courseId' in reportBody) {
       this.courseId = reportBody.courseId;
-      this.versionId = reportBody.courseVersionId;
+      this.versionId = reportBody.versionId;
       this.entityId = reportBody.entityId;
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;

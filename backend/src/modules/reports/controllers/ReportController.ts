@@ -23,7 +23,7 @@ import {
 } from '../classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
-import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {BadRequestErrorResponse, IReport} from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Reports'],
@@ -55,6 +55,11 @@ class ReportController {
     @Body() body: ReportBody,
     @Ability(getCourseAbility) {ability, user},
   ): Promise<Report | null> {
+
+    
+
+  // const reportedBy = user.userId;
+  //   await this.reportService.createReport();
     return null;
   }
 
