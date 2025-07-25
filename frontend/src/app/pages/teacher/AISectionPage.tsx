@@ -259,13 +259,10 @@ const Stepper = ({ jobStatus }: { jobStatus: any }) => (
 
 // Add this helper at the top (after imports)
 function getApiUrl(path: string) {
-  // Always ensure a leading slash
-  const cleanPath = path.startsWith('/') ? path : '/' + path;
   if (import.meta.env.DEV) {
-    // Always prepend /api in dev
-    return `/api${cleanPath}`;
+    return `/api${path}`;
   }
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${cleanPath}`;
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
 }
 
 export default function AISectionPage() {

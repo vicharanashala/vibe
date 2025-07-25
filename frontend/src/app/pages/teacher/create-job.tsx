@@ -7,16 +7,10 @@ import { toast } from "sonner";
 import { Loader2, Wand2 } from "lucide-react";
 
 function getApiUrl(path: string) {
-  // Remove any leading/trailing whitespace
-  const cleanPath = path.trim();
-  // If path already starts with /api, do not add another /api
   if (import.meta.env.DEV) {
-    if (cleanPath.startsWith('/api')) {
-      return cleanPath;
-    }
-    return `/api${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `/api${path}`;
   }
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
 }
 
 export default function GenerateSectionPage() {
