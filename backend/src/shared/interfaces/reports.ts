@@ -11,7 +11,7 @@ type ReportStatus = 'REPORTED' | 'IN_REVIEW' | 'RESOLVED' | 'DISCARDED' | 'CLOSE
 interface IStatus {
     status: ReportStatus;
     comment: string;
-    createdAt: Date;
+
 }
 
 interface IReport {

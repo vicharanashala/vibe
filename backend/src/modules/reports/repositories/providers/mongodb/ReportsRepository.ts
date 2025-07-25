@@ -17,6 +17,18 @@ class ReportRepository {
             await this.db.getCollection<IReport>('reports');
     }
 
+    public async getById(
+        reportId: string,
+        session?: ClientSession,
+    ): Promise<IReport | null> {
+        await this.init();
+        const result = await this.reportCollection.findOne(
+            { _id: new ObjectId(reportId) },
+            { session },
+        );
+        return result;
+    }
+
     public async create(report: Partial<IReport>, session?: ClientSession) {
         await this.init();
         const result = await this.reportCollection.insertOne(report, { session });
@@ -26,7 +38,7 @@ class ReportRepository {
         throw new InternalServerError('Failed to create quiz attempt');
     }
 
-    public async update(reportId: string, updateData: IStatus) {
+    public async update(reportId: string, updateData: IStatus, session?: ClientSession,) {
         await this.init();
         const result = await this.reportCollection.findOneAndUpdate(
             { _id: new ObjectId(reportId) },
@@ -34,7 +46,7 @@ class ReportRepository {
                 $push: { status: updateData },
                 $set: { updatedAt: new Date() },
             },
-            { returnDocument: 'after' },
+            { returnDocument: 'after', session },
         );
         return result;
     }
