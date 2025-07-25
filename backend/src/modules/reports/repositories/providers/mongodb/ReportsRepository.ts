@@ -17,7 +17,7 @@ class ReportRepository {
             await this.db.getCollection<IReport>('reports');
     }
 
-    public async create(report: IReport, session?: ClientSession) {
+    public async create(report: Partial<IReport>, session?: ClientSession) {
         await this.init();
         const result = await this.reportCollection.insertOne(report, { session });
         if (result.acknowledged && result.insertedId) {

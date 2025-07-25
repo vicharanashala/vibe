@@ -24,7 +24,7 @@ export class ReportService extends BaseService {
         entityId: string,
         entityType: EntityType,
         reportedBy: string,
-        reason: IStatus,
+        reason: string,
 
     ): Promise<void> {
         return this._withTransaction(async session => {
@@ -35,15 +35,14 @@ export class ReportService extends BaseService {
             // if (!question) {
             //     throw new NotFoundError(`Question with ID ${questionId} not found`);
             // }
-            let status = [];
-            status.push(reason)
+
             // Flag the question with the reason and user ID
             await this.reportsRepository.create(
                 {
                     entityId,
                     entityType,
                     reportedBy,
-                    status,
+                    reason,
                     courseId,
                     versionId,
                 }, session

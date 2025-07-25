@@ -16,12 +16,13 @@ interface IStatus {
 
 interface IReport {
     _id?: string | ObjectId;
-    courseId: string | ObjectId;
-    versionId: string | ObjectId;
-    entityId: string | ObjectId;
-    entityType: EntityType;
-    reportedBy: string | ObjectId;
-    status: IStatus[];
+    courseId?: string | ObjectId;
+    versionId?: string | ObjectId;
+    entityId?: string | ObjectId;
+    entityType?: EntityType;
+    reportedBy?: string | ObjectId;
+    reason?: string;
+    status?: IStatus[];
     createdAt?: Date;
     updatedAt?: Date;
 }
