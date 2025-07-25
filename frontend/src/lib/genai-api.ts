@@ -371,7 +371,7 @@ export const postJobTask = async (
       body: JSON.stringify({
         type: taskType,
         parameters: params || {},
-        // usePrevious removed for UPLOAD_CONTENT
+        usePrevious: typeof usePrevious === 'number' ? usePrevious : 1,
       }),
     });
   }

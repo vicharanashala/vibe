@@ -115,6 +115,17 @@ export interface GetQuestionBankByIdParams {
   questionBankId: string;
 }
 
+export interface QuestionBankResponse {
+  _id?: string | ObjectId;
+  courseId?: string;
+  courseVersionId?: string;
+  questions?: string[];
+  tags?: string[];
+  title: string;
+  description: string;
+}
+
+
 export interface QuestionBankAndQuestionParams {
   questionBankId: string;
   questionId: string;
@@ -181,6 +192,14 @@ export interface AddFeedbackParams {
 export interface AddFeedbackBody {
   feedback: string;
 }
+
+export interface GetAllQuestionBanksResponse extends Array<{
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+  type?: string;
+}> {}
 
 // Attempt types - matching backend validators
 export interface CreateAttemptParams {
