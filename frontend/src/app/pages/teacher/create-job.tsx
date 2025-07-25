@@ -6,6 +6,19 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogHeader, Dialog
 import { toast } from "sonner";
 import { Loader2, Wand2 } from "lucide-react";
 
+function getApiUrl(path: string) {
+  // Remove any leading/trailing whitespace
+  const cleanPath = path.trim();
+  // If path already starts with /api, do not add another /api
+  if (import.meta.env.DEV) {
+    if (cleanPath.startsWith('/api')) {
+      return cleanPath;
+    }
+    return `/api${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  }
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+}
+
 export default function GenerateSectionPage() {
     const [courseId, setCourseId] = useState("");
     const [versionId, setVersionId] = useState("");
@@ -24,7 +37,7 @@ export default function GenerateSectionPage() {
         }
         setIsLoading(true);
         try {
-            const res = await fetch("/genai/jobs", {
+            const res = await fetch(getApiUrl('/genai/jobs'), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

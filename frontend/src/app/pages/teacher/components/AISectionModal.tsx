@@ -41,7 +41,12 @@ interface TaskRuns {
   upload: TaskRun[];
 }
 
-
+function getApiUrl(path: string) {
+  if (import.meta.env.DEV) {
+    return `/api${path}`;
+  }
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
+}
 
 // Removed fakeApiCall - now using real API calls
 
@@ -93,16 +98,6 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
     }
     try {
       // Create a real GenAI job
-      console.log("AISectionPage Job Params", {
-        videoUrl: youtubeUrl,
-        courseId: currentCourse.courseId,
-        versionId: currentCourse.versionId,
-        moduleId: currentCourse.moduleId,
-        sectionId: currentCourse.sectionId,
-        videoItemBaseName: 'video_item',
-        quizItemBaseName: 'quiz_item',
-      });
-      
       console.log('Creating GenAI job...');
       const { jobId } = await aiSectionAPI.createJob({
         videoUrl: youtubeUrl,

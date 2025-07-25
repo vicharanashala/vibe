@@ -86,8 +86,8 @@ export const createGenAIJob = async (
     videoUrl: string;
     courseId: string;
     versionId: string;
-    moduleId: string;
-    sectionId: string;
+    moduleId?: string | null;
+    sectionId?: string | null;
     videoItemBaseName?: string;
     quizItemBaseName?: string;
   }
@@ -109,7 +109,7 @@ export const createGenAIJob = async (
   };
   if (moduleId) uploadParameters.moduleId = moduleId;
   if (sectionId) uploadParameters.sectionId = sectionId;
-  const response = await makeAuthenticatedRequest('/api/genai/jobs', {
+  const response = await makeAuthenticatedRequest('/genai/jobs', {
     method: 'POST',
     body: JSON.stringify({
       type: 'VIDEO',
@@ -125,7 +125,7 @@ export const createGenAIJob = async (
 export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   console.log('Getting job status for:', jobId);
   
-  const response = await makeAuthenticatedRequest(`/api/genai/jobs/${jobId}`, {
+  const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}`, {
     method: 'GET',
   });
   
@@ -260,7 +260,7 @@ export const testApiConnection = async (): Promise<any> => {
 };
 
 export const startTranscriptTask = async (jobId: string) => {
-  return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+  return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
     method: 'POST',
     body: JSON.stringify({
       type: 'TRANSCRIPT_GENERATION',
@@ -269,7 +269,7 @@ export const startTranscriptTask = async (jobId: string) => {
 };
 
 export const startAudioExtractionTask = async (jobId: string) => {
-  return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+  return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
     method: 'POST',
     body: JSON.stringify({
       type: 'AUDIO_EXTRACTION',
@@ -280,13 +280,13 @@ export const startAudioExtractionTask = async (jobId: string) => {
 };
 
 export const approveContinueTask = async (jobId: string) => {
-  return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/continue`, {
+  return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/continue`, {
     method: 'POST',
   });
 };
 
 export const approveStartTask = async (jobId: string, payload: any) => {
-  return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+  return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -329,7 +329,7 @@ export const postJobTask = async (
   if (taskType === 'TRANSCRIPTION' || taskType === 'TRANSCRIPT_GENERATION') {
     // For reruns, params?.isRerun will be true
     if (params && params.isRerun) {
-      return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+      return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
         method: 'POST',
         body: JSON.stringify({
           type: 'TRANSCRIPT_GENERATION',
@@ -342,7 +342,7 @@ export const postJobTask = async (
       });
     } else {
       // First run: do NOT send usePrevious or parameters
-      return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+      return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
         method: 'POST',
         body: JSON.stringify({
           type: 'TRANSCRIPT_GENERATION',
@@ -357,7 +357,7 @@ export const postJobTask = async (
   if (
     taskType === 'SEGMENTATION'
   ) {
-    return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
       method: 'POST',
       body: JSON.stringify({
         type: taskType,
@@ -367,7 +367,7 @@ export const postJobTask = async (
     });
   }
   if (taskType === 'UPLOAD_CONTENT') {
-    return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
       method: 'POST',
       body: JSON.stringify({
         type: taskType,
@@ -377,7 +377,7 @@ export const postJobTask = async (
     });
   }
   if (taskType === 'QUESTION_GENERATION') {
-    return makeAuthenticatedRequest(`/api/genai/${jobId}/tasks/approve/start`, {
+    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
       method: 'POST',
       body: JSON.stringify({
         type: taskType,
@@ -453,14 +453,14 @@ export const rerunJobTask = async (
 };
 
 export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
-  return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/question`, {
+  return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/question`, {
     method: 'PATCH',
     body: JSON.stringify({ index, questionData }),
   });
 };
 
 export const editTranscriptData = async (jobId: string, index: number, transcript: any) => {
-  return makeAuthenticatedRequest(`/api/genai/jobs/${jobId}/edit/transcript`, {
+  return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/transcript`, {
     method: 'PATCH',
     body: JSON.stringify({ index, transcript }),
   });
