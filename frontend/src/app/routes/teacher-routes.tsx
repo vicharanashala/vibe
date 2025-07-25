@@ -11,6 +11,7 @@ import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you wan
 import CourseEnrollments from "../pages/teacher/course-enrollments";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
+import AISectionPage from "@/app/pages/teacher/AISectionPage";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -66,8 +67,12 @@ const teacherRoutes: RouteObject = {
       element: <LiveQuiz />, // Uncomment if you want to use AudioManager
     },
     {
-      path:"courses/create",
-      element:<AddCoursePage /> 
+      path: "courses/create",
+      element: <AddCoursePage />,
+    },
+    {
+      path: "ai-section",
+      element: <AISectionPage />, // Page for generating sections using AI
     }
   ],
 };

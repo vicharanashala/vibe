@@ -125,6 +125,7 @@ export interface QuestionBankResponse {
   description: string;
 }
 
+
 export interface QuestionBankAndQuestionParams {
   questionBankId: string;
   questionId: string;
@@ -193,12 +194,12 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    bankId: string;
-    count: number;
-    difficulty?: string[];
-    tags?: string[];
-    type?: string;
-  }> {}
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+  type?: string;
+}> {}
 
 // Attempt types - matching backend validators
 export interface CreateAttemptParams {
@@ -1407,17 +1408,6 @@ export interface GetQuestionBankByIdParams {
   questionBankId: string;
 }
 
-export interface QuestionBankResponse {
-  _id: string;
-  name: string;
-  description?: string;
-  courseId: string;
-  courseVersionId: string;
-  questions: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface QuestionBankAndQuestionParams {
   questionBankId: string;
   questionId: string;
@@ -1466,11 +1456,6 @@ export interface AddFeedbackParams {
 export interface AddFeedbackBody {
   feedback: string;
 }
-
-export interface GetAllQuestionBanksResponse extends Array<{
-    questionBankId: string;
-    questionsCount?: number;
-  }> {}
 
 // Attempt types
 export interface CreateAttemptParams {
@@ -1597,17 +1582,6 @@ export function useSubmitQuiz(): {
 interface IAttemptDetails {
   attemptId: string | ObjectId;
   submissionResultId?: string | ObjectId;
-}
-
-interface UserQuizMetricsResponse {
-  _id?: string;
-  quizId: string;
-  userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
-  latestAttemptId?: string;
-  latestSubmissionResultId?: string;
-  remainingAttempts: number;
-  attempts: IAttemptDetails[];
 }
 
 // GET /quizzes/{quizId}/user/{userId}

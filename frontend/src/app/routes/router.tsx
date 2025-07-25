@@ -30,6 +30,9 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
+import GenerateSectionPage from '@/app/pages/teacher/create-job'
+import AISectionPage from '@/app/pages/teacher/AISectionPage';
+import AISectionModal from '@/app/pages/teacher/components/AISectionModal';
 
 
 // Root route with error and notFound handling
@@ -222,6 +225,20 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
+// Teacher generate section route
+const teacherGenerateSectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/jobs/create',
+  component: GenerateSectionPage,
+});
+
+// Teacher AI Section route
+const teacherAISectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ai-section',
+  component: AISectionPage,
+});
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -272,6 +289,13 @@ const notFoundRoute = new NotFoundRoute({
   component: NotFoundComponent,
 });
 
+// Remove TestAISectionModalPage and use AISectionPage for the test route
+const testAISectionModalRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/test-ai-section-modal',
+  component: AISectionPage,
+});
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -285,7 +309,10 @@ const routeTree = rootRoute.addChildren([
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
-    teacherCourseInviteRoute
+    teacherCourseInviteRoute,
+    teacherGenerateSectionRoute,
+    teacherAISectionRoute,
+    testAISectionModalRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

@@ -12,6 +12,8 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, X, Play, Clock, Edit, Trash2 } from "lucide-react";
 import Video from "@/components/video";
+import AISectionModal from "./AISectionModal";
+import { useNavigate } from '@tanstack/react-router';
 
 interface ContentItem {
   id: string;
@@ -73,6 +75,8 @@ export default function SectionForm({
     points: "",
     range: [0, 300] as [number, number],
   });
+  const [showAIModal, setShowAIModal] = useState(false);
+  const navigate = useNavigate();
 
   if (!sectionData) return null;
 
@@ -218,6 +222,11 @@ export default function SectionForm({
 
   return (
     <>
+      <div className="flex justify-end mb-2">
+        <Button variant="default" onClick={() => navigate({to: '/teacher/ai-section'})}>
+          Generate Section using AI
+        </Button>
+      </div>
       <Card className="bg-muted/20">
         <CardContent className="p-4 space-y-4">
           <h3 className="font-medium text-lg">Section {sectionIndex + 1}</h3>
@@ -239,8 +248,10 @@ export default function SectionForm({
                 key={item.id}
                 ref={
                   isSelected
-                    ? (el) => el && contentItemRefs.current.set(item.id, el)
-                    : null
+                    ? (el) => {
+                        if (el) contentItemRefs.current.set(item.id, el);
+                      }
+                    : undefined
                 }
                 className="border p-4 rounded-md space-y-3 bg-muted/10"
               >
@@ -299,9 +310,17 @@ export default function SectionForm({
           >
             <PlusCircle className="mr-2 h-4 w-4" /> Add Content Item
           </Button>
+
+          <Button
+            variant="secondary"
+            className="mt-2"
+            onClick={() => { /* TODO: Bind AI generation logic here */ }}
+          >
+            Generate Using by AI
+          </Button>
         </CardContent>
       </Card>
-
+      {/* <AISectionModal open={showAIModal} onOpenChange={setShowAIModal} /> */}
       {/* Video Configuration Popup */}
       {showVideoPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style={{ minHeight: '100vh' }}>
@@ -343,6 +362,8 @@ export default function SectionForm({
                         endTime={formatTime(end)}
                         points={tempVideoData.points}
                         doGesture={false}
+                        rewindVid={false}
+                        pauseVid={false}
                         onDurationChange={(dur) => {
                           setVideoDurations((prev) => ({ 
                             ...prev, 
