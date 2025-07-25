@@ -3,4 +3,4 @@ export * from './IUserRepository.js';
 export * from './ICourseRepository.js';
 export * from './IItemRepository.js';
 export * from './IInviteRepository.js';
-export * from './ISettingsRepository.js';
+export * from './ISettingRepository.js';

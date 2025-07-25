@@ -404,7 +404,7 @@ export interface ISettings {
 }
 
 // Interface for user-specific settings.
-export interface IUserSettings {
+export interface IUserSetting {
   _id?: string | ObjectId | null;
   studentId: string | ObjectId;
   courseVersionId: string | ObjectId;
@@ -413,7 +413,7 @@ export interface IUserSettings {
 }
 
 // Interface for course-specific settings.
-export interface ICourseSettings {
+export interface ICourseSetting {
   courseVersionId: string | ObjectId;
   courseId: string | ObjectId;
   settings: ISettings;

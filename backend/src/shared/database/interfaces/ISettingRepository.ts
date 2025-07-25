@@ -1,8 +1,8 @@
 import {ClientSession, UpdateResult} from 'mongodb';
 import {
-  ICourseSettings,
+  ICourseSetting,
   ISettings,
-  IUserSettings,
+  IUserSetting,
 } from '../../interfaces/models.js';
 import {
   DetectorOptionsDto,
@@ -31,17 +31,17 @@ export enum ProctoringComponent {
  * Interface for the settings repository.
  * This interface defines methods for managing course and user settings.
  */
-export interface ISettingsRepository {
+export interface ISettingRepository {
   createCourseSettings(
-    courseSettings: ICourseSettings,
+    courseSettings: ICourseSetting,
     session?: ClientSession,
-  ): Promise<ICourseSettings | null>;
+  ): Promise<ICourseSetting | null>;
 
   readCourseSettings(
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<ICourseSettings | null>;
+  ): Promise<ICourseSetting | null>;
 
   /**
    * Reads course settings for a specific course and version.
@@ -66,9 +66,9 @@ export interface ISettingsRepository {
    */
 
   createUserSettings(
-    userSettings: IUserSettings,
+    userSettings: IUserSetting,
     session?: ClientSession,
-  ): Promise<IUserSettings | null>;
+  ): Promise<IUserSetting | null>;
 
   /**
    * Reads user settings for a specific student, course and version.
@@ -84,7 +84,7 @@ export interface ISettingsRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<IUserSettings | null>;
+  ): Promise<IUserSetting | null>;
 
   /**
    * Updates user settings for a specific detector.

@@ -13,7 +13,7 @@ const TYPES = {
   //Services
   MailService: Symbol.for('MailService'),
   
-  SettingsRepo: Symbol.for('SettingsRepo'),
+  SettingRepo: Symbol.for('SettingRepo'),
 
   //Constants
   uri: Symbol.for('dbURI'),

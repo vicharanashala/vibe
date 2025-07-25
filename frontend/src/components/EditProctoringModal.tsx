@@ -6,8 +6,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useEditProctoringSettings } from "@/hooks/hooks"
-import { useState } from "react"
+import { useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
+import { useEffect, useState } from "react"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -45,16 +45,31 @@ export function ProctoringModal({
   isNew: boolean
 }) {
   const { editSettings, loading, error } = useEditProctoringSettings()
+  const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
 
   const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
   )
 
-  // (Optional) If you want to prefill existing settings, you can fetch and set them here using useEffect
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await getSettings(courseId, courseVersionId);
+        console.log(settings);
+        setDetectors(settings?.settings.proctors.detectors.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+      } catch (err) {
+        console.error("Failed to fetch proctoring settings:", err)
+      }
+    }
+
+    if (open) {
+      fetchSettings()
+    }
+  }, [open])
 
   const toggle = (name: string) => {
-    setDetectors((prev) =>
+    setDetectors((prev) =>  
       prev.map((d) =>
         d.name === name ? { ...d, enabled: !d.enabled } : d
       )
@@ -62,8 +77,15 @@ export function ProctoringModal({
   }
 
   const handleSubmit = async () => {
-    await editSettings(courseId, courseVersionId, detectors, isNew)
-    onClose()
+    const result = await editSettings(courseId, courseVersionId, detectors, isNew)
+    console.log("Proctoring settings updated:", result)
+    if(result != undefined) {
+      onClose()
+    }
+  }
+
+  if (settingLoading) {
+    return <div>Loading...</div>
   }
 
   return (

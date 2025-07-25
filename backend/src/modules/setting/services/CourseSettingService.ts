@@ -1,11 +1,12 @@
-import {injectable, inject} from 'inversify';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
-  CourseSettings,
+  CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
-} from '#settings/classes/index.js';
+  SettingsDto,
+} from '#root/modules/setting/classes/index.js';
 import {
   BadRequestError,
   InternalServerError,
@@ -14,21 +15,20 @@ import {
 import {
   BaseService,
   MongoDatabase,
-  ISettingsRepository,
+  ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
 
-import {ProctoringComponent} from '#shared/database/interfaces/ISettingsRepository.js';
 
 /**
  * Service responsible for course settings operations.
  * Handles business logic for creating, reading, and updating course settings.
  */
 @injectable()
-class CourseSettingsService extends BaseService {
+class CourseSettingService extends BaseService {
   constructor(
-    @inject(GLOBAL_TYPES.SettingsRepo)
-    private readonly settingsRepo: ISettingsRepository,
+    @inject(GLOBAL_TYPES.SettingRepo)
+    private readonly settingsRepo: ISettingRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -48,8 +48,8 @@ class CourseSettingsService extends BaseService {
    * @throws InternalServerError if creation fails
    */
   async createCourseSettings(
-    courseSettings: CourseSettings,
-  ): Promise<CourseSettings> {
+    courseSettings: CourseSetting,
+  ): Promise<CourseSetting> {
     return this._withTransaction(async session => {
       // Check if the course exists
       const course = await this.courseRepo.read(
@@ -108,7 +108,7 @@ class CourseSettingsService extends BaseService {
   async readCourseSettings(
     courseId: string,
     courseVersionId: string,
-  ): Promise<CourseSettings | null> {
+  ): Promise<CourseSetting | null> {
     return this._withTransaction(async session => {
       const courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
@@ -122,7 +122,7 @@ class CourseSettingsService extends BaseService {
         );
       }
 
-      return Object.assign(new CourseSettings(), courseSettings);
+      return Object.assign(new CourseSetting(), courseSettings);
     });
   }
 
@@ -140,9 +140,22 @@ class CourseSettingsService extends BaseService {
       );
 
       if (!courseSettings) {
-        throw new NotFoundError(
-          `Course settings for course ID ${courseId} and version ID ${courseVersionId} not found.`,
-        );
+        const settings = new SettingsDto();
+        settings.proctors = new ProctoringSettingsDto();
+        settings.proctors.detectors = detectors;
+
+        const result = await this.createCourseSettings(new CourseSetting({
+          courseVersionId,
+          courseId,
+          settings: settings
+        }))
+
+        if (!result) {
+          throw new InternalServerError(
+            'Failed to create course settings. Please try again later.',
+          );
+        }
+        return result._id ? true : false;
       }
 
       const result = await this.settingsRepo.updateCourseSettings(
@@ -202,4 +215,4 @@ class CourseSettingsService extends BaseService {
     */
 }
 
-export {CourseSettingsService};
+export { CourseSettingService };

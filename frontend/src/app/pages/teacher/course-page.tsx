@@ -51,7 +51,7 @@ export default function TeacherCoursesPage() {
   const queryClient = useQueryClient()
 
   // Fetch user enrollments with pagination (use reasonable page size)
-  const {token} = useAuthStore()
+  const { token } = useAuthStore()
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
@@ -97,8 +97,8 @@ export default function TeacherCoursesPage() {
   // Invalidate all related queries
   const invalidateAllQueries = () => {
     // Invalidate enrollments
-    queryClient.invalidateQueries({ 
-      queryKey: ['get', '/users/enrollments'] 
+    queryClient.invalidateQueries({
+      queryKey: ['get', '/users/enrollments']
     })
 
     // Invalidate all course queries
@@ -232,9 +232,7 @@ function CourseCard({
     name: "",
     description: "",
   })
-  const [showProctoringModal, setShowProctoringModal] = useState(false)
-  const { editSettings, loading, error } = useEditProctoringSettings()
-  
+
   const queryClient = useQueryClient()
 
   // Convert buffers to hex strings for API compatibility
@@ -248,7 +246,6 @@ function CourseCard({
 
   // Fetch full course data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex)
-  const settingsExist =!!(course as any)?.settings?.proctoring?.length;
   // Filter based on search query
   const matchesSearch =
     !searchQuery ||
@@ -381,9 +378,8 @@ function CourseCard({
 
   return (
     <Card
-      className={`transition-all duration-300 hover:shadow-lg ${
-        expandedCourse ? "ring-2 ring-primary/20 shadow-lg" : ""
-      }`}
+      className={`transition-all duration-300 hover:shadow-lg ${expandedCourse ? "ring-2 ring-primary/20 shadow-lg" : ""
+        }`}
     >
       {/* Course Header - Always Visible */}
       <CardHeader
@@ -453,20 +449,6 @@ function CourseCard({
                 <Trash2 className="h-3 w-3 mr-1" />
               )}
               Delete
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!expandedCourse) toggleCourse()
-                setShowProctoringModal(true)
-              }}
-              className="h-8"
-            >
-            <FileText className="h-3 w-3 mr-1" />
-              Settings
             </Button>
           </div>
         </div>
@@ -635,18 +617,6 @@ function CourseCard({
               )}
             </div>
           </div>
-
-          
-          <ProctoringModal
-            open={showProctoringModal}
-            onClose={() => setShowProctoringModal(false)}
-            courseId={courseIdHex}
-            courseVersionId={course.versions[0]}
-            isNew={!settingsExist}
-          />
-
-
-
         </CardContent>
       )}
     </Card>
@@ -668,6 +638,7 @@ function VersionCard({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { setCurrentCourse } = useCourseStore()
+  const [showProctoringModal, setShowProctoringModal] = useState(false)
 
   // Fetch individual version data
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
@@ -798,8 +769,29 @@ function VersionCard({
               )}
               Delete
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowProctoringModal(true)
+              }}
+              className="h-8"
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              Settings
+            </Button>
           </div>
         </div>
+
+        <ProctoringModal
+          open={showProctoringModal}
+          onClose={() => setShowProctoringModal(false)}
+          courseId={courseId}
+          courseVersionId={versionId}
+          isNew={false}
+        />
+
       </CardContent>
     </Card>
   )

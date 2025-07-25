@@ -13,16 +13,16 @@ import {
   ValidationArguments,
   ValidationOptions,
 } from 'class-validator';
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
-  ICourseSettings,
+  ICourseSetting,
   IDetectorOptions,
   IDetectorSettings,
   ISettings,
-  IUserSettings,
+  IUserSetting,
 } from '#shared/interfaces/models.js';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ProctoringComponent} from '#shared/database/interfaces/ISettingsRepository.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
 
 /**
  * This file contains classes and DTOs for validating course and user settings related to proctoring.
@@ -45,7 +45,7 @@ export class DetectorSettingsDto implements IDetectorSettings {
 
 export class ProctoringSettingsDto {
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => DetectorSettingsDto)
   detectors: DetectorSettingsDto[];
 }
@@ -56,10 +56,9 @@ export class SettingsDto {
   proctors: ProctoringSettingsDto;
 }
 
-@ValidatorConstraint({async: false})
+@ValidatorConstraint({ async: false })
 export class containsAllDetectorsConstraint
-  implements ValidatorConstraintInterface
-{
+  implements ValidatorConstraintInterface {
   validate(value: Array<any>, args: ValidationArguments) {
     if (!Array.isArray(value)) {
       return false;
@@ -91,8 +90,31 @@ export function containsAllDetectors(validationOptions?: ValidationOptions) {
   };
 }
 
+export class UpdateCourseSettingResponse {
+  @JSONSchema({
+    description: 'Indicates whether the update was successful',
+    example: true,
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsBoolean()
+  success: boolean;
+}
+
+export class SettingNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message',
+    example:
+      'No Setting found with the specified Course. Please verify the course and try again.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
+}
+
 // This class represents the validation schema for creating course settings.
-export class CreateCourseSettingsBody implements Partial<ICourseSettings> {
+export class CreateCourseSettingBody implements Partial<ICourseSetting> {
   @JSONSchema({
     title: 'Course Version ID',
     description: 'ID of the course version',
@@ -121,7 +143,7 @@ export class CreateCourseSettingsBody implements Partial<ICourseSettings> {
 }
 
 // This class represents the validation schema for reading course settings.
-export class ReadCourseSettingsParams {
+export class ReadCourseSettingParams {
   @JSONSchema({
     title: 'Course ID',
     description: 'ID of the course',
@@ -180,7 +202,7 @@ export class AddCourseProctoringBody {
   })
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
   detectors: DetectorSettingsDto[];
@@ -225,7 +247,7 @@ export class RemoveCourseProctoringBody {
 }
 
 // This class represents the validation schema for creating user settings.
-export class CreateUserSettingsBody implements Partial<IUserSettings> {
+export class CreateUserSettingBody implements Partial<IUserSetting> {
   @JSONSchema({
     title: 'Student ID',
     description: 'ID of the student',
@@ -264,7 +286,7 @@ export class CreateUserSettingsBody implements Partial<IUserSettings> {
   settings: SettingsDto;
 }
 
-export class ReadUserSettingsParams {
+export class ReadUserSettingParams {
   @JSONSchema({
     title: 'Student ID',
     description: 'ID of the student',
@@ -345,7 +367,7 @@ export class AddUserProctoringBody {
   })
   @IsArray()
   @IsNotEmpty()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
   detectors: DetectorSettingsDto[];

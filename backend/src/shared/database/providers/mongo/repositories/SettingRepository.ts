@@ -2,18 +2,18 @@ import 'reflect-metadata';
 import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
 import {injectable, inject} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {ICourseSettings, IUserSettings} from '#shared/interfaces/models.js';
+import {ICourseSetting, IUserSetting} from '#shared/interfaces/models.js';
 import {
-  ISettingsRepository,
+  ISettingRepository,
   ProctoringComponent,
 } from '#shared/database/index.js';
 import {
-  CourseSettings,
+  CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
-  UserSettings,
-} from '#settings/classes/index.js';
+  UserSetting,
+} from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 
 /**
@@ -22,10 +22,10 @@ import {GLOBAL_TYPES} from '#root/types.js';
  */
 
 @injectable()
-export class SettingsRepository implements ISettingsRepository {
+export class SettingRepository implements ISettingRepository {
   // Define types for the collections later.
-  private courseSettingsCollection: Collection<CourseSettings>;
-  private userSettingsCollection: Collection<UserSettings>;
+  private courseSettingsCollection: Collection<CourseSetting>;
+  private userSettingsCollection: Collection<UserSetting>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
   private initialized = false;
@@ -33,17 +33,17 @@ export class SettingsRepository implements ISettingsRepository {
   private async init() {
     if (!this.initialized) {
       this.courseSettingsCollection =
-        await this.db.getCollection<CourseSettings>('courseSettings');
+        await this.db.getCollection<CourseSetting>('courseSettings');
       this.userSettingsCollection =
-        await this.db.getCollection<UserSettings>('userSettings');
+        await this.db.getCollection<UserSetting>('userSettings');
       this.initialized = true;
     }
   }
 
   async createUserSettings(
-    userSettings: IUserSettings,
+    userSettings: IUserSetting,
     session?: ClientSession,
-  ): Promise<IUserSettings | null> {
+  ): Promise<IUserSetting | null> {
     await this.init();
 
     const result = await this.userSettingsCollection.insertOne(userSettings, {
@@ -56,7 +56,7 @@ export class SettingsRepository implements ISettingsRepository {
         {session},
       );
 
-      return Object.assign(new UserSettings(), createdSettings) as UserSettings;
+      return Object.assign(new UserSetting(), createdSettings) as UserSetting;
     }
   }
 
@@ -65,7 +65,7 @@ export class SettingsRepository implements ISettingsRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<IUserSettings | null> {
+  ): Promise<IUserSetting | null> {
     await this.init();
 
     // Check if user settings exist for the student in the course version.
@@ -83,7 +83,7 @@ export class SettingsRepository implements ISettingsRepository {
     }
 
     // If user settings exist, we will return them.
-    return Object.assign(new UserSettings(), userSettings) as UserSettings;
+    return Object.assign(new UserSetting(), userSettings) as UserSetting;
   }
 
   /**
@@ -184,9 +184,9 @@ export class SettingsRepository implements ISettingsRepository {
   // }
 
   async createCourseSettings(
-    courseSettings: CourseSettings,
+    courseSettings: CourseSetting,
     session?: ClientSession,
-  ): Promise<ICourseSettings | null> {
+  ): Promise<ICourseSetting | null> {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
       courseSettings,
@@ -201,9 +201,9 @@ export class SettingsRepository implements ISettingsRepository {
       );
 
       return Object.assign(
-        new CourseSettings(),
+        new CourseSetting(),
         createdSettings,
-      ) as CourseSettings;
+      ) as CourseSetting;
     } else {
       return null;
     }
@@ -213,7 +213,7 @@ export class SettingsRepository implements ISettingsRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<ICourseSettings | null> {
+  ): Promise<ICourseSetting | null> {
     await this.init();
 
     const courseSettings = await this.courseSettingsCollection.findOne(
@@ -228,9 +228,9 @@ export class SettingsRepository implements ISettingsRepository {
       return null;
     }
     return Object.assign(
-      new CourseSettings(),
+      new CourseSetting(),
       courseSettings,
-    ) as CourseSettings;
+    ) as CourseSetting;
   }
 
   // Rename this method (previously addCourseProctoring)
