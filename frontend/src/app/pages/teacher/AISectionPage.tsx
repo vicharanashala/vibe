@@ -257,10 +257,9 @@ const Stepper = ({ jobStatus }: { jobStatus: any }) => (
   </div>
 );
 
-// Add this helper at the top (after imports)
+
 function getApiUrl(path: string) {
-  
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
+  return `${import.meta.env.VITE_BASE_URL}${path}`;
 }
 
 export default function AISectionPage() {
@@ -384,8 +383,11 @@ export default function AISectionPage() {
       if (task === "transcription") {
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
-          setTaskRuns(prev => ({
-            ...prev,
+          await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
+          setAiWorkflowStep('transcription');
+          toast.success("Transcription rerun started. Click Refresh to check status.");
+    setTaskRuns(prev => ({
+      ...prev,
             transcription: [...prev.transcription, {
               id: runId,
               timestamp: new Date(),
@@ -393,54 +395,6 @@ export default function AISectionPage() {
               parameters: { ...rerunParams }
             }]
           }));
-          
-          try {
-            await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
-            setAiWorkflowStep('transcription');
-            toast.success("Transcription rerun started. Click Refresh to check status.");
-            
-            // Poll for completion
-            const finalStatus = await aiSectionAPI.pollForTaskCompletion(
-              aiJobId,
-              'TRANSCRIPT_GENERATION',
-              (status: JobStatus) => {
-                setTaskRuns(prev => ({
-                  ...prev,
-                  transcription: prev.transcription.map(run =>
-                    run.id === runId
-                      ? {
-                          ...run,
-                          status:
-                            status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "COMPLETED"
-                              ? "done"
-                              : status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "FAILED"
-                              ? "failed"
-                              : "loading",
-                          result: status,
-                        }
-                      : run
-                  ),
-                }));
-              }
-            );
-
-            setTaskRuns(prev => ({
-              ...prev,
-              transcription: prev.transcription.map(run => 
-                run.id === runId ? { ...run, status: "done", result: finalStatus } : run
-              ),
-            }));
-            
-            toast.success("Transcription rerun completed!");
-          } catch (error) {
-            setTaskRuns(prev => ({
-              ...prev,
-              transcription: prev.transcription.map(run =>
-                run.id === runId ? { ...run, status: "failed" } : run
-              ),
-            }));
-            toast.error(`Transcription rerun failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-          }
           return;
         }
         // Only start audio extraction, do not poll
@@ -448,12 +402,12 @@ export default function AISectionPage() {
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
         toast.success("Audio extraction started. Click Refresh to check status.");
-        setTaskRuns(prev => ({
-          ...prev,
-          [task]: prev[task].map(run =>
-              run.id === runId ? { ...run, status: "loading", result: undefined } : run
-            ),
-          }));
+      setTaskRuns(prev => ({
+        ...prev,
+        [task]: prev[task].map(run =>
+            run.id === runId ? { ...run, status: "loading", result: undefined } : run
+          ),
+        }));
         return;
       }
       let taskType = "";
@@ -609,7 +563,7 @@ if (task === "upload") {
     // Add state for upload parameters
     const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
     const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
-    const [questionsPerQuiz, setQuestionsPerQuiz] = useState(5);
+    const [questionsPerQuiz, setQuestionsPerQuiz] = useState(1);
     return (
       <div className="space-y-3">
         {/* Always show transcription parameter inputs for 'transcription' task */}
@@ -653,7 +607,7 @@ if (task === "upload") {
                 />
               </div>
               <div className="flex-1 flex flex-col">
-                <label>SQL:</label>
+                <label>SOL:</label>
                 <Input
                   type="number"
                   min={0}
@@ -1213,31 +1167,15 @@ if (task === "upload") {
         prevJobStatus?.transcriptGeneration !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          // Find the most recent loading run or create a new one if none exists
-          const loadingRunIndex = prev.transcription.findIndex(run => run.status === 'loading');
-          
-          if (loadingRunIndex !== -1) {
-            // Update existing loading run
-            return {
-              ...prev,
-              transcription: prev.transcription.map((run, idx) =>
-                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
-              ),
-            };
-          } else {
-            // Create a new completed run if no loading run exists
-            const newRun: TaskRun = {
-              id: `run-${Date.now()}-${Math.random()}`,
-              timestamp: new Date(),
-              status: 'done',
-              result: status,
-              parameters: {}
-            };
-            return {
-              ...prev,
-              transcription: [...prev.transcription, newRun],
-            };
-          }
+          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+          return {
+            ...prev,
+            transcription: prev.transcription.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+            ),
+          };
         });
         toast.success('Transcription completed!');
       }
@@ -1247,31 +1185,15 @@ if (task === "upload") {
         prevJobStatus?.segmentation !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          // Find the most recent loading run or create a new one if none exists
-          const loadingRunIndex = prev.segmentation.findIndex(run => run.status === 'loading');
-          
-          if (loadingRunIndex !== -1) {
-            // Update existing loading run
-            return {
-              ...prev,
-              segmentation: prev.segmentation.map((run, idx) =>
-                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
-              ),
-            };
-          } else {
-            // Create a new completed run if no loading run exists
-            const newRun: TaskRun = {
-              id: `run-${Date.now()}-${Math.random()}`,
-              timestamp: new Date(),
-              status: 'done',
-              result: status,
-              parameters: {}
-            };
-            return {
-              ...prev,
-              segmentation: [...prev.segmentation, newRun],
-            };
-          }
+          const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
+          return {
+            ...prev,
+            segmentation: prev.segmentation.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+            ),
+          };
         });
         toast.success('Segmentation completed!');
       }
@@ -1282,8 +1204,8 @@ if (task === "upload") {
       ) {
         // Fetch QUESTION_GENERATION task status for fileUrl
         const token = localStorage.getItem('firebase-auth-token');
-        const localUrl = `/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`;
-        const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`;
+        const localUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+        const backendUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
         let res = await fetch(localUrl, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) {
           res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1291,35 +1213,20 @@ if (task === "upload") {
         if (res.ok) {
           const arr = await res.json();
           setTaskRuns(prev => {
-            // Find the most recent loading run or create a new one if none exists
-            const loadingRunIndex = prev.question.findIndex(run => run.status === 'loading');
-            
-            if (loadingRunIndex !== -1) {
-              // Update existing loading run
-              return {
-                ...prev,
-                question: prev.question.map((run, idx) => {
-                  if (idx === loadingRunIndex) {
-                    const { id, timestamp, parameters } = run;
-                    return { id, timestamp, status: 'done', result: { questionTaskStatus: arr }, parameters } as TaskRun;
-                  }
-                  return run;
-                }),
-              };
-            } else {
-              // Create a new completed run if no loading run exists
-              const newRun: TaskRun = {
-                id: `run-${Date.now()}-${Math.random()}`,
-                timestamp: new Date(),
-                status: 'done',
-                result: { questionTaskStatus: arr },
-                parameters: {}
-              };
-              return {
-                ...prev,
-                question: [...prev.question, newRun],
-              };
-            }
+            const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
+            const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
+            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
+            if (idxToUpdate === -1) return prev;
+            return {
+              ...prev,
+              question: prev.question.map((run, idx) => {
+                if (idx === idxToUpdate) {
+                  const { id, timestamp, result, parameters } = run;
+                  return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
+                }
+                return run;
+              }),
+            };
           });
           toast.success('Questions generated!');
         }
@@ -1396,7 +1303,7 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/api/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
+      const url = getApiUrl(`/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
@@ -1435,7 +1342,7 @@ if (task === "upload") {
     setError("");
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/api/genai/${jobId}/tasks/SEGMENTATION/status`);
+      const url = getApiUrl(`/genai/${jobId}/tasks/SEGMENTATION/status`);
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error('Failed to fetch task status');
       const arr = await res.json();
@@ -1473,7 +1380,7 @@ if (task === "upload") {
         try {
           // Fetch transcript status as before
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -1510,7 +1417,7 @@ if (task === "upload") {
         (async () => {
           try {
             const token = localStorage.getItem('firebase-auth-token');
-            const url = getApiUrl(`/api/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+            const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) throw new Error('Failed to fetch task status');
             const arr = await res.json();
@@ -1648,7 +1555,7 @@ if (task === "upload") {
         setError("");
         try {
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -1707,7 +1614,7 @@ if (task === "upload") {
       setEditModalOpen(true);
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
@@ -1985,7 +1892,7 @@ if (task === "upload") {
         try {
           // Fetch question generation status for this run
           const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/api/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
           const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
           if (!res.ok) throw new Error('Failed to fetch task status');
           const arr = await res.json();
@@ -2262,7 +2169,7 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
       setError('');
       try {
         const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/api/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
@@ -2338,8 +2245,8 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
     setSuccess(false);
     try {
       const token = localStorage.getItem('firebase-auth-token');
-      const url = `/api/genai/jobs/${aiJobId}/edit/segment-map`;
-      const backendUrl = `https://vibe-backend-staging-239934307367.asia-south1.run.app/api/genai/jobs/${aiJobId}/edit/segment-map`;
+      const url = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
+      const backendUrl = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
       const body = {
         segmentMap: segmentMap,
         index: 0,
@@ -2429,7 +2336,7 @@ function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string |
 // Add this function at the top-level (inside the component, before RunSegmentationSection):
 async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
   const token = localStorage.getItem('firebase-auth-token');
-  const url = getApiUrl(`/api/genai/jobs/${jobId}/edit/segment-map`);
+  const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
   const body = JSON.stringify({ segmentMap, index });
   const res = await fetch(url, {
     method: 'PATCH',

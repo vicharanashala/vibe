@@ -7,10 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Wand2 } from "lucide-react";
 
 function getApiUrl(path: string) {
-  if (import.meta.env.DEV) {
-    return `/api${path}`;
-  }
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
+  return `${import.meta.env.VITE_BASE_URL}${path}`;
 }
 
 export default function GenerateSectionPage() {
@@ -31,7 +28,7 @@ export default function GenerateSectionPage() {
         }
         setIsLoading(true);
         try {
-            const res = await fetch(getApiUrl('/api/genai/jobs'), {
+            const res = await fetch(getApiUrl('/genai/jobs'), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
