@@ -32,11 +32,14 @@ import {
   GraduationCap,
   AlertCircle,
   ArrowLeft,
-  CheckCircle
+  CheckCircle,
+  FlagTriangleRight,
+  FlagTriangleRightIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
+import { FlagModal } from "@/components/FlagModal";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -75,6 +78,7 @@ export default function CoursePage() {
   const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
+  const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -309,6 +313,18 @@ export default function CoursePage() {
       }
     }
   }, [itemData, itemLoading]);
+
+
+  // Flag handling function
+  const handleFlagSubmit = async (reason: string) => {
+    try {
+      setIsFlagModalOpen(false);
+    }catch(error){
+
+    } finally {
+    }
+  };
+
 
   // Handle item selection
   // Handle item selection - simplified and more robust
@@ -829,6 +845,7 @@ export default function CoursePage() {
           </div>
         </DialogContent>
       </Dialog>
+      
       <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
@@ -1204,9 +1221,29 @@ export default function CoursePage() {
                   </Card>
                 )}
               </div>
-
+                <FlagModal
+                  open={isFlagModalOpen}
+                  onOpenChange={setIsFlagModalOpen}
+                  onSubmit={handleFlagSubmit}
+                  isSubmitting={false}
+                />
               {currentItem ? (
-                <div className="relative z-10 h-full">
+                <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
+                {currentItem.type == "VIDEO" &&
+                  <div className="flex justify-end mb-1 me-10">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs gap-1"
+                      title="Flag this content"
+                      onClick={()=>setIsFlagModalOpen(true)}
+                    >
+                      <FlagTriangleRightIcon className="h-4 w-4" />
+                      <span className="max-sm:hidden">Submit Flag</span>
+                    </Button>
+                    </div>
+                }
+                 <div className="flex-1">
                   <ItemContainer
                     ref={itemContainerRef}
                     item={currentItem}
@@ -1221,7 +1258,10 @@ export default function CoursePage() {
                     displayNextLesson={false}
                     setQuizPassed={setQuizPassed}
                     anomalies={anomalies}
+                    keyboardLockEnabled={!isFlagModalOpen}
                   />
+                  </div>
+
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center relative z-10">

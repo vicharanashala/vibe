@@ -6,7 +6,8 @@ import Article from './article';
 import type { ArticleRef } from "@/types/article.types";
 import type { Item, ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson}, ref) => {
+
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
 
   // ✅ Expose stop function to parent
@@ -30,6 +31,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           points={item.details?.points ? item.details.points : ''}
           doGesture={doGesture}
           onNext={onNext}
+          keyboardLockEnabled={keyboardLockEnabled}
           isProgressUpdating={isProgressUpdating}
           rewindVid={rewindVid || false}
           pauseVid={pauseVid || false}

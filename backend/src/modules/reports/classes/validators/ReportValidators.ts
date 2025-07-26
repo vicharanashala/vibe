@@ -20,6 +20,8 @@ import {
   ReportStatusEnum,
 } from '../../constants.js';
 import {ReportStatusEntry} from '../transformers/Report.js';
+import {Course} from '#root/modules/courses/classes/index.js';
+import {User} from '#root/modules/auth/classes/index.js';
 
 class ReportBody implements Partial<IReport> {
   @JSONSchema({
@@ -156,11 +158,16 @@ export class ReportFiltersQuery {
   currentPage?: number = 0;
 }
 
-class ReportDataResponse implements IReport {
+class ReportDataResponse {
   @JSONSchema({description: 'Report ID', type: 'string', readOnly: true})
   _id: ID;
 
+  // @ValidateNested()
+  // @Type(() => Course)
+  // @JSONSchema({$ref: '#/components/schemas/Course'})
+  // courseId: Course;
   @JSONSchema({description: 'Course ID', type: 'string'})
+  @IsString()
   courseId: ID;
 
   @JSONSchema({description: 'Course Version ID', type: 'string'})
@@ -176,7 +183,12 @@ class ReportDataResponse implements IReport {
   })
   entityType: EntityType;
 
-  @JSONSchema({description: 'User who reported', type: 'string'})
+  // @ValidateNested()
+  // @Type(() => User)
+  // @JSONSchema({$ref: '#/components/schemas/User'})
+  // reportedBy: User;
+  @JSONSchema({description: 'Reported User ID', type: 'string'})
+  @IsString()
   reportedBy: ID;
 
   @JSONSchema({description: 'Reason for the report', type: 'string'})
@@ -248,11 +260,11 @@ export class ReportResponse {
   @JSONSchema({
     description: 'Array of report data',
     type: 'array',
-    items: { $ref: '#/components/schemas/ReportDataResponse' },
+    items: {$ref: '#/components/schemas/ReportDataResponse'},
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => ReportDataResponse)
   reports: ReportDataResponse[];
 }
@@ -282,5 +294,5 @@ export const REPORT_VALIDATORS = [
   ReportUpdateParams,
   ReportDataResponse,
   ReportNotFoundErrorResponse,
-  ReportResponse
+  ReportResponse,
 ];

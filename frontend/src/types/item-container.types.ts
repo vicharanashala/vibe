@@ -38,6 +38,7 @@ export interface Item {
 }
 
 export interface ItemContainerProps {
+  
   item: Item;
   doGesture: boolean;
   onNext: () => void;
@@ -50,8 +51,15 @@ export interface ItemContainerProps {
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   anomalies?: string[];
+  keyboardLockEnabled?:boolean;
 }
 
 export interface ItemContainerRef {
   stopCurrentItem: () => void;
+}
+
+export type ItemMeta = {
+  itemId:string,
+  courseId:string,
+  courseVersionId:string,
 }

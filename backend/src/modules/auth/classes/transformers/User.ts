@@ -28,12 +28,12 @@ class User implements IUser {
   roles: 'admin' | 'user';
 
   constructor(data: Partial<IUser>) {
-    this._id = data._id ? new ObjectId(data._id) : null;
-    this.firebaseUID = data.firebaseUID;
-    this.email = data.email;
-    this.firstName = data.firstName;
-    this.lastName = data.lastName;
-    this.roles = data.roles || 'user';
+    this._id = data?._id ? new ObjectId(data?._id) : null;
+    this.firebaseUID = data?.firebaseUID;
+    this.email = data?.email;
+    this.firstName = data?.firstName;
+    this.lastName = data?.lastName;
+    this.roles = data?.roles || 'user';
   }
 }
 

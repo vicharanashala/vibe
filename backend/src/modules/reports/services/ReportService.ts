@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 import {
   BaseService,
   EntityType,
@@ -55,7 +56,7 @@ export class ReportService extends BaseService {
     });
   }
 
-  async getReports(
+  async getReportsByCourseId(
     courseId: string,
     filters: ReportFiltersQuery,
   ): Promise<ReportResponse> {
@@ -64,7 +65,7 @@ export class ReportService extends BaseService {
     });
   }
 
-  async getReportById(reportId: string): Promise<Report> {
+  async getReportById(reportId: string): Promise<ReportDataResponse> {
     const report = await this.reportsRepository.getById(reportId);
     const reportInstance = plainToInstance(ReportDataResponse, report);
     return reportInstance

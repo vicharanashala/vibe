@@ -18,6 +18,7 @@ import {ReportService} from '../services/ReportService.js';
 import {
   Report,
   ReportBody,
+  ReportDataResponse,
   ReportFiltersQuery,
   ReportResponse,
   ReportUpdateParams,
@@ -112,14 +113,14 @@ class ReportController {
     description: 'Retrieves reports based on filtering criteria',
   })
   @Authorized()
-  @Get('/:courseId')
+  @Get('/')
   @HttpCode(200)
   @ResponseSchema(ReportResponse, {isArray: true})
   async getFilteredReports(
-    @Param('courseId') courseId: string,
     @QueryParams() filters: ReportFiltersQuery,
     @Ability(getCourseAbility) {ability, user},
   ): Promise<ReportResponse> {
+    const {courseId} = filters;
     const reportResource = subject(ReportPermissionSubject.REPORT, {courseId});
 
     if (!ability.can(ReportsActions.View, reportResource)) {
@@ -127,8 +128,39 @@ class ReportController {
         'You do not have permission to view reports for this course',
       );
     }
-    const result = await this.reportService.getReports(courseId, filters);
+    const result = await this.reportService.getReportsByCourseId(courseId, filters);
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get a report by ID',
+    description: 'Retrieves a single report by its ID',
+  })
+  @Authorized()
+  @Get('/:reportId')
+  @HttpCode(200)
+  @ResponseSchema(ReportDataResponse, {
+    description: 'Returns the requested report',
+  })
+  async getReportById(
+    @Params() params: ReportUpdateParams, 
+    @Ability(getCourseAbility) {ability},
+  ): Promise<ReportDataResponse> {
+    const {reportId} = params;
+
+    const report = await this.reportService.getReportById(reportId);
+   
+    const reportResource = subject(ReportPermissionSubject.REPORT, {
+      courseId: report.courseId?.toString(),
+    });
+
+    if (!ability.can(ReportsActions.View, reportResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this report',
+      );
+    }
+
+    return report;
   }
 }
 
