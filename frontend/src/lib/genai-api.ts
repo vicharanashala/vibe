@@ -425,18 +425,18 @@ export const rerunJobTask = async (
 ) => {
   const token = localStorage.getItem('firebase-auth-token');
   const url = getApiUrl(`/genai/jobs/${jobId}/tasks/rerun`);
-const res = await fetch(url, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    type: taskType,
-    parameters: params || {},
-  }),
-});
-return res;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      type: taskType,
+      parameters: params || {},
+    }),
+  });
+  return res;
 };
 
 
