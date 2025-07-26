@@ -5,7 +5,7 @@ type EntityType =
     | 'VIDEO'
     | 'ARTICLE'
     | 'QUESTION';
-
+ 
 type ReportStatus = 'REPORTED' | 'IN_REVIEW' | 'RESOLVED' | 'DISCARDED' | 'CLOSED';
 
 interface IStatus {

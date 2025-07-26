@@ -19,6 +19,7 @@ import {
   ReportBody,
   UpdateReportStatusBody,
 } from '../validators/ReportValidators.js';
+import { UnauthorizedError } from 'routing-controllers';
 
 class ReportStatusEntry implements IStatus {
   @Expose()
@@ -189,8 +190,10 @@ class Report implements IReport {
       this.entityId = reportBody.entityId;
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;
-      this.reportedBy = reportedBy || ('' as ID);
-
+      if (!reportedBy) {
+        throw new UnauthorizedError('Missing reporter ID');
+      }
+      this.reportedBy = reportedBy;
       this.status = [
         new ReportStatusEntry(
           ReportStatusEnum.REPORTED,
@@ -201,9 +204,9 @@ class Report implements IReport {
       this.status = [
         new ReportStatusEntry(reportBody.status, reportBody.comment),
       ];
-      this.createdAt = new Date();
-      this.updatedAt = new Date();
     }
+    this.createdAt = new Date();
+    this.updatedAt = new Date();
   }
 }
 

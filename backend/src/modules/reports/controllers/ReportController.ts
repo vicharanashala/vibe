@@ -25,9 +25,8 @@ import {
   UpdateReportStatusBody,
 } from '../classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {BadRequestErrorResponse, IReport} from '#root/shared/index.js';
-import {ReportsActions} from '../abilities/reportsAbilities.js';
+import {getReportAbility, ReportsActions} from '../abilities/reportsAbilities.js';
 import {ReportPermissionSubject} from '../constants.js';
 import {subject} from '@casl/ability';
 
@@ -56,21 +55,21 @@ class ReportController {
   })
   async create(
     @Body() body: ReportBody,
-    @Ability(getCourseAbility) {ability, user},
+    @Ability(getReportAbility) {ability, user},
   ): Promise<void> {
     const {courseId, versionId} = body;
-    const reportedBy = user.userId;
+    const reportedBy = user?._id;
     const reportResource = subject(ReportPermissionSubject.REPORT, {
       courseId,
       versionId,
       reportedBy,
     });
-
     if (!ability.can(ReportsActions.Create, reportResource)) {
       throw new ForbiddenError(
         'You do not have permission to create this report',
       );
     }
+    
     const report = new Report(body, reportedBy);
     await this.reportService.createReport(report);
   }
@@ -89,7 +88,7 @@ class ReportController {
   async updateStatus(
     @Params() params: ReportUpdateParams,
     @Body() body: UpdateReportStatusBody,
-    @Ability(getCourseAbility) {ability, user},
+    @Ability(getReportAbility) {ability, user},
   ): Promise<void> {
     const {reportId} = params;
     const {status, comment} = body;
@@ -118,7 +117,7 @@ class ReportController {
   @ResponseSchema(ReportResponse, {isArray: true})
   async getFilteredReports(
     @QueryParams() filters: ReportFiltersQuery,
-    @Ability(getCourseAbility) {ability, user},
+    @Ability(getReportAbility) {ability, user},
   ): Promise<ReportResponse> {
     const {courseId} = filters;
     const reportResource = subject(ReportPermissionSubject.REPORT, {courseId});
@@ -128,7 +127,10 @@ class ReportController {
         'You do not have permission to view reports for this course',
       );
     }
-    const result = await this.reportService.getReportsByCourseId(courseId, filters);
+    const result = await this.reportService.getReportsByCourseId(
+      courseId,
+      filters,
+    );
     return result;
   }
 
@@ -143,13 +145,13 @@ class ReportController {
     description: 'Returns the requested report',
   })
   async getReportById(
-    @Params() params: ReportUpdateParams, 
-    @Ability(getCourseAbility) {ability},
+    @Params() params: ReportUpdateParams,
+    @Ability(getReportAbility) {ability},
   ): Promise<ReportDataResponse> {
     const {reportId} = params;
 
     const report = await this.reportService.getReportById(reportId);
-   
+
     const reportResource = subject(ReportPermissionSubject.REPORT, {
       courseId: report.courseId?.toString(),
     });

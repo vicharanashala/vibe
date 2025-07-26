@@ -8,10 +8,10 @@ export enum ReportStatusEnum {
 export const REPORT_STATUS_VALUES: string[] = Object.values(ReportStatusEnum);
 
 export enum EntityTypeEnum {
-  QUIZ = 'quiz',
-  VIDEO = 'video',
-  ARTICLE = 'article',
-  QUESTION = 'question',
+  QUIZ = 'QUIZ',
+  VIDEO = 'VIDEO',
+  ARTICLE = 'ARTICLE',
+  QUESTION = 'QUESTION',
 }
 export const ENTITY_TYPE_VALUES = Object.values(EntityTypeEnum);
 
