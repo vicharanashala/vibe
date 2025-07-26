@@ -21,7 +21,7 @@ import {
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {CourseVersion} from '../transformers/CourseVersion.js';
-import {ItemRef, ItemsGroup} from '../transformers/Item.js';
+import {Item, ItemRef, ItemsGroup} from '../transformers/Item.js';
 import {
   IVideoDetails,
   IQuizDetails,
@@ -367,31 +367,23 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Details specific to video items',
     type: 'object',
   })
-  @ValidateIf(o => o.type === ItemType.VIDEO)
   @IsNotEmpty()
   @ValidateNested()
-  @Type(() => VideoDetailsPayloadValidator)
-  videoDetails?: VideoDetailsPayloadValidator;
-
-  @JSONSchema({
-    description: 'Details specific to blog items',
-    type: 'object',
+  @Type(o => {
+    if (!o) return Object;
+    const itemType = (o.object as Item).type;
+    switch (itemType) {
+      case ItemType.VIDEO:
+        return VideoDetailsPayloadValidator;
+      case ItemType.BLOG:
+        return BlogDetailsPayloadValidator;
+      case ItemType.QUIZ:
+        return QuizDetailsPayloadValidator;
+      default:
+        throw new Error(`Unknown item type: ${itemType}`);
+    }
   })
-  @ValidateIf(o => o.type === ItemType.BLOG)
-  @IsNotEmpty()
-  @ValidateNested()
-  @Type(() => BlogDetailsPayloadValidator)
-  blogDetails?: BlogDetailsPayloadValidator;
-
-  @JSONSchema({
-    description: 'Details specific to quiz items',
-    type: 'object',
-  })
-  @ValidateIf(o => o.type === ItemType.QUIZ)
-  @IsNotEmpty()
-  @ValidateNested()
-  @Type(() => QuizDetailsPayloadValidator)
-  quizDetails?: QuizDetailsPayloadValidator;
+  details: VideoDetailsPayloadValidator | BlogDetailsPayloadValidator | QuizDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -449,6 +441,26 @@ class VersionModuleSectionItemParams {
   @IsMongoId()
   @IsString()
   sectionId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
+class VersionItemParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
 
   @JSONSchema({
     title: 'Item ID',
@@ -636,6 +648,7 @@ export {
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
@@ -651,6 +664,7 @@ export const ITEM_VALIDATORS = [
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,

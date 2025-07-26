@@ -24,6 +24,7 @@ import {
   MoveItemBody,
   GetItemParams,
   VersionModuleSectionItemParams,
+  VersionItemParams,
 } from '#courses/classes/validators/ItemValidators.js';
 import {ItemService} from '#courses/services/ItemService.js';
 import {injectable, inject} from 'inversify';
@@ -32,6 +33,9 @@ import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 
+@OpenAPI({
+  tags: ['Course Items'],
+})
 @injectable()
 @JsonController('/courses')
 export class ItemController {
@@ -126,7 +130,7 @@ export class ItemController {
   })
   @Authorized()
   @Put(
-    '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId',
+    '/versions/:versionId/items/:itemId',
   )
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
@@ -140,11 +144,11 @@ export class ItemController {
     statusCode: 404,
   })
   async update(
-    @Params() params: VersionModuleSectionItemParams,
+    @Params() params: VersionItemParams,
     @Body() body: UpdateItemBody,
     @Ability(getItemAbility) {ability}
   ) {
-    const {versionId, moduleId, sectionId, itemId} = params;
+    const {versionId, itemId} = params;
     
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId });
@@ -156,8 +160,6 @@ export class ItemController {
     
     return await this.itemService.updateItem(
       versionId,
-      moduleId,
-      sectionId,
       itemId,
       body,
     );

@@ -16,8 +16,8 @@ export enum TaskType {
 }
 
 export enum LanguageType {
-  ENGLISH = 'English',
-  HINDI = 'Hindi',
+  ENGLISH = 'en',
+  HINDI = 'hi',
 }
 
 // Job status enum
@@ -32,14 +32,13 @@ export enum TaskStatus {
 
 export interface TranscriptParameters {
 	language?: LanguageType;
-	model?: string;
 	modelSize?: string;
 }
 
 export interface SegmentationParameters {
 	lam?: number;
 	runs?: number;
-	noiseId?: number
+	noiseId?: number;
 }
 
 export interface QuestionGenerationParameters {
@@ -54,10 +53,10 @@ export interface QuestionGenerationParameters {
 export interface UploadParameters {
 	courseId: string;
 	versionId: string;
-	moduleId: string;
-	sectionId: string;
-	videoItemBaseName: string;
-	quizItemBaseName: string;
+	moduleId?: string;
+	sectionId?: string;
+	videoItemBaseName?: string;
+	quizItemBaseName?: string;
 	questionsPerQuiz?: number;
 }
 

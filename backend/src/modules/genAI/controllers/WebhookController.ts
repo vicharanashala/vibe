@@ -14,6 +14,7 @@ import { WebhookService } from '../services/WebhookService.js';
 import { GENAI_TYPES } from '../types.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookBody } from '../classes/validators/GenAIValidators.js';
+import { SseService } from '../services/sseService.js';
 
 @OpenAPI({
   tags: ['Webhook'],
@@ -23,12 +24,12 @@ import { WebhookBody } from '../classes/validators/GenAIValidators.js';
 @injectable()
 @JsonController('/genAI/webhook')
 export class WebhookController {
-  constructor(
-    @inject(GENAI_TYPES.WebhookService)
-    private readonly webhookService: WebhookService,
-    
+  constructor(    
     @inject(GENAI_TYPES.GenAIService)
-    private readonly genAIService: GenAIService
+    private readonly genAIService: GenAIService,
+
+    @inject(GENAI_TYPES.SseService)
+    private readonly sseService: SseService
   ) {}
 
   @Post('/')
@@ -38,6 +39,8 @@ export class WebhookController {
   ) {
     const { task, jobId, data } = body;
     console.log('Webhook body:', body);
+    // send sse event to clients
+    this.sseService.send(jobId, 'jobStatus', { task, ...data });
     await this.genAIService.updateJob(jobId, task, data);
   }
 
@@ -49,7 +52,6 @@ export class WebhookController {
     if (!jobId) {
       throw new BadRequestError('Job ID is required');
     }
-
     const jobStatus = await this.genAIService.getJobState(jobId);
     return jobStatus;
   }
