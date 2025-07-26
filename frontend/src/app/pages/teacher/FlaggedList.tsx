@@ -68,6 +68,7 @@ export default function FlaggedList() {
   const [selectedViewItem, setSelectedViewItem] = useState<string>("")
   const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
   const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
+  const [selectedReportId, setSelectedReportId] = useState<string>("")
 
   // Fetch enrollments data
   const {
@@ -295,7 +296,9 @@ export default function FlaggedList() {
                               variant="ghost"
                               size="sm"
                               onClick={() =>
-                               {setUpdateStatusModalOpen(true)}
+                               {setUpdateStatusModalOpen(true);
+                                // setSelectedReportId(report.id)
+                               }
                               }
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                             >
