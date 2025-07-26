@@ -423,7 +423,7 @@ export async function useProcessInvites(inviteId: string): Promise<{
 }> {
   let isLoading = true;
   const method = 'GET';
-  const url = `${import.meta.env.VITE_BASE_URL}notifications/invite/${inviteId}`;
+  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
 
   const res = await fetch(url, {
     method,
@@ -1935,7 +1935,7 @@ export function useInvites(): {
 
     try {
       const method = 'GET';
-      const url = `${import.meta.env.VITE_BASE_URL}notifications/invite/`;
+      const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/`;
 
       const res = await fetch(url, {
         method,
