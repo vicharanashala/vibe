@@ -384,11 +384,8 @@ export default function AISectionPage() {
       if (task === "transcription") {
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
-          await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
-          setAiWorkflowStep('transcription');
-          toast.success("Transcription rerun started. Click Refresh to check status.");
-    setTaskRuns(prev => ({
-      ...prev,
+          setTaskRuns(prev => ({
+            ...prev,
             transcription: [...prev.transcription, {
               id: runId,
               timestamp: new Date(),
@@ -396,6 +393,54 @@ export default function AISectionPage() {
               parameters: { ...rerunParams }
             }]
           }));
+          
+          try {
+            await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
+            setAiWorkflowStep('transcription');
+            toast.success("Transcription rerun started. Click Refresh to check status.");
+            
+            // Poll for completion
+            const finalStatus = await aiSectionAPI.pollForTaskCompletion(
+              aiJobId,
+              'TRANSCRIPT_GENERATION',
+              (status: JobStatus) => {
+                setTaskRuns(prev => ({
+                  ...prev,
+                  transcription: prev.transcription.map(run =>
+                    run.id === runId
+                      ? {
+                          ...run,
+                          status:
+                            status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "COMPLETED"
+                              ? "done"
+                              : status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "FAILED"
+                              ? "failed"
+                              : "loading",
+                          result: status,
+                        }
+                      : run
+                  ),
+                }));
+              }
+            );
+
+            setTaskRuns(prev => ({
+              ...prev,
+              transcription: prev.transcription.map(run => 
+                run.id === runId ? { ...run, status: "done", result: finalStatus } : run
+              ),
+            }));
+            
+            toast.success("Transcription rerun completed!");
+          } catch (error) {
+            setTaskRuns(prev => ({
+              ...prev,
+              transcription: prev.transcription.map(run =>
+                run.id === runId ? { ...run, status: "failed" } : run
+              ),
+            }));
+            toast.error(`Transcription rerun failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
           return;
         }
         // Only start audio extraction, do not poll
@@ -403,12 +448,12 @@ export default function AISectionPage() {
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
         toast.success("Audio extraction started. Click Refresh to check status.");
-      setTaskRuns(prev => ({
-        ...prev,
-        [task]: prev[task].map(run =>
-            run.id === runId ? { ...run, status: "loading", result: undefined } : run
-          ),
-        }));
+        setTaskRuns(prev => ({
+          ...prev,
+          [task]: prev[task].map(run =>
+              run.id === runId ? { ...run, status: "loading", result: undefined } : run
+            ),
+          }));
         return;
       }
       let taskType = "";
