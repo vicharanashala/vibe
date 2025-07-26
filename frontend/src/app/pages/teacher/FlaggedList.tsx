@@ -12,14 +12,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 // Import hooks - including the new quiz hooks
 import {
-  useCourseById,
+  useGetReports,
+   useCourseById,
   useCourseVersionById,
   useItemsBySectionId,
   useCourseVersionEnrollments,
   useResetProgress,
   useUnenrollUser
 } from "@/hooks/hooks"
-import { useCourseStore } from "@/store/course-store"
+import { useFlagStore } from "@/store/flag-store"
 import type { EnrolledUser } from "@/types/course.types"
 import { FlagModal } from "@/components/FlagModal"
 
@@ -28,20 +29,20 @@ export default function FlaggedList() {
   const navigate = useNavigate()
 
   // Get course info from store
-  const { currentCourse } = useCourseStore()
-  const courseId = currentCourse?.courseId
-  const versionId = currentCourse?.versionId
+  const { currentCourseFlag } = useFlagStore()
+  const courseId = currentCourseFlag?.courseId
+  const versionId = currentCourseFlag?.versionId
 
-  if (!currentCourse || !courseId || !versionId) {
+  if (!currentCourseFlag || !courseId || !versionId) {
     navigate({ to: '/teacher/courses/list' });
     return null
   }
 
-  // Fetch course and version data
+  // Fetch reports based on course id and version id
+  // const { data: course, isLoading: courseLoading, error: courseError } = useGetReports(courseId || "",versionId || "")
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
 
-  const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
@@ -108,6 +109,16 @@ export default function FlaggedList() {
     }
   }
 
+    // Flag handling function
+  const handleStatusUpdate = async (reason: string) => {
+    try {console.log(reason)
+     
+    }catch(error){
+
+    } finally { setUpdateStatusModalOpen(false);
+    }
+  };
+
   useEffect(() => {
     if (isResetDialogOpen) {
       setResetScope("course")
@@ -129,7 +140,7 @@ export default function FlaggedList() {
 
 
   // Loading state
-  if (courseLoading || versionLoading || enrollmentsLoading) {
+  if (courseLoading  || enrollmentsLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -143,14 +154,14 @@ export default function FlaggedList() {
   }
 
   // Error state
-  if (courseError || versionError || enrollmentsError || !course || !version) {
+  if (courseError || enrollmentsError || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
           <div className="text-center py-12">
             <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load course data</h3>
             <p className="text-muted-foreground mb-4">
-              {courseError || versionError || enrollmentsError || "Course or version not found"}
+              {courseError  || enrollmentsError || "Course or version not found"}
             </p>
           </div>
         </div>
@@ -180,7 +191,7 @@ export default function FlaggedList() {
          
         </div>
         
-               {/* Students Table */}
+               {/* Flags Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           
           <CardContent className="p-0">
@@ -290,7 +301,7 @@ export default function FlaggedList() {
      <FlagModal
                   open={updateStatusModalOpen}
                   onOpenChange={setUpdateStatusModalOpen}
-                  onSubmit={()=>{}}
+                  onSubmit={handleStatusUpdate}
                   isSubmitting={false}
                   teacher={true}
                   

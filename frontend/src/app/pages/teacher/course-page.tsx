@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -19,6 +19,7 @@ import {
   Trash2,
   Loader2,
   Users,
+  FlagTriangleRight,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -40,6 +41,7 @@ import {
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
 import { useCourseStore } from "@/store/course-store"
+import { useFlagStore } from "@/store/flag-store"
 import { bufferToHex } from "@/utils/helpers"
 
 // Define types for better TypeScript support
@@ -668,6 +670,7 @@ function VersionCard({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { setCurrentCourse } = useCourseStore()
+  const { setCurrentCourseFlag } = useFlagStore()
 
   // Fetch individual version data
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
@@ -710,6 +713,21 @@ function VersionCard({
     })
     navigate({
       to: "/teacher/courses/enrollments",
+    })
+  }
+
+   const viewFlags = () => {
+    // Set course info in store and navigate to enrollments page
+    setCurrentCourseFlag({
+      courseId: courseId,
+      versionId: versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/flags/list",
     })
   }
   const sendInvites = () => {
@@ -772,6 +790,10 @@ function VersionCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
+              <FlagTriangleRight className="h-3 w-3 mr-1" />
+              View Flags
+            </Button>
             <Button variant="outline" size="sm" onClick={viewEnrollments} className="h-7 text-xs cursor-pointer">
               <Users className="h-3 w-3 mr-1" />
               View Enrollments

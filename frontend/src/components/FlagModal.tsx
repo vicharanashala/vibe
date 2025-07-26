@@ -1,6 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle,  } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle  } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem, } from './ui/select';
 import { useState } from 'react';
 
 type FlagModalProps = {
@@ -25,6 +30,12 @@ buttonText:"Submit Flag",
 submittingText:"Submitting..."
 }
 
+const statusTypes = [
+  { key: 'IN_REVIEW', label: 'IN REVIEW' },
+  { key: 'RESOLVED', label: 'RESOLVED' },
+  { key: 'DISCARDED', label: 'DISCARDED' },
+  { key: 'CLOSED', label: 'CLOSED' },
+];
 export const FlagModal = ({
   open,
   onOpenChange,
@@ -33,6 +44,7 @@ export const FlagModal = ({
 }: FlagModalProps) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
+  const [status, setStatus] = useState("IN_REVIEW");
 
 const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
@@ -60,6 +72,24 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+    <label className="text-sm font-medium">Status</label>
+    <Select value={status} onValueChange={setStatus}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select status" />
+      </SelectTrigger>
+      <SelectContent>
+        {statusTypes.map((status)=>(
+          <>
+          <SelectItem value={status.key}>{status.label}</SelectItem>
+          </>
+        )
+
+        )}
+    
+             </SelectContent>
+    </Select>
+  </div>
           <div className="grid gap-2">
             <Textarea
               value={reason}

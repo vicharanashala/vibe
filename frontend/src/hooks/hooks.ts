@@ -8,7 +8,7 @@ import { api } from '../lib/openapi';
 import { components } from '../types/schema';
 import { useState } from 'react';
 
-import type {QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults } from '../types/quiz.types';
+import type { QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults } from '../types/quiz.types';
 import type {
   NewAnomalyData,
   AnomalyData,
@@ -194,12 +194,12 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    bankId: string;
-    count: number;
-    difficulty?: string[];
-    tags?: string[];
-    type?: string;
-  }> {}
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
+  type?: string;
+}> { }
 
 // Attempt types - matching backend validators
 export interface CreateAttemptParams {
@@ -752,8 +752,8 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
 } {
   const result = api.useQuery("get", "/courses/{courseId}/versions/{versionId}/item/{itemId}", {
     params: { path: { courseId, versionId, itemId } }
-  }, {enabled: !!courseId && !!versionId && !!itemId}
-);
+  }, { enabled: !!courseId && !!versionId && !!itemId }
+  );
   // console.log("here", courseId , versionId , itemId);
   return {
     data: result.data,
@@ -947,7 +947,7 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
     params: { path: { courseId, courseVersionId } }
   }, { enabled: !!courseId && !!courseVersionId }
   );
-  
+
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -958,8 +958,8 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
 
 // Add this hook to your hooks file
 export function useUserProgressPercentageByUserId(
-  userId: string, 
-  courseId: string, 
+  userId: string,
+  courseId: string,
   courseVersionId: string
 ): {
   data: {
@@ -973,7 +973,7 @@ export function useUserProgressPercentageByUserId(
   refetch: () => void
 } {
   const result = api.useQuery(
-    "get", 
+    "get",
     "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/percentage",
     {
       params: {
@@ -1089,7 +1089,7 @@ export function useEditProctoringSettings() {
   ) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await updateProctoringSettings(courseId, courseVersionId, detectors, isNew);
       return result;
@@ -1180,14 +1180,14 @@ export function useCancelInvite(): {
 }
 
 // GET /users/{id}/watchTime/item/itemId
-export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string ): {
-  data:  undefined,
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
+  data: undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type:type} },
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
   }, { enabled: !!userId && !!itemId && !!type },);
 
   return {
@@ -1447,9 +1447,9 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    questionBankId: string;
-    questionsCount?: number;
-  }> {}
+  questionBankId: string;
+  questionsCount?: number;
+}> { }
 
 // Attempt types
 export interface CreateAttemptParams {
@@ -1598,7 +1598,7 @@ export function useUserQuizMetrics(quizId: string, userId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/user/{userId}", {
     params: { path: { quizId, userId } }
-  }, {enabled: !!quizId && !!userId});
+  }, { enabled: !!quizId && !!userId });
 
   return {
     data: result.data,
@@ -1617,9 +1617,9 @@ export function useQuizSubmission(quizId: string, submissionId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions/{submissionId}", {
     params: { path: { quizId, submissionId } }
-  }, {enabled: !!quizId && !!submissionId}
-);
-  
+  }, { enabled: !!quizId && !!submissionId }
+  );
+
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -1651,7 +1651,7 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
-  mutateAsync: (variables: { body: QuestionBody }) => Promise<{questionId: string}>,
+  mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   data: { questionId: string } | undefined,
   error: string | null,
   isPending: boolean,
@@ -1662,7 +1662,7 @@ export function useCreateQuestion(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("post", "/quizzes/questions");
-  return {  
+  return {
     ...result,
     error: result.error ? (result.error.message || 'Question creation failed') : null
   };
@@ -2146,8 +2146,8 @@ export function useQuizSubmissions(quizId: string): {
 }
 
 export function useSubmitFlag(): {
-  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType:EntityType,reason:string } }) => void,
-  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType:EntityType,reason:string } }) => Promise<void>,
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -2156,15 +2156,15 @@ export function useSubmitFlag(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-    const result = api.useMutation("post", "/reports");
-     return {
+  const result = api.useMutation("post", "/reports");
+  return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to submit flag') : null
   };
 }
 
-export function useGetReports(courseId: string, entityType?: string, status?: string, limit = 10, currentPage = 1): {
-  data: IReport[] ,
+export function useGetReports(courseId: string, versionId: string, entityType?: string, status?: string, limit = 10, currentPage = 1): {
+  data: IReport[],
   isLoading: boolean,
   error: string | null,
   refetch: () => void
@@ -2176,6 +2176,7 @@ export function useGetReports(courseId: string, entityType?: string, status?: st
       params: {
         query: {
           courseId,
+          versionId,
           entityType,
           status,
           limit,
@@ -2190,7 +2191,7 @@ export function useGetReports(courseId: string, entityType?: string, status?: st
   };
 }
 
-export function useGetReportDetails(reportId:string): {
+export function useGetReportDetails(reportId: string): {
   data: IReport | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2216,9 +2217,9 @@ export function useGetReportDetails(reportId:string): {
   };
 }
 
-export function useUpdateReportStatus():{
-  mutate: (variables: {path:{reportId:string}, body: {status:ReportStatus, comment:string} }) => void,
-  mutateAsync: (variables: {path:{reportId:string}, body: {status:ReportStatus, comment:string} }) => Promise<void>,
+export function useUpdateReportStatus(): {
+  mutate: (variables: { path: { reportId: string }, body: { status: ReportStatus, comment: string } }) => void,
+  mutateAsync: (variables: { path: { reportId: string }, body: { status: ReportStatus, comment: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -2228,7 +2229,7 @@ export function useUpdateReportStatus():{
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("patch", "/reports/{reportId}");
-     return {
+  return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to update status') : null
   };
