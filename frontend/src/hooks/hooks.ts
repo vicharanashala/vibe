@@ -16,6 +16,7 @@ import type {
 } from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
+import { EntityType, IReport, ReportStatus } from '@/types/reports.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -2144,3 +2145,91 @@ export function useQuizSubmissions(quizId: string): {
   };
 }
 
+export function useSubmitFlag(): {
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType:EntityType,reason:string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType:EntityType,reason:string } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+    const result = api.useMutation("post", "/reports");
+     return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to submit flag') : null
+  };
+}
+
+export function useGetReports(courseId: string, entityType?: string, status?: string, limit = 10, currentPage = 1): {
+  data: IReport[] ,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/reports",
+    {
+      params: {
+        query: {
+          courseId,
+          entityType,
+          status,
+          limit,
+          currentPage,
+        }
+      }
+    },
+  );
+  return {
+    ...result,
+    error: result.error ? result.error.message || 'Failed to get flags' : null,
+  };
+}
+
+export function useGetReportDetails(reportId:string): {
+  data: IReport | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/reports/{reportId}",
+    {
+      params: {
+        path: {
+          reportId
+        }
+      }
+    },
+    {
+      enabled: !!reportId,
+    }
+  );
+  return {
+    ...result,
+    error: result.error ? result.error.message || 'Failed to get flag details' : null,
+  };
+}
+
+export function useUpdateReportStatus():{
+  mutate: (variables: {path:{reportId:string}, body: {status:ReportStatus, comment:string} }) => void,
+  mutateAsync: (variables: {path:{reportId:string}, body: {status:ReportStatus, comment:string} }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/reports/{reportId}");
+     return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to update status') : null
+  };
+}
