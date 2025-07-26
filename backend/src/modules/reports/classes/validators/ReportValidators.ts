@@ -116,6 +116,13 @@ export class ReportFiltersQuery {
   @IsNotEmpty()
   courseId: string;
   @JSONSchema({
+    description: 'ID of the course version for which reports are being queried',
+    example: '64bfcaf6e13e3547e90c1234',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  versionId: string;
+  @JSONSchema({
     description: 'Type of the reported entity (optional)',
     example: 'quiz',
     type: 'string',
@@ -155,20 +162,20 @@ export class ReportFiltersQuery {
   @IsOptional()
   @IsInt()
   @Min(0)
-  currentPage?: number = 0;
+  currentPage?: number = 1;
 }
 
 class ReportDataResponse {
   @JSONSchema({description: 'Report ID', type: 'string', readOnly: true})
   _id: ID;
 
-  // @ValidateNested()
-  // @Type(() => Course)
-  // @JSONSchema({$ref: '#/components/schemas/Course'})
-  // courseId: Course;
-  @JSONSchema({description: 'Course ID', type: 'string'})
-  @IsString()
-  courseId: ID;
+  @ValidateNested()
+  @Type(() => Course)
+  @JSONSchema({$ref: '#/components/schemas/Course'})
+  courseId: Course;
+  // @JSONSchema({description: 'Course ID', type: 'string'})
+  // @IsString()
+  // courseId: ID;
 
   @JSONSchema({description: 'Course Version ID', type: 'string'})
   versionId: ID;
@@ -183,13 +190,13 @@ class ReportDataResponse {
   })
   entityType: EntityType;
 
-  // @ValidateNested()
-  // @Type(() => User)
-  // @JSONSchema({$ref: '#/components/schemas/User'})
-  // reportedBy: User;
-  @JSONSchema({description: 'Reported User ID', type: 'string'})
-  @IsString()
-  reportedBy: ID;
+  @ValidateNested()
+  @Type(() => User)
+  @JSONSchema({$ref: '#/components/schemas/User'})
+  reportedBy: User;
+  // @JSONSchema({description: 'Reported User ID', type: 'string'})
+  // @IsString()
+  // reportedBy: ID;
 
   @JSONSchema({description: 'Reason for the report', type: 'string'})
   reason: string;

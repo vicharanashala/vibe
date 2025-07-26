@@ -16,7 +16,7 @@ import type {
 } from '@/types/reportanomaly.types';
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
-import { EntityType, IReport, ReportStatus } from '@/types/reports.types';
+import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 
 // Add missing ObjectId type
 type ObjectId = string;

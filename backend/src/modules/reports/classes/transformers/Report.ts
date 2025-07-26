@@ -19,7 +19,8 @@ import {
   ReportBody,
   UpdateReportStatusBody,
 } from '../validators/ReportValidators.js';
-import { UnauthorizedError } from 'routing-controllers';
+import {UnauthorizedError} from 'routing-controllers';
+import {ObjectId} from 'mongodb';
 
 class ReportStatusEntry implements IStatus {
   @Expose()
@@ -181,19 +182,19 @@ class Report implements IReport {
   updatedAt?: Date;
 
   constructor(
-    reportBody: ReportBody | UpdateReportStatusBody,
+    reportBody?: ReportBody | UpdateReportStatusBody,
     reportedBy?: ID,
   ) {
     if ('courseId' in reportBody) {
-      this.courseId = reportBody.courseId;
-      this.versionId = reportBody.versionId;
-      this.entityId = reportBody.entityId;
+      this.courseId = new ObjectId(reportBody.courseId);
+      this.versionId = new ObjectId(reportBody.versionId);
+      this.entityId = new ObjectId(reportBody.entityId);
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;
       if (!reportedBy) {
         throw new UnauthorizedError('Missing reporter ID');
       }
-      this.reportedBy = reportedBy;
+      this.reportedBy = new ObjectId(reportedBy);
       this.status = [
         new ReportStatusEntry(
           ReportStatusEnum.REPORTED,

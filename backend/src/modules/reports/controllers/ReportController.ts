@@ -26,7 +26,10 @@ import {
 } from '../classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {BadRequestErrorResponse, IReport} from '#root/shared/index.js';
-import {getReportAbility, ReportsActions} from '../abilities/reportsAbilities.js';
+import {
+  getReportAbility,
+  ReportsActions,
+} from '../abilities/reportsAbilities.js';
 import {ReportPermissionSubject} from '../constants.js';
 import {subject} from '@casl/ability';
 
@@ -69,7 +72,7 @@ class ReportController {
         'You do not have permission to create this report',
       );
     }
-    
+
     const report = new Report(body, reportedBy);
     await this.reportService.createReport(report);
   }
@@ -93,9 +96,8 @@ class ReportController {
     const {reportId} = params;
     const {status, comment} = body;
     const report = await this.reportService.getReportById(reportId);
-    console.log('Updating report data: ', report);
     const reportResource = subject(ReportPermissionSubject.REPORT, {
-      courseId: report.courseId,
+      courseId: report.courseId._id.toString(),
     });
 
     if (!ability.can(ReportsActions.Modify, reportResource)) {
@@ -119,16 +121,21 @@ class ReportController {
     @QueryParams() filters: ReportFiltersQuery,
     @Ability(getReportAbility) {ability, user},
   ): Promise<ReportResponse> {
-    const {courseId} = filters;
+    const {courseId, versionId} = filters;
     const reportResource = subject(ReportPermissionSubject.REPORT, {courseId});
-
+    
     if (!ability.can(ReportsActions.View, reportResource)) {
       throw new ForbiddenError(
         'You do not have permission to view reports for this course',
       );
     }
-    const result = await this.reportService.getReportsByCourseId(
+    // const courseId = "687dd6be242a692d993336c4";
+    // const versionId ="687dd6ca242a692d993336c5"
+    // || "687dd6da242a692d993336c6"
+
+    const result = await this.reportService.getReportsByCourse(
       courseId,
+      versionId,
       filters,
     );
     return result;

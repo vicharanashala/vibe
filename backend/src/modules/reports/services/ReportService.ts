@@ -1,4 +1,4 @@
-import 'reflect-metadata'
+import 'reflect-metadata';
 import {
   BaseService,
   EntityType,
@@ -56,18 +56,24 @@ export class ReportService extends BaseService {
     });
   }
 
-  async getReportsByCourseId(
+  async getReportsByCourse(
     courseId: string,
+    versionId: string,
     filters: ReportFiltersQuery,
   ): Promise<ReportResponse> {
     return this._withTransaction(async _ => {
-      return await this.reportsRepository.getByCourseId(courseId, filters);
+      const result = await this.reportsRepository.getByCourse(
+        courseId,
+        versionId,
+        filters,
+      );
+      return result;
     });
   }
 
   async getReportById(reportId: string): Promise<ReportDataResponse> {
     const report = await this.reportsRepository.getById(reportId);
     const reportInstance = plainToInstance(ReportDataResponse, report);
-    return reportInstance
+    return reportInstance;
   }
 }
