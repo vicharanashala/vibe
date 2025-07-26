@@ -1203,10 +1203,9 @@ if (task === "upload") {
         prevJobStatus?.questionGeneration !== 'COMPLETED'
       ) {
         // Fetch QUESTION_GENERATION task status for fileUrl
-        const token = localStorage.getItem('firebase-auth-token');
-        const localUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+        const token = localStorage.getItem('firebase-auth-token');        
         const backendUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
-        let res = await fetch(localUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+        let res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) {
           res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
         }
@@ -1881,6 +1880,18 @@ if (task === "upload") {
     const [editingIdx, setEditingIdx] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editQuestion, setEditQuestion] = useState<any>(null);
+
+    // Clear cached questions when run.result or run.status changes (e.g., after refresh)
+    useEffect(() => {
+      setQuestionsByRun(prev => {
+        if (prev[run.id]) {
+          const newObj = { ...prev };
+          delete newObj[run.id];
+          return newObj;
+        }
+        return prev;
+      });
+    }, [run.result, run.status, run.id]);
 
     const questions = questionsByRun[run.id] || [];
 
