@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
+import { FlagTriangleRight } from "lucide-react";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -225,15 +226,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
                     {action === "edit" && "Edit Video"}
                     {action === "view" && "View Video"}
                 </h2>
-                {action === "view" ? (
+                {action === "view" ? (<span className="flex items-center">
                     <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs flex items-center gap-1"
+                        className="text-xs mr-4"
                         onClick={onEdit}
                     >
                         Edit
                     </Button>
+                    <Button className="text-xs gap-1" variant="outline" size="sm">
+                <FlagTriangleRight className="h-4 w-4 mr-1" />
+                View Flags
+              </Button></span>
                 ) : null}
                 {/* Remove Close button from here */}
             </div>
