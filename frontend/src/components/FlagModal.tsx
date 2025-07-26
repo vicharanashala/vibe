@@ -11,7 +11,7 @@ import { useState } from 'react';
 type FlagModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (reason: string) => void;
+  onSubmit: (reason: string,status?:string) => void;
   isSubmitting?: boolean;
  teacher?:boolean
 };
@@ -59,8 +59,14 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       return;
     }
     setError('');
+    if(teacher)
+    {
+onSubmit(reason,status);
+    }
+    else
+      {
     onSubmit(reason);
-    setReason('');
+    }setReason('');
   };
  
   return (
@@ -74,7 +80,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
     <label className="text-sm font-medium">Status</label>
-    <Select value={status} onValueChange={setStatus}>
+  {teacher&&  <Select value={status} onValueChange={setStatus}>
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Select status" />
       </SelectTrigger>
@@ -88,7 +94,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         )}
     
              </SelectContent>
-    </Select>
+    </Select>}
   </div>
           <div className="grid gap-2">
             <Textarea

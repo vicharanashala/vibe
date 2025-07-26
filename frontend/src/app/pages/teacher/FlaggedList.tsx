@@ -18,11 +18,13 @@ import {
   useItemsBySectionId,
   useCourseVersionEnrollments,
   useResetProgress,
-  useUnenrollUser
+  useUnenrollUser,
+  useUpdateReportStatus
 } from "@/hooks/hooks"
 import { useFlagStore } from "@/store/flag-store"
 import type { EnrolledUser } from "@/types/course.types"
 import { FlagModal } from "@/components/FlagModal"
+import { ReportStatus } from "@/types/reports.types"
 
 
 export default function FlaggedList() {
@@ -42,6 +44,14 @@ export default function FlaggedList() {
   // const { data: course, isLoading: courseLoading, error: courseError } = useGetReports(courseId || "",versionId || "")
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
+  const {
+    mutate,
+    isPending,
+    isSuccess,
+    isError,
+    error,
+    reset
+  } = useUpdateReportStatus();
 
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
@@ -110,8 +120,13 @@ export default function FlaggedList() {
   }
 
     // Flag handling function
-  const handleStatusUpdate = async (reason: string) => {
-    try {console.log(reason)
+  const handleStatusUpdate = async (comment: string,status:ReportStatus) => {
+    try {
+      console.log(comment,status)
+    //   mutate({
+    //   path: { reportId },
+    //   body: { status, comment }
+    // });
      
     }catch(error){
 
