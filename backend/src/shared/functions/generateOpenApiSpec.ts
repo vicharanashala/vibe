@@ -230,6 +230,10 @@ export function generateOpenAPISpec(
         {
           name: 'Courses',
           description: 'Operations related to courses management',
+        },
+        {
+          name: 'Anomalies',
+          description: 'Operations for managing anomaly detection and monitoring',
         }
       ],
       'x-tagGroups': [
@@ -263,6 +267,12 @@ export function generateOpenAPISpec(
           name: 'Users',
           tags: ['Enrollments','Progress','Users']
         },
+
+        {
+          name: 'Monitoring & Security',
+          tags: ['Anomalies'],
+        },
+
         {
           name: 'Settings',
           tags: ['Course Settings', 'User Settings', 'Course Setting'],

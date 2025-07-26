@@ -1,4 +1,5 @@
 import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
@@ -12,7 +13,7 @@ export interface IItemRepository {
     itemGroupsId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<boolean>;
+  ): Promise<ItemsGroup | null>;
 
   createItemsGroup(
     itemsGroup: ItemsGroup,
@@ -29,6 +30,12 @@ export interface IItemRepository {
     itemsGroup: ItemsGroup,
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
+
+  updateItem(
+    itemId: string,
+    item: UpdateItemBody,
+    session?: ClientSession
+  ): Promise<Item>
 
   findItemsGroupByItemId(
     itemId: string,

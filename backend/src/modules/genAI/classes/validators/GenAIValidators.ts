@@ -21,7 +21,7 @@ class TranscriptParameters {
   @JSONSchema({
     title: 'Language',
     description: 'Language for the job',
-    example: 'English',
+    example: 'en',
     type: 'string',
   })
   @IsOptional()
@@ -29,14 +29,14 @@ class TranscriptParameters {
   language?: LanguageType;
 
   @JSONSchema({
-    title: 'Model',
-    description: 'Model to use for the job',
-    example: 'default',
+    title: 'Model Size',
+    description: 'Model size to use for the job',
+    example: 'large',
     type: 'string',
   })
   @IsOptional()
   @IsString()
-  model?: string;
+  modelSize?: string;
 }
 
 @JSONSchema({ title: 'SegmentationParameters' })
@@ -44,7 +44,7 @@ class SegmentationParameters {
   @JSONSchema({
     title: "Lambda",
     description: 'Lambda parameter for segmentation',
-    example: 0.5,
+    example: 4.6,
     type: 'number',
   })
   @IsOptional()
@@ -54,7 +54,7 @@ class SegmentationParameters {
   @JSONSchema({
     title: "Runs",
     description: 'Number of runs for segmentation',
-    example: 10,
+    example: 25,
     type: 'number',
   })
   @IsOptional()
@@ -64,12 +64,12 @@ class SegmentationParameters {
   @JSONSchema({
     title: 'Noise ID',
     description: 'ID of the noise to be used for segmentation',
-    example: 123,
+    example: -1,
     type: 'number',
   })
   @IsOptional()
   @IsNumber()
-  noise_id?: number;
+  noiseId?: number;
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
@@ -127,7 +127,7 @@ class QuestionGenerationParameters {
   @JSONSchema({
     title: 'Prompt',
     description: 'Prompt to use for question generation',
-    example: 'Generate questions based on the provided transcript.',
+    example: "Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead",
     type: 'string',
   })
   @IsOptional()
@@ -165,10 +165,10 @@ class UploadParameters {
     example: '60d5f484f1c4d8b3c8f8e4b3',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   @IsString()
-  moduleId: string;
+  moduleId?: string;
 
   @JSONSchema({
     title: 'Section ID',
@@ -176,10 +176,10 @@ class UploadParameters {
     example: '60d5f484f1c4d8b3c8f8e4b4',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   @IsString()
-  sectionId: string;
+  sectionId?: string;
 
   @JSONSchema({
     title: 'Video Item Base Name',
@@ -189,7 +189,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-  videoItemBaseName: string;
+  videoItemBaseName?: string;
 
   @JSONSchema({
     title: 'Quiz Item Base Name',
@@ -199,7 +199,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-	quizItemBaseName: string;
+	quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -716,6 +716,26 @@ class EditQuestionData {
   index: number;
 }
 
+class EditTranscript {
+  @JSONSchema({
+    title: 'Transcript',
+    description: 'The transcript to edit',
+    type: 'object',
+  })
+  @IsNotEmpty()
+  transcript: JSON;
+
+  @JSONSchema({
+    title: 'Index',
+    description: 'Index of the transcript to edit',
+    type: 'number',
+    example: 0,
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  index: number;
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -730,6 +750,7 @@ export {
   WebhookBody,
   EditSegmentMapBody,
   EditQuestionData,
+  EditTranscript,
 };
 
 export const GENAI_VALIDATORS = [
@@ -745,4 +766,5 @@ export const GENAI_VALIDATORS = [
   WebhookBody,
   EditSegmentMapBody,
   EditQuestionData,
+  EditTranscript,
 ];

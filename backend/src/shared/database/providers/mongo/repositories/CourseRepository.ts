@@ -504,7 +504,7 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<ICourseVersion | null> {
     await this.init();
       const courseVersion = await this.courseVersionCollection.findOne({
-        'modules.sections.itemGroupId': itemGroupId,
+        'modules.sections.itemsGroupId': itemGroupId,
       }, { session });
 
       if (!courseVersion) {
