@@ -23,10 +23,10 @@
     "#courses/*.js": "./build/modules/courses/*.js",
     "#users/*.js": "./build/modules/users/*.js",
     "#quizzes/*.js": "./build/modules/quizzes/*.js",
-    "#settings/*.js": "./build/modules/settings/*.js",
     "#temp/*.js": "./build/modules/temp/*.js",
     "#genAI/*.js": "./build/modules/genAI/*.js",
-    "#setting/*.js": "./build/modules/setting/*.js"
+    "#setting/*.js": "./build/modules/setting/*.js",
+    "#anomalies/*.js": "./build/modules/anomalies/*.js"
   },
   "type": "module",
   "keywords": [],

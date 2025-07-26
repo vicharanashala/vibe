@@ -7,15 +7,10 @@ import { UserRepository } from '#shared/database/providers/mongo/repositories/Us
 import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 import { MailService } from './MailService.js';
 import { Invite } from '../classes/transformers/Invite.js';
-import crypto from 'crypto';
-import { InviteActionType, InviteStatusType, IEnrollment, EnrollmentRole, ICourseVersion, ICourse } from '#shared/interfaces/models.js';
-import { plainToClass, instanceToPlain } from 'class-transformer';
+import { EnrollmentRole, ICourseVersion, ICourse } from '#shared/interfaces/models.js';
 import { NOTIFICATIONS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
-import { User } from '#auth/classes/transformers/User.js';
-import { STATUS_CODES } from 'http';
-import { smtpConfig } from '#root/config/smtp.js';
 import { appConfig } from '#root/config/app.js';
 import nodemailer from 'nodemailer';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
