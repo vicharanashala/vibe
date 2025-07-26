@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useSubmitFlag } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -40,6 +40,7 @@ import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { FlagModal } from "@/components/FlagModal";
+import { ReportEntityEntity } from "@/types/reports.types";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -79,6 +80,7 @@ export default function CoursePage() {
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
+  const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -318,10 +320,22 @@ export default function CoursePage() {
   // Flag handling function
   const handleFlagSubmit = async (reason: string) => {
     try {
+      if(!currentItem){
+        console.warn("Current find not founded",currentItem);
+        return;
+      }
+      const submitFlagBody = {
+        courseId:COURSE_ID,
+        versionId:VERSION_ID,
+        entityId:currentItem?._id,
+        entityType:ReportEntityEntity.VIDEO,
+        reason,
+      }
+      await submitFlagAsyncMutate({body:submitFlagBody})
+    } catch(error){
+      console.log("Failed to submit flag, try again!")
+    } finally{
       setIsFlagModalOpen(false);
-    }catch(error){
-
-    } finally {
     }
   };
 
@@ -1225,7 +1239,7 @@ export default function CoursePage() {
                   open={isFlagModalOpen}
                   onOpenChange={setIsFlagModalOpen}
                   onSubmit={handleFlagSubmit}
-                  isSubmitting={false}
+                  isSubmitting={isPending}
                 />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">

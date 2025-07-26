@@ -77,7 +77,7 @@ class ReportRepository {
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
-    throw new InternalServerError('Failed to create quiz attempt');
+    throw new InternalServerError('Failed to create report');
   }
 
   async update(reportId: string, updateData: IStatus, session?: ClientSession) {

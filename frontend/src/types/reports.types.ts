@@ -5,6 +5,12 @@ export type EntityType =
     | 'ARTICLE'
     | 'QUESTION';
 
+export enum ReportEntityEntity {
+  VIDEO = 'VIDEO',
+  QUIZ = 'QUIZ',
+  ARTICLE= "ARTICLE",
+  QUESTION="QUESTION"
+}
 export type ReportStatus = 'REPORTED' | 'IN_REVIEW' | 'RESOLVED' | 'DISCARDED' | 'CLOSED';
 
 export interface IStatus {
