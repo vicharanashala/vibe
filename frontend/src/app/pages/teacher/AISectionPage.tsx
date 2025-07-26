@@ -1168,15 +1168,31 @@ if (task === "upload") {
         prevJobStatus?.transcriptGeneration !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
-          if (lastLoadingIdx === -1) return prev;
-          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
-          return {
-            ...prev,
-            transcription: prev.transcription.map((run, idx) =>
-              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-          };
+          // Find the most recent loading run or create a new one if none exists
+          const loadingRunIndex = prev.transcription.findIndex(run => run.status === 'loading');
+          
+          if (loadingRunIndex !== -1) {
+            // Update existing loading run
+            return {
+              ...prev,
+              transcription: prev.transcription.map((run, idx) =>
+                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
+              ),
+            };
+          } else {
+            // Create a new completed run if no loading run exists
+            const newRun: TaskRun = {
+              id: `run-${Date.now()}-${Math.random()}`,
+              timestamp: new Date(),
+              status: 'done',
+              result: status,
+              parameters: {}
+            };
+            return {
+              ...prev,
+              transcription: [...prev.transcription, newRun],
+            };
+          }
         });
         toast.success('Transcription completed!');
       }
@@ -1186,15 +1202,31 @@ if (task === "upload") {
         prevJobStatus?.segmentation !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
-          if (lastLoadingIdx === -1) return prev;
-          const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
-          return {
-            ...prev,
-            segmentation: prev.segmentation.map((run, idx) =>
-              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-          };
+          // Find the most recent loading run or create a new one if none exists
+          const loadingRunIndex = prev.segmentation.findIndex(run => run.status === 'loading');
+          
+          if (loadingRunIndex !== -1) {
+            // Update existing loading run
+            return {
+              ...prev,
+              segmentation: prev.segmentation.map((run, idx) =>
+                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
+              ),
+            };
+          } else {
+            // Create a new completed run if no loading run exists
+            const newRun: TaskRun = {
+              id: `run-${Date.now()}-${Math.random()}`,
+              timestamp: new Date(),
+              status: 'done',
+              result: status,
+              parameters: {}
+            };
+            return {
+              ...prev,
+              segmentation: [...prev.segmentation, newRun],
+            };
+          }
         });
         toast.success('Segmentation completed!');
       }
@@ -1214,20 +1246,35 @@ if (task === "upload") {
         if (res.ok) {
           const arr = await res.json();
           setTaskRuns(prev => {
-            const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
-            const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
-            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
-            if (idxToUpdate === -1) return prev;
-            return {
-              ...prev,
-              question: prev.question.map((run, idx) => {
-                if (idx === idxToUpdate) {
-                  const { id, timestamp, result, parameters } = run;
-                  return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
-                }
-                return run;
-              }),
-            };
+            // Find the most recent loading run or create a new one if none exists
+            const loadingRunIndex = prev.question.findIndex(run => run.status === 'loading');
+            
+            if (loadingRunIndex !== -1) {
+              // Update existing loading run
+              return {
+                ...prev,
+                question: prev.question.map((run, idx) => {
+                  if (idx === loadingRunIndex) {
+                    const { id, timestamp, parameters } = run;
+                    return { id, timestamp, status: 'done', result: { questionTaskStatus: arr }, parameters } as TaskRun;
+                  }
+                  return run;
+                }),
+              };
+            } else {
+              // Create a new completed run if no loading run exists
+              const newRun: TaskRun = {
+                id: `run-${Date.now()}-${Math.random()}`,
+                timestamp: new Date(),
+                status: 'done',
+                result: { questionTaskStatus: arr },
+                parameters: {}
+              };
+              return {
+                ...prev,
+                question: [...prev.question, newRun],
+              };
+            }
           });
           toast.success('Questions generated!');
         }
