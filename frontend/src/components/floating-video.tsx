@@ -10,7 +10,6 @@ import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
 
-import { useReportAnomaly, useReportAnomalyImage } from '@/hooks/hooks';
 import { AnomalyType } from '@/types/reportanomaly.types';
 
 import { useAuthStore } from '@/store/auth-store';

@@ -167,7 +167,7 @@ importers:
         specifier: ^1.4.8
         version: 1.4.8(@types/express@5.0.1)
       '@types/express':
-        specifier: ^5.0.1
+        specifier: ^5.0.0
         version: 5.0.1
       '@types/fluent-ffmpeg':
         specifier: ^2.1.25
@@ -182,7 +182,7 @@ importers:
         specifier: ^1.4.12
         version: 1.4.12
       '@types/node':
-        specifier: ^22.14.1
+        specifier: ^22.7.5
         version: 22.15.21
       '@types/pdf-parse':
         specifier: ^1.1.4

@@ -1,12 +1,12 @@
-import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
-import {IUser} from '#shared/interfaces/models.js';
-import {instanceToPlain, plainToInstance} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {Collection, MongoClient, ClientSession, ObjectId} from 'mongodb';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {User} from '#auth/classes/transformers/User.js';
+import { IUserRepository } from '#shared/database/interfaces/IUserRepository.js';
+import { IUser } from '#shared/interfaces/models.js';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { Collection, MongoClient, ClientSession, ObjectId } from 'mongodb';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { User } from '#auth/classes/transformers/User.js';
 
 @injectable()
 export class UserRepository implements IUserRepository {
@@ -15,7 +15,7 @@ export class UserRepository implements IUserRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   /**
    * Ensures that `usersCollection` is initialized before usage.
@@ -40,7 +40,15 @@ export class UserRepository implements IUserRepository {
    */
   async create(user: IUser, session?: ClientSession): Promise<string> {
     await this.init();
-    const result = await this.usersCollection.insertOne(user, {session});
+    const existingUser = await this.usersCollection.findOne(
+      { email: user.email },
+      { session }
+    );
+
+    if (existingUser) {
+      throw new Error('User already exists');
+    }
+    const result = await this.usersCollection.insertOne(user, { session });
     if (!result.acknowledged) {
       throw new InternalServerError('Failed to create user');
     }
@@ -55,9 +63,9 @@ export class UserRepository implements IUserRepository {
     session?: ClientSession,
   ): Promise<IUser | null> {
     await this.init();
-    
-    const user = await this.usersCollection.findOne({email}, {session});
-    return user; 
+
+    const user = await this.usersCollection.findOne({ email }, { session });
+    return user;
   }
 
   /**
@@ -65,7 +73,7 @@ export class UserRepository implements IUserRepository {
    */
   async findById(id: string | ObjectId): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne({_id: new ObjectId(id)});
+    const user = await this.usersCollection.findOne({ _id: new ObjectId(id) });
     return instanceToPlain(new User(user)) as IUser;
   }
 
@@ -77,19 +85,19 @@ export class UserRepository implements IUserRepository {
     session?: ClientSession,
   ): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne({firebaseUID}, {session});
+    const user = await this.usersCollection.findOne({ firebaseUID }, { session });
     return user;
   }
 
   /**
    * Adds a role to a user.
    */
-  async makeAdmin(userId: string, session?:ClientSession): Promise<void> {
+  async makeAdmin(userId: string, session?: ClientSession): Promise<void> {
     await this.init();
     await this.usersCollection.updateOne(
-      {_id: new ObjectId(userId)},
-      {$set: {roles: 'admin'}},
-      {session},
+      { _id: new ObjectId(userId) },
+      { $set: { roles: 'admin' } },
+      { session },
     );
   }
 
@@ -102,9 +110,9 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
     const result = await this.usersCollection.findOneAndUpdate(
-      {firebaseUID},
-      {$set: {password}},
-      {returnDocument: 'after'},
+      { firebaseUID },
+      { $set: { password } },
+      { returnDocument: 'after' },
     );
     return instanceToPlain(new User(result)) as IUser;
   }
@@ -116,9 +124,9 @@ export class UserRepository implements IUserRepository {
   ): Promise<void> {
     await this.init();
     await this.usersCollection.updateOne(
-      {_id: new ObjectId(userId)},
-      {$set: userData},
-      {session},
+      { _id: new ObjectId(userId) },
+      { $set: userData },
+      { session },
     );
   }
 }

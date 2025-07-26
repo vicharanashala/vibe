@@ -211,6 +211,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       roles: 'user',
     };
 
+    console.log(user);
+
     let createdUserId: string;
 
     await this._withTransaction(async session => {
