@@ -8,13 +8,28 @@ type FlagModalProps = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (reason: string) => void;
   isSubmitting?: boolean;
+ teacher?:boolean
 };
+
+const Teacher ={
+title:"Update Status",
+placeholder:"Please enter a reason for status update",
+buttonText:"Submit",
+submittingText:"Submitting..."
+}
+
+const Student ={
+title:"Flag Content",
+placeholder:"Please explain why you're flagging this content (minimum 8 characters)...",
+buttonText:"Submit Flag",
+submittingText:"Submitting..."
+}
 
 export const FlagModal = ({
   open,
   onOpenChange,
   onSubmit,
-  isSubmitting = false,
+  isSubmitting = false,teacher = false
 }: FlagModalProps) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -41,7 +56,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       <DialogContent className="sm:max-w-[425px] mx-2"
       onInteractOutside={(e) => e.preventDefault()} >
         <DialogHeader>
-          <DialogTitle>Flag Content</DialogTitle>
+          <DialogTitle>{teacher?Teacher.title:Student.title}</DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
@@ -50,7 +65,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
               value={reason}
               onChange={handleReasonChange}
               onKeyDown={(e)=>e.stopPropagation()}
-              placeholder="Please explain why you're flagging this content (minimum 8 characters)..."
+              placeholder={teacher?Teacher.placeholder:Student.placeholder}
               className="min-h-[120px]"
             />
             {error && (
@@ -74,7 +89,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
               onClick={handleSubmit}
               disabled={!reason.trim() || isSubmitting || !!error}
             >
-              {isSubmitting ? "Submitting..." : "Submit Flag"}
+              {isSubmitting ? teacher?Teacher.submittingText:Student.submittingText :teacher?Teacher.buttonText:Student.buttonText}
             </Button>
           </div>
         </div>

@@ -30,6 +30,7 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
+import FlaggedList from '../pages/teacher/FlaggedList'
 
 
 // Root route with error and notFound handling
@@ -208,6 +209,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollments,
 });
 
+// Teacher Course Flags route
+const teacherCourseFlagsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/flags',
+  component: FlaggedList,
+});
+
 // Teacher Course Invites route
 const teacherCourseInviteRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -280,7 +288,7 @@ const routeTree = rootRoute.addChildren([
     teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
-    teacherViewCourseRoute,
+    teacherViewCourseRoute,teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,

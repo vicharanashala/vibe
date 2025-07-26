@@ -1,0 +1,303 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { redirect, useNavigate } from "@tanstack/react-router"
+import { Users, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown,Pencil } from 'lucide-react'
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+// Import hooks - including the new quiz hooks
+import {
+  useCourseById,
+  useCourseVersionById,
+  useItemsBySectionId,
+  useCourseVersionEnrollments,
+  useResetProgress,
+  useUnenrollUser
+} from "@/hooks/hooks"
+import { useCourseStore } from "@/store/course-store"
+import type { EnrolledUser } from "@/types/course.types"
+import { FlagModal } from "@/components/FlagModal"
+
+
+export default function FlaggedList() {
+  const navigate = useNavigate()
+
+  // Get course info from store
+  const { currentCourse } = useCourseStore()
+  const courseId = currentCourse?.courseId
+  const versionId = currentCourse?.versionId
+
+  if (!currentCourse || !courseId || !versionId) {
+    navigate({ to: '/teacher/courses/list' });
+    return null
+  }
+
+  // Fetch course and version data
+  const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
+  const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
+
+  const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
+  const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
+  const [selectedModule, setSelectedModule] = useState<string>("")
+  const [selectedSection, setSelectedSection] = useState<string>("")
+  const [selectedItem, setSelectedItem] = useState<string>("")
+
+  // New states for view progress functionality
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [selectedViewItem, setSelectedViewItem] = useState<string>("")
+  const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
+  const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
+
+  // Fetch enrollments data
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useCourseVersionEnrollments(courseId, versionId, 1, 100, !!(courseId && versionId))
+
+
+  // Show all enrollments regardless of role or status
+  const studentEnrollments = enrollmentsData?.enrollments || []
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  const filteredUsers = studentEnrollments;
+
+
+  // Sorting logic
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (sortBy === 'name') {
+      const nameA = ((a.user?.firstName || '') + ' ' + (a.user?.lastName || '')).toLowerCase()
+      const nameB = ((b.user?.firstName || '') + ' ' + (b.user?.lastName || '')).toLowerCase()
+      if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1
+      if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    } else if (sortBy === 'enrollmentDate') {
+      const dateA = new Date(a.enrollmentDate).getTime()
+      const dateB = new Date(b.enrollmentDate).getTime()
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    } else if (sortBy === 'progress') {
+      const progA = (a.progress?.percentCompleted || 0)
+      const progB = (b.progress?.percentCompleted || 0)
+      return sortOrder === 'asc' ? progA - progB : progB - progA
+    }
+    return 0
+  })
+  console.log("Sorted Users:", sortedUsers)
+
+  // Sorting handler
+  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
+
+  useEffect(() => {
+    if (isResetDialogOpen) {
+      setResetScope("course")
+      setSelectedModule("")
+      setSelectedSection("")
+      setSelectedItem("")
+    }
+  }, [isResetDialogOpen])
+
+  useEffect(() => {
+    if (isViewProgressDialogOpen) {
+      setExpandedModules(new Set())
+      setExpandedSections(new Set())
+      setSelectedViewItem("")
+      setSelectedViewItemType("")
+      setSelectedViewItemName("")
+    }
+  }, [isViewProgressDialogOpen])
+
+
+  // Loading state
+  if (courseLoading || versionLoading || enrollmentsLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground">Loading course data...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (courseError || versionError || enrollmentsError || !course || !version) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-8">
+          <div className="text-center py-12">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load course data</h3>
+            <p className="text-muted-foreground mb-4">
+              {courseError || versionError || enrollmentsError || "Course or version not found"}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto py-8 space-y-8">
+        {/* Enhanced Header */}
+             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+             Course Flags
+            </h1>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                <h2 className="text-2xl font-bold text-foreground">{course.name}</h2>
+                <span className="text-lg text-muted-foreground">•</span>
+                <h3 className="text-xl font-semibold text-accent">{version.version}</h3>
+              </div>
+              <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
+            </div>
+          </div>
+         
+        </div>
+        
+               {/* Students Table */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          
+          <CardContent className="p-0">
+            {sortedUsers.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                  <Users className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <p className="text-foreground text-xl font-semibold mb-2">No students found</p>
+                <p className="text-muted-foreground">
+                  {searchQuery ? "Try adjusting your search terms" : "No students are enrolled in this course version"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border bg-muted/30">
+                      {[
+                        { key: 'reason', label: 'Reason', className: 'pl-6 w-[300px]' },
+                        { key: 'reportedBy', label: 'Reported by', className: 'w-[120px]' },
+                        { key: 'createdDate', label: 'Reported on', className: 'w-[200px]' },
+                      ].map(({ key, label, className }) => (
+                        <TableHead
+                          key={key}
+                          className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                          onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
+                        >
+                          <span className="flex items-center gap-1">
+                            {label}
+                            {sortBy === key && (
+                              sortOrder === 'asc'
+                                ? <ArrowUp size={16} className="text-foreground" />
+                                : <ArrowDown size={16} className="text-foreground" />
+                            )}
+                          </span>
+                        </TableHead>
+                      ))}
+                      <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedUsers.map((enrollment) => (
+                      <TableRow
+                        key={enrollment._id}
+                        className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                      >
+                        <TableCell className="pl-6 py-6">
+                          <span>{"Course questions not formatted properly"}</span>
+                                       </TableCell>
+                        <TableCell className="py-6">
+                           
+                            <div className="flex items-center gap-4">
+                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                              <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                {[
+                                  enrollment?.user?.firstName?.[0],
+                                  enrollment?.user?.lastName?.[0],
+                                ]
+                                  .filter(Boolean)
+                                  .map((ch) => ch.toUpperCase())
+                                  .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-foreground truncate text-lg">
+                                {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-6">
+                          <div className="text-muted-foreground font-medium">
+                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-6 pr-6">
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                               {setUpdateStatusModalOpen(true)}
+                              }
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                             Update Status
+                            </Button>
+                           
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+     <FlagModal
+                  open={updateStatusModalOpen}
+                  onOpenChange={setUpdateStatusModalOpen}
+                  onSubmit={()=>{}}
+                  isSubmitting={false}
+                  teacher={true}
+                  
+                />
+      </div>
+    </div>
+
+    
+  )
+}
