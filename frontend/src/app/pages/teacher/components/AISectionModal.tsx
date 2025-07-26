@@ -42,10 +42,7 @@ interface TaskRuns {
 }
 
 function getApiUrl(path: string) {
-  if (import.meta.env.DEV) {
-    return `/api${path}`;
-  }
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app${path}`;
+  return `${import.meta.env.VITE_BASE_URL}${path}`;
 }
 
 // Removed fakeApiCall - now using real API calls
