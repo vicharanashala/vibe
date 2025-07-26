@@ -384,11 +384,8 @@ export default function AISectionPage() {
       if (task === "transcription") {
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
-          await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
-          setAiWorkflowStep('transcription');
-          toast.success("Transcription rerun started. Click Refresh to check status.");
-    setTaskRuns(prev => ({
-      ...prev,
+          setTaskRuns(prev => ({
+            ...prev,
             transcription: [...prev.transcription, {
               id: runId,
               timestamp: new Date(),
@@ -396,6 +393,54 @@ export default function AISectionPage() {
               parameters: { ...rerunParams }
             }]
           }));
+          
+          try {
+            await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
+            setAiWorkflowStep('transcription');
+            toast.success("Transcription rerun started. Click Refresh to check status.");
+            
+            // Poll for completion
+            const finalStatus = await aiSectionAPI.pollForTaskCompletion(
+              aiJobId,
+              'TRANSCRIPT_GENERATION',
+              (status: JobStatus) => {
+                setTaskRuns(prev => ({
+                  ...prev,
+                  transcription: prev.transcription.map(run =>
+                    run.id === runId
+                      ? {
+                          ...run,
+                          status:
+                            status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "COMPLETED"
+                              ? "done"
+                              : status.currentTask?.type === 'TRANSCRIPT_GENERATION' && status.currentTask.status === "FAILED"
+                              ? "failed"
+                              : "loading",
+                          result: status,
+                        }
+                      : run
+                  ),
+                }));
+              }
+            );
+
+            setTaskRuns(prev => ({
+              ...prev,
+              transcription: prev.transcription.map(run => 
+                run.id === runId ? { ...run, status: "done", result: finalStatus } : run
+              ),
+            }));
+            
+            toast.success("Transcription rerun completed!");
+          } catch (error) {
+            setTaskRuns(prev => ({
+              ...prev,
+              transcription: prev.transcription.map(run =>
+                run.id === runId ? { ...run, status: "failed" } : run
+              ),
+            }));
+            toast.error(`Transcription rerun failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
           return;
         }
         // Only start audio extraction, do not poll
@@ -403,12 +448,12 @@ export default function AISectionPage() {
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
         toast.success("Audio extraction started. Click Refresh to check status.");
-      setTaskRuns(prev => ({
-        ...prev,
-        [task]: prev[task].map(run =>
-            run.id === runId ? { ...run, status: "loading", result: undefined } : run
-          ),
-        }));
+        setTaskRuns(prev => ({
+          ...prev,
+          [task]: prev[task].map(run =>
+              run.id === runId ? { ...run, status: "loading", result: undefined } : run
+            ),
+          }));
         return;
       }
       let taskType = "";
@@ -1168,15 +1213,31 @@ if (task === "upload") {
         prevJobStatus?.transcriptGeneration !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
-          if (lastLoadingIdx === -1) return prev;
-          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
-          return {
-            ...prev,
-            transcription: prev.transcription.map((run, idx) =>
-              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-          };
+          // Find the most recent loading run or create a new one if none exists
+          const loadingRunIndex = prev.transcription.findIndex(run => run.status === 'loading');
+          
+          if (loadingRunIndex !== -1) {
+            // Update existing loading run
+            return {
+              ...prev,
+              transcription: prev.transcription.map((run, idx) =>
+                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
+              ),
+            };
+          } else {
+            // Create a new completed run if no loading run exists
+            const newRun: TaskRun = {
+              id: `run-${Date.now()}-${Math.random()}`,
+              timestamp: new Date(),
+              status: 'done',
+              result: status,
+              parameters: {}
+            };
+            return {
+              ...prev,
+              transcription: [...prev.transcription, newRun],
+            };
+          }
         });
         toast.success('Transcription completed!');
       }
@@ -1186,15 +1247,31 @@ if (task === "upload") {
         prevJobStatus?.segmentation !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
-          const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
-          if (lastLoadingIdx === -1) return prev;
-          const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
-          return {
-            ...prev,
-            segmentation: prev.segmentation.map((run, idx) =>
-              idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-          };
+          // Find the most recent loading run or create a new one if none exists
+          const loadingRunIndex = prev.segmentation.findIndex(run => run.status === 'loading');
+          
+          if (loadingRunIndex !== -1) {
+            // Update existing loading run
+            return {
+              ...prev,
+              segmentation: prev.segmentation.map((run, idx) =>
+                idx === loadingRunIndex ? { ...run, status: 'done', result: status } : run
+              ),
+            };
+          } else {
+            // Create a new completed run if no loading run exists
+            const newRun: TaskRun = {
+              id: `run-${Date.now()}-${Math.random()}`,
+              timestamp: new Date(),
+              status: 'done',
+              result: status,
+              parameters: {}
+            };
+            return {
+              ...prev,
+              segmentation: [...prev.segmentation, newRun],
+            };
+          }
         });
         toast.success('Segmentation completed!');
       }
@@ -1214,20 +1291,35 @@ if (task === "upload") {
         if (res.ok) {
           const arr = await res.json();
           setTaskRuns(prev => {
-            const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
-            const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
-            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
-            if (idxToUpdate === -1) return prev;
-            return {
-              ...prev,
-              question: prev.question.map((run, idx) => {
-                if (idx === idxToUpdate) {
-                  const { id, timestamp, result, parameters } = run;
-                  return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
-                }
-                return run;
-              }),
-            };
+            // Find the most recent loading run or create a new one if none exists
+            const loadingRunIndex = prev.question.findIndex(run => run.status === 'loading');
+            
+            if (loadingRunIndex !== -1) {
+              // Update existing loading run
+              return {
+                ...prev,
+                question: prev.question.map((run, idx) => {
+                  if (idx === loadingRunIndex) {
+                    const { id, timestamp, parameters } = run;
+                    return { id, timestamp, status: 'done', result: { questionTaskStatus: arr }, parameters } as TaskRun;
+                  }
+                  return run;
+                }),
+              };
+            } else {
+              // Create a new completed run if no loading run exists
+              const newRun: TaskRun = {
+                id: `run-${Date.now()}-${Math.random()}`,
+                timestamp: new Date(),
+                status: 'done',
+                result: { questionTaskStatus: arr },
+                parameters: {}
+              };
+              return {
+                ...prev,
+                question: [...prev.question, newRun],
+              };
+            }
           });
           toast.success('Questions generated!');
         }
