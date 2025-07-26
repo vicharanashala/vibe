@@ -1,4 +1,5 @@
 import { injectable, inject } from "inversify";
+import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import { 
   Body, 
   JsonController, 
@@ -6,11 +7,12 @@ import {
   Post, 
   Get, 
   HttpCode,
-  NotFoundError,
   Authorized,
   ForbiddenError,
   OnUndefined,
   Patch,
+  Req,
+  Res,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import {
@@ -24,6 +26,7 @@ import {
   EditSegmentMapBody,
   EditQuestionData,
   TaskStatusParams,
+  EditTranscript,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
@@ -31,6 +34,8 @@ import { GENAI_TYPES } from '../types.js';
 import { BadRequestErrorResponse } from "#root/shared/index.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { getGenAIAbility } from "../abilities/genAIAbilities.js";
+import { subject } from "@casl/ability";
+import { SseService } from "../services/sseService.js";
 
 @OpenAPI({
   tags: ['GenAI'],
@@ -43,7 +48,9 @@ export class GenAIController {
     @inject(GENAI_TYPES.GenAIService)
     private readonly genAIService: GenAIService,
     @inject(GENAI_TYPES.WebhookService)
-    private readonly webhookService: WebhookService
+    private readonly webhookService: WebhookService,
+    @inject(GENAI_TYPES.SseService)
+    private readonly sseService: SseService
   ) {}
 
   @OpenAPI({
@@ -61,12 +68,13 @@ export class GenAIController {
     statusCode: 400,
   })
   async start(@Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
-    // Check if user has permission to create a genAI job
-    if (!ability.can('create', 'GenAI')) {
+
+    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+    if (!ability.can('create', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to create a genAI job');
     }
-    const result = await this.genAIService.startJob(user._id.toString(), body);
-    return result;
+
+    return await this.genAIService.startJob(user._id.toString(), body);
   }
 
   @OpenAPI({
@@ -85,9 +93,10 @@ export class GenAIController {
   })
   async getStatus(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to view the genAI job
-    if (!ability.can('read', 'GenAI')) {
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to view this genAI');
     }
 
@@ -103,18 +112,16 @@ export class GenAIController {
   @Get("/:id/tasks/:type/status")
   @Authorized()
   @HttpCode(200)
-  // @ResponseSchema(GenAIResponse, {
-  //   description: 'Task status retrieved successfully'
-  // })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
   })
   async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
     const { id, type } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to view the genAI job
-    if (!ability.can('read', 'GenAI')) {
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to view this genAI');
     }
 
@@ -134,9 +141,16 @@ export class GenAIController {
     description: 'Job not found',
     statusCode: 404,
   })
-  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {user}) {
+  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
     const userId = user._id.toString();
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
+    }
+
     await this.genAIService.approveTaskToStart(id, userId, body.usePrevious, body.parameters);
   }
 
@@ -153,9 +167,10 @@ export class GenAIController {
   })
   async approveContinue(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to approve tasks
-    if (!ability.can('update', 'GenAI')) {
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
 
@@ -175,10 +190,11 @@ export class GenAIController {
   })
   async abortJob(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
+    const job = await this.genAIService.getJobStatus(id);
 
-    // Check if user has permission to abort jobs
-    if (!ability.can('delete', 'GenAI')) {
-      throw new ForbiddenError('You do not have permission to abort this job');
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to abort this job');
     }
     
     await this.webhookService.abortJob(id);
@@ -198,9 +214,11 @@ export class GenAIController {
   async rerunTask(@Params() params: GenAIIdParams, @Body() body: RerunTaskBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
     const userId = user._id.toString();
-    // Check if user has permission to rerun tasks
-    if (!ability.can('update', 'GenAI')) {
-      throw new ForbiddenError('You do not have permission to rerun tasks in this job');
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
 
     await this.genAIService.rerunTask(id, userId, body.usePrevious, body.parameters);
@@ -227,8 +245,10 @@ export class GenAIController {
   })
   async editSegmentMap(@Params() params: GenAIIdParams, @Body() body: EditSegmentMapBody, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
-    // Check if user has permission to edit segment map
-    if (!ability.can('update', 'GenAI')) {
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to edit the segment map of this job');
     }
     
@@ -257,8 +277,10 @@ export class GenAIController {
   async editQuestionData(@Params() params: GenAIIdParams, @Body() body: EditQuestionData, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
     const { questionData, index } = body;
-    // Check if user has permission to edit question data
-    if (!ability.can('update', 'GenAI')) {
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to edit question data of this job');
     }
 
@@ -266,22 +288,56 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
+    summary: 'Edit transcript',
+    description: 'Edits the transcript of a job.',
   })
-  @Post("/jobs/:id/live")
-  // SSE responses are handled differently, so no standard response schema
+  @Patch("/jobs/:id/edit/transcript")
+  @Authorized()
+  @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async getLiveUpdates(@Params() params: GenAIIdParams) {
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ForbiddenError, {
+    description: 'Forbidden Error',
+    statusCode: 403,
+  })
+  async editTranscript(@Params() params: GenAIIdParams, @Body() body: EditTranscript, @Ability(getGenAIAbility) {ability}) {
     const { id } = params;
-    
-    // In a real implementation, we would set up SSE
-    return { 
-      jobId: id, 
-      message: "Live connection established" 
-    };
+    const { transcript, index } = body;
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to edit transcript of this job');
+    }
+
+    await this.genAIService.editTranscript(id, transcript, index);
+  }
+
+  @OpenAPI({
+    summary: 'Get live status updates',
+    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
+  })
+  @Get("/:id/live")
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  async getLiveUpdates(
+    @Params() params: GenAIIdParams,
+    @Res() res: Response,
+    @Req() req: Request
+  ) {
+    const { id } = params;
+    this.sseService.init(
+      req as unknown as ExpressRequest,
+      res as unknown as ExpressResponse,
+      id
+    );
   }
 }

@@ -1,5 +1,7 @@
 import {ObjectId} from 'mongodb';
 import {ProctoringComponent} from '../database/index.js';
+import { Type } from 'class-transformer';
+import { IsOptional, IsInt, Min } from 'class-validator';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -419,7 +421,19 @@ export interface ICourseSetting {
   settings: ISettings;
 }
 
-// Interface for User Specific Anomalies
+export class PaginationQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+}
 
 export interface IUserAnomaly {
   _id?: string | ObjectId | null;

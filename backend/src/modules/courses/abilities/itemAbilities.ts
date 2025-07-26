@@ -64,6 +64,7 @@ export async function setupItemAbilities(
                 can(ItemActions.Create, 'Item', versionBounded);
                 can(ItemActions.Modify, 'Item', versionBounded);
                 can(ItemActions.Delete, 'Item', versionBounded);
+                can(ItemActions.View, 'Item', versionBounded);
                 can(ItemActions.ViewAll, 'Item', versionBounded);
                 break;
             case 'MANAGER':

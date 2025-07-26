@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import { JobState } from '../classes/transformers/GenAI.js';
 import { aiConfig } from '#root/config/ai.js';
 import { SocksProxyAgent } from 'socks-proxy-agent';
+import { appConfig } from '#root/config/index.js';
 
 @injectable()
 export class WebhookService {
@@ -12,7 +13,7 @@ export class WebhookService {
   constructor() {
     this.aiServerUrl = 'http://' + aiConfig.serverIP + ':' + aiConfig.serverPort;
 
-    const agent = aiConfig.proxyAddress ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
+    const agent = appConfig.isProduction || appConfig.isStaging ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
 
     this.httpClient = axios.create({
       httpAgent: agent,

@@ -21,7 +21,7 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
-import { ICourseVersion, ProgressRepository } from '#root/shared/index.js';
+import { ICourseVersion, ItemType, ProgressRepository } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 
 @injectable()
@@ -128,7 +128,7 @@ export class ItemService extends BaseService {
           'Persistence of item-specific details failed in the repository.',
         );
       }
-
+      createdItemDetailsPersistenceResult._id = createdItemDetailsPersistenceResult._id.toString();
       if (version.totalItems) {
         version.totalItems += 1; // Increment the total items count in the version.
       } else {
@@ -136,11 +136,12 @@ export class ItemService extends BaseService {
           version.courseId.toString(),
           version._id.toString(),
           session,
-        )
+        );
       }
 
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
+      newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
 
       //Step 5: Save the modified 'itemsGroup' (now containing the new item) back to the database.
@@ -186,38 +187,34 @@ export class ItemService extends BaseService {
 
   public async updateItem(
     versionId: string,
-    moduleId: string,
-    sectionId: string,
     itemId: string,
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      const module = version.modules.find(m => m.moduleId === moduleId)!;
-      const section = module.sections.find(s => s.sectionId === sectionId)!;
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        section.itemsGroupId.toString(),
+      const item = await this.itemRepo.readItem(
+        versionId,
+        itemId,
         session,
       );
-
-      const item = itemsGroup.items.find(i => i._id.toString() === itemId)!;
-      Object.assign(item, body);
-      section.updatedAt = new Date();
-      module.updatedAt = new Date();
+      if (!item) throw new NotFoundError(`Item ${itemId} not found in version ${versionId}.`);
+      if (item.type !== body.type) {
+        throw new InternalServerError(
+          `Item type mismatch: expected ${item.type}, got ${body.type}.`,
+        );
+      }
+      const result = await this.itemRepo.updateItem(itemId, body, session);
       version.updatedAt = new Date();
-
-      const updatedItemsGroup = await this.itemRepo.updateItemsGroup(
-        section.itemsGroupId.toString(),
-        itemsGroup,
-        session,
-      );
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
       );
-
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update version after item update');
+      }
+      result._id = result._id.toString();
+      return result;
     });
   }
 
@@ -241,11 +238,6 @@ export class ItemService extends BaseService {
       }
       await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
-      const updatedItemsGroup = await this.itemRepo.readItemsGroup(
-        itemsGroupId,
-        session,
-      );
-
       const updatedVersion = await this.courseRepo.updateVersion(
         version._id.toString(),
         version,
@@ -255,8 +247,8 @@ export class ItemService extends BaseService {
       if (!updatedVersion) {
         throw new InternalServerError('Failed to update version after item deletion');
       }
-
-      return {deletedItemId: itemId, itemsGroup: updatedItemsGroup};
+      deleted._id = deleted._id.toString();
+      return {deletedItemId: itemId, itemsGroup: deleted};
     });
   }
 
@@ -318,6 +310,10 @@ export class ItemService extends BaseService {
     const version = await this.courseRepo.findVersionByItemGroupId(
       itemGroupId,
     );
+    if (!version) {
+      throw new NotFoundError(`Version for item group ${itemGroupId} not found`);
+    }
+    console.log(version)
     return version;
   }
 
@@ -332,6 +328,9 @@ export class ItemService extends BaseService {
     return this._withTransaction(async session => {
       // Step 1: Find itemsGroup containing the item
       const itemsGroup = await this.itemRepo.findItemsGroupByItemId(itemId, session);
+      if (!itemsGroup) {
+        throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
+      }
       const itemsGroupId = itemsGroup?._id.toString();
       // Step 2: Find version using existing function
       const version = await this.courseRepo.findVersionByItemGroupId(itemsGroupId, session);

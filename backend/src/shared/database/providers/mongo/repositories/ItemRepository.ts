@@ -14,6 +14,7 @@ import {
   BlogItem,
   Item,
 } from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -118,7 +119,7 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup | null> {
     await this.init();
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      { 'items._id': new ObjectId(itemId) },
+      { 'items._id': itemId },
       { session }
     );
     
@@ -212,14 +213,9 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
-  async updateItem(item: Item, session?: ClientSession): Promise<Item> {
+  async updateItem(itemId: string, item: UpdateItemBody, session?: ClientSession): Promise<Item> {
     await this.init();
-
-    const {_id, type} = item;
-    if (!_id) {
-      throw new InternalServerError('Item ID is required for update.');
-    }
-
+    const type = item.type;
     let collection: Collection<any>;
     switch (type) {
       case ItemType.VIDEO:
@@ -237,8 +233,8 @@ export class ItemRepository implements IItemRepository {
         );
     }
 
-    const result = await collection.updateOne(
-      {_id: new ObjectId(_id)},
+    const result = await collection.findOneAndUpdate(
+      {_id: new ObjectId(itemId)},
       {
         $set: {
           name: item.name,
@@ -246,61 +242,44 @@ export class ItemRepository implements IItemRepository {
           details: item.details,
         },
       },
-      {session},
+      {returnDocument: 'after', session},
     );
 
-    if (result.modifiedCount === 0) {
-      throw new InternalServerError(`Failed to update item of type ${type}.`);
+    if (!result) {
+      throw new NotFoundError(`Item ${itemId} not found.`);
     }
 
-    // Also update the embedded item in the itemsGroup (for UI sync, etc.)
-    const updateInGroup = await this.itemsGroupCollection.updateOne(
-      {'items._id': new ObjectId(_id)},
-      {
-        $set: {
-          'items.$.name': item.name,
-          'items.$.description': item.description,
-          'items.$.details': item.details,
-        },
-      },
-      {session},
-    );
-
-    if (updateInGroup.modifiedCount === 0) {
-      throw new InternalServerError(
-        `Failed to update item in itemsGroup for ID ${_id}.`,
-      );
-    }
-
-    const updatedItem = await collection.findOne(
-      {_id: new ObjectId(_id)},
-      {session},
-    );
-
-    if (!updatedItem) {
-      throw new InternalServerError(
-        `Failed to fetch updated item with ID ${_id}.`,
-      );
-    }
-
-    return instanceToPlain(updatedItem) as Item;
+    return result;
   }
 
-  async deleteItem(itemGroupsId: string, itemId: string): Promise<boolean> {
+  async deleteItem(itemGroupsId: string, itemId: string, session?: ClientSession): Promise<ItemsGroup> {
     await this.init();
-    const itemsGroup = await this.readItemsGroup(itemGroupsId);
+    const itemsGroup = await this.readItemsGroup(itemGroupsId, session);
     if (!itemsGroup) {
       throw new NotFoundError('ItemsGroup not found.');
     }
-    const result = await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemGroupsId)},
-      {$pull: {items: {_id: new ObjectId(itemId)}}},
-    );
-    if (result.modifiedCount === 1) {
-      return true;
-    } else {
-      throw new NotFoundError('Failed to delete item');
+    // Find the item to delete
+    const itemIndex = itemsGroup.items.findIndex(item => item._id.toString() === itemId);
+    if (itemIndex === -1) {
+      throw new NotFoundError(`Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`);
     }
+    // If the item is a video, delete it from the video collection
+    if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
+      await this.videoCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
+      await this.quizCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
+      await this.blogCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+    } else {
+      throw new InternalServerError(`Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`);
+    }
+    itemsGroup.items.splice(itemIndex, 1);
+    await this.itemsGroupCollection.updateOne(
+      {_id: new ObjectId(itemGroupsId)},
+      {$set: {items: itemsGroup.items}},
+      {session},
+    );
+    return itemsGroup;
   }
 
   async getFirstOrderItems(
