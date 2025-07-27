@@ -2163,7 +2163,7 @@ export function useSubmitFlag(): {
   };
 }
 
-export function useGetReports(courseId: string, versionId: string, entityType?: string, status?: string, limit = 10, currentPage = 1): {
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, entityType?: string, status?: string,): {
   data: IReport[],
   isLoading: boolean,
   error: string | null,

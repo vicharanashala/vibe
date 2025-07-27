@@ -24,6 +24,7 @@ import { ReportStatus } from "@/types/reports.types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
+import { Pagination } from "@/components/ui/Pagination"
 
 
 export default function FlaggedList() {
@@ -39,9 +40,9 @@ export default function FlaggedList() {
     navigate({ to: '/teacher/courses/list' });
     return null
   }
-
+ const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
-  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "")
+  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",10,currentPage)
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
@@ -61,12 +62,14 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   // Show all reports regardless 
 
   const reports = flagsData?.reports || []
+  const totalPages = flagsData?.totalPages || 1
+  const totalDocuments = flagsData?.totalDocuments || 0
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  console.log("Sorted Users:", reports)
+  console.log("Sorted Users:", flagsData)
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
@@ -75,6 +78,12 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
     } else {
       setSortBy(column)
       setSortOrder('asc')
+    }
+  }
+
+    const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
     }
   }
 
@@ -361,6 +370,14 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                   selectedStatus={selectedReport?.status}
                   
                 />
+                {totalPages > 1 && (
+                          <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={totalDocuments}
+                            onPageChange={handlePageChange}
+                          />
+                        )}
       </div>
     </div>
 
