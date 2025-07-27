@@ -6,7 +6,7 @@ import { Select,
   SelectValue,
   SelectContent,
   SelectItem, } from './ui/select';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type FlagModalProps = {
   open: boolean;
@@ -14,6 +14,7 @@ type FlagModalProps = {
   onSubmit: (reason: string,status?:string) => void;
   isSubmitting?: boolean;
  teacher?:boolean
+ selectedStatus?:string
 };
 
 const Teacher ={
@@ -40,11 +41,11 @@ export const FlagModal = ({
   open,
   onOpenChange,
   onSubmit,
-  isSubmitting = false,teacher = false
+  isSubmitting = false,teacher = false,selectedStatus=statusTypes[0].key
 }: FlagModalProps) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [status, setStatus] = useState("REPORTED");
+  const [status, setStatus] = useState(selectedStatus);
 
 const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
@@ -66,7 +67,11 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     
     setReason('');
   };
- 
+
+  useEffect(()=>{
+setStatus(selectedStatus)
+  },[selectedStatus])
+ console.log(status)
   return (
     <Dialog open={open} onOpenChange={onOpenChange} >
       <DialogContent className="sm:max-w-[425px] mx-2"

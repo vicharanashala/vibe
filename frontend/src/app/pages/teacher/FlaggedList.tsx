@@ -53,7 +53,8 @@ export default function FlaggedList() {
 
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
 
-  const [selectedReportId, setSelectedReportId] = useState<string>("")
+const [selectedReport, setSelectedReport] = useState<{ id: string; status: string } | null>(null);
+
   // Show all reports regardless 
 
   const reports = flagsData?.reports || []
@@ -202,11 +203,13 @@ export default function FlaggedList() {
                       <TableRow
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
-                        onClick={()=>{
-                           setSelectedReportId((prevId) =>
-    prevId === report._id ? null : report._id
-  );
-                                                  }}
+                         onClick={() => {
+    if (selectedReport?.id === report._id) {
+      setSelectedReport(null); // toggle off
+    } else {
+      setSelectedReport({ id: report._id, status: report.latestStatus });
+    }
+  }}
                       >
                         <TableCell className="pl-6 py-6">
                           <span>{report.reason}</span>
@@ -253,7 +256,7 @@ export default function FlaggedList() {
                               size="sm"
                               onClick={() =>
                                {setUpdateStatusModalOpen(true);
-                                setSelectedReportId(report.id)
+                                setSelectedReport({ id: report._id, status: report.latestStatus });
                                }
                               }
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
@@ -267,13 +270,13 @@ export default function FlaggedList() {
                        <TableCell>
                         <ChevronDown
         className={`h-5 w-5 text-muted-foreground transform transition-transform duration-200 ${
-          selectedReportId ===report._id ? "rotate-180" : ""
+          selectedReport?.id ===report._id ? "rotate-180" : ""
         }`}
       />
                        </TableCell>
                       </TableRow>
                       <TableRow>
-                         {selectedReportId ===report._id&&<TableCell>
+                         {selectedReport?.id ===report._id&&<TableCell>
                           <Card className="w-full bg-card/50 border-l-4 border-l-primary/40 hover:shadow-md transition-all duration-200">
   <CardContent className="p-6">
     <h4 className="text-lg font-semibold text-foreground mb-4">Flag History</h4>
@@ -333,6 +336,7 @@ export default function FlaggedList() {
                   onSubmit={handleStatusUpdate}
                   isSubmitting={false}
                   teacher={true}
+                  selectedStatus={selectedReport?.status}
                   
                 />
       </div>
