@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { redirect, useNavigate } from "@tanstack/react-router"
-import { Users, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown,Pencil } from 'lucide-react'
+import {  useNavigate } from "@tanstack/react-router"
+import { Users, Loader2,  ChevronDown, ArrowUp, ArrowDown,Pencil } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -15,20 +14,18 @@ import {
   useGetReports,
    useCourseById,
   useCourseVersionById,
-  useItemsBySectionId,
-  useCourseVersionEnrollments,
-  useResetProgress,
-  useUnenrollUser,
+ 
   useUpdateReportStatus
 } from "@/hooks/hooks"
 import { useFlagStore } from "@/store/flag-store"
-import type { EnrolledUser } from "@/types/course.types"
+import { useQueryClient } from "@tanstack/react-query"
 import { FlagModal } from "@/components/FlagModal"
 import { ReportStatus } from "@/types/reports.types"
 
 
 export default function FlaggedList() {
   const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
   // Get course info from store
   const { currentCourseFlag } = useFlagStore()
@@ -45,7 +42,7 @@ export default function FlaggedList() {
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
-    mutate,
+    mutateAsync,
     isPending,
     isSuccess,
     isError,
@@ -53,62 +50,18 @@ export default function FlaggedList() {
     reset
   } = useUpdateReportStatus();
 
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
-  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
-  const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
-  const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
-  const [selectedModule, setSelectedModule] = useState<string>("")
-  const [selectedSection, setSelectedSection] = useState<string>("")
-  const [selectedItem, setSelectedItem] = useState<string>("")
 
-  // New states for view progress functionality
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
-  const [selectedViewItem, setSelectedViewItem] = useState<string>("")
-  const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
-  const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
   const [selectedReportId, setSelectedReportId] = useState<string>("")
+  // Show all reports regardless 
 
-  // Fetch enrollments data
-  const {
-    data: enrollmentsData,
-    isLoading: enrollmentsLoading,
-    error: enrollmentsError,
-    refetch: refetchEnrollments,
-  } = useCourseVersionEnrollments(courseId, versionId, 1, 100, !!(courseId && versionId))
-
-
-  // Show all enrollments regardless of role or status
-  const studentEnrollments = enrollmentsData?.enrollments || []
   const reports = flagsData?.reports || []
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  const filteredUsers = studentEnrollments;
-
-
-  // Sorting logic
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (sortBy === 'name') {
-      const nameA = ((a.user?.firstName || '') + ' ' + (a.user?.lastName || '')).toLowerCase()
-      const nameB = ((b.user?.firstName || '') + ' ' + (b.user?.lastName || '')).toLowerCase()
-      if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1
-      if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    } else if (sortBy === 'enrollmentDate') {
-      const dateA = new Date(a.enrollmentDate).getTime()
-      const dateB = new Date(b.enrollmentDate).getTime()
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
-    } else if (sortBy === 'progress') {
-      const progA = (a.progress?.percentCompleted || 0)
-      const progB = (b.progress?.percentCompleted || 0)
-      return sortOrder === 'asc' ? progA - progB : progB - progA
-    }
-    return 0
-  })
   console.log("Sorted Users:", reports)
 
   // Sorting handler
@@ -124,8 +77,7 @@ export default function FlaggedList() {
     // Flag handling function
   const handleStatusUpdate = async (comment: string,status:ReportStatus) => {
     try {
-      console.log(comment,status,selectedReportId)
-     mutate({
+           mutateAsync({
   params: {
     path: {
       reportId: selectedReportId,
@@ -135,7 +87,11 @@ export default function FlaggedList() {
     status: status,
     comment: comment,
   },
-});
+}).then(()=>{
+   queryClient.invalidateQueries({ 
+      queryKey: ['get', '/reports/{courseId}/{versionId}'] 
+    })
+})
      
     }catch(error){
 
@@ -143,28 +99,11 @@ export default function FlaggedList() {
     }
   };
 
-  useEffect(() => {
-    if (isResetDialogOpen) {
-      setResetScope("course")
-      setSelectedModule("")
-      setSelectedSection("")
-      setSelectedItem("")
-    }
-  }, [isResetDialogOpen])
 
-  useEffect(() => {
-    if (isViewProgressDialogOpen) {
-      setExpandedModules(new Set())
-      setExpandedSections(new Set())
-      setSelectedViewItem("")
-      setSelectedViewItemType("")
-      setSelectedViewItemName("")
-    }
-  }, [isViewProgressDialogOpen])
 
 
   // Loading state
-  if (courseLoading  || enrollmentsLoading || reportLoading) {
+  if (courseLoading  ||  reportLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -236,6 +175,7 @@ export default function FlaggedList() {
                     <TableRow className="border-border bg-muted/30">
                       {[
                         { key: 'reason', label: 'Reason', className: 'pl-6 w-[300px]' },
+                          { key: 'status', label: 'Latest satus', className: 'w-[120px]' },
                         { key: 'reportedBy', label: 'Reported by', className: 'w-[120px]' },
                         { key: 'createdDate', label: 'Reported on', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
@@ -270,6 +210,9 @@ export default function FlaggedList() {
                       >
                         <TableCell className="pl-6 py-6">
                           <span>{report.reason}</span>
+                                       </TableCell>
+                                       <TableCell className="pl-6 py-6">
+                          <span>{report.latestStatus}</span>
                                        </TableCell>
                         <TableCell className="py-6">
                            
@@ -356,6 +299,7 @@ export default function FlaggedList() {
                 {/* <p className="text-sm text-muted-foreground">{item.user.email}</p> */}
               </div>
             </div>
+            <p className="text-sm text-muted-foreground">{item.status}</p>
             <p className="text-sm text-muted-foreground whitespace-nowrap">
               {new Date(item.createdAt).toLocaleDateString("en-US", {
                 year: "numeric",

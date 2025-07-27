@@ -74,10 +74,15 @@ class ReportRepository {
           },
           status: {
             $sortArray: {
-              input: "$status",
-              sortBy: { createdAt: -1 }
-            }
-          }
+              input: '$status',
+              sortBy: { createdAt: -1 },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          latestStatus: { $arrayElemAt: ['$status.status', 0] },
         },
       },
       {
@@ -85,7 +90,8 @@ class ReportRepository {
           reportedByUser: 0,
         },
       },
-    ];
+    ]
+
 
     const [totalDocuments, reports] = await Promise.all([
       this.reportCollection.countDocuments(query, { session }),
