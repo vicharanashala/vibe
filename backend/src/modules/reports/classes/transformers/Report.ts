@@ -7,9 +7,9 @@ import {
   ReportStatus,
   StringToObjectId,
 } from '#root/shared/index.js';
-import {Expose, Transform, Type} from 'class-transformer';
-import {IsEnum, IsIn, IsString, ValidateNested} from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { Expose, Transform, Type } from 'class-transformer';
+import { IsEnum, IsIn, IsString, ValidateNested } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 import {
   EntityTypeEnum,
   REPORT_STATUS_VALUES,
@@ -19,8 +19,8 @@ import {
   ReportBody,
   UpdateReportStatusBody,
 } from '../validators/ReportValidators.js';
-import {UnauthorizedError} from 'routing-controllers';
-import {ObjectId} from 'mongodb';
+import { UnauthorizedError } from 'routing-controllers';
+import { ObjectId } from 'mongodb';
 
 class ReportStatusEntry implements IStatus {
   @Expose()
@@ -70,8 +70,8 @@ class Report implements IReport {
     example: '60d5ec49b3f1c8e4a8f8b8d1',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -81,8 +81,8 @@ class Report implements IReport {
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   courseId: ID;
 
   @Expose()
@@ -92,8 +92,8 @@ class Report implements IReport {
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   versionId: ID;
 
   @Expose()
@@ -104,8 +104,8 @@ class Report implements IReport {
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   entityId: ID;
 
   @Expose()
@@ -125,8 +125,8 @@ class Report implements IReport {
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   reportedBy: ID;
 
   @Expose()
@@ -139,7 +139,7 @@ class Report implements IReport {
   reason: string;
 
   @Expose()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => ReportStatusEntry)
   @JSONSchema({
     title: 'Status History',
@@ -152,8 +152,8 @@ class Report implements IReport {
           type: 'string',
           enum: REPORT_STATUS_VALUES,
         },
-        comment: {type: 'string'},
-        timestamp: {type: 'string', format: 'date-time'},
+        comment: { type: 'string' },
+        timestamp: { type: 'string', format: 'date-time' },
       },
     },
   })
@@ -198,7 +198,7 @@ class Report implements IReport {
       this.status = [
         new ReportStatusEntry(
           ReportStatusEnum.REPORTED,
-          'Initial report created',
+          'Entity flagged',
         ),
       ];
     } else {
@@ -211,4 +211,4 @@ class Report implements IReport {
   }
 }
 
-export {Report, ReportStatusEntry};
+export { Report, ReportStatusEntry };
