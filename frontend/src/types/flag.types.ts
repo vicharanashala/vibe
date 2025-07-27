@@ -37,14 +37,14 @@ export interface IStatus {
 }
 
 export interface IReport {
-    _id?: string ;
-    courseId?: string | components['schemas']['CourseDataResponse'];
-    versionId?: string ;
-    entityId?: string ;
-    entityType?: EntityType;
-    reportedBy?: string | components['schemas']['UserByFirebaseUIDResponse'];
-    reason?: string;
-    status?: IStatus[];
-    createdAt?: Date;
-    updatedAt?: Date;
+    _id: string ;
+    courseId: string | components['schemas']['CourseDataResponse'];
+    versionId: string ;
+    entityId: string ;
+    entityType: EntityType;
+    reportedBy: string | components['schemas']['UserByFirebaseUIDResponse'];
+    reason: string;
+    status: IStatus[];
+    createdAt: Date;
+    updatedAt: Date;
 }

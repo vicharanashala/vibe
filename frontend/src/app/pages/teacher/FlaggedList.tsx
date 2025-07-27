@@ -21,6 +21,9 @@ import { useFlagStore } from "@/store/flag-store"
 import { useQueryClient } from "@tanstack/react-query"
 import { FlagModal } from "@/components/FlagModal"
 import { ReportStatus } from "@/types/reports.types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 
 
 export default function FlaggedList() {
@@ -75,32 +78,38 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
     }
   }
 
-    // Flag handling function
-  const handleStatusUpdate = async (comment: string,status:ReportStatus) => {
-    try {
-           mutateAsync({
-  params: {
-    path: {
-      reportId: selectedReportId,
-    },
-  },
-  body: {
-    status: status,
-    comment: comment,
-  },
-}).then(()=>{
-   queryClient.invalidateQueries({ 
-      queryKey: ['get', '/reports/{courseId}/{versionId}'] 
-    })
-})
-     
-    }catch(error){
+ // Flag handling function
+ const handleStatusUpdate = async (comment: string, status: ReportStatus) => {
+  if (!selectedReport) {
+    console.warn("Reported data is not defined", selectedReport);
+    return;
+  }
+  try {
+    await mutateAsync({
+      params: {
+        path: {
+          reportId: selectedReport.id,
+        },
+      },
+      body: {
+        status,
+        comment,
+      },
+    });
 
-    } finally { setUpdateStatusModalOpen(false);
-    }
-  };
+    await queryClient.invalidateQueries({
+      queryKey: ['get', '/reports/{courseId}/{versionId}'],
+    });
 
-
+    toast.success("Status updated successfully");
+  } catch (error) {
+    toast.error("Failed to update status");
+    console.error("Error while updating report status:", error);
+  } finally {
+    setUpdateStatusModalOpen(false);
+    setSelectedReport(null)
+  }
+};
 
 
   // Loading state
@@ -204,12 +213,12 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
                          onClick={() => {
-    if (selectedReport?.id === report._id) {
-      setSelectedReport(null); // toggle off
-    } else {
-      setSelectedReport({ id: report._id, status: report.latestStatus });
-    }
-  }}
+                          if (selectedReport?.id === report._id) {
+                            setSelectedReport(null); 
+                          } else {
+                            setSelectedReport({ id: report._id, status: report.latestStatus });
+                          }
+                        }}
                       >
                         <TableCell className="pl-6 py-6">
                           <span>{report.reason}</span>
@@ -251,7 +260,8 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                         </TableCell>
                         <TableCell className="py-6 pr-6">
                           <div className="flex items-center gap-3">
-                            <Button
+                            {report.latestStatus!=="DISCARDED" && report.latestStatus!=="CLOSED" &&
+                              <Button
                               variant="ghost"
                               size="sm"
                               onClick={() =>
@@ -264,6 +274,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                               <Pencil className="h-4 w-4 mr-2" />
                              Update Status
                             </Button>
+                          }
                            
                           </div>
                         </TableCell>
@@ -276,52 +287,69 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                        </TableCell>
                       </TableRow>
                       <TableRow>
-                         {selectedReport?.id ===report._id&&<TableCell>
-                          <Card className="w-full bg-card/50 border-l-4 border-l-primary/40 hover:shadow-md transition-all duration-200">
-  <CardContent className="p-6">
-    <h4 className="text-lg font-semibold text-foreground mb-4">Flag History</h4>
-    <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
-      {report.status.length>0&&report.status.map((item) => (
-        <div key={item.id} className="relative">
-          {/* Dot */}
-          <div className="absolute -left-[13px] top-1.5 w-3 h-3 bg-primary border-2 border-white rounded-full shadow" />
+                         {selectedReport?.id === report._id && (
+  <Dialog open={selectedReport?.id === report._id} onOpenChange={() => setSelectedReport(null)}>
+    <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+      <DialogHeader>
+        <DialogTitle className="mb-3 md:mb-5 underline">Flag History</DialogTitle>
+      </DialogHeader>
+      <ScrollArea className="h-[65vh] pr-4">
+        <Card className="bg-card/50 border-l-4 border-l-primary/40">
+          <CardContent className="p-6">
+            <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
+              {report.status.length > 0 && report.status.map((item,index) => (
+              <div key={item.id} className="relative pb-6 last:pb-0 group">
+                  {!(index+1 === report.status.length) && (
+                    <div className="absolute -left-[9px] top-4 bottom-0 w-0.5 bg-primary/30"></div>
+                  )}
+                  <div className="absolute -left-[13px] top-1.5 z-10 w-3.5 h-3.5 bg-primary border-2 border-background rounded-full shadow-md" />
 
-          {/* User Info + Comment */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              {/* <Avatar className="h-10 w-10 border shadow">
-                <AvatarImage src="/placeholder.svg" alt={item.user.firstName} />
-                <AvatarFallback className="bg-primary text-white font-bold">
-                  {(item.user.firstName?.[0] ?? "?") + (item.user.lastName?.[0] ?? "")}
-                </AvatarFallback>
-              </Avatar> */}
-              <div>
-                <p className="font-semibold text-foreground leading-tight">
-                  {/* {item.user.firstName + " " + item.user.lastName} */}
-                </p>
-                {/* <p className="text-sm text-muted-foreground">{item.user.email}</p> */}
-              </div>
+                  <div className="bg-background/80 group-hover:bg-accent/50 transition-colors duration-200 rounded-lg p-4  border border-border/50 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          item.status === 'RESOLVED' ? 'bg-green-100 text-green-800' : 
+                          item.status === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800' : 
+                          item.status === 'DISCARDED' ? 'bg-red-100 text-red-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+    
+                      <div className="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" fill="none"                 viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(item.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pl-1 border-l-2 border-accent/30 pl-3 py-1">
+                      <p className="text-sm text-foreground">
+                        {item.comment || (
+                          <span className="italic text-muted-foreground/70">No additional comments</span>
+                        )}
+                      </p>
+                    </div>
+                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border/30 to-transparent"></div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="text-sm text-muted-foreground">{item.status}</p>
-            <p className="text-sm text-muted-foreground whitespace-nowrap">
-              {new Date(item.createdAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </div>
-
-          {/* Comment */}
-          <p className="mt-2 ml-1 text-muted-foreground">{item.comment}</p>
-        </div>
-      ))}
-    </div>
-  </CardContent>
-</Card>
-</TableCell>}
+          </CardContent>
+        </Card>
+      </ScrollArea>
+    </DialogContent>
+  </Dialog>)
+}
                       </TableRow></>
                     ))}
                   </TableBody>
