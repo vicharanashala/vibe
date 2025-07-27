@@ -30,7 +30,7 @@ buttonText:"Submit Flag",
 submittingText:"Submitting..."
 }
 
-const statusTypes = [
+const statusTypes = [{ key: 'REPORTED', label: 'REPORTED' },
   { key: 'IN_REVIEW', label: 'IN REVIEW' },
   { key: 'RESOLVED', label: 'RESOLVED' },
   { key: 'DISCARDED', label: 'DISCARDED' },
@@ -44,7 +44,7 @@ export const FlagModal = ({
 }: FlagModalProps) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [status, setStatus] = useState("IN_REVIEW");
+  const [status, setStatus] = useState("REPORTED");
 
 const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);

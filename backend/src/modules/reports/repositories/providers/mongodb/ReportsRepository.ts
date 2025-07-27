@@ -1,26 +1,26 @@
-import {IReport, IStatus} from '#shared/interfaces/index.js';
-import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId, Filter} from 'mongodb';
+import { IReport, IStatus } from '#shared/interfaces/index.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId, Filter } from 'mongodb';
 import {
   BadRequestError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   Report,
   ReportFiltersQuery,
   ReportResponse,
 } from '#root/modules/reports/classes/index.js';
-import {instanceToPlain, plainToInstance} from 'class-transformer';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
 @injectable()
 class ReportRepository {
   private reportCollection: Collection<IReport>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.reportCollection = await this.db.getCollection<IReport>('reports');
@@ -33,7 +33,7 @@ class ReportRepository {
     session?: ClientSession,
   ): Promise<ReportResponse | null> {
     await this.init();
-    const {entityType, status, limit = 10, currentPage = 1} = filters;
+    const { entityType, status, limit = 10, currentPage = 1 } = filters;
     const query: Filter<IReport> = {
       courseId: new ObjectId(courseId),
       versionId: new ObjectId(versionId),
@@ -43,10 +43,10 @@ class ReportRepository {
     const skip = (currentPage - 1) * limit;
 
     const aggregationPipeline = [
-      {$match: query},
-      {$sort: {createdAt: -1}},
-      {$skip: skip},
-      {$limit: limit},
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -63,18 +63,21 @@ class ReportRepository {
       },
       {
         $addFields: {
-          _id: {$toString: '$_id'},
-          courseId: {$toString: '$courseId'},
-          versionId: {$toString: '$versionId'},
-          entityId: {$toString: '$entityId'},
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          versionId: { $toString: '$versionId' },
+          entityId: { $toString: '$entityId' },
           reportedBy: {
-            _id: {$toString: '$reportedByUser._id'},
+            _id: { $toString: '$reportedByUser._id' },
             firstName: '$reportedByUser.firstName',
             lastName: '$reportedByUser.lastName',
           },
           status: {
-            $arrayElemAt: ['$status', -1],
-          },
+            $sortArray: {
+              input: "$status",
+              sortBy: { createdAt: -1 }
+            }
+          }
         },
       },
       {
@@ -85,8 +88,8 @@ class ReportRepository {
     ];
 
     const [totalDocuments, reports] = await Promise.all([
-      this.reportCollection.countDocuments(query, {session}),
-      this.reportCollection.aggregate(aggregationPipeline, {session}).toArray(),
+      this.reportCollection.countDocuments(query, { session }),
+      this.reportCollection.aggregate(aggregationPipeline, { session }).toArray(),
     ]);
 
     const totalPages = Math.ceil(totalDocuments / limit);
@@ -106,7 +109,7 @@ class ReportRepository {
   ): Promise<IReport | null> {
     await this.init();
     const aggregationPipeline = [
-      {$match: {_id: new ObjectId(reportId)}},
+      { $match: { _id: new ObjectId(reportId) } },
       {
         $lookup: {
           from: 'users',
@@ -161,7 +164,7 @@ class ReportRepository {
     ];
 
     const result = await this.reportCollection
-      .aggregate(aggregationPipeline, {session})
+      .aggregate(aggregationPipeline, { session })
       .toArray();
 
     const report = result[0];
@@ -181,7 +184,7 @@ class ReportRepository {
         entityId: report.entityId,
         entityType: report.entityType,
       },
-      {session},
+      { session },
     );
 
     if (existingReport) {
@@ -189,7 +192,7 @@ class ReportRepository {
         `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
       );
     }
-    const result = await this.reportCollection.insertOne(report, {session});
+    const result = await this.reportCollection.insertOne(report, { session });
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -203,15 +206,15 @@ class ReportRepository {
     }
 
     const result = await this.reportCollection.findOneAndUpdate(
-      {_id: new ObjectId(reportId)},
+      { _id: new ObjectId(reportId) },
       {
-        $push: {status: updateData},
-        $set: {updatedAt: new Date()},
+        $push: { status: updateData },
+        $set: { updatedAt: new Date() },
       },
-      {returnDocument: 'after', session},
+      { returnDocument: 'after', session },
     );
     return result;
   }
 }
 
-export {ReportRepository};
+export { ReportRepository };

@@ -124,11 +124,18 @@ export default function FlaggedList() {
     // Flag handling function
   const handleStatusUpdate = async (comment: string,status:ReportStatus) => {
     try {
-      console.log(comment,status)
-    //   mutate({
-    //   path: { reportId },
-    //   body: { status, comment }
-    // });
+      console.log(comment,status,selectedReportId)
+     mutate({
+  params: {
+    path: {
+      reportId: selectedReportId,
+    },
+  },
+  body: {
+    status: status,
+    comment: comment,
+  },
+});
      
     }catch(error){
 
@@ -336,17 +343,17 @@ export default function FlaggedList() {
           {/* User Info + Comment */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border shadow">
-                <AvatarImage src="/placeholder.svg" alt={item.user.email} />
+              {/* <Avatar className="h-10 w-10 border shadow">
+                <AvatarImage src="/placeholder.svg" alt={item.user.firstName} />
                 <AvatarFallback className="bg-primary text-white font-bold">
                   {(item.user.firstName?.[0] ?? "?") + (item.user.lastName?.[0] ?? "")}
                 </AvatarFallback>
-              </Avatar>
+              </Avatar> */}
               <div>
                 <p className="font-semibold text-foreground leading-tight">
-                  {item.user.firstName + " " + item.user.lastName}
+                  {/* {item.user.firstName + " " + item.user.lastName} */}
                 </p>
-                <p className="text-sm text-muted-foreground">{item.user.email}</p>
+                {/* <p className="text-sm text-muted-foreground">{item.user.email}</p> */}
               </div>
             </div>
             <p className="text-sm text-muted-foreground whitespace-nowrap">

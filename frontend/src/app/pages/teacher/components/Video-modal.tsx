@@ -235,10 +235,11 @@ const VideoModal: React.FC<VideoModalProps> = ({
                     >
                         Edit
                     </Button>
-                    <Button className="text-xs gap-1" variant="outline" size="sm">
+                    {/* <Button className="text-xs gap-1" variant="outline" size="sm">
                 <FlagTriangleRight className="h-4 w-4 mr-1" />
                 View Flags
-              </Button></span>
+              </Button> */}
+              </span>
                 ) : null}
                 {/* Remove Close button from here */}
             </div>

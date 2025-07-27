@@ -624,10 +624,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              <Button variant="outline" size="sm">
+              {/* <Button variant="outline" size="sm">
                 <FlagTriangleRight className="h-4 w-4 mr-2" />
                 View Flags
-              </Button>
+              </Button> */}
               <Button variant="destructive" size="sm" onClick={handleDeleteQuiz}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Quiz

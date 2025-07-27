@@ -2174,7 +2174,7 @@ export function useGetReports(courseId: string, versionId: string, entityType?: 
     "/reports/{courseId}/{versionId}",
     {
       params: {
-        path:{
+        path: {
           courseId,
           versionId
         },
@@ -2221,7 +2221,7 @@ export function useGetReportDetails(reportId: string): {
 
 export function useUpdateReportStatus(): {
   mutate: (variables: { params: { path: { reportId: string } }, body: { status: ReportStatus, comment: string } }) => void,
-  mutateAsync: (variables: { path: { reportId: string }, body: { status: ReportStatus, comment: string } }) => Promise<void>,
+  mutateAsync: (variables: { params: { path: { reportId: string } }, body: { status: ReportStatus, comment: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -2230,6 +2230,7 @@ export function useUpdateReportStatus(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
+
   const result = api.useMutation("patch", "/reports/{reportId}");
   return {
     ...result,

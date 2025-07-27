@@ -7,18 +7,18 @@ import {
   MongoDatabase,
   ReportStatus,
 } from '#root/shared/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {inject, injectable} from 'inversify';
-import {REPORT_TYPES} from '../types.js';
-import {NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { inject, injectable } from 'inversify';
+import { REPORT_TYPES } from '../types.js';
+import { NotFoundError } from 'routing-controllers';
 import {
   Report,
   ReportDataResponse,
   ReportFiltersQuery,
   ReportResponse,
 } from '../classes/index.js';
-import {ReportRepository} from '../repositories/index.js';
-import {plainToInstance} from 'class-transformer';
+import { ReportRepository } from '../repositories/index.js';
+import { plainToInstance } from 'class-transformer';
 
 @injectable()
 export class ReportService extends BaseService {
@@ -42,6 +42,7 @@ export class ReportService extends BaseService {
     reportId: string,
     status: ReportStatus,
     comment: string,
+    createdBy: string
   ): Promise<void> {
     return this._withTransaction(async session => {
       const report = await this.reportsRepository.getById(reportId, session);
@@ -50,7 +51,7 @@ export class ReportService extends BaseService {
       }
       const newStatus: IStatus = {
         status,
-        comment,
+        comment, createdBy, createdAt: new Date()
       };
       await this.reportsRepository.update(reportId, newStatus, session);
     });
