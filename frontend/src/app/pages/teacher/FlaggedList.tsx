@@ -41,7 +41,7 @@ export default function FlaggedList() {
   }
 
   // Fetch reports based on course id and version id
-  // const { data: course, isLoading: courseLoading, error: courseError } = useGetReports(courseId || "",versionId || "")
+  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "")
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
@@ -81,6 +81,7 @@ export default function FlaggedList() {
 
   // Show all enrollments regardless of role or status
   const studentEnrollments = enrollmentsData?.enrollments || []
+  const reports = flagsData?.reports || []
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
@@ -108,7 +109,7 @@ export default function FlaggedList() {
     }
     return 0
   })
-  console.log("Sorted Users:", sortedUsers)
+  console.log("Sorted Users:", reports)
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
@@ -156,7 +157,7 @@ export default function FlaggedList() {
 
 
   // Loading state
-  if (courseLoading  || enrollmentsLoading) {
+  if (courseLoading  || enrollmentsLoading || reportLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -170,14 +171,14 @@ export default function FlaggedList() {
   }
 
   // Error state
-  if (courseError || enrollmentsError || !course || !version) {
+  if (courseError || reportError || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
           <div className="text-center py-12">
             <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load course data</h3>
             <p className="text-muted-foreground mb-4">
-              {courseError  || enrollmentsError || "Course or version not found"}
+              {courseError  || reportError || "Course or version not found"}
             </p>
           </div>
         </div>
@@ -211,7 +212,7 @@ export default function FlaggedList() {
         <Card className="border-0 shadow-lg overflow-hidden">
           
           <CardContent className="p-0">
-            {sortedUsers.length === 0 ? (
+            {reports.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
@@ -250,45 +251,45 @@ export default function FlaggedList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedUsers.map((enrollment) => (<>
+                    {reports.map((report) => (<>
                       <TableRow
-                        key={enrollment._id}
+                        key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
                         onClick={()=>{
                            setSelectedReportId((prevId) =>
-    prevId === enrollment.user.userId ? null : enrollment.user.userId
+    prevId === report._id ? null : report._id
   );
                                                   }}
                       >
                         <TableCell className="pl-6 py-6">
-                          <span>{"Course questions not formatted properly"}</span>
+                          <span>{report.reason}</span>
                                        </TableCell>
                         <TableCell className="py-6">
                            
                             <div className="flex items-center gap-4">
                             <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
+                              <AvatarImage src="/placeholder.svg" alt={report.reportedBy.firstName} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                                 {[
-                                  enrollment?.user?.firstName?.[0],
-                                  enrollment?.user?.lastName?.[0],
+                                 report.reportedBy.firstName?.[0],
+                                 report.reportedBy.lastName?.[0],
                                 ]
                                   .filter(Boolean)
                                   .map((ch) => ch.toUpperCase())
-                                  .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
+                                  .join('') || (report.reportedBy.firstName?.[0]?.toUpperCase() ||report.reportedBy.lastName?.[0]?.toUpperCase() || '?')}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <p className="font-bold text-foreground truncate text-lg">
-                                {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
+                                {report.reportedBy.firstName + " " + report.reportedBy.lastName || "Unknown User"}
                               </p>
-                              <p className="text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                             
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
                           <div className="text-muted-foreground font-medium">
-                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                            {new Date(report.updatedAt).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
@@ -316,31 +317,18 @@ export default function FlaggedList() {
                        <TableCell>
                         <ChevronDown
         className={`h-5 w-5 text-muted-foreground transform transition-transform duration-200 ${
-          selectedReportId === enrollment.user.userId ? "rotate-180" : ""
+          selectedReportId ===report._id ? "rotate-180" : ""
         }`}
       />
                        </TableCell>
                       </TableRow>
                       <TableRow>
-                         {selectedReportId===enrollment.user.userId&&<TableCell>
+                         {selectedReportId ===report._id&&<TableCell>
                           <Card className="w-full bg-card/50 border-l-4 border-l-primary/40 hover:shadow-md transition-all duration-200">
   <CardContent className="p-6">
     <h4 className="text-lg font-semibold text-foreground mb-4">Flag History</h4>
     <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
-      {[
-  {
-    id: 1,
-    comment: "Flagged due to inappropriate content.",
-    user: { firstName: "John", lastName: "Doe", email: "john@example.com" },
-    createdAt: "2025-07-25T10:15:00Z",
-  },
-  {
-    id: 2,
-    comment: "Reviewed and marked for moderation.",
-    user: { firstName: "Alice", lastName: "Smith", email: "alice@example.com" },
-    createdAt: "2025-07-26T14:22:00Z",
-  },
-].map((item, idx) => (
+      {report.status.length>0&&report.status.map((item) => (
         <div key={item.id} className="relative">
           {/* Dot */}
           <div className="absolute -left-[13px] top-1.5 w-3 h-3 bg-primary border-2 border-white rounded-full shadow" />
