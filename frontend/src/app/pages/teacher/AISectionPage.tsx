@@ -100,111 +100,6 @@ interface VideoData {
   duration: number;
 }
 
-// Sample data with all question types
-const sampleVideoData: VideoData = {
-  "_id": "6831b558b4dee3410d3142eb",
-  "id": "6ab9b5c0-9acd-4479-a0f2-74e30c3e093a",
-  "filename": "video-1748088151484-122418722.mp4",
-  "originalName": "Video Editing Demo - Made with Clipchamp.mp4",
-  "mimetype": "video/mp4",
-  "size": 62955908,
-  "status": "completed",
-  "progress": 100,
-  "currentStep": "Processing completed successfully!",
-  "uploadDate": "2025-05-24T12:02:32.577Z",
-  "transcript": "Sample transcript...",
-  "segments": [
-    {
-      "id": "cc0c2bff-92d8-4fab-b256-067ef9cf6639",
-      "startTime": 0,
-      "endTime": 300,
-      "text": "Sample segment text...",
-      "questions": [
-        {
-          "id": "8a1dd040-4df7-4845-85aa-8d2d0bf6c0f0",
-          "type": "SELECT_ONE_IN_LOT",
-          "question": "What is the main purpose of the application discussed in this walkthrough?",
-          "options": [
-            "To build a simple video player",
-            "To create a scalable backend for a web-based video editor",
-            "To develop a photo editing software",
-            "To design a database management system"
-          ],
-          "correctAnswer": 1,
-          "difficulty": "medium",
-          "topic": "Application Purpose",
-          "points": 10,
-          "timeLimit": 60,
-          "hint": "Think about what the application does with videos"
-        },
-        {
-          "id": "d0fb88fc-32cf-473c-ba7c-a804fa1832b9",
-          "type": "SELECT_MANY_IN_LOT",
-          "question": "Which technologies are used in the video editor application?",
-          "options": [
-            "ExpressJS",
-            "WordPress SQL",
-            "FFmpeg",
-            "MongoDB",
-            "React"
-          ],
-          "correctAnswer": [0, 2, 4],
-          "difficulty": "easy",
-          "topic": "Technologies",
-          "points": 15,
-          "timeLimit": 90,
-          "hint": "Select all technologies mentioned in the video"
-        },
-        {
-          "id": "54cbe356-2240-41a7-a364-607a8ee62684",
-          "type": "ORDER_THE_LOTS",
-          "question": "Arrange the following steps in the correct order for video processing:",
-          "options": [
-            "Upload video",
-            "Extract metadata",
-            "Process video",
-            "Save to database",
-            "Generate output"
-          ],
-          "correctAnswer": ["Upload video", "Extract metadata", "Save to database", "Process video", "Generate output"],
-          "difficulty": "medium",
-          "topic": "Video Processing",
-          "points": 20,
-          "timeLimit": 120,
-          "hint": "Think about the logical flow of video processing"
-        },
-        {
-          "id": "6822db19-c2b6-4983-bcbf-59f220593a9a",
-          "type": "NUMERIC_ANSWER_TYPE",
-          "question": "What is the result of 15 * 3?",
-          "correctAnswer": 45,
-          "difficulty": "easy",
-          "topic": "Mathematics",
-          "points": 5,
-          "timeLimit": 30,
-          "decimalPrecision": 0,
-          "expression": "15 * 3"
-        },
-        {
-          "id": "9f3e7a1b-8c4d-4e5f-9a2b-3c4d5e6f7a8b",
-          "type": "DESCRIPTIVE",
-          "question": "Explain the main benefits of using a scalable backend for video processing.",
-          "correctAnswer": "A scalable backend allows for handling multiple video processing requests simultaneously, provides better performance under load, and can be easily expanded as user demand grows.",
-          "difficulty": "hard",
-          "topic": "Architecture",
-          "points": 25,
-          "timeLimit": 180,
-          "hint": "Consider performance, scalability, and user experience"
-        }
-      ]
-    }
-  ],
-  "createdAt": "2025-05-24T12:02:32.586Z",
-  "updatedAt": "2025-05-24T12:09:32.565Z",
-  "duration": 3000
-};
-
-// Removed fakeApiCall - now using real API calls
 
 // Stepper icons
 
@@ -226,36 +121,120 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
   return 'pending';
 };
 
-const Stepper = ({ jobStatus }: { jobStatus: any }) => (
-  <div className="flex items-center justify-between mb-8 px-2">
-    {WORKFLOW_STEPS.map((step, idx) => {
-      const status = getStepStatus(jobStatus, step.key);
-      const isLast = idx === WORKFLOW_STEPS.length - 1;
-      return (
-        <React.Fragment key={step.key}>
-          <div className="flex flex-col items-center">
-            <div
-              className={`rounded-full p-2 mb-1
-                ${status === 'completed' ? 'bg-green-600 text-white' : ''}
-                ${status === 'active' ? 'bg-blue-600 text-white animate-pulse' : ''}
-                ${status === 'failed' ? 'bg-red-600 text-white' : ''}
-                ${status === 'pending' ? 'bg-gray-700 text-gray-400' : ''}
-              `}
-              style={{ minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              {status === 'completed' ? <CheckCircle className="w-5 h-5" /> :
-                status === 'active' ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                status === 'failed' ? <XCircle className="w-5 h-5" /> :
-                step.icon}
-            </div>
-            <span className="text-xs text-center mt-1" style={{ width: 80 }}>{step.label}</span>
-          </div>
-          {!isLast && <div className="flex-1 h-1 mx-1 bg-gray-700 rounded" style={{ minWidth: 24 }} />}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
+  const Stepper = ({ jobStatus }: { jobStatus: any }) => (
+   <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
+     {/* Background gradient line */}
+     <div className="absolute top-6 left-8 right-8 h-0.5 bg-gradient-to-r from-muted via-muted to-muted rounded-full z-0" />
+     
+     {WORKFLOW_STEPS.map((step, idx) => {
+       const status = getStepStatus(jobStatus, step.key);
+       const isLast = idx === WORKFLOW_STEPS.length - 1;
+       const isCompleted = status === 'completed';
+       const isActive = status === 'active';
+       const isFailed = status === 'failed';
+       
+       return (
+         <React.Fragment key={step.key}>
+           <div className="flex flex-col items-center relative z-10 animate-step-appear">
+             {/* Step Circle */}
+             <div
+               className={`
+                 stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
+                 ${isCompleted 
+                   ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' 
+                   : isActive 
+                     ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' 
+                     : isFailed 
+                       ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' 
+                       : 'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                 }
+               `}
+               style={{ 
+                 minWidth: 48, 
+                 minHeight: 48, 
+                 display: 'flex', 
+                 alignItems: 'center', 
+                 justifyContent: 'center' 
+               }}
+             >
+               {/* Animated Icons */}
+               <div className="transition-all duration-300 ease-out">
+                 {isCompleted ? (
+                   <CheckCircle className="w-6 h-6 animate-bounce" />
+                 ) : isActive ? (
+                   <Loader2 className="w-6 h-6 animate-spin" />
+                 ) : isFailed ? (
+                   <XCircle className="w-6 h-6 animate-pulse" />
+                 ) : (
+                   <div className="transition-all duration-300 hover:scale-110">
+                     {step.icon}
+                   </div>
+                 )}
+               </div>
+             </div>
+             
+             {/* Step Label */}
+             <div className="text-center max-w-24">
+               <span className={`
+                 text-sm font-semibold transition-all duration-300 ease-out
+                 ${isCompleted 
+                   ? 'text-green-600 dark:text-green-400' 
+                   : isActive 
+                     ? 'text-blue-600 dark:text-blue-400' 
+                     : isFailed 
+                       ? 'text-red-600 dark:text-red-400' 
+                       : 'text-muted-foreground'
+                 }
+               `}>
+                 {step.label}
+               </span>
+               
+               {/* Status Indicator */}
+               {isActive && (
+                 <div className="mt-1 flex items-center justify-center">
+                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+                   <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                     Processing...
+                   </span>
+                 </div>
+               )}
+               
+               {isCompleted && (
+                 <div className="mt-1 flex items-center justify-center">
+                   <div className="w-2 h-2 bg-green-500 rounded-full" />
+                   <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                     Complete
+                   </span>
+                 </div>
+               )}
+               
+               {isFailed && (
+                 <div className="mt-1 flex items-center justify-center">
+                   <div className="w-2 h-2 bg-red-500 rounded-full" />
+                   <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                     Failed
+                   </span>
+                 </div>
+               )}
+             </div>
+           </div>
+           
+           {/* Connecting Line */}
+           {!isLast && (
+             <div className="flex-1 relative z-0">
+               <div className={`
+                 stepper-line h-0.5 mx-2 rounded-full transition-all duration-700 ease-out
+                 ${isCompleted ? 'completed' : ''}
+               `} 
+               style={{ minWidth: 32 }} 
+               />
+             </div>
+           )}
+         </React.Fragment>
+       );
+     })}
+   </div>
+ );
 
 
 function getApiUrl(path: string) {
@@ -593,6 +572,42 @@ if (task === "upload") {
             </div>
           </div>
         )}
+        {/* Show Start Transcription button for transcription task when audio extraction is completed */}
+        {task === 'transcription' && aiJobStatus?.jobStatus?.audioExtraction === 'COMPLETED' && (
+          <div className="mb-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleStartTranscription}
+                    variant="default"
+                    disabled={aiJobStatus?.jobStatus?.transcriptGeneration !== 'PENDING'}
+                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                  >
+                    Start Transcription Task
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {aiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' && (
+                    <span>
+                      Approves the transcript task. Click again when status is <b>WAITING</b> to actually start transcription.
+                    </span>
+                  )}
+                  {aiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING' && (
+                    <span>
+                      Starts the transcript generation task. Status will move to <b>RUNNING</b>.
+                    </span>
+                  )}
+                  {aiJobStatus?.jobStatus?.transcriptGeneration !== 'PENDING' && aiJobStatus?.jobStatus?.transcriptGeneration !== 'WAITING' && (
+                    <span>
+                      Transcript generation is not ready to start yet.
+                    </span>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
         {/* Always show question generation parameter inputs for 'question' task */}
         {task === 'question' && (
           <div className="flex flex-col gap-2 mb-2">
@@ -717,44 +732,44 @@ if (task === "upload") {
               // ... existing logic for other tasks ...
               handleTask(task);
             }}
-            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
-            className="flex-1"
+                          disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
+              className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
           >
             {title}
           </Button>
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
-            <div className="flex flex-row gap-3 items-center ml-4 bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-700">
+            <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-lam" className="text-[11px] font-semibold mb-1 text-gray-300">lam</label>
+                <label htmlFor="seg-lam" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">lam</label>
                 <input
                   id="seg-lam"
                   type="text"
                   value={segParams.lam}
                   onChange={e => setSegParams(p => ({ ...p, lam: parseFloat(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   style={{ fontSize: '15px' }}
                 />
               </div>
               <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-runs" className="text-[11px] font-semibold mb-1 text-gray-300">runs</label>
+                <label htmlFor="seg-runs" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">runs</label>
                 <input
                   id="seg-runs"
                   type="text"
                   value={segParams.runs}
                   onChange={e => setSegParams(p => ({ ...p, runs: parseInt(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   style={{ fontSize: '15px' }}
                 />
               </div>
               <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-noiseId" className="text-[11px] font-semibold mb-1 text-gray-300">noiseId</label>
+                <label htmlFor="seg-noiseId" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">noiseId</label>
                 <input
                   id="seg-noiseId"
                   type="text"
                   value={segParams.noiseId}
                   onChange={e => setSegParams(p => ({ ...p, noiseId: parseInt(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-600 bg-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   style={{ fontSize: '15px' }}
                 />
               </div>
@@ -871,18 +886,41 @@ if (task === "upload") {
                       run.parameters.noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {run.parameters.noiseId}</span>) : undefined,
                     ].filter((x): x is React.ReactNode => x != null)
                   : [];
+              // --- Fix for readable parameters display for question task ---
+              let readableParams: React.ReactNode = null;
+              if (task === "question" && run.parameters && typeof run.parameters === 'object') {
+                const paramKeys = Object.keys(run.parameters);
+                const mainKeys = ["model", "SQL", "SML", "NAT", "DES"];
+                const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
+                readableParams = (
+                  <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
+                      {mainKeys.map(key =>
+                        key in run.parameters ? (
+                          <div key={key}><strong>{key}:</strong> {run.parameters[key]}</div>
+                        ) : null
+                      )}
+                    </div>
+                    {promptKey && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <strong>prompt:</strong> {run.parameters[promptKey]}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <AccordionItem key={run.id} value={run.id} className="border rounded my-2">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                       <span>Run {index + 1}</span>
-                    <span className="text-sm text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
                     {getStatusIcon(run.status)}
                     {acceptedRunId === run.id && <span className="text-blue-500">Accepted</span>}
                   </AccordionTrigger>
                   <AccordionContent className="px-2 pb-2">
                       {run.parameters && (
-                        <div className="text-sm text-muted-foreground flex flex-wrap gap-4 mb-2">
-                          {task === "segmentation" ? segParamsNodes : (
+                        <div className="text-sm text-gray-600 dark:text-muted-foreground flex flex-wrap gap-4 mb-2">
+                          {task === "segmentation" ? segParamsNodes : readableParams || (
                             <span><strong>Parameters:</strong> {JSON.stringify(run.parameters)}</span>
                           )}
                         </div>
@@ -898,7 +936,7 @@ if (task === "upload") {
                           : <RunTranscriptSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
                       )}
                       {run.status === "failed" && (
-                        <div className="text-sm text-red-500">
+                        <div className="text-sm text-red-600 dark:text-red-500">
                           This run failed. Try running the task again.
                         </div>
                       )}
@@ -1463,13 +1501,13 @@ if (task === "upload") {
 
     return (
       <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="w-full">
-          {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
-        </Button>
-        {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="w-full">
-          Edit
-        </Button>
+                 <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+            {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
+          </Button>
+          {/* Edit button for transcript run */}
+         <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+            Edit
+          </Button>
         {/* Edit Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="max-w-lg">
@@ -1505,10 +1543,10 @@ if (task === "upload") {
           </DialogContent>
         </Dialog>
         {showTranscript && (
-          <div className="bg-gray-900 text-gray-100 p-3 rounded max-h-48 overflow-y-auto text-sm border border-gray-700">
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-48 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700">
             <strong>Transcript:</strong>
             {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-400">{error}</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && (
               <div className="mt-2 whitespace-pre-line">
                 {transcriptChunks
@@ -1678,7 +1716,7 @@ if (task === "upload") {
             size="sm"
             variant="secondary"
             onClick={handleShowSegmentation}
-            className="w-full"
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
             {showSegmentation ? 'Hide Segmentation' : 'Show Segmentation'}
@@ -1688,7 +1726,7 @@ if (task === "upload") {
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="w-full"
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
             Edit
@@ -1736,7 +1774,7 @@ if (task === "upload") {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="text-xs text-gray-300 bg-gray-800 rounded p-2 mt-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
                         {segText}
                       </div>
                     </div>
@@ -1746,16 +1784,28 @@ if (task === "upload") {
               </div>
             )}
             <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveEditSeg} disabled={editLoading}>Save</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setEditModalOpen(false)}
+                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveEditSeg} 
+                disabled={editLoading}
+                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                Save
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
         {showSegmentation && (
-          <div className="bg-gray-900 text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-700 mt-2">
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
             <strong>Segments:</strong>
             {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-400">{error}</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {/* Enhanced display: segmentationMap + transcript chunks */}
             {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
               <ol className="mt-2 space-y-4">
@@ -1763,10 +1813,10 @@ if (task === "upload") {
                   const start = idx === 0 ? 0 : segmentationMap[idx - 1];
                   const segChunks = segmentationChunks[idx] || [];
                   return (
-                    <li key={idx} className="border-b border-gray-700 pb-2">
+                    <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
                       <div><b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}s</div>
                       {segChunks.length > 0 ? (
-                        <div className="text-xs text-gray-300 mt-1">
+                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                           {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
                         </div>
                       ) : null}
@@ -1779,9 +1829,9 @@ if (task === "upload") {
             {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
               <ol className="mt-2 space-y-2">
                 {segments.map((seg, idx) => (
-                  <li key={idx} className="border-b border-gray-700 pb-1">
+                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
                     <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
-                    <div className="text-xs text-gray-300">{seg.text}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
                   </li>
                 ))}
               </ol>
@@ -1794,7 +1844,7 @@ if (task === "upload") {
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="w-full mt-2"
+            className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
             Edit Segments
           </Button>
@@ -1803,7 +1853,7 @@ if (task === "upload") {
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
             Accept This Run
           </Button>
@@ -1944,14 +1994,142 @@ if (task === "upload") {
 
     return (
       <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="w-full">
+        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
           {showQuestions ? 'Hide Questions' : 'Show Questions'}
         </Button>
+        {/* Export PDF Button: appears below Show Questions, opens print-friendly HTML in new tab */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          onClick={async () => {
+            if (!aiJobId) return;
+            try {
+              // Fetch question generation status for this run
+              const token = localStorage.getItem('firebase-auth-token');
+              const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+              const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (!res.ok) throw new Error('Failed to fetch task status');
+              const arr = await res.json();
+              const idx = typeof runIndex === 'number' ? runIndex : 0;
+              if (Array.isArray(arr) && arr.length > idx && arr[idx]?.fileUrl) {
+                // Fetch the JSON content
+                const questionsRes = await fetch(arr[idx].fileUrl);
+                if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
+                const data = await questionsRes.json();
+                let questionsArr = [];
+                if (Array.isArray(data)) {
+                  questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
+                } else if (data.segments && Array.isArray(data.segments)) {
+                  questionsArr = data.segments.flatMap((seg: any) => seg.questions || []);
+                } else {
+                  toast.error('Questions format not recognized.');
+                  return;
+                }
+                if (!questionsArr.length) {
+                  toast.error('No questions found to export.');
+                  return;
+                }
+                // Build HTML with ViBe logo and gradient heading
+                let html = `<html><head><title>ViBe</title><style>
+                  body { font-family: Arial, sans-serif; background: #f8f9fa; color: #222; }
+                  .vibe-header { text-align: center; margin-top: 24px; margin-bottom: 18px; }
+                  .vibe-logo { width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 2px 8px #0002; margin-bottom: 8px; background: #fff; border: 1.5px solid #c084fc; object-fit: contain; display: block; margin-left: auto; margin-right: auto; }
+                  .vibe-title { font-size: 1.2em; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px; }
+                  .vibe-vibe {
+                    font-weight: bold;
+                    background: linear-gradient(90deg, #c084fc 0%, #fca4a6 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    color: transparent;
+                  }
+                  @media print {
+                    .vibe-vibe {
+                      background: none !important;
+                      -webkit-background-clip: initial !important;
+                      -webkit-text-fill-color: initial !important;
+                      background-clip: initial !important;
+                      color: #c084fc !important;
+                    }
+                  }
+                  .question-block { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; margin: 18px auto; padding: 18px 24px; max-width: 700px; }
+                  .question-title { font-weight: bold; font-size: 1.1em; margin-bottom: 8px; }
+                  .option { margin-left: 24px; margin-bottom: 2px; }
+                  .option.correct { color: #218838; font-weight: bold; }
+                  .option.incorrect { color: #c82333; }
+                  .hint { margin-left: 24px; color: #0056b3; font-style: italic; margin-top: 4px; }
+                  .answer-label { font-weight: bold; color: #218838; }
+                </style></head><body>`;
+                html += `<div class='vibe-header'>
+                  <img src='/img/vibe_logo_img.ico' class='vibe-logo' alt='ViBe Logo' />
+                  <div class='vibe-title'>Generated Questions with <span class='vibe-vibe'>ViBe</span></div>
+                </div>`;
+                questionsArr.forEach((q: any, i: number) => {
+                  html += `<div class='question-block'><div class='question-title'>${i + 1}. ${q.question?.text || q.question || ''}</div>`;
+                  // Gather options and mark correct/incorrect
+                  let options: { text: string, correct: boolean }[] = [];
+                  // For new format (solution.correctLotItem/correctLotItems/incorrectLotItems)
+                  if (q.solution) {
+                    if (Array.isArray(q.solution.correctLotItems)) {
+                      options = options.concat(q.solution.correctLotItems.map((o: any) => ({ text: o.text, correct: true })));
+                    }
+                    if (q.solution.correctLotItem) {
+                      options.push({ text: q.solution.correctLotItem.text, correct: true });
+                    }
+                    if (Array.isArray(q.solution.incorrectLotItems)) {
+                      options = options.concat(q.solution.incorrectLotItems.map((o: any) => ({ text: o.text, correct: false })));
+                    }
+                  }
+                  // Fallback to question.options if no solution
+                  if ((!options.length) && (q.question?.options || q.options)) {
+                    const opts = q.question?.options || q.options || [];
+                    // Try to infer correct answer index/indices
+                    let correctIndices: number[] = [];
+                    if (typeof q.question?.correctAnswer === 'number') correctIndices = [q.question.correctAnswer];
+                    else if (Array.isArray(q.question?.correctAnswer)) correctIndices = q.question.correctAnswer;
+                    else if (typeof q.correctAnswer === 'number') correctIndices = [q.correctAnswer];
+                    else if (Array.isArray(q.correctAnswer)) correctIndices = q.correctAnswer;
+                    options = opts.map((text: string, idx: number) => ({ text, correct: correctIndices.includes(idx) }));
+                  }
+                  // Render options
+                  if (options.length) {
+                    options.forEach((opt, j) => {
+                      html += `<div class='option ${opt.correct ? 'correct' : 'incorrect'}'>${String.fromCharCode(65 + j)}. ${opt.text}</div>`;
+                    });
+                  }
+                  // Hint
+                  if (q.question?.hint || q.hint) {
+                    html += `<div class='hint'><b>Hint:</b> ${q.question?.hint || q.hint}</div>`;
+                  }
+                  html += `</div>`;
+                });
+                html += `</body></html>`;
+                // Open new window and print
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(html);
+                  printWindow.document.close();
+                  printWindow.focus();
+                  setTimeout(() => {
+                    printWindow.print();
+                  }, 500);
+                }
+              } else {
+                toast.error('Questions file URL not found for this run.');
+              }
+            } catch (e: any) {
+              toast.error(e.message || 'Failed to export PDF');
+            }
+          }}
+        >
+          Export PDF
+        </Button>
         {showQuestions && (
-          <div className="bg-gray-900 text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-700 mt-2">
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
             <strong>Questions:</strong>
             {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-400">{error}</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && questions.length > 0 && (
               <ol className="mt-2 space-y-4">
                 {questions.map((q: any, idx: number) => {
@@ -1959,8 +2137,8 @@ if (task === "upload") {
                   let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
                   let segEnd = q.segmentId;
                   return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-700 pb-2">
-                      <div className="text-xs text-gray-400 mb-1">
+                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                         Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
                       </div>
                       <div className="flex items-center gap-2">
@@ -1969,19 +2147,19 @@ if (task === "upload") {
                           <Edit className="w-4 h-4" /> Edit
                         </Button>
                       </div>
-                      {q.question?.hint && <div className="text-xs text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
                       {q.solution && (
                         <>
                           <div className="mt-1"><b>Options:</b></div>
                           <ul className="list-disc ml-6">
                             {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`inc-${oIdx}`} className="text-red-300">{opt.text}</li>
+                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
                             ))}
                             {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`cor-${oIdx}`} className="text-green-400 font-semibold">{opt.text}</li>
+                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
                             ))}
                             {q.solution.correctLotItem && (
-                              <li className="text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
                             )}
                           </ul>
                         </>
@@ -2047,10 +2225,17 @@ if (task === "upload") {
 
   // Render the AI workflow UI and the quiz question editor
   return (
-    <div className="max-w-6xl w-full mx-auto py-10 px-4">
+    <div className="max-w-6xl w-full mx-auto px-4">
       {/* AI Section Workflow Inline */}
-      <div className="bg-muted/30 rounded-xl shadow p-8 mb-8">
-        <h1 className="text-2xl font-bold mb-8 text-center">Generate Section using AI</h1>
+             <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
+         <div className="text-center mb-8">
+           <h1 className="text-3xl font-bold mb-3 text-primary">
+             Generate Section using AI
+           </h1>
+           <p className="text-muted-foreground text-lg">
+             Transform your YouTube content into interactive learning materials
+           </p>
+         </div>
         {/* Stepper */}
         <Stepper jobStatus={aiJobStatus?.jobStatus} />
         <div className="space-y-8">
@@ -2067,92 +2252,86 @@ if (task === "upload") {
                 <p className="text-red-500 text-sm mt-1">{urlError}</p>
               )}
             </div>
-            <Button
-              onClick={handleCreateJob}
-              disabled={!youtubeUrl || !!aiJobId}
-              className="w-full sm:w-auto mt-2 sm:mt-0"
-            >
+                          <Button
+                onClick={handleCreateJob}
+                disabled={!youtubeUrl || !!aiJobId}
+                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
               {aiJobId ? "Job Created" : "Create AI Job"}
             </Button>
           </div>
           {aiJobId && (
             <div className="space-y-6">
               {/* Refresh button and status */}
-              <div className="flex items-center gap-4 mb-2">
-                <Button onClick={handleRefreshStatus} variant="outline">
-                  Refresh Status
-                </Button>
-                {/* Show Start Transcription button only when extraction is done and transcript is not completed */}
-                {aiJobStatus?.jobStatus?.audioExtraction === 'COMPLETED' && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={handleStartTranscription}
-                          variant="default"
-                          disabled={aiJobStatus?.jobStatus?.transcriptGeneration !== 'PENDING'}
-                        >
-                          Start Transcription Task
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {aiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' && (
-                          <span>
-                            Approves the transcript task. Click again when status is <b>WAITING</b> to actually start transcription.
-                          </span>
-                        )}
-                        {aiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING' && (
-                          <span>
-                            Starts the transcript generation task. Status will move to <b>RUNNING</b>.
-                          </span>
-                        )}
-                        {aiJobStatus?.jobStatus?.transcriptGeneration !== 'PENDING' && aiJobStatus?.jobStatus?.transcriptGeneration !== 'WAITING' && (
-                          <span>
-                            Transcript generation is not ready to start yet.
-                          </span>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
+                              <div className="flex items-center gap-4 mb-2">
+                 <Button 
+                   onClick={handleRefreshStatus} 
+                   variant="outline"
+                   className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                 >
+                   Refresh Status
+                 </Button>
+                </div>
               {/* Task Cards */}
               <div className="space-y-8 mt-8">
                 {/* Transcription Section */}
-                <div className="bg-gray-900 rounded-xl p-6 shadow border border-gray-800 w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
-                    <FileText className="w-5 h-5 text-blue-400" />
-                    <span className="font-semibold text-xl">Transcription</span>
+                    <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
                   </div>
               <TaskAccordion task="transcription" title="Audio Extraction" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
 
                 {/* Segmentation Section */}
-                <div className="bg-gray-900 rounded-xl p-6 shadow border border-gray-800 w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
-                    <ListChecks className="w-5 h-5 text-yellow-400" />
-                    <span className="font-semibold text-xl">Segmentation</span>
+                    <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                   </div>
               <TaskAccordion task="segmentation" title="Segmentation" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
 
                 {/* Question Generation Section */}
-                <div className="bg-gray-900 rounded-xl p-6 shadow border border-gray-800 w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
-                    <MessageSquareText className="w-5 h-5 text-purple-400" />
-                    <span className="font-semibold text-xl">Question Generation</span>
+                    <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation</span>
                   </div>
               <TaskAccordion task="question" title="Question Generation" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
 
                 {/* Upload Section */}
-                <div className="bg-gray-900 rounded-xl p-6 shadow border border-gray-800 w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
-                    <UploadCloud className="w-5 h-5 text-green-400" />
-                    <span className="font-semibold text-xl">Upload to Course</span>
+                    <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
                   </div>
-              <TaskAccordion task="upload" title="Upload to Course" jobStatus={aiJobStatus?.jobStatus} />
+                              <TaskAccordion task="upload" title="Upload to Course" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
+                
+                {/* Upload Success Message - Show outside accordion when upload is completed */}
+                {taskRuns.upload.some(run => run.status === "done") && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center gap-3 mb-3">
+                      <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                      <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                    </div>
+                    <p className="text-green-700 dark:text-green-300 mb-4">
+                      Your AI-generated section has been successfully uploaded to the course. The section is now available for students.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        // Go back to the previous page (where user came from)
+                        window.history.back();
+                      }}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                    >
+                      <UploadCloud className="w-4 h-4 mr-2" />
+                      View Generated Section
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
