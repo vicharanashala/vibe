@@ -10,8 +10,10 @@ export interface VideoProps {
   rewindVid: boolean;
   pauseVid: boolean;
   onDurationChange?: (duration: number) => void;
-
+  keyboardLockEnabled?:boolean;
 }
+
+
 
 // Minimal YouTube Player instance interface
 export interface YTPlayerInstance {

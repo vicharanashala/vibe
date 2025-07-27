@@ -19,6 +19,7 @@ import type {
 
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
+import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -202,6 +203,12 @@ export interface GetAllQuestionBanksResponse extends Array<{
   difficulty?: string[];
   tags?: string[];
   type?: string;
+}> { }
+bankId: string;
+count: number;
+difficulty ?: string[];
+tags ?: string[];
+type ?: string;
 }> {}
 
 // Attempt types - matching backend validators
@@ -788,13 +795,15 @@ export function useItemById(courseId: string, versionId: string, itemId: string)
     params: { path: { courseId, versionId, itemId } }
   }, { enabled: !!courseId && !!versionId && !!itemId }
   );
-  // console.log("here", courseId , versionId , itemId);
-  return {
-    data: result.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
-    refetch: result.refetch
-  };
+}, { enabled: !!courseId && !!versionId && !!itemId }
+  );
+// console.log("here", courseId , versionId , itemId);
+return {
+  data: result.data,
+  isLoading: result.isLoading,
+  error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
+  refetch: result.refetch
+};
 }
 
 // PUT /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
@@ -982,6 +991,7 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
   }, { enabled: !!courseId && !!courseVersionId }
   );
 
+
   return {
     data: result.data,
     isLoading: result.isLoading,
@@ -992,6 +1002,8 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
 
 // Add this hook to your hooks file
 export function useUserProgressPercentageByUserId(
+  userId: string,
+  courseId: string,
   userId: string,
   courseId: string,
   courseVersionId: string
@@ -1007,6 +1019,7 @@ export function useUserProgressPercentageByUserId(
   refetch: () => void
 } {
   const result = api.useQuery(
+    "get",
     "get",
     "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/percentage",
     {
@@ -1124,6 +1137,7 @@ export function useEditProctoringSettings() {
     setLoading(true);
     setError(null);
 
+
     try {
       const method = 'PUT';
       const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${versionId}/proctoring`;
@@ -1238,11 +1252,14 @@ export function useCancelInvite(): {
 // GET /users/{id}/watchTime/item/itemId
 export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
   data: undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
+    data: undefined,
+    isLoading: boolean,
+    error: string | null,
+    refetch: () => void
+  } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
     params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
   }, { enabled: !!userId && !!itemId && !!type },);
 
@@ -1492,9 +1509,9 @@ export interface AddFeedbackBody {
 }
 
 export interface GetAllQuestionBanksResponse extends Array<{
-    questionBankId: string;
-    questionsCount?: number;
-  }> {}
+  questionBankId: string;
+  questionsCount?: number;
+}> { }
 
 // Attempt types
 export interface CreateAttemptParams {
@@ -1633,13 +1650,14 @@ export function useUserQuizMetrics(quizId: string, userId: string): {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/user/{userId}", {
     params: { path: { quizId, userId } }
   }, { enabled: !!quizId && !!userId });
+}, { enabled: !!quizId && !!userId });
 
-  return {
-    data: result.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
-    refetch: result.refetch
-  };
+return {
+  data: result.data,
+  isLoading: result.isLoading,
+  error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
+  refetch: result.refetch
+};
 }
 
 // GET /quiz/{quizId}/submissions/{submissionId}
@@ -1654,12 +1672,15 @@ export function useQuizSubmission(quizId: string, submissionId: string): {
   }, { enabled: !!quizId && !!submissionId }
   );
 
-  return {
-    data: result.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message ? result.error.message : "Cannot fetch Quiz submission details.") : null,
-    refetch: result.refetch
-  };
+}, { enabled: !!quizId && !!submissionId }
+  );
+
+return {
+  data: result.data,
+  isLoading: result.isLoading,
+  error: result.error ? (result.error.message ? result.error.message : "Cannot fetch Quiz submission details.") : null,
+  refetch: result.refetch
+};
 }
 
 
@@ -1685,6 +1706,7 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
+  mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   data: { questionId: string } | undefined,
   error: string | null,
@@ -2256,3 +2278,95 @@ export function useQuizSubmissions(quizId: string): {
   };
 }
 
+export function useSubmitFlag(): {
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/reports");
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to submit flag') : null
+  };
+}
+
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, entityType?: string, status?: string,): {
+  data: IReport[],
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/reports/{courseId}/{versionId}",
+    {
+      params: {
+        path: {
+          courseId,
+          versionId
+        },
+        query: {
+          entityType,
+          status,
+          limit,
+          currentPage,
+        }
+      }
+    },
+  );
+  return {
+    ...result,
+    error: result.error ? result.error.message || 'Failed to get flags' : null,
+  };
+}
+
+export function useGetReportDetails(reportId: string): {
+  data: IReport | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/reports/{reportId}",
+    {
+      params: {
+        path: {
+          reportId
+        }
+      }
+    },
+    {
+      enabled: !!reportId,
+    }
+  );
+  return {
+    ...result,
+    error: result.error ? result.error.message || 'Failed to get flag details' : null,
+  };
+}
+
+export function useUpdateReportStatus(): {
+  mutate: (variables: { params: { path: { reportId: string } }, body: { status: ReportStatus, comment: string } }) => void,
+  mutateAsync: (variables: { params: { path: { reportId: string } }, body: { status: ReportStatus, comment: string } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+
+  const result = api.useMutation("patch", "/reports/{reportId}");
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to update status') : null
+  };
+}

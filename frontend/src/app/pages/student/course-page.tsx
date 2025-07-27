@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -32,13 +32,18 @@ import {
   GraduationCap,
   AlertCircle,
   ArrowLeft,
-  CheckCircle
+  CheckCircle,
+  FlagTriangleRight,
+  FlagTriangleRightIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { StudentProctoringSettings } from "@/types/video.types";
 import { getProctoringSettings } from "../testing-proctoring/proctoring";
+import { FlagModal } from "@/components/FlagModal";
+import { EntityType, ReportEntityEntity } from "@/types/flag.types";
+import { toast } from "sonner";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -79,6 +84,9 @@ export default function CoursePage() {
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
   const { getSettings, settingLoading: proctoringLoading, settingError } = useGetProcotoringSettings();
 
+  const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
+  const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
+  const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -313,6 +321,32 @@ export default function CoursePage() {
       }
     }
   }, [itemData, itemLoading]);
+
+
+  // Flag handling function
+  const handleFlagSubmit = async (reason: string) => {
+    try {
+      if(!currentItem){
+        console.warn("Current item not founded",currentItem);
+        return;
+      }
+      const submitFlagBody = {
+        courseId:COURSE_ID,
+        versionId:VERSION_ID,
+        entityId:currentItem._id,
+        entityType:currentItem.type as EntityType,
+        reason,
+      }
+      await submitFlagAsyncMutate({body:submitFlagBody})
+      toast.success("Flag submitted successfully", {position: 'top-right'})
+    } catch(error:any){
+      toast.error(error?.message || "Failed to submit flag", { position: 'top-right' });
+    } finally{
+      setIsFlagSubmitted(true);
+      setIsFlagModalOpen(false);
+    }
+  };
+
 
   // Handle item selection
   // Handle item selection - simplified and more robust
@@ -833,6 +867,7 @@ export default function CoursePage() {
           </div>
         </DialogContent>
       </Dialog>
+      
       <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
@@ -1208,9 +1243,29 @@ export default function CoursePage() {
                   </Card>
                 )}
               </div>
-
+                <FlagModal
+                  open={isFlagModalOpen}
+                  onOpenChange={setIsFlagModalOpen}
+                  onSubmit={handleFlagSubmit}
+                  isSubmitting={isPending}
+                />
               {currentItem ? (
-                <div className="relative z-10 h-full">
+                <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
+                {!isFlagSubmitted &&
+                  <div className="flex justify-end mb-1 me-10">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs gap-1"
+                      title="Flag this content"
+                      onClick={()=>setIsFlagModalOpen(true)}
+                    >
+                      <FlagTriangleRightIcon className="h-4 w-4" />
+                      <span className="max-sm:hidden">Submit Flag</span>
+                    </Button>
+                    </div>
+                   }
+                 <div className="flex-1">
                   <ItemContainer
                     ref={itemContainerRef}
                     item={currentItem}
@@ -1225,7 +1280,10 @@ export default function CoursePage() {
                     displayNextLesson={false}
                     setQuizPassed={setQuizPassed}
                     anomalies={anomalies}
+                    keyboardLockEnabled={!isFlagModalOpen}
                   />
+                  </div>
+
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center relative z-10">

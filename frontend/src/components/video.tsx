@@ -30,7 +30,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange,keyboardLockEnabled= true }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -71,7 +71,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
-
     const player = playerRef.current;
     if (!player || typeof player.pauseVideo !== 'function') return;
     if (playing) {
@@ -272,6 +271,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
 
   // Handle keyboard events including space for play/pause
   useEffect(() => {
+    
+    if(!keyboardLockEnabled) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Handle space key for play/pause
       if (e.code === 'Space') {
