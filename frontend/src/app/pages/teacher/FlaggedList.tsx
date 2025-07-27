@@ -25,12 +25,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { Pagination } from "@/components/ui/Pagination"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
 export default function FlaggedList() {
   const navigate = useNavigate()
-    const queryClient = useQueryClient()
+  const queryClient = useQueryClient()
 
+ const statusOptions = ["ALL", "REPORTED","IN_REVIEW", "RESOLVED", "DISCARDED", "CLOSED"]; 
+
+ const [selectedStatus, setSelectedStatus] = useState("ALL");
+  
   // Get course info from store
   const { currentCourseFlag } = useFlagStore()
   const courseId = currentCourseFlag?.courseId
@@ -64,6 +69,10 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   const reports = flagsData?.reports || []
   const totalPages = flagsData?.totalPages || 1
   const totalDocuments = flagsData?.totalDocuments || 0
+
+  const filteredReports = selectedStatus === "ALL"
+  ? reports
+  : reports.filter((report:any) => report.latestStatus === selectedStatus);
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
@@ -172,12 +181,27 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
           </div>
          
         </div>
+        <div className="flex items-center gap-4 mt-4">
+  <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">Filter by Status:</label>
+  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+    <SelectTrigger className="w-[180px]">
+      <SelectValue placeholder="Select status" />
+    </SelectTrigger>
+    <SelectContent>
+      {statusOptions.map((status) => (
+        <SelectItem key={status} value={status}>
+          {status === "ALL" ? "All Statuses" : status.replace("_", " ")}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
         
                {/* Flags Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           
           <CardContent className="p-0">
-            {reports.length === 0 ? (
+            {filteredReports.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
@@ -217,7 +241,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reports.map((report) => (<>
+                    {filteredReports.map((report:any) => (<>
                       <TableRow
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
