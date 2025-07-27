@@ -33,6 +33,7 @@ export default function FlaggedList() {
   const queryClient = useQueryClient()
 
  const statusOptions = ["ALL", "REPORTED","IN_REVIEW", "RESOLVED", "DISCARDED", "CLOSED"]; 
+const pageLimit=10;
 
  const [selectedStatus, setSelectedStatus] = useState("ALL");
   
@@ -40,14 +41,14 @@ export default function FlaggedList() {
   const { currentCourseFlag } = useFlagStore()
   const courseId = currentCourseFlag?.courseId
   const versionId = currentCourseFlag?.versionId
-
+  
   if (!currentCourseFlag || !courseId || !versionId) {
     navigate({ to: '/teacher/courses/list' });
     return null
   }
  const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
-  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",10,currentPage)
+  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",pageLimit,currentPage)
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
@@ -67,18 +68,21 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   // Show all reports regardless 
 
   const reports = flagsData?.reports || []
-  const totalPages = flagsData?.totalPages || 1
-  const totalDocuments = flagsData?.totalDocuments || 0
+
 
   const filteredReports = selectedStatus === "ALL"
   ? reports
   : reports.filter((report:any) => report.latestStatus === selectedStatus);
 
+ 
+  const totalDocuments =flagsData?.totalDocuments || 0
+  const totalPages = flagsData?.totalPages || 1
+
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  console.log("Sorted Users:", flagsData)
+
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
