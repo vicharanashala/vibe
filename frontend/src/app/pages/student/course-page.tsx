@@ -40,7 +40,7 @@ import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { FlagModal } from "@/components/FlagModal";
-import { ReportEntityEntity } from "@/types/reports.types";
+import { ReportEntityEntity } from "@/types/flag.types";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
