@@ -41,6 +41,7 @@ import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { FlagModal } from "@/components/FlagModal";
 import { EntityType, ReportEntityEntity } from "@/types/flag.types";
+import { toast } from "sonner";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -322,7 +323,7 @@ export default function CoursePage() {
   const handleFlagSubmit = async (reason: string) => {
     try {
       if(!currentItem){
-        console.warn("Current find not founded",currentItem);
+        console.warn("Current item not founded",currentItem);
         return;
       }
       const submitFlagBody = {
@@ -333,11 +334,11 @@ export default function CoursePage() {
         reason,
       }
       await submitFlagAsyncMutate({body:submitFlagBody})
-      setIsFlagSubmitted(true);
-    } catch(error){
-      setIsFlagSubmitted(false);
-      console.log("Failed to submit flag, try again!",error)
+      toast.success("Flag submitted successfully", {position: 'top-right'})
+    } catch(error:any){
+      toast.error(error?.message || "Failed to submit flag", { position: 'top-right' });
     } finally{
+      setIsFlagSubmitted(true);
       setIsFlagModalOpen(false);
     }
   };

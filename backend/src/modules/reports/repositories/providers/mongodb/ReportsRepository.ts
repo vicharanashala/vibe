@@ -2,11 +2,14 @@ import {IReport, IStatus} from '#shared/interfaces/index.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId, Filter} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {
+  BadRequestError,
+  InternalServerError,
+  NotFoundError,
+} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   Report,
-  ReportDataResponse,
   ReportFiltersQuery,
   ReportResponse,
 } from '#root/modules/reports/classes/index.js';
@@ -171,6 +174,21 @@ class ReportRepository {
 
   async create(report: Report, session?: ClientSession) {
     await this.init();
+    const existingReport = await this.reportCollection.findOne(
+      {
+        courseId: report.courseId,
+        versionId: report.versionId,
+        entityId: report.entityId,
+        entityType: report.entityType,
+      },
+      {session},
+    );
+
+    if (existingReport) {
+      throw new BadRequestError(
+        `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
+      );
+    }
     const result = await this.reportCollection.insertOne(report, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();

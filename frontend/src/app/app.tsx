@@ -5,6 +5,7 @@ import { queryClient } from '@/lib/client';
 import { AuthProvider } from '@/store/context/auth';
 import { ThemeProvider } from '@/components/theme-provider';
 import '@/assets/globals.css';
+import { Toaster } from '@/components/ui/sonner';
 
 export function App(){
   // Token refresh is now handled in AuthProvider
@@ -15,6 +16,7 @@ export function App(){
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <RouterProvider router={router} />
         </ThemeProvider>
+        <Toaster/>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -76,7 +76,7 @@ class ReportController {
 
     const report = new Report(body, reportedBy);
     await this.reportService.createReport(report);
-    return {message: 'Report created successfully'};
+    return {message: 'Flad submitted successfully'};
   }
 
   @OpenAPI({
@@ -94,7 +94,7 @@ class ReportController {
     @Params() params: ReportUpdateParams,
     @Body() body: UpdateReportStatusBody,
     @Ability(getReportAbility) {ability, user},
-  ): Promise<void> {
+  ): Promise<{message:string}> {
     const {reportId} = params;
     const {status, comment} = body;
     const report = await this.reportService.getReportById(reportId);
@@ -109,6 +109,7 @@ class ReportController {
     }
 
     await this.reportService.updateReport(reportId, status, comment);
+    return {message: 'Flag updated successfully'};
   }
 
   @OpenAPI({
@@ -132,9 +133,6 @@ class ReportController {
         'You do not have permission to view reports for this course',
       );
     }
-    // const courseId = "687dd6be242a692d993336c4";
-    // const versionId ="687dd6ca242a692d993336c5"
-    // || "687dd6da242a692d993336c6"
 
     const result = await this.reportService.getReportsByCourse(
       courseId,

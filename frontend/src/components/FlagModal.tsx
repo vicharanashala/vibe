@@ -60,13 +60,11 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     }
     setError('');
     if(teacher)
-    {
-onSubmit(reason,status);
-    }
+      onSubmit(reason,status);
     else
-      {
-    onSubmit(reason);
-    }setReason('');
+      onSubmit(reason);
+    
+    setReason('');
   };
  
   return (
@@ -79,23 +77,23 @@ onSubmit(reason,status);
         
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-    <label className="text-sm font-medium">Status</label>
-  {teacher&&  <Select value={status} onValueChange={setStatus}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select status" />
-      </SelectTrigger>
-      <SelectContent>
-        {statusTypes.map((status)=>(
-          <>
-          <SelectItem value={status.key}>{status.label}</SelectItem>
-          </>
-        )
+            <label className="text-sm font-medium">Status</label>
+              {teacher&&  <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusTypes.map((status)=>(
+                      <>
+                      <SelectItem value={status.key}>{status.label}</SelectItem>
+                      </>
+                    )
 
-        )}
-    
-             </SelectContent>
-    </Select>}
-  </div>
+                    )}
+              </SelectContent>
+           </Select>
+           }
+        </div>
           <div className="grid gap-2">
             <Textarea
               value={reason}
