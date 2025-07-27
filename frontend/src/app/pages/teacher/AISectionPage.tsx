@@ -123,9 +123,6 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
 
   const Stepper = ({ jobStatus }: { jobStatus: any }) => (
    <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
-     {/* Background gradient line */}
-     <div className="absolute top-6 left-8 right-8 h-0.5 bg-gradient-to-r from-muted via-muted to-muted rounded-full z-0" />
-     
      {WORKFLOW_STEPS.map((step, idx) => {
        const status = getStepStatus(jobStatus, step.key);
        const isLast = idx === WORKFLOW_STEPS.length - 1;
@@ -158,7 +155,7 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
                }}
              >
                {/* Animated Icons */}
-               <div className="transition-all duration-300 ease-out">
+               <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
                  {isCompleted ? (
                    <CheckCircle className="w-6 h-6 animate-bounce" />
                  ) : isActive ? (
@@ -166,7 +163,7 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
                  ) : isFailed ? (
                    <XCircle className="w-6 h-6 animate-pulse" />
                  ) : (
-                   <div className="transition-all duration-300 hover:scale-110">
+                   <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
                      {step.icon}
                    </div>
                  )}
@@ -221,9 +218,9 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
            
            {/* Connecting Line */}
            {!isLast && (
-             <div className="flex-1 relative z-0">
+             <div className="flex-1 flex items-center justify-center relative z-0">
                <div className={`
-                 stepper-line h-0.5 mx-2 rounded-full transition-all duration-700 ease-out
+                 stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out bg-muted
                  ${isCompleted ? 'completed' : ''}
                `} 
                style={{ minWidth: 32 }} 
