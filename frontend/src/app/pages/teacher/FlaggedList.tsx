@@ -278,13 +278,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                            
                           </div>
                         </TableCell>
-                       <TableCell>
-                        <ChevronDown
-        className={`h-5 w-5 text-muted-foreground transform transition-transform duration-200 ${
-          selectedReport?.id ===report._id ? "rotate-180" : ""
-        }`}
-      />
-                       </TableCell>
+                      
                       </TableRow>
                       <TableRow>
                          {selectedReport?.id === report._id && (
