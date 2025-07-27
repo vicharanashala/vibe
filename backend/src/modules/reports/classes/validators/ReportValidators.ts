@@ -106,8 +106,9 @@ class ReportUpdateParams {
   reportId: string;
 }
 
-// Filter query params for instructor dashboard
-export class ReportFiltersQuery {
+// params for get all flags for instructor dashboard
+
+export class GetReportParams {
   @JSONSchema({
     description: 'ID of the course for which reports are being queried',
     example: '64bfcaf6e13e3547e90c1234',
@@ -122,6 +123,8 @@ export class ReportFiltersQuery {
   })
   @IsNotEmpty()
   versionId: string;
+}
+export class ReportFiltersQuery {
   @JSONSchema({
     description: 'Type of the reported entity (optional)',
     example: 'quiz',
@@ -219,7 +222,7 @@ class ReportDataResponse {
       },
     },
   })
-  status: ReportStatusEntry[];
+  status: ReportStatusEntry;
 
   @JSONSchema({
     description: 'Created timestamp',

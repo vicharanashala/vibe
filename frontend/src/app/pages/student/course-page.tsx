@@ -40,7 +40,7 @@ import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { FlagModal } from "@/components/FlagModal";
-import { ReportEntityEntity } from "@/types/flag.types";
+import { EntityType, ReportEntityEntity } from "@/types/flag.types";
 // Temporary IDs for development
 // const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
 // const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
@@ -80,6 +80,7 @@ export default function CoursePage() {
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
+  const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
   const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
 
   // Check for microphone and camera access, otherwise redirect to dashboard
@@ -327,13 +328,15 @@ export default function CoursePage() {
       const submitFlagBody = {
         courseId:COURSE_ID,
         versionId:VERSION_ID,
-        entityId:currentItem?._id,
-        entityType:ReportEntityEntity.VIDEO,
+        entityId:currentItem._id,
+        entityType:currentItem.type as EntityType,
         reason,
       }
       await submitFlagAsyncMutate({body:submitFlagBody})
+      setIsFlagSubmitted(true);
     } catch(error){
-      console.log("Failed to submit flag, try again!")
+      setIsFlagSubmitted(false);
+      console.log("Failed to submit flag, try again!",error)
     } finally{
       setIsFlagModalOpen(false);
     }
@@ -1243,7 +1246,7 @@ export default function CoursePage() {
                 />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                {currentItem.type == "VIDEO" &&
+                {!isFlagSubmitted &&
                   <div className="flex justify-end mb-1 me-10">
                     <Button
                       size="sm"
@@ -1256,7 +1259,7 @@ export default function CoursePage() {
                       <span className="max-sm:hidden">Submit Flag</span>
                     </Button>
                     </div>
-                }
+                   }
                  <div className="flex-1">
                   <ItemContainer
                     ref={itemContainerRef}

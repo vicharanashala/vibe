@@ -2171,12 +2171,14 @@ export function useGetReports(courseId: string, versionId: string, entityType?: 
 } {
   const result = api.useQuery(
     "get",
-    "/reports",
+    "/reports/{courseId}/{versionId}",
     {
       params: {
-        query: {
+        path:{
           courseId,
-          versionId,
+          versionId
+        },
+        query: {
           entityType,
           status,
           limit,

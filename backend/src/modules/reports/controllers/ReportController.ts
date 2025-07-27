@@ -16,6 +16,7 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {REPORT_TYPES} from '../types.js';
 import {ReportService} from '../services/ReportService.js';
 import {
+  GetReportParams,
   Report,
   ReportBody,
   ReportDataResponse,
@@ -59,7 +60,7 @@ class ReportController {
   async create(
     @Body() body: ReportBody,
     @Ability(getReportAbility) {ability, user},
-  ): Promise<void> {
+  ): Promise<{message: string}> {
     const {courseId, versionId} = body;
     const reportedBy = user?._id;
     const reportResource = subject(ReportPermissionSubject.REPORT, {
@@ -75,6 +76,7 @@ class ReportController {
 
     const report = new Report(body, reportedBy);
     await this.reportService.createReport(report);
+    return {message: 'Report created successfully'};
   }
 
   @OpenAPI({
@@ -114,16 +116,17 @@ class ReportController {
     description: 'Retrieves reports based on filtering criteria',
   })
   @Authorized()
-  @Get('/')
+  @Get('/:courseId/:versionId')
   @HttpCode(200)
   @ResponseSchema(ReportResponse, {isArray: true})
   async getFilteredReports(
+    @Params() params: GetReportParams,
     @QueryParams() filters: ReportFiltersQuery,
     @Ability(getReportAbility) {ability, user},
   ): Promise<ReportResponse> {
-    const {courseId, versionId} = filters;
+    const {courseId, versionId} = params;
     const reportResource = subject(ReportPermissionSubject.REPORT, {courseId});
-    
+
     if (!ability.can(ReportsActions.View, reportResource)) {
       throw new ForbiddenError(
         'You do not have permission to view reports for this course',

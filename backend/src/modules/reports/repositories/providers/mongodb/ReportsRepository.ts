@@ -69,6 +69,9 @@ class ReportRepository {
             firstName: '$reportedByUser.firstName',
             lastName: '$reportedByUser.lastName',
           },
+          status: {
+            $arrayElemAt: ['$status', -1],
+          },
         },
       },
       {
