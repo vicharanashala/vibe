@@ -198,6 +198,10 @@ class ReportRepository {
 
   async update(reportId: string, updateData: IStatus, session?: ClientSession) {
     await this.init();
+    if (!ObjectId.isValid(reportId)) {
+      throw new BadRequestError('Invalid report ID');
+    }
+
     const result = await this.reportCollection.findOneAndUpdate(
       {_id: new ObjectId(reportId)},
       {

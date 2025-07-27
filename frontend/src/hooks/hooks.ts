@@ -2220,7 +2220,7 @@ export function useGetReportDetails(reportId: string): {
 }
 
 export function useUpdateReportStatus(): {
-  mutate: (variables: { path: { reportId: string }, body: { status: ReportStatus, comment: string } }) => void,
+  mutate: (variables: { params: { path: { reportId: string } }, body: { status: ReportStatus, comment: string } }) => void,
   mutateAsync: (variables: { path: { reportId: string }, body: { status: ReportStatus, comment: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
