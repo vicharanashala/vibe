@@ -12,7 +12,7 @@ import { routingControllersToSpec } from 'routing-controllers-openapi';
 import { appConfig } from '../../config/app.js'; // adjust path as needed
 import { metadata } from 'reflect-metadata/no-conflict';
 import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
-import {defaultMetadataStorage} from 'class-transformer'
+import { defaultMetadataStorage } from 'class-transformer'
 
 const getOpenApiServers = () => {
   const servers = [];
@@ -226,62 +226,62 @@ export function generateOpenAPISpec(
     //     },
     //   ],
     //   // Use Scalar's preferred grouping approach
-      tags:[
-        {
-          name: 'Courses',
-          description: 'Operations related to courses management',
-        },
-        {
-          name: 'Anomalies',
-          description: 'Operations for managing anomaly detection and monitoring',
-        }
-      ],
-      'x-tagGroups': [
-        {
-          name: 'Authentication',
-          tags: ['Authentication'],
-        },
-        {
-          name: 'Course Management',
-          tags: [
-            'Courses',
-            'Course Versions',
-            'Course Modules',
-            'Course Sections',
-            'Course Items',
-          ],
-        },
-        {
-          name: 'Quizzes',
-          tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
-        },
-        {
-          name: 'GenAI',
-          tags: ['GenAI', 'Webhook'],
-        },
-        {
-          name: 'Notifications',
-          tags: ['Invites'],
-        },
-        {
-          name: 'Users',
-          tags: ['Enrollments','Progress','Users']
-        },
+    tags: [
+      {
+        name: 'Courses',
+        description: 'Operations related to courses management',
+      },
+      {
+        name: 'Anomalies',
+        description: 'Operations for managing anomaly detection and monitoring',
+      }
+    ],
+    'x-tagGroups': [
+      {
+        name: 'Authentication',
+        tags: ['Authentication'],
+      },
+      {
+        name: 'Course Management',
+        tags: [
+          'Courses',
+          'Course Versions',
+          'Course Modules',
+          'Course Sections',
+          'Course Items',
+        ],
+      },
+      {
+        name: 'Quizzes',
+        tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
+      },
+      {
+        name: 'GenAI',
+        tags: ['GenAI', 'Webhook'],
+      },
+      {
+        name: 'Notifications',
+        tags: ['Invites'],
+      },
+      {
+        name: 'Users',
+        tags: ['Enrollments', 'Progress', 'Users']
+      },
 
-        {
-          name: 'Monitoring & Security',
-          tags: ['Anomalies'],
-        },
+      {
+        name: 'Monitoring & Metrics',
+        tags: ['Anomalies', 'Reports'],
+      },
 
-        {
-          name: 'Settings',
-          tags: ['Course Settings', 'User Settings', 'Course Setting'],
-        },
-        {
-          name: 'Data Models',
-          tags: ['Models'],
-        },
-      ],
+      {
+        name: 'Settings',
+        tags: ['Course Settings', 'User Settings', 'Course Setting'],
+      },
+      {
+        name: 'Data Models',
+        tags: ['Models'],
+      },
+    ],
     components: {
       schemas,
       securitySchemes: {
