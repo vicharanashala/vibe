@@ -166,7 +166,7 @@ export default function TeacherCoursesPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-xl animate-pulse"></div>
               <div className="relative bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-full p-6">
                 <BookOpen className="h-12 w-12 text-primary" />
-              </div>
+            </div>
             </div>
             <h3 className="text-2xl font-bold text-foreground mb-3">No courses found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">Create your first course to start building amazing learning experiences</p>
@@ -196,7 +196,7 @@ export default function TeacherCoursesPage() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
                         <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
-            <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -205,7 +205,7 @@ export default function TeacherCoursesPage() {
                       <GraduationCap className="h-6 w-6 text-primary-foreground" />
                     </div>
                   </div>
-                  <div>
+          <div>
                     <h1 className="text-4xl font-bold text-foreground">
                       My Courses
                     </h1>
@@ -214,7 +214,7 @@ export default function TeacherCoursesPage() {
                         <Sparkles className="h-4 w-4 text-primary" />
                       </span>
                       <span className="text-muted-foreground">Manage your courses and versions with ease</span>
-                    </div>
+          </div>
                   </div>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export default function TeacherCoursesPage() {
                   </div>
                   <span className="font-semibold">Create New Course</span>
                 </div>
-              </Button>
+          </Button>
             </div>
           </div>
         </div>
@@ -239,17 +239,17 @@ export default function TeacherCoursesPage() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search courses..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search courses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
                                          className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-                  />
+            />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -269,10 +269,10 @@ export default function TeacherCoursesPage() {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CourseCard
-                enrollment={enrollment}
-                searchQuery={searchQuery}
-                onInvalidate={invalidateAllQueries}
-              />
+              enrollment={enrollment}
+              searchQuery={searchQuery}
+              onInvalidate={invalidateAllQueries}
+            />
             </div>
           ))}
         </div>
@@ -282,12 +282,12 @@ export default function TeacherCoursesPage() {
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-muted/10 to-muted/5 rounded-xl blur-sm"></div>
             <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalDocuments={totalDocuments}
-                onPageChange={handlePageChange}
-              />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={handlePageChange}
+          />
             </div>
           </div>
         )}
@@ -342,7 +342,7 @@ function CourseCard({
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
                  <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden">
-          <CardContent className="p-6">
+        <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-sm animate-pulse"></div>
@@ -352,9 +352,9 @@ function CourseCard({
                 <div className="h-4 bg-muted/50 rounded animate-pulse"></div>
                 <div className="h-3 bg-muted/30 rounded w-2/3 animate-pulse"></div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     )
   }
@@ -364,8 +364,8 @@ function CourseCard({
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-destructive/5 to-red-500/5 rounded-xl blur-sm"></div>
                  <Card className="relative bg-card/95 backdrop-blur-sm border border-destructive/20 overflow-hidden">
-          <CardContent className="p-6">
-            <div className="text-center text-destructive">
+        <CardContent className="p-6">
+          <div className="text-center text-destructive">
               <div className="relative inline-block mb-2">
                 <div className="absolute inset-0 bg-gradient-to-r from-destructive/20 to-red-500/20 rounded-full blur-sm"></div>
                 <div className="relative bg-destructive/10 border border-destructive/20 rounded-full p-2">
@@ -373,9 +373,9 @@ function CourseCard({
                 </div>
               </div>
               <p className="font-medium">Error loading course data</p>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     )
   }
@@ -478,36 +478,36 @@ function CourseCard({
   return (
     <div className="relative group">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-      <Card
+    <Card
                  className={`relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 ${
           expandedCourse ? "ring-2 ring-primary/30 shadow-xl shadow-primary/10" : ""
         }`}
-      >
-        {/* Course Header - Always Visible */}
-        <CardHeader
+    >
+      {/* Course Header - Always Visible */}
+      <CardHeader
           className="cursor-pointer hover:bg-accent/20 transition-all duration-300 relative overflow-hidden"
-          onClick={() => !editingCourse && toggleCourse()}
-        >
+        onClick={() => !editingCourse && toggleCourse()}
+      >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div
                 className={`transition-all duration-300 ${expandedCourse ? "rotate-90" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleCourse()
-                }}
-              >
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleCourse()
+              }}
+            >
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-sm"></div>
                   <div className="relative bg-gradient-to-r from-primary to-accent p-1.5 rounded-full">
                     <ChevronRight className="h-4 w-4 text-primary-foreground" />
                   </div>
                 </div>
-              </div>
+            </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
                                      <CardTitle className="text-xl font-bold text-foreground truncate">
                      {course.name}
                    </CardTitle>
@@ -515,233 +515,233 @@ function CourseCard({
                     <FileText className="h-3 w-3 mr-1" />
                     {course.versions?.length || 0} versions
                   </Badge>
-                </div>
+              </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <span>Last updated recently</span>
-                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!expandedCourse) toggleCourse()
-                  startEditing()
-                }}
-                                 className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                disabled={updateCourseMutation.isPending}
-              >
-                {updateCourseMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Edit3 className="h-3 w-3 mr-1" />
-                )}
-                Edit
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!expandedCourse) toggleCourse()
-                  deleteCourse()
-                }}
-                                 className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
-                disabled={deleteCourseMutation.isPending}
-              >
-                {deleteCourseMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3 mr-1" />
-                )}
-                Delete
-              </Button>
-            </div>
           </div>
-        </CardHeader>
 
-        {/* Expanded Content */}
-        {expandedCourse && (
-          <CardContent className="pt-0 space-y-6">
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!expandedCourse) toggleCourse()
+                startEditing()
+              }}
+                                 className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+              disabled={updateCourseMutation.isPending}
+            >
+              {updateCourseMutation.isPending ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Edit3 className="h-3 w-3 mr-1" />
+              )}
+              Edit
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!expandedCourse) toggleCourse()
+                deleteCourse()
+              }}
+                                 className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+              disabled={deleteCourseMutation.isPending}
+            >
+              {deleteCourseMutation.isPending ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3 mr-1" />
+              )}
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      {/* Expanded Content */}
+      {expandedCourse && (
+        <CardContent className="pt-0 space-y-6">
             <Separator className="bg-border/50" />
 
-            {/* Course Description Section */}
-            <div className="space-y-4">
+          {/* Course Description Section */}
+          <div className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                 Course Description
               </h3>
-              {editingCourse ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">Course Name</label>
-                    <Input
-                      value={editingValues.name}
-                      onChange={(e) =>
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
+            {editingCourse ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Course Name</label>
+                  <Input
+                    value={editingValues.name}
+                    onChange={(e) =>
+                      setEditingValues((prev: { name: string; description: string }) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
                                                    className="border-primary/30 focus:border-primary bg-background"
-                      placeholder="Course name"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
-                    <Textarea
-                      value={editingValues.description}
-                      onChange={(e) =>
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                                             className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                      placeholder="Course description"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={saveEditing}
-                      size="sm"
-                      disabled={updateCourseMutation.isPending}
-                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                    >
-                      {updateCourseMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Save className="h-3 w-3 mr-1" />
-                      )}
-                      Save Changes
-                    </Button>
-                                         <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
+                    placeholder="Course name"
+                  />
                 </div>
-              ) : (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
+                  <Textarea
+                    value={editingValues.description}
+                    onChange={(e) =>
+                      setEditingValues((prev: { name: string; description: string }) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                                             className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                    placeholder="Course description"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={saveEditing}
+                    size="sm"
+                    disabled={updateCourseMutation.isPending}
+                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                  >
+                    {updateCourseMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3 mr-1" />
+                    )}
+                    Save Changes
+                  </Button>
+                                         <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
                                  <div className="relative">
                    <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
                    <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                    <p className="text-muted-foreground leading-relaxed">{course.description}</p>
+                <p className="text-muted-foreground leading-relaxed">{course.description}</p>
                   </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
 
-            {/* All Versions Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+          {/* All Versions Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                   All Versions ({course.versions?.length || 0})
                 </h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={showVersionForm}
-                    size="sm"
-                    variant="outline"
-                    disabled={createVersionMutation.isPending}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={showVersionForm}
+                  size="sm"
+                  variant="outline"
+                  disabled={createVersionMutation.isPending}
                     className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 transition-all duration-300"
-                  >
-                    {createVersionMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Plus className="h-3 w-3 mr-1" />
-                    )}
-                    New Version
-                  </Button>
-                </div>
+                >
+                  {createVersionMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Plus className="h-3 w-3 mr-1" />
+                  )}
+                  New Version
+                </Button>
               </div>
+            </div>
 
-              {/* New Version Form */}
-              {showNewVersionForm && (
+            {/* New Version Form */}
+            {showNewVersionForm && (
                                  <div className="relative">
                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl blur-sm"></div>
                    <Card className="relative bg-card/95 backdrop-blur-sm border-2 border-primary/30">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold text-foreground">Create New Version</h4>
-                      </div>
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-foreground">Create New Version</h4>
+                  </div>
 
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-medium text-foreground mb-1 block">Version Name</label>
-                          <Input
-                            value={newVersionData.version}
-                            onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
-                            placeholder="e.g., v2.0, Version 2, etc."
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Version Name</label>
+                      <Input
+                        value={newVersionData.version}
+                        onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
+                        placeholder="e.g., v2.0, Version 2, etc."
                             className="border-primary/30 focus:border-primary bg-background"
-                          />
-                        </div>
+                      />
+                    </div>
 
-                        <div>
-                          <label className="text-sm font-medium text-foreground mb-1 block">Version Description</label>
-                          <Textarea
-                            value={newVersionData.description}
-                            onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
-                            placeholder="Describe what's new in this version..."
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Version Description</label>
+                      <Textarea
+                        value={newVersionData.description}
+                        onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe what's new in this version..."
                                                          className="min-h-[80px] border-primary/30 focus:border-primary bg-background resize-none"
-                          />
-                        </div>
+                      />
+                    </div>
 
-                        <div className="flex items-center gap-2 pt-2">
-                          <Button
-                            onClick={saveNewVersion}
-                            size="sm"
-                            disabled={createVersionMutation.isPending}
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button
+                        onClick={saveNewVersion}
+                        size="sm"
+                        disabled={createVersionMutation.isPending}
                             className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                          >
-                            {createVersionMutation.isPending ? (
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <Save className="h-3 w-3 mr-1" />
-                            )}
-                            Save Version
-                          </Button>
+                      >
+                        {createVersionMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save Version
+                      </Button>
                                                      <Button onClick={cancelNewVersion} variant="outline" size="sm" className="border-border bg-background">
-                            <X className="h-3 w-3 mr-1" />
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
                 </div>
-              )}
+            )}
 
-              {/* Display All Versions */}
-              <div className="space-y-3">
-                {course.versions && course.versions.length > 0 ? (
+            {/* Display All Versions */}
+            <div className="space-y-3">
+              {course.versions && course.versions.length > 0 ? (
                   course.versions.map((versionId: string, index: number) => (
                     <div
-                      key={versionId}
+                    key={versionId}
                       className="animate-in slide-in-from-left-4 duration-500"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
                       <VersionCard
-                        versionId={versionId}
-                        courseId={courseIdHex}
-                        onInvalidate={onInvalidate}
-                        deleteVersionMutation={deleteVersionMutation}
-                      />
+                    versionId={versionId}
+                    courseId={courseIdHex}
+                    onInvalidate={onInvalidate}
+                    deleteVersionMutation={deleteVersionMutation}
+                  />
                     </div>
-                  ))
-                ) : (
+                ))
+              ) : (
                                        <div className="relative">
                        <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
                        <Card className="relative bg-card/95 backdrop-blur-sm border-dashed border-2 border-muted-foreground/30">
-                      <CardContent className="p-6 text-center">
+                  <CardContent className="p-6 text-center">
                         <div className="relative inline-block mb-3">
                           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-full blur-sm"></div>
                           <div className="relative bg-muted/20 border border-muted-foreground/20 rounded-full p-3">
@@ -749,16 +749,16 @@ function CourseCard({
                           </div>
                         </div>
                         <p className="text-muted-foreground font-medium">No versions available</p>
-                        <p className="text-sm text-muted-foreground mt-1">Create your first version to get started</p>
-                      </CardContent>
-                    </Card>
+                    <p className="text-sm text-muted-foreground mt-1">Create your first version to get started</p>
+                  </CardContent>
+                </Card>
                   </div>
-                )}
-              </div>
+              )}
             </div>
-          </CardContent>
-        )}
-      </Card>
+          </div>
+        </CardContent>
+      )}
+    </Card>
     </div>
   )
 }
@@ -858,16 +858,16 @@ function VersionCard({
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-muted/10 to-muted/5 rounded-xl blur-sm"></div>
         <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-muted">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-full blur-sm animate-pulse"></div>
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground relative z-10" />
               </div>
-              <span className="text-sm text-muted-foreground">Loading version...</span>
-            </div>
-          </CardContent>
-        </Card>
+            <span className="text-sm text-muted-foreground">Loading version...</span>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     )
   }
@@ -881,85 +881,85 @@ function VersionCard({
     <div className="relative group">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
              <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-3">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-3">
                 <h4 className="font-semibold text-foreground">{version.name}</h4>
                 <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
                   Version
                 </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{version.description}</p>
             </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">{version.description}</p>
+          </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
                              <Button 
                  variant="outline" 
                  size="sm" 
                  onClick={viewEnrollments} 
                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                >
-                <Users className="h-3 w-3 mr-1" />
-                View Enrollments
-              </Button>
+              <Users className="h-3 w-3 mr-1" />
+              View Enrollments
+            </Button>
                              <Button 
                  variant="outline" 
                  size="sm" 
                  onClick={sendInvites} 
                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                >
-                <Users className="h-3 w-3 mr-1" />
-                Send Invites
-              </Button>
+              <Users className="h-3 w-3 mr-1" />
+              Send Invites
+            </Button>
                              <Button 
                  variant="outline" 
                  size="sm" 
                  onClick={viewCourse} 
                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                >
-                <Eye className="h-3 w-3 mr-1" />
-                View
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={deleteVersion}
+              <Eye className="h-3 w-3 mr-1" />
+              View
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={deleteVersion}
                                  className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                disabled={deleteVersionMutation.isPending}
-              >
-                {deleteVersionMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3 mr-1" />
-                )}
-                Delete
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowProctoringModal(true)
-                }}
+              disabled={deleteVersionMutation.isPending}
+            >
+              {deleteVersionMutation.isPending ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3 mr-1" />
+              )}
+              Delete
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowProctoringModal(true)
+              }}
                                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                Settings
-              </Button>
-            </div>
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              Settings
+            </Button>
           </div>
+        </div>
 
-          <ProctoringModal
-            open={showProctoringModal}
-            onClose={() => setShowProctoringModal(false)}
-            courseId={courseId}
-            courseVersionId={versionId}
-            isNew={false}
-          />
+        <ProctoringModal
+          open={showProctoringModal}
+          onClose={() => setShowProctoringModal(false)}
+          courseId={courseId}
+          courseVersionId={versionId}
+          isNew={false}
+        />
 
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
     </div>
   )
 }
