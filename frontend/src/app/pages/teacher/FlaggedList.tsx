@@ -216,9 +216,9 @@ export default function FlaggedList() {
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
                 </div>
-                <p className="text-foreground text-xl font-semibold mb-2">No students found</p>
+                <p className="text-foreground text-xl font-semibold mb-2">No Flags found</p>
                 <p className="text-muted-foreground">
-                  {searchQuery ? "Try adjusting your search terms" : "No students are enrolled in this course version"}
+                  { "No students have reported this entity in this course version"}
                 </p>
               </div>
             ) : (
@@ -250,10 +250,15 @@ export default function FlaggedList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedUsers.map((enrollment) => (
+                    {sortedUsers.map((enrollment) => (<>
                       <TableRow
                         key={enrollment._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                        onClick={()=>{
+                           setSelectedReportId((prevId) =>
+    prevId === enrollment.user.userId ? null : enrollment.user.userId
+  );
+                                                  }}
                       >
                         <TableCell className="pl-6 py-6">
                           <span>{"Course questions not formatted properly"}</span>
@@ -297,7 +302,7 @@ export default function FlaggedList() {
                               size="sm"
                               onClick={() =>
                                {setUpdateStatusModalOpen(true);
-                                // setSelectedReportId(report.id)
+                                setSelectedReportId(report.id)
                                }
                               }
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
@@ -308,7 +313,74 @@ export default function FlaggedList() {
                            
                           </div>
                         </TableCell>
+                       <TableCell>
+                        <ChevronDown
+        className={`h-5 w-5 text-muted-foreground transform transition-transform duration-200 ${
+          selectedReportId === enrollment.user.userId ? "rotate-180" : ""
+        }`}
+      />
+                       </TableCell>
                       </TableRow>
+                      <TableRow>
+                         {selectedReportId===enrollment.user.userId&&<TableCell>
+                          <Card className="w-full bg-card/50 border-l-4 border-l-primary/40 hover:shadow-md transition-all duration-200">
+  <CardContent className="p-6">
+    <h4 className="text-lg font-semibold text-foreground mb-4">Flag History</h4>
+    <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
+      {[
+  {
+    id: 1,
+    comment: "Flagged due to inappropriate content.",
+    user: { firstName: "John", lastName: "Doe", email: "john@example.com" },
+    createdAt: "2025-07-25T10:15:00Z",
+  },
+  {
+    id: 2,
+    comment: "Reviewed and marked for moderation.",
+    user: { firstName: "Alice", lastName: "Smith", email: "alice@example.com" },
+    createdAt: "2025-07-26T14:22:00Z",
+  },
+].map((item, idx) => (
+        <div key={item.id} className="relative">
+          {/* Dot */}
+          <div className="absolute -left-[13px] top-1.5 w-3 h-3 bg-primary border-2 border-white rounded-full shadow" />
+
+          {/* User Info + Comment */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border shadow">
+                <AvatarImage src="/placeholder.svg" alt={item.user.email} />
+                <AvatarFallback className="bg-primary text-white font-bold">
+                  {(item.user.firstName?.[0] ?? "?") + (item.user.lastName?.[0] ?? "")}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-foreground leading-tight">
+                  {item.user.firstName + " " + item.user.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">{item.user.email}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground whitespace-nowrap">
+              {new Date(item.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+
+          {/* Comment */}
+          <p className="mt-2 ml-1 text-muted-foreground">{item.comment}</p>
+        </div>
+      ))}
+    </div>
+  </CardContent>
+</Card>
+</TableCell>}
+                      </TableRow></>
                     ))}
                   </TableBody>
                 </Table>
