@@ -204,12 +204,7 @@ export interface GetAllQuestionBanksResponse extends Array<{
   tags?: string[];
   type?: string;
 }> { }
-bankId: string;
-count: number;
-difficulty ?: string[];
-tags ?: string[];
-type ?: string;
-}> {}
+
 
 // Attempt types - matching backend validators
 export interface CreateAttemptParams {
@@ -785,26 +780,35 @@ export function useCreateItem(): {
 }
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
-export function useItemById(courseId: string, versionId: string, itemId: string): {
-  data: components['schemas']['ItemDataResponse'] | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
+export function useItemById(
+  courseId: string,
+  versionId: string,
+  itemId: string
+): {
+  data: components['schemas']['ItemDataResponse'] | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
 } {
-  const result = api.useQuery("get", "/courses/{courseId}/versions/{versionId}/item/{itemId}", {
-    params: { path: { courseId, versionId, itemId } }
-  }, { enabled: !!courseId && !!versionId && !!itemId }
+  const result = api.useQuery(
+    "get",
+    "/courses/{courseId}/versions/{versionId}/item/{itemId}",
+    {
+      params: { path: { courseId, versionId, itemId } },
+    },
+    {
+      enabled: !!courseId && !!versionId && !!itemId,
+    }
   );
-}, { enabled: !!courseId && !!versionId && !!itemId }
-  );
-// console.log("here", courseId , versionId , itemId);
-return {
-  data: result.data,
-  isLoading: result.isLoading,
-  error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
-  refetch: result.refetch
-};
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error?.message ?? "ERROR HERE",
+    refetch: result.refetch,
+  };
 }
+
 
 // PUT /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
 export function useUpdateItem(): {
@@ -1002,8 +1006,6 @@ export function useUserProgressPercentage(courseId: string, courseVersionId: str
 
 // Add this hook to your hooks file
 export function useUserProgressPercentageByUserId(
-  userId: string,
-  courseId: string,
   userId: string,
   courseId: string,
   courseVersionId: string
@@ -1250,14 +1252,13 @@ export function useCancelInvite(): {
 }
 
 // GET /users/{id}/watchTime/item/itemId
+
 export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
   data: undefined,
-export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
-    data: undefined,
-    isLoading: boolean,
-    error: string | null,
-    refetch: () => void
-  } {
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
     params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
     params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
@@ -1641,24 +1642,34 @@ interface IAttemptDetails {
 }
 
 // GET /quizzes/{quizId}/user/{userId}
-export function useUserQuizMetrics(quizId: string, userId: string): {
-  data: UserQuizMetricsResponse | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
+export function useUserQuizMetrics(
+  quizId: string,
+  userId: string
+): {
+  data: UserQuizMetricsResponse | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
 } {
-  const result = api.useQuery("get", "/quizzes/quiz/{quizId}/user/{userId}", {
-    params: { path: { quizId, userId } }
-  }, { enabled: !!quizId && !!userId });
-}, { enabled: !!quizId && !!userId });
+  const result = api.useQuery(
+    "get",
+    "/quizzes/quiz/{quizId}/user/{userId}",
+    {
+      params: { path: { quizId, userId } },
+    },
+    {
+      enabled: !!quizId && !!userId,
+    }
+  );
 
-return {
-  data: result.data,
-  isLoading: result.isLoading,
-  error: result.error ? (result.error.message ? result.error.message : "ERROR HERE") : null,
-  refetch: result.refetch
-};
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error?.message ?? "ERROR HERE",
+    refetch: result.refetch,
+  };
 }
+
 
 // GET /quiz/{quizId}/submissions/{submissionId}
 export function useQuizSubmission(quizId: string, submissionId: string): {
@@ -1672,15 +1683,12 @@ export function useQuizSubmission(quizId: string, submissionId: string): {
   }, { enabled: !!quizId && !!submissionId }
   );
 
-}, { enabled: !!quizId && !!submissionId }
-  );
-
-return {
-  data: result.data,
-  isLoading: result.isLoading,
-  error: result.error ? (result.error.message ? result.error.message : "Cannot fetch Quiz submission details.") : null,
-  refetch: result.refetch
-};
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message ? result.error.message : "Cannot fetch Quiz submission details.") : null,
+    refetch: result.refetch
+  };
 }
 
 
