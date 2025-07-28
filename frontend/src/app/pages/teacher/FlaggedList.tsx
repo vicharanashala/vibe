@@ -205,7 +205,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
       ))}
     </SelectContent>
   </Select>
-  <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">Filter by Status:</label>
+  <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">Filter by Type:</label>
   <Select value={selectedEntityType}  onValueChange={(value) => {
     setSelectedEntityType(value);
     setCurrentPage(1); 
