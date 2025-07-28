@@ -162,7 +162,7 @@ class ReportController {
     const report = await this.reportService.getReportById(reportId);
 
     const reportResource = subject(ReportPermissionSubject.REPORT, {
-      courseId: report.courseId?.toString(),
+      courseId: report.courseId?._id?.toString(),
     });
 
     if (!ability.can(ReportsActions.View, reportResource)) {

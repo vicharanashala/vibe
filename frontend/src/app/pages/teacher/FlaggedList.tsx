@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import {  useNavigate } from "@tanstack/react-router"
-import { Users, Loader2,  ChevronDown, ArrowUp, ArrowDown,Pencil } from 'lucide-react'
+import { Users, Loader2,  ChevronDown, ArrowUp, ArrowDown,Pencil, Flag, User, Clock, MessageSquare } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,7 +15,8 @@ import {
    useCourseById,
   useCourseVersionById,
  
-  useUpdateReportStatus
+  useUpdateReportStatus,
+  useGetReportDetails
 } from "@/hooks/hooks"
 import { useFlagStore } from "@/store/flag-store"
 import { useQueryClient } from "@tanstack/react-query"
@@ -27,6 +28,8 @@ import { toast } from "sonner"
 import { Pagination } from "@/components/ui/Pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ReportEntityEntity } from "@/types/flag.types"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 
 export default function FlaggedList() {
@@ -52,6 +55,7 @@ const pageLimit=10;
  const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
   const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",pageLimit,currentPage,selectedStatus,selectedEntityType)
+  
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
@@ -64,9 +68,12 @@ const pageLimit=10;
   } = useUpdateReportStatus();
 
 
+
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false)
 
 const [selectedReport, setSelectedReport] = useState<{ id: string; status: string } | null>(null);
+const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+const { data: selectedFlagData, error: selectedFlagError } = useGetReportDetails(selectedReport?.id);
 
   // Show all reports regardless 
 
@@ -86,6 +93,34 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
 
+  
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "RESOLVED":
+      return "bg-green-100 text-green-800 border-green-200"
+    case "IN_REVIEW":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    case "DISCARDED":
+      return "bg-red-100 text-red-800 border-red-200"
+    case "REPORTED":
+      return "bg-blue-100 text-blue-800 border-blue-200"
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200"
+  }
+}
+
+const getEntityTypeIcon = (entityType: string) => {
+  switch (entityType) {
+    case "VIDEO":
+      return "🎥"
+    case "COURSE":
+      return "📚"
+    case "DOCUMENT":
+      return "📄"
+    default:
+      return "📋"
+  }
+}
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
@@ -122,10 +157,11 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
       },
     });
 
-    await queryClient.invalidateQueries({
-      queryKey: ['get', '/reports/{courseId}/{versionId}'],
-    });
-
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['get', '/reports/{courseId}/{versionId}'] }),
+      queryClient.invalidateQueries({ queryKey: ['get', '/reports/{reportId}'] }),
+    ]);
+    
     toast.success("Status updated successfully");
   } catch (error) {
     toast.error("Failed to update status");
@@ -133,6 +169,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   } finally {
     setUpdateStatusModalOpen(false);
     setSelectedReport(null)
+    setIsUpdatingStatus(false)
   }
 };
 
@@ -324,91 +361,185 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                             })}
                           </div>
                         </TableCell>
-                        <TableCell className="py-6 pr-6">
-                          <div className="flex items-center gap-3">
+                        <TableCell className="py-6 pr-6 ">
                             {report.latestStatus!=="DISCARDED" && report.latestStatus!=="CLOSED" &&
+                          <div className="flex items-center gap-3 border-2 border-blue-100 dark:border-blue-950 rounded-2xl ">
                               <Button
                               variant="ghost"
                               size="sm"
                               onClick={() =>
-                               {setUpdateStatusModalOpen(true);
+                               {  setIsUpdatingStatus(true)
+                                  setUpdateStatusModalOpen(true);
                                 setSelectedReport({ id: report._id, status: report.latestStatus });
                                }
                               }
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                              className="text-blue-600 hover:text-blue-500 hover:bg-transparent dark:hover:bg-transparent transition-all duration-200 cursor-pointer pointer-events-auto"
                             >
                               <Pencil className="h-4 w-4 mr-2" />
                              Update Status
                             </Button>
-                          }
                            
                           </div>
+                          }
                         </TableCell>
                       
                       </TableRow>
                       <TableRow>
-                         {selectedReport?.id === report._id && (
-  <Dialog open={selectedReport?.id === report._id} onOpenChange={() => setSelectedReport(null)}>
-    <DialogContent className="sm:max-w-2xl max-h-[80vh]">
-      <DialogHeader>
-        <DialogTitle className="mb-3 md:mb-5 underline">Flag History</DialogTitle>
-      </DialogHeader>
-      <ScrollArea className="h-[65vh] pr-4">
-        <Card className="bg-card/50 border-l-4 border-l-primary/40">
-          <CardContent className="p-6">
-            <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
-              {report.status.length > 0 && report.status.map((item,index) => (
-              <div key={item.id} className="relative pb-6 last:pb-0 group">
-                  {!(index+1 === report.status.length) && (
-                    <div className="absolute -left-[9px] top-4 bottom-0 w-0.5 bg-primary/30"></div>
-                  )}
-                  <div className="absolute -left-[13px] top-1.5 z-10 w-3.5 h-3.5 bg-primary border-2 border-background rounded-full shadow-md" />
+                         {selectedFlagData && selectedReport?.id === report._id && (
+   <Dialog open={!isUpdatingStatus&&!!selectedFlagData} onOpenChange={()=>setSelectedReport(null)}>
+      <DialogContent className="sm:max-w-3xl max-h-[85vh]">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Flag className="h-5 w-5 text-primary" />
+            Flag Report Details
+          </DialogTitle>
+        </DialogHeader>
 
-                  <div className="bg-background/80 group-hover:bg-accent/50 transition-colors duration-200 rounded-lg p-4  border border-border/50 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                      <div>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.status === 'RESOLVED' ? 'bg-green-100 text-green-800' : 
-                          item.status === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800' : 
-                          item.status === 'DISCARDED' ? 'bg-red-100 text-red-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </div>
-    
-                      <div className="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" fill="none"                 viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(item.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
+        <ScrollArea className="h-[70vh] pr-4">
+          <div className="space-y-6">
+            {/* Flag Overview */}
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      Reported by
                     </div>
-                    <div className="mt-3 pl-1 border-l-2 border-accent/30 pl-3 py-1">
-                      <p className="text-sm text-foreground">
-                        {item.comment || (
-                          <span className="italic text-muted-foreground/70">No additional comments</span>
-                        )}
-                      </p>
+                    <p className="font-medium">
+                      {selectedFlagData.reportedBy.firstName} {selectedFlagData.reportedBy.lastName}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      Reported on
                     </div>
-                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border/30 to-transparent"></div>
+                    <p className="font-medium">
+                      {new Date(selectedFlagData.createdAt).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </ScrollArea>
-    </DialogContent>
-  </Dialog>)
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{getEntityTypeIcon(selectedFlagData.entityType)}</span>
+                    Entity Type
+                  </div>
+                  <Badge variant="outline" className="font-medium">
+                    {selectedFlagData.entityType}
+                  </Badge>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    Reason for flagging
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 border">
+                    <p className="text-sm leading-relaxed">
+                      {selectedFlagData.reason || (
+                        <span className="italic text-muted-foreground">No reason provided</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Status Timeline */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Status Timeline
+                </h3>
+
+                <div className="relative">
+                  <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-border"></div>
+
+                  <div className="space-y-6">
+                    {selectedFlagData.status.map((item, index) => (
+                      <div key={index} className="relative flex gap-4">
+                        {/* Timeline dot */}
+                        <div className="relative z-10 flex-shrink-0">
+                          <div className="w-8 h-8 bg-background border-2 border-primary rounded-full flex items-center justify-center shadow-sm">
+                            <div className="w-3 h-3 bg-primary rounded-full"></div>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 pb-6">
+                          <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                              <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
+
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {new Date(item.createdAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                            </div>
+
+                            {item.comment && (
+                              <div className="bg-muted/30 rounded-md p-3 border-l-2 border-primary/30">
+                                <p className="text-sm text-foreground leading-relaxed">{item.comment}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Additional Info */}
+            <Card className="bg-muted/20">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-muted-foreground">
+                  <div>
+                    <span className="font-medium">Course :</span>
+                    <p className="font-mono mt-1 break-all">{selectedFlagData.courseId.name}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Entity ID:</span>
+                    <p className="font-mono mt-1 break-all">{selectedFlagData.entityId}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Last Updated:</span>
+                    <p className="mt-1">
+                      {new Date(selectedFlagData.updatedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+)
 }
                       </TableRow></>
                     ))}
@@ -418,15 +549,22 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
             )}
           </CardContent>
         </Card>
+        {selectedReport?.id && 
      <FlagModal
-                  open={updateStatusModalOpen}
-                  onOpenChange={setUpdateStatusModalOpen}
-                  onSubmit={handleStatusUpdate}
-                  isSubmitting={false}
-                  teacher={true}
-                  selectedStatus={selectedReport?.status}
-                  
-                />
+     open={updateStatusModalOpen}
+     onOpenChange={(isOpen) => {
+      setUpdateStatusModalOpen(isOpen);
+      if (!isOpen) {
+        setIsUpdatingStatus(false); 
+        setSelectedReport(null);
+      }}}
+     onSubmit={handleStatusUpdate}
+     isSubmitting={false}
+     teacher={true}
+     selectedStatus={selectedReport?.status}
+     
+     />
+    }
                 {totalPages > 1 && (
                           <Pagination
                             currentPage={currentPage}

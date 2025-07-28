@@ -2194,7 +2194,7 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
   };
 }
 
-export function useGetReportDetails(reportId: string): {
+export function useGetReportDetails(reportId?: string): {
   data: IReport | undefined,
   isLoading: boolean,
   error: string | null,

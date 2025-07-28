@@ -46,7 +46,7 @@ class ReportRepository {
 
     const sortStatusStages = [
       {
-        $addFields: { 
+        $addFields: {
           status: {
             $sortArray: {
               input: '$status',
@@ -167,16 +167,19 @@ class ReportRepository {
 
       {
         $addFields: {
+          _id: {$toString: '$_id'}, // Convert main _id to string
           reportedBy: {
-            _id: '$reportedByUser._id',
+            _id: {$toString: '$reportedByUser._id'},
             firstName: '$reportedByUser.firstName',
             lastName: '$reportedByUser.lastName',
           },
           courseId: {
-            _id: '$courseData._id',
+            _id: {$toString: '$courseData._id'},
             name: '$courseData.name',
             description: '$courseData.description',
           },
+          versionId: {$toString: '$versionId'},
+          entityId: {$toString: '$entityId'},
         },
       },
 
