@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { Pagination } from "@/components/ui/Pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ReportEntityEntity } from "@/types/flag.types"
 
 
 export default function FlaggedList() {
@@ -33,9 +34,11 @@ export default function FlaggedList() {
   const queryClient = useQueryClient()
 
  const statusOptions = ["ALL", "REPORTED","IN_REVIEW", "RESOLVED", "DISCARDED", "CLOSED"]; 
+ const EntityOptions = ["ALL", "VIDEO","QUIZ", "ARTICLE", "QUESTION"]; 
 const pageLimit=10;
 
  const [selectedStatus, setSelectedStatus] = useState("ALL");
+ const [selectedEntityType, setSelectedEntityType] = useState("ALL");
   
   // Get course info from store
   const { currentCourseFlag } = useFlagStore()
@@ -48,7 +51,7 @@ const pageLimit=10;
   }
  const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
-  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",pageLimit,currentPage)
+  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "",versionId || "",pageLimit,currentPage,selectedStatus,selectedEntityType)
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const {
@@ -70,9 +73,9 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
   const reports = flagsData?.reports || []
 
 
-  const filteredReports = selectedStatus === "ALL"
-  ? reports
-  : reports.filter((report:any) => report.latestStatus === selectedStatus);
+  // const filteredReports = selectedStatus === "ALL"
+  // ? reports
+  // : reports.filter((report:any) => report.latestStatus === selectedStatus);
 
  
   const totalDocuments =flagsData?.totalDocuments || 0
@@ -187,7 +190,10 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
         </div>
         <div className="flex items-center gap-4 mt-4">
   <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">Filter by Status:</label>
-  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+  <Select value={selectedStatus}  onValueChange={(value) => {
+    setSelectedStatus(value);
+    setCurrentPage(1); 
+  }}>
     <SelectTrigger className="w-[180px]">
       <SelectValue placeholder="Select status" />
     </SelectTrigger>
@@ -199,13 +205,29 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
       ))}
     </SelectContent>
   </Select>
+  <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">Filter by Status:</label>
+  <Select value={selectedEntityType}  onValueChange={(value) => {
+    setSelectedEntityType(value);
+    setCurrentPage(1); 
+  }}>
+    <SelectTrigger className="w-[180px]">
+      <SelectValue placeholder="Select type" />
+    </SelectTrigger>
+    <SelectContent>
+      {EntityOptions.map((option) => (
+        <SelectItem key={option} value={option}>
+          {option === "ALL" ? "All Types" : option}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 </div>
         
                {/* Flags Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           
           <CardContent className="p-0">
-            {filteredReports.length === 0 ? (
+            {reports.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
@@ -219,16 +241,17 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-border bg-muted/30">
+                    <TableRow className="border-border bg-muted/30 ">
                       {[
                         { key: 'reason', label: 'Reason', className: 'pl-6 w-[300px]' },
+                        { key: 'entityType', label: 'Type', className: 'pl-6 w-[120px]' },
                           { key: 'status', label: 'Latest satus', className: 'w-[120px]' },
                         { key: 'reportedBy', label: 'Reported by', className: 'w-[120px]' },
                         { key: 'createdDate', label: 'Reported on', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
                         <TableHead
                           key={key}
-                          className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                          className={`font-bold text-foreground cursor-pointer select-none text-center align-middle ${className}`}
                           onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
                         >
                           <span className="flex items-center gap-1">
@@ -245,7 +268,7 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReports.map((report:any) => (<>
+                    {reports.map((report:any) => (<>
                       <TableRow
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -257,16 +280,21 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                           }
                         }}
                       >
+                        <TableCell className="pl-6 py-6 w-[250px] align-top">
+                            <div className="max-h-[100px] overflow-y-auto  whitespace-pre-wrap break-words text-sm pr-2">
+                              {report.reason}
+                            </div>
+                          </TableCell>
                         <TableCell className="pl-6 py-6">
-                          <span>{report.reason}</span>
+                          <span className="text-center align-middle">{report.entityType}</span>
                                        </TableCell>
                                        <TableCell className="pl-6 py-6">
-                          <span>{report.latestStatus}</span>
+                          <span >{report.latestStatus}</span>
                                        </TableCell>
                         <TableCell className="py-6">
                            
                             <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                            <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                               <AvatarImage src="/placeholder.svg" alt={report.reportedBy.firstName} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                                 {[
@@ -278,16 +306,17 @@ const [selectedReport, setSelectedReport] = useState<{ id: string; status: strin
                                   .join('') || (report.reportedBy.firstName?.[0]?.toUpperCase() ||report.reportedBy.lastName?.[0]?.toUpperCase() || '?')}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-foreground truncate text-lg">
-                                {report.reportedBy.firstName + " " + report.reportedBy.lastName || "Unknown User"}
-                              </p>
-                             
-                            </div>
+                           <div className="min-w-0 flex-1">
+                           <p className="font-semibold text-foreground text-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]"
+                              title={`${report.reportedBy.firstName} ${report.reportedBy.lastName}`}
+                            >
+                              {report.reportedBy.firstName + " " + report.reportedBy.lastName || "Unknown User"}
+                            </p>
+                          </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
-                          <div className="text-muted-foreground font-medium">
+                          <div className="text-muted-foreground font-medium ">
                             {new Date(report.updatedAt).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",

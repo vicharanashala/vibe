@@ -2163,12 +2163,13 @@ export function useSubmitFlag(): {
   };
 }
 
-export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, entityType?: string, status?: string,): {
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string,): {
   data: IReport[],
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+  
   const result = api.useQuery(
     "get",
     "/reports/{courseId}/{versionId}",
@@ -2179,12 +2180,12 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
           versionId
         },
         query: {
-          entityType,
-          status,
+          ...(entityType && entityType !== "ALL" ? { entityType } : {}),
+          ...(status && status !== "ALL" ? { status } : {}),
           limit,
           currentPage,
         }
-      }
+      },
     },
   );
   return {
