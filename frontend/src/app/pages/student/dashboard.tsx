@@ -68,7 +68,7 @@ function DashboardContent() {
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
-
+  const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = Math.round(
     completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
@@ -106,7 +106,7 @@ function DashboardContent() {
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
-            enrollments={enrollments}
+            enrollments={filteredEnrollement}
             isLoading={enrollmentsLoading}
             error={enrollmentsError}
             totalEnrollments={totalEnrollments}
@@ -141,7 +141,7 @@ function DashboardContent() {
         </main>
         <aside className="w-full md:w-80">
           <div className="sticky top-6">
-            <DashboardSidebar enrollments={enrollments} />
+            <DashboardSidebar enrollments={filteredEnrollement} />
           </div>
         </aside>
       </div>

@@ -116,7 +116,11 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                     <Clock className="h-4 w-4 text-green-500" />
                     <span className="text-green-500">
                       {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
-                        ? new Date(enrollment.enrollmentDate).toLocaleDateString()
+                        ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
                         : 'Recently'}
                     </span>
                   </div>
