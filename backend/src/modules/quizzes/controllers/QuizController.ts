@@ -42,7 +42,7 @@ import {
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {ISubmission} from '#quizzes/interfaces/index.js';
+import {ISubmission, ISubmissionWithUser} from '#quizzes/interfaces/index.js';
 import { QuizActions, getQuizAbility } from '../abilities/quizAbilities.js';
 import { subject } from '@casl/ability';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -300,7 +300,7 @@ class QuizController {
   async getAllSubmissions(
     @Params() params: QuizIdParam,
     @Ability(getQuizAbility) {ability}
-  ): Promise<ISubmission[]> {
+  ): Promise<ISubmissionWithUser[]> {
     const {quizId} = params;
     const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
     // Build the subject context first

@@ -59,16 +59,22 @@ interface IQuestionAnswerFeedback {
   score: number;
   answerFeedback?: string; // Optional feedback for the answer
 }
-
+interface IUserInfo {
+  _id: string;
+  firstName: string;
+  lastName: string;
+}
 interface ISubmission {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
-  userId: string | ObjectId;
+  userId: string | ObjectId ;
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult; // Result of the grading process
 }
-
+interface ISubmissionWithUser extends Omit<ISubmission, 'userId'> {
+  userId: IUserInfo;
+}
 interface IAttemptDetails {
   attemptId: string | ObjectId;
   submissionResultId?: string | ObjectId;
@@ -187,4 +193,5 @@ export {
   IQuizSettings,
   IQuestionDetails,
   IQuestionAnswerFeedback,
+  ISubmissionWithUser
 };
