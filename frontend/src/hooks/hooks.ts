@@ -1260,8 +1260,7 @@ export function useWatchTimeByItemId(userId: string, courseId: string, courseVer
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } },
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } }
   }, { enabled: !!userId && !!itemId && !!type },);
 
   return {

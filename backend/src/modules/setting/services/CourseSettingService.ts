@@ -110,16 +110,32 @@ class CourseSettingService extends BaseService {
     courseVersionId: string,
   ): Promise<CourseSetting | null> {
     return this._withTransaction(async session => {
-      const courseSettings = await this.settingsRepo.readCourseSettings(
+      let courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
         courseVersionId,
         session,
       );
 
       if (!courseSettings) {
-        throw new NotFoundError(
-          `Course settings for course ID ${courseId} and version ID ${courseVersionId} not found.`,
+        // Create new settings as in updateCourseSettings
+        const settings = new SettingsDto();
+        settings.proctors = new ProctoringSettingsDto();
+        settings.proctors.detectors = [];
+
+        const created = await this.createCourseSettings(
+          new CourseSetting({
+            courseVersionId,
+            courseId,
+            settings: settings
+          })
         );
+
+        if (!created) {
+          throw new InternalServerError(
+            'Failed to create course settings. Please try again later.',
+          );
+        }
+        return created;
       }
 
       return Object.assign(new CourseSetting(), courseSettings);

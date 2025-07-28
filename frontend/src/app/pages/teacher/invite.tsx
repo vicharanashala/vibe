@@ -30,6 +30,7 @@ import {
   useResendInvite,
   useCancelInvite,
   useCourseById,
+  useCourseVersionById,
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
@@ -66,9 +67,60 @@ export default function InvitePage() {
     refetch: refetchInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId))
 
+  // Add course version data hook to check structure
+  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
+
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
+
+  // Function to check if course has required structure for progress initialization
+  const hasRequiredStructure = () => {
+    if (!courseVersion || !courseVersion.modules || courseVersion.modules.length === 0) {
+      return false
+    }
+
+    const firstModule = courseVersion.modules.sort((a, b) => 
+      a.order.localeCompare(b.order)
+    )[0]
+
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      return false
+    }
+
+    const firstSection = firstModule.sections.sort((a, b) => 
+      a.order.localeCompare(b.order)
+    )[0]
+
+    // Note: We can't check if items exist in the itemsGroup without making additional API calls
+    // The backend will handle this check when trying to initialize progress
+    // For now, we'll assume that if a section exists, it should have an itemsGroup
+    return true
+  }
+
+  // Function to get the reason why invites can't be sent
+  const getInviteBlockReason = () => {
+    if (!courseVersion) {
+      return "Course version data is not available"
+    }
+
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      return "Course must have at least one module to send invites"
+    }
+
+    const firstModule = courseVersion.modules.sort((a, b) => 
+      a.order.localeCompare(b.order)
+    )[0]
+
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      return "Course must have at least one section in the first module to send invites"
+    }
+
+    return "Course must have at least one item in the first section to send invites"
+  }
+
+  // Check if course has required structure
+  const canSendInvites = hasRequiredStructure()
 
   // Handle adding new invite row
   const addInviteRow = () => {
@@ -124,6 +176,11 @@ export default function InvitePage() {
   const handleSendInvites = async () => {
     if (!courseId || !versionId) {
       toast.error("Course ID and version ID are required")
+      return
+    }
+
+    if (!canSendInvites) {
+      toast.error(`Cannot send invites: ${getInviteBlockReason()}`)
       return
     }
 
@@ -230,7 +287,7 @@ export default function InvitePage() {
     )
   }
 
-  if (courseLoading) {
+  if (courseLoading || versionLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -250,6 +307,21 @@ export default function InvitePage() {
           </Badge>
         )}
       </div>
+
+      {/* Course Structure Warning */}
+      {!canSendInvites && (
+        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+              <AlertTriangle className="w-5 h-5" />
+              <span className="font-medium">Course Structure Required</span>
+            </div>
+            <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
+              {getInviteBlockReason()}. Please add the required content before sending invites.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Send New Invites Section */}
       <Card>
@@ -372,7 +444,7 @@ export default function InvitePage() {
               </Button>
               <Button
                 onClick={handleSendInvites}
-                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 || !canSendInvites}
                 className="min-w-[120px]"
               >
                 {inviteUsers.isPending ? (
