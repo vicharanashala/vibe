@@ -15,6 +15,7 @@ import {
   IGradingResult,
   IQuestionAnswerFeedback,
   ISubmission,
+  ISubmissionWithUser,
 } from '../interfaces/grading.js';
 @injectable()
 class QuizService extends BaseService {
@@ -284,7 +285,7 @@ class QuizService extends BaseService {
         throw new NotFoundError('No submissions found for quiz');
       }
       return submissions.map(submission => ({
-        studentId: submission.userId,
+        studentId: submission.userId?._id,
         attemptId: submission.attemptId,
         score: submission.gradingResult.totalScore ?? 0,
         status: submission.gradingResult.gradingStatus,
@@ -427,7 +428,7 @@ class QuizService extends BaseService {
       return courseMap;
     });
   }
-  getAllSubmissions(quizId: string): Promise<ISubmission[]> {
+  getAllSubmissions(quizId: string): Promise<ISubmissionWithUser[]> {
     return this._withTransaction(async session => {
       const submissions = await this.submissionRepo.getByQuizId(
         quizId,

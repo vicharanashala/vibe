@@ -89,7 +89,7 @@ export const CourseSection = ({
         
         {/* Show pagination info for dashboard variant */}
         {variant === 'dashboard' && totalEnrollments > enrollments.length && (
-          <Card className="border border-border p-4">
+          <Card className="border border-border p-4 mt-2">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Showing {enrollments.length} of {totalEnrollments} enrolled courses

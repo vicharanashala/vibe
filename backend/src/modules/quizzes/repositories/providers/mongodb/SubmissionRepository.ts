@@ -1,4 +1,4 @@
-import {ISubmission} from '#quizzes/interfaces/grading.js';
+import {ISubmission, ISubmissionWithUser} from '#quizzes/interfaces/grading.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
@@ -95,16 +95,54 @@ class SubmissionRepository {
     );
     return count;
   }
+
   public async getByQuizId(
     quizId: string,
     session?: ClientSession,
-  ): Promise<ISubmission[]> {
+  ): Promise<ISubmissionWithUser[]> {
     await this.init();
+    console.log('Quiz Id: ', quizId);
     const results = await this.submissionResultCollection
-      .find({quizId}, {session})
+      .aggregate(
+        [
+          {
+            $match: {quizId},
+          },
+          {
+            $addFields: {
+              userId: {$toObjectId: '$userId'},
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'userInfo',
+            },
+          },
+          {
+            $unwind: {
+              path: '$userInfo',
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $addFields: {
+              userId: {
+                _id: {$toString: '$userInfo._id'},
+                firstName: '$userInfo.firstName',
+                lastName: '$userInfo.lastName',
+              },
+            },
+          },
+        ],
+        {session},
+      )
       .toArray();
-    return results;
+    return results as ISubmissionWithUser[];
   }
+
   public async countPassedByQuizId(
     quizId: string,
     session?: ClientSession,

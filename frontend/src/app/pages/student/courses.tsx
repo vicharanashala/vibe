@@ -25,15 +25,15 @@ export default function StudentCourses() {
   const totalPages = enrollmentsData?.totalPages || 1;
   const currentPageFromAPI = enrollmentsData?.currentPage || 1;
   const totalDocuments = enrollmentsData?.totalDocuments || 0;
-
+  const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   // Filter enrollments based on completion status
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => !enrollment.completed);
-  }, [enrollments]);
+    return filteredEnrollement.filter(enrollment => !enrollment.completed);
+  }, [filteredEnrollement]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.completed);
-  }, [enrollments]);
+    return filteredEnrollement.filter(enrollment => enrollment.completed);
+  }, [filteredEnrollement]);
 
   // Update current page when API response changes
   useEffect(() => {

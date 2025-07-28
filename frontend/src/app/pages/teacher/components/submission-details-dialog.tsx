@@ -130,13 +130,13 @@ const SubmissionDetailsDialog: React.FC<SubmissionDetailsDialogProps> = ({
         {/* Student Info */}
         <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
           <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-            <AvatarImage src={"/placeholder.svg"} alt={submission.userId} />
+            <AvatarImage src={"/placeholder.svg"} alt={submission.userId?.firstName} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-              {submission.userId.slice(0, 2).toUpperCase()}
+              {(submission.userId.firstName?.[0] ?? '').toUpperCase() +(submission.userId.lastName ? submission.userId.lastName[0].toUpperCase() : '')}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-card-foreground truncate text-lg">Student ID: {submission.userId}</p>
+            <p className="font-bold text-card-foreground truncate text-lg">Student : {(submission.userId?.firstName ?? '') + ' ' + (submission.userId?.lastName ?? '')}</p>
             <p className="text-muted-foreground truncate">Attempt ID: {submission.attemptId}</p>
           </div>
           <div className="text-right">
@@ -208,17 +208,16 @@ const SubmissionDetailsDialog: React.FC<SubmissionDetailsDialogProps> = ({
             )) || (
               <p className="text-center text-muted-foreground py-8">No feedback available</p>
             )}
+            {/* Additional Details */}
+            {gradingResult?.gradedAt && (
+              <div className="p-4 bg-muted/20 rounded-lg mb-5">
+                <p className="text-sm text-muted-foreground">
+                  Graded on: {new Date(gradingResult.gradedAt).toLocaleString()}
+                </p>
+              </div>
+            )}
           </ScrollArea>
         </div>
-
-        {/* Additional Details */}
-        {gradingResult?.gradedAt && (
-          <div className="p-4 bg-muted/20 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              Graded on: {new Date(gradingResult.gradedAt).toLocaleString()}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

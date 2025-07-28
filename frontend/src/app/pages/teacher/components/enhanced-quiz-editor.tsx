@@ -175,6 +175,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
 
+  console.log("Submissions: ",submissions)
   // Dialog states
   const [showCreateBankDialog, setShowCreateBankDialog] = useState(false);
   const [showCreateQuestionDialog, setShowCreateQuestionDialog] = useState(false);
@@ -646,7 +647,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           isSaving={updateItem.isPending}
         />
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6">
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6 mb-4">
           <TabsList>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -951,7 +952,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Student ID</TableHead>
+                        <TableHead>Student</TableHead>
                         <TableHead>Score</TableHead>
                         <TableHead>Max Score</TableHead>
                         <TableHead>Percentage</TableHead>
@@ -963,8 +964,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <TableBody>
                       {submissions?.map((sub: any) => (
                         <TableRow key={sub._id}>
-                          <TableCell className="font-medium">{sub.userId}</TableCell>
-                          <TableCell>{sub.gradingResult?.totalScore ?? 'N/A'}</TableCell>
+                          <TableCell className="font-medium max-w-[180px] overflow-hidden        text-ellipsis whitespace-nowrap" 
+                            title={`${sub.userId?.firstName ?? ''} ${sub.userId?.lastName ?? ''}`}>
+                            {(sub.userId?.firstName ?? '') + ' ' + (sub.userId?.lastName ?? '')}
+                          </TableCell>
+                          <TableCell>{sub.gradingResult?.totalScore.toFixed(2) ?? 'N/A'}</TableCell>
                           <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
                           <TableCell>
                             <Badge variant={
