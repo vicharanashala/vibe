@@ -87,28 +87,38 @@ export default function CoursePage() {
   const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
   const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
 
+  const streamRef = useRef<MediaStream | null>(null);
+  
   // Check for microphone and camera access, otherwise redirect to dashboard
-  useEffect(() => {
-    if (!showProctorDialog) {
-      async function checkMediaPermissions() {
-        try {
+    useEffect(() => {
+        async function checkMediaPermissions() {
+          try {
           // Try to get both camera and microphone access
-          await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          streamRef.current = stream;
         } catch (err) {
-          // If access denied or not available, redirect to dashboard
           alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
           try {
-            await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            streamRef.current = retryStream;
           } catch (err) {
             router.navigate({ to: '/student' });
           }
         }
       }
-      checkMediaPermissions();
-    }
-    // Only run on mount or when dialog is accepted
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProctorDialog]);
+      if (!showProctorDialog) {
+        checkMediaPermissions();
+      }
+      return () => {
+      // Clean up media tracks on unmount or navigation
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        window.location.reload();
+      }
+    };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showProctorDialog]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
