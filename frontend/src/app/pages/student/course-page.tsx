@@ -1276,7 +1276,6 @@ export default function CoursePage() {
                     </Button>
                     </div>
                    }
-                 <div className="flex-1">
                   <ItemContainer
                     ref={itemContainerRef}
                     item={currentItem}
@@ -1293,7 +1292,6 @@ export default function CoursePage() {
                     anomalies={anomalies}
                     keyboardLockEnabled={!isFlagModalOpen}
                   />
-                  </div>
 
                 </div>
               ) : (
