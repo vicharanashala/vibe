@@ -24,6 +24,7 @@ import {
 
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import InviteDropdown from "@/components/inviteDropDown";
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function TeacherLayout() {
   const matches = useMatches();
@@ -31,6 +32,7 @@ export default function TeacherLayout() {
   const { user } = useAuthStore(); // 🧠 from store
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [showInvites, setShowInvites] = useState(false);
+  const [confirmLogout,setConfirmLogout] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -115,11 +117,17 @@ export default function TeacherLayout() {
                 {showInvites && <InviteDropdown />}
               </div>
 
+              <ConfirmationModal isOpen={confirmLogout} 
+                  onClose={()=>setConfirmLogout(false)} 
+                  onConfirm={handleLogout} 
+                  title={`Confirm Logout`}
+                  description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+                />
 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleLogout}
+                onClick={()=>setConfirmLogout(true)}
                 className="relative h-9 px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
               >
                 <LogOut className="h-4 w-4" />

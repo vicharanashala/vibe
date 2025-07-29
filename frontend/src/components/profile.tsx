@@ -14,9 +14,10 @@ import { useEditUser } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 
 export default function UserProfile({ role = "student" } : {role?: "student" | "teacher" | "admin"}) {
-  const { user } = useAuthStore()
+  const { user,setUser } = useAuthStore()
   const navigate = useNavigate()
     const handleLogout = () => {
       logout();
@@ -35,6 +36,7 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
   const [isSaving, setIsSaving] = useState(false)
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
+  const [confirmLogout,setConfirmLogout] = useState(false);
 
   const {mutateAsync: editUser } = useEditUser();
 
@@ -63,6 +65,7 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
       toast.error("Failed to update profile")
     } finally {
       setIsSaving(false)
+      setConfirmLogout(false)
     }
   }
 
@@ -74,7 +77,12 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
           <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
           <p className="text-muted-foreground">Your personal information and details</p>
         </section>
-
+        <ConfirmationModal isOpen={confirmLogout} 
+          onClose={()=>setConfirmLogout(false)} 
+          onConfirm={handleLogout} 
+          title={"Confirm Logout"}
+          description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+          />
         <div className="grid gap-6 md:grid-cols-3">
           {/* Profile Picture & Basic Info */}
           <Card className="relative overflow-hidden">
@@ -130,11 +138,22 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
                     </Badge>
                   </div>
 
-                  <div className="text-center pt-4">
+                  {/* <div className="text-center pt-4">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleLogout}
+                      className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </Button>
+                  </div> */}
+                  <div className="text-center pt-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={()=>setConfirmLogout(true)}
                       className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
