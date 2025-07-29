@@ -804,7 +804,7 @@ export function useItemById(
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Item fetch failed') : null
+    error: result.error ? (result.error.message || 'Item fetch failed') : null,
     refetch: result.refetch,
   };
 }
@@ -1664,7 +1664,7 @@ export function useUserQuizMetrics(
   return {
     data: result.data,
     isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Quiz metric fetch failed') : null
+    error: result.error ? (result.error.message || 'Quiz metric fetch failed') : null,
     refetch: result.refetch,
   };
 }
