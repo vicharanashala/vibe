@@ -87,7 +87,9 @@ function FloatingVideo({
   const isHandGestureDetectionEnabled = false; //isComponentEnabled('handGestureDetection');
   const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
+  const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -141,6 +143,18 @@ function FloatingVideo({
     }, 100);
   }, [isPoppedOut]);
 
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (isRighClickDisabled) {
+        e.preventDefault();
+        console.log("Right-click is disabled on this page");
+      }
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [isRighClickDisabled]); 
 
 // Image record anomaly effect
 const reportImage = useReportAnomalyImage();
@@ -977,7 +991,7 @@ const lastCalledRef = useRef<number>(0);
                           </span></div>
                         )}
 
-                        {facesCount !== 1 && (
+                        {isFaceCountDetectionEnabled && facesCount !== 1 && (
                           <div>Faces: <span className="text-red-400">
                             {facesCount} {facesCount === 0 ? "(None detected)" : facesCount > 1 ? "(Multiple detected)" : ""}
                           </span></div>

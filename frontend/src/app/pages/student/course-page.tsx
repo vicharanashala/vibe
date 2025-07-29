@@ -245,7 +245,9 @@ export default function CoursePage() {
   // Log proctoring settings when loaded (only logs once when data is available)
   useEffect(() => {
     async function fetch() {
-      setProctoringData(await getSettings(COURSE_ID, VERSION_ID))
+      const data = await getSettings(COURSE_ID, VERSION_ID);
+      console.log("Current proctoring data: ",data);
+      setProctoringData(data);
     }
     fetch();
   }, []);
