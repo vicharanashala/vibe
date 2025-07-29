@@ -81,9 +81,10 @@ setStatus(selectedStatus)
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+        {teacher && 
           <div className="grid gap-2">
             <label className="text-sm font-medium">Status</label>
-              {teacher&&  <Select value={status} onValueChange={setStatus}>
+               <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -95,10 +96,10 @@ setStatus(selectedStatus)
                     )
 
                     )}
-              </SelectContent>
-           </Select>
+                 </SelectContent>
+              </Select>
+            </div>
            }
-        </div>
           <div className="grid gap-2">
             <Textarea
               value={reason}
