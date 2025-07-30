@@ -150,11 +150,11 @@ const studentLayoutRoute = new Route({
 });
 
 // Teacher dashboard route
-const teacherDashboardRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/',
-  component: Dashboard,
-});
+// const teacherDashboardRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/',
+//   component: Dashboard,
+// });
 
 // Teacher profile route
 const teacherProfileRoute = new Route({
@@ -187,14 +187,14 @@ const teacherViewCourseRoute = new Route({
     // Ensure courseId and versionId are in zustand store
     const { currentCourse } = useCourseStore.getState();
     if (!currentCourse || !currentCourse.courseId || !currentCourse.versionId) {
-      throw redirect({ to: '/teacher/courses/list' });
+      throw redirect({ to: '/teacher' });
     }
   },
 });
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/list',
+  path: '/',
   component: TeacherCoursesPage,
 });
 
@@ -309,7 +309,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   teacherLayoutRoute.addChildren([
-    teacherDashboardRoute,
+    // teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
     teacherViewCourseRoute,teacherCourseFlagsRoute,

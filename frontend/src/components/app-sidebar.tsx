@@ -51,7 +51,7 @@ export function AppSidebar() {
         icon: BookOpen,
         items: [
           { title: "Create Course", url: "/teacher/courses/create" },
-          { title: "All Courses", url: "/teacher/courses/list" },
+          { title: "All Courses", url: "/teacher" },
         ],
       },
     ],

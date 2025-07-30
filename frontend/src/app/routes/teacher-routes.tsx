@@ -18,10 +18,10 @@ const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
   children: [
-    {
-      path: "dashboard",
-      element: <Dashboard />,
-    },
+    // {
+    //   path: "dashboard",
+    //   element: <Dashboard />,
+    // },
     {
       path: "profile",
       element: <TeacherProfile />,
@@ -53,7 +53,7 @@ const teacherRoutes: RouteObject = {
     },
     {
       index: true,
-      element: <Dashboard />, // Default to Dashboard
+      element: <TeacherCoursesPage />, // Default to Dashboard
     },
     {
       path: "testing",
