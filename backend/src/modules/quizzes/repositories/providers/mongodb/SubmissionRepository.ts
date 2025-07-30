@@ -1,9 +1,14 @@
-import {ISubmission, ISubmissionWithUser} from '#quizzes/interfaces/grading.js';
+import {
+  ISubmission,
+  ISubmissionWithUser,
+  PaginatedSubmissions,
+} from '#quizzes/interfaces/grading.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
+import {GetQuizSubmissionsQuery} from '#root/modules/quizzes/classes/index.js';
 
 @injectable()
 class SubmissionRepository {
@@ -99,48 +104,113 @@ class SubmissionRepository {
   public async getByQuizId(
     quizId: string,
     session?: ClientSession,
-  ): Promise<ISubmissionWithUser[]> {
+    query: GetQuizSubmissionsQuery = {},
+  ): Promise<PaginatedSubmissions> {
     await this.init();
-    console.log('Quiz Id: ', quizId);
-    const results = await this.submissionResultCollection
-      .aggregate(
-        [
-          {
-            $match: {quizId},
+
+    const {
+      search,
+      gradeStatus,
+      sort = 'DATE_DESC',
+      currentPage = 1,
+      limit = 10,
+    } = query;
+
+    const skip = (currentPage - 1) * limit;
+
+    const matchStage = {
+      quizId,
+    };
+
+    if (gradeStatus && gradeStatus !== 'All') {
+      matchStage['gradingResult.gradingStatus'] = gradeStatus;
+    }
+
+    const sortStage: Record<string, 1 | -1> = (() => {
+      switch (sort) {
+        case 'date_asc':
+          return {submittedAt: 1};
+        case 'date_desc':
+          return {submittedAt: -1};
+        case 'score_asc':
+          return {'gradingResult.totalScore': 1};
+        case 'score_desc':
+          return {'gradingResult.totalScore': -1};
+        default:
+          return {submittedAt: -1};
+      }
+    })();
+
+    const aggregationPipeline:any[] = [
+      {
+        $match: matchStage,
+      },
+      {
+        $addFields: {
+          userId: {$toObjectId: '$userId'},
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {
+        $unwind: {
+          path: '$userInfo',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          userId: {
+            _id: {$toString: '$userInfo._id'},
+            firstName: '$userInfo.firstName',
+            lastName: '$userInfo.lastName',
+            email: '$userInfo.email',
           },
-          {
-            $addFields: {
-              userId: {$toObjectId: '$userId'},
-            },
-          },
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'userId',
-              foreignField: '_id',
-              as: 'userInfo',
-            },
-          },
-          {
-            $unwind: {
-              path: '$userInfo',
-              preserveNullAndEmptyArrays: true,
-            },
-          },
-          {
-            $addFields: {
-              userId: {
-                _id: {$toString: '$userInfo._id'},
-                firstName: '$userInfo.firstName',
-                lastName: '$userInfo.lastName',
-              },
-            },
-          },
-        ],
-        {session},
-      )
-      .toArray();
-    return results as ISubmissionWithUser[];
+        },
+      },
+    ];
+
+    if (search && search.trim() !== '') {
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            {'userInfo.firstName': {$regex: search, $options: 'i'}},
+            {'userInfo.lastName': {$regex: search, $options: 'i'}},
+            {'userInfo.email': {$regex: search, $options: 'i'}},
+          ],
+        },
+      });
+    }
+
+    aggregationPipeline.push(
+      {$sort: sortStage},
+      {$skip: skip},
+      {$limit: limit},
+    );
+
+    const [data, totalCount] = await Promise.all([
+      this.submissionResultCollection
+        .aggregate(aggregationPipeline, {session})
+        .toArray(),
+
+      this.submissionResultCollection.countDocuments(matchStage),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit)
+
+    return {
+      data: data as ISubmissionWithUser[],
+      totalCount,
+      currentPage,
+      totalPages,
+    };
+
   }
 
   public async countPassedByQuizId(

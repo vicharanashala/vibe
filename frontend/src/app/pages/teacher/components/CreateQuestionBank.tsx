@@ -110,7 +110,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     };
 
     return (
-        <div className="p-4 border-b">
+        <div className="p-4 border-b rounded ">
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="font-bold text-lg">Question Banks</h3>

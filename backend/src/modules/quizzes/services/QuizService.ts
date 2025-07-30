@@ -16,7 +16,9 @@ import {
   IQuestionAnswerFeedback,
   ISubmission,
   ISubmissionWithUser,
+  PaginatedSubmissions,
 } from '../interfaces/grading.js';
+import {GetQuizSubmissionsQuery} from '../classes/index.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -147,7 +149,11 @@ class QuizService extends BaseService {
   }
   getAttemptDetails(attemptId: string, quizId: string) {
     return this._withTransaction(async session => {
-      const attempt = await this.attemptRepo.getById(attemptId, quizId, session);
+      const attempt = await this.attemptRepo.getById(
+        attemptId,
+        quizId,
+        session,
+      );
       if (!attempt) {
         throw new NotFoundError('Attempt does not exist.');
       }
@@ -231,7 +237,7 @@ class QuizService extends BaseService {
         quizId,
         session,
       );
-      if (!submissions || submissions.length === 0) {
+      if (!submissions.data || submissions.data.length === 0) {
         throw new NotFoundError('No submissions found for quiz');
       }
       const statsMap = new Map<
@@ -239,7 +245,7 @@ class QuizService extends BaseService {
         {correct: number; total: number; score: number}
       >();
 
-      for (const submission of submissions) {
+      for (const submission of submissions.data) {
         const feedbacks: IQuestionAnswerFeedback[] =
           submission.gradingResult?.overallFeedback ?? [];
 
@@ -281,10 +287,10 @@ class QuizService extends BaseService {
         quizId,
         session,
       );
-      if (!submissions || submissions.length === 0) {
+      if (!submissions.data || submissions.data.length === 0) {
         throw new NotFoundError('No submissions found for quiz');
       }
-      return submissions.map(submission => ({
+      return submissions.data.map(submission => ({
         studentId: submission.userId?._id,
         attemptId: submission.attemptId,
         score: submission.gradingResult.totalScore ?? 0,
@@ -428,20 +434,25 @@ class QuizService extends BaseService {
       return courseMap;
     });
   }
-  getAllSubmissions(quizId: string): Promise<ISubmissionWithUser[]> {
+  getAllSubmissions(
+    quizId: string,
+    query: GetQuizSubmissionsQuery,
+  ): Promise<PaginatedSubmissions> {
     return this._withTransaction(async session => {
       const submissions = await this.submissionRepo.getByQuizId(
         quizId,
         session,
+        query,
       );
-      if (!submissions || submissions.length === 0) {
+      if (!submissions.data || submissions.data.length === 0) {
         throw new NotFoundError('No submissions found for quiz');
       }
       // Convert _id to string for each submission
-      return submissions.map(sub => ({
-        ...sub,
-        _id: sub._id.toString(),
-      }));
+      // return submissions.data.map(sub => ({
+      //   ...sub,
+      //   _id: sub._id.toString(),
+      // }));
+      return submissions
     });
   }
 
@@ -452,19 +463,15 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const metrics = await this.userQuizMetricsRepo.get(
-          userId,
-          quizId,
-          session,
-        );
+        userId,
+        quizId,
+        session,
+      );
       if (!metrics) {
         throw new NotFoundError('User metrics not found.');
       }
       metrics.remainingAttempts = quiz.details.maxAttempts;
-      await this.userQuizMetricsRepo.update(
-        userId,
-        metrics,
-        session,
-      );
+      await this.userQuizMetricsRepo.update(userId, metrics, session);
     });
   }
 }

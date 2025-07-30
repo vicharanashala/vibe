@@ -8,7 +8,7 @@ import { api } from '../lib/openapi';
 import { components, operations } from '../types/schema';
 import { useState } from 'react';
 
-import type { QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults } from '../types/quiz.types';
+import type { QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults, GradingSystemStatus } from '../types/quiz.types';
 
 
 import type {
@@ -2267,14 +2267,14 @@ export function useQuizResults(quizId: string): {
   };
 }
 
-export function useQuizSubmissions(quizId: string): {
-  data: QuizSubmissionResponseUpdated[] | undefined,
+export function useQuizSubmissions(quizId: string,gradeStatus:GradingSystemStatus, search:string, sort:string, currentPage:number, limit:number): {
+  data: {totalCount:number, totalPages:number, currentPage:number, data: QuizSubmissionResponseUpdated[]} | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions", {
-    params: { path: { quizId } }
+    params: { path: { quizId }, query: { ...(gradeStatus && gradeStatus=="All" ? {}:{gradeStatus}), search, ...(sort && sort=="All" ? {}:{sort}), currentPage, limit   } }
   }, { enabled: !!quizId });
 
   return {

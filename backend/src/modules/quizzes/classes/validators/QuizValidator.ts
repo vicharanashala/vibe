@@ -23,6 +23,7 @@ import {
   IsDateString,
   IsDate,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
@@ -480,7 +481,51 @@ class SubmitAttemptResponse implements Partial<IGradingResult> {
   })
   gradedBy?: string;
 }
+export class GetQuizSubmissionsQuery {
+  @IsOptional()
+  @IsString()
+  @IsIn(['PENDING' , 'PASSED' , 'FAILED' ])
+  @JSONSchema({
+    description: 'Filter by grading status (e.g., PASSED, FAILED)',
+    example: 'PASSED',
+  })
+  gradeStatus?: string;
 
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Search term (name, email, etc.)',
+    example: 'john',
+  })
+  search?: string;
+  
+  @IsOptional()
+  @IsString()
+  @IsIn(["date_desc", "date_asc", "score_desc", "score_asc"])
+  @JSONSchema({
+    description: 'Sort option (e.g., RECENT, SCORE_ASC, SCORE_DESC)',
+    example: 'RECENT',
+  })
+  sort?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Current page number for pagination',
+    example: 1,
+    minimum: 1,
+  })
+  currentPage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Number of items per page',
+    example: 10,
+    minimum: 1,
+  })
+  limit?: number;
+}
 class QuizIdParam {
   @IsMongoId()
   @IsNotEmpty()

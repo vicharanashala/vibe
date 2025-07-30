@@ -26,6 +26,9 @@ interface QuestionFeedbackCardProps {
 const QuestionFeedbackCard: React.FC<QuestionFeedbackCardProps> = ({ feedback, maxScore = 5 }) => {
   const { data: questionData } = useQuestionById(feedback.questionId);
 
+  console.log("Question data: ", questionData);
+  console.log("Feedback: ",feedback);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'CORRECT':

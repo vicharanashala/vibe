@@ -20,7 +20,8 @@ import {
   Settings,
   BarChart3,
   Users,
-  RefreshCw,FlagTriangleRight
+  RefreshCw,FlagTriangleRight,
+  Search
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
@@ -32,7 +33,8 @@ import {
   useReplaceQuestionWithDuplicate,
   useDeleteQuestion,
   useUpdateItem,
-  useQuestionById
+  useQuestionById,
+  useQuizSubmissions
 } from '@/hooks/hooks';
 
 import ExpandableQuestionCard from './expandable-question-card';
@@ -42,6 +44,8 @@ import CreateQuestionBankDialog from './CreateQuestionBank';
 import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
 import ConfirmationModal from './confirmation-modal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { GradingSystemStatus } from '@/types/quiz.types';
+import { Pagination } from '@/components/ui/Pagination';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -51,7 +55,7 @@ interface EnhancedQuizEditorProps {
   sectionId: string;
   details: any;
   analytics: any;
-  submissions: any;
+  // submissions: any;
   performance: any;
   onDelete: () => void;
 }
@@ -167,7 +171,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   sectionId,
   details,
   analytics,
-  submissions,
+  // submissions,
   performance,
   onDelete,
 }) => {
@@ -175,7 +179,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
 
-  console.log("Submissions: ",submissions)
   // Dialog states
   const [showCreateBankDialog, setShowCreateBankDialog] = useState(false);
   const [showCreateQuestionDialog, setShowCreateQuestionDialog] = useState(false);
@@ -190,6 +193,38 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [showDeleteQuestionModal, setShowDeleteQuestionModal] = useState(false);
   const [questionBankToDelete, setQuestionBankToDelete] = useState<string | null>(null);
   const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
+
+  // Quiz submission payloads
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 10;
+  const [selectedGradeStatus, setSelectedGradeStatus] = useState<GradingSystemStatus>("All");
+  const [sort, setSort] = useState("All");
+  const [searchQuery,setSearchQuery] = useState("");
+
+  const gradeStatusOptions = ["All", 'PENDING' , 'PASSED' , 'FAILED'];
+
+  const sortOptions = [
+  { label: "All", value: "All" },
+  { label: "Newest First", value: "date_desc" },
+  { label: "Oldest First", value: "date_asc" },
+  { label: "Highest Score First", value: "score_desc" },
+  { label: "Lowest Score First", value: "score_asc" },
+  ];
+
+  
+  if(!quizId){
+    console.error("Failed to fetch submission because quizId is ", quizId)
+  }
+  const { data: submissionsData } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit);
+  
+  const submissions = submissionsData?.data;
+  console.log("Submissions: ",submissions)
+
+  const handlePageChange = (newPage: number) => {
+    if (submissionsData && newPage >= 1 && newPage <= submissionsData.totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
 
   // Form states
   const [bankForm, setBankForm] = useState({ title: '', description: '' });
@@ -617,10 +652,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               <p className="text-muted-foreground">{details?.description || 'Manage your quiz content and analytics'}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              {/* <Button variant="outline" size="sm">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
-              </Button>
+              </Button> */}
               <Button variant="outline" size="sm" onClick={() => setEditQuizSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
@@ -667,10 +702,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
       <div className="flex-1 overflow-hidden">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsContent value="questions" className="h-full m-0">
+          <TabsContent value="questions" className="h-full m-0 ms-7 mt-2">
             <div className="h-full flex">
               {/* Question Banks Sidebar */}
-              <div className="w-80 border-r bg-muted/50">
+              <div className="w-80 border-r rounded bg-muted/50 ">
                 <CreateQuestionBankDialog
                   showCreateBankDialog={showCreateBankDialog}
                   setShowCreateBankDialog={setShowCreateBankDialog}
@@ -939,8 +974,71 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           </TabsContent>
 
-          <TabsContent value="submissions" className="h-full m-0">
-            <div className="p-6">
+          <TabsContent value="submissions" className="h-full m-0 flex flex-col justify-center items-center">
+          <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10">
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by student name, email ... "
+                  value={searchQuery}
+                  onChange={(e) =>{ setSearchQuery(e.target.value)}}
+                  className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+                  Filter by Status:
+                </label>
+                <Select
+                  value={selectedGradeStatus}
+                  onValueChange={(value) => {
+                    setSelectedGradeStatus(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gradeStatusOptions.map((status: GradingSystemStatus) => (
+                      <SelectItem key={status} value={status}>
+                        {status === "All" ? "Select an option" : status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+                  Sort by:
+                </label>
+                <Select
+                  value={sort}
+                  onValueChange={(value) => {
+                    setSort(value);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label === "All" ? "Select an option" : option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+            <div className="p-6 w-full">
               <Card>
                 <CardHeader>
                   <CardTitle>All Submissions</CardTitle>
@@ -1013,7 +1111,16 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           </TableRow>
                         )}
                     </TableBody>
+
                   </Table>
+                    {submissionsData && submissionsData?.totalPages > 1 && (
+                      <Pagination
+                          currentPage={currentPage}
+                          totalPages={submissionsData.totalPages}
+                          totalDocuments={submissionsData.totalCount}
+                          onPageChange={handlePageChange}
+                        />
+                     )}
                 </CardContent>
               </Card>
             </div>

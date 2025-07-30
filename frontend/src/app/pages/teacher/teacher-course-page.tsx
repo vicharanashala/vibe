@@ -20,13 +20,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizSubmissions, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults,useMoveModule,useMoveSection,useMoveItem } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults,useMoveModule,useMoveSection,useMoveItem } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
+import { GradingSystemStatus } from "@/types/quiz.types";
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -61,6 +62,9 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
+
+
+
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -128,7 +132,7 @@ export default function TeacherCoursePage() {
 
   const { data: quizDetails } = useQuizDetails(selectedQuizId);
   const { data: quizAnalytics } = useQuizAnalytics(selectedQuizId);
-  const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId);
+  // const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId, selectedGradeStatus, sort, currentPage, limit);
   const { data: quizPerformance } = useQuizPerformance(selectedQuizId);
 
   const toggleModule = (moduleId: string) => {
@@ -954,7 +958,7 @@ setInitialModules(modules)
                         courseVersionId={versionId}
                         details={quizDetails}
                         analytics={quizAnalytics}
-                        submissions={quizSubmissions}
+                        // submissions={quizSubmissions}
                         performance={quizPerformance}
                         onDelete={() => {
                           deleteItem.mutate({

@@ -22,6 +22,7 @@ import {
   GetAllSubmissionsResponse,
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
+  GetQuizSubmissionsQuery,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {QuizService} from '#quizzes/services/QuizService.js';
@@ -39,10 +40,11 @@ import {
   BadRequestError,
   ForbiddenError,
   Authorized,
+  QueryParams,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {ISubmission, ISubmissionWithUser} from '#quizzes/interfaces/index.js';
+import {ISubmission, ISubmissionWithUser, PaginatedSubmissions} from '#quizzes/interfaces/index.js';
 import { QuizActions, getQuizAbility } from '../abilities/quizAbilities.js';
 import { subject } from '@casl/ability';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -299,8 +301,9 @@ class QuizController {
   })
   async getAllSubmissions(
     @Params() params: QuizIdParam,
+    @QueryParams() query:GetQuizSubmissionsQuery,
     @Ability(getQuizAbility) {ability}
-  ): Promise<ISubmissionWithUser[]> {
+  ): Promise<PaginatedSubmissions> {
     const {quizId} = params;
     const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
     // Build the subject context first
@@ -310,7 +313,8 @@ class QuizController {
       throw new ForbiddenError('You do not have permission to view quiz submissions');
     }
     
-    return await this.quizService.getAllSubmissions(quizId);
+    const submissions =  await this.quizService.getAllSubmissions(quizId, query);
+    return submissions;
   }
 
   @OpenAPI({

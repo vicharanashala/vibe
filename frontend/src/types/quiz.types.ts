@@ -6,12 +6,13 @@ export interface QuizSubmissionResponse {
   submittedAt: string; // ISO date string
   gradingResult?: IGradingResult;
 }
+export type GradingSystemStatus = 'PENDING' | 'PASSED' | 'FAILED' | any
 
 export interface IGradingResult {
   totalScore?: number;
   totalMaxScore?: number;
   overallFeedback?: IQuestionAnswerFeedback[];
-  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradingStatus: GradingSystemStatus
   gradedAt?: string; // ISO date string
   gradedBy?: string;
 }

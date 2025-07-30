@@ -63,6 +63,7 @@ interface IUserInfo {
   _id: string;
   firstName: string;
   lastName: string;
+  email:string;
 }
 interface ISubmission {
   _id?: string | ObjectId;
@@ -75,6 +76,13 @@ interface ISubmission {
 interface ISubmissionWithUser extends Omit<ISubmission, 'userId'> {
   userId: IUserInfo;
 }
+interface PaginatedSubmissions {
+  data: ISubmissionWithUser[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number; 
+}
+
 interface IAttemptDetails {
   attemptId: string | ObjectId;
   submissionResultId?: string | ObjectId;
@@ -193,5 +201,6 @@ export {
   IQuizSettings,
   IQuestionDetails,
   IQuestionAnswerFeedback,
-  ISubmissionWithUser
+  ISubmissionWithUser,
+  PaginatedSubmissions
 };
