@@ -40,11 +40,11 @@ export function AppSidebar() {
       avatar: user?.avatar,
     },
     navMain: [
-      {
-        title: "Dashboard",
-        url: "/teacher",
-        icon: PieChart,
-      },
+      // {
+      //   title: "Dashboard",
+      //   url: "/teacher",
+      //   icon: PieChart,
+      // },
       {
         title: "Courses",
         url: "#",
