@@ -40,18 +40,18 @@ export function AppSidebar() {
       avatar: user?.avatar,
     },
     navMain: [
-      {
-        title: "Dashboard",
-        url: "/teacher",
-        icon: PieChart,
-      },
+      // {
+      //   title: "Dashboard",
+      //   url: "/teacher",
+      //   icon: PieChart,
+      // },
       {
         title: "Courses",
         url: "#",
         icon: BookOpen,
         items: [
           { title: "Create Course", url: "/teacher/courses/create" },
-          { title: "All Courses", url: "/teacher/courses/list" },
+          { title: "All Courses", url: "/teacher" },
         ],
       },
     ],
