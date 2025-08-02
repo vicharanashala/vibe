@@ -34,6 +34,7 @@ import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
 import AISectionModal from '@/app/pages/teacher/components/AISectionModal';
 import FlaggedList from '../pages/teacher/FlaggedList'
+import StudentRouteGuard from '@/components/StudentRouteGuard'
 
 
 // Root route with error and notFound handling
@@ -146,7 +147,12 @@ const studentLayoutRoute = new Route({
       }
     }
   },
-  component: StudentLayout,
+  component: ()=> (
+    <StudentRouteGuard>
+      <StudentLayout/>
+    </StudentRouteGuard>
+  )
+  ,
 });
 
 // Teacher dashboard route

@@ -98,6 +98,7 @@
     "openapi-react-query": "^0.5.0",
     "radio-group": "^0.0.2",
     "react": "^19.0.0",
+    "react-device-detect": "^2.2.3",
     "react-dom": "^19.0.0",
     "react-katex": "^3.1.0",
     "react-markdown": "^10.1.0",
