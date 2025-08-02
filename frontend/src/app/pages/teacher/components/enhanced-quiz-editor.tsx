@@ -705,7 +705,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           <TabsContent value="questions" className="h-full m-0 ms-7 mt-2">
             <div className="h-full flex">
               {/* Question Banks Sidebar */}
-              <div className="w-80 border-r rounded bg-muted/50 ">
+              <div className="w-80 border-r rounded  bg-muted/50 mt-1">
                 <CreateQuestionBankDialog
                   showCreateBankDialog={showCreateBankDialog}
                   setShowCreateBankDialog={setShowCreateBankDialog}
@@ -1097,9 +1097,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              {/* <Button variant="ghost" size="sm">
                                 <RefreshCw className="h-4 w-4" />
-                              </Button>
+                              </Button> */}
                             </div>
                           </TableCell>
                         </TableRow>
