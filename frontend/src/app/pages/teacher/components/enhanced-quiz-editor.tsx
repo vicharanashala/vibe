@@ -46,6 +46,7 @@ import ConfirmationModal from './confirmation-modal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GradingSystemStatus } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
+import { toast } from 'sonner';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -347,11 +348,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         },
         body: requestBody
       });
-
+      toast.success("Settings updated!")
       setEditQuizSettings(false);
       // You might want to add a success notification here
     } catch (error) {
       console.error('Failed to update quiz settings:', error);
+      toast.error("Failed to update settings, Try again!")
       // You might want to add an error notification here
     }
   };
@@ -700,7 +702,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         </Tabs>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden ">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
           <TabsContent value="questions" className="h-full m-0 ms-7 mt-2">
             <div className="h-full flex">
@@ -711,6 +713,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   setShowCreateBankDialog={setShowCreateBankDialog}
                   quizId={quizId}
                 />
+                {/* List of question banks */}
                 <ScrollArea className="h-[calc(100vh-200px)]">
                   <div className="p-4 space-y-2">
                     {questionBanks?.map((bank: any) => (
@@ -756,10 +759,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 </ScrollArea>
               </div>
 
-              {/* Questions Content */}
+              {/* Questions Content in a question bank */}
               <div className="flex-1">
                 {selectedQuestionBank ? (
                   <div className="h-full flex flex-col">
+                    {/* Add Question trigger for questions */}
                     <CreateQuestionDialog
                       showCreateQuestionDialog={showCreateQuestionDialog}
                       setShowCreateQuestionDialog={setShowCreateQuestionDialog}

@@ -125,10 +125,10 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                         <DialogHeader>
                             <DialogTitle>Create Question Bank</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-6">
+                        <div className="space-y-6 mt-5">
                             {/* Title Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="bankTitle">Title *</Label>
+                                <Label htmlFor="bankTitle mb-3">Title *</Label>
                                 <Input
                                     id="bankTitle"
                                     value={bankForm.title}
@@ -140,7 +140,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
 
                             {/* Description Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="bankDescription">Description</Label>
+                                <Label htmlFor="bankDescription">Description *</Label>
                                 <Textarea
                                     id="bankDescription"
                                     value={bankForm.description}
