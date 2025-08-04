@@ -725,7 +725,7 @@ setInitialModules(modules)
                   asChild
                   className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                 >
-                  <Link to="/teacher/courses/list" className="flex items-center gap-3">
+                  <Link to="/teacher" className="flex items-center gap-3">
                     <div className="p-1 rounded-md bg-accent/15">
                       <GraduationCap className="h-4 w-4 text-accent-foreground" />
                     </div>
