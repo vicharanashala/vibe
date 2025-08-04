@@ -212,15 +212,15 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
 
   function formatSecondsToHHMMSS(seconds: string | number): string {
-  const sec = Number(seconds);
-  const hrs = Math.floor(sec / 3600);
-  const mins = Math.floor((sec % 3600) / 60);
-  const secs = sec % 60;
+    const sec = Math.floor(Number(seconds));
+    const hrs = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const secs = sec % 60;
 
-  const pad = (val: number) => val.toString().padStart(2, '0');
+    const pad = (val: number) => val.toString().padStart(2, '0');
 
-  return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-}
+    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+  }
 
 
   // Add Module
