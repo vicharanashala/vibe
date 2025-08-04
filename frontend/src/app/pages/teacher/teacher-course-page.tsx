@@ -201,7 +201,6 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
       currentSectionItems &&
       !itemsLoading
     ) {
-      
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
       setSectionItems(prev => ({
         ...prev,
@@ -872,7 +871,7 @@ setInitialModules(modules)
                         }}
                         className="mr-2"
                       >
-                        Update {selectedEntity.type}
+                        Update {selectedEntity.type} 
                       </Button>
                     )}
 
