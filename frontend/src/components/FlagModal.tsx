@@ -71,7 +71,7 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
   useEffect(()=>{
 setStatus(selectedStatus)
   },[selectedStatus])
- console.log(status)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} >
       <DialogContent className="sm:max-w-[425px] mx-2"
