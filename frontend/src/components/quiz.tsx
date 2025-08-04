@@ -222,7 +222,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           orders?: Order[];
         } = {};
         
-        if (!userAnswer) {
+        if (!userAnswer&& typeof userAnswer !== 'number') {
           // Default values for empty answers
           saveAnswer.lotItemId = '111111111111111111111111';
           saveAnswer.lotItemIds = ['111111111111111111111111'];
