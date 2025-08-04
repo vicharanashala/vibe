@@ -20,7 +20,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults,useMoveModule,useMoveSection,useMoveItem } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults,useMoveModule,useMoveSection,useMoveItem, useUpdateCourseItem } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -158,6 +158,7 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
 
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
+  const updateVideo = useUpdateCourseItem();
   const deleteItem = useDeleteItem();
  const { mutateAsync, isPending, isError, error } = useMoveItem();
 
@@ -201,6 +202,7 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
       currentSectionItems &&
       !itemsLoading
     ) {
+      
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
       setSectionItems(prev => ({
         ...prev,
@@ -208,6 +210,17 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
       }));
     }
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+
+  function formatSecondsToHHMMSS(seconds: string | number): string {
+  const sec = Number(seconds);
+  const hrs = Math.floor(sec / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  const secs = sec % 60;
+
+  const pad = (val: number) => val.toString().padStart(2, '0');
+
+  return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+}
 
 
   // Add Module
@@ -871,7 +884,7 @@ setInitialModules(modules)
                         }}
                         className="mr-2"
                       >
-                        Update {selectedEntity.type} 
+                        Update {selectedEntity.type}
                       </Button>
                     )}
 
@@ -910,23 +923,31 @@ setInitialModules(modules)
                         item={selectedItemData?.item}
                         onClose={() => setIsEditingItem(false)}
                         onSave={video => {
+                          const formattedVideo = {
+                            ...video,
+                            type: "VIDEO",
+                            details: {
+                              ...video.details,
+                              startTime: formatSecondsToHHMMSS(video.details.startTime),
+                              endTime: formatSecondsToHHMMSS(video.details.endTime),
+                            }
+                          };
                           if (
                             selectedEntity.parentIds?.moduleId &&
                             selectedEntity.parentIds?.sectionId &&
                             selectedEntity.data?._id &&
                             versionId
                           ) {
-                            updateItem.mutate({
+                            updateVideo.mutate({
                               params: {
                                 path: {
                                   versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.parentIds.sectionId,
                                   itemId: selectedEntity.data._id,
                                 }
                               },
-                              body: { ...video, type: "VIDEO" },
+                              body: formattedVideo,
                             });
+                            toast.success("Video details saved successfully");
                             setIsEditingItem(false);
                           }
                         }}

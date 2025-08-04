@@ -809,7 +809,7 @@ export function useItemById(
   };
 }
 
-export function useUpdateQuizSettings(): {
+export function useUpdateCourseItem(): {
   mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
   mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,

@@ -20,7 +20,6 @@ import {
   Settings,
   BarChart3,
   Users,
-  RefreshCw,FlagTriangleRight,
   Search
 } from "lucide-react";
 import {
@@ -32,10 +31,9 @@ import {
   useRemoveQuestionFromBank,
   useReplaceQuestionWithDuplicate,
   useDeleteQuestion,
-  useUpdateItem,
   useQuestionById,
   useQuizSubmissions,
-  useUpdateQuizSettings
+  useUpdateCourseItem,
 } from '@/hooks/hooks';
 
 import ExpandableQuestionCard from './expandable-question-card';
@@ -48,7 +46,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { GradingSystemStatus } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
-import { queryClient } from '@/lib/client';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -269,7 +266,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const removeQuestionFromBank = useRemoveQuestionFromBank();
   const replaceQuestionWithDuplicate = useReplaceQuestionWithDuplicate();
   const deleteQuestion = useDeleteQuestion();
-  const updateItem = useUpdateQuizSettings();
+  const updateItem = useUpdateCourseItem();
   // const updateItem = useUpdateItem();
 
   // Initialize quiz settings form with existing details
