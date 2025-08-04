@@ -56,6 +56,9 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
       }
+       if (!quiz.details.questionBankRefs) {
+          quiz.details.questionBankRefs = [];
+        }
       if (
         quiz.details.questionBankRefs.some(
           qb => qb.bankId === questionBankRef.bankId,

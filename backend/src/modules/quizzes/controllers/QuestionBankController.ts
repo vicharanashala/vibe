@@ -67,7 +67,7 @@ class QuestionBankController {
 
     const questionBank = new QuestionBank(body);
     const questionBankId = await this.questionBankService.create(questionBank);
-    return {questionBankId};
+    return {questionBankId}; 
   }
 
   @OpenAPI({

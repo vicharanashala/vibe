@@ -218,7 +218,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const { data: submissionsData } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit);
   
   const submissions = submissionsData?.data;
-  console.log("Submissions: ",submissions)
 
   const handlePageChange = (newPage: number) => {
     if (submissionsData && newPage >= 1 && newPage <= submissionsData.totalPages) {
@@ -461,7 +460,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       console.error('Failed to delete quiz:', error);
     }
   };
-  console.log(questionTextCache);
 
   const renderQuestionForm = () => (
     <div className="space-y-4">
