@@ -809,6 +809,24 @@ export function useItemById(
   };
 }
 
+export function useUpdateQuizSettings(): {
+  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
+  data: components['schemas']['ItemDataResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+}{
+  const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Item update failed') : null
+  };
+}
 
 // PUT /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
 export function useUpdateItem(): {
@@ -1833,7 +1851,7 @@ export function useQuestionBankById(questionBankId: string): {
 }
 
 // PATCH /quizzes/question-bank/{questionBankId}/questions/{questionId}/add
-export function useAddQuestionToBank(): {
+export function useAddQuestionToBank(): {                                                           
   mutate: (variables: { params: { path: { questionBankId: string, questionId: string } } }) => void,
   mutateAsync: (variables: { params: { path: { questionBankId: string, questionId: string } } }) => Promise<QuestionBankResponse>,
   data: QuestionBankResponse | undefined,

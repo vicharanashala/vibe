@@ -34,7 +34,8 @@ import {
   useDeleteQuestion,
   useUpdateItem,
   useQuestionById,
-  useQuizSubmissions
+  useQuizSubmissions,
+  useUpdateQuizSettings
 } from '@/hooks/hooks';
 
 import ExpandableQuestionCard from './expandable-question-card';
@@ -47,6 +48,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { GradingSystemStatus } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
+import { queryClient } from '@/lib/client';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -267,7 +269,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const removeQuestionFromBank = useRemoveQuestionFromBank();
   const replaceQuestionWithDuplicate = useReplaceQuestionWithDuplicate();
   const deleteQuestion = useDeleteQuestion();
-  const updateItem = useUpdateItem();
+  const updateItem = useUpdateQuizSettings();
+  // const updateItem = useUpdateItem();
 
   // Initialize quiz settings form with existing details
   useEffect(() => {
@@ -334,15 +337,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         name: quizSettingsForm.name,
         description: quizSettingsForm.description,
         type: 'QUIZ' as const,
-        quizDetails
+        details:quizDetails
       };
 
       await updateItem.mutateAsync({
         params: {
           path: {
             versionId: courseVersionId,
-            moduleId,
-            sectionId,
+            // moduleId,
+            // sectionId,
             itemId: quizId || ''
           }
         },
