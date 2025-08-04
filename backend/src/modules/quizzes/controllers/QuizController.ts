@@ -92,7 +92,6 @@ class QuizController {
     if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
       throw new ForbiddenError('You do not have permission to modify quiz question banks');
     }
-    
     await this.quizService.addQuestionBank(quizId, body);
   }
 

@@ -441,7 +441,6 @@ export async function useProcessInvites(inviteId: string): Promise<{
     throw new Error(`Failed to update settings: ${res.status}`);
   }
 
-  console.log(res);
 
   return {
     data: null,
@@ -1176,7 +1175,6 @@ export function useEditProctoringSettings() {
         body: JSON.stringify(body),
       });
 
-      console.log('Proctoring settings response:', res);
 
       if (!res.ok) {
         throw new Error(`Failed to update settings: ${res.status}`);
@@ -1992,7 +1990,6 @@ export function useInvites(): {
         headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
       });
 
-      console.log(res);
 
       if (!res.ok) {
         throw new Error(`Failed to update settings: ${res.status}`);
