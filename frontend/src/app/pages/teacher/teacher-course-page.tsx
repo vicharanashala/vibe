@@ -27,7 +27,9 @@ import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
-import { GradingSystemStatus } from "@/types/quiz.types";
+
+import CreateArticle from '../teacher/create-article';
+
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
@@ -51,6 +53,7 @@ export default function TeacherCoursePage() {
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
+
   const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
   // Animated text for empty state
   const aiMessages = [
@@ -165,7 +168,6 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
   useEffect(() => {
     if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess  ) {
       refetchVersion();
-      console.log("hello")
       // Also refetch items for active section
       
       if (activeSectionInfo) {
@@ -393,12 +395,10 @@ const handleMoveItem = async(
 };
 
 
-useEffect(()=>{
-  if(modules.length>0)
-  {
-setInitialModules(modules)
- }
-},[modules])
+  useEffect(()=>{
+    if(modules.length>0)
+     setInitialModules(modules)
+  },[modules])
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -515,9 +515,9 @@ setInitialModules(modules)
                       >
                         <SidebarMenuSub className="ml-4 space-y-1 pt-1">
                           {(sectionItems[section.sectionId] || [])
-  .slice() 
-  .sort((a: any, b: any) => a.order.localeCompare(b.order)) 
-  .map((item: any) => (
+                            .slice() 
+                            .sort((a: any, b: any) => a.order.localeCompare(b.order)) 
+                            .map((item: any) => (
                             <Reorder.Item
                               key={item._id}
                               value={item}
@@ -526,17 +526,17 @@ setInitialModules(modules)
                               whileDrag={{ scale: 1.02 }}
                               onDragEnd={() => {
                                
-     setSectionItems((prev) => {
-  const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
+                                setSectionItems((prev) => {
+                              const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
 
-  // Sort by LexoRank-compatible `order` string
-  const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
+                              // Sort by LexoRank-compatible `order` string
+                              const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
 
-  return {
-    ...prev,
-    [section.sectionId]: sortedItems
-  };
-});
+                              return {
+                                ...prev,
+                                [section.sectionId]: sortedItems
+                              };
+                            });
                                
                                 handleMoveItem(module.moduleId, section.sectionId,item._id, versionId);
                               }}
@@ -968,7 +968,7 @@ setInitialModules(modules)
                         onEdit={() => setIsEditingItem(true)}
                       />
                     )}
-
+                    {/* <CreateArticle/> */}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                       <EnhancedQuizEditor
                         quizId={selectedQuizId}

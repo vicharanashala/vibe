@@ -34,10 +34,12 @@ export class CourseRepository implements ICourseRepository {
 
   private async init() {
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
-    this.courseVersionCollection =
-      await this.db.getCollection<CourseVersion>('newCourseVersion');
-    this.itemsGroupCollection =
-      await this.db.getCollection<ItemsGroup>('itemsGroup');
+    this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
+      'newCourseVersion',
+    );
+    this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
+      'itemsGroup',
+    );
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -225,11 +227,13 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     try {
       const {_id: _, ...fields} = courseVersion;
+
       const result = await this.courseVersionCollection.updateOne(
         {_id: new ObjectId(versionId)},
         {$set: fields},
         {session},
       );
+
       if (result.modifiedCount === 1) {
         const updatedCourseVersion = await this.courseVersionCollection.findOne(
           {
@@ -280,9 +284,9 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to update course');
       }
 
-      // delete watch time 
+      // delete watch time
       await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
-      
+
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
         {
@@ -323,30 +327,36 @@ export class CourseRepository implements ICourseRepository {
       const module = courseVersion.modules.find(m =>
         new ObjectId(m.moduleId).equals(moduleObjectId),
       );
-
       if (!module) {
         throw new NotFoundError('Module not found');
       }
-
       // Cascade delete sections and items
       if (module.sections.length > 0) {
         const section = module.sections.find(
           section => section.sectionId === sectionId,
         );
+        if (!section) {
+          throw new NotFoundError('Section not found');
+        }
         const itemGroupId = section?.itemsGroupId;
         const items = await this.itemsGroupCollection.findOne(
           {_id: new ObjectId(itemGroupId)},
           {session},
         );
         if (items) {
-          // Delete watch time by item id
-          items.items.forEach(async item => {
-            await this.progressRepo.deleteWatchTimeByItemId(
-              item._id.toString(),
-              session,
-            );
-          });
+          try {
+            for (const item of items.items) {
+              await this.progressRepo.deleteWatchTimeByItemId(
+                item._id.toString(),
+                session,
+              );
+            }
+          } catch (err) {
+            console.error('Error deleting watch time by item ID:', err);
+            throw new InternalServerError('Failed to delete item watch time');
+          }
         }
+
         try {
           const itemDeletionResult = await this.itemsGroupCollection.deleteOne(
             {
@@ -362,7 +372,7 @@ export class CourseRepository implements ICourseRepository {
           throw new InternalServerError('Item deletion failed');
         }
       } else {
-        throw new NotFoundError('Section not found');
+        throw new NotFoundError('Sections not found');
       }
 
       // Remove the section from the course version
@@ -378,17 +388,24 @@ export class CourseRepository implements ICourseRepository {
         return m;
       });
 
-      const updateResult = await this.courseVersionCollection.updateOne(
-        {_id: new ObjectId(versionId)},
-        {$set: {modules: updatedModules}},
-        {session},
-      );
+      try {
+        const updateResult = await this.courseVersionCollection.updateOne(
+          {_id: new ObjectId(versionId)},
+          {$set: {modules: updatedModules}},
+          {session},
+        );
 
-      if (updateResult.modifiedCount !== 1) {
-        throw new InternalServerError('Failed to update Section');
+
+        if (updateResult.modifiedCount !== 1) {
+          throw new InternalServerError('Failed to update Section');
+        }
+
+        return updateResult;
+      } catch (error) {
+        console.error('Error updating course version modules:', error);
+        throw new InternalServerError('Database update failed: ' + error);
       }
 
-      return updateResult;
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -503,16 +520,19 @@ export class CourseRepository implements ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null> {
     await this.init();
-      const courseVersion = await this.courseVersionCollection.findOne({
+    const courseVersion = await this.courseVersionCollection.findOne(
+      {
         'modules.sections.itemsGroupId': itemGroupId,
-      }, { session });
+      },
+      {session},
+    );
 
-      if (!courseVersion) {
-        return null;
-      }
+    if (!courseVersion) {
+      return null;
+    }
 
-      return instanceToPlain(
-        Object.assign(new CourseVersion(), courseVersion),
-      ) as CourseVersion;
+    return instanceToPlain(
+      Object.assign(new CourseVersion(), courseVersion),
+    ) as CourseVersion;
   }
 }

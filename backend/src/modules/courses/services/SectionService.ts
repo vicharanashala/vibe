@@ -218,18 +218,6 @@ export class SectionService extends BaseService {
         updatedVersion._id.toString(),
         session,
       );
-
-      const updatedVersionResult = await this.courseRepo.updateVersion(
-        versionId,
-        updatedVersion,
-        session,
-      );
-      if (!updatedVersionResult) {
-        throw new InternalServerError(
-          `Failed to update version ${versionId} after section deletion`,
-        );
-      }
-
       return deleteResult;
     });
   }

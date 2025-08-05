@@ -431,7 +431,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             onClick={handleSave}
                             disabled={!playerReady || !url}
                         >
-                            {action === "add" ? "Add Item" : "Update Item"}
+                            {action === "add" ? "Add Item " : "Update Item"}
                         </Button>
                     </div>
                 )}

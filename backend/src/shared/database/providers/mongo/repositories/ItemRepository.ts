@@ -78,12 +78,11 @@ export class ItemRepository implements IItemRepository {
       throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
     }
     return instanceToPlain(
-      Object.assign(new ItemsGroup(), itemsGroup),
+      Object.assign(new ItemsGroup(), itemsGroup), 
     ) as ItemsGroup;
   }
-
   async updateItemsGroup(
-    itemsGroupId: string,
+    itemsGroupId: string, 
     itemsGroup: ItemsGroup,
     session: ClientSession,
   ): Promise<ItemsGroup> {
