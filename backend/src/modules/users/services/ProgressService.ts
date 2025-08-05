@@ -857,6 +857,9 @@ class ProgressService extends BaseService {
         courseVersion,
       );
 
+       // Clear all completed items (watch time) for this user/course/version
+      await this.progressRepository.deleteWatchTimeByCourseId(courseId, session);
+
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
         userId,
@@ -928,6 +931,10 @@ class ProgressService extends BaseService {
       if (!newProgress) {
         throw new InternalServerError('New progress could not be calculated');
       }
+
+       // Clear all completed items (watch time) for this user/course/version
+      await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
         userId,
@@ -971,6 +978,10 @@ class ProgressService extends BaseService {
       if (!newProgress) {
         throw new InternalServerError('New progress could not be calculated');
       }
+
+      // Clear all completed items (watch time) for this user/course/version
+     await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
         userId,
@@ -1016,6 +1027,10 @@ class ProgressService extends BaseService {
       if (!newProgress) {
         throw new InternalServerError('New progress could not be calculated');
       }
+
+      // Clear all completed items (watch time) for this user/course/version
+      await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
         userId,

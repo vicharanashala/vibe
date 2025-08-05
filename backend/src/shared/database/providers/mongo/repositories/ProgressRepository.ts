@@ -79,6 +79,17 @@ class ProgressRepository {
     }
   }
 
+  async deleteUserWatchTimeByCourseId(userId:string,courseId: string, session?: ClientSession): Promise<void> {
+    await this.init();
+    const result = await this.watchTimeCollection.deleteMany(
+      { userId: new ObjectId(userId), courseId: new ObjectId(courseId) },
+      { session },
+    );
+    if (result.deletedCount === 0) {
+      throw new Error(`No watch time records found for user ID: ${userId} and course ID: ${courseId}`);
+    }
+  }
+
   async findProgress(
     userId: string | ObjectId,
     courseId: string,
