@@ -29,6 +29,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 
 import CreateArticle from '../teacher/create-article';
+import ConfirmationModal from "./components/confirmation-modal";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -403,6 +404,17 @@ const handleMoveItem = async(
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full">
+
+        {/* <ConfirmationModal
+          isOpen={true}
+          onClose={() => {}}
+          onConfirm={()=>{}}
+          title="Delete Section"
+          description="Are you sure you want to delete this section?"
+          confirmText="Delete Section"
+          isDestructive={true}
+          isLoading={false}
+        /> */}
         <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50">
           <SidebarHeader className="border-b border-border/40">
             <div className="flex items-center gap-3 px-3 py-2">
@@ -502,7 +514,7 @@ const handleMoveItem = async(
                           expandedSections[section.sectionId] ? "rotate-90" : ""
                         }`}
                       />
-                      <span className="ml-2 truncate">{section.name}</span>
+                      <span className="ml-2 truncate max-w-[100px] block">{section.name} </span>
                     </SidebarMenuSubButton>
 
                     {expandedSections[section.sectionId] && (
@@ -695,7 +707,7 @@ const handleMoveItem = async(
     <div className="px-2 pt-3">
       <Button size="sm" className="w-full text-xs" onClick={handleAddModule}>
         <Plus className="h-3 w-3 mr-1" />
-        Add Module
+        Add Module 
       </Button>
     </div>
   </SidebarMenu>
@@ -887,7 +899,7 @@ const handleMoveItem = async(
                         Update {selectedEntity.type}
                       </Button>
                     )}
-
+                         
                     {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
                       <Button
                         variant="destructive"
