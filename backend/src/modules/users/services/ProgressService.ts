@@ -858,7 +858,7 @@ class ProgressService extends BaseService {
       );
 
        // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteWatchTimeByCourseId(courseId, session);
+      await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -933,7 +933,7 @@ class ProgressService extends BaseService {
       }
 
        // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+      await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -980,7 +980,7 @@ class ProgressService extends BaseService {
       }
 
       // Clear all completed items (watch time) for this user/course/version
-     await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+     await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -1029,7 +1029,7 @@ class ProgressService extends BaseService {
       }
 
       // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseId(userId, courseId, session);
+      await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
