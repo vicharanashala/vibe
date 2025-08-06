@@ -64,6 +64,7 @@ interface EnhancedQuizEditorProps {
   details: any;
   analytics: any;
   // submissions: any;
+  selectedItemName:string,
   performance: any;
   onDelete: () => void;
 }
@@ -184,6 +185,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   quizId,
   courseId,
   courseVersionId,
+  selectedItemName,
   moduleId,
   sectionId,
   details,
@@ -776,7 +778,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         <div className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">{details?.name || 'Quiz Editor'}</h1>
+              <h1 className="text-2xl font-bold">{selectedItemName ||details?.name || 'Quiz Editor'}</h1>
               <p className="text-muted-foreground">{details?.description || 'Manage your quiz content and analytics'}</p>
             </div>
             <div className="flex gap-2">

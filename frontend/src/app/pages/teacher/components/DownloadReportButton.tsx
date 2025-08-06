@@ -41,7 +41,7 @@ export const DownloadReportButton: React.FC<{
       <PDFDownloadLink
         document={
           <ProgressReport 
-            data={data.data}
+            data={Array.isArray(data.data) ? data.data : []}
             totalCount={data.totalCount}
             currentPage={data.currentPage}
             totalPages={data.totalPages}

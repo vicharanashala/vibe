@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
-import { FlagTriangleRight } from "lucide-react";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -18,9 +17,11 @@ interface VideoModalProps {
     onEdit?: () => void; // Add this prop
     item?: Video | null;
     action: "add" | "edit" | "view";
+    selectedItemName:string,
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
+    selectedItemName,
     onClose,
     onSave,
     onDelete,
@@ -59,7 +60,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
         item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
         item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
     ]);
-    console.log("VideoModal item:", item);
     const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details.URL+"?rel=0" || ""));
     const [points, setPoints] = useState<number>(item?.details.points ?? 0);
 
@@ -224,7 +224,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 <h2 className="text-lg font-semibold">
                     {action === "add" && "Add Video"}
                     {action === "edit" && "Edit Video"}
-                    {action === "view" && "View Video"}
+                    {action === "view" && `${selectedItemName || "View Video"}`}
                 </h2>
                 {action === "view" ? (<span className="flex items-center">
                     <Button

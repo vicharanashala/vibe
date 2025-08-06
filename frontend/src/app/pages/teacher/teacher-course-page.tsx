@@ -41,6 +41,13 @@ const getItemIcon = (type: string) => {
   }
 };
 
+interface LabelOptions {
+  itemId: string;
+  itemType: ContentType;
+  sectionItems: Record<string, any[]>;
+  sectionId: string;
+}
+
 
 export default function TeacherCoursePage() {
   const user = useAuthStore().user;
@@ -66,6 +73,7 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
+  const [selectedItemName, setSelectedItemName] = useState("");
 
 
 
@@ -213,6 +221,23 @@ const { mutateAsync:mutateModuleAsync } = useMoveModule();
       }));
     }
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+
+  const getItemLabel = ({ itemId, itemType, sectionItems, sectionId }: LabelOptions): string => {
+    const index = (sectionItems[sectionId] || [])
+      .filter(i => i.type === itemType)
+      .findIndex(i => i._id === itemId) + 1;
+
+    switch (itemType) {
+      case "VIDEO":
+        return `Video ${index}`;
+      case "QUIZ":
+        return `Quiz ${index}`;
+      case "BLOG":
+        return `Article ${index}`;
+      default:
+        return "Unknown";
+    }
+  };
 
   function formatSecondsToHHMMSS(seconds: string | number): string {
     const sec = Math.floor(Number(seconds));
@@ -555,8 +580,26 @@ const handleMoveItem = async(
                             >
                               <SidebarMenuSubItem key={item._id}>
                                 <SidebarMenuSubButton
-                                  className="justify-start"
-                                  onClick={() =>
+                                   className={`justify-start ${
+                                      selectedItemName === getItemLabel({
+                                        itemId: item._id,
+                                        itemType: item.type,
+                                        sectionItems,
+                                        sectionId: section.sectionId
+                                      })
+                                        ? "bg-muted transition-colors"
+                                        : "bg-transparent transition-none"
+                                    }`}
+                                  onClick={() =>{
+                                    const label = getItemLabel({
+                                      itemId: item._id,
+                                      itemType: item.type,
+                                      sectionItems,
+                                      sectionId: section.sectionId
+                                    });
+
+                                    setSelectedItemName(label);
+
                                     setSelectedEntity({
                                       type: "item",
                                       data: item,
@@ -566,16 +609,17 @@ const handleMoveItem = async(
                                         itemsGroupId: section.itemsGroupId,
                                       },
                                     })
+                                    }
                                   }
                                 >
                                   {getItemIcon(item.type)}
-                                  <span className="ml-1 text-xs text-muted-foreground">
-                                    {item.type === "VIDEO" &&
-                                      `Video ${(sectionItems[section.sectionId] || []).filter(i => i.type === "VIDEO").findIndex(i => i._id === item._id) + 1}`}
-                                    {item.type === "QUIZ" &&
-                                      `Quiz ${(sectionItems[section.sectionId] || []).filter(i => i.type === "QUIZ").findIndex(i => i._id === item._id) + 1}`}
-                                    {item.type === "BLOG" &&
-                                      `Article ${(sectionItems[section.sectionId] || []).filter(i => i.type === "BLOG").findIndex(i => i._id === item._id) + 1}`}
+                                  <span className="ml-1 text-xs text-muted-foreground ">
+                                    {getItemLabel({
+                                      itemId: item._id,
+                                      itemType: item.type,
+                                      sectionItems,
+                                      sectionId: section.sectionId
+                                    })}
                                   </span>
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
@@ -931,6 +975,7 @@ const handleMoveItem = async(
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
                       <VideoModal
+                        selectedItemName={selectedItemName}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
                         onClose={() => setIsEditingItem(false)}
@@ -983,6 +1028,7 @@ const handleMoveItem = async(
                     {/* <CreateArticle/> */}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                       <EnhancedQuizEditor
+                        selectedItemName={selectedItemName}
                         quizId={selectedQuizId}
                         moduleId={selectedEntity.parentIds?.moduleId || ""}
                         sectionId={selectedEntity.parentIds?.sectionId || ""}
@@ -1092,6 +1138,7 @@ const handleMoveItem = async(
             }}
           >
             <VideoModal
+              selectedItemName={selectedItemName}
               action="add"
               onClose={() => setShowAddVideoModal(null)}
               onSave={video => {
