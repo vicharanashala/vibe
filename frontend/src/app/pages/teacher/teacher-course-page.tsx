@@ -587,7 +587,7 @@ const handleMoveItem = async(
                                         sectionItems,
                                         sectionId: section.sectionId
                                       })
-                                        ? "bg-muted transition-colors"
+                                        ? "bg-zinc-600 text-gray-200"
                                         : "bg-transparent transition-none"
                                     }`}
                                   onClick={() =>{
@@ -613,7 +613,15 @@ const handleMoveItem = async(
                                   }
                                 >
                                   {getItemIcon(item.type)}
-                                  <span className="ml-1 text-xs text-muted-foreground ">
+                                  <span className={`ml-1 text-xs ${selectedItemName === getItemLabel({
+                                        itemId: item._id,
+                                        itemType: item.type,
+                                        sectionItems,
+                                        sectionId: section.sectionId
+                                      })
+                                        ? "text-gray-200"
+                                        : "text-muted-foreground"
+                                    }`}>
                                     {getItemLabel({
                                       itemId: item._id,
                                       itemType: item.type,
