@@ -293,7 +293,7 @@ interface IGradingResult {
 export interface QuizSubmissionResponseUpdated {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
-  userId: string | ObjectId;
+  userId: string | ObjectId | {firstName:string, lastName:string, email:string};
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;
@@ -2282,15 +2282,27 @@ export function useQuizResults(quizId: string): {
   };
 }
 
-export function useQuizSubmissions(quizId: string,gradeStatus:GradingSystemStatus, search:string, sort:string, currentPage:number, limit:number): {
+export function useQuizSubmissions(quizId: string,gradeStatus:GradingSystemStatus, search:string, sort:string, currentPage:number, limit:number,selectedTab:string): {
   data: {totalCount:number, totalPages:number, currentPage:number, data: QuizSubmissionResponseUpdated[]} | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+  const isPaginatedResult = selectedTab == "submissions";
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions", {
-    params: { path: { quizId }, query: { ...(gradeStatus && gradeStatus=="All" ? {}:{gradeStatus}), search, ...(sort && sort=="All" ? {}:{sort}), currentPage, limit   } }
+    params: { path: { quizId }, query: isPaginatedResult
+        ? {
+            ...(gradeStatus && gradeStatus !== "All" ? { gradeStatus } : {}),
+            ...(search ? { search } : {}),
+            ...(sort && sort !== "All" ? { sort } : {}),
+            currentPage,
+            limit,
+          }
+        : undefined,  }
   }, { enabled: !!quizId });
+  // const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions", {
+  //   params: { path: { quizId }, query: { ...(gradeStatus && gradeStatus=="All" ? {}:{gradeStatus}), search, ...(sort && sort=="All" ? {}:{sort}), currentPage, limit   } }
+  // }, { enabled: !!quizId });
 
   return {
     data: result.data,

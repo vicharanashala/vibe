@@ -52,6 +52,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { GradingSystemStatus } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
+import { DownloadReportButton } from './DownloadReportButton';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -230,9 +231,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   if(!quizId){
     console.error("Failed to fetch submission because quizId is ", quizId)
   }
-  const { data: submissionsData } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit);
+  const { data: submissionsData,refetch } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
   
+  console.log("Submission data: ", submissionsData)
   const submissions = submissionsData?.data;
+
+  useEffect(() => {
+      refetch();
+  }, [selectedTab]);
 
   const handlePageChange = (newPage: number) => {
     if (submissionsData && newPage >= 1 && newPage <= submissionsData.totalPages) {
@@ -777,6 +783,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button> */}
+              {submissionsData && submissionsData.data?.length &&
+                <DownloadReportButton data={submissionsData} />
+              }
               <Button variant="outline" size="sm" onClick={() => setEditQuizSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings

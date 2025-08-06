@@ -22,7 +22,6 @@ import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
 import CoursePage from '@/app/pages/student/course-page'
-import Dashboard from '@/app/pages/teacher/dashboard'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -32,7 +31,6 @@ import CourseEnrollments from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
-import AISectionModal from '@/app/pages/teacher/components/AISectionModal';
 import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 

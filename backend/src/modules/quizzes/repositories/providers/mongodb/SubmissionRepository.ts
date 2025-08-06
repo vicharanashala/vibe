@@ -108,13 +108,7 @@ class SubmissionRepository {
   ): Promise<PaginatedSubmissions> {
     await this.init();
 
-    const {
-      search,
-      gradeStatus,
-      sort = 'DATE_DESC',
-      currentPage = 1,
-      limit = 10,
-    } = query;
+    const {search, gradeStatus, sort = 'DATE_DESC', currentPage, limit} = query;
 
     const skip = (currentPage - 1) * limit;
 
@@ -141,7 +135,7 @@ class SubmissionRepository {
       }
     })();
 
-    const aggregationPipeline:any[] = [
+    const aggregationPipeline: any[] = [
       {
         $match: matchStage,
       },
@@ -188,21 +182,41 @@ class SubmissionRepository {
       });
     }
 
-    aggregationPipeline.push(
-      {$sort: sortStage},
-      {$skip: skip},
-      {$limit: limit},
-    );
+    aggregationPipeline.push({$sort: sortStage});
 
-    const [data, totalCount] = await Promise.all([
-      this.submissionResultCollection
-        .aggregate(aggregationPipeline, {session})
-        .toArray(),
+    let totalCount = 0;
+    if (typeof currentPage === 'number' && typeof limit === 'number') {
+      const skip = (currentPage - 1) * limit;
+      aggregationPipeline.push({$skip: skip}, {$limit: limit});
+      totalCount = await this.submissionResultCollection.countDocuments(
+        matchStage,
+      );
+    }
 
-      this.submissionResultCollection.countDocuments(matchStage),
-    ]);
+    const data = await this.submissionResultCollection
+      .aggregate(aggregationPipeline, {session})
+      .toArray();
 
-    const totalPages = Math.ceil(totalCount / limit)
+    const totalPages =
+      typeof limit === 'number' && limit > 0
+        ? Math.ceil(totalCount / limit)
+        : 1;
+
+    // aggregationPipeline.push(
+    //   {$sort: sortStage},
+    //   {$skip: skip},
+    //   {$limit: limit},
+    // );
+
+    // const [data, totalCount] = await Promise.all([
+    //   this.submissionResultCollection
+    //     .aggregate(aggregationPipeline, {session})
+    //     .toArray(),
+
+    //   this.submissionResultCollection.countDocuments(matchStage),
+    // ]);
+
+    // const totalPages = Math.ceil(totalCount / limit)
 
     return {
       data: data as ISubmissionWithUser[],
@@ -210,7 +224,6 @@ class SubmissionRepository {
       currentPage,
       totalPages,
     };
-
   }
 
   public async countPassedByQuizId(
