@@ -54,6 +54,7 @@ import { GradingSystemStatus } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
 import { DownloadReportButton } from './DownloadReportButton';
+import Loader from '@/components/Loader';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
@@ -65,6 +66,7 @@ interface EnhancedQuizEditorProps {
   analytics: any;
   // submissions: any;
   selectedItemName:string,
+  isLoading:boolean;
   performance: any;
   onDelete: () => void;
 }
@@ -182,6 +184,7 @@ const calculatePerformanceFromSubmissions = (submissions: any[]): { questionId: 
 };
 
 const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
+  isLoading,
   quizId,
   courseId,
   courseVersionId,
@@ -234,7 +237,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   if(!quizId){
     console.error("Failed to fetch submission because quizId is ", quizId)
   }
-  const { data: submissionsData,refetch } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
+  const { data: submissionsData,refetch, isLoading:submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
   
   console.log("Submission data: ", submissionsData)
   const submissions = submissionsData?.data;
@@ -773,6 +776,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }, [showCreateBankDialog]);
 
   return (
+    <>
+    {isLoading || submissionsLoading ? <Loader/> : 
     <div className="h-full flex flex-col">
       <div className="border-b">
         <div className="p-6">
@@ -1460,6 +1465,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         isLoading={deleteQuestion.isPending || removeQuestionFromBank.isPending}
       />
     </div>
+    }
+    </>
   );
 };
 

@@ -27,9 +27,8 @@ import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
+import Loader from "@/components/Loader";
 
-import CreateArticle from '../teacher/create-article';
-import ConfirmationModal from "./components/confirmation-modal";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -43,7 +42,7 @@ const getItemIcon = (type: string) => {
 
 interface LabelOptions {
   itemId: string;
-  itemType: ContentType;
+  itemType: "VIDEO" | "QUIZ" | "BLOG";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -57,7 +56,7 @@ export default function TeacherCoursePage() {
   const versionId = currentCourse?.versionId;
 
   // Fetch course version data (modules, sections, items)
-  const { data: versionData, refetch: refetchVersion } = useCourseVersionById(versionId || "");
+  const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
@@ -428,6 +427,7 @@ const handleMoveItem = async(
 
   return (
     <SidebarProvider defaultOpen={true}>
+      
       <div className="flex h-screen w-full">
 
         {/* <ConfirmationModal
@@ -974,7 +974,9 @@ const handleMoveItem = async(
                     )}
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                     
                       <VideoModal
+                        isLoading = {isLoading}
                         selectedItemName={selectedItemName}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
@@ -1028,6 +1030,7 @@ const handleMoveItem = async(
                     {/* <CreateArticle/> */}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                       <EnhancedQuizEditor
+                        isLoading={isLoading}
                         selectedItemName={selectedItemName}
                         quizId={selectedQuizId}
                         moduleId={selectedEntity.parentIds?.moduleId || ""}
@@ -1138,6 +1141,7 @@ const handleMoveItem = async(
             }}
           >
             <VideoModal
+              isLoading={isLoading}
               selectedItemName={selectedItemName}
               action="add"
               onClose={() => setShowAddVideoModal(null)}

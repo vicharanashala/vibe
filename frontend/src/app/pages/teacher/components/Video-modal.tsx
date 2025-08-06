@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
+import Loader from "@/components/Loader";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -18,10 +19,12 @@ interface VideoModalProps {
     item?: Video | null;
     action: "add" | "edit" | "view";
     selectedItemName:string,
+    isLoading:boolean,
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
     selectedItemName,
+    isLoading,
     onClose,
     onSave,
     onDelete,
@@ -219,7 +222,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
     };
 
     return (
-        <div className="bg-background rounded-lg border p-6 min-w-[700px] backdrop-blur-md bg-background/80">
+        <>
+        {isLoading ? <Loader/> :
+        <div className="bg-background rounded-lg border p-6 min-w-[700px] backdrop-blur-md ">
             <div className="mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">
                     {action === "add" && "Add Video"}
@@ -437,6 +442,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 )}
             </div>
         </div>
+}
+        </>
     );
 };
 
