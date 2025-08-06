@@ -24,7 +24,8 @@ import {
   RefreshCw,
   FlagTriangleRight,
   Edit,
-  X
+  X,
+  Download
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
@@ -783,9 +784,16 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button> */}
+<<<<<<< HEAD
               {submissionsData && submissionsData.data?.length &&
                 <DownloadReportButton data={submissionsData} />
               }
+=======
+              <Button variant="outline" size="sm" onClick={()=>{}}>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+>>>>>>> cbd9489216397fd33939f205049c905b6b2d65b0
               <Button variant="outline" size="sm" onClick={() => setEditQuizSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings

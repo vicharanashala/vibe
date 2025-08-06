@@ -135,7 +135,6 @@ const studentLayoutRoute = new Route({
     if (!isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
-
     // Role check - must be a student
     if (user?.role !== 'student') {
       if (user?.role === 'teacher') {
