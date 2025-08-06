@@ -66,7 +66,10 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
-
+  const [errors, setErrors] = useState({
+    title: "",
+    description: "",
+  });
 
 
 
@@ -794,23 +797,44 @@ const handleMoveItem = async(
                       <span>Course › Module › {selectedEntity.type}</span>
                     </div>
                   </div>
-                  
+
                   {/* Content */}
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {(selectedEntity.type !== "item") && (
-                      <Input
-                        value={
-                          selectedEntity.type === "item"
-                            ? selectedItemData?.item?.name ?? ""
-                            : selectedEntity.data?.name ?? ""
-                        }
-                        onChange={e =>
-                          setSelectedEntity({
-                            ...selectedEntity,
-                            data: { ...selectedEntity.data, name: e.target.value }
-                          })
-                        }
-                      />
+                      <>
+                        <Input
+                          value={
+                            selectedEntity.type === "item"
+                              ? selectedItemData?.item?.name ?? ""
+                              : selectedEntity.data?.name ?? ""
+                          }
+                          onChange={e => {
+                            const value = e.target.value;
+                            setSelectedEntity({
+                              ...selectedEntity,
+                              data: { ...selectedEntity.data, name: value }
+                            })
+                            if (selectedEntity.type === "module") {
+                              if (!value.trim()) {
+                                setErrors(errors => ({ ...errors, title: "Module name is required." }));
+                              } else {
+                                setErrors(errors => ({ ...errors, title: "" }));
+                              }
+                            }
+                            if (selectedEntity.type === "section") {
+                              if (!value.trim()) {
+                                setErrors(errors => ({ ...errors, title: "Section name is required." }));
+                              } else {
+                                setErrors(errors => ({ ...errors, title: "" }));
+                              }
+                            }
+                          }
+                          }
+                        />
+                        {errors.title && (
+                          <div className="text-xs text-red-500">{errors.title}</div>
+                        )}
+                      </>
                     )}
 
                     {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
@@ -831,28 +855,74 @@ const handleMoveItem = async(
                     )}
 
                     {(selectedEntity.type !== "item") && (
-                      <textarea
-                        value={
-                          selectedEntity.type === "item"
-                            ? selectedItemData?.item?.description ?? ""
-                            : selectedEntity.data?.description ?? ""
-                        }
-                        onChange={e =>
-                          setSelectedEntity({
-                            ...selectedEntity,
-                            data: { ...selectedEntity.data, description: e.target.value }
-                          })
-                        }
-                        placeholder="Description"
-                        rows={5}
-                        className="w-full rounded border px-3 py-2 text-sm"
-                      />
+                      <>
+                        <textarea
+                          value={
+                            selectedEntity.type === "item"
+                              ? selectedItemData?.item?.description ?? ""
+                              : selectedEntity.data?.description ?? ""
+                          }
+                          onChange={e => {
+                            const value = e.target.value;
+                            setSelectedEntity({
+                              ...selectedEntity,
+                              data: { ...selectedEntity.data, description: value }
+                            })
+                            if (selectedEntity.type === "module") {
+                              if (!value.trim()) {
+                                setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                              } else {
+                                setErrors(errors => ({ ...errors, description: "" }));
+                              }
+                            }
+                            if (selectedEntity.type === "section") {
+                              if (!value.trim()) {
+                                setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                              } else {
+                                setErrors(errors => ({ ...errors, description: "" }));
+                              }
+                            }
+                          }}
+                          placeholder="Description"
+                          rows={5}
+                          className="w-full rounded border px-3 py-2 text-sm"
+                        />
+                        {errors.description && (
+                          <div className="text-xs text-red-500">{errors.description}</div>
+                        )}
+                      </>
                     )}
 
                     {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
                       <Button
                         variant="secondary"
                         onClick={() => {
+                          const moduleName = selectedEntity.data.name?.trim();
+                          const moduleDescription = selectedEntity.data.description?.trim() ?? "";
+                          const sectionName = selectedEntity.data.name?.trim();
+                          const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                          if (selectedEntity.type === "module") {
+
+                            if (!moduleName || !moduleDescription) {
+                              setErrors({
+                                title: !moduleName ? "Module name is required." : "",
+                                description: !moduleDescription ? "Module description is required." : ""
+                              });
+                              return;
+                            }
+                            
+                          }
+                          if (selectedEntity.type === "section") {
+                            if (!sectionName || !sectionDescription) {
+                              setErrors({
+                                title: !sectionName ? "Section name is required." : "",
+                                description: !sectionDescription ? "Section description is required." : ""
+                              });
+                              return;
+                            }
+            
+                          }
+                          setErrors({ title: "", description: "" });
                           if (selectedEntity.type === "module" && versionId) {
                             updateModule.mutate({
                               params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
@@ -923,6 +993,7 @@ const handleMoveItem = async(
                               setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
                             }
                           }
+                          setErrors({ title: "", description: "" });
                         }}
                       >
                         Delete {selectedEntity.type}

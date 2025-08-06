@@ -19,6 +19,7 @@ export default function CreateCourse() {
   const [versionDescription, setVersionDescription] = useState("");
   const [versionSuccess, setVersionSuccess] = useState(false);
   const [versionError, setVersionError] = useState<string | null>(null);
+  const [createErrors, setCreateErrors] = useState({ name: "", description: "" });
   // Removed unused courseVersionId state
 
   const createCourseMutation = useCreateCourse();
@@ -28,6 +29,14 @@ export default function CreateCourse() {
   const teacherEmail = useAuthStore.getState().user?.email || "";
 
   const handleCreateCourse = async () => {
+    if (!name.trim() || !description.trim()) {
+      setCreateErrors({
+        name: !name.trim() ? "Course title is required" : "",
+        description: !description.trim() ? "Course description is required" : "",
+      });
+      return;
+    }
+    setCreateErrors({ name: "", description: "" });
     setSuccess(false);
     setError(null);
     setShowVersionForm(false);
@@ -118,18 +127,42 @@ export default function CreateCourse() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
           <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
-        <Input
-          className="mb-4 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-          placeholder="Course Title"
-          value={name}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <Textarea
-          className="mb-4 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-          placeholder="Course Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+            <div>
+              <Input
+                className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                placeholder="Course Title"
+                value={name}
+                onChange={(e) => {
+                  setTitle(e.target.value)
+                  if (!e.target.value) {
+                    setCreateErrors((prev) => ({ ...prev, name: "Course title is required" }));
+                  } else {
+                    setCreateErrors((prev) => ({ ...prev, name: "" }));
+                  }
+                }}
+              />
+              {createErrors?.name && (
+                <div className="text-red-500">{createErrors?.name}</div>
+              )}
+            </div>
+            <div>
+              <Textarea
+                className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                placeholder="Course Description"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  if (!e.target.value) {
+                    setCreateErrors((prev) => ({ ...prev, description: "Course description is required" }))
+                  } else {
+                    setCreateErrors((prev) => ({ ...prev, description: "" }))
+                  }
+                }}
+              />
+              {createErrors?.description && (
+                <div className="text-red-500">{createErrors?.description}</div>
+              )}
+            </div>
         <Button 
           onClick={handleCreateCourse} 
           disabled={createCourseMutation.isPending}
