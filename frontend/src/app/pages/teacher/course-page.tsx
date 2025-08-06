@@ -68,7 +68,7 @@ export default function TeacherCoursesPage() {
   const enrollments = enrollmentsResponse?.enrollments || []
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
-  const filteredEnrollements = enrollments.filter((enrollment)=>enrollment.role !== "STUDENT");
+  const filteredEnrollements = enrollments.filter((enrollment) => enrollment.role !== "STUDENT");
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
@@ -316,6 +316,10 @@ function CourseCard({
     description: "",
   })
 
+  const [creatingErrors, setCreatingErrors] = useState<{ name?: string; description?: string }>({});
+  const [editingErrors, setEditingErrors] = useState<{ name?: string; description?: string }>({});
+
+
   const queryClient = useQueryClient()
 
   // Convert buffers to hex strings for API compatibility
@@ -397,9 +401,17 @@ function CourseCard({
   const cancelEditing = () => {
     setEditingCourse(false)
     setEditingValues({ name: "", description: "" })
+    setEditingErrors({ name: "", description: "" })
   }
 
   const saveEditing = async () => {
+    if (!editingValues.name.trim() || !editingValues.description.trim()) {
+      setEditingErrors({ name: " Course name is required", description: " Course description is required" })
+      return
+    }
+      else {
+      setEditingErrors({ name: "", description: "" })
+    }
     try {
       await updateCourseMutation.mutateAsync({
         params: { path: { id: courseIdHex } },
@@ -416,6 +428,7 @@ function CourseCard({
 
       setEditingCourse(false)
       setEditingValues({ name: "", description: "" })
+      setEditingErrors({ name: "", description: "" })
       onInvalidate() // Also invalidate parent queries
     } catch (error) {
       console.error("Failed to update course:", error)
@@ -446,13 +459,17 @@ function CourseCard({
 
   const cancelNewVersion = () => {
     setShowNewVersionForm(false)
+    setCreatingErrors({ name: "", description: "" })
     setNewVersionData({ version: "", description: "" })
   }
 
   const saveNewVersion = async () => {
     if (!newVersionData.version.trim() || !newVersionData.description.trim()) {
-      alert("Please fill in both version name and description")
+      setCreatingErrors({ name: "Version name is required", description: "Description is required" })
       return
+    }
+      else {
+      setCreatingErrors({ name: "", description: "" })
     }
 
     try {
@@ -581,37 +598,56 @@ function CourseCard({
                 <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                 Course Description
               </h3>
-            {editingCourse ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Course Name</label>
-                  <Input
-                    value={editingValues.name}
-                    onChange={(e) =>
-                      setEditingValues((prev: { name: string; description: string }) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                                                   className="border-primary/30 focus:border-primary bg-background"
-                    placeholder="Course name"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
-                  <Textarea
-                    value={editingValues.description}
-                    onChange={(e) =>
-                      setEditingValues((prev: { name: string; description: string }) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
-                                             className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                    placeholder="Course description"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
+              {editingCourse ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Course Name</label>
+                    <Input
+                      value={editingValues.name}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setEditingValues((prev: { name: string; description: string }) => ({
+                          ...prev,
+                          name: value,
+                        }))
+                        if (!value.trim()) {
+                          setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
+                        }  else {
+                          setEditingErrors(errors => ({ ...errors, name: '' }));
+                        }
+                      }}
+                      className="border-primary/30 focus:border-primary bg-background"
+                      placeholder="Course name"
+                    />
+                    {editingErrors.name && (
+                      <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
+                    <Textarea
+                      value={editingValues.description}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setEditingValues((prev: { name: string; description: string }) => ({
+                          ...prev,
+                          description: value,
+                        }))
+                        // Validation
+                        if (!value.trim()) {
+                          setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
+                        } else {
+                          setEditingErrors(errors => ({ ...errors, description: '' }));
+                        }
+                      }}
+                      className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                      placeholder="Course description"
+                    />
+                    {editingErrors.description && (
+                      <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
                   <Button
                     onClick={saveEditing}
                     size="sm"
@@ -684,18 +720,24 @@ function CourseCard({
                         onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
                         placeholder="e.g., v2.0, Version 2, etc."
                             className="border-primary/30 focus:border-primary bg-background"
-                      />
-                    </div>
+                          />
+                          {creatingErrors.name && (
+                            <div className="text-xs text-red-500 mt-2">{creatingErrors.name}</div>
+                          )}
+                        </div>
 
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-1 block">Version Description</label>
-                      <Textarea
-                        value={newVersionData.description}
-                        onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe what's new in this version..."
-                                                         className="min-h-[80px] border-primary/30 focus:border-primary bg-background resize-none"
-                      />
-                    </div>
+                        <div>
+                          <label className="text-sm font-medium text-foreground mb-1 block">Version Description</label>
+                          <Textarea
+                            value={newVersionData.description}
+                            onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
+                            placeholder="Describe what's new in this version..."
+                            className="min-h-[80px] border-primary/30 focus:border-primary bg-background resize-none"
+                          />
+                          {creatingErrors.description && (
+                            <div className="text-xs text-red-500 mt-2">{creatingErrors.description}</div>
+                          )}
+                        </div>
 
                     <div className="flex items-center gap-2 pt-2">
                       <Button
