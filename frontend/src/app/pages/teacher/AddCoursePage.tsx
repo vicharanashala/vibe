@@ -117,9 +117,9 @@ export default function CreateCourse() {
                   <BookOpen className="h-6 w-6 text-primary-foreground" />
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-foreground">Create New Course</h1>
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Create New Course</h1>
             </div>
-            <p className="text-muted-foreground">Build amazing learning experiences for your students</p>
+            <p className="text-muted-foreground text-sm md:text-base">Build amazing learning experiences for your students</p>
           </div>
         </div>
 

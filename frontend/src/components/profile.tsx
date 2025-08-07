@@ -16,13 +16,13 @@ import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 
-export default function UserProfile({ role = "student" } : {role?: "student" | "teacher" | "admin"}) {
-  const { user,setUser } = useAuthStore()
+export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
+  const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
-    const handleLogout = () => {
-      logout();
-      navigate({ to: "/auth" });
-    };
+  const handleLogout = () => {
+    logout();
+    navigate({ to: "/auth" });
+  };
 
   // Fallback data if user is not available
   const firstName = user?.name?.split(" ")[0] || ""
@@ -31,14 +31,14 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
   const displayEmail = user?.email || "No email provided"
   const displayRole = role
   const avatarFallback = (firstName?.[0] || "") + (lastName?.[0] || "") || (displayEmail[0] || "U")
-  
-  const [editField, setEditField] = useState<"firstName" | "lastName" | (null)> (null)
+
+  const [editField, setEditField] = useState<"firstName" | "lastName" | (null)>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
-  const [confirmLogout,setConfirmLogout] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const {mutateAsync: editUser } = useEditUser();
+  const { mutateAsync: editUser } = useEditUser();
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -74,15 +74,15 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex flex-col space-y-6">
         <section className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Your personal information and details</p>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Profile</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Your personal information and details</p>
         </section>
-        <ConfirmationModal isOpen={confirmLogout} 
-          onClose={()=>setConfirmLogout(false)} 
-          onConfirm={handleLogout} 
+        <ConfirmationModal isOpen={confirmLogout}
+          onClose={() => setConfirmLogout(false)}
+          onConfirm={handleLogout}
           title={"Confirm Logout"}
           description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
-          />
+        />
         <div className="grid gap-6 md:grid-cols-3">
           {/* Profile Picture & Basic Info */}
           <Card className="relative overflow-hidden">
@@ -92,7 +92,7 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
                 <div className="relative">
                   <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
-                    <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                    <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -153,7 +153,7 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={()=>setConfirmLogout(true)}
+                      onClick={() => setConfirmLogout(true)}
                       className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
@@ -168,10 +168,10 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
           {/* Personal Information */}
           <Card className="md:col-span-2">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-bold">
                 <User className="h-6 w-6" />
                 Personal Information
-                </CardTitle>
+              </CardTitle>
               <CardDescription>Your account details and information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -231,59 +231,59 @@ export default function UserProfile({ role = "student" } : {role?: "student" | "
         {/* Learning Stats */}
         
         {role === "student" ? (
-            <Card>
+          <Card>
             <CardHeader>
-                <CardTitle>Learning Statistics</CardTitle>
-                <CardDescription>Your progress and achievements</CardDescription>
+              <CardTitle>Learning Statistics</CardTitle>
+              <CardDescription>Your progress and achievements</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-4">
                 <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">3</div>
-                    <p className="text-sm text-muted-foreground">Courses Enrolled</p>
-                </div>
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">45</div>
-                    <p className="text-sm text-muted-foreground">Lessons Completed</p>
+                  <div className="text-2xl font-bold text-primary">3</div>
+                  <p className="text-sm text-muted-foreground">Courses Enrolled</p>
                 </div>
                 <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">72%</div>
-                    <p className="text-sm text-muted-foreground">Average Progress</p>
+                  <div className="text-2xl font-bold text-primary">45</div>
+                  <p className="text-sm text-muted-foreground">Lessons Completed</p>
                 </div>
                 <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">7</div>
-                    <p className="text-sm text-muted-foreground">Day Streak</p>
+                  <div className="text-2xl font-bold text-primary">72%</div>
+                  <p className="text-sm text-muted-foreground">Average Progress</p>
                 </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">7</div>
+                  <p className="text-sm text-muted-foreground">Day Streak</p>
                 </div>
+              </div>
             </CardContent>
-            </Card>
+          </Card>
 
         ) : (
-            <Card>
+          <Card>
             <CardHeader>
-                <CardTitle>Teaching Statistics</CardTitle>
-                <CardDescription>Your contributions and activities</CardDescription>
+              <CardTitle>Teaching Statistics</CardTitle>
+              <CardDescription>Your contributions and activities</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid gap-4 md:grid-cols-4">
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">3</div>
-                        <p className="text-sm text-muted-foreground">Courses Created</p>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">10</div>
-                        <p className="text-sm text-muted-foreground">Articles</p>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">19</div>
-                        <p className="text-sm text-muted-foreground">Blogs</p>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">100</div>
-                        <p className="text-sm text-muted-foreground">Assignments Given</p>
-                    </div>
-                
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">3</div>
+                  <p className="text-sm text-muted-foreground">Courses Created</p>
                 </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">10</div>
+                  <p className="text-sm text-muted-foreground">Articles</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">19</div>
+                  <p className="text-sm text-muted-foreground">Blogs</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">100</div>
+                  <p className="text-sm text-muted-foreground">Assignments Given</p>
+                </div>
+                
+              </div>
             </CardContent>
           </Card>
         )}

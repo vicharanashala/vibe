@@ -463,19 +463,19 @@ export default function CourseEnrollments() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 space-y-8">
+      <div className="container mx-auto py-4 space-y-8">
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Course Enrollments
             </h1>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                <h2 className="text-2xl font-bold text-foreground">{course.name}</h2>
+                <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
                 <span className="text-lg text-muted-foreground">•</span>
-                <h3 className="text-xl font-semibold text-accent">{version.version}</h3>
+                <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
               </div>
               <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
             </div>
@@ -536,7 +536,7 @@ export default function CourseEnrollments() {
         {/* Students Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20">
-            <CardTitle className="text-xl font-bold text-card-foreground">Enrolled Students</CardTitle>
+            <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {sortedUsers.length === 0 ? (
@@ -598,10 +598,10 @@ export default function CourseEnrollments() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-foreground truncate text-lg">
+                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
                                 {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
                               </p>
-                              <p className="text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                              <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -703,7 +703,7 @@ export default function CourseEnrollments() {
             <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-4xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-card-foreground">Student Progress Details</h2>
+                <h2 className="text-xl md:text-2xl font-semibold text-card-foreground">Student Progress Details</h2>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -726,11 +726,11 @@ export default function CourseEnrollments() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
+                  <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Course Progress</p>
+                  <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
                   <EnrollmentProgress progress={(selectedUser.progress || 0) * 100} />
                 </div>
               </div>

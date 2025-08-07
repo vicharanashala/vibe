@@ -781,12 +781,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     <div className="h-full flex flex-col">
       <div className="border-b">
         <div className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="lg:flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">{selectedItemName ||details?.name || 'Quiz Editor'}</h1>
-              <p className="text-muted-foreground">{details?.description || 'Manage your quiz content and analytics'}</p>
+              <h1 className="text-xl md:text-2xl font-bold">{selectedItemName ||details?.name || 'Quiz Editor'}</h1>
+              <p className="text-muted-foreground text-sm md:text-base">{details?.description || 'Manage your quiz content and analytics'}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 mt-4 lg:mt-0">
               {/* <Button variant="outline" size="sm">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
@@ -840,10 +840,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
       <div className="flex-1 overflow-hidden ">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsContent value="questions" className="h-full m-0 ms-7 mt-2">
-            <div className="h-full flex">
+          <TabsContent value="questions" className="h-full m-0 md:ms-7 mt-2">
+            <div className="h-full md:flex">
               {/* Question Banks Sidebar */}
-              <div className="w-80 border-r rounded  bg-muted/50 mt-1">
+              <div className="md:w-80 border-r rounded  bg-muted/50 mt-1">
                 <CreateQuestionBankDialog
                   showCreateBankDialog={showCreateBankDialog}
                   setShowCreateBankDialog={setShowCreateBankDialog}
@@ -946,7 +946,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     </ScrollArea>
                   </div>
                 ) : (
-                  <div className="h-full flex items-center justify-center">
+                  <div className="h-full flex items-center justify-center mt-4 md:-0">
                     <div className="text-center">
                       <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-muted-foreground">Select a Question Bank</h3>
@@ -982,9 +982,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           </TabsContent>
 
           <TabsContent value="analytics" className="h-full m-0">
-            <div className="p-6 space-y-6">
+            <div className="p-3 md:p-4 lg:p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-rows-3 md:grid-cols-5 gap-6">
-                <Card className="col-span-3 row-span-2">
+                <Card className="col-span-5 lg:col-span-3 row-span-2">
                   <CardHeader>
                     <CardTitle>Question Performance</CardTitle>
                   </CardHeader>
@@ -1016,11 +1016,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     </Table>
                   </CardContent>
                 </Card>
-                <Card className="col-span-2 row-span-2 bg-muted/50 text-muted-foreground">
+                <Card className="col-span-5 lg:col-span-2 row-span-2 bg-muted/50 text-muted-foreground">
                   <CardHeader>
                     <CardTitle className="text-muted-foreground">Question Performance Chart</CardTitle>
                   </CardHeader>
-                  <CardContent className="h-full">
+                  <CardContent className="h-[450px] md:h-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={chartData}

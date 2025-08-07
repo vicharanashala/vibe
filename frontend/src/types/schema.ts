@@ -876,6 +876,7 @@ export interface components {
             courseId: string;
         };
         CourseVersionDataResponse: {
+            readonly version: string;
             /**
              * Format: Mongo Object ID
              * @description ID of the course version

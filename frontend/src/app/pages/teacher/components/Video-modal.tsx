@@ -223,226 +223,229 @@ const VideoModal: React.FC<VideoModalProps> = ({
 
     return (
         <>
-        {isLoading ? <Loader/> :
-        <div className="bg-background rounded-lg border p-6 min-w-[700px] backdrop-blur-md ">
-            <div className="mb-4 flex justify-between items-center">
-                <h2 className="text-lg font-semibold">
-                    {action === "add" && "Add Video"}
-                    {action === "edit" && "Edit Video"}
-                    {action === "view" && `${selectedItemName || "View Video"}`}
-                </h2>
-                {action === "view" ? (<span className="flex items-center">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs mr-4"
-                        onClick={onEdit}
-                    >
-                        Edit
-                    </Button>
-                    {/* <Button className="text-xs gap-1" variant="outline" size="sm">
+            {isLoading ? <Loader /> :
+                <div className="bg-background rounded-lg border p-6 lg:min-w-[700px] backdrop-blur-md">
+                    <div className="mb-4 flex justify-between items-center">
+                        <h2 className="text-lg font-semibold">
+                            {action === "add" && "Add Video"}
+                            {action === "edit" && "Edit Video"}
+                            {action === "view" && `${selectedItemName || "View Video"}`}
+                        </h2>
+                        {action === "view" ? (<span className="flex items-center">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs mr-4"
+                                onClick={onEdit}
+                            >
+                                Edit
+                            </Button>
+                            {/* <Button className="text-xs gap-1" variant="outline" size="sm">
                 <FlagTriangleRight className="h-4 w-4 mr-1" />
                 View Flags
               </Button> */}
-              </span>
-                ) : null}
-                {/* Remove Close button from here */}
-            </div>
-            <div className="space-y-4">
-                <Input
-                    placeholder="Video Name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    disabled={action === "view"}
-                />
-                <Input
-                    placeholder="Paste YouTube video URL"
-                    value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    disabled={action === "view"}
-                />
-                <textarea
-                    placeholder="Description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    disabled={action === "view"}
-                    rows={3}
-                    className="w-full rounded border px-3 py-2 text-sm"
-                />
-                {videoId && (
-                    <div
-                        style={{
-                            width: "100%",
-                            maxWidth: 720,
-                            margin: "0 auto",
-                            borderRadius: 12,
-                            overflow: "hidden",
-                            background: "hsl(var(--background))",
-                            boxShadow: "0 2px 16px rgba(30,41,59,0.10)",
-                            display: "flex",
-                            flexDirection: "column",
-                        }}
-                    >
-                        {/* Video Container */}
-                        <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
+                        </span>
+                        ) : null}
+                        {/* Remove Close button from here */}
+                    </div>
+                    <div className="space-y-4">
+                        <Input
+                            placeholder="Video Name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            disabled={action === "view"}
+                        />
+                        <Input
+                            placeholder="Paste YouTube video URL"
+                            value={url}
+                            onChange={e => setUrl(e.target.value)}
+                            disabled={action === "view"}
+                        />
+                        <textarea
+                            placeholder="Description"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            disabled={action === "view"}
+                            rows={3}
+                            className="w-full rounded border px-3 py-2 text-sm"
+                        />
+                        {videoId && (
                             <div
-                                ref={iframeRef}
                                 style={{
                                     width: "100%",
-                                    height: "100%",
-                                    background: "#000",
-                                    borderRadius: "12px 12px 0 0",
+                                    maxWidth: 720,
+                                    margin: "0 auto",
+                                    borderRadius: 12,
                                     overflow: "hidden",
-                                    position: "relative",
+                                    background: "hsl(var(--background))",
+                                    boxShadow: "0 2px 16px rgba(30,41,59,0.10)",
+                                    display: "flex",
+                                    flexDirection: "column",
                                 }}
-                            />
-                            {/* Overlay */}
-                            {showOverlay && (
-                                <div
-                                    onClick={handleOverlayClick}
-                                    style={{
+                            >
+                                {/* Video Container */}
+                                <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
+                                    <div
+                                        ref={iframeRef}
+                                        style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            background: "#000",
+                                            borderRadius: "12px 12px 0 0",
+                                            overflow: "hidden",
+                                            position: "relative",
+                                        }}
+                                    />
+                                    {/* Overlay */}
+                                    {showOverlay && (
+                                        <div
+                                            onClick={handleOverlayClick}
+                                            style={{
+                                                position: "absolute",
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                background: "rgba(0,0,0,0.7)",
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                zIndex: 20,
+                                            }}
+                                        >
+                                            {/* SVG Play Icon */}
+                                            <svg width="64" height="64" viewBox="0 0 128 128" fill="none">
+                                                <circle cx="64" cy="64" r="64" fill="#FFF" fillOpacity="0.2" />
+                                                <polygon points="52,40 96,64 52,88" fill="#FFF" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {/* Time display */}
+                                    <div style={{
                                         position: "absolute",
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        background: "rgba(0,0,0,0.7)",
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        zIndex: 20,
-                                    }}
-                                >
-                                    {/* SVG Play Icon */}
-                                    <svg width="64" height="64" viewBox="0 0 128 128" fill="none">
-                                        <circle cx="64" cy="64" r="64" fill="#FFF" fillOpacity="0.2"/>
-                                        <polygon points="52,40 96,64 52,88" fill="#FFF"/>
-                                    </svg>
+                                        left: 16,
+                                        bottom: 48,
+                                        color: "#fff",
+                                        textShadow: "0 1px 4px #000",
+                                        fontWeight: 600,
+                                        fontSize: 15,
+                                        zIndex: 11,
+                                    }}>
+                                        Start: {range[0].toFixed(1)}s &nbsp; End: {range[1].toFixed(1)}s &nbsp; Current: {currentTime.toFixed(1)}s
+                                    </div>
                                 </div>
-                            )}
-                            {/* Time display */}
-                            <div style={{
-                                position: "absolute",
-                                left: 16,
-                                bottom: 48,
-                                color: "#fff",
-                                textShadow: "0 1px 4px #000",
-                                fontWeight: 600,
-                                fontSize: 15,
-                                zIndex: 11,
-                            }}>
-                                Start: {range[0].toFixed(1)}s &nbsp; End: {range[1].toFixed(1)}s &nbsp; Current: {currentTime.toFixed(1)}s
+                                {/* Start/End Time Inputs Below Video */}
+                                <div
+                                    style={{
+                                        background: 'hsl(var(--card))',
+                                        padding: '16px',
+                                        borderTop: '1px solid hsl(var(--primary) / 0.2)',
+                                        borderRadius: '0 0 12px 12px',
+                                        userSelect: 'none',
+                                        WebkitUserSelect: 'none',
+                                        MozUserSelect: 'none',
+                                        msUserSelect: 'none',
+                                        flexShrink: 0,
+                                        // display: 'flex',
+                                        gap: '16px',
+                                        // alignItems: 'center',
+                                        // justifyContent: 'flex-start',
+                                        // position: 'relative',
+                                    }}
+                                    className="md:flex items-center justify-start relative"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <label className="font-medium mr-2">Start Time (s):</label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            max={range[1] - 0.1}
+                                            step={0.1}
+                                            value={range[0]}
+                                            onChange={e => handleStartTimeChange(e.target.value)}
+                                            disabled={!playerReady || action === "view"}
+                                            style={{ width: 100 }}
+                                        />
+                                        <label className="font-medium ml-4 mr-2">End Time (s):</label>
+                                        <Input
+                                            type="number"
+                                            min={range[0] + 0.1}
+                                            max={duration}
+                                            step={0.1}
+                                            value={range[1]}
+                                            onChange={e => handleEndTimeChange(e.target.value)}
+                                            disabled={!playerReady || action === "view"}
+                                            style={{ width: 100 }}
+                                        />
+                                    </div>
+                                    {/* Go to Start/End Buttons */}
+                                    <div className="mt-4 md:mt-0" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (playerRef.current && playerReady) {
+                                                    playerRef.current.seekTo(range[0], true);
+                                                }
+                                            }}
+                                            disabled={!playerReady}
+                                        >
+                                            Go to Start
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (playerRef.current && playerReady) {
+                                                    playerRef.current.seekTo(range[1], true);
+                                                }
+                                            }}
+                                            disabled={!playerReady}
+                                        >
+                                            Go to End
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        {/* Start/End Time Inputs Below Video */}
-                        <div
-                            style={{
-                                background: 'hsl(var(--card))',
-                                padding: '16px',
-                                borderTop: '1px solid hsl(var(--primary) / 0.2)',
-                                borderRadius: '0 0 12px 12px',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none',
-                                MozUserSelect: 'none',
-                                msUserSelect: 'none',
-                                flexShrink: 0,
-                                display: 'flex',
-                                gap: '16px',
-                                alignItems: 'center',
-                                justifyContent: 'flex-start',
-                                position: 'relative',
-                            }}
-                        >
-                            <label className="font-medium mr-2">Start Time (s):</label>
+                        )}
+                        <div className="mt-2">
+                            <label className="block mb-1 font-medium">Points</label>
                             <Input
                                 type="number"
                                 min={0}
-                                max={range[1] - 0.1}
-                                step={0.1}
-                                value={range[0]}
-                                onChange={e => handleStartTimeChange(e.target.value)}
-                                disabled={!playerReady || action === "view"}
-                                style={{ width: 100 }}
+                                value={points}
+                                onChange={e => setPoints(Number(e.target.value))}
+                                disabled={action === "view"}
+                                style={{ width: 120 }}
                             />
-                            <label className="font-medium ml-4 mr-2">End Time (s):</label>
-                            <Input
-                                type="number"
-                                min={range[0] + 0.1}
-                                max={duration}
-                                step={0.1}
-                                value={range[1]}
-                                onChange={e => handleEndTimeChange(e.target.value)}
-                                disabled={!playerReady || action === "view"}
-                                style={{ width: 100 }}
-                            />
-                            {/* Go to Start/End Buttons */}
-                            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (playerRef.current && playerReady) {
-                                            playerRef.current.seekTo(range[0], true);
-                                        }
-                                    }}
-                                    disabled={!playerReady}
-                                >
-                                    Go to Start
+                        </div>
+                        {(action === "add" || action === "edit") && (
+                            <div className="flex justify-end gap-2 mt-6">
+                                <Button variant="outline" onClick={onClose}>
+                                    Cancel
                                 </Button>
+                                {action === "edit" && (
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            if (typeof onDelete === "function") onDelete();
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                )}
                                 <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (playerRef.current && playerReady) {
-                                            playerRef.current.seekTo(range[1], true);
-                                        }
-                                    }}
-                                    disabled={!playerReady}
+                                    onClick={handleSave}
+                                    disabled={!playerReady || !url}
                                 >
-                                    Go to End
+                                    {action === "add" ? "Add Item " : "Update Item"}
                                 </Button>
                             </div>
-                        </div>
-                    </div>
-                )}
-                <div>
-                    <label className="block mb-1 font-medium">Points</label>
-                    <Input
-                        type="number"
-                        min={0}
-                        value={points}
-                        onChange={e => setPoints(Number(e.target.value))}
-                        disabled={action === "view"}
-                        style={{ width: 120 }}
-                    />
-                </div>
-                {(action === "add" || action === "edit") && (
-                    <div className="flex justify-end gap-2 mt-6">
-                        <Button variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-                        {action === "edit" && (
-                            <Button
-                                variant="destructive"
-                                onClick={() => {
-                                    if (typeof onDelete === "function") onDelete();
-                                }}
-                            >
-                                Delete
-                            </Button>
                         )}
-                        <Button
-                            onClick={handleSave}
-                            disabled={!playerReady || !url}
-                        >
-                            {action === "add" ? "Add Item " : "Update Item"}
-                        </Button>
                     </div>
-                )}
-            </div>
-        </div>
-}
+                </div>
+            }
         </>
     );
 };

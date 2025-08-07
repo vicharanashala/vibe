@@ -81,7 +81,7 @@ export default function TeacherLayout() {
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mx-2 h-4" />
 
-              <Breadcrumb>
+              <Breadcrumb className="hidden md:flex">
                 <BreadcrumbList>
                   {breadcrumbs.map((item, index) => (
                     <React.Fragment key={index}>

@@ -300,7 +300,7 @@ export default function InvitePage() {
       {/* Header */}
       <div className="flex items-center space-x-2">
         <UserPlus className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Invite Users</h1>
+        <h1 className="text-xl md:text-2xl font-bold">Invite Users</h1>
         {course && (
           <Badge variant="outline" className="ml-2">
             {course.name}
@@ -340,7 +340,7 @@ export default function InvitePage() {
           <div className="space-y-3">
             {inviteEmails.map((invite, index) => (
               <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
-                <div className="flex items-center text-sm font-medium text-muted-foreground min-w-[70px]">
+                <div className="flex items-center text-sm font-medium text-muted-foreground lg:min-w-[70px]">
                   #{index + 1}
                 </div>
 
@@ -355,7 +355,7 @@ export default function InvitePage() {
                   />
                 </div>
 
-                <div className="w-40">
+                <div className="lg:w-40">
                   <Select
                     value={invite.role}
                     onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}

@@ -227,7 +227,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             {/* Basic Question Info */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Question Details</CardTitle>
+                                    <CardTitle className="text-base md:text-lg">Question Details</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div>
@@ -241,7 +241,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <Label className='mb-3'>Question Type</Label>
                                             <RadioGroup
@@ -271,7 +271,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds)</Label>
                                             <Input
@@ -300,7 +300,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             {/* Answer Options */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Answer Options</CardTitle>
+                                    <CardTitle className="text-base md:text-lg">Answer Options</CardTitle>
                                     <p className="text-sm text-muted-foreground">
                                         {questionForm.type === 'SELECT_ONE_IN_LOT'
                                             ? 'Select the radio button next to the correct answer'
@@ -366,7 +366,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                     ))}
 
                                     {questionForm.options.length === 0 && (
-                                        <div className="text-center py-8 text-muted-foreground">
+                                        <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
                                             No options added yet. Click "Add Option" to get started.
                                         </div>
                                     )}
