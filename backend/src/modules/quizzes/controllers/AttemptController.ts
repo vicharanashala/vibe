@@ -9,10 +9,10 @@ import {
   ForbiddenError,
   Authorized,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import {AttemptService} from '#quizzes/services/AttemptService.js';
-import {injectable, inject} from 'inversify';
+import { AttemptService } from '#quizzes/services/AttemptService.js';
+import { injectable, inject } from 'inversify';
 import { AttemptActions, getAttemptAbility } from '../abilities/attemptAbilities.js';
 import { subject } from '@casl/ability';
 import {
@@ -25,8 +25,8 @@ import {
   GetAttemptResponse,
   AttemptNotFoundErrorResponse,
 } from '#quizzes/classes/validators/QuizValidator.js';
-import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {IAttempt} from '#quizzes/interfaces/index.js';
+import { QUIZZES_TYPES } from '#quizzes/types.js';
+import { IAttempt } from '#quizzes/interfaces/index.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
@@ -38,7 +38,7 @@ class AttemptController {
   constructor(
     @inject(QUIZZES_TYPES.AttemptService)
     private readonly attemptService: AttemptService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Start a new quiz attempt',
@@ -55,18 +55,19 @@ class AttemptController {
   @ResponseSchema(AttemptNotFoundErrorResponse, { description: 'Quiz not found', statusCode: 404 })
   async attempt(
     @Params() params: CreateAttemptParams,
-    @Ability(getAttemptAbility) {ability, user}
+    @Ability(getAttemptAbility) { ability, user }
   ): Promise<CreateAttemptResponse> {
-    console.log('Attempting quiz with params:', params);
-    const {quizId} = params;
+
+    const { quizId } = params;
     const userId = user._id.toString();
+
     // Build subject context first
-    const attemptSubject = subject('Attempt', {quizId});
-    
+    const attemptSubject = subject('Attempt', { quizId });
+
     if (!ability.can(AttemptActions.Start, attemptSubject)) {
       throw new ForbiddenError('You do not have permission to start this quiz attempt');
     }
-    
+
     const attempt = await this.attemptService.attempt(userId, quizId);
     return attempt as CreateAttemptResponse;
   }
@@ -83,17 +84,17 @@ class AttemptController {
   async save(
     @Params() params: SaveAttemptParams,
     @Body() body: QuestionAnswersBody,
-    @Ability(getAttemptAbility) {ability, user}
+    @Ability(getAttemptAbility) { ability, user }
   ): Promise<void> {
-    const {quizId, attemptId} = params;
+    const { quizId, attemptId } = params;
     const userId = user._id.toString();
     // Build subject context first
-    const attemptSubject = subject('Attempt', {quizId});
-    
+    const attemptSubject = subject('Attempt', { quizId });
+
     if (!ability.can(AttemptActions.Save, attemptSubject)) {
       throw new ForbiddenError('You do not have permission to save this quiz attempt');
     }
-    
+
     await this.attemptService.save(
       userId,
       quizId,
@@ -118,18 +119,18 @@ class AttemptController {
   async submit(
     @Params() params: SubmitAttemptParams,
     @Body() body: QuestionAnswersBody,
-    @Ability(getAttemptAbility) {ability, user}
+    @Ability(getAttemptAbility) { ability, user }
   ): Promise<SubmitAttemptResponse> {
-    const {quizId, attemptId} = params;
+    const { quizId, attemptId } = params;
     const userId = user._id.toString();
-    
+
     // Build subject context first
-    const attemptSubject = subject('Attempt', {quizId});
-    
+    const attemptSubject = subject('Attempt', { quizId });
+
     if (!ability.can(AttemptActions.Submit, attemptSubject)) {
       throw new ForbiddenError('You do not have permission to submit this quiz attempt');
     }
-    
+
     const result = await this.attemptService.submit(
       userId,
       quizId,
@@ -154,18 +155,18 @@ class AttemptController {
   @ResponseSchema(BadRequestErrorResponse, { description: 'Attempy does not belong to user or quiz', statusCode: 400 })
   async getAttempt(
     @Params() params: SubmitAttemptParams,
-    @Ability(getAttemptAbility) {ability, user}
+    @Ability(getAttemptAbility) { ability, user }
   ): Promise<IAttempt> {
-    const {quizId, attemptId} = params;
+    const { quizId, attemptId } = params;
     const userId = user._id.toString();
-    
+
     // Build subject context first
-    const attemptSubject = subject('Attempt', {quizId});
-    
+    const attemptSubject = subject('Attempt', { quizId });
+
     if (!ability.can(AttemptActions.View, attemptSubject)) {
       throw new ForbiddenError('You do not have permission to view this quiz attempt');
     }
-    
+
     const attempt = await this.attemptService.getAttempt(
       userId,
       quizId,
@@ -175,4 +176,4 @@ class AttemptController {
   }
 }
 
-export {AttemptController};
+export { AttemptController };
