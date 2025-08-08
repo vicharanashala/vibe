@@ -61,7 +61,7 @@ class AttemptService extends BaseService {
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
-    const questionsBankRefs = quiz.details.questionBankRefs;
+    const questionsBankRefs = quiz.details.questionBankRefs || [];
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
