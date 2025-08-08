@@ -553,6 +553,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [answers, currentQuestion, handleAnswer]);
 
   // ===== EFFECTS =====
+
+  useEffect(()=> {
+    if(attemptError && attemptError.includes("No available attempts")){
+      onNext?.();
+      // setDontStart(false);
+      return;
+    }
+  },[attemptError])
+
   // Reset state when quiz ID changes
   useEffect(() => {
     resetQuiz();
@@ -612,6 +621,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [quizType, quizStarted, quizCompleted, quizQuestions.length, isPending, dontStart]);
 
+  
   useEffect(() => {
     if (quizCompleted) {
       setDontStart(false);

@@ -53,6 +53,7 @@ class UserQuizMetricsRepository {
     session?: ClientSession,
   ): Promise<IUserQuizMetrics> {
     await this.init();
+
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
       {_id: new ObjectId(metricsId)},
       {$set: updateData},

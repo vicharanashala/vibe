@@ -175,6 +175,7 @@ class AttemptService extends BaseService {
         quizId,
         session,
       );
+
       const quiz = await this.quizRepository.getById(quizId, session);
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
@@ -234,8 +235,9 @@ class AttemptService extends BaseService {
         metrics._id.toString(),
         metrics,
       );
+
       //6. Return the attempt ID
-      return { attemptId, questionRenderViews, userAttempts: updatedMetrics.attempts.length };
+      return { attemptId, questionRenderViews, userAttempts: updatedMetrics?.attempts.length };
     });
   }
 
