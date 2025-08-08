@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2, ChevronRight } from 'lucide-react';
+import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
@@ -55,6 +55,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
+
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
@@ -191,10 +194,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
           rel: 0,
           fs: 0,
           iv_load_policy: 3,
-          cc_load_policy: 0,
+          // cc_load_policy: 1,
           autohide: 1,
           showinfo: 0,
           playsinline: 1,
+          cc_load_policy: subtitlesEnabled ? 1 : 0, 
+          cc_lang_pref: 'en',
           enablejsapi: 1,
           origin: window.location.origin,
           widget_referrer: window.location.origin,
@@ -385,6 +390,24 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
     return () => clearInterval(interval);
   }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
+
+  const handleToggleSubtitles = () => {
+    setSubtitlesEnabled((prev) => {
+      const newState = !prev;
+
+      if (playerRef.current) {
+        if (newState) {
+          playerRef.current.loadModule('captions');
+          playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
+        } else {
+          playerRef.current.setOption('captions', 'track', {});
+        }
+      }
+
+      return newState;
+    });
+  };
+  
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -652,6 +675,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
       </div>
 
       {/* Custom Controls Below Video */}
+     
       <div
         style={{
           background: 'hsl(var(--card))',
@@ -731,7 +755,29 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
           </div>
 
           {/* Right Controls */}
+          
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+
+          {/* Subtitles */}
+          <Button
+            onClick={handleToggleSubtitles}
+            variant="ghost"
+            size="icon"
+            className={`rounded-sm relative group transition-colors duration-200 ${
+              subtitlesEnabled
+                ? "text-black dark:text-white"
+                : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+            }`}
+          >
+            <span className="scale-[1.4] flex items-center justify-center">
+            <Captions className="h-6 w-6" strokeWidth={2.5} />
+            </span>
+
+            {subtitlesEnabled && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+            )}
+          </Button>
+
             {/* Speed Control */}
             <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
               <span className="text-md font-bold text-foreground min-w-[24px]">
