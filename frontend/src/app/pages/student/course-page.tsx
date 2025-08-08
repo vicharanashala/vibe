@@ -210,7 +210,6 @@ export default function CoursePage() {
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
-    
     if(!itemError) return;
     console.error('Current item error:', itemError);
     // if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.")

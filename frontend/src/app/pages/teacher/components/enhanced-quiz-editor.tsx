@@ -791,7 +791,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button> */}
-              {submissionsData && submissionsData.data?.length &&
+              {submissionsData && submissionsData.data.length && selectedTab == "analytics" &&
                 <DownloadReportButton data={submissionsData} />
               }
               <Button variant="outline" size="sm" onClick={() => setEditQuizSettings(true)}>
