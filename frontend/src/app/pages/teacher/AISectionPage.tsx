@@ -11,25 +11,16 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   CheckCircle, 
   Loader2, 
   Play, 
-  Check, 
   Edit, 
   Save, 
   X, 
-  GripVertical,
   Plus,
   Trash2,
-  Trophy,
-  Clock,
-  Lightbulb,
   XCircle,
   PauseCircle,
   UploadCloud,
@@ -371,6 +362,7 @@ export default function AISectionPage() {
               parameters: { ...rerunParams }
             }]
           }));
+          await handleRefreshStatus();
           return;
         }
         // Only start audio extraction, do not poll
@@ -384,6 +376,7 @@ export default function AISectionPage() {
             run.id === runId ? { ...run, status: "loading", result: undefined } : run
           ),
         }));
+        await handleRefreshStatus();
         return;
       }
       let taskType = "";
@@ -412,6 +405,7 @@ export default function AISectionPage() {
           // Always use the latest values from segParams for the payload
           params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
           await aiSectionAPI.postJobTask(aiJobId, taskType, params, usePrevious);
+          await handleRefreshStatus();
           return;
         }
         case "question":
@@ -448,6 +442,7 @@ if (task === "upload") {
     });
   }, 1500);
 }
+await handleRefreshStatus();
     } catch (error) {
       setTaskRuns(prev => ({
         ...prev,
@@ -457,6 +452,7 @@ if (task === "upload") {
       }));
       setAiWorkflowStep('error');
       toast.error(`Task ${task} failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      await handleRefreshStatus();
     }
   };
 
@@ -1302,6 +1298,7 @@ if (task === "upload") {
           await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
           setAiWorkflowStep('transcription');
           toast.success('Transcript generation started. Click Refresh to check status.');
+          await handleRefreshStatus();
         } else {
           toast.info('Transcript generation is not ready to start yet.');
         }
@@ -1309,12 +1306,14 @@ if (task === "upload") {
         await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
         setAiWorkflowStep('transcription');
         toast.success('Transcript generation started. Click Refresh to check status.');
+        await handleRefreshStatus();
       } else {
         toast.info('Transcript generation is not ready to start.');
       }
     } catch (error) {
       setAiWorkflowStep('error');
       toast.error('Failed to start transcript generation.');
+      await handleRefreshStatus();
     }
   };
 
