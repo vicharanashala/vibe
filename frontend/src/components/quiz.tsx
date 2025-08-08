@@ -500,6 +500,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
+  console.log("Current question: ", currentQuestion);
+
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
     if (!currentQuestion) return;
@@ -555,12 +557,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== EFFECTS =====
 
   useEffect(()=> {
-    if(attemptError && attemptError.includes("No available attempts")){
+    if(attemptError && attemptError.includes("No available attempts") || !currentQuestion){
       onNext?.();
-      // setDontStart(false);
       return;
     }
-  },[attemptError])
+  },[attemptError, currentQuestion])
 
   // Reset state when quiz ID changes
   useEffect(() => {
@@ -621,7 +622,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [quizType, quizStarted, quizCompleted, quizQuestions.length, isPending, dontStart]);
 
-  
+
   useEffect(() => {
     if (quizCompleted) {
       setDontStart(false);
