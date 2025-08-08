@@ -229,6 +229,7 @@ export interface QuestionAnswersBody {
 export interface CreateAttemptResponse {
   attemptId: string;
   questionRenderViews: QuestionRenderView[];
+  userAttempts:number;
 }
 
 export interface SubmitAttemptResponse {
