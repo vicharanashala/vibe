@@ -100,6 +100,14 @@ interface VideoData {
   duration: number;
 }
 
+type QuestionGenParams = {
+  model: string;
+  SQL: number;
+  SML: number;
+  NAT: number;
+  DES: number;
+  prompt: string;
+};
 
 // Stepper icons
 
@@ -287,7 +295,7 @@ export default function AISectionPage() {
   const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
 
   // Add state for question generation parameters
-  const [questionGenParams, setQuestionGenParams] = useState({
+  const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
     model: 'deepseek-r1:70b',
     SQL: 1,
     SML: 0,
@@ -531,7 +539,7 @@ if (task === "upload") {
     }
   };
 
-  const TaskAccordion = ({ task, title, jobStatus }: { task: keyof typeof taskRuns; title: string; jobStatus?: any }) => {
+  const TaskAccordion = React.memo(({ task, title, jobStatus }: { task: keyof typeof taskRuns; title: string; jobStatus?: any }) => {
     console.log(`[TaskAccordion render] task: ${task}, runs:`, taskRuns[task]);
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
@@ -540,6 +548,42 @@ if (task === "upload") {
     const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
     const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
     const [questionsPerQuiz, setQuestionsPerQuiz] = useState(1);
+
+    const [localParams, setLocalParams] = useState(questionGenParams);
+
+    const [localSegParams, setLocalSegParams] = useState(segParams);
+
+    const handleSegParamChange = useCallback(
+      <K extends keyof typeof segParams>(field: K, value: typeof segParams[K]) => {
+        setLocalSegParams(prev => ({
+          ...prev,
+          [field]: value
+        }));
+      },
+      []
+    );
+
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() => 
+      ["SQL", "SML", "NAT", "DES"], 
+    [],);
+
+    const segFields: {key:"lam" | "runs" | "noiseId", type:'float' | "int"} [] = [
+      { key: 'lam', type: 'float' },
+      { key: 'runs', type: 'int' },
+      { key: 'noiseId', type: 'int' }
+    ];
+
+    const handleParamChange = useCallback(<K extends keyof QuestionGenParams>(
+      field: K,
+      value: QuestionGenParams[K]
+    ) => {
+      setLocalParams(prev => ({
+        ...prev,
+        [field]: value
+      }));
+      setQuestionGenParams(localParams);
+    }, []);
+
     return (
       <div className="space-y-3">
         {/* Always show transcription parameter inputs for 'transcription' task */}
@@ -613,56 +657,29 @@ if (task === "upload") {
                 <label>Model:</label>
                 <Input
                   type="text"
-                  value={questionGenParams.model}
-                  onChange={e => setQuestionGenParams(p => ({ ...p, model: e.target.value }))}
+                  value={localParams.model}
+                  onChange={e => handleParamChange("model", e.target.value)}
                   className="w-full"
                 />
               </div>
-              <div className="flex-1 flex flex-col">
-                <label>SOL:</label>
+             {fields.map(field => (
+              <div key={field} className="flex-1 flex flex-col">
+                <label>{field}:</label>
                 <Input
+                  key={`input-${field}`}
                   type="number"
                   min={0}
-                  value={questionGenParams.SQL}
-                  onChange={e => setQuestionGenParams(p => ({ ...p, SQL: Number(e.target.value) }))}
+                  value={localParams[field]}
+                  onChange={e => handleParamChange(field, Number(e.target.value))}
                   className="w-full"
                 />
               </div>
-              <div className="flex-1 flex flex-col">
-                <label>SML:</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={questionGenParams.SML}
-                  onChange={e => setQuestionGenParams(p => ({ ...p, SML: Number(e.target.value) }))}
-                  className="w-full"
-                />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <label>NAT:</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={questionGenParams.NAT}
-                  onChange={e => setQuestionGenParams(p => ({ ...p, NAT: Number(e.target.value) }))}
-                  className="w-full"
-                />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <label>DES:</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={questionGenParams.DES}
-                  onChange={e => setQuestionGenParams(p => ({ ...p, DES: Number(e.target.value) }))}
-                  className="w-full"
-                />
-              </div>
+            ))}
             </div>
             <div className="flex flex-col mt-2">
               <label>prompt:</label>
               <Textarea
-                value={questionGenParams.prompt}
+                value={localParams.prompt}
                 onChange={e => setQuestionGenParams(p => ({ ...p, prompt: e.target.value }))}
                 className="w-full min-h-[80px]"
               />
@@ -700,6 +717,7 @@ if (task === "upload") {
           <Button
             onClick={async () => {
               if (task === 'upload') {
+                alert("hau")
                 // Use values from store and input fields
                 if (!aiJobId) return;
                 if (!currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
@@ -737,39 +755,26 @@ if (task === "upload") {
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
-              <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-lam" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">lam</label>
-                <input
-                  id="seg-lam"
-                  type="text"
-                  value={segParams.lam}
-                  onChange={e => setSegParams(p => ({ ...p, lam: parseFloat(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  style={{ fontSize: '15px' }}
-                />
-              </div>
-              <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-runs" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">runs</label>
-                <input
-                  id="seg-runs"
-                  type="text"
-                  value={segParams.runs}
-                  onChange={e => setSegParams(p => ({ ...p, runs: parseInt(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  style={{ fontSize: '15px' }}
-                />
-              </div>
-              <div className="flex flex-col items-start min-w-[80px]">
-                <label htmlFor="seg-noiseId" className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">noiseId</label>
-                <input
-                  id="seg-noiseId"
-                  type="text"
-                  value={segParams.noiseId}
-                  onChange={e => setSegParams(p => ({ ...p, noiseId: parseInt(e.target.value) || 0 }))}
-                  className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  style={{ fontSize: '15px' }}
-                />
-              </div>
+              {segFields.map(({ key, type }) => (
+                <div key={key} className="flex flex-col items-start min-w-[80px]">
+                  <label
+                    htmlFor={`seg-${key}`}
+                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300"
+                  >
+                    {key}
+                  </label>
+                  <input
+                    id={`seg-${key}`}
+                    type="text"
+                    value={localSegParams[key as keyof typeof segParams]}
+                    onChange={(e) =>  handleSegParamChange(key,  type === 'float'
+                    ? parseFloat(e.target.value) || 0
+                    : parseInt(e.target.value) || 0)}
+                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    style={{ fontSize: '15px' }}
+                  />
+                </div>
+              ))}
             </div>
           )}
           {/* Add Re-run Transcription button */}
@@ -812,8 +817,9 @@ if (task === "upload") {
                 if (!aiJobId) return;
                 try {
                   // Use the current values from the parameter inputs
-                  const params = questionGenParams;
-                  await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', params);
+                  // const params = questionGenParams;
+                  setQuestionGenParams(localParams)
+                  await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
                   toast.success('Question generation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
                     ...prev,
@@ -823,7 +829,7 @@ if (task === "upload") {
                         id: `run-${Date.now()}-${Math.random()}`,
                         timestamp: new Date(),
                         status: "loading",
-                        parameters: { ...params }
+                        parameters: { ...localParams }
                       }
                     ]
                   }));
@@ -845,7 +851,8 @@ if (task === "upload") {
                 if (!aiJobId) return;
                 try {
                   // Always use the latest values from segParams for the payload
-                  const params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
+                  setSegParams(localSegParams);
+                  const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
                   toast.success('Segmentation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
@@ -945,7 +952,7 @@ if (task === "upload") {
         )}
       </div>
     );
-  };
+  });
 
   const getDifficultyColor = (difficulty: Question['difficulty']): string => {
     switch (difficulty) {
@@ -2293,7 +2300,7 @@ if (task === "upload") {
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation</span>
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
                   </div>
               <TaskAccordion task="question" title="Question Generation" jobStatus={aiJobStatus?.jobStatus} />
                 </div>
