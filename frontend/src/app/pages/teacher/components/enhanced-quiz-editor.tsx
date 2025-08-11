@@ -1301,19 +1301,19 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
             {/* Bank Info Display */}
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground mb-4">
-                Editing configuration for: <strong>{questionBankEditForm.title}</strong>
+                Editing configuration for: <strong>{questionBankEditForm?.title}</strong>
               </p>
               <div className="text-sm text-muted-foreground">
-                <strong>Bank ID:</strong> {questionBankEditForm.questionBankId.slice(-8)}
+                <strong>Bank ID:</strong> {questionBankEditForm?.questionBankId.slice(-8)}
               </div>
               {questionBankToEdit?.title && (
                 <div className="text-sm text-muted-foreground">
-                  <strong>Title:</strong> {questionBankToEdit.title}
+                  <strong>Title:</strong> {questionBankToEdit?.title}
                 </div>
               )}
               {questionBankToEdit?.description && (
                 <div className="text-sm text-muted-foreground">
-                  <strong>Description:</strong> {questionBankToEdit.description}
+                  <strong>Description:</strong> {questionBankToEdit?.description}
                 </div>
               )}
             </div>

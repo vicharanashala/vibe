@@ -1388,7 +1388,7 @@ export interface components {
              * @description Points assigned to the blog submission
              * @example 20
              */
-            points: number;
+            points: string;
             /**
              * Estimated Read Time
              * @description Estimated time to complete reading the blog in minutes
