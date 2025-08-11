@@ -1284,6 +1284,15 @@ await handleRefreshStatus();
     }
   };
 
+
+  useEffect(() => {
+    if (!aiJobId) return; 
+    const interval = setInterval(() => {
+      handleRefreshStatus();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [aiJobId]);
+
   // New: Manual trigger for transcript generation
   const handleStartTranscription = async () => {
     if (!aiJobId) return;
@@ -2534,7 +2543,7 @@ async function editSegmentMap(jobId: string, segmentMap: number[], index: number
   });
   if (res.status === 200) return;
   let errMsg = 'Unknown error';
-  try { errMsg = (await res.json()).message || errMsg; } catch {}
+  try { errMsg = (await res.json()).message || errMsg; } catch { }
   if (res.status === 400) throw new Error('Bad request: ' + errMsg);
   if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
   if (res.status === 404) throw new Error('Job not found: ' + errMsg);
