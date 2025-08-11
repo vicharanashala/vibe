@@ -1,16 +1,16 @@
 import request from 'supertest';
 import Express from 'express';
-import {Action, useContainer, useExpressServer} from 'routing-controllers';
+import { Action, useContainer, useExpressServer } from 'routing-controllers';
 
-import {usersModuleOptions} from '../index.js';
-import {ItemType} from '#shared/interfaces/models.js';
+import { usersModuleOptions } from '../index.js';
+import { ItemType } from '#shared/interfaces/models.js';
 import {
   CreateCourseVersionBody,
   CreateCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import {Course} from '#courses/classes/transformers/index.js';
-import {CourseBody} from '#courses/classes/validators/CourseValidators.js';
-import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
+import { Course } from '#courses/classes/transformers/index.js';
+import { CourseBody } from '#courses/classes/validators/CourseValidators.js';
+import { SignUpBody } from '#auth/classes/validators/AuthValidators.js';
 import {
   CreateModuleBody,
   CreateModuleParams,
@@ -20,8 +20,8 @@ import {
   CreateSectionBody,
   VersionModuleSectionParams,
 } from '#courses/classes/validators/SectionValidators.js';
-import {CreateItemBody} from '#courses/classes/validators/ItemValidators.js';
-import {EnrollmentParams} from './utils/createEnrollment.js';
+import { CreateItemBody } from '#courses/classes/validators/ItemValidators.js';
+import { EnrollmentParams } from './utils/createEnrollment.js';
 import {
   describe,
   it,
@@ -31,15 +31,15 @@ import {
   beforeEach,
   vi,
 } from 'vitest';
-import {faker} from '@faker-js/faker';
-import {authContainerModule} from '#root/modules/auth/container.js';
-import {Container} from 'inversify';
-import {sharedContainerModule} from '#root/container.js';
-import {usersContainerModule} from '../container.js';
-import {coursesContainerModule} from '#root/modules/courses/container.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {coursesModuleControllers} from '#root/modules/courses/index.js';
-import {authModuleControllers} from '#root/modules/auth/index.js';
+import { faker } from '@faker-js/faker';
+import { authContainerModule } from '#root/modules/auth/container.js';
+import { Container } from 'inversify';
+import { sharedContainerModule } from '#root/container.js';
+import { usersContainerModule } from '../container.js';
+import { coursesContainerModule } from '#root/modules/courses/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { coursesModuleControllers } from '#root/modules/courses/index.js';
+import { authModuleControllers } from '#root/modules/auth/index.js';
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { notificationsContainerModule } from '#root/modules/notifications/container.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
@@ -74,18 +74,18 @@ describe('Enrollment Controller Integration Tests', () => {
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     vi.spyOn(current, 'currentUserChecker').mockImplementation(
-          async (action: Action) => {
-            if (action.request.headers.authorization) {
-              const token = action.request.headers.authorization.split(' ')[1];
-              if (token === 'user1') {
-                return user1;
-              } else if (token === 'student') {
-                return user2;
-              }
-            }
+      async (action: Action) => {
+        if (action.request.headers.authorization) {
+          const token = action.request.headers.authorization.split(' ')[1];
+          if (token === 'user1') {
             return user1;
+          } else if (token === 'student') {
+            return user2;
           }
-        );
+        }
+        return user1;
+      }
+    );
     app = useExpressServer(appInstance, {
       controllers: [
         ...(usersModuleOptions.controllers as Function[]),
@@ -380,6 +380,7 @@ describe('Enrollment Controller Integration Tests', () => {
         type: ItemType.QUIZ,
         quizDetails: {
           questionVisibility: 3,
+          allowSkip: true,
           allowPartialGrading: true,
           deadline: faker.date.future(),
           allowHint: true,
@@ -521,6 +522,7 @@ describe('Enrollment Controller Integration Tests', () => {
           quizDetails: {
             questionVisibility: 3,
             allowPartialGrading: true,
+            allowSkip: true,
             deadline: faker.date.future(),
             allowHint: true,
             maxAttempts: 5,

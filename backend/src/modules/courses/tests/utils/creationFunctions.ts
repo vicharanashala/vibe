@@ -1,5 +1,5 @@
 import request from 'supertest';
-import {faker} from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 import Express from 'express';
 import {
   CourseBody,
@@ -19,8 +19,8 @@ import {
   Course,
   CourseVersion,
 } from '../../../courses/classes/transformers/index.js';
-import {ItemType} from '../../../../shared/interfaces/models.js';
-import {expect} from 'vitest';
+import { ItemType } from '../../../../shared/interfaces/models.js';
+import { expect } from 'vitest';
 
 async function createCourse(app: typeof Express): Promise<Course> {
   const body: CourseBody = {
@@ -109,6 +109,7 @@ async function createQuizItem(
     quizDetails: {
       questionVisibility: 3,
       allowPartialGrading: true,
+      allowSkip: true,
       deadline: faker.date.future(),
       allowHint: true,
       maxAttempts: 5,

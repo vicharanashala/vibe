@@ -78,7 +78,7 @@ describe('Item Controller Integration Tests', () => {
     const password = faker.internet.password();
     const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
     const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
-    const signUpBody: SignUpBody = {email, password, firstName, lastName};
+    const signUpBody: SignUpBody = { email, password, firstName, lastName };
 
     const signUpResponse = await request(app)
       .post('/auth/signup')
@@ -94,7 +94,7 @@ describe('Item Controller Integration Tests', () => {
       lastName,
       roles: 'admin',
     });
-    
+
     course = await createCourse(app);
     courseId = course._id.toString();
     version = await createVersion(app, courseId);
@@ -107,15 +107,15 @@ describe('Item Controller Integration Tests', () => {
       moduleId,
     );
     sectionId = section.version.modules[0].sections[0].sectionId.toString();
-    
+
     // Enroll the user as a teacher in the course
     const enrollmentResponse = await request(app)
-    .post(
-      `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}`,
-    )
-    .send({
-      role: 'INSTRUCTOR',
-    });
+      .post(
+        `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}`,
+      )
+      .send({
+        role: 'INSTRUCTOR',
+      });
     expect(enrollmentResponse.status).toBe(200);
     vi.resetAllMocks();
     vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
@@ -139,6 +139,7 @@ describe('Item Controller Integration Tests', () => {
             quizDetails: {
               questionVisibility: 3,
               allowPartialGrading: true,
+              allowSkip: true,
               deadline: faker.date.future(),
               allowHint: true,
               maxAttempts: 5,
@@ -193,7 +194,7 @@ describe('Item Controller Integration Tests', () => {
         const password = faker.internet.password();
         const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
         const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
-        const signUpBody: SignUpBody = {email, password, firstName, lastName};
+        const signUpBody: SignUpBody = { email, password, firstName, lastName };
 
         const signUpResponse = await request(app)
           .post('/auth/signup')
@@ -234,6 +235,7 @@ describe('Item Controller Integration Tests', () => {
           quizDetails: {
             questionVisibility: 3,
             allowPartialGrading: true,
+            allowSkip: true,
             deadline: faker.date.future(),
             allowHint: true,
             maxAttempts: 5,
@@ -264,6 +266,7 @@ describe('Item Controller Integration Tests', () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
+        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,
@@ -283,6 +286,7 @@ describe('Item Controller Integration Tests', () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
+        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,
@@ -334,6 +338,7 @@ describe('Item Controller Integration Tests', () => {
         questionVisibility: 3,
         allowPartialGrading: true,
         deadline: faker.date.future(),
+        allowSkip: true,
         allowHint: true,
         maxAttempts: 5,
         releaseTime: faker.date.future(),
@@ -365,6 +370,7 @@ describe('Item Controller Integration Tests', () => {
         quizDetails: {
           questionVisibility: 3,
           allowPartialGrading: true,
+          allowSkip: true,
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
@@ -423,6 +429,7 @@ describe('Item Controller Integration Tests', () => {
         quizDetails: {
           questionVisibility: 3,
           allowPartialGrading: true,
+          allowSkip: true,
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
@@ -512,6 +519,7 @@ describe('Item Controller Integration Tests', () => {
         quizDetails: {
           questionVisibility: 3,
           allowPartialGrading: true,
+          allowSkip: true,
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
@@ -534,6 +542,7 @@ describe('Item Controller Integration Tests', () => {
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
+          allowSkip: true,
           releaseTime: faker.date.future(),
           quizType: 'DEADLINE',
           showCorrectAnswersAfterSubmission: true,
@@ -607,6 +616,7 @@ describe('Item Controller Integration Tests', () => {
             allowPartialGrading: true,
             deadline: faker.date.future(),
             allowHint: true,
+            allowSkip: true,
             maxAttempts: 5,
             releaseTime: faker.date.future(),
             quizType: 'DEADLINE',
@@ -657,6 +667,7 @@ describe('Item Controller Integration Tests', () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
+        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,
@@ -671,13 +682,13 @@ describe('Item Controller Integration Tests', () => {
     };
     beforeEach(async () => {
       vi.spyOn(CurrentUser, 'currentUserChecker').mockResolvedValue({
-      _id: faker.database.mongodbObjectId(),
-      firebaseUID: faker.string.uuid(),
-      email: faker.internet.email(),
-      firstName: faker.person.firstName(),
-      lastName: faker.person.lastName(),
-      roles: 'admin',
-    });
+        _id: faker.database.mongodbObjectId(),
+        firebaseUID: faker.string.uuid(),
+        email: faker.internet.email(),
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+        roles: 'admin',
+      });
     });
 
     afterEach(() => {
