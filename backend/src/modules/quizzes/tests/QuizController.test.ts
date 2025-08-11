@@ -159,6 +159,7 @@ describe('QuizController',{timeout: 30000}, () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
+        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,

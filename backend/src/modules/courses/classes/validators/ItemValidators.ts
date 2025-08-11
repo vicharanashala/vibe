@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,9 +19,9 @@ import {
   IsEnum,
   IsArray,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {CourseVersion} from '../transformers/CourseVersion.js';
-import {Item, ItemRef, ItemsGroup} from '../transformers/Item.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { CourseVersion } from '../transformers/CourseVersion.js';
+import { Item, ItemRef, ItemsGroup } from '../transformers/Item.js';
 import {
   IVideoDetails,
   IQuizDetails,
@@ -30,7 +30,7 @@ import {
   ItemType,
   ID,
 } from '#root/shared/interfaces/models.js';
-import {OnlyOneId} from './customValidators.js';
+import { OnlyOneId } from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -81,8 +81,7 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator
-  implements Omit<IQuizDetails, 'questionBankRefs'>
-{
+  implements Omit<IQuizDetails, 'questionBankRefs'> {
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
@@ -149,6 +148,14 @@ class QuizDetailsPayloadValidator
   @IsBoolean()
   @IsNotEmpty()
   allowHint: boolean;
+  @JSONSchema({
+    description: 'Whether to allow students to skip the quiz',
+    example: true,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
+  allowSkip: boolean;
 
   @JSONSchema({
     description:
@@ -587,7 +594,7 @@ class ItemsGroupResponse implements ItemsGroup {
   })
   @IsNotEmpty()
   @Type(() => ItemRefResponse)
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @IsArray()
   items: ItemRef[];
 

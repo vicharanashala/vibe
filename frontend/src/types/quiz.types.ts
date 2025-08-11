@@ -84,7 +84,7 @@ export interface BufferId {
 }
 
 export interface LotItem {
-  text: string; 
+  text: string;
   _id: BufferId;
 }
 
@@ -124,14 +124,14 @@ export interface SelectOneInLotQuestionRenderView extends BaseQuestionRenderView
   lotItems: LotItem[];
 }
 
-export type QuestionRenderView = 
+export type QuestionRenderView =
   | DescriptiveQuestionRenderView
   | SelectManyInLotQuestionRenderView
   | OrderTheLotsQuestionRenderView
   | NumericAnswerQuestionRenderView
   | SelectOneInLotQuestionRenderView;
 
- export type SaveQuestion = {
+export type SaveQuestion = {
   questionId: string;
   questionType: "DESCRIPTIVE" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "SELECT_ONE_IN_LOT";
   answer: {
@@ -204,7 +204,7 @@ export interface QuestionAnswer {
   answer: any;
 }
 
-export type QuestionType = 
+export type QuestionType =
   | 'SELECT_ONE_IN_LOT'
   | 'SELECT_MANY_IN_LOT'
   | 'ORDER_THE_LOTS'
@@ -245,6 +245,7 @@ export interface QuizDetails {
   approximateTimeToComplete: string;
   allowPartialGrading: boolean;
   allowHint: boolean;
+  allowSkip: boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;

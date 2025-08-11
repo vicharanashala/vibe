@@ -1,5 +1,5 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, Min } from 'class-validator';
 
@@ -299,6 +299,7 @@ export interface IQuizDetails {
   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
   showScoreAfterSubmission: boolean; // If true, shows score after submission
+  allowSkip: boolean; // If true, allows users to skip quiz questions
 }
 
 export interface IQuizSettings {
@@ -316,6 +317,7 @@ export interface IQuizSettings {
   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
   showScoreAfterSubmission: boolean; // If true, shows score after submission
+  allowSkip: boolean; // If true, allows users to skip quiz questions
 }
 
 export interface IBlogDetails {
@@ -447,13 +449,13 @@ export interface IUserAnomaly {
 }
 
 export interface AuthenticatedUserEnrollements {
-    courseId: string,
-    versionId: string,
-    role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
+  courseId: string,
+  versionId: string,
+  role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
 }
 
 export interface AuthenticatedUser {
-    userId: string,
-    globalRole: 'admin' | 'user',
-    enrollments: AuthenticatedUserEnrollements[],
+  userId: string,
+  globalRole: 'admin' | 'user',
+  enrollments: AuthenticatedUserEnrollements[],
 }

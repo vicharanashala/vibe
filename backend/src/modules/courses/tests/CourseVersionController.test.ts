@@ -1,11 +1,11 @@
-import {coursesContainerModules, coursesModuleOptions, setupCoursesContainer} from '../index.js';
-import {useExpressServer, useContainer, RoutingControllersOptions} from 'routing-controllers';
+import { coursesContainerModules, coursesModuleOptions, setupCoursesContainer } from '../index.js';
+import { useExpressServer, useContainer, RoutingControllersOptions } from 'routing-controllers';
 import Express from 'express';
 import request from 'supertest';
-import {ItemType} from '#shared/interfaces/models.js';
-import {faker} from '@faker-js/faker';
-import {CreateItemBody} from '../classes/validators/ItemValidators.js';
-import {describe, it, expect, beforeAll, beforeEach, vi} from 'vitest';
+import { ItemType } from '#shared/interfaces/models.js';
+import { faker } from '@faker-js/faker';
+import { CreateItemBody } from '../classes/validators/ItemValidators.js';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { currentUserChecker } from '#root/shared/functions/currentUserChecker.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { Container } from 'inversify';
@@ -21,15 +21,15 @@ describe('Course Version Controller Integration Tests', () => {
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     const options: RoutingControllersOptions = {
-          controllers: coursesModuleOptions.controllers,
-          middlewares: coursesModuleOptions.middlewares,
-          defaultErrorHandler: coursesModuleOptions.defaultErrorHandler,
-          authorizationChecker: async () => true, // Use a simple always-true checker for tests
-          currentUserChecker: currentUserChecker, // Use the spied function
-          validation: coursesModuleOptions.validation,
-        }
-        
-        app = useExpressServer(App, options);
+      controllers: coursesModuleOptions.controllers,
+      middlewares: coursesModuleOptions.middlewares,
+      defaultErrorHandler: coursesModuleOptions.defaultErrorHandler,
+      authorizationChecker: async () => true, // Use a simple always-true checker for tests
+      currentUserChecker: currentUserChecker, // Use the spied function
+      validation: coursesModuleOptions.validation,
+    }
+
+    app = useExpressServer(App, options);
   });
 
   beforeEach(() => {
@@ -123,7 +123,7 @@ describe('Course Version Controller Integration Tests', () => {
         const endPoint = `/courses/${courseId}/versions`;
         const versionResponse = await request(app)
           .post(endPoint)
-          .send({version: ''})
+          .send({ version: '' })
           .expect(400);
 
         expect(versionResponse.body.message).toContain(
@@ -255,6 +255,7 @@ describe('Course Version Controller Integration Tests', () => {
         questionVisibility: 3,
         allowPartialGrading: true,
         deadline: faker.date.future(),
+        allowSkip: true,
         allowHint: true,
         maxAttempts: 5,
         releaseTime: faker.date.future(),
@@ -340,7 +341,7 @@ describe('Course Version Controller Integration Tests', () => {
 
   describe('COURSE VERSION SERVICE ERROR PATHS (API)', () => {
     it('should return 404 if course does not exist on createCourseVersion', async () => {
-      const courseVersionPayload = {version: 'v', description: 'd'};
+      const courseVersionPayload = { version: 'v', description: 'd' };
       await request(app)
         .post('/courses/62341aeb5be816967d8fc2db/versions')
         .send(courseVersionPayload)
@@ -352,7 +353,7 @@ describe('Course Version Controller Integration Tests', () => {
 
     it('should return 400 if invalid course version data', async () => {
       // Valid course, but invalid version payload
-      const coursePayload = {name: 'Course', description: 'desc'};
+      const coursePayload = { name: 'Course', description: 'desc' };
       const courseRes = await request(app)
         .post('/courses/')
         .send(coursePayload)
@@ -361,7 +362,7 @@ describe('Course Version Controller Integration Tests', () => {
 
       await request(app)
         .post(`/courses/${courseId}/versions`)
-        .send({version: '', description: 'd'})
+        .send({ version: '', description: 'd' })
         .expect(400)
         .expect(res => {
           expect(res.body.message).toContain('Invalid body');
