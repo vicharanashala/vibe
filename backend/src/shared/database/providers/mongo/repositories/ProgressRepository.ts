@@ -29,7 +29,7 @@ class ProgressRepository {
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-    }, {session}).project({ itemId: 1, _id: 0 }).toArray();
+    }, { session }).project({ itemId: 1, _id: 0 }).toArray();
     return userProgress.map(item => item.itemId.toString()) as String[];
   }
 
@@ -76,6 +76,37 @@ class ProgressRepository {
     );
     if (result.deletedCount === 0) {
       throw new Error(`No watch time records found for version ID: ${courseVersionId}`);
+    }
+  }
+
+  async deleteUserWatchTimeByCourseId(userId: string, courseId: string, session?: ClientSession): Promise<void> {
+    await this.init();
+    const result = await this.watchTimeCollection.deleteMany(
+      { userId: new ObjectId(userId), courseId: new ObjectId(courseId) },
+      { session },
+    );
+    if (result.deletedCount === 0) {
+      throw new Error(`No watch time records found for user ID: ${userId} and course ID: ${courseId}`);
+    }
+  }
+
+  async deleteUserWatchTimeByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession
+  ): Promise<void> {
+    await this.init();
+    const result = await this.watchTimeCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      { session }
+    );
+    if (result.deletedCount === 0) {
+      throw new Error(`No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`);
     }
   }
 
