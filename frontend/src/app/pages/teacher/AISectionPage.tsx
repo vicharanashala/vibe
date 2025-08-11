@@ -1289,7 +1289,7 @@ await handleRefreshStatus();
     if (!aiJobId) return; 
     const interval = setInterval(() => {
       handleRefreshStatus();
-    }, 60000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [aiJobId]);
 
