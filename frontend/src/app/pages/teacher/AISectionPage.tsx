@@ -351,7 +351,8 @@ export default function AISectionPage() {
   };
 
   // Refactored handleTask for transcription (no polling)
-  const handleTask = async (task: keyof typeof taskRuns) => {
+  const handleTask = async (task: keyof typeof taskRuns, segParams:any, questionGenParams:any ) => {
+
     if (!aiJobId) {
       toast.error("Please create an AI job first");
       return;
@@ -553,6 +554,16 @@ if (task === "upload") {
 
     const [localSegParams, setLocalSegParams] = useState(segParams);
 
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() => 
+      ["SQL", "SML", "NAT", "DES"], 
+      [],);
+
+    const segFields: {key:"lam" | "runs" | "noiseId", type:'float' | "int"} [] = [
+      { key: 'lam', type: 'float' },
+      { key: 'runs', type: 'int' },
+      { key: 'noiseId', type: 'int' }
+    ];
+
     const handleSegParamChange = useCallback(
       <K extends keyof typeof segParams>(field: K, value: typeof segParams[K]) => {
         setLocalSegParams(prev => ({
@@ -563,16 +574,6 @@ if (task === "upload") {
       []
     );
 
-    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() => 
-      ["SQL", "SML", "NAT", "DES"], 
-    [],);
-
-    const segFields: {key:"lam" | "runs" | "noiseId", type:'float' | "int"} [] = [
-      { key: 'lam', type: 'float' },
-      { key: 'runs', type: 'int' },
-      { key: 'noiseId', type: 'int' }
-    ];
-
     const handleParamChange = useCallback(<K extends keyof QuestionGenParams>(
       field: K,
       value: QuestionGenParams[K]
@@ -581,7 +582,6 @@ if (task === "upload") {
         ...prev,
         [field]: value
       }));
-      setQuestionGenParams(localParams);
     }, []);
 
     return (
@@ -680,7 +680,7 @@ if (task === "upload") {
               <label>prompt:</label>
               <Textarea
                 value={localParams.prompt}
-                onChange={e => setQuestionGenParams(p => ({ ...p, prompt: e.target.value }))}
+                onChange={e => setLocalParams(p => ({ ...p, prompt: e.target.value }))}
                 className="w-full min-h-[80px]"
               />
             </div>
@@ -716,8 +716,9 @@ if (task === "upload") {
         <div className="flex items-center gap-3">
           <Button
             onClick={async () => {
+              setQuestionGenParams(localParams);
+              setSegParams(localSegParams);
               if (task === 'upload') {
-                alert("hau")
                 // Use values from store and input fields
                 if (!aiJobId) return;
                 if (!currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
@@ -745,7 +746,7 @@ if (task === "upload") {
                 return;
               }
               // ... existing logic for other tasks ...
-              handleTask(task);
+              handleTask(task, localSegParams, localParams);
             }}
                           disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
               className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
@@ -818,7 +819,7 @@ if (task === "upload") {
                 try {
                   // Use the current values from the parameter inputs
                   // const params = questionGenParams;
-                  setQuestionGenParams(localParams)
+                  
                   await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
                   toast.success('Question generation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
@@ -851,7 +852,7 @@ if (task === "upload") {
                 if (!aiJobId) return;
                 try {
                   // Always use the latest values from segParams for the payload
-                  setSegParams(localSegParams);
+                  
                   const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
                   toast.success('Segmentation rerun started. Click Refresh to check status.');
