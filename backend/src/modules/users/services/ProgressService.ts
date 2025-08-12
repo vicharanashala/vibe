@@ -857,8 +857,9 @@ class ProgressService extends BaseService {
         courseVersion,
       );
 
-       // Clear all completed items (watch time) for this user/course/version
+      // Clear all completed items (watch time) for this user/course/version
       await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
+      await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(userId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -932,8 +933,9 @@ class ProgressService extends BaseService {
         throw new InternalServerError('New progress could not be calculated');
       }
 
-       // Clear all completed items (watch time) for this user/course/version
+      // Clear all completed items (watch time) for this user/course/version
       await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
+      await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(userId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -980,7 +982,8 @@ class ProgressService extends BaseService {
       }
 
       // Clear all completed items (watch time) for this user/course/version
-     await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
+      await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
+      await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(userId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -1030,6 +1033,7 @@ class ProgressService extends BaseService {
 
       // Clear all completed items (watch time) for this user/course/version
       await this.progressRepository.deleteUserWatchTimeByCourseVersion(userId, courseId, courseVersionId, session);
+      await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(userId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(

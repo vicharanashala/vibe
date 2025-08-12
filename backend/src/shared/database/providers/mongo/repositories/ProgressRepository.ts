@@ -1,4 +1,5 @@
 import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import {IAttempt} from '#quizzes/interfaces/grading.js';
 import { injectable, inject } from 'inversify';
 import { Collection, ObjectId, ClientSession } from 'mongodb';
 import { MongoDatabase } from '../MongoDatabase.js';
@@ -13,6 +14,7 @@ type CurrentProgress = Pick<
 class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
+  private attemptCollection: Collection<IAttempt>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
@@ -105,10 +107,27 @@ class ProgressRepository {
       },
       { session }
     );
-    if (result.deletedCount === 0) {
+    if (result?.deletedCount === 0) {
       throw new Error(`No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`);
     }
   }
+  async deleteUserQuizAttemptsByCourseVersion(
+    userId: string,
+    session?: ClientSession
+  ): Promise<void> {
+    await this.init();
+    const result = await this.attemptCollection?.deleteMany(
+      {
+        userId: new ObjectId(userId),
+      },
+      { session }
+    );
+    console.log("🚀 ~ ProgressRepository ~ deleteUserQuizAttemptsByCourseVersion ~ result:", result)
+    if (result?.deletedCount === 0) {
+      throw new Error(`No quiz attempts found for user ID: ${userId}`);
+    }
+  }
+  
 
   async findProgress(
     userId: string | ObjectId,
