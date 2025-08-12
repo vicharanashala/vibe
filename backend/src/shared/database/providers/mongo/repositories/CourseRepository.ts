@@ -1,6 +1,6 @@
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
-import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
+import {ICourse, ICourseVersion, IEnrollment} from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
 import {
@@ -24,6 +24,7 @@ export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
   private itemsGroupCollection: Collection<ItemsGroup>;
+  private enrollmentCollection: Collection<IEnrollment>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -40,6 +41,7 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
+    this.enrollmentCollection = await this.db.getCollection<IEnrollment>('enrollment');
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -104,11 +106,11 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
-  async delete(id: string, session?: ClientSession): Promise<boolean> {
+  async delete(courseId: string, session?: ClientSession): Promise<boolean> {
     await this.init();
     // 1. Find the Course document to retrieve its list of version IDs
     const courseDoc = await this.courseCollection.findOne(
-      {_id: new ObjectId(id)},
+      {_id: new ObjectId(courseId)},
       {session},
     );
     if (!courseDoc) {
@@ -146,14 +148,20 @@ export class CourseRepository implements ICourseRepository {
       }
 
       // 2c. Invoke the existing deleteVersion(...) method
-      await this.deleteVersion(id, versionId, itemGroupsIds, session);
+      await this.deleteVersion(courseId, versionId, itemGroupsIds, session);
     }
+
+    await this.enrollmentCollection.deleteMany(
+      { courseId: new ObjectId(courseId) },
+      { session }
+    );
 
     // 3. Finally, delete the Course document itself
     const deleteCourseResult = await this.courseCollection.deleteOne(
-      {_id: new ObjectId(id)},
+      {_id: new ObjectId(courseId)},
       {session},
     );
+
     if (deleteCourseResult.deletedCount !== 1) {
       throw new InternalServerError('Failed to delete course');
     }
@@ -286,7 +294,7 @@ export class CourseRepository implements ICourseRepository {
 
       // delete watch time
       await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
-
+             
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
         {
@@ -295,7 +303,7 @@ export class CourseRepository implements ICourseRepository {
         {session},
       );
 
-      if (itemDeletionResult.deletedCount === 0) {
+      if (itemGroupsIds.length && itemDeletionResult.deletedCount === 0) {
         throw new InternalServerError('Failed to delete item groups');
       }
 

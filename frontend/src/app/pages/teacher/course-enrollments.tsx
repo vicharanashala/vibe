@@ -98,7 +98,7 @@ function EnrollmentProgress(props: { progress: number }) {
   // Support both direct number and object prop
   const progress = props.progress;
   return (
-    <div className={`flex items-center gap-4 w-40 ${getProgressBg(progress)}`}>
+    <div className={`flex  items-center gap-4 w-40 ${getProgressBg(progress)}`}>
       <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
         <div
           className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
@@ -615,7 +615,7 @@ export default function CourseEnrollments() {
                           </div>
                         </TableCell>
                         <TableCell className="py-6">
-                          <EnrollmentProgress progress={(enrollment.progress?.percentCompleted || 0) * 100} />
+                          <EnrollmentProgress progress={Math.round((enrollment.progress?.percentCompleted || 0) * 100)} />
                         </TableCell>
                         <TableCell className="py-6 pr-6">
                           <div className="flex items-center gap-3">
@@ -628,9 +628,8 @@ export default function CourseEnrollments() {
                                   name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
                                   email: enrollment.userId,
                                   enrolledDate: enrollment.enrollmentDate,
-                                  progress: enrollment.progress?.percentCompleted,
-                                })
-                              }
+                                  progress:Math.round((enrollment.progress?.percentCompleted || 0) * 100)
+                                    })}
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                             >
                               <Eye className="h-4 w-4 mr-2" />

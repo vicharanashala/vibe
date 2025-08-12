@@ -99,7 +99,7 @@ export class ItemService extends BaseService {
     )) as CourseVersion; // Assuming version has _id
   }
 
-  public async createItem(
+  public async createItem( 
     versionId: string,
     moduleId: string,
     sectionId: string,
@@ -107,6 +107,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       //Step 1: Fetch and validate parent entities (version, module, section) and the itemsGroup.
+
       const {version, module, section, itemsGroup} =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
@@ -120,8 +121,8 @@ export class ItemService extends BaseService {
 
       //Step 3: Store the item-specific details in the repository.
       const createdItemDetailsPersistenceResult =
-        await this.itemRepo.createItem(item.itemDetails, session);
-
+      await this.itemRepo.createItem(item.itemDetails, session);
+      
       // Step 3a: Check if the item-specific details were successfully created.
       if (!createdItemDetailsPersistenceResult) {
         throw new InternalServerError(
@@ -131,26 +132,28 @@ export class ItemService extends BaseService {
       createdItemDetailsPersistenceResult._id = createdItemDetailsPersistenceResult._id.toString();
       if (version.totalItems) {
         version.totalItems += 1; // Increment the total items count in the version.
+
       } else {
-        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-          version.courseId.toString(),
-          version._id.toString(),
-          session,
+        version.totalItems = Math.max( await this.itemRepo.CalculateTotalItemsCount (
+            version.courseId.toString(),
+            version._id.toString(),
+            session,
+          ), 1
         );
       }
-
+      
       //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
       newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
-
+      
       //Step 5: Save the modified 'itemsGroup' (now containing the new item) back to the database.
       const updatedItemsGroupResult = await this.itemRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
         itemsGroup,
         session,
       );
-
+      
       //Step 6: Update the 'updatedAt' timestamps for the modified section, module, and version.
       const updatedVersion = await this._updateHierarchyAndVersion(
         version,
@@ -313,7 +316,6 @@ export class ItemService extends BaseService {
     if (!version) {
       throw new NotFoundError(`Version for item group ${itemGroupId} not found`);
     }
-    console.log(version)
     return version;
   }
 
