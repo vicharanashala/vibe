@@ -180,6 +180,7 @@ export default function TeacherCoursePage() {
   useEffect(() => {
     if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess) {
       refetchVersion();
+      refetchItems();
       // Also refetch items for active section
       
       if (activeSectionInfo) {
@@ -306,10 +307,24 @@ export default function TeacherCoursePage() {
       }
       return;
     }
-    if (type !== "VIDEO") {
+    if (type === "QUIZ") {
       createItem.mutate({
         params: { path: { versionId, moduleId, sectionId } },
-        body: { type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content" }
+        body: {
+          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content"
+        }
+      });
+    }
+    if (type === "article") {
+      createItem.mutate({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {
+          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content", blogDetails: {
+            content: "Sample content",
+            points: '2.0',
+            estimatedReadTimeInMinutes: 1,
+          }
+        }
       });
     }
   };

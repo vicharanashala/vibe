@@ -132,7 +132,22 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
       }
-      return quiz.details.questionBankRefs;
+      const refs = quiz.details.questionBankRefs || [];
+      const banks = await Promise.all(
+        refs.map(async ref => {
+          const bank = await this.questionBankRepo.getById(ref.bankId, session);
+          if (!bank) {
+            return null;
+          }
+          return {
+            ...ref,
+            title: bank.title,
+            description: bank.description,
+            tags: bank.tags,
+          };
+        })
+      );
+      return banks.filter(Boolean);
     });
   }
   getUserMetricsForQuiz(userId: string, quizId: string) {
