@@ -586,7 +586,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== EFFECTS =====
 
   useEffect(()=> {
-    if(attemptError && attemptError.includes("No available attempts") || !currentQuestion){
+    if(attemptError && attemptError.includes("No available attempts") ){
       onNext?.();
       return;
     }
