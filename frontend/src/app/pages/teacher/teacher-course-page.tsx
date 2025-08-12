@@ -72,7 +72,7 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedItem, setSelectedItem] = useState({ id:"", name:"" });
 
   const [errors, setErrors] = useState({
     title: "",
@@ -599,12 +599,12 @@ export default function TeacherCoursePage() {
                                               >
                                                 <SidebarMenuSubItem key={item._id}>
                                                   <SidebarMenuSubButton
-                                                    className={`justify-start ${selectedItemName === getItemLabel({
+                                                    className={`justify-start ${selectedItem.name === getItemLabel({
                                                       itemId: item._id,
                                                       itemType: item.type,
                                                       sectionItems,
                                                       sectionId: section.sectionId
-                                                    })
+                                                      }) && selectedItem.id == item._id
                                                       ? "bg-zinc-600 text-gray-200"
                                                       : "bg-transparent transition-none"
                                                       }`}
@@ -616,7 +616,7 @@ export default function TeacherCoursePage() {
                                                         sectionId: section.sectionId
                                                       });
 
-                                                      setSelectedItemName(label);
+                                                      setSelectedItem({id:item._id, name:label});
 
                                                       setSelectedEntity({
                                                         type: "item",
@@ -631,12 +631,12 @@ export default function TeacherCoursePage() {
                                                     }
                                                   >
                                                     {getItemIcon(item.type)}
-                                                    <span className={`ml-1 text-xs ${selectedItemName === getItemLabel({
+                                                    <span className={`ml-1 text-xs ${selectedItem.name === getItemLabel({
                                                       itemId: item._id,
                                                       itemType: item.type,
                                                       sectionItems,
                                                       sectionId: section.sectionId
-                                                    })
+                                                    }) && selectedItem.id == item._id
                                                       ? "text-gray-200"
                                                       : "text-muted-foreground"
                                                       }`}>
@@ -1076,7 +1076,7 @@ export default function TeacherCoursePage() {
                      
                       <VideoModal
                         isLoading={isLoading}
-                        selectedItemName={selectedItemName}
+                        selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
                         onClose={() => setIsEditingItem(false)}
@@ -1130,7 +1130,7 @@ export default function TeacherCoursePage() {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                       <EnhancedQuizEditor
                         isLoading={isLoading}
-                        selectedItemName={selectedItemName}
+                        selectedItemName={selectedItem.name}
                         quizId={selectedQuizId}
                         moduleId={selectedEntity.parentIds?.moduleId || ""}
                         sectionId={selectedEntity.parentIds?.sectionId || ""}
@@ -1241,7 +1241,7 @@ export default function TeacherCoursePage() {
           >
             <VideoModal
               isLoading={isLoading}
-              selectedItemName={selectedItemName}
+              selectedItemName={selectedItem.name}
               action="add"
               onClose={() => setShowAddVideoModal(null)}
               onSave={video => {
