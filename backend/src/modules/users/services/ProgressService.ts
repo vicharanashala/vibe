@@ -620,6 +620,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Progress not found');
       }
 
+
       const totalItems = await this.itemRepo.getTotalItemsCount(
         courseId,
         courseVersionId,
