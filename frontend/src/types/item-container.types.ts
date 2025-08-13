@@ -30,6 +30,7 @@ export interface Item {
     approximateTimeToComplete?: string;
     allowPartialGrading?: boolean;
     allowHint?: boolean;
+    allowSkip?:boolean;
     showCorrectAnswersAfterSubmission?: boolean;
     showExplanationAfterSubmission?: boolean;
     showScoreAfterSubmission?: boolean;

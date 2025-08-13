@@ -50,6 +50,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           approximateTimeToComplete={item.details?.approximateTimeToComplete || ''}
           allowPartialGrading={item.details?.allowPartialGrading || false}
           allowHint={item.details?.allowHint || false}
+          allowSkip={item.details?.allowSkip || false}
           showCorrectAnswersAfterSubmission={item.details?.showCorrectAnswersAfterSubmission || false}
           showExplanationAfterSubmission={item.details?.showExplanationAfterSubmission || false}
           showScoreAfterSubmission={item.details?.showScoreAfterSubmission || false}

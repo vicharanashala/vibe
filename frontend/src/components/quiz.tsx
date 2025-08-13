@@ -32,6 +32,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   deadline,
   approximateTimeToComplete,
   allowHint,
+  allowSkip,
   showCorrectAnswersAfterSubmission,
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
@@ -504,11 +505,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         onNext();
       }
       // Stop tracking the quiz item
-      handleStopItem();
-    } catch (error) {
-      console.error('Error during quiz skip:', error);
-    }
-  }, [attempts, processedQuizId]);
+        handleStopItem();
+      } catch (error) {
+        console.error('Error during quiz skip:', error);
+      }
+  }, [attempts, processedQuizId,handleStopItem,onNext]);
+
 
   const saveProgress = useCallback(async () => {
     if (!attemptId || quizQuestions.length === 0) {
@@ -529,7 +531,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
-  console.log("Current question: ", currentQuestion);
+  // console.log("Current question: ", currentQuestion);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -1249,7 +1251,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         {/* Navigation */}
         <div className="flex justify-between items-center">
           {/* Skip button (shown after 5 attempts) */}
-          {attempts >= 5 && (
+          {(attempts >= 5 && allowSkip==true) && (
             <Button
               // variant="outline"
               onClick={handleSkipQuiz}
