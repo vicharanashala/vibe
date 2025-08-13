@@ -132,6 +132,16 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   return result;
 };
 
+export const getLiveStatusUpdate = async (jobId: string): Promise<JobStatus> => {
+  const response = await makeAuthenticatedRequest(`/genai/${jobId}/live`, {
+    method: 'GET',
+  });
+
+  const result = await response.json();
+  console.log('Job status:', result);
+  return result;
+}
+
 // 3. Poll Job Status (with automatic polling)
 export const pollJobStatus = async (
   jobId: string, 
@@ -463,6 +473,7 @@ export const aiSectionAPI: {
   approveStartTask: typeof approveStartTask;
   editQuestionData?: typeof editQuestionData;
   editTranscriptData?: typeof editTranscriptData;
+  getLiveStatusUpdate: typeof getLiveStatusUpdate;
 } = {
   createJob: createGenAIJob,
   getJobStatus,
@@ -473,6 +484,7 @@ export const aiSectionAPI: {
   startAudioExtractionTask,
   rerunJobTask,
   approveStartTask,
+  getLiveStatusUpdate
 };
 
 aiSectionAPI.editQuestionData = editQuestionData;

@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, JobStatus } from "@/lib/genai-api";
+import { aiSectionAPI, getLiveStatusUpdate, JobStatus } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -1297,6 +1297,7 @@ await handleRefreshStatus();
     if (!aiJobId) return; 
     const interval = setInterval(() => {
       handleRefreshStatus();
+      getLiveStatusUpdate(aiJobId)
     }, 30000);
     return () => clearInterval(interval);
   }, [aiJobId]);
@@ -2276,7 +2277,7 @@ await handleRefreshStatus();
           {aiJobId && (
             <div className="space-y-6">
               {/* Refresh button and status */}
-                              <div className="flex items-center gap-4 mb-2">
+                {/* <div className="flex items-center gap-4 mb-2">
                  <Button 
                    onClick={handleRefreshStatus} 
                    variant="outline"
@@ -2284,7 +2285,7 @@ await handleRefreshStatus();
                  >
                    Refresh Status
                  </Button>
-                </div>
+                </div> */}
               {/* Task Cards */}
               <div className="space-y-8 mt-8">
                 {/* Transcription Section */}
