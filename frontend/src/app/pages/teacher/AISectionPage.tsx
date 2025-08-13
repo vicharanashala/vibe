@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, getLiveStatusUpdate, JobStatus } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, getLiveStatusUpdate, JobStatus } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -1293,13 +1293,16 @@ await handleRefreshStatus();
   };
 
 
-  useEffect(() => {
-    if (!aiJobId) return; 
-    const interval = setInterval(() => {
+ useEffect(() => {
+    if (!aiJobId) return;
+    const es = connectToLiveStatusUpdates(aiJobId);
+  // return () => es.close();  
+ const interval = setInterval(() => {
       handleRefreshStatus();
       getLiveStatusUpdate(aiJobId)
-    }, 30000);
+    }, 3000);
     return () => clearInterval(interval);
+   
   }, [aiJobId]);
 
   // New: Manual trigger for transcript generation

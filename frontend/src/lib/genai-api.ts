@@ -19,11 +19,11 @@ export function getApiUrl(path: string) {
 
 // Helper function to make authenticated API calls
 const makeAuthenticatedRequest = async (
-  endpoint: string, 
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = getAuthToken();
-  
+
   if (!token) {
     throw new Error('Authentication token not found');
   }
@@ -122,11 +122,11 @@ export const createGenAIJob = async (
 // 2. Get Job Status
 export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   console.log('Getting job status for:', jobId);
-  
+
   const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}`, {
     method: 'GET',
   });
-  
+
   const result = await response.json();
   console.log('Job status:', result);
   return result;
@@ -139,39 +139,68 @@ export const getLiveStatusUpdate = async (jobId: string): Promise<JobStatus> => 
 
   const result = await response.json();
   console.log('Job status:', result);
+  // setAiJobStatus(status)
   return result;
 }
+export const connectToLiveStatusUpdates = (
+  jobId: string,
+  // onMessage: (status: JobStatus) => void,
+  // onError?: (error: any) => void
+): EventSource => {
+  console.log("hello")
+  const url = `${API_BASE_URL}/genai/${jobId}/live`;
+
+  const eventSource = new EventSource(url);
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data: JobStatus = JSON.parse(event.data);
+      console.log('Live SSE job status:', data);
+      // onMessage(data);
+    } catch (err) {
+      console.error('Failed to parse SSE message:', err);
+    }
+  };
+
+  eventSource.onerror = (error) => {
+    console.error('SSE error:', error);
+    // if (onError) onError(error);
+  };
+
+  return eventSource;
+};
+
 
 // 3. Poll Job Status (with automatic polling)
 export const pollJobStatus = async (
-  jobId: string, 
+  jobId: string,
   onStatusUpdate?: (status: JobStatus) => void,
   maxAttempts: number = 60, // 5 minutes with 5-second intervals
   intervalMs: number = 5000
 ): Promise<JobStatus> => {
   let attempts = 0;
-  
+
   while (attempts < maxAttempts) {
     const status = await getJobStatus(jobId);
-    
+
     if (onStatusUpdate) {
       onStatusUpdate(status);
     }
-    
+
     if (status.status === 'COMPLETED') {
       console.log('Job completed successfully:', status);
       return status;
     }
-    
+
     if (status.status === 'FAILED') {
       throw new Error(`Job failed: ${status.currentTask?.type || 'Unknown error'}`);
     }
-    
+
     // Wait before next poll
     await new Promise(resolve => setTimeout(resolve, intervalMs));
     attempts++;
   }
-  
+
   throw new Error(`Job polling timeout after ${maxAttempts} attempts`);
 };
 
@@ -184,7 +213,7 @@ export const uploadAnomalyImage = async (
   itemId: string
 ): Promise<any> => {
   const token = getAuthToken();
-  
+
   if (!token) {
     throw new Error('Authentication token not found');
   }
@@ -220,7 +249,7 @@ export const uploadAnomalyAudio = async (
   itemId: string
 ): Promise<any> => {
   const token = getAuthToken();
-  
+
   if (!token) {
     throw new Error('Authentication token not found');
   }
@@ -258,7 +287,7 @@ export const testApiConnection = async (): Promise<any> => {
         'Content-Type': 'application/json',
       },
     });
-    
+
     console.log('Health check response:', response.status, response.statusText);
     return { status: response.status, ok: response.ok };
   } catch (error) {
@@ -431,18 +460,18 @@ export const rerunJobTask = async (
 ) => {
   const token = localStorage.getItem('firebase-auth-token');
   const url = getApiUrl(`/genai/jobs/${jobId}/tasks/rerun`);
-const res = await fetch(url, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    type: taskType,
-    parameters: params || {},
-  }),
-});
-return res;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      type: taskType,
+      parameters: params || {},
+    }),
+  });
+  return res;
 };
 
 
