@@ -251,7 +251,6 @@ export class EnrollmentService extends BaseService {
 
       const totalItems = await this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session);
       // find user for each enrollment
-      console.log("Enrollment: ", enrollmentsWithUser, "Total items: ", totalItems);
       return enrollmentsWithUser.map(enrollment => ({
         role: enrollment.role,
         status: enrollment.status,

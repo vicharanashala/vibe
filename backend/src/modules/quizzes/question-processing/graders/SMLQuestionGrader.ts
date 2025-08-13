@@ -15,10 +15,21 @@ class SMLQuestionGrader implements IGrader {
     answer: ISMLAnswer,
     quiz: QuizItem,
     parameterMap?: ParameterMap,
+    selectedAnswerTexts?: string [],
   ): Promise<IQuestionAnswerFeedback> {
     const correctLotItemIds = this.question.correctLotItems.map(item =>
       item._id.toString(),
     );
+    
+    // to get detailed feedback text
+    const appendSelectedTexts = (feedbackBase: string) => {
+      if (selectedAnswerTexts?.length) {
+        const selectedTextList = selectedAnswerTexts.join(', ');
+        return `${feedbackBase} Selected answer(s): ${selectedTextList}.`;
+      }
+      return feedbackBase;
+    };
+
     if (quiz.details.allowPartialGrading) {
       // Partial grading logic
       const correctAnswers = answer.lotItemIds.filter(id =>
@@ -31,6 +42,10 @@ class SMLQuestionGrader implements IGrader {
       const score =
         (correctAnswers.length / correctLotItemIds.length) *
         this.question.points;
+
+      let feedbackText = `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`;
+      feedbackText = appendSelectedTexts(feedbackText);
+
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,
         status:
@@ -40,7 +55,7 @@ class SMLQuestionGrader implements IGrader {
               : 'PARTIAL'
             : 'INCORRECT',
         score: score,
-        answerFeedback: `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`,
+        answerFeedback: feedbackText,
       };
       return feedback;
     } else {
@@ -48,13 +63,17 @@ class SMLQuestionGrader implements IGrader {
       const isCorrect =
         answer.lotItemIds.length === correctLotItemIds.length &&
         answer.lotItemIds.every(id => correctLotItemIds.includes(id));
+
+      let feedbackText = isCorrect
+        ? 'Correct answer!'
+        : 'Incorrect answer. Please try again.';
+      feedbackText = appendSelectedTexts(feedbackText);
+
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,
         status: isCorrect ? 'CORRECT' : 'INCORRECT',
         score: isCorrect ? this.question.points : 0,
-        answerFeedback: isCorrect
-          ? 'Correct answer!'
-          : 'Incorrect answer. Please try again.',
+        answerFeedback: feedbackText,
       };
       return feedback;
     }
