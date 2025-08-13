@@ -223,7 +223,7 @@ export class EnrollmentService extends BaseService {
         );
       }
 
-      const result = await this.enrollmentRepo.getCourseVersionEnrollments(
+      const enrollments = await this.enrollmentRepo.getCourseVersionEnrollments(
         courseId,
         courseVersionId,
         skip,
@@ -231,9 +231,11 @@ export class EnrollmentService extends BaseService {
       );
       
       // Create enriched enrollments with user data using Promise.all for concurrent fetching
-      const userPromises = result.map(async (enrollment) => {
+      const userPromises = enrollments.map(async (enrollment) => {
         try {
+          // finding user data with userId in enrollement
           const user = await this.userRepo.findById(enrollment.userId);
+          // finding specific progress of the user
           const progress = await this.progressService.getUserProgressPercentageWithoutTotal(user._id.toString(), courseId, courseVersionId);
           return {
             ...enrollment,
@@ -245,10 +247,12 @@ export class EnrollmentService extends BaseService {
         }
       });
       
-      const resultWithUsers = await Promise.all(userPromises);
+      const enrollmentsWithUser = await Promise.all(userPromises);
+
       const totalItems = await this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session);
       // find user for each enrollment
-      return resultWithUsers.map(enrollment => ({
+      console.log("Enrollment: ", enrollmentsWithUser, "Total items: ", totalItems);
+      return enrollmentsWithUser.map(enrollment => ({
         role: enrollment.role,
         status: enrollment.status,
         enrollmentDate: enrollment.enrollmentDate,
@@ -261,7 +265,7 @@ export class EnrollmentService extends BaseService {
         progress: {
           completedItems: enrollment.progress,
           totalItems,
-          percentCompleted: enrollment.progress === 0 ? 0 : enrollment.progress / totalItems,
+          percentCompleted: totalItems > 0 ? enrollment.progress / totalItems : 0,
         }
     }));
     });

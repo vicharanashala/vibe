@@ -77,7 +77,6 @@ export class ItemController {
     if (!ability.can(ItemActions.Create, itemResource)) {
       throw new ForbiddenError('You do not have permission to create items in this section');
     }
-    
     return await this.itemService.createItem(
       versionId,
       moduleId,

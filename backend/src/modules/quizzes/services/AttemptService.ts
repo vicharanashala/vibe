@@ -176,7 +176,9 @@ class AttemptService extends BaseService {
         session,
       );
 
+
       const quiz = await this.quizRepository.getById(quizId, session);
+
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
         if (!quiz) {
@@ -201,6 +203,7 @@ class AttemptService extends BaseService {
         );
       }
 
+
       //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
       if (
         quiz.details.quizType === 'DEADLINE' &&
@@ -210,7 +213,7 @@ class AttemptService extends BaseService {
       }
 
       //3. Check if available attempts > 0
-      if (metrics.remainingAttempts <= 0 && metrics.remainingAttempts !== -1) {
+      if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
         throw new BadRequestError('No available attempts left for this quiz');
       }
 

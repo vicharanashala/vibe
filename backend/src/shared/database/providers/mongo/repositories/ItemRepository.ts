@@ -371,6 +371,7 @@ export class ItemRepository implements IItemRepository {
     } else {
       // If totalItems is not set, calculate it
       version.totalItems = await this.CalculateTotalItemsCount(courseId, versionId, session);
+
       // Update the version with the calculated totalItems
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,

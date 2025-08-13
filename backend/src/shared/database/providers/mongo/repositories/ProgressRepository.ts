@@ -77,7 +77,8 @@ class ProgressRepository {
       { session },
     );
     if (result.deletedCount === 0) {
-      throw new Error(`No watch time records found for version ID: ${courseVersionId}`);
+      console.log(`No watch time records found for version ID: ${courseVersionId}`)
+      // throw new Error(`No watch time records found for version ID: ${courseVersionId}`);
     }
   }
 

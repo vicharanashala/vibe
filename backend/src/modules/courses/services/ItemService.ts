@@ -21,8 +21,12 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
-import { ICourseVersion, ItemType, ProgressRepository } from '#root/shared/index.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
+import {
+  ICourseVersion,
+  ItemType,
+  ProgressRepository,
+} from '#root/shared/index.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -107,6 +111,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       //Step 1: Fetch and validate parent entities (version, module, section) and the itemsGroup.
+
       const {version, module, section, itemsGroup} =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
@@ -128,14 +133,18 @@ export class ItemService extends BaseService {
           'Persistence of item-specific details failed in the repository.',
         );
       }
-      createdItemDetailsPersistenceResult._id = createdItemDetailsPersistenceResult._id.toString();
+      createdItemDetailsPersistenceResult._id =
+        createdItemDetailsPersistenceResult._id.toString();
       if (version.totalItems) {
         version.totalItems += 1; // Increment the total items count in the version.
       } else {
-        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-          version.courseId.toString(),
-          version._id.toString(),
-          session,
+        version.totalItems = Math.max(
+          await this.itemRepo.CalculateTotalItemsCount(
+            version.courseId.toString(),
+            version._id.toString(),
+            session,
+          ),
+          1,
         );
       }
 
@@ -193,12 +202,11 @@ export class ItemService extends BaseService {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      const item = await this.itemRepo.readItem(
-        versionId,
-        itemId,
-        session,
-      );
-      if (!item) throw new NotFoundError(`Item ${itemId} not found in version ${versionId}.`);
+      const item = await this.itemRepo.readItem(versionId, itemId, session);
+      if (!item)
+        throw new NotFoundError(
+          `Item ${itemId} not found in version ${versionId}.`,
+        );
       if (item.type !== body.type) {
         throw new InternalServerError(
           `Item type mismatch: expected ${item.type}, got ${body.type}.`,
@@ -211,7 +219,9 @@ export class ItemService extends BaseService {
         version,
       );
       if (!updatedVersion) {
-        throw new InternalServerError('Failed to update version after item update');
+        throw new InternalServerError(
+          'Failed to update version after item update',
+        );
       }
       result._id = result._id.toString();
       return result;
@@ -220,35 +230,41 @@ export class ItemService extends BaseService {
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
     return this._withTransaction(async session => {
-      const deleted = await this.itemRepo.deleteItem(
-        itemsGroupId,
-        itemId,
-        session,
-      );
-      if (!deleted) throw new InternalServerError('Item deletion failed');
-      const version = await this.findVersion(itemsGroupId);
-      if (version.totalItems) {
-        version.totalItems -= 1;
-      } else {
+      try {
+        const deleted = await this.itemRepo.deleteItem(
+          itemsGroupId,
+          itemId,
+          session,
+        );
+        if (!deleted) throw new InternalServerError('Item deletion failed');
+        const version = await this.findVersion(itemsGroupId);
+        // if (version.totalItems) {
+        //   version.totalItems -= 1;
+        // } else {
         version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
           version.courseId.toString(),
           version._id.toString(),
           session,
-        )
-      }
-      await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
+        ); 
+        // }
+        await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
-      const updatedVersion = await this.courseRepo.updateVersion(
-        version._id.toString(),
-        version,
-        session,
-      )
+        const updatedVersion = await this.courseRepo.updateVersion(
+          version._id.toString(),
+          version,
+          session,
+        );
 
-      if (!updatedVersion) {
-        throw new InternalServerError('Failed to update version after item deletion');
+        if (!updatedVersion) {
+          throw new InternalServerError(
+            'Failed to update version after item deletion',
+          );
+        }
+        deleted._id = deleted._id.toString();
+        return {deletedItemId: itemId, itemsGroup: deleted};
+      } catch (error) {
+        throw new InternalServerError(`Failed to delete Item after / Error: ${error}`);
       }
-      deleted._id = deleted._id.toString();
-      return {deletedItemId: itemId, itemsGroup: deleted};
     });
   }
 
@@ -307,13 +323,12 @@ export class ItemService extends BaseService {
   }
 
   public async findVersion(itemGroupId: string): Promise<ICourseVersion> {
-    const version = await this.courseRepo.findVersionByItemGroupId(
-      itemGroupId,
-    );
+    const version = await this.courseRepo.findVersionByItemGroupId(itemGroupId);
     if (!version) {
-      throw new NotFoundError(`Version for item group ${itemGroupId} not found`);
+      throw new NotFoundError(
+        `Version for item group ${itemGroupId} not found`,
+      );
     }
-    console.log(version)
     return version;
   }
 
@@ -327,18 +342,24 @@ export class ItemService extends BaseService {
   }> {
     return this._withTransaction(async session => {
       // Step 1: Find itemsGroup containing the item
-      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(itemId, session);
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
       if (!itemsGroup) {
         throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
       }
       const itemsGroupId = itemsGroup?._id.toString();
       // Step 2: Find version using existing function
-      const version = await this.courseRepo.findVersionByItemGroupId(itemsGroupId, session);
-      
+      const version = await this.courseRepo.findVersionByItemGroupId(
+        itemsGroupId,
+        session,
+      );
+
       if (!version) {
         throw new NotFoundError(`Version for item ${itemId} not found`);
       }
-      
+
       return {
         courseId: version.courseId.toString(),
         versionId: version._id.toString(),
