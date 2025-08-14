@@ -260,21 +260,18 @@ class SubmissionRepository {
     return 0;
   }
 
-  async removeByQuizId(
+  async removeByAttemptIds(
     userId: string,
-    quizId: string,
+    attemptIds: string [],
     session?: ClientSession,
   ): Promise<void> {
     try {
       await this.init();
       const result = await this.submissionResultCollection.deleteMany(
-        {userId, quizId},
+        {userId, attemptId: { $in: attemptIds }},
         {session},
       );
 
-      if (!result.deletedCount) {
-        throw new Error(`No submission results found for quizId: ${quizId}`);
-      }
     } catch (error) {
       throw new InternalServerError(
         `Failed to remove quiz submission /More ${error}`,

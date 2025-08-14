@@ -64,38 +64,31 @@ class UserQuizMetricsRepository {
   }
 
   async removeAttempts(
+    userId: string,
     quizId: string,
-    attemptIds: string[],
     session?: ClientSession,
   ) {
     try {
       await this.init();
 
-      if (!quizId || !attemptIds.length) {
+      if (!quizId ) {
         throw new InternalServerError(
           'Failed to remove attempts from quiz metrics / More quizId or attemptId is missing',
         );
       }
-
       // Step 1: Find the doc to get actual remove count
       const metricsDoc = await this.userQuizMetricsCollection.findOne(
-        {quizId},
+        {quizId, userId},
         {session},
       );
 
-      if (!metricsDoc) {
-        throw new InternalServerError(`No metrics found for quizId: ${quizId}`);
-      }
-
-      const removeCount = (metricsDoc.attempts || []).filter(a =>
-        attemptIds.includes(a.attemptId as string),
-      ).length;
+      const removeCount = metricsDoc?.attempts?.length || 0;
 
       // Step 2: Pull and decrement based on removeCount
       await this.userQuizMetricsCollection.updateOne(
-        {quizId},
+        {quizId, userId},
         {
-          $pull: {attempts: {attemptId: {$in: attemptIds}}},
+          $set: { attempts: [] },
           ...(metricsDoc.remainingAttempts > 0
             ? {$inc: {remainingAttempts: removeCount}}
             : {}),

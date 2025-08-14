@@ -928,20 +928,18 @@ class ProgressService extends BaseService {
               session,
             );
 
-          // pull attempts from quiz metrics
-          if (deletedAttemptIds.length) {
-            await this.userQuizMetricsRepository.removeAttempts(
-              quizId,
-              deletedAttemptIds,
-              session,
-            );
-          } else {
-            console.log('No attempts were deleted while resetting progress!');
-          }
+          if (!deletedAttemptIds.length) continue;
 
-          await this.submissionRepository.removeByQuizId(
+          // pull attempts from quiz metrics
+          await this.userQuizMetricsRepository.removeAttempts(
             userId,
             quizId,
+            session,
+          );
+
+          await this.submissionRepository.removeByAttemptIds(
+            userId,
+            deletedAttemptIds,
             session,
           );
         }
@@ -958,6 +956,7 @@ class ProgressService extends BaseService {
           currentItem: updatedProgress.currentItem,
           completed: false,
         },
+        session,
       );
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
@@ -1028,7 +1027,7 @@ class ProgressService extends BaseService {
         module => '_id' in module && module._id.toString() == moduleId,
       )[0];
 
-      if(!selectedModule)
+      if (!selectedModule)
         throw new BadRequestError(`Failed to find module with id: ${moduleId}`);
 
       // to store all the quiz item id's, to update attempts and metrics
@@ -1063,7 +1062,6 @@ class ProgressService extends BaseService {
       //   session,
       // );
 
-
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
@@ -1077,19 +1075,19 @@ class ProgressService extends BaseService {
           // pull attempts from quiz metrics
           if (deletedAttemptIds.length) {
             await this.userQuizMetricsRepository.removeAttempts(
+              userId,
               quizId,
-              deletedAttemptIds,
               session,
             );
           } else {
             console.log('No attempts were deleted while resetting progress!');
           }
 
-          await this.submissionRepository.removeByQuizId(
-            userId,
-            quizId,
-            session,
-          );
+          // await this.submissionRepository.removeByQuizId(
+          //   userId,
+          //   quizId,
+          //   session,
+          // );
         }
       }
 
