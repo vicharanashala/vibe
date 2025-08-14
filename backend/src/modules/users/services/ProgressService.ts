@@ -867,6 +867,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
+
       await this.verifyDetails(userId, courseId, courseVersionId);
 
       // Get Course Version
@@ -884,7 +885,7 @@ class ProgressService extends BaseService {
 
       const courseModules = courseVersion.modules || [];
 
-      const itemsGroupIds: string[] = [];
+      const itemsGroupIds: string [] = [];
 
       for (const module of courseModules) {
         for (const section of module.sections || []) {
