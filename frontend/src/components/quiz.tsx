@@ -492,6 +492,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Track attempts using the attempt data from the hook
     useEffect(() => {
       if (attemptData) {
+        console.log("Attempt data: ", attemptData);
         // Update the attempt count when a new attempt is created
         setAttempts(attemptData.userAttempts);
       }

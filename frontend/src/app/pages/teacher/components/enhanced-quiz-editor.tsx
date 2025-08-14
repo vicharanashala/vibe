@@ -50,7 +50,7 @@ import CreateQuestionBankDialog from './CreateQuestionBank';
 import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
 import ConfirmationModal from './confirmation-modal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { GradingSystemStatus } from '@/types/quiz.types';
+import { GradingSystemStatus, QuestionBankRef } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
 import { DownloadReportButton } from './DownloadReportButton';
@@ -70,6 +70,7 @@ interface EnhancedQuizEditorProps {
   performance: any;
   onDelete: () => void;
 }
+
 
 interface QuestionFormData {
   question: {
@@ -239,7 +240,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }
   const { data: submissionsData,refetch, isLoading:submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
   
-  console.log("Submission data: ", submissionsData)
   const submissions = submissionsData?.data;
 
   useEffect(() => {
@@ -294,11 +294,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     questionVisibility: 4,
     releaseTime: '',
     deadline: '',
-    allowSkip:false
+    allowSkip:false,
+    questionBankRefs: []
   });
 
   // Fetch data
-  const { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
+  let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
   
   console.log("selected Question bank ID",selectedQuestionBank);
@@ -316,7 +317,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Initialize quiz settings form with existing details
   useEffect(() => {
+
     if (details) {
+
       setQuizSettingsForm({
         name: details.name || '',
         description: details.description || '',
@@ -332,7 +335,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         showScoreAfterSubmission: details.details.showScoreAfterSubmission ?? true,
         questionVisibility: details.details.questionVisibility || 4,
         releaseTime: details.details.releaseTime ? new Date(details.details.releaseTime).toISOString().slice(0, 16) : '',
-        deadline: details.details.deadline ? new Date(details.details.deadline).toISOString().slice(0, 16) : ''
+        deadline: details.details.deadline ? new Date(details.details.deadline).toISOString().slice(0, 16) : '',
       });
     }
   }, [details]);
@@ -358,6 +361,16 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   const handleSaveQuizSettings = async () => {
     try {
+
+      if(!questionBanks) questionBanks = [];
+
+      const questionBankRefs: QuestionBankRef[] = questionBanks?.map((bank: QuestionBankRef) => ({
+        bankId: bank.bankId,
+        count: bank.count,
+        difficulty: bank.difficulty,
+        tags: bank.tags
+      }));
+
       const quizDetails: any = {
         passThreshold: quizSettingsForm.passThreshold,
         maxAttempts: quizSettingsForm.maxAttempts,
@@ -370,7 +383,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         showExplanationAfterSubmission: quizSettingsForm.showExplanationAfterSubmission,
         showScoreAfterSubmission: quizSettingsForm.showScoreAfterSubmission,
         questionVisibility: quizSettingsForm.questionVisibility,
-        releaseTime: quizSettingsForm.releaseTime ? new Date(quizSettingsForm.releaseTime).toISOString() : new Date().toISOString()
+        releaseTime: quizSettingsForm.releaseTime ? new Date(quizSettingsForm.releaseTime).toISOString() : new Date().toISOString(),
+        questionBankRefs,
       };
 
       if (quizSettingsForm.deadline) {

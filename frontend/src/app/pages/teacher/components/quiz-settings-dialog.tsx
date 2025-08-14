@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { QuestionBankRef } from '@/types/quiz.types';
 
 interface QuizSettingsForm {
   name: string;
@@ -23,6 +24,7 @@ interface QuizSettingsForm {
   releaseTime: string;
   deadline: string;
   allowSkip:boolean;
+  questionBankRefs?: QuestionBankRef []
 }
 
 interface ValidationErrors {

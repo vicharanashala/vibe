@@ -12,7 +12,7 @@ import {
 import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
 import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
 
-import { generateRandomParameterMap } from '#quizzes/utils/index.js';
+import { generateRandomParameterMap, getSelectedItemTexts } from '#quizzes/utils/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { BaseService, MongoDatabase } from '#shared/index.js';
 import { injectable, inject } from 'inversify';
@@ -135,15 +135,20 @@ class AttemptService extends BaseService {
         answer.questionId,
         true,
       );
+
+      // to get selected answers in text
+      const selectedAnswerTexts = getSelectedItemTexts(question, answer.answer);
+
       totalMaxScore += question.points;
       //Find parameter map for the question
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
       );
       const parameterMap = questionDetail?.parameterMap;
+      // answer.lotItemId.toString()
       const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(
         question,
-      ).grade(answer.answer, quiz, parameterMap);
+      ).grade(answer.answer, quiz, parameterMap, selectedAnswerTexts);
       const res = instanceToPlain(new QuestionAnswerFeedback(feedback));
       feedbacks.push(res as IQuestionAnswerFeedback);
       totalScore += feedback.score;

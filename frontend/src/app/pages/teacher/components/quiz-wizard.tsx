@@ -56,6 +56,7 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
                 deadline: quizSettingsForm.quizType === 'DEADLINE' && quizSettingsForm.deadline 
                     ? new Date(quizSettingsForm.deadline).toISOString() 
                     : undefined, 
+                questionBankRefs: [],
             };
 
             await createItem({

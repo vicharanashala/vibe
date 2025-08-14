@@ -165,8 +165,9 @@ class QuestionProcessor {
     answer: Answer,
     quiz: QuizItem,
     parameterMap?: ParameterMap,
+    selectedAnswerTexts?: string []
   ): Promise<IQuestionAnswerFeedback> {
-    return this.grader.grade(answer, quiz, parameterMap);
+    return this.grader.grade(answer, quiz, parameterMap, selectedAnswerTexts);
   }
 }
 

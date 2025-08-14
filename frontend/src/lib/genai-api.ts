@@ -78,6 +78,27 @@ export interface JobStatus {
   };
 }
 
+// Types for optional task parameters
+export interface TranscriptParameters {
+  language?: string;
+  modelSize?: string;
+}
+
+export interface SegmentationParameters {
+  lam?: number;
+  runs?: number;
+  noiseId?: number;
+}
+
+export interface QuestionGenerationParameters {
+  model?: string;
+  SOL?: number;
+  SML?: number;
+  NAT?: number;
+  DES?: number;
+  prompt?: string;
+}
+
 // 1. Create GenAI Job
 export const createGenAIJob = async (
   params: {
@@ -88,6 +109,11 @@ export const createGenAIJob = async (
     sectionId?: string | null;
     videoItemBaseName?: string;
     quizItemBaseName?: string;
+    questionsPerQuiz?: number;
+    // Optional task parameters
+    transcriptParameters?: TranscriptParameters;
+    segmentationParameters?: SegmentationParameters;
+    questionGenerationParameters?: QuestionGenerationParameters;
   }
 ): Promise<{ jobId: string }> => {
   const {
@@ -98,7 +124,12 @@ export const createGenAIJob = async (
     sectionId,
     videoItemBaseName = 'video_item',
     quizItemBaseName = 'quiz_item',
+    questionsPerQuiz,
+    transcriptParameters,
+    segmentationParameters,
+    questionGenerationParameters,
   } = params;
+  
   const uploadParameters: Record<string, any> = {
     courseId,
     versionId,
@@ -107,13 +138,28 @@ export const createGenAIJob = async (
   };
   if (moduleId) uploadParameters.moduleId = moduleId;
   if (sectionId) uploadParameters.sectionId = sectionId;
+  if (questionsPerQuiz) uploadParameters.questionsPerQuiz = questionsPerQuiz;
+
+  const body: Record<string, any> = {
+    type: 'VIDEO',
+    url: videoUrl,
+    uploadParameters,
+  };
+
+  // Add optional task parameters if provided
+  if (transcriptParameters) {
+    body.transcriptParameters = transcriptParameters;
+  }
+  if (segmentationParameters) {
+    body.segmentationParameters = segmentationParameters;
+  }
+  if (questionGenerationParameters) {
+    body.questionGenerationParameters = questionGenerationParameters;
+  }
+
   const response = await makeAuthenticatedRequest('/genai/jobs', {
     method: 'POST',
-    body: JSON.stringify({
-      type: 'VIDEO',
-      url: videoUrl,
-      uploadParameters,
-    }),
+    body: JSON.stringify(body),
   });
   const result = await response.json();
   return { jobId: result.jobId };
