@@ -162,11 +162,11 @@ class ProgressRepository {
         .project({_id: 1})
         .toArray();
 
-      if (!docsToDelete?.length) {
-        throw new Error(
-          `No quiz attempts found for user ID: ${userId}, quiz ID: ${quizId}`,
-        );
-      }
+      // if (!docsToDelete?.length) {
+      //   throw new Error(
+      //     `No quiz attempts found for user ID: ${userId}, quiz ID: ${quizId}`,
+      //   );
+      // }
 
       await this.attemptCollection.deleteMany({userId, quizId}, {session});
 

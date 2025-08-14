@@ -961,7 +961,7 @@ export default function CourseEnrollments() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="module" className="cursor-pointer" disabled>
+                      <SelectItem value="module" className="cursor-pointer" >
                         <div className="flex items-center gap-3 py-3 px-2">
                           <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                           <div>
