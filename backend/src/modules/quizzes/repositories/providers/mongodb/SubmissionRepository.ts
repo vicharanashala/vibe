@@ -259,6 +259,28 @@ class SubmissionRepository {
     }
     return 0;
   }
+
+  async removeByQuizId(
+    userId: string,
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      const result = await this.submissionResultCollection.deleteMany(
+        {userId, quizId},
+        {session},
+      );
+
+      if (!result.deletedCount) {
+        throw new Error(`No submission results found for quizId: ${quizId}`);
+      }
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to remove quiz submission /More ${error}`,
+      );
+    }
+  }
 }
 
 export {SubmissionRepository};

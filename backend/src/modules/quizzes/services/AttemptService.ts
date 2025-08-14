@@ -237,7 +237,12 @@ class AttemptService extends BaseService {
       //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
       metrics.latestAttemptId = attemptId;
-      metrics.remainingAttempts--;
+      
+      // if the quiz maxAttempts is -1, the no need to changes remainingAttempts
+      metrics.remainingAttempts =
+        quiz.details.maxAttempts === -1
+          ? -1
+          : metrics.remainingAttempts - 1;
       metrics.attempts.push({ attemptId });
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),

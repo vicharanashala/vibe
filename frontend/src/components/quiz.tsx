@@ -410,7 +410,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (convertedQuestions.length > 0 && convertedQuestions[0]?.timeLimit) {
         setTimeLeft(convertedQuestions[0].timeLimit);
       }
-      console.log('Quiz started successfully:', response);
 
       // Start tracking item
       await handleSendStartItem();
@@ -493,6 +492,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     useEffect(() => {
       if (attemptData) {
         console.log("Attempt data: ", attemptData);
+
         // Update the attempt count when a new attempt is created
         setAttempts(attemptData.userAttempts);
       }
@@ -502,9 +502,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (!attemptId) return;
     // console.log('Skipping quiz. Attempt count:', attempts);
     try {
-      if (onNext) {
-        onNext();
-      }
+      // Skip to next item
+      onNext?.();
       // Stop tracking the quiz item
         handleStopItem();
       } catch (error) {
@@ -531,8 +530,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
-
-  // console.log("Current question: ", currentQuestion);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
