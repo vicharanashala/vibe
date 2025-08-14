@@ -97,12 +97,13 @@ class UserQuizMetricsRepository {
         {
           $pull: {attempts: {attemptId: {$in: attemptIds}}},
           ...(metricsDoc.remainingAttempts > 0
-            ? {$inc: {remainingAttempts: -removeCount}}
+            ? {$inc: {remainingAttempts: removeCount}}
             : {}),
         },
         {session},
       );
 
+      // to ensure remaining attempts is not less than -1 (temp)
       await this.userQuizMetricsCollection.updateOne(
         {quizId, remainingAttempts: {$lt: 0}},
         {$set: {remainingAttempts: -1}},
