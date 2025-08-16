@@ -143,7 +143,8 @@ class AttemptController {
     @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
-    const {quizId, attemptId, isSkipped} = params;
+    const { quizId, attemptId } = params;
+    const { isSkipped, answers } = body;
     const userId = user._id.toString();
 
     // Build subject context first
@@ -159,7 +160,7 @@ class AttemptController {
       userId,
       quizId,
       attemptId,
-      body.answers,
+      answers,
       isSkipped,
     );
     return result as SubmitAttemptResponse;

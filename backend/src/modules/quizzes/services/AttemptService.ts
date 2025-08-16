@@ -4,6 +4,7 @@ import {
   IQuestionAnswer,
   IQuestionAnswerFeedback,
   IAttempt,
+  IAttemptDetails,
 } from '#quizzes/interfaces/grading.js';
 import {
   QuestionAnswerFeedback,
@@ -268,9 +269,10 @@ class AttemptService extends BaseService {
     attemptId: string,
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
-  ): Promise<Partial<IGradingResult>> {
+  ): Promise<Partial<IGradingResult> | null> {
     return this._withTransaction(async session => {
       await this.save(userId, quizId, attemptId, answers);
+
       //1. Fetch UserQuizMetrics by userId and quizId
       const metrics = await this.userQuizMetricsRepository.get(
         userId,
@@ -289,53 +291,69 @@ class AttemptService extends BaseService {
         attemptId,
         session,
       );
+
       if (existingSubmission) {
         throw new BadRequestError(
           `Attempt with ID ${attemptId} has already been submitted`,
         );
       }
-      //3. Create a new Submission Result
-      const submission = new Submission(quizId, userId, attemptId);
-      const submissionId = await this.submissionRepository.create(
-        submission,
-        session,
-      );
+      //3. Create a new Submission Result, if not skipped
+      if (!isSkipped) {
+        const submission = new Submission(quizId, userId, attemptId);
+        const submissionId = await this.submissionRepository.create(
+          submission,
+          session,
+        );
+        //4. Update the submission ID in UserQuizMetrics
+        metrics.latestSubmissionResultId = submissionId;
 
-      //4. Update the submission ID in UserQuizMetrics
-      metrics.latestSubmissionResultId = submissionId;
+        metrics.latestAttemptStatus = 'SUBMITTED';
 
-      //5. Change the latestAttemptStatus to 'SUBMITTED'
-      metrics.latestAttemptStatus = 'SUBMITTED';
+        const gradingResult = await this._grade(
+          attemptId,
+          quizId,
+          answers,
+          session,
+        );
 
-      const gradingResult = await this._grade(
-        attemptId,
-        quizId,
-        answers,
-        session,
-      );
+        submission.gradingResult = gradingResult;
 
-      //6. Update the submission with the feedbacks and score
-      submission.gradingResult = gradingResult;
+        //5. Update the submission with the feedbacks and score
+        await this.submissionRepository.update(
+          submissionId,
+          submission,
+          session,
+        );
 
-      await this.submissionRepository.update(submissionId, submission, session);
+        metrics.attempts = metrics.attempts.map(attempt => {
+          if (attempt.attemptId === attemptId) {
+            attempt.submissionResultId = submissionId;
+          }
+          return attempt;
+        });
 
-      //7. Update the UserQuizMetrics with the new submission result in attempts
-      metrics.attempts = metrics.attempts.map(attempt => {
-        if (attempt.attemptId === attemptId) {
-          attempt.submissionResultId = submissionId;
-        }
-        return attempt;
-      });
-      await this.userQuizMetricsRepository.update(
-        metrics._id.toString(),
-        metrics,
-      );
+        //6. update the quiz metrics
+        await this.userQuizMetricsRepository.update(
+          metrics._id.toString(),
+          metrics,
+        );
+        //7. Get quiz details to check what details can be returned back
+        const quiz = await this.quizRepository.getById(quizId, session);
 
-      //8. Get quiz details to check what details can be returned back
-      const quiz = await this.quizRepository.getById(quizId, session);
-
-      //9. Return grading result based on quiz settings
-      return this._buildGradingResult(quiz, gradingResult);
+        //8. Return grading result based on quiz settings
+        return this._buildGradingResult(quiz, gradingResult);
+      } else {
+        metrics.latestAttemptStatus = 'SKIPPED';
+        metrics.skipCount = +1;
+        const details: IAttemptDetails = {attemptId};
+        metrics.attempts.push(details);
+        //6. update the quiz metrics
+        await this.userQuizMetricsRepository.update(
+          metrics._id.toString(),
+          metrics,
+        );
+        return null;
+      }
     });
   }
 

@@ -71,6 +71,7 @@ export interface QuizProps {
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   rewindVid: boolean;
+  setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface QuizRef {
@@ -226,7 +227,7 @@ export interface UserQuizMetrics {
   quizId: string;
   remainingAttempts: number;
   latestAttemptId?: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   attempts: AttemptDetails[];
 }
 

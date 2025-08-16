@@ -11,8 +11,8 @@ import {
   IsEnum,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import { WatchTime } from '../transformers/WatchTime.js';
-import { UserQuizMetrics } from '#root/modules/quizzes/classes/index.js';
+import {WatchTime} from '../transformers/WatchTime.js';
+import {UserQuizMetrics} from '#root/modules/quizzes/classes/index.js';
 
 export class GetUserProgressParams {
   @JSONSchema({
@@ -188,6 +188,15 @@ export class StopItemBody {
   @IsString()
   @IsMongoId()
   attemptId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether this attempt is skipped',
+    type: 'boolean',
+    example: true,
+  })
+  isSkipped?: boolean;
 }
 
 export class UpdateProgressBody {
@@ -340,7 +349,8 @@ export class ResetCourseProgressBody {
 
   @Expose()
   @JSONSchema({
-    description: 'field to trigger validation error if moduleId is not provided',
+    description:
+      'field to trigger validation error if moduleId is not provided',
     readOnly: true,
   })
   @IsOptional()
@@ -354,7 +364,8 @@ export class ResetCourseProgressBody {
 
   @Expose()
   @JSONSchema({
-    description: 'field to trigger validation error if sectionId is not provided',
+    description:
+      'field to trigger validation error if sectionId is not provided',
     readOnly: true,
   })
   @IsOptional()
@@ -366,7 +377,7 @@ export class ResetCourseProgressBody {
   invalidFieldsCheck2?: any; // dummy field to trigger validation error
 }
 
-export class ProgressDataResponse implements IProgress{
+export class ProgressDataResponse implements IProgress {
   @JSONSchema({
     description: 'Unique identifier for the progress record',
     example: '60d5ec49b3f1c8e4a8f8b8d1',
@@ -562,7 +573,7 @@ export class WatchTimeParams {
 export class WatchTimeResponse {
   @JSONSchema({
     description: 'Array of watch time records',
-    type: 'array'
+    type: 'array',
   })
   @IsNotEmpty()
   watchTime: WatchTime[];
@@ -591,5 +602,5 @@ export const PROGRESS_VALIDATORS = [
   CompletedProgressResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
-  WatchTimeResponse
-]
+  WatchTimeResponse,
+];

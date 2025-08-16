@@ -37,7 +37,7 @@ interface UserQuizMetricsResponse {
   _id?: string;
   quizId: string;
   userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   latestAttemptId?: string;
   latestSubmissionResultId?: string;
   remainingAttempts: number;
@@ -215,7 +215,6 @@ export default function CourseEnrollments() {
     }
     return 0
   })
-  console.log("Sorted Users:", sortedUsers)
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {

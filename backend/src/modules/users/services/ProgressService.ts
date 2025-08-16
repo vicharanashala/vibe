@@ -26,7 +26,7 @@ import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/Subm
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {WatchTime} from '../classes/transformers/WatchTime.js';
 import {CompletedProgressResponse} from '../classes/index.js';
-import {UserQuizMetricsRepository} from '#root/modules/quizzes/repositories/index.js';
+import {QuizRepository, UserQuizMetricsRepository} from '#root/modules/quizzes/repositories/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -48,6 +48,9 @@ class ProgressService extends BaseService {
 
     @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
+    
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private quizRepo: QuizRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
@@ -770,6 +773,7 @@ class ProgressService extends BaseService {
     itemId: string,
     watchItemId?: string,
     attemptId?: string,
+    isSkipped?: boolean,
   ): Promise<void> {
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
@@ -808,7 +812,7 @@ class ProgressService extends BaseService {
             'Watch time is not valid, the user did not watch the item long enough',
           );
         }
-      } else {
+      } else if (!isSkipped) {
         // Verify if the user has submitted the QUIZ
         const submittedQuiz = await this.submissionRepository.get(
           itemId,
@@ -816,6 +820,8 @@ class ProgressService extends BaseService {
           attemptId,
           session,
         );
+
+        // if the quiz is skipped then there is no submission record
         if (!submittedQuiz) {
           throw new BadRequestError(
             'Quiz not submitted or attemptId is invalid',
@@ -922,6 +928,8 @@ class ProgressService extends BaseService {
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
+          const quiz = await this.quizRepo.getById(quizId);
+          const maxAttempts = quiz?.details?.maxAttempts;
           const deletedAttemptIds =
             await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
               userId,
@@ -932,9 +940,10 @@ class ProgressService extends BaseService {
           if (!deletedAttemptIds.length) continue;
 
           // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.removeAttempts(
+          await this.userQuizMetricsRepository.resetUserMetrics(
             userId,
             quizId,
+            maxAttempts,
             session,
           );
 
@@ -1063,6 +1072,9 @@ class ProgressService extends BaseService {
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
+          const quiz = await this.quizRepo.getById(quizId);
+          const maxAttempts = quiz?.details?.maxAttempts;
+
           const deletedAttemptIds =
             await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
               userId,
@@ -1073,9 +1085,10 @@ class ProgressService extends BaseService {
           if (!deletedAttemptIds.length) continue;
 
           // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.removeAttempts(
+          await this.userQuizMetricsRepository.resetUserMetrics(
             userId,
             quizId,
+            maxAttempts,
             session,
           );
 
@@ -1179,6 +1192,10 @@ class ProgressService extends BaseService {
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
+
+          const quiz = await this.quizRepo.getById(quizId);
+          const maxAttempts = quiz?.details?.maxAttempts;
+
           const deletedAttemptIds =
             await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
               userId,
@@ -1189,9 +1206,10 @@ class ProgressService extends BaseService {
           if (!deletedAttemptIds.length) continue;
 
           // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.removeAttempts(
+          await this.userQuizMetricsRepository.resetUserMetrics(
             userId,
             quizId,
+            maxAttempts,
             session,
           );
 
@@ -1273,6 +1291,8 @@ class ProgressService extends BaseService {
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
+          const quiz = await this.quizRepo.getById(quizId);
+          const maxAttempts = quiz?.details?.maxAttempts;
           const deletedAttemptIds =
             await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
               userId,
@@ -1283,9 +1303,10 @@ class ProgressService extends BaseService {
           if (!deletedAttemptIds.length) continue;
 
           // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.removeAttempts(
+          await this.userQuizMetricsRepository.resetUserMetrics(
             userId,
             quizId,
+            maxAttempts,
             session,
           );
 
@@ -1319,10 +1340,6 @@ class ProgressService extends BaseService {
         courseVersionId,
         session,
       );
-      // await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-      //   userId,
-      //   session,
-      // );
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(

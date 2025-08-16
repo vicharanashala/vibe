@@ -23,7 +23,7 @@ interface UserQuizMetricsResponse {
   _id?: string;
   quizId: string;
   userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   latestAttemptId?: string;
   latestSubmissionResultId?: string;
   remainingAttempts: number;

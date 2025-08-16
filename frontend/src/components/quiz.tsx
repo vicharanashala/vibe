@@ -45,7 +45,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   displayNextLesson,
   onPrevVideo,
   setQuizPassed,
-  rewindVid
+  rewindVid,
+  setIsQuizSkipped
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -346,16 +347,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [currentCourse, startItem, setWatchItemId]);
 
-  const handleStopItem = useCallback(() => {
+  const handleStopItem = useCallback((isSkipped?:boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
       itemStartedRef.current = false;
       return;
     }
-
+    
     if (!itemStartedRef.current) {
       return;
     }
-
+    
     stopItem.mutate({
       params: {
         path: {
@@ -368,7 +369,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemId: currentCourse.itemId,
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
-        attemptId: attemptId
+        attemptId,
+        isSkipped
       }
     });
     itemStartedRef.current = false;
@@ -429,10 +431,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     try {
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
-        params: { path: { quizId: processedQuizId, attemptId: attemptId, isSkipped } },
-        body: { answers: answersForSubmission }
+        params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+        body: { answers: answersForSubmission, isSkipped }
       });
       
+      if(!response){
+        setQuizCompleted(true);
+        handleStopItem(isSkipped);
+        return
+      }
       // Convert the response to match the expected type
       const formattedResponse: SubmitQuizResponse = {
         ...response,
@@ -460,7 +467,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       handleStopItem();
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      setQuizCompleted(true);
+      // setQuizCompleted(true);
       handleStopItem();
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
@@ -499,16 +506,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }, [attemptData]);
 
   const handleSkipQuiz = useCallback(async () => {
+
+    // 1. if no attempt id return
     if (!attemptId) return;
-    // console.log('Skipping quiz. Attempt count:', attempts);
+    setIsQuizSkipped(true);
     try {
-      // Skip to next item
-      onNext?.();
-      // Stop tracking the quiz item
+      // flag for skipping
       const isSkipped = true;
+      // submit the quiz with isSkipped payload
       completeQuiz(isSkipped);
-      handleStopItem();
       } catch (error) {
+        setIsQuizSkipped(false);
         console.error('Error during quiz skip:', error);
       }
   }, [attempts, processedQuizId,handleStopItem,onNext]);
@@ -1251,7 +1259,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         {/* Navigation */}
         <div className="flex justify-between items-center">
           {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip==true) && (
+          {(allowSkip==true) && (
+          // {(attempts >= 5 && allowSkip==true) && (
             <Button
               // variant="outline"
               onClick={handleSkipQuiz}

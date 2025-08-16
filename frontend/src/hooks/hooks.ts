@@ -250,7 +250,7 @@ export interface UserQuizMetricsResponse {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   latestAttemptId?: string | ObjectId;
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
@@ -1086,8 +1086,22 @@ export function useStartItem(): {
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/stop
 export function useStopItem(): {
-  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['StopItemBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: components['schemas']['StopItemBody'] }) => Promise<unknown>,
+  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: {
+    watchItemId: string;
+    itemId: string;
+    sectionId: string;
+    moduleId: string;
+    attemptId?: string | null | undefined;
+    isSkipped?:boolean
+} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: {
+    watchItemId: string;
+    itemId: string;
+    sectionId: string;
+    moduleId: string;
+    attemptId?: string | null | undefined;
+    isSkipped?:boolean
+} }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -1626,8 +1640,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string, isSkipped?:boolean } }, body: { answers: SaveQuestion[] } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string, isSkipped?:boolean  } }, body: { answers: SaveQuestion[] } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?:boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string  } }, body: { answers: SaveQuestion[], isSkipped?:boolean } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,

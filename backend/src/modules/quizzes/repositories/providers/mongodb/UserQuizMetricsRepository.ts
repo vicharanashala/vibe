@@ -63,9 +63,10 @@ class UserQuizMetricsRepository {
     return result;
   }
 
-  async removeAttempts(
+  async resetUserMetrics(
     userId: string,
     quizId: string,
+    maxAttempts: number,
     session?: ClientSession,
   ) {
     try {
@@ -82,7 +83,7 @@ class UserQuizMetricsRepository {
         {session},
       );
 
-      const removeCount = metricsDoc?.attempts?.length || 0;
+      console.log("User metrics: ", metricsDoc)
 
       // Step 2: Reset the quiz metrics fields
       await this.userQuizMetricsCollection.updateOne(
@@ -93,18 +94,10 @@ class UserQuizMetricsRepository {
             latestAttemptId: null,
             latestSubmissionResultId: null,
             latestAttemptStatus: null,
+            skipCount: 0,
+            remainingAttempts: maxAttempts,
           },
-          ...(metricsDoc.remainingAttempts >= 0
-            ? {$inc: {remainingAttempts: removeCount}}
-            : {}),
         },
-        {session},
-      );
-
-      // to ensure remaining attempts is not less than -1 (temp)
-      await this.userQuizMetricsCollection.updateOne(
-        {quizId, remainingAttempts: {$lt: 0}},
-        {$set: {remainingAttempts: -1}},
         {session},
       );
 
