@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, connectToLiveStatusUpdates, getLiveStatusUpdate, JobStatus } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -1196,8 +1196,10 @@ await handleRefreshStatus();
   const handleRefreshStatus = async () => {
     if (!aiJobId) return;
     try {
-      const status = await aiSectionAPI.getJobStatus(aiJobId);
-      setAiJobStatus(status);
+      // const status = await aiSectionAPI.getJobStatus(aiJobId);
+      // setAiJobStatus(status);
+      const status = aiJobStatus;
+      console.log(aiJobStatus)
       const prevJobStatus = prevJobStatusRef.current;
       // Only show toast if transitioning to COMPLETED and not on first mount
       if (
@@ -1295,15 +1297,15 @@ await handleRefreshStatus();
 
  useEffect(() => {
     if (!aiJobId) return;
-    const es = connectToLiveStatusUpdates(aiJobId);
-  // return () => es.close();  
- const interval = setInterval(() => {
-      handleRefreshStatus();
-      getLiveStatusUpdate(aiJobId)
-    }, 3000);
-    return () => clearInterval(interval);
+    const es = connectToLiveStatusUpdates(aiJobId,setAiJobStatus);
+  return () => es.close();  
    
   }, [aiJobId]);
+
+  useEffect(()=>{if(!aiJobStatus)return;
+
+    handleRefreshStatus();
+  },[aiJobStatus])
 
   // New: Manual trigger for transcript generation
   const handleStartTranscription = async () => {

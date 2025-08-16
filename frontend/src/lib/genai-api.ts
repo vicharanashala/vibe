@@ -132,35 +132,32 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   return result;
 };
 
-export const getLiveStatusUpdate = async (jobId: string): Promise<JobStatus> => {
-  const response = await makeAuthenticatedRequest(`/genai/${jobId}/live`, {
-    method: 'GET',
-  });
-
-  const result = await response.json();
-  console.log('Job status:', result);
-  // setAiJobStatus(status)
-  return result;
-}
 export const connectToLiveStatusUpdates = (
   jobId: string,
+  setAiJobStatus: (status: JobStatus) => void
   // onMessage: (status: JobStatus) => void,
   // onError?: (error: any) => void
 ): EventSource => {
-  console.log("hello")
+
   const url = `${API_BASE_URL}/genai/${jobId}/live`;
 
   const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event) => {
     try {
-      const data: JobStatus = JSON.parse(event.data);
-      console.log('Live SSE job status:', data);
+
+      console.log('Live SSE job status:', event);
       // onMessage(data);
     } catch (err) {
       console.error('Failed to parse SSE message:', err);
     }
   };
+
+  eventSource.addEventListener('jobStatus', (event) => {
+    console.log('Named event "jobStatus":', event.data);
+    let data: JobStatus = JSON.parse(event.data);
+    setAiJobStatus(data);
+  });
 
   eventSource.onerror = (error) => {
     console.error('SSE error:', error);
@@ -502,7 +499,7 @@ export const aiSectionAPI: {
   approveStartTask: typeof approveStartTask;
   editQuestionData?: typeof editQuestionData;
   editTranscriptData?: typeof editTranscriptData;
-  getLiveStatusUpdate: typeof getLiveStatusUpdate;
+
 } = {
   createJob: createGenAIJob,
   getJobStatus,
@@ -513,7 +510,7 @@ export const aiSectionAPI: {
   startAudioExtractionTask,
   rerunJobTask,
   approveStartTask,
-  getLiveStatusUpdate
+
 };
 
 aiSectionAPI.editQuestionData = editQuestionData;
