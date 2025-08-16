@@ -647,7 +647,7 @@ export default function CourseEnrollments() {
                                 })
                               }
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={resetProgressMutation.isPending}
+                              disabled={resetProgressMutation.isPending || Math.round((enrollment.progress?.percentCompleted || 0) * 100) == 0}
                             >
                               {resetProgressMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

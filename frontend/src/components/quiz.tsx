@@ -1259,8 +1259,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         {/* Navigation */}
         <div className="flex justify-between items-center">
           {/* Skip button (shown after 5 attempts) */}
-          {(allowSkip==true) && (
-          // {(attempts >= 5 && allowSkip==true) && (
+          {(attempts >= 5 && allowSkip == true) && (
             <Button
               // variant="outline"
               onClick={handleSkipQuiz}
