@@ -150,6 +150,22 @@ class ProgressRepository {
       );
     }
   }
+
+  async deleteUserWatchTimeByItemId(
+    userId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.watchTimeCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        itemId: new ObjectId(itemId),
+      },
+      {session},
+    );
+  }
+
   async deleteUserQuizAttemptsByCourseVersion(
     userId: string,
     quizId: string,

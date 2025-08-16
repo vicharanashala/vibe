@@ -1028,6 +1028,7 @@ class ProgressService extends BaseService {
         courseVersion,
         moduleId,
       );
+
       if (!newProgress) {
         throw new InternalServerError('New progress could not be calculated');
       }
@@ -1042,6 +1043,9 @@ class ProgressService extends BaseService {
 
       // to store all the quiz item id's, to update attempts and metrics
       const quizItemIds: string[] = [];
+
+      // to store all the item id's to clear watch time using itemId
+      const itemIds: string[] = [];
 
       const itemsGroupIds: string[] = [];
       // storing the item group id to a array
@@ -1058,15 +1062,13 @@ class ProgressService extends BaseService {
           if (item.type === 'QUIZ') {
             quizItemIds.push(item._id as string);
           }
+          itemIds.push(item._id as string);
         }
       }
       // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseVersion(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      for(const itemId of itemIds) {
+        await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId, session);
+      }
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
@@ -1173,20 +1175,22 @@ class ProgressService extends BaseService {
         session,
       );
 
+      // Storing all item id in the section to an array
+      const itemIds: string[] = [];
       // storing the quiz id's from itemGroup
       for (const item of itemsGroup.items || []) {
         if (item.type === 'QUIZ') {
           quizItemIds.push(item._id as string);
         }
+        itemIds.push(item._id as string);
       }
 
+      
       // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseVersion(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+
+      for(const itemId of itemIds) {
+        await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId)
+      }
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
@@ -1333,13 +1337,8 @@ class ProgressService extends BaseService {
         throw new InternalServerError('New progress could not be calculated');
       }
 
-      // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseVersion(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      // Clear all items (watch time) for this user/course/version
+      await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId, session);
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
