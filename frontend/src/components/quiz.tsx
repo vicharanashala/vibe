@@ -420,7 +420,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
 
-  const completeQuiz = useCallback(async () => {
+  const completeQuiz = useCallback(async (isSkipped?:boolean) => {
     if (!attemptId) {
       console.error('No attempt ID available for submission');
       return;
@@ -429,7 +429,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     try {
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
-        params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+        params: { path: { quizId: processedQuizId, attemptId: attemptId, isSkipped } },
         body: { answers: answersForSubmission }
       });
       
@@ -505,7 +505,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // Skip to next item
       onNext?.();
       // Stop tracking the quiz item
-        handleStopItem();
+      const isSkipped = true;
+      completeQuiz(isSkipped);
+      handleStopItem();
       } catch (error) {
         console.error('Error during quiz skip:', error);
       }

@@ -886,6 +886,7 @@ class ProgressService extends BaseService {
 
       const itemsGroupIds: string[] = [];
 
+      // loop through the all modules in the version
       for (const module of courseModules) {
         for (const section of module.sections || []) {
           if (section.itemsGroupId) {
@@ -1024,11 +1025,11 @@ class ProgressService extends BaseService {
 
       // to get selected module from the version
       const selectedModule = courseVersion.modules.filter(
-        module => '_id' in module && module._id.toString() == moduleId,
+        module => module.moduleId == moduleId,
       )[0];
 
       if (!selectedModule)
-        throw new BadRequestError(`Failed to find module with id: ${moduleId}`);
+        throw new NotFoundError(`Failed to find module with id: ${moduleId}`);
 
       // to store all the quiz item id's, to update attempts and metrics
       const quizItemIds: string[] = [];
@@ -1057,11 +1058,8 @@ class ProgressService extends BaseService {
         courseVersionId,
         session,
       );
-      // await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-      //   userId,
-      //   session,
-      // );
 
+      // to remove all the quiz related data of the user
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
@@ -1072,22 +1070,21 @@ class ProgressService extends BaseService {
               session,
             );
 
-          // pull attempts from quiz metrics
-          if (deletedAttemptIds.length) {
-            await this.userQuizMetricsRepository.removeAttempts(
-              userId,
-              quizId,
-              session,
-            );
-          } else {
-            console.log('No attempts were deleted while resetting progress!');
-          }
+          if (!deletedAttemptIds.length) continue;
 
-          // await this.submissionRepository.removeByQuizId(
-          //   userId,
-          //   quizId,
-          //   session,
-          // );
+          // pull attempts from quiz metrics
+          await this.userQuizMetricsRepository.removeAttempts(
+            userId,
+            quizId,
+            session,
+          );
+
+          // removing the all the user submissions
+          await this.submissionRepository.removeByAttemptIds(
+            userId,
+            deletedAttemptIds,
+            session,
+          );
         }
       }
 
@@ -1135,6 +1132,41 @@ class ProgressService extends BaseService {
         throw new InternalServerError('New progress could not be calculated');
       }
 
+      // to store all the quiz item id's, to update attempts and metrics
+      const quizItemIds: string[] = [];
+
+      // find selected module
+      const selectedModule = courseVersion.modules.filter(
+        module => module.moduleId == moduleId,
+      )[0];
+
+      if (!selectedModule)
+        throw new NotFoundError(`Failed to find module with id: ${moduleId}`);
+
+      // find selecte section from module
+      const section = selectedModule.sections.find(
+        section => section.sectionId.toString() === sectionId,
+      );
+
+      if (!section) {
+        throw new NotFoundError('Section not found in the specified module.');
+      }
+
+      // storing the itemsGroup Id
+      const itemsGroupId = section.itemsGroupId as string;
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        itemsGroupId,
+        session,
+      );
+
+      // storing the quiz id's from itemGroup
+      for (const item of itemsGroup.items || []) {
+        if (item.type === 'QUIZ') {
+          quizItemIds.push(item._id as string);
+        }
+      }
+
       // Clear all completed items (watch time) for this user/course/version
       await this.progressRepository.deleteUserWatchTimeByCourseVersion(
         userId,
@@ -1142,10 +1174,35 @@ class ProgressService extends BaseService {
         courseVersionId,
         session,
       );
-      // await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-      //   userId,
-      //   session,
-      // );
+
+      // to remove all the quiz related data of the user
+      if (quizItemIds.length) {
+        // deleting quiz attempts
+        for (const quizId of quizItemIds) {
+          const deletedAttemptIds =
+            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
+              userId,
+              quizId,
+              session,
+            );
+
+          if (!deletedAttemptIds.length) continue;
+
+          // pull attempts from quiz metrics
+          await this.userQuizMetricsRepository.removeAttempts(
+            userId,
+            quizId,
+            session,
+          );
+
+          // removing the all the user submissions
+          await this.submissionRepository.removeByAttemptIds(
+            userId,
+            deletedAttemptIds,
+            session,
+          );
+        }
+      }
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
@@ -1178,6 +1235,68 @@ class ProgressService extends BaseService {
       await this.verifyDetails(userId, courseId, courseVersionId);
       // Get Course Version
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+
+      // to store all the quiz item id's, to update attempts and metrics
+      const quizItemIds: string[] = [];
+
+      // find selected module
+      const selectedModule = courseVersion.modules.filter(
+        module => module.moduleId == moduleId,
+      )[0];
+
+      if (!selectedModule)
+        throw new NotFoundError(`Failed to find module with id: ${moduleId}`);
+
+      // find selecte section from module
+      const section = selectedModule.sections.find(
+        section => section.sectionId.toString() === sectionId,
+      );
+
+      if (!section) {
+        throw new NotFoundError('Section not found in the specified module.');
+      }
+
+      // storing the itemsGroup Id
+      const itemsGroupId = section.itemsGroupId as string;
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        itemsGroupId,
+        session,
+      );
+
+      for (const item of itemsGroup.items || []) {
+        if (item.type === 'QUIZ' && item._id == itemId) {
+          quizItemIds.push(item._id as string);
+        }
+      }
+
+      if (quizItemIds.length) {
+        // deleting quiz attempts
+        for (const quizId of quizItemIds) {
+          const deletedAttemptIds =
+            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
+              userId,
+              quizId,
+              session,
+            );
+
+          if (!deletedAttemptIds.length) continue;
+
+          // pull attempts from quiz metrics
+          await this.userQuizMetricsRepository.removeAttempts(
+            userId,
+            quizId,
+            session,
+          );
+
+          // removing the all the user submissions
+          await this.submissionRepository.removeByAttemptIds(
+            userId,
+            deletedAttemptIds,
+            session,
+          );
+        }
+      }
 
       // Get the new progress after resetting to the item
       const newProgress = await this.initializeProgressToItem(

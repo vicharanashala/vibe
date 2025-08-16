@@ -9,27 +9,30 @@ import {
   QuestionAnswerFeedback,
   Submission,
 } from '#quizzes/classes/transformers/Submission.js';
-import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
-import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
+import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 
-import { generateRandomParameterMap, getSelectedItemTexts } from '#quizzes/utils/index.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { BaseService, MongoDatabase } from '#shared/index.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { NotFoundError, BadRequestError } from 'routing-controllers';
-import { QuestionBankService } from './QuestionBankService.js';
-import { QuestionService } from './QuestionService.js';
-import { QUIZZES_TYPES } from '../types.js';
-import { instanceToPlain } from 'class-transformer';
-import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
-import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
-import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
-import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import { BaseQuestion } from '../classes/transformers/Question.js';
-import { UserQuizMetrics } from '../classes/transformers/UserQuizMetrics.js';
-import { Attempt } from '../classes/transformers/Attempt.js';
-import { QuizItem } from '#root/modules/courses/classes/transformers/Item.js';
+import {
+  generateRandomParameterMap,
+  getSelectedItemTexts,
+} from '#quizzes/utils/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {BaseService, MongoDatabase} from '#shared/index.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QuestionBankService} from './QuestionBankService.js';
+import {QuestionService} from './QuestionService.js';
+import {QUIZZES_TYPES} from '../types.js';
+import {instanceToPlain} from 'class-transformer';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
+import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
+import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import {BaseQuestion} from '../classes/transformers/Question.js';
+import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
+import {Attempt} from '../classes/transformers/Attempt.js';
+import {QuizItem} from '#root/modules/courses/classes/transformers/Item.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -65,8 +68,9 @@ class AttemptService extends BaseService {
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
-      const questionIdsForBank =
-        await this.questionBankService.getQuestions(questionBankRef);
+      const questionIdsForBank = await this.questionBankService.getQuestions(
+        questionBankRef,
+      );
       selectedQuestionIds.push(...questionIdsForBank);
     }
 
@@ -90,7 +94,7 @@ class AttemptService extends BaseService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
-    return { questionDetails, questionRenderViews };
+    return {questionDetails, questionRenderViews};
   }
 
   private _buildGradingResult(
@@ -121,7 +125,11 @@ class AttemptService extends BaseService {
     session?: ClientSession,
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
-    const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
+    const attempt = await this.attemptRepository.getById(
+      attemptId,
+      quizId,
+      session,
+    );
     const quiz = await this.quizRepository.getById(
       attempt.quizId.toString(),
       session,
@@ -172,7 +180,7 @@ class AttemptService extends BaseService {
   public async attempt(
     userId: string | ObjectId,
     quizId: string,
-  ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
+  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
@@ -180,7 +188,6 @@ class AttemptService extends BaseService {
         quizId,
         session,
       );
-
 
       const quiz = await this.quizRepository.getById(quizId, session);
 
@@ -208,7 +215,6 @@ class AttemptService extends BaseService {
         );
       }
 
-
       //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
       if (
         quiz.details.quizType === 'DEADLINE' &&
@@ -223,7 +229,7 @@ class AttemptService extends BaseService {
       }
 
       //4. Fetch questions for the quiz attempt
-      const { questionDetails, questionRenderViews } =
+      const {questionDetails, questionRenderViews} =
         await this._getQuestionsForAttempt(quiz);
 
       //5. Create a new attempt
@@ -237,20 +243,22 @@ class AttemptService extends BaseService {
       //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
       metrics.latestAttemptId = attemptId;
-      
+
       // if the quiz maxAttempts is -1, the no need to changes remainingAttempts
       metrics.remainingAttempts =
-        quiz.details.maxAttempts === -1
-          ? -1
-          : metrics.remainingAttempts - 1;
-      metrics.attempts.push({ attemptId });
+        quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
+      metrics.attempts.push({attemptId});
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
 
       //6. Return the attempt ID
-      return { attemptId, questionRenderViews, userAttempts: updatedMetrics?.attempts.length };
+      return {
+        attemptId,
+        questionRenderViews,
+        userAttempts: updatedMetrics?.attempts.length,
+      };
     });
   }
 
@@ -259,6 +267,7 @@ class AttemptService extends BaseService {
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
+    isSkipped?: boolean,
   ): Promise<Partial<IGradingResult>> {
     return this._withTransaction(async session => {
       await this.save(userId, quizId, attemptId, answers);
@@ -298,7 +307,12 @@ class AttemptService extends BaseService {
       //5. Change the latestAttemptStatus to 'SUBMITTED'
       metrics.latestAttemptStatus = 'SUBMITTED';
 
-      const gradingResult = await this._grade(attemptId, quizId, answers, session);
+      const gradingResult = await this._grade(
+        attemptId,
+        quizId,
+        answers,
+        session,
+      );
 
       //6. Update the submission with the feedbacks and score
       submission.gradingResult = gradingResult;
@@ -330,10 +344,15 @@ class AttemptService extends BaseService {
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
+    isSkipped?: boolean,
   ): Promise<void> {
     return this._withTransaction(async session => {
       //1. Fetch the attempt by ID
-      const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
+      const attempt = await this.attemptRepository.getById(
+        attemptId,
+        quizId,
+        session,
+      );
       if (!attempt) {
         throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
       }
@@ -354,8 +373,10 @@ class AttemptService extends BaseService {
           'Attempt does not belong to the user or quiz',
         );
       }
-      //3. Update the attempt with the answers
-      attempt.answers = answers;
+      //3. Update the attempt with the answers or isSkipped
+      if (isSkipped) attempt.isSkipped = isSkipped;
+      else attempt.answers = answers;
+
       attempt.updatedAt = new Date();
 
       //4. Save the updated attempt
@@ -370,17 +391,23 @@ class AttemptService extends BaseService {
   ): Promise<IAttempt> {
     //1. Fetch the attempt by ID
     return this._withTransaction(async session => {
-      const attempt = await this.attemptRepository.getById(attemptId, quizId, session);
+      const attempt = await this.attemptRepository.getById(
+        attemptId,
+        quizId,
+        session,
+      );
       if (!attempt) {
         throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
       }
       //2. Check if the attempt belongs to the user and quiz
       if (attempt.userId !== userId || attempt.quizId !== quizId) {
-        throw new BadRequestError('Attempt does not belong to the user or quiz');
+        throw new BadRequestError(
+          'Attempt does not belong to the user or quiz',
+        );
       }
       return attempt as IAttempt;
-    })
+    });
   }
 }
 
-export { AttemptService };
+export {AttemptService};

@@ -71,7 +71,7 @@ class UserQuizMetricsRepository {
     try {
       await this.init();
 
-      if (!quizId ) {
+      if (!quizId) {
         throw new InternalServerError(
           'Failed to remove attempts from quiz metrics / More quizId or attemptId is missing',
         );
@@ -84,12 +84,17 @@ class UserQuizMetricsRepository {
 
       const removeCount = metricsDoc?.attempts?.length || 0;
 
-      // Step 2: Pull and decrement based on removeCount
+      // Step 2: Reset the quiz metrics fields
       await this.userQuizMetricsCollection.updateOne(
         {quizId, userId},
         {
-          $set: { attempts: [] },
-          ...(metricsDoc.remainingAttempts > 0
+          $set: {
+            attempts: [],
+            latestAttemptId: null,
+            latestSubmissionResultId: null,
+            latestAttemptStatus: null,
+          },
+          ...(metricsDoc.remainingAttempts >= 0
             ? {$inc: {remainingAttempts: removeCount}}
             : {}),
         },
@@ -102,6 +107,7 @@ class UserQuizMetricsRepository {
         {$set: {remainingAttempts: -1}},
         {session},
       );
+
     } catch (error) {
       throw new InternalServerError(
         `Failed to remove attempts from metrics /More ${error}`,

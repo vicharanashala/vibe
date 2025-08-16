@@ -44,6 +44,7 @@ interface IAttempt {
   userId: string | ObjectId;
   questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
+  isSkipped?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

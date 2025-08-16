@@ -24,6 +24,7 @@ import {
   IsDate,
   IsBoolean,
   IsIn,
+  IsEmpty,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
@@ -120,6 +121,15 @@ class SubmitAttemptParams {
     example: '60d21b4667d0d8992e610c99',
   })
   attemptId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: "Whether this attempt is skipped",
+    type: "boolean",
+    example: true,
+  })
+  isSkipped?: boolean;
 }
 
 class GetAttemptResponse implements IAttempt {

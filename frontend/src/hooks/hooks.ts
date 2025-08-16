@@ -1626,8 +1626,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string, isSkipped?:boolean } }, body: { answers: SaveQuestion[] } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string, isSkipped?:boolean  } }, body: { answers: SaveQuestion[] } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
