@@ -58,17 +58,7 @@ export class WebhookService {
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/continue`);
     return response.data;
   }
-
-  /**
-   * Abort job on AI server
-   * @param jobId The job ID to abort
-   * @returns Updated job data from AI server
-   */
-  async abortJob(jobId: string): Promise<any> {
-    const response = await this.httpClient.post(`/jobs/${jobId}/abort`);
-    return response.data;
-  }
-
+  
   /**
    * Request to rerun current task on AI server
    * @param jobId The job ID
@@ -77,6 +67,14 @@ export class WebhookService {
   async rerunTask(jobId: string, jobState: JobState): Promise<any> {
     console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`, jobState);
+    return response.data;
+  }
+
+  async abortTask(jobId: string) {
+    const response = await this.httpClient.post(`/jobs/${jobId}/abort`);
+    if (response.status !== 200) {
+      throw new Error(`Failed to abort task for job ID ${jobId}`);
+    }
     return response.data;
   }
 }
