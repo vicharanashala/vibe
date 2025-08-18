@@ -142,7 +142,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             <h3 className="text-lg font-semibold">Basic Information</h3>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="quizName" className='mb-2'>Quiz Name</Label>
+                <Label htmlFor="quizName" className='mb-2'>Quiz Name *</Label>
                 <Input
                   id="quizName"
                   value={quizSettingsForm.name}
@@ -155,7 +155,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="quizDescription" className='mb-2'>Description</Label>
+                <Label htmlFor="quizDescription" className='mb-2'>Description *</Label>
                 <Textarea
                   id="quizDescription"
                   value={quizSettingsForm.description}
