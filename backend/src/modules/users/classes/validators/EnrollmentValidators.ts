@@ -9,6 +9,7 @@ import {
   IsArray,
   ValidateNested,
   IsEmail,
+  IsOptional,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ProgressDataResponse} from './ProgressValidators.js';
@@ -347,6 +348,15 @@ export class EnrollmentResponse {
   @ValidateNested({each: true})
   @Type(() => EnrollmentDataResponse)
   enrollments: EnrollmentDataResponse[];
+
+  @JSONSchema({
+    description: 'Optional message about the enrollment status',
+    example: 'No enrollments found for the user',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  message?: string;
 }
 
 export class CourseVersionEnrollmentResponse {

@@ -224,7 +224,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     return (
         <>
             {isLoading ? <Loader /> :
-                <div className="bg-background rounded-lg border p-6 lg:min-w-[700px] backdrop-blur-md">
+                <div className={`bg-background ${url && "mt-45"} rounded-lg border p-6 min-w-[700px] backdrop-blur-md bg-background/80`}>
                     <div className="mb-4 flex justify-between items-center">
                         <h2 className="text-lg font-semibold">
                             {action === "add" && "Add Video"}

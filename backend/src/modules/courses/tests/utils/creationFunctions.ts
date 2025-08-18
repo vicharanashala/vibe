@@ -109,7 +109,7 @@ async function createQuizItem(
     quizDetails: {
       questionVisibility: 3,
       allowPartialGrading: true,
-      allowSkip: true,
+      allowSkip: false,
       deadline: faker.date.future(),
       allowHint: true,
       maxAttempts: 5,

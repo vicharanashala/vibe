@@ -259,6 +259,25 @@ class SubmissionRepository {
     }
     return 0;
   }
+
+  async removeByAttemptIds(
+    userId: string,
+    attemptIds: string [],
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      const result = await this.submissionResultCollection.deleteMany(
+        {userId, attemptId: { $in: attemptIds }},
+        {session},
+      );
+
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to remove quiz submission /More ${error}`,
+      );
+    }
+  }
 }
 
 export {SubmissionRepository};
