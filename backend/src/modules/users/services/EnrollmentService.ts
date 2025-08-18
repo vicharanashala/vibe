@@ -76,8 +76,9 @@ export class EnrollmentService extends BaseService {
       }
 
       const enrollment = new Enrollment(userId, courseId, courseVersionId);
+
       const createdEnrollment = await this.enrollmentRepo.createEnrollment({
-        userId: userId,
+        userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         role: role,
