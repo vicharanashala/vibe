@@ -181,7 +181,13 @@ export class EnrollmentController {
       await this.enrollmentService.countEnrollments(userId);
 
     if (!enrollments || enrollments.length === 0) {
-      throw new NotFoundError('No enrollments found for the given user.');
+      return {
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+        enrollments: [],
+        message: 'No enrollments found for the user'
+      };
     }
 
     return {
