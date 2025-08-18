@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { ProctoringComponent } from '../database/index.js';
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, Min } from 'class-validator';
+import { Priority } from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -108,6 +109,7 @@ interface IQuestion {
   hintText: string;
   timeLimit: number;
   points: number;
+  priority: Priority;
   metaDetails: IQuestionMetaDetails;
   createdAt: Date;
   updatedAt: Date;

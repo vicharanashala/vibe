@@ -30,6 +30,7 @@ import {
 import { ObjectId } from 'mongodb';
 import { NATQuestion } from '../transformers/Question.js';
 import { JSONSchema } from 'class-validator-jsonschema';
+import { Priority } from '#shared/interfaces/quiz.js';
 
 class QuestionParameter implements IQuestionParameter {
   @IsNotEmpty()
@@ -178,6 +179,17 @@ class Question implements Partial<IQuestion> {
     example: 5,
   })
   points: number;
+
+  @IsNotEmpty()
+  @IsString()
+  @IsEnum(['LOW', 'MEDIUM', 'HIGH'])
+  @JSONSchema({
+    description: 'Priority of the question',
+    type: 'string',
+    enum: ['LOW', 'MEDIUM', 'HIGH'],
+    example: 'MEDIUM',
+  })
+  priority: Priority;
 }
 
 class SOLSolution implements ISOLSolution {
@@ -511,6 +523,26 @@ class QuestionResponse
     example: { text: 'Option A', explaination: 'Correct because...' },
   })
   correctLotItem?: ILotItem;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @JSONSchema({
+    description: 'Total attempts across all users that included this question',
+    type: 'number',
+    example: 42,
+  })
+  attemptCount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @JSONSchema({
+    description: 'Distinct users who attempted this question',
+    type: 'number',
+    example: 17,
+  })
+  attemptedByUsersCount?: number;
 }
 
 class QuestionId {

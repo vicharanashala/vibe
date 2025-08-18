@@ -9,6 +9,7 @@ import {
   ILotOrder,
   INATSolution,
   IDESSolution,
+  Priority,
 } from '#shared/interfaces/quiz.js';
 import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
@@ -23,6 +24,7 @@ abstract class BaseQuestion implements IQuestion {
   hint?: string;
   timeLimitSeconds: number;
   points: number;
+  priority: Priority;
 
   constructor(question: IQuestion, userId: string) {
     this._id = question._id;
@@ -34,6 +36,7 @@ abstract class BaseQuestion implements IQuestion {
     this.hint = question.hint;
     this.timeLimitSeconds = question.timeLimitSeconds;
     this.points = question.points;
+    this.priority = question.priority;
   }
 }
 
@@ -150,6 +153,7 @@ const question: IQuestion = {
   type: 'SELECT_ONE_IN_LOT',
   timeLimitSeconds: 60,
   hint: 'This is easy',
+  priority: 'LOW',
 };
 
 const solSolution: ISOLSolution = {

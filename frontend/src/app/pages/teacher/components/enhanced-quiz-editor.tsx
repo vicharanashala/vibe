@@ -26,11 +26,11 @@ import {
   Edit,
   X,
   Download,
-  TrendingUp,
-  Clock4,
-  Send,
+  ChartColumn,
   Target,
-  ChartColumn
+  Send,
+  Clock4,
+  TrendingUp
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
@@ -119,6 +119,7 @@ interface QuestionPerformanceRowProps {
     correctRate: number;
     index: number;
   };
+  index: number;
   onCacheUpdate?: () => void;
 }
 
@@ -168,13 +169,25 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className="bg-green-100 border-green-100 text-green-600">
-          High
-        </Badge>
+        {questionData?.priority === "HIGH" ?
+          <Badge variant="outline" className="bg-green-100 border-green-100 text-green-600">
+            High
+          </Badge>
+          : questionData?.priority === "MEDIUM" ?
+            <Badge variant="outline" className="bg-yellow-100 border-yellow-100 text-yellow-600">
+              Medium
+            </Badge>
+            : <Badge variant="outline" className="bg-red-100 border-red-100 text-red-600">
+              Low
+            </Badge>
+        }
       </TableCell>
       <TableCell>
         <Badge variant="default" className="bg-[#ddebfd] border-[#ddebfd] text-[#2b7fff]">
-          MCQ
+          {questionData?.type === "SELECT_ONE_IN_LOT" || questionData?.type === "SELECT_MANY_IN_LOT" ? "MCQ" : null}
+          {questionData?.type === "ORDER_THE_LOTS" ? "OT" : null}
+          {questionData?.type === "NUMERIC_ANSWER_TYPE" ? "Numeric" : null}
+          {questionData?.type === "DESCRIPTIVE" ? "Essay" : null}
         </Badge>
       </TableCell>
       <TableCell>
@@ -194,8 +207,8 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
       </TableCell>
       <TableCell>
         <div className='flex flex-col gap-2'>
-          <p className='text-right text-base font-medium'>81.2%</p>
-          <p className='text-right text-sm text-[#6A7282]'>52 attempted • 8 skipped</p>
+          <p className='text-right text-base font-medium'>{performance.correctRate * 100}%</p>
+          <p className='text-right text-sm text-[#6A7282]'>{questionData?.attemptCount} attempted • 8 skipped</p>
         </div>
       </TableCell>
       <TableCell>
@@ -207,6 +220,7 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
           <Progress value={performance.correctRate * 100} className="w-full bg-[#E5E7EB]" />
         </div>
       </TableCell>
+
     </TableRow>
   );
 };
@@ -347,15 +361,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     questionVisibility: 4,
     releaseTime: '',
     deadline: '',
-    allowSkip:false,
+    allowSkip: false,
     questionBankRefs: []
   });
 
   // Fetch data
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
-  
-  console.log("selected Question bank ID",selectedQuestionBank);
+
+  console.log("selected Question bank ID", selectedQuestionBank);
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
@@ -382,7 +396,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         approximateTimeToComplete: details.details.approximateTimeToComplete || '00:05:00',
         allowPartialGrading: details.details.allowPartialGrading ?? true,
         allowHint: details.details.allowHint ?? true,
-        allowSkip:details.details.allowSkip ?? false,
+        allowSkip: details.details.allowSkip ?? false,
         showCorrectAnswersAfterSubmission: details.details.showCorrectAnswersAfterSubmission ?? true,
         showExplanationAfterSubmission: details.details.showExplanationAfterSubmission ?? true,
         showScoreAfterSubmission: details.details.showScoreAfterSubmission ?? true,
@@ -402,8 +416,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     return performanceData.map((p: any, index: number) => ({
       questionId: `Q${index + 1}`,
       questionText: questionTextCache[p.questionId]?.text,
-      correctRate: (p.correctRate * 100).toFixed(1),
-      averageScore: p.averageScore ? (p.averageScore / (questionTextCache[p.questionId]?.points || 1) * 100).toFixed(1) : '0'
+      correctRate: (p.correctRate * 100)?.toFixed(1),
+      averageScore: p.averageScore ? (p.averageScore / (questionTextCache[p.questionId]?.points || 1) * 100)?.toFixed(1) : '0'
     }));
   }, [performance, submissions, questionCacheUpdateTrigger]);
 
@@ -431,7 +445,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         approximateTimeToComplete: quizSettingsForm.approximateTimeToComplete,
         allowPartialGrading: quizSettingsForm.allowPartialGrading,
         allowHint: quizSettingsForm.allowHint,
-        allowSkip:quizSettingsForm.allowSkip,
+        allowSkip: quizSettingsForm.allowSkip,
         showCorrectAnswersAfterSubmission: quizSettingsForm.showCorrectAnswersAfterSubmission,
         showExplanationAfterSubmission: quizSettingsForm.showExplanationAfterSubmission,
         showScoreAfterSubmission: quizSettingsForm.showScoreAfterSubmission,
@@ -833,14 +847,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }, [questionBanks]);
 
   useEffect(() => {
-    setSelectedQuestionBank('');
+    setSelectedQuestionBank(null);
   }, [quizId]);
 
   useEffect(() => {
-    if (!showCreateQuestionDialog) {
-      refetchSelectedBank(); // Refetch selected bank data when dialog is closed
+    if (!showCreateQuestionDialog && selectedQuestionBank) {
+      refetchSelectedBank();
     }
-  }, [showCreateQuestionDialog]);
+  }, [showCreateQuestionDialog, selectedQuestionBank]);
   useEffect(() => {
     if (!showCreateBankDialog) {
       refetchQuestionBanks();

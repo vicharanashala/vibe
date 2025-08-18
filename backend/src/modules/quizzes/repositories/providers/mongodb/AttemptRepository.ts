@@ -69,6 +69,30 @@ class AttemptRepository {
       .toArray();
     return result;
   }
+
+  public async countByQuestionId(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const filter = {
+      'questionDetails.questionId': { $in: [questionId, new ObjectId(questionId)] },
+    } as any;
+    const count = await this.attemptCollection.countDocuments(filter, {session});
+    return count;
+  }
+
+  public async countDistinctUsersByQuestionId(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const filter = {
+      'questionDetails.questionId': { $in: [questionId, new ObjectId(questionId)] },
+    } as any;
+    const distinctUsers = await this.attemptCollection.distinct('userId', filter, {session});
+    return distinctUsers.length;
+  }
 }
 
 export {AttemptRepository};

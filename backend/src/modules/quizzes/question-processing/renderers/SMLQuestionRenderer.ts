@@ -51,6 +51,7 @@ class SMLQuestionRenderer extends BaseQuestionRenderer {
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       lotItems: shuffledLotItems,
       parameterMap: parameterMap,
+      priority: renderedQuestion.priority,
     };
 
     return renderedQuestionWithLotItems;

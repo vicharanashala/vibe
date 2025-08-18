@@ -100,6 +100,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'No tags here either.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {text: 'No tags here.', explaination: 'No tags.'},
@@ -119,6 +120,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'Should not have parameters.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -143,6 +145,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [],
         hint: 'Missing parameters.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -167,6 +170,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [],
         hint: 'Simple math.',
+        priority: 'LOW',
       };
       // Missing decimalPrecision, upperLimit, lowerLimit
       const solution = {};
@@ -187,6 +191,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'Tag does not match parameter.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {text: 'Wrong tag.', explaination: 'Wrong tag.'},
@@ -208,6 +213,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [],
         hint: 'Simple math.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -237,6 +243,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'color', possibleValues: ['Red', 'Blue'], type: 'string'},
         ],
         hint: 'Pick all that apply to <QParam>animal</QParam> and <QParam>color</QParam>',
+        priority: 'LOW',
       };
 
       const solution: ISMLSolution = {
@@ -300,6 +307,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           },
         ],
         hint: 'Put all the steps in the correct order: <QParam>step1</QParam> to <QParam>step5</QParam>',
+        priority: 'LOW',
       };
 
       const solution: IOTLSolution = {
@@ -369,6 +377,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           },
         ],
         hint: 'Focus on <QParam>process</QParam> and <QParam>subject</QParam>.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -394,6 +403,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           // 'c' is missing
         ],
         hint: 'Add a, b, and c.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -422,6 +432,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'b', possibleValues: ['foo', 'bar'], type: 'string'}, // not a number
         ],
         hint: 'Add a and b.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -449,6 +460,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           // 'c' is missing
         ],
         hint: 'Render a, b, and c.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -477,6 +489,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'b', possibleValues: ['foo', 'bar'], type: 'string'}, // not a number
         ],
         hint: 'Render a and b.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -596,6 +609,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       isParameterized: false,
       parameters: [],
       hint: 'Original hint',
+      priority: 'LOW',
     };
     const originalSolution = {
       decimalPrecision: 0,
@@ -659,6 +673,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       isParameterized: false,
       parameters: [],
       hint: 'Delete hint',
+      priority: 'LOW',
     };
     const solution = {
       decimalPrecision: 0,

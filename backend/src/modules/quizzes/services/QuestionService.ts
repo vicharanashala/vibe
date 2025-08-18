@@ -4,6 +4,7 @@ import {QUIZZES_TYPES} from '../types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ParameterMap} from '../question-processing/tag-parser/tags/Tag.js';
@@ -19,6 +20,9 @@ class QuestionService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuestionBankRepo)
     private questionBankRepository: QuestionBankRepository,
+
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private database: MongoDatabase, // Replace with actual database type if needed
@@ -48,12 +52,23 @@ class QuestionService extends BaseService {
         throw new NotFoundError(`Question with ID ${questionId} not found`);
       }
 
+      const [attemptCount, attemptedByUsersCount] = await Promise.all([
+        this.attemptRepository.countByQuestionId(questionId, session),
+        this.attemptRepository.countDistinctUsersByQuestionId(questionId, session),
+      ]);
+
       if (raw) {
-        return question;
+        const withCounts: any = question;
+        withCounts.attemptCount = attemptCount;
+        withCounts.attemptedByUsersCount = attemptedByUsersCount;
+        return withCounts as BaseQuestion;
       }
 
       const questionProcessor = new QuestionProcessor(question);
-      return questionProcessor.render(parameterMap);
+      const rendered: any = questionProcessor.render(parameterMap);
+      rendered.attemptCount = attemptCount;
+      rendered.attemptedByUsersCount = attemptedByUsersCount;
+      return rendered as IQuestionRenderView;
     });
   }
 

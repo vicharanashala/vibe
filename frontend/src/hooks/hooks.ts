@@ -38,6 +38,7 @@ export interface QuestionBody {
     hint?: string;
     timeLimitSeconds: number;
     points: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // Union type based on question type
 }
@@ -1452,10 +1453,13 @@ export interface QuestionId {
 export interface QuestionResponse {
   _id: string;
   type: string;
+  priority: string;
   details: any;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  attemptedByUsersCount: number;
+  attemptCount: number;
 }
 
 export interface FlagQuestionBody {
@@ -1744,7 +1748,6 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
-  mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   data: { questionId: string } | undefined,
   error: string | null,

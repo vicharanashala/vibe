@@ -16,6 +16,7 @@ const NATquestionData: IQuestion = {
     {name: 'y', possibleValues: ['7', '4'], type: 'number'},
   ],
   hint: 'Add <QParam>x</QParam> and <QParam>y</QParam>.',
+  priority: 'LOW',
 };
 const NATsolution = {
   decimalPrecision: 0,
@@ -37,6 +38,7 @@ const SOLquestionData: IQuestion = {
     {name: 'name2', possibleValues: ['Kalix', 'Danny'], type: 'string'},
   ],
   hint: 'This is a hint for <QParam>name</QParam> and <QParam>name2</QParam>',
+  priority: 'LOW',
 };
 const SOLsolution: ISOLSolution = {
   correctLotItem: {
@@ -69,6 +71,7 @@ const SMLquestionData: IQuestion = {
     {name: 'color', possibleValues: ['Red', 'Blue'], type: 'string'},
   ],
   hint: 'Pick all that apply to <QParam>animal</QParam> and <QParam>color</QParam>',
+  priority: 'LOW',
 };
 const SMLsolution: ISMLSolution = {
   correctLotItems: [
@@ -123,6 +126,7 @@ const OTLquestionData: IQuestion = {
     },
   ],
   hint: 'Put all the steps in the correct order: <QParam>step1</QParam> to <QParam>step5</QParam>',
+  priority: 'LOW',
 };
 const OTLsolution: IOTLSolution = {
   ordering: [
@@ -178,6 +182,7 @@ const DESquestionData: IQuestion = {
     },
   ],
   hint: 'Describe the process.',
+  priority: 'LOW',
 };
 const DESsolution = {
   solutionText: 'The process of <QParam>process</QParam> involves ...',
