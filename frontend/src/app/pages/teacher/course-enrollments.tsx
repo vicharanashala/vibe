@@ -37,7 +37,7 @@ interface UserQuizMetricsResponse {
   _id?: string;
   quizId: string;
   userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   latestAttemptId?: string;
   latestSubmissionResultId?: string;
   remainingAttempts: number;
@@ -215,7 +215,6 @@ export default function CourseEnrollments() {
     }
     return 0
   })
-  console.log("Sorted Users:", sortedUsers)
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
@@ -648,7 +647,7 @@ export default function CourseEnrollments() {
                                 })
                               }
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={resetProgressMutation.isPending}
+                              disabled={resetProgressMutation.isPending || Math.round((enrollment.progress?.percentCompleted || 0) * 100) == 0}
                             >
                               {resetProgressMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -961,7 +960,7 @@ export default function CourseEnrollments() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="module" className="cursor-pointer">
+                      <SelectItem value="module" className="cursor-pointer" >
                         <div className="flex items-center gap-3 py-3 px-2">
                           <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                           <div>
@@ -970,7 +969,7 @@ export default function CourseEnrollments() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="section" className="cursor-pointer">
+                      <SelectItem value="section" className="cursor-pointer" >
                         <div className="flex items-center gap-3 py-3 px-2">
                           <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                           <div>
@@ -979,7 +978,7 @@ export default function CourseEnrollments() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="item" className="cursor-pointer">
+                      <SelectItem value="item" className="cursor-pointer" >
                         <div className="flex items-center gap-3 py-3 px-2">
                           <Play className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                           <div>

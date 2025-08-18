@@ -44,13 +44,17 @@ export async function setupItemAbilities(
         switch (enrollment.role) {
             case 'STUDENT':
                 can(ItemActions.ViewAll, 'Item', versionBounded);
+
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
+
+                // return all the itemId having watchtime doc
                 const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
                 if (!progress) {
                     throw new InternalServerError('No progress found for user');
                 }
                 const allowedItemIds = [...completedItems];
                 allowedItemIds.push(progress.currentItem.toString());
+
                 // Grant permission to view items that are in the allowed list
                 const itemBounded = {
                     courseId: enrollment.courseId, 

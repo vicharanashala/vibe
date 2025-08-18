@@ -62,6 +62,51 @@ class UserQuizMetricsRepository {
 
     return result;
   }
+
+  async resetUserMetrics(
+    userId: string,
+    quizId: string,
+    maxAttempts: number,
+    session?: ClientSession,
+  ) {
+    try {
+      await this.init();
+
+      if (!quizId) {
+        throw new InternalServerError(
+          'Failed to remove attempts from quiz metrics / More quizId or attemptId is missing',
+        );
+      }
+      // Step 1: Find the doc to get actual remove count
+      const metricsDoc = await this.userQuizMetricsCollection.findOne(
+        {quizId, userId},
+        {session},
+      );
+
+      console.log("User metrics: ", metricsDoc)
+
+      // Step 2: Reset the quiz metrics fields
+      await this.userQuizMetricsCollection.updateOne(
+        {quizId, userId},
+        {
+          $set: {
+            attempts: [],
+            latestAttemptId: null,
+            latestSubmissionResultId: null,
+            latestAttemptStatus: null,
+            skipCount: 0,
+            remainingAttempts: maxAttempts,
+          },
+        },
+        {session},
+      );
+
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to remove attempts from metrics /More ${error}`,
+      );
+    }
+  }
 }
 
 export {UserQuizMetricsRepository};

@@ -33,7 +33,6 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle,
-  FlagTriangleRight,
   FlagTriangleRightIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
@@ -41,12 +40,8 @@ import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { StudentProctoringSettings } from "@/types/video.types";
 import { FlagModal } from "@/components/FlagModal";
-import { EntityType, ReportEntityEntity } from "@/types/flag.types";
+import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
-// Temporary IDs for development
-// const TEMP_USER_ID = "6831c13a7d17e06882be43ca";
-// const TEMP_COURSE_ID = "6831b9651f79c52d445c5d8b";
-// const TEMP_VERSION_ID = "6831b9651f79c52d445c5d8c";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -81,7 +76,7 @@ export default function CoursePage() {
   const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
-  const { getSettings, settingLoading: proctoringLoading, settingError } = useGetProcotoringSettings();
+  const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
@@ -156,6 +151,8 @@ export default function CoursePage() {
   const [pauseVid, setPauseVid] = useState<boolean>(false);
   const [quizPassed, setQuizPassed] = useState(2);
   const [anomalies, setAnomalies] = useState<string[]>([]);
+  const [isQuizSkipped, setIsQuizSkipped] = useState(false);
+
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -1207,7 +1204,7 @@ export default function CoursePage() {
                 )}
 
                 {/* Quiz Passed/Failed */}
-                {quizPassed !== 2 && (
+                {quizPassed !== 2 && !isQuizSkipped && (
                   <Card className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${quizPassed === 1
                     ? "border-green-400/40 bg-green-500/95 text-green-50"
                     : "border-red-400/40 bg-red-500/95 text-red-50"
@@ -1293,6 +1290,7 @@ export default function CoursePage() {
                     setQuizPassed={setQuizPassed}
                     anomalies={anomalies}
                     keyboardLockEnabled={!isFlagModalOpen}
+                    setIsQuizSkipped= {setIsQuizSkipped}
                   />
 
                 </div>

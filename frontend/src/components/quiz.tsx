@@ -32,6 +32,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   deadline,
   approximateTimeToComplete,
   allowHint,
+  allowSkip,
   showCorrectAnswersAfterSubmission,
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
@@ -44,7 +45,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   displayNextLesson,
   onPrevVideo,
   setQuizPassed,
-  rewindVid
+  rewindVid,
+  setIsQuizSkipped
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -345,16 +347,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [currentCourse, startItem, setWatchItemId]);
 
-  const handleStopItem = useCallback(() => {
+  const handleStopItem = useCallback((isSkipped?:boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
       itemStartedRef.current = false;
       return;
     }
-
+    
     if (!itemStartedRef.current) {
       return;
     }
-
+    
     stopItem.mutate({
       params: {
         path: {
@@ -367,7 +369,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemId: currentCourse.itemId,
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
-        attemptId: attemptId
+        attemptId,
+        isSkipped
       }
     });
     itemStartedRef.current = false;
@@ -409,7 +412,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (convertedQuestions.length > 0 && convertedQuestions[0]?.timeLimit) {
         setTimeLeft(convertedQuestions[0].timeLimit);
       }
-      console.log('Quiz started successfully:', response);
 
       // Start tracking item
       await handleSendStartItem();
@@ -420,7 +422,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
 
-  const completeQuiz = useCallback(async () => {
+  const completeQuiz = useCallback(async (isSkipped?:boolean) => {
     if (!attemptId) {
       console.error('No attempt ID available for submission');
       return;
@@ -430,9 +432,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: { answers: answersForSubmission }
+        body: { answers: answersForSubmission, isSkipped }
       });
       
+      if(!response){
+        setQuizCompleted(true);
+        handleStopItem(isSkipped);
+        return
+      }
       // Convert the response to match the expected type
       const formattedResponse: SubmitQuizResponse = {
         ...response,
@@ -460,7 +467,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       handleStopItem();
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      setQuizCompleted(true);
+      // setQuizCompleted(true);
       handleStopItem();
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
@@ -491,24 +498,29 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Track attempts using the attempt data from the hook
     useEffect(() => {
       if (attemptData) {
+        console.log("Attempt data: ", attemptData);
+
         // Update the attempt count when a new attempt is created
         setAttempts(attemptData.userAttempts);
       }
     }, [attemptData]);
 
   const handleSkipQuiz = useCallback(async () => {
+
+    // 1. if no attempt id return
     if (!attemptId) return;
-    // console.log('Skipping quiz. Attempt count:', attempts);
+    setIsQuizSkipped(true);
     try {
-      if (onNext) {
-        onNext();
+      // flag for skipping
+      const isSkipped = true;
+      // submit the quiz with isSkipped payload
+      completeQuiz(isSkipped);
+      } catch (error) {
+        setIsQuizSkipped(false);
+        console.error('Error during quiz skip:', error);
       }
-      // Stop tracking the quiz item
-      handleStopItem();
-    } catch (error) {
-      console.error('Error during quiz skip:', error);
-    }
-  }, [attempts, processedQuizId]);
+  }, [attempts, processedQuizId,handleStopItem,onNext]);
+
 
   const saveProgress = useCallback(async () => {
     if (!attemptId || quizQuestions.length === 0) {
@@ -528,8 +540,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
-
-  console.log("Current question: ", currentQuestion);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -1249,7 +1259,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         {/* Navigation */}
         <div className="flex justify-between items-center">
           {/* Skip button (shown after 5 attempts) */}
-          {attempts >= 5 && (
+          {(attempts >= 5 && allowSkip == true) && (
             <Button
               // variant="outline"
               onClick={handleSkipQuiz}

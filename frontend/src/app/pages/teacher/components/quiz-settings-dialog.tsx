@@ -23,6 +23,7 @@ interface QuizSettingsForm {
   questionVisibility: number;
   releaseTime: string;
   deadline: string;
+  allowSkip:boolean;
   questionBankRefs?: QuestionBankRef []
 }
 
@@ -321,6 +322,20 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   onCheckedChange={(checked) => handleFieldChange('allowHint', checked)}
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="allowSkip" className='mb-2'>Allow Skips</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Allow students to skip quiz after 5 attempts
+                  </p>
+                </div>
+                <Switch
+                  id="allowSkip"
+                  checked={quizSettingsForm.allowSkip}
+                  onCheckedChange={(checked) => handleFieldChange('allowSkip', checked)}
+                />
+              </div>
+
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="showCorrectAnswers" className='mb-2'>Show Correct Answers</Label>

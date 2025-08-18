@@ -204,7 +204,7 @@ class ProgressController {
     @Ability(getProgressAbility) {ability, user}
   ): Promise<void> {
     const { courseId, versionId } = params;
-    const { itemId, sectionId, moduleId, watchItemId, attemptId } = body;
+    const { itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped } = body;
     const userId = user._id.toString();
     
     // Create a progress resource object for permission checking
@@ -234,6 +234,7 @@ class ProgressController {
       itemId,
       watchItemId,
       attemptId,
+      isSkipped
     );
   }
 

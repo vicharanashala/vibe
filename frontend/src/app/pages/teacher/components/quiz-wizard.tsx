@@ -30,7 +30,8 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
         showScoreAfterSubmission: true,
         questionVisibility: 5,
         releaseTime: new Date().toISOString().slice(0, 16),
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        allowSkip: false
     });
 
     const handleCreateQuiz = async () => {
@@ -57,6 +58,7 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
                     ? new Date(quizSettingsForm.deadline).toISOString() 
                     : undefined, 
                 questionBankRefs: [],
+                allowSkip: quizSettingsForm.allowSkip
             };
 
             await createItem({

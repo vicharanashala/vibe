@@ -44,6 +44,7 @@ interface IAttempt {
   userId: string | ObjectId;
   questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
+  isSkipped?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,10 +93,11 @@ interface IUserQuizMetrics {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
   latestAttemptId?: string | ObjectId;
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
+  skipCount: number;
   attempts: IAttemptDetails[];
 }
 
