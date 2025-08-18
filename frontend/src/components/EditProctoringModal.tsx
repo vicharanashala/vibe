@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
 import { useEffect, useState } from "react"
+import { Label } from "./ui/label"
+import { Separator } from "./ui/separator"
+import { Switch } from "./ui/switch"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -51,13 +54,14 @@ export function ProctoringModal({
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
   )
+  const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const settings = await getSettings(courseId, courseVersionId);
-        console.log(settings);
-        setDetectors(settings?.settings.proctors.detectors.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+        const result = await getSettings(courseId, courseVersionId);
+        setDetectors(result?.settings.proctors.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+        setLinearProgressionEnabled(result.settings.linearProgressionEnabled)
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
       }
@@ -77,10 +81,10 @@ export function ProctoringModal({
   }
 
   const handleSubmit = async () => {
-    const result = await editSettings(courseId, courseVersionId, detectors, isNew)
+    const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled)
     console.log("Proctoring settings updated:", result)
     if(result != undefined) {
-      onClose()
+      onClose();
     }
   }
 
@@ -92,9 +96,7 @@ export function ProctoringModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-background text-foreground max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-center">
-            Proctoring Settings
-          </DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-center">Proctoring Settings</DialogTitle>
         </DialogHeader>
 
         <form
@@ -104,22 +106,51 @@ export function ProctoringModal({
           }}
           className="space-y-6 pt-4"
         >
-          <div className="space-y-4">
-            {detectors.map((detector) => (
-              <div key={detector.name} className="flex items-center space-x-2">
-                <Checkbox
-                  id={detector.name}
-                  checked={detector.enabled}
-                  onCheckedChange={() => toggle(detector.name)}
-                />
-                <label
-                  htmlFor={detector.name}
-                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {labelMap[detector.name] || detector.name}
-                </label>
+          <div className="space-y-6">
+
+            {/* Proctoring Controls Section */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-foreground">Proctoring Controls</h3>
+                <p className="text-xs text-muted-foreground">Configure monitoring and detection features</p>
               </div>
-            ))}
+
+              <div className="space-y-3">
+                {detectors.map((detector) => (
+                  <div key={detector.name} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={detector.name}
+                      checked={detector.enabled}
+                      onCheckedChange={() => toggle(detector.name)}
+                    />
+                    <label
+                      htmlFor={detector.name}
+                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {labelMap[detector.name] || detector.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator className="my-6" />
+
+            {/* Additional Settings Section */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-foreground">Additional Settings</h3>
+                <p className="text-xs text-muted-foreground">Configure course behavior and progression</p>
+              </div>
+
+              <div className="flex items-center justify-between space-x-3">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Linear Course Progression</Label>
+                  <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
+                </div>
+                <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
+              </div>
+            </div>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

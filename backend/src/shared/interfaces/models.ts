@@ -405,6 +405,7 @@ export interface IProctoringSettings {
 // Common settings interface for both user and course settings.
 export interface ISettings {
   proctors: IProctoringSettings;
+  linearProgressionEnabled: boolean;
 }
 
 // Interface for user-specific settings.

@@ -1166,7 +1166,8 @@ export function useEditProctoringSettings() {
     courseId: string,
     versionId: string,
     detectors: { name: string; enabled: boolean }[],
-    isNew: boolean
+    isNew: boolean,
+    linearProgressionEnabled: boolean
   ) => {
     setLoading(true);
     setError(null);
@@ -1182,6 +1183,7 @@ export function useEditProctoringSettings() {
           detectorName: d.name,
           settings: { enabled: d.enabled },
         })),
+        linearProgressionEnabled
       };
 
       const res = await fetch(url, {

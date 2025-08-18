@@ -12,6 +12,7 @@ import {
   registerDecorator,
   ValidationArguments,
   ValidationOptions,
+  IsDefined,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -54,6 +55,10 @@ export class SettingsDto {
   @ValidateNested()
   @Type(() => ProctoringSettingsDto)
   proctors: ProctoringSettingsDto;
+
+  @IsDefined()
+  @IsBoolean()
+  linearProgressionEnabled: boolean;
 }
 
 @ValidatorConstraint({ async: false })
@@ -140,6 +145,7 @@ export class CreateCourseSettingBody implements Partial<ICourseSetting> {
   @ValidateNested()
   @Type(() => SettingsDto)
   settings: SettingsDto;
+
 }
 
 // This class represents the validation schema for reading course settings.
@@ -206,6 +212,12 @@ export class AddCourseProctoringBody {
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
   detectors: DetectorSettingsDto[];
+
+
+  @IsDefined()
+  @IsBoolean()
+  linearProgressionEnabled: boolean;
+
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.

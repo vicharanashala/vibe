@@ -54,6 +54,7 @@ export interface ItemContainerProps {
   anomalies?: string[];
   keyboardLockEnabled?:boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
+  linearProgressionEnabled:boolean;
 }
 
 export interface ItemContainerRef {

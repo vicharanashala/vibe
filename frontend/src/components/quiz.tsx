@@ -46,7 +46,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   onPrevVideo,
   setQuizPassed,
   rewindVid,
-  setIsQuizSkipped
+  setIsQuizSkipped,
+  linearProgressionEnabled
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
