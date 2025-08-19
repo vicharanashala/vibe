@@ -3,8 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { connectToLiveStatusUpdates } from "@/lib/genai-api";
-import { aiSectionAPI, JobStatus, TranscriptParameters, SegmentationParameters, QuestionGenerationParameters } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -13,9 +12,6 @@ import {
 } from "@/components/ui/accordion";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CheckCircle,
   Loader2,
@@ -23,24 +19,18 @@ import {
   Edit,
   Save,
   X,
+  Plus,
+  Trash2,
   XCircle,
   PauseCircle,
   UploadCloud,
   FileText,
   ListChecks,
-  MessageSquareText,
-  Settings,
-  Zap,
-  Clock,
-  AlertTriangle,
-  Ban,
-  RefreshCw
+  MessageSquareText
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCourseStore } from "@/store/course-store";
-
-// Import AI generation components
-import { TaskAccordion } from "./ai-gen-components/task-accordion";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -122,129 +112,166 @@ const WORKFLOW_STEPS = [
 
 const getStepStatus = (jobStatus: any, stepKey: string) => {
   if (!jobStatus) return 'pending';
-  const status = jobStatus[stepKey];
-  if (status === 'COMPLETED') return 'completed';
-  if (status === 'RUNNING') return 'active';
-  if (status === 'FAILED') return 'failed';
-  if (status === 'WAITING' || status === 'PENDING') return 'pending';
-  return 'pending';
-};
 
-const Stepper = ({ jobStatus }: { jobStatus: any }) => (
-  <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
-    {WORKFLOW_STEPS.map((step, idx) => {
-      const status = getStepStatus(jobStatus, step.key);
-      const isLast = idx === WORKFLOW_STEPS.length - 1;
-      const isCompleted = status === 'completed';
-      const isActive = status === 'active';
-      const isFailed = status === 'failed';
+  const taskToStep: Record<string, string> = {
+    'AUDIO_EXTRACTION': 'audioExtraction',
+    'TRANSCRIPT_GENERATION': 'transcriptGeneration',
+    'SEGMENTATION': 'segmentation',
+    'QUESTION_GENERATION': 'questionGeneration',
+    'UPLOAD_CONTENT': 'uploadContent',
+  };
 
-      return (
-        <React.Fragment key={step.key}>
-          <div className="flex flex-col items-center relative z-10 animate-step-appear">
-            {/* Step Circle */}
-            <div
-              className={`
-                 stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
-                 ${isCompleted
-                  ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow'
-                  : isActive
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow'
-                    : isFailed
-                      ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow'
-                      : 'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
-                }
-               `}
-              style={{
-                minWidth: 48,
-                minHeight: 48,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {/* Animated Icons */}
-              <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
-                {isCompleted ? (
-                  <CheckCircle className="w-6 h-6 animate-bounce" />
-                ) : isActive ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : isFailed ? (
-                  <XCircle className="w-6 h-6 animate-pulse" />
-                ) : (
-                  <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
-                    {step.icon}
+  const currentTaskStep = taskToStep[jobStatus.task] || null;
+
+  if (!currentTaskStep) return 'pending';
+
+  const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'questionGeneration', 'uploadContent'];
+
+  const stepIndex = stepOrder.indexOf(stepKey);
+  const currentIndex = stepOrder.indexOf(currentTaskStep);
+
+  if (stepIndex === -1 || currentIndex === -1) return 'pending';
+
+  if (stepIndex < currentIndex) {
+    return 'completed';
+  } else if (stepIndex > currentIndex) {
+    return 'pending';
+  } else {
+    // Current step
+    let status = jobStatus.status?.toLowerCase() || 'pending';
+    if (status === 'running') return 'active';
+    if (status === 'completed') return 'completed';
+    if (status === 'failed') return 'failed';
+    if (status === 'waiting' || status === 'pending') return 'pending';
+    return 'pending';
+  }
+}
+
+
+const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
+
+  const activeStep = React.useMemo(() => {
+    if (!jobStatus) return null;
+
+    if (jobStatus.task === 'AUDIO_EXTRACTION') {
+      return 'audioExtraction';
+    }
+    if (jobStatus.task === 'TRANSCRIPT_GENERATION') {
+      return 'transcriptGeneration';
+    }
+    if (jobStatus.task === 'SEGMENTATION') {
+      return 'segmentation';
+    }
+    if (jobStatus.task === 'QUESTION_GENERATION') {
+      return 'questionGeneration';
+    }
+    if (jobStatus.task === 'UPLOAD_CONTENT') {
+      return 'uploadContent';
+    }
+
+    return null;
+  }, [jobStatus]);
+
+  return (
+    <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
+      {WORKFLOW_STEPS.map((step, idx) => {
+        const status = getStepStatus(jobStatus, step.key);
+        const isCurrent = step.key === activeStep;
+
+        const isLast = idx === WORKFLOW_STEPS.length - 1;
+        const isCompleted = status === 'completed';
+        const isActive = status === 'active' || (isCurrent && !isCompleted);
+        const isFailed = status === 'failed';
+
+        return (
+          <React.Fragment key={step.key}>
+            <div className="flex flex-col items-center relative z-10 animate-step-appear">
+              {/* Step Circle */}
+              <div className={`
+                stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
+                ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
+                  isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
+                    isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
+                      'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                }`}
+                style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {/* Animated Icons */}
+                <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
+                  {isCompleted ? (
+                    <CheckCircle className="w-6 h-6 animate-bounce" />
+                  ) : isActive ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : isFailed ? (
+                    <XCircle className="w-6 h-6 animate-pulse" />
+                  ) : (
+                    <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
+                      {step.icon}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Step Label */}
+              <div className="text-center max-w-24">
+                <span className={`
+                  text-sm font-semibold transition-all duration-300 ease-out
+                  ${isCompleted ? 'text-green-600 dark:text-green-400' :
+                    isActive ? 'text-blue-600 dark:text-blue-400' :
+                      isFailed ? 'text-red-600 dark:text-red-400' :
+                        'text-muted-foreground'
+                  }`}
+                >
+                  {step.label}
+                </span>
+
+                {/* Status Indicator */}
+                {isActive && (
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+                    <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      Processing...
+                    </span>
+                  </div>
+                )}
+                {isCompleted && (
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                      Complete
+                    </span>
+                  </div>
+                )}
+                {isFailed && (
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                      Failed
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Step Label */}
-            <div className="text-center max-w-24">
-              <span className={`
-                 text-sm font-semibold transition-all duration-300 ease-out
-                 ${isCompleted
-                  ? 'text-green-600 dark:text-green-400'
-                  : isActive
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : isFailed
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-muted-foreground'
-                }
-               `}>
-                {step.label}
-              </span>
-
-              {/* Status Indicator */}
-              {isActive && (
-                <div className="mt-1 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-                  <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
-                    Processing...
-                  </span>
-                </div>
-              )}
-
-              {isCompleted && (
-                <div className="mt-1 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
-                    Complete
-                  </span>
-                </div>
-              )}
-
-              {isFailed && (
-                <div className="mt-1 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-red-500 rounded-full" />
-                  <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                    Failed
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Connecting Line */}
-          {!isLast && (
-            <div className="flex-1 flex items-center justify-center relative z-0">
-              <div className={`
-                 stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out bg-muted
-                 ${isCompleted ? 'completed' : ''}
-               `}
-                style={{ minWidth: 32 }}
-              />
-            </div>
-          )}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
+            {/* Connecting Line */}
+            {!isLast && (
+              <div className="flex-1 flex items-center justify-center relative z-0">
+                <div className={`
+                  stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out
+                  ${isCompleted ? 'bg-green-500' : 'bg-muted'}
+                `} style={{ minWidth: 32 }} />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+});
 
 
 function getApiUrl(path: string) {
-  return `${import.meta.env.VITE_BASE_URL}${path}`;
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app/api${path}`;
 }
 
 export default function AISectionPage() {
@@ -263,15 +290,35 @@ export default function AISectionPage() {
 
 
 
-  // Drag and drop handlers for ORDER_THE_LOTS questions (handled by components)
+  // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
   //   e.dataTransfer.setData('text/plain', index.toString());
+  //   e.dataTransfer.effectAllowed = 'move';
   // }, []);
-  // const handleDragOver = useCallback((e: React.DragEvent) => {…}, []);
-  // const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {…}, []);
+  // const handleDragOver = useCallback((e: React.DragEvent) => {
+  //   e.preventDefault();
+  //   e.dataTransfer.dropEffect = 'move';
+  // }, []);
+  // const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
+  //   e.preventDefault();
+  //   const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+  //   if (dragIndex === dropIndex) return;
+  //   setEditedQuestion(prev => {
+  //     const currentOptions = [...(prev.options || [])];
+  //     const dragItem = currentOptions[dragIndex];
+  //     currentOptions.splice(dragIndex, 1);
+  //     currentOptions.splice(dropIndex, 0, dragItem);
+  //     return { ...prev, options: currentOptions };
+  //   });
+  // }, []);
 
   // New: Track current AI job status for manual refresh
   const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
+  const [aiWorkflowStep, setAiWorkflowStep] = useState<'idle' | 'audio_extraction' | 'audio_extraction_done' | 'transcription' | 'transcription_done' | 'error'>('idle');
+  // New: Track if approveContinueTask has been called for current job's WAITING state
+  const [approvedForCurrentJob, setApprovedForCurrentJob] = useState(false);
+  // New: Track if continue+start for transcript has been triggered for the current job
+  const [transcriptStartedForCurrentJob, setTranscriptStartedForCurrentJob] = useState(false);
   // New: Parameters for rerun
   const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
 
@@ -284,69 +331,6 @@ export default function AISectionPage() {
     DES: 0,
     prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
   });
-
-  // Workflow Configuration State
-  const [selectedTasks, setSelectedTasks] = useState({
-    transcription: true,
-    segmentation: true,
-    questions: true,
-    upload: false
-  });
-  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
-
-  // Custom configuration parameters
-  const [customTranscriptParams, setCustomTranscriptParams] = useState<TranscriptParameters>({
-    language: 'en',
-    modelSize: 'large'
-  });
-  const [customSegmentationParams, setCustomSegmentationParams] = useState<SegmentationParameters>({
-    lam: 4.6,
-    runs: 25,
-    noiseId: -1
-  });
-  const [customQuestionParams, setCustomQuestionParams] = useState<QuestionGenerationParameters>({
-    model: 'deepseek-r1:70b',
-    SOL: 1,
-    SML: 0,
-    NAT: 0,
-    DES: 0,
-    prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
-  });
-
-  // Upload parameters
-  const [uploadParams, setUploadParams] = useState({
-    videoItemBaseName: 'video_item',
-    quizItemBaseName: 'quiz_item',
-    questionsPerQuiz: 1
-  });
-
-  // Task dependency order (linear workflow)
-  const taskOrder = ['transcription', 'segmentation', 'questions', 'upload'] as const;
-  
-  // Handle task selection with automatic dependency management
-  const handleTaskSelection = (taskKey: keyof typeof selectedTasks, checked: boolean) => {
-    if (checked) {
-      // If enabling a task, enable all previous tasks in the dependency chain
-      const newSelectedTasks = { ...selectedTasks };
-      const taskIndex = taskOrder.indexOf(taskKey);
-      
-      // Enable all tasks up to and including the selected one
-      for (let i = 0; i <= taskIndex; i++) {
-        newSelectedTasks[taskOrder[i]] = true;
-      }
-      setSelectedTasks(newSelectedTasks);
-    } else {
-      // If disabling a task, disable all subsequent tasks in the dependency chain
-      const newSelectedTasks = { ...selectedTasks };
-      const taskIndex = taskOrder.indexOf(taskKey);
-      
-      // Disable this task and all subsequent tasks
-      for (let i = taskIndex; i < taskOrder.length; i++) {
-        newSelectedTasks[taskOrder[i]] = false;
-      }
-      setSelectedTasks(newSelectedTasks);
-    }
-  };
 
   // AI Section Handlers
   const isValidYouTubeUrl = (url: string): boolean => {
@@ -373,61 +357,17 @@ export default function AISectionPage() {
       return;
     }
     try {
-      // Build job parameters based on workflow mode
-      const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
+      const { jobId } = await aiSectionAPI.createJob({
         videoUrl: youtubeUrl,
         courseId: currentCourse.courseId,
         versionId: currentCourse.versionId,
         moduleId: currentCourse.moduleId,
         sectionId: currentCourse.sectionId,
-        videoItemBaseName: uploadParams.videoItemBaseName,
-        quizItemBaseName: uploadParams.quizItemBaseName,
-        questionsPerQuiz: uploadParams.questionsPerQuiz,
-      };
-
-      // Add optional task parameters based on selected tasks
-      if (selectedTasks.transcription) {
-        jobParams.transcriptParameters = {
-          language: customTranscriptParams.language || 'en',
-          modelSize: customTranscriptParams.modelSize || 'large'
-        };
-      }
-      
-      if (selectedTasks.segmentation) {
-        jobParams.segmentationParameters = {
-          lam: customSegmentationParams.lam ?? 4.6,
-          runs: customSegmentationParams.runs ?? 25,
-          noiseId: customSegmentationParams.noiseId ?? -1
-        };
-      }
-      
-      if (selectedTasks.questions) {
-        jobParams.questionGenerationParameters = {
-          model: customQuestionParams.model || 'deepseek-r1:70b',
-          SOL: customQuestionParams.SOL ?? 1,
-          SML: customQuestionParams.SML ?? 0,
-          NAT: customQuestionParams.NAT ?? 0,
-          DES: customQuestionParams.DES ?? 0,
-          prompt: customQuestionParams.prompt || `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
-        };
-      }
-
-      const { jobId } = await aiSectionAPI.createJob(jobParams);
+        videoItemBaseName: 'video_item',
+        quizItemBaseName: 'quiz_item',
+      });
       setAiJobId(jobId);
-      console.log("[handleCreateJob] Set aiJobId:", jobId);
-      
-      const enabledTasksCount = Object.values(selectedTasks).filter(Boolean).length;
-      const taskNames = Object.entries(selectedTasks)
-        .filter(([, enabled]) => enabled)
-        .map(([task]) => task === 'questions' ? 'question generation' : task)
-        .join(', ');
-      
-      if (enabledTasksCount > 0) {
-        toast.success(`AI job created with automated ${taskNames}!`);
-      } else {
-        toast.success("AI job created successfully!");
-      }
-      
+      toast.success("AI job created successfully!");
       // Do NOT start audio extraction here. Wait for user to click Transcription button.
     } catch (error) {
       toast.error("Failed to create AI job. Please try again.");
@@ -589,118 +529,6 @@ export default function AISectionPage() {
     }
   };
 
-  // Helper to get task status from job status
-  const getTaskStatus = (jobStatus: any, taskKey: string) => {
-    if (!jobStatus) return null;
-    return jobStatus[taskKey];
-  };
-
-  // Helper to map status to icon and color with enhanced status handling
-  const getTaskStatusIcon = (status: string | null) => {
-    if (!status) return null;
-    
-    switch (status) {
-      case 'PENDING':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Pending</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task is pending and waiting to start</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case 'RUNNING':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Running</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task is currently running</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case 'WAITING':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800">
-                  <PauseCircle className="w-4 h-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Waiting</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task is waiting for approval or dependencies</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case 'COMPLETED':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">Completed</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task completed successfully</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case 'FAILED':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
-                  <XCircle className="w-4 h-4 text-red-600" />
-                  <span className="text-sm font-medium text-red-700 dark:text-red-300">Failed</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task failed to complete</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case 'ABORTED':
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800">
-                  <Ban className="w-4 h-4 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-700 dark:text-orange-300">Aborted</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Task was aborted</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      default:
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border">
-                  <AlertTriangle className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Unknown</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Unknown status: {status}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-    }
-  };
-
   // Helper to map status to icon and color
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -741,84 +569,655 @@ export default function AISectionPage() {
     }
   };
 
-  // Cutted Task Accordion From here. 
+  const TaskAccordion = React.memo(({ task, title, jobStatus }: { task: keyof typeof taskRuns; title: string; jobStatus?: any }) => {
+    const runs = taskRuns[task];
+    const acceptedRunId = acceptedRuns[task];
+    const { currentCourse } = useCourseStore();
+    // Add state for upload parameters
+    const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
+    const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
+    const [questionsPerQuiz, setQuestionsPerQuiz] = useState(1);
 
-  const getDifficultyColor = (difficulty: Question['difficulty']): string => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'medium': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'hard': return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20';
-    }
-  };
+    const [localParams, setLocalParams] = useState(questionGenParams);
 
-  const getQuestionTypeColor = (type: QuestionType): string => {
-    switch (type) {
-      case 'SELECT_ONE_IN_LOT': return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
-      case 'SELECT_MANY_IN_LOT': return 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/20';
-      case 'ORDER_THE_LOTS': return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/20';
-      case 'NUMERIC_ANSWER_TYPE': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'DESCRIPTIVE': return 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20';
-    }
-  };
+    const [localSegParams, setLocalSegParams] = useState(segParams);
 
-  const getQuestionTypeLabel = (type: QuestionType): string => {
-    switch (type) {
-      case 'SELECT_ONE_IN_LOT': return 'Single Select';
-      case 'SELECT_MANY_IN_LOT': return 'Multiple Select';
-      case 'ORDER_THE_LOTS': return 'Drag & Drop';
-      case 'NUMERIC_ANSWER_TYPE': return 'Numeric';
-      case 'DESCRIPTIVE': return 'Descriptive';
-      default: return 'Question';
-    }
-  };
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() =>
+      ["SQL", "SML", "NAT", "DES"],
+      [],);
 
-  const handleEditClick = (segmentId: string, question: Question) => {
-    setEditingQuestion({ segmentId, questionId: question.id });
-    setEditedQuestion({ ...question });
-  };
+    const segFields: { key: "lam" | "runs" | "noiseId", type: 'float' | "int" }[] = [
+      { key: 'lam', type: 'float' },
+      { key: 'runs', type: 'int' },
+      { key: 'noiseId', type: 'int' }
+    ];
 
-  const handleSaveEdit = (segmentId: string, questionId: string) => {
-    setVideoDataState(prev => {
-      if (!prev) return prev;
-      const newSegments = prev.segments.map(segment => {
-        if (segment.id !== segmentId) return segment;
-        return {
-          ...segment,
-          questions: segment.questions.map(q =>
-            q.id === questionId ? { ...q, ...editedQuestion } as Question : q
-          ),
-        };
-      });
-      return { ...prev, segments: newSegments } as VideoData;
-    });
-    setEditingQuestion(null);
-    setEditedQuestion({});
-    toast.success("Question updated successfully!");
-  };
+    const handleSegParamChange = useCallback(
+      <K extends keyof typeof segParams>(field: K, value: typeof segParams[K]) => {
+        setLocalSegParams(prev => ({
+          ...prev,
+          [field]: value
+        }));
+      },
+      []
+    );
 
-  const handleCancelEdit = () => {
-    setEditingQuestion(null);
-    setEditedQuestion({});
-  };
+    const handleParamChange = useCallback(<K extends keyof QuestionGenParams>(
+      field: K,
+      value: QuestionGenParams[K]
+    ) => {
+      setLocalParams(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }, []);
 
-  const handleAddOption = () => {
-    setEditedQuestion(prev => ({
-      ...prev,
-      options: [...(prev.options || []), `Option ${(prev.options?.length || 0) + 1}`]
-    }));
-  };
+    return (
+      <div className="space-y-3">
+        {/* Always show transcription parameter inputs for 'transcription' task */}
+        {task === 'transcription' && (
+          <div className="flex flex-row gap-4 mb-2">
+            <div className="flex-1 flex flex-col items-start">
+              <label className="mb-1">Language:</label>
+              <select
+                value={rerunParams.language}
+                onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
+                className="w-full px-2 py-1 rounded"
+              >
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+              </select>
+            </div>
+            <div className="flex-1 flex flex-col items-start">
+              <label className="mb-1">Model:</label>
+              <select
+                value={rerunParams.model}
+                onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
+                className="w-full px-2 py-1 rounded"
+              >
+                <option value="default">default</option>
+                {/* Add more models as needed */}
+              </select>
+            </div>
+          </div>
+        )}
+        {/* Show Start Transcription button for transcription task when audio extraction is completed */}
+        {task === 'transcription' && aiJobStatus?.status === 'COMPLETED' && aiJobStatus?.task === 'AUDIO_EXTRACTION' && (
+          <div className="mb-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleStartTranscription}
+                    variant="default"
+                    disabled={aiJobStatus?.status !== 'COMPLETED' || aiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                  >
+                    Start Transcription Task
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) === 'PENDING' && (
+                    <span>
+                      Approves the transcript task. Click again when status is <b>WAITING</b> to actually start transcription.
+                    </span>
+                  )}
+                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) === 'WAITING' && (
+                    <span>
+                      Starts the transcript generation task. Status will move to <b>RUNNING</b>.
+                    </span>
+                  )}
+                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) !== 'PENDING' && (aiJobStatus?.status as string) !== 'WAITING' && (
+                    <span>
+                      Transcript generation is not ready to start yet.
+                    </span>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+        {/* Always show question generation parameter inputs for 'question' task */}
+        {task === 'question' && (
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex flex-row gap-2">
+              <div className="flex-1 flex flex-col">
+                <label>Model:</label>
+                <Input
+                  type="text"
+                  value={localParams.model}
+                  onChange={e => handleParamChange("model", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              {fields.map(field => (
+                <div key={field} className="flex-1 flex flex-col">
+                  <label>{field}:</label>
+                  <Input
+                    key={`input-${field}`}
+                    type="number"
+                    min={0}
+                    value={localParams[field]}
+                    onChange={e => handleParamChange(field, Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col mt-2">
+              <label>prompt:</label>
+              <Textarea
+                value={localParams.prompt}
+                onChange={e => setLocalParams(p => ({ ...p, prompt: e.target.value }))}
+                className="w-full min-h-[80px]"
+              />
+            </div>
+          </div>
+        )}
+        {/* Upload to Course input fields */}
+        {task === 'upload' && (
+          <div className="flex flex-col gap-2 mb-2">
+            <label className="font-medium">Video Item Base Name</label>
+            <Input
+              value={videoItemBaseName}
+              onChange={e => setVideoItemBaseName(e.target.value)}
+              placeholder="video_item"
+              className="w-full"
+            />
+            <label className="font-medium">Quiz Item Base Name</label>
+            <Input
+              value={quizItemBaseName}
+              onChange={e => setQuizItemBaseName(e.target.value)}
+              placeholder="quiz_item"
+              className="w-full"
+            />
+            <label className="font-medium">Questions Per Quiz</label>
+            <Input
+              type="number"
+              min={1}
+              value={questionsPerQuiz}
+              onChange={e => setQuestionsPerQuiz(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={async () => {
+              setQuestionGenParams(localParams);
+              setSegParams(localSegParams);
+              if (task === 'upload') {
+                // Use values from store and input fields
+                if (!aiJobId) return;
+                if (!currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
+                  toast.error('Missing course/module/section info');
+                  return;
+                }
+                const params = {
+                  courseId: currentCourse.courseId,
+                  versionId: currentCourse.versionId,
+                  moduleId: currentCourse.moduleId,
+                  sectionId: currentCourse.sectionId,
+                  videoItemBaseName,
+                  quizItemBaseName,
+                  questionsPerQuiz,
+                };
+                setTaskRuns(prev => ({ ...prev, upload: [...prev.upload, { id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'loading', parameters: params }] }));
+                try {
+                  await aiSectionAPI.postJobTask(aiJobId, 'UPLOAD_CONTENT', params);
+                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'done' } : run) }));
+                  toast.success('Section successfully uploaded to course!');
+                } catch (error) {
+                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'failed' } : run) }));
+                  toast.error('Upload to course failed.');
+                }
+                return;
+              }
+              // ... existing logic for other tasks ...
+              handleTask(task, localSegParams, localParams);
+            }}
+            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
+            className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+          >
+            {title}
+          </Button>
+          {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
+          {task === 'segmentation' && (
+            <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
+              {segFields.map(({ key, type }) => (
+                <div key={key} className="flex flex-col items-start min-w-[80px]">
+                  <label
+                    htmlFor={`seg-${key}`}
+                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300"
+                  >
+                    {key}
+                  </label>
+                  <input
+                    id={`seg-${key}`}
+                    type="text"
+                    value={localSegParams[key as keyof typeof segParams]}
+                    onChange={(e) => handleSegParamChange(key, type === 'float'
+                      ? parseFloat(e.target.value) || 0
+                      : parseInt(e.target.value) || 0)}
+                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    style={{ fontSize: '15px' }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Add Re-run Transcription button */}
+          {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!aiJobId) return;
+                try {
+                  const params = rerunParams;
+                  await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', params);
+                  toast.success('Transcription rerun started. Click Refresh to check status.');
+                  setTaskRuns(prev => ({
+                    ...prev,
+                    transcription: [
+                      ...prev.transcription,
+                      {
+                        id: `run-${Date.now()}-${Math.random()}`,
+                        timestamp: new Date(),
+                        status: "loading",
+                        parameters: { ...params }
+                      }
+                    ]
+                  }));
+                } catch (e: any) {
+                  toast.error('Failed to rerun transcription.');
+                }
+              }}
+              disabled={runs.some(r => r.status === "loading")}
+              className="flex-1"
+            >
+              Re-run Transcription
+            </Button>
+          )}
+          {/* Add Re-run Question Generation button */}
+          {task === 'question' && jobStatus?.task === 'QUESTION_GENERATION' && jobStatus?.status === 'COMPLETED' && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!aiJobId) return;
+                try {
+                  // Use the current values from the parameter inputs
+                  // const params = questionGenParams;
 
-  const handleRemoveOption = (index: number) => {
-    setEditedQuestion(prev => ({
-      ...prev,
-      options: prev.options?.filter((_, i) => i !== index)
-    }));
-  };
+                  await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
+                  toast.success('Question generation rerun started. Click Refresh to check status.');
+                  setTaskRuns(prev => ({
+                    ...prev,
+                    question: [
+                      ...prev.question,
+                      {
+                        id: `run-${Date.now()}-${Math.random()}`,
+                        timestamp: new Date(),
+                        status: "loading",
+                        parameters: { ...localParams }
+                      }
+                    ]
+                  }));
+                } catch (e: any) {
+                  toast.error('Failed to rerun question generation.');
+                }
+              }}
+              disabled={runs.some(r => r.status === "loading")}
+              className="flex-1"
+            >
+              Re-run Question Generation
+            </Button>
+          )}
+
+          {task === 'segmentation' && jobStatus?.task === 'SEGMENTATION' && jobStatus?.status === 'COMPLETED' && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!aiJobId) return;
+                try {
+                  // Always use the latest values from segParams for the payload
+
+                  const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
+                  await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
+                  toast.success('Segmentation rerun started. Click Refresh to check status.');
+                  setTaskRuns(prev => ({
+                    ...prev,
+                    segmentation: [
+                      ...prev.segmentation,
+                      {
+                        id: `run-${Date.now()}-${Math.random()}`,
+                        timestamp: new Date(),
+                        status: "loading",
+                        parameters: { ...params }
+                      }
+                    ]
+                  }));
+                } catch (e: any) {
+                  toast.error('Failed to rerun segmentation.');
+                }
+              }}
+              disabled={runs.some(r => r.status === "loading")}
+              className="flex-1"
+            >
+              Re-run Segmentation
+            </Button>
+          )}
+        </div>
+        {runs.length > 0 && (
+          <Accordion type="single" collapsible className="w-full">
+            {runs.map((run: any, index) => {
+              // Declare segParamsNodes for this run
+              const segParamsNodes: React.ReactNode[] =
+                task === "segmentation" && run.parameters
+                  ? [
+                    run.parameters.lam !== undefined ? (<span key="lam"><strong>Lambda:</strong> {run.parameters.lam}</span>) : undefined,
+                    run.parameters.runs !== undefined ? (<span key="runs"><strong>Runs:</strong> {run.parameters.runs}</span>) : undefined,
+                    run.parameters.noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {run.parameters.noiseId}</span>) : undefined,
+                  ].filter((x): x is React.ReactNode => x != null)
+                  : [];
+              // --- Fix for readable parameters display for question task ---
+              let readableParams: React.ReactNode = null;
+              if (task === "question" && run.parameters && typeof run.parameters === 'object') {
+                const paramKeys = Object.keys(run.parameters);
+                const mainKeys = ["model", "SQL", "SML", "NAT", "DES"];
+                const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
+                readableParams = (
+                  <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
+                      {mainKeys.map(key =>
+                        key in run.parameters ? (
+                          <div key={key}><strong>{key}:</strong> {run.parameters[key]}</div>
+                        ) : null
+                      )}
+                    </div>
+                    {promptKey && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <strong>prompt:</strong> {run.parameters[promptKey]}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <AccordionItem key={run.id} value={run.id} className="border rounded my-2">
+                  <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
+                    <span>Run {index + 1}</span>
+                    <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
+                    {getStatusIcon(run.status)}
+                    {acceptedRunId === run.id && <span className="text-blue-500">Accepted</span>}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-2 pb-2">
+                    {run.parameters && (
+                      <div className="text-sm text-gray-600 dark:text-muted-foreground flex flex-wrap gap-4 mb-2">
+                        {task === "segmentation" ? segParamsNodes : readableParams || (
+                          <span><strong>Parameters:</strong> {JSON.stringify(run.parameters)}</span>
+                        )}
+                      </div>
+                    )}
+                    {run.status === "done" && (
+                      task === "segmentation"
+                        ? <>
+                          <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+                          <EditSegmentsModalButton aiJobId={aiJobId} run={run} runIndex={index} />
+                        </>
+                        : task === "question"
+                          ? <RunQuestionSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+                          : <RunTranscriptSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+                    )}
+                    {run.status === "failed" && (
+                      <div className="text-sm text-red-600 dark:text-red-500">
+                        This run failed. Try running the task again.
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )}
+      </div>
+    );
+  });
+
+  // const getDifficultyColor = (difficulty: Question['difficulty']): string => {
+  //   switch (difficulty) {
+  //     case 'easy': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
+  //     case 'medium': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
+  //     case 'hard': return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
+  //     default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20';
+  //   }
+  // };
+
+  // const getQuestionTypeColor = (type: QuestionType): string => {
+  //   switch (type) {
+  //     case 'SELECT_ONE_IN_LOT': return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
+  //     case 'SELECT_MANY_IN_LOT': return 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/20';
+  //     case 'ORDER_THE_LOTS': return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/20';
+  //     case 'NUMERIC_ANSWER_TYPE': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
+  //     case 'DESCRIPTIVE': return 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/20';
+  //     default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20';
+  //   }
+  // };
+
+  // const getQuestionTypeLabel = (type: QuestionType): string => {
+  //   switch (type) {
+  //     case 'SELECT_ONE_IN_LOT': return 'Single Select';
+  //     case 'SELECT_MANY_IN_LOT': return 'Multiple Select';
+  //     case 'ORDER_THE_LOTS': return 'Drag & Drop';
+  //     case 'NUMERIC_ANSWER_TYPE': return 'Numeric';
+  //     case 'DESCRIPTIVE': return 'Descriptive';
+  //     default: return 'Question';
+  //   }
+  // };
+
+  // const handleEditClick = (segmentId: string, question: Question) => {
+  //   setEditingQuestion({ segmentId, questionId: question.id });
+  //   setEditedQuestion({ ...question });
+  // };
+
+  // const handleSaveEdit = (segmentId: string, questionId: string) => {
+  //   setVideoDataState(prev => {
+  //     if (!prev) return prev;
+  //     const newSegments = prev.segments.map(segment => {
+  //       if (segment.id !== segmentId) return segment;
+  //       return {
+  //         ...segment,
+  //         questions: segment.questions.map(q =>
+  //           q.id === questionId ? { ...q, ...editedQuestion } as Question : q
+  //         ),
+  //       };
+  //     });
+  //     return { ...prev, segments: newSegments } as VideoData;
+  //   });
+  //   setEditingQuestion(null);
+  //   setEditedQuestion({});
+  //   toast.success("Question updated successfully!");
+  // };
+
+  // const handleCancelEdit = () => {
+  //   setEditingQuestion(null);
+  //   setEditedQuestion({});
+  // };
+
+  // const handleAddOption = () => {
+  //   setEditedQuestion(prev => ({
+  //     ...prev,
+  //     options: [...(prev.options || []), `Option ${(prev.options?.length || 0) + 1}`]
+  //   }));
+  // };
+  // 
+  // const handleRemoveOption = (index: number) => {
+  //   setEditedQuestion(prev => ({
+  //     ...prev,
+  //     options: prev.options?.filter((_, i) => i !== index)
+  //   }));
+  // };
 
   // Question Edit Form Component
-  // Cutted from here. 
+  const QuestionEditForm = ({ question, onSave, onCancel }: {
+    question: any;
+    onSave: (edited: any) => void;
+    onCancel: () => void;
+  }) => {
+
+
+    // Normalize question object to handle both flat and nested (with .question and .solution)
+    const typeMap: Record<string, string> = {
+      SOL: 'SELECT_ONE_IN_LOT',
+      MUL: 'SELECT_MANY_IN_LOT',
+      // Add more mappings if needed
+    };
+
+    const normalized = React.useMemo(() => {
+      if ('question' in question && typeof question.question === 'object') {
+        const mappedType = typeMap[question.question.type] || question.question.type;
+        return {
+          ...question.question,
+          type: mappedType,
+          solution: question.solution,
+        };
+      }
+      // If already flat, also map type
+      return {
+        ...question,
+        type: typeMap[question.type] || question.type,
+      };
+    }, [question]);
+
+    const initialOptions = React.useMemo(() => {
+      if (normalized.solution) {
+        // Handle both correctLotItem (single correct) and correctLotItems (multiple correct)
+        const correct = normalized.solution.correctLotItems
+          ? normalized.solution.correctLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true }))
+          : normalized.solution.correctLotItem
+            ? [{ text: normalized.solution.correctLotItem.text, explaination: normalized.solution.correctLotItem.explaination, correct: true }]
+            : [];
+        const incorrect = normalized.solution.incorrectLotItems
+          ? normalized.solution.incorrectLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false }))
+          : [];
+        // Combine (correct first, then incorrect)
+        return [...correct, ...incorrect];
+      }
+      // fallback: if options array exists (for generated questions)
+      if (Array.isArray(normalized.options)) {
+        let correctIndices: number[] = [];
+        if (normalized.type === 'SELECT_ONE_IN_LOT' && typeof normalized.correctAnswer === 'number') {
+          correctIndices = [normalized.correctAnswer];
+        } else if (normalized.type === 'SELECT_MANY_IN_LOT' && Array.isArray(normalized.correctAnswer)) {
+          correctIndices = normalized.correctAnswer;
+        }
+        return normalized.options.map((opt: string, idx: number) => ({
+          text: opt,
+          explaination: '',
+          correct: correctIndices.includes(idx),
+        }));
+      }
+      return [];
+    }, [normalized]);
+
+    const [questionText, setQuestionText] = React.useState(normalized.text || normalized.question || '');
+    const [options, setOptions] = React.useState(initialOptions);
+
+    // Sync state with normalized question
+    React.useEffect(() => {
+      setQuestionText(normalized.text || normalized.question || '');
+      setOptions(initialOptions);
+    }, [normalized, initialOptions]);
+
+    const handleOptionText = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, text: value } : o));
+    const handleOptionExplain = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, explaination: value } : o));
+    const handleCorrect = (idx: number, checked: boolean) => {
+      setOptions((opts: any[]) => opts.map((o, i) =>
+        normalized.type === 'SELECT_ONE_IN_LOT'
+          ? { ...o, correct: i === idx }
+          : i === idx ? { ...o, correct: checked } : o
+      ));
+    };
+    const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
+    const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
+
+    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim() && o.explaination.trim()) && options.some((o: any) => o.correct);
+
+    const buildSolution = () => {
+      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      if (normalized.type === 'SELECT_ONE_IN_LOT') {
+        return {
+          correctLotItem: correctOpts[0] || { text: '', explaination: '' },
+          incorrectLotItems: incorrectOpts,
+        };
+      } else if (normalized.type === 'SELECT_MANY_IN_LOT') {
+        return {
+          correctLotItems: correctOpts,
+          incorrectLotItems: incorrectOpts,
+        };
+      }
+      return undefined;
+    };
+
+    return (
+      <div className="space-y-4 max-h-[80vh] overflow-y-auto">
+        <div>
+          <Label htmlFor="question-text">Question Text</Label>
+          <Textarea
+            id="question-text"
+            value={questionText}
+            onChange={e => setQuestionText(e.target.value)}
+            placeholder="Enter question text"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Options</Label>
+          <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto pr-2">
+            {options.map((option: any, idx: number) => (
+              <div key={idx} className="flex flex-col gap-1 border rounded p-2 bg-background">
+                <div className="flex items-center gap-2">
+                  {normalized.type === 'SELECT_ONE_IN_LOT' ? (
+                    <input type="radio" checked={option.correct} onChange={() => handleCorrect(idx, true)} />
+                  ) : (
+                    <input type="checkbox" checked={option.correct} onChange={e => handleCorrect(idx, e.target.checked)} />
+                  )}
+                  <Input
+                    value={option.text}
+                    onChange={e => handleOptionText(idx, e.target.value)}
+                    placeholder={`Option ${idx + 1}`}
+                    className="flex-1"
+                  />
+                  <Button variant="ghost" size="sm" onClick={() => handleRemoveOption(idx)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                </div>
+                <Textarea
+                  value={option.explaination}
+                  onChange={e => handleOptionExplain(idx, e.target.value)}
+                  placeholder="Explanation for this option (why correct/incorrect)"
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={handleAddOption} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Option</Button>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-4">
+          <Button onClick={() => {
+            const solution = buildSolution();
+            onSave({ text: questionText, solution });
+          }} className="flex-1" disabled={!canSave}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+          <Button variant="outline" onClick={onCancel} className="flex-1">
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Track previous job status for transition detection
   const prevJobStatusRef = useRef<any>(null);
@@ -831,14 +1230,13 @@ export default function AISectionPage() {
     try {
       // const status = await aiSectionAPI.getJobStatus(aiJobId);
       // setAiJobStatus(status);
-      const status = aiJobStatus;
+      const status: any = aiJobStatus;
       console.log(aiJobStatus)
       const prevJobStatus = prevJobStatusRef.current;
       // Only show toast if transitioning to COMPLETED and not on first mount
       if (
         didMountRef.current &&
-        status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
-        prevJobStatus?.transcriptGeneration !== 'COMPLETED'
+        status?.task === 'AUDIO_EXTRACTION' && status?.status === 'COMPLETED'
       ) {
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
@@ -855,8 +1253,7 @@ export default function AISectionPage() {
       }
       if (
         didMountRef.current &&
-        status.jobStatus?.segmentation === 'COMPLETED' &&
-        prevJobStatus?.segmentation !== 'COMPLETED'
+        status?.task === 'SEGMENTATION' && status?.status === 'COMPLETED'
       ) {
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
@@ -873,8 +1270,7 @@ export default function AISectionPage() {
       }
       if (
         didMountRef.current &&
-        status.jobStatus?.questionGeneration === 'COMPLETED' &&
-        prevJobStatus?.questionGeneration !== 'COMPLETED'
+        status?.task === 'QUESTION_GENERATION' && status?.status === 'COMPLETED'
       ) {
         // Fetch QUESTION_GENERATION task status for fileUrl
         const token = localStorage.getItem('firebase-auth-token');
@@ -888,7 +1284,7 @@ export default function AISectionPage() {
           setTaskRuns(prev => {
             const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
             const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
-            const idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
+            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
             if (idxToUpdate === -1) return prev;
             return {
               ...prev,
@@ -905,18 +1301,18 @@ export default function AISectionPage() {
         }
       }
       // Always update previous job status at the end
-      prevJobStatusRef.current = status.jobStatus;
+      prevJobStatusRef.current = status?.status;
       // Mark didMount after first fetch
       if (!didMountRef.current) didMountRef.current = true;
-      if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
+      if (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'COMPLETED') {
         setAiWorkflowStep('transcription_done');
         return;
       }
-      if (status.jobStatus?.audioExtraction === 'COMPLETED') {
+      if (status?.task === 'AUDIO_EXTRACTION' && status?.status === 'COMPLETED') {
         setAiWorkflowStep('audio_extraction_done');
         return;
       }
-      if (status.jobStatus?.audioExtraction === 'FAILED' || status.jobStatus?.transcriptGeneration === 'FAILED') {
+      if ((status?.task === 'AUDIO_EXTRACTION' && status?.status === 'FAILED') || (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'FAILED')) {
         setAiWorkflowStep('error');
         toast.error('A step failed.');
         return;
@@ -928,17 +1324,21 @@ export default function AISectionPage() {
   };
 
 
- useEffect(() => {
+  useEffect(() => {
     if (!aiJobId) return;
-    const es = connectToLiveStatusUpdates(aiJobId,setAiJobStatus);
-  return () => es.close();  
-   
+
+    const es = connectToLiveStatusUpdates(aiJobId, (status) => {
+      setAiJobStatus(status);
+    });
+    return () => es.close();
+
   }, [aiJobId]);
 
-  useEffect(()=>{if(!aiJobStatus)return;
+  useEffect(() => {
+    if (!aiJobStatus) return;
 
     handleRefreshStatus();
-  },[aiJobStatus])
+  }, [aiJobStatus])
 
   // New: Manual trigger for transcript generation
   const handleStartTranscription = async () => {
@@ -1049,10 +1449,470 @@ export default function AISectionPage() {
   };
 
   // Component to show transcript for a run
-  // Cutted from here.
+  function RunTranscriptSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
+    const [showTranscript, setShowTranscript] = useState(false);
+    const [transcript, setTranscript] = useState<string>("");
+    const [transcriptChunks, setTranscriptChunks] = useState<{ text: string }[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    // Edit modal state
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editChunks, setEditChunks] = useState<{ timestamp: [number, number]; text: string }[]>([]);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState('');
+
+    const handleShowTranscript = async () => {
+      if (!aiJobId) return;
+      if (!showTranscript) {
+        setLoading(true);
+        setError("");
+        try {
+          // Fetch transcript status as before
+          const token = localStorage.getItem('firebase-auth-token');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
+          const arr = await res.json();
+          if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
+            const transcriptRes = await fetch(arr[runIndex].fileUrl);
+            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+            const data = await transcriptRes.json();
+            if (Array.isArray(data.chunks)) {
+              setTranscriptChunks(data.chunks);
+              setTranscript(data.chunks.map((chunk: { text: string }) => chunk.text).join(' '));
+            } else {
+              setTranscriptChunks(null);
+              setTranscript(typeof data === 'string' ? data : JSON.stringify(data));
+            }
+          } else {
+            setTranscriptChunks(null);
+            setTranscript('Transcript file URL not found.');
+          }
+        } catch (e: any) {
+          setTranscriptChunks(null);
+          setTranscript(e.message || 'Unknown error');
+        } finally {
+          setLoading(false);
+        }
+      }
+      setShowTranscript(v => !v);
+    };
+
+    // Fetch transcript chunks when modal opens
+    useEffect(() => {
+      if (editModalOpen && aiJobId) {
+        setEditLoading(true);
+        setEditError('');
+        (async () => {
+          try {
+            const token = localStorage.getItem('firebase-auth-token');
+            const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Failed to fetch task status');
+            const arr = await res.json();
+            if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
+              const transcriptRes = await fetch(arr[runIndex].fileUrl);
+              if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+              const data = await transcriptRes.json();
+              if (Array.isArray(data.chunks)) {
+                setEditChunks(data.chunks.map((chunk: any) => ({ ...chunk })));
+              } else {
+                setEditError('Transcript format not recognized.');
+              }
+            } else {
+              setEditError('Transcript file URL not found.');
+            }
+          } catch (e: any) {
+            setEditError(e.message || 'Unknown error');
+          } finally {
+            setEditLoading(false);
+          }
+        })();
+      }
+    }, [editModalOpen, aiJobId, runIndex]);
+
+    // Handler for saving edited transcript
+    const handleSaveEditTranscript = async () => {
+      if (!aiJobId) return;
+      try {
+        setEditLoading(true);
+        setEditError('');
+        if (typeof aiSectionAPI.editTranscriptData === 'function') {
+          await aiSectionAPI.editTranscriptData(aiJobId, runIndex, { chunks: editChunks });
+          toast.success('Transcript updated successfully!');
+          setEditModalOpen(false);
+        } else {
+          setEditError('Transcript editing API not available.');
+        }
+      } catch (e: any) {
+        setEditError(e.message || 'Failed to update transcript');
+      } finally {
+        setEditLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-2">
+        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
+        </Button>
+        {/* Edit button for transcript run */}
+        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          Edit
+        </Button>
+        {/* Edit Modal */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Transcript</DialogTitle>
+            </DialogHeader>
+            {editLoading && <div>Loading transcript...</div>}
+            {editError && <div className="text-red-500">{editError}</div>}
+            {!editLoading && !editError && (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {editChunks.map((chunk, idx) => (
+                  <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                    <div className="text-xs text-gray-400">
+                      Segment: {chunk.timestamp[0]}s - {chunk.timestamp[1]}s
+                    </div>
+                    <textarea
+                      className="w-full p-2 rounded border"
+                      value={chunk.text}
+                      onChange={e => {
+                        const newChunks = [...editChunks];
+                        newChunks[idx].text = e.target.value;
+                        setEditChunks(newChunks);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <DialogFooter className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveEditTranscript} disabled={editLoading}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {showTranscript && (
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-48 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700">
+            <strong>Transcript:</strong>
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && (
+              <div className="mt-2 whitespace-pre-line">
+                {transcriptChunks
+                  ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
+                  : transcript}
+              </div>
+            )}
+          </div>
+        )}
+        {acceptedRunId !== run.id && (
+          <Button
+            size="sm"
+            onClick={onAccept}
+            className="w-full"
+          >
+            Accept This Run
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   // Component to show segmentation for a run
-  // Cutted from here.
+  function RunSegmentationSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
+    const [showSegmentation, setShowSegmentation] = useState(false);
+    const [segments, setSegments] = useState<any[]>([]);
+    const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
+    const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); // array of arrays of transcript chunks per segment
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    // Edit modal state for segment boundaries
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editSegMap, setEditSegMap] = useState<number[]>([]);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState("");
+    // Add state for transcriptChunks in the edit modal
+    const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+
+    const handleShowSegmentation = async () => {
+      if (!aiJobId) return;
+      if (!showSegmentation) {
+        setLoading(true);
+        setError("");
+        try {
+          const token = localStorage.getItem('firebase-auth-token');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
+          const arr = await res.json();
+          // Use the correct run index for this run, just like transcript section
+          const segArrIdx = typeof runIndex === 'number' ? runIndex : 0;
+          const segData = Array.isArray(arr) && arr.length > segArrIdx ? arr[segArrIdx] : arr[0];
+          if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap) && segData.transcriptFileUrl) {
+            setSegmentationMap(segData.segmentationMap);
+            // Fetch transcript JSON
+            const transcriptRes = await fetch(segData.transcriptFileUrl);
+            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+            const transcriptData = await transcriptRes.json();
+            const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
+            // Group transcript chunks by segment
+            const segMap = segData.segmentationMap;
+            const grouped: any[][] = [];
+            let segStart = 0;
+            for (let i = 0; i < segMap.length; ++i) {
+              const segEnd = segMap[i];
+              // Chunks whose timestamp[0] >= segStart and < segEnd
+              const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
+                chunk.timestamp &&
+                typeof chunk.timestamp[0] === 'number' &&
+                chunk.timestamp[0] >= segStart &&
+                chunk.timestamp[0] < segEnd
+              );
+              grouped.push(segChunks);
+              segStart = segEnd;
+            }
+            setSegmentationChunks(grouped);
+          } else if (segData && segData.fileUrl) {
+            // fallback: fetch segments from fileUrl as before
+            const segs = await fetchSegmentationFromUrl(segData.fileUrl);
+            setSegments(segs);
+            setSegmentationMap(null);
+            setSegmentationChunks(null);
+          } else {
+            setError('Segmentation data not found.');
+            setSegmentationChunks(null);
+          }
+        } catch (e: any) {
+          setError(e.message || 'Unknown error');
+          setSegmentationChunks(null);
+        } finally {
+          setLoading(false);
+        }
+      }
+      setShowSegmentation(v => !v);
+    };
+
+    // Edit modal logic
+    const handleOpenEditModal = async () => {
+      if (!aiJobId) return;
+      setEditLoading(true);
+      setEditError("");
+      setEditModalOpen(true);
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to fetch segmentation status');
+        const arr = await res.json();
+        if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
+          setEditSegMap([...arr[0].segmentationMap]);
+          // Fetch transcript chunks
+          const transcriptRes = await fetch(arr[0].transcriptFileUrl);
+          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+          const transcriptData = await transcriptRes.json();
+          setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
+        } else {
+          setEditError('Segmentation map or transcript not found.');
+          setEditSegMap([]);
+          setEditTranscriptChunks([]);
+        }
+      } catch (e: any) {
+        setEditError(e.message || 'Unknown error');
+        setEditSegMap([]);
+        setEditTranscriptChunks([]);
+      } finally {
+        setEditLoading(false);
+      }
+    };
+
+    const handleEditSegChange = (idx: number, value: string) => {
+      const newMap = [...editSegMap];
+      newMap[idx] = parseFloat(value);
+      setEditSegMap(newMap);
+    };
+    const handleAddSeg = () => {
+      const newMap = [...editSegMap];
+      const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
+      newMap.push(prev + 10);
+      setEditSegMap(newMap);
+    };
+    const handleRemoveSeg = (idx: number) => {
+      if (editSegMap.length <= 1) return;
+      const newMap = [...editSegMap];
+      newMap.splice(idx, 1);
+      setEditSegMap(newMap);
+    };
+    const handleSaveEditSeg = async () => {
+      if (!aiJobId) return;
+      setEditLoading(true);
+      setEditError("");
+      try {
+        // Use index 0 for the backend (fixes 500 error)
+        await editSegmentMap(aiJobId, editSegMap, 0);
+        toast.success('Segment map updated successfully!');
+        setEditModalOpen(false);
+      } catch (e: any) {
+        setEditError(e.message || 'Failed to update segment map');
+      } finally {
+        setEditLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleShowSegmentation}
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            disabled={run.status !== 'done'}
+          >
+            {showSegmentation ? 'Hide Segmentation' : 'Show Segmentation'}
+          </Button>
+          {/* Edit button for segmentation run */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenEditModal}
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            disabled={run.status !== 'done'}
+          >
+            Edit
+          </Button>
+        </div>
+        {/* Edit Modal */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Segments</DialogTitle>
+            </DialogHeader>
+            {editLoading && <div>Loading segmentation map...</div>}
+            {editError && <div className="text-red-500">{editError}</div>}
+            {!editLoading && !editError && (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {editSegMap.map((value, idx) => {
+                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
+                  const end = value;
+                  const segChunks = editTranscriptChunks.filter(chunk =>
+                    chunk.timestamp &&
+                    typeof chunk.timestamp[0] === 'number' &&
+                    chunk.timestamp[0] >= start &&
+                    chunk.timestamp[0] < end
+                  );
+                  const segText = segChunks.map(chunk => chunk.text).join(' ');
+                  return (
+                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={value}
+                          onChange={e => handleEditSegChange(idx, e.target.value)}
+                          className="w-24"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveSeg(idx)}
+                          className="text-destructive hover:text-destructive"
+                          disabled={editSegMap.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                        {segText}
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
+              </div>
+            )}
+            <DialogFooter className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
+                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEditSeg}
+                disabled={editLoading}
+                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {showSegmentation && (
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+            <strong>Segments:</strong>
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {/* Enhanced display: segmentationMap + transcript chunks */}
+            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
+              <ol className="mt-2 space-y-4">
+                {segmentationMap.map((end, idx) => {
+                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+                  const segChunks = segmentationChunks[idx] || [];
+                  return (
+                    <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                      <div><b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}s</div>
+                      {segChunks.length > 0 ? (
+                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {/* Fallback: old display if no segmentationMap+chunks */}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
+              <ol className="mt-2 space-y-2">
+                {segments.map((seg, idx) => (
+                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
+                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
+          </div>
+        )}
+        {run.status === 'done' && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenEditModal}
+            className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          >
+            Edit Segments
+          </Button>
+        )}
+        {acceptedRunId !== run.id && (
+          <Button
+            size="sm"
+            onClick={onAccept}
+            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          >
+            Accept This Run
+          </Button>
+        )}
+      </div>
+    );
+  }
 
 
   // When triggering question generation, use the accepted segmentation run index
@@ -1114,7 +1974,306 @@ export default function AISectionPage() {
   };
 
   // Component to show questions for a question generation run
-  // Cutted from here.
+  function RunQuestionSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
+    const [showQuestions, setShowQuestions] = useState(false);
+    const [questionsByRun, setQuestionsByRun] = useState<{ [runId: string]: any[] }>({});
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [editingIdx, setEditingIdx] = useState<number | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editQuestion, setEditQuestion] = useState<any>(null);
+
+    // Clear cached questions when run.result or run.status changes (e.g., after refresh)
+    useEffect(() => {
+      setQuestionsByRun(prev => {
+        if (prev[run.id]) {
+          const newObj = { ...prev };
+          delete newObj[run.id];
+          return newObj;
+        }
+        return prev;
+      });
+    }, [run.result, run.status, run.id]);
+
+    const questions = questionsByRun[run.id] || [];
+
+    const handleShowQuestions = async () => {
+      if (!aiJobId) return;
+      if (!showQuestions && !questionsByRun[run.id]) {
+        setLoading(true);
+        setError("");
+        try {
+          // Fetch question generation status for this run
+          const token = localStorage.getItem('firebase-auth-token');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
+          const arr = await res.json();
+          // Use runIndex if available, else fallback to 0
+          const idx = typeof runIndex === 'number' ? runIndex : 0;
+          if (Array.isArray(arr) && arr.length > idx && arr[idx]?.fileUrl) {
+            const questionsRes = await fetch(arr[idx].fileUrl);
+            if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
+            const data = await questionsRes.json();
+            let questionsArr = [];
+            if (Array.isArray(data)) {
+              questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
+            } else if (data.segments && Array.isArray(data.segments)) {
+              questionsArr = data.segments;
+            } else {
+              setError('Questions format not recognized.');
+            }
+            setQuestionsByRun(prev => ({ ...prev, [run.id]: questionsArr }));
+          } else {
+            setQuestionsByRun(prev => ({ ...prev, [run.id]: [] }));
+            setError('Questions file URL not found.');
+          }
+        } catch (e: any) {
+          setQuestionsByRun(prev => ({ ...prev, [run.id]: [] }));
+          setError(e.message || 'Unknown error');
+        } finally {
+          setLoading(false);
+        }
+      }
+      setShowQuestions(v => !v);
+    };
+
+    if (run.status !== 'done') {
+      return <div className="flex items-center gap-2 text-blue-400"><Loader2 className="animate-spin" /> Generating questions...</div>;
+    }
+
+    const segmentIds = Array.from(new Set(questions.map((q: any) => q.segmentId).filter((sid: any) => typeof sid === 'number'))).sort((a, b) => a - b);
+
+    return (
+      <div className="space-y-2">
+        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showQuestions ? 'Hide Questions' : 'Show Questions'}
+        </Button>
+        {/* Export PDF Button: appears below Show Questions, opens print-friendly HTML in new tab */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          onClick={async () => {
+            if (!aiJobId) return;
+            try {
+              // Fetch question generation status for this run
+              const token = localStorage.getItem('firebase-auth-token');
+              const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+              const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (!res.ok) throw new Error('Failed to fetch task status');
+              const arr = await res.json();
+              const idx = typeof runIndex === 'number' ? runIndex : 0;
+              if (Array.isArray(arr) && arr.length > idx && arr[idx]?.fileUrl) {
+                // Fetch the JSON content
+                const questionsRes = await fetch(arr[idx].fileUrl);
+                if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
+                const data = await questionsRes.json();
+                let questionsArr = [];
+                if (Array.isArray(data)) {
+                  questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
+                } else if (data.segments && Array.isArray(data.segments)) {
+                  questionsArr = data.segments.flatMap((seg: any) => seg.questions || []);
+                } else {
+                  toast.error('Questions format not recognized.');
+                  return;
+                }
+                if (!questionsArr.length) {
+                  toast.error('No questions found to export.');
+                  return;
+                }
+                // Build HTML with ViBe logo and gradient heading
+                let html = `<html><head><title>ViBe</title><style>
+                  body { font-family: Arial, sans-serif; background: #f8f9fa; color: #222; }
+                  .vibe-header { text-align: center; margin-top: 24px; margin-bottom: 18px; }
+                  .vibe-logo { width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 2px 8px #0002; margin-bottom: 8px; background: #fff; border: 1.5px solid #c084fc; object-fit: contain; display: block; margin-left: auto; margin-right: auto; }
+                  .vibe-title { font-size: 1.2em; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px; }
+                  .vibe-vibe {
+                    font-weight: bold;
+                    background: linear-gradient(90deg, #c084fc 0%, #fca4a6 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    color: transparent;
+                  }
+                  @media print {
+                    .vibe-vibe {
+                      background: none !important;
+                      -webkit-background-clip: initial !important;
+                      -webkit-text-fill-color: initial !important;
+                      background-clip: initial !important;
+                      color: #c084fc !important;
+                    }
+                  }
+                  .question-block { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; margin: 18px auto; padding: 18px 24px; max-width: 700px; }
+                  .question-title { font-weight: bold; font-size: 1.1em; margin-bottom: 8px; }
+                  .option { margin-left: 24px; margin-bottom: 2px; }
+                  .option.correct { color: #218838; font-weight: bold; }
+                  .option.incorrect { color: #c82333; }
+                  .hint { margin-left: 24px; color: #0056b3; font-style: italic; margin-top: 4px; }
+                  .answer-label { font-weight: bold; color: #218838; }
+                </style></head><body>`;
+                html += `<div class='vibe-header'>
+                  <img src='/img/vibe_logo_img.ico' class='vibe-logo' alt='ViBe Logo' />
+                  <div class='vibe-title'>Generated Questions with <span class='vibe-vibe'>ViBe</span></div>
+                </div>`;
+                questionsArr.forEach((q: any, i: number) => {
+                  html += `<div class='question-block'><div class='question-title'>${i + 1}. ${q.question?.text || q.question || ''}</div>`;
+                  // Gather options and mark correct/incorrect
+                  let options: { text: string, correct: boolean }[] = [];
+                  // For new format (solution.correctLotItem/correctLotItems/incorrectLotItems)
+                  if (q.solution) {
+                    if (Array.isArray(q.solution.correctLotItems)) {
+                      options = options.concat(q.solution.correctLotItems.map((o: any) => ({ text: o.text, correct: true })));
+                    }
+                    if (q.solution.correctLotItem) {
+                      options.push({ text: q.solution.correctLotItem.text, correct: true });
+                    }
+                    if (Array.isArray(q.solution.incorrectLotItems)) {
+                      options = options.concat(q.solution.incorrectLotItems.map((o: any) => ({ text: o.text, correct: false })));
+                    }
+                  }
+                  // Fallback to question.options if no solution
+                  if ((!options.length) && (q.question?.options || q.options)) {
+                    const opts = q.question?.options || q.options || [];
+                    // Try to infer correct answer index/indices
+                    let correctIndices: number[] = [];
+                    if (typeof q.question?.correctAnswer === 'number') correctIndices = [q.question.correctAnswer];
+                    else if (Array.isArray(q.question?.correctAnswer)) correctIndices = q.question.correctAnswer;
+                    else if (typeof q.correctAnswer === 'number') correctIndices = [q.correctAnswer];
+                    else if (Array.isArray(q.correctAnswer)) correctIndices = q.correctAnswer;
+                    options = opts.map((text: string, idx: number) => ({ text, correct: correctIndices.includes(idx) }));
+                  }
+                  // Render options
+                  if (options.length) {
+                    options.forEach((opt, j) => {
+                      html += `<div class='option ${opt.correct ? 'correct' : 'incorrect'}'>${String.fromCharCode(65 + j)}. ${opt.text}</div>`;
+                    });
+                  }
+                  // Hint
+                  if (q.question?.hint || q.hint) {
+                    html += `<div class='hint'><b>Hint:</b> ${q.question?.hint || q.hint}</div>`;
+                  }
+                  html += `</div>`;
+                });
+                html += `</body></html>`;
+                // Open new window and print
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(html);
+                  printWindow.document.close();
+                  printWindow.focus();
+                  setTimeout(() => {
+                    printWindow.print();
+                  }, 500);
+                }
+              } else {
+                toast.error('Questions file URL not found for this run.');
+              }
+            } catch (e: any) {
+              toast.error(e.message || 'Failed to export PDF');
+            }
+          }}
+        >
+          Export PDF
+        </Button>
+        {showQuestions && (
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+            <strong>Questions:</strong>
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && questions.length > 0 && (
+              <ol className="mt-2 space-y-4">
+                {questions.map((q: any, idx: number) => {
+                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
+                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
+                  let segEnd = q.segmentId;
+                  return (
+                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                          <Edit className="w-4 h-4" /> Edit
+                        </Button>
+                      </div>
+                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                      {q.solution && (
+                        <>
+                          <div className="mt-1"><b>Options:</b></div>
+                          <ul className="list-disc ml-6">
+                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItem && (
+                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                            )}
+                          </ul>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+          </div>
+        )}
+        {acceptedRunId !== run.id && (
+          <Button
+            size="sm"
+            onClick={onAccept}
+            className="w-full"
+          >
+            Accept This Run
+          </Button>
+        )}
+        {/* Edit Question Modal */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Question</DialogTitle>
+            </DialogHeader>
+            {editQuestion && (
+              <QuestionEditForm
+                question={editQuestion}
+                onSave={async (edited) => {
+                  if (!aiJobId || typeof aiSectionAPI.editQuestionData !== 'function') return;
+                  try {
+                    // Deep clone the original questions array
+                    const originalQuestions = questionsByRun[run.id] || [];
+                    const updatedQuestions = originalQuestions.map((q, idx) => {
+                      if (idx !== editingIdx) return q;
+                      return {
+                        ...q,
+                        question: {
+                          ...q.question,
+                          text: edited.text, // explicitly update text
+                        },
+                        solution: edited.solution, // replace solution entirely
+                      };
+                    });
+                    await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
+                    // setEditingQuestion(null);
+                    setEditModalOpen(false);
+                  } catch (e) {
+                    toast.error('Question Updated.');
+                    setEditModalOpen(false);
+                  }
+                }}
+                onCancel={() => setEditModalOpen(false)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   // Render the AI workflow UI and the quiz question editor
   return (
@@ -1130,325 +2289,7 @@ export default function AISectionPage() {
           </p>
         </div>
         {/* Stepper */}
-        <Stepper jobStatus={aiJobStatus?.jobStatus} />
-        
-        {/* Unified Workflow Configuration */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  AI Workflow Tasks
-                </CardTitle>
-                <CardDescription>
-                  Select which tasks to run automatically. Dependencies are handled automatically.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-                disabled={!!aiJobId}
-                className="text-xs"
-              >
-                {showAdvancedConfig ? 'Hide' : 'Show'} Advanced Settings
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Task Selection with Linear Dependencies */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {taskOrder.map((task, index) => {
-                  const isSelected = selectedTasks[task];
-                  const isDependency = index > 0 && selectedTasks[taskOrder[index + 1]];
-                  const taskLabels = {
-                    transcription: 'Transcription',
-                    segmentation: 'Segmentation', 
-                    questions: 'Question Generation',
-                    upload: 'Upload to Course'
-                  };
-                  const taskIcons = {
-                    transcription: <FileText className="w-4 h-4" />,
-                    segmentation: <ListChecks className="w-4 h-4" />,
-                    questions: <MessageSquareText className="w-4 h-4" />,
-                    upload: <UploadCloud className="w-4 h-4" />
-                  };
-                  
-                  return (
-                    <div key={task} className={`
-                      relative p-4 border rounded-lg transition-all duration-200
-                      ${isSelected 
-                        ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800' 
-                        : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700'
-                      }
-                      ${isDependency ? 'ring-2 ring-blue-300 dark:ring-blue-700' : ''}
-                    `}>
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleTaskSelection(task, !!checked)}
-                          disabled={!!aiJobId}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {taskIcons[task]}
-                            <Label className="font-medium text-sm cursor-pointer">
-                              {taskLabels[task]}
-                            </Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {task === 'transcription' && 'Convert audio to text'}
-                            {task === 'segmentation' && 'Split into logical segments'}
-                            {task === 'questions' && 'Generate quiz questions'}
-                            {task === 'upload' && 'Upload content to course'}
-                          </p>
-                          {isDependency && (
-                            <div className="mt-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                Auto-selected
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Dependency Info */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">Smart Dependencies</p>
-                    <p className="text-blue-700 dark:text-blue-300">
-                      Tasks run in sequence: Transcription → Segmentation → Questions → Upload. 
-                      Selecting a later task automatically enables all previous required tasks.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Upload Parameters - Always Shown */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border">
-                <div>
-                  <Label htmlFor="video-base-name" className="text-sm font-medium">Video Item Name</Label>
-                  <Input
-                    id="video-base-name"
-                    value={uploadParams.videoItemBaseName}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, videoItemBaseName: e.target.value }))}
-                    placeholder="video_item"
-                    disabled={!!aiJobId}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="quiz-base-name" className="text-sm font-medium">Quiz Item Name</Label>
-                  <Input
-                    id="quiz-base-name"
-                    value={uploadParams.quizItemBaseName}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, quizItemBaseName: e.target.value }))}
-                    placeholder="quiz_item"
-                    disabled={!!aiJobId}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="questions-per-quiz" className="text-sm font-medium">Questions Per Quiz</Label>
-                  <Input
-                    id="questions-per-quiz"
-                    type="number"
-                    min={1}
-                    value={uploadParams.questionsPerQuiz}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))}
-                    disabled={!!aiJobId}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              {/* Advanced Configuration */}
-              {showAdvancedConfig && (
-                <Accordion type="multiple" className="border rounded-lg">
-                  {selectedTasks.transcription && (
-                    <AccordionItem value="transcript">
-                      <AccordionTrigger className="px-4">Transcription Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Language</Label>
-                            <Select 
-                              value={customTranscriptParams.language} 
-                              onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, language: value }))}
-                              disabled={!!aiJobId}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select language" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="en">English</SelectItem>
-                                <SelectItem value="hi">Hindi</SelectItem>
-                                <SelectItem value="es">Spanish</SelectItem>
-                                <SelectItem value="fr">French</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Model Size</Label>
-                            <Select 
-                              value={customTranscriptParams.modelSize} 
-                              onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, modelSize: value }))}
-                              disabled={!!aiJobId}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select model size" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="large">Large (Most Accurate)</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="small">Small (Fastest)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
-                  {selectedTasks.segmentation && (
-                    <AccordionItem value="segmentation">
-                      <AccordionTrigger className="px-4">Segmentation Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <Label>Lambda</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={customSegmentationParams.lam}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, lam: parseFloat(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label>Runs</Label>
-                            <Input
-                              type="number"
-                              value={customSegmentationParams.runs}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, runs: parseInt(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label>Noise ID</Label>
-                            <Input
-                              type="number"
-                              value={customSegmentationParams.noiseId}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, noiseId: parseInt(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
-                  {selectedTasks.questions && (
-                    <AccordionItem value="questions">
-                      <AccordionTrigger className="px-4">Question Generation Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Model</Label>
-                            <Select 
-                              value={customQuestionParams.model} 
-                              onValueChange={(value) => setCustomQuestionParams(prev => ({ ...prev, model: value }))}
-                              disabled={!!aiJobId}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select model" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid grid-cols-4 gap-4">
-                            <div>
-                              <Label>SOL Questions</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={customQuestionParams.SOL}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, SOL: parseInt(e.target.value) }))}
-                                disabled={!!aiJobId}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>SML Questions</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={customQuestionParams.SML}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, SML: parseInt(e.target.value) }))}
-                                disabled={!!aiJobId}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>NAT Questions</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={customQuestionParams.NAT}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, NAT: parseInt(e.target.value) }))}
-                                disabled={!!aiJobId}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label>DES Questions</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={customQuestionParams.DES}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, DES: parseInt(e.target.value) }))}
-                                disabled={!!aiJobId}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label>Custom Prompt</Label>
-                            <Textarea
-                              value={customQuestionParams.prompt}
-                              onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, prompt: e.target.value }))}
-                              placeholder="Enter custom instructions for question generation..."
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                              rows={4}
-                            />
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                </Accordion>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        
+        <Stepper jobStatus={aiJobStatus} />
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
             <div className="flex-1 w-full">
@@ -1468,228 +2309,290 @@ export default function AISectionPage() {
               disabled={!youtubeUrl || !!aiJobId}
               className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
             >
-              {aiJobId ? "Job Created" : (() => {
-                const enabledCount = Object.values(selectedTasks).filter(Boolean).length;
-                const enabledTaskNames = Object.entries(selectedTasks)
-                  .filter(([, enabled]) => enabled)
-                  .map(([task]) => {
-                    const labels = {
-                      transcription: 'Transcription',
-                      segmentation: 'Segmentation',
-                      questions: 'Questions',
-                      upload: 'Upload'
-                    };
-                    return labels[task as keyof typeof labels];
-                  });
-                
-                if (enabledCount === 0) {
-                  return 'Create AI Job';
-                } else if (enabledCount <= 2) {
-                  return `Start AI Job (${enabledTaskNames.join(' + ')})`;
-                } else {
-                  return `Start AI Job (${enabledCount} tasks)`;
-                }
-              })()}
+              {aiJobId ? "Job Created" : "Create AI Job"}
             </Button>
           </div>
-          <div className="space-y-6">
-            {/* Refresh button and status */}
-            <div className="flex flex-col gap-4 mb-2">
-              <Button
-                onClick={handleRefreshStatus}
-                variant="outline"
-                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful w-fit"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh Status
-              </Button>
-              
-              {/* Task Status Display */}
-              {aiJobId && aiJobStatus?.jobStatus && (
-                <div className="bg-white dark:bg-card/50 rounded-lg border border-gray-200 dark:border-border p-4 shadow-sm">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    Task Status Overview
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                    {/* Audio Extraction */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Audio Extraction</span>
-                      {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'audioExtraction'))}
-                    </div>
-                    
-                    {/* Transcription */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Transcription</span>
-                      {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'transcriptGeneration'))}
-                    </div>
-                    
-                    {/* Segmentation */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Segmentation</span>
-                      {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'segmentation'))}
-                    </div>
-                    
-                    {/* Question Generation */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Questions</span>
-                      {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'questionGeneration'))}
-                    </div>
-                    
-                    {/* Upload */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Upload</span>
-                      {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'uploadContent'))}
-                    </div>
+          {aiJobId && (
+            <div className="space-y-6">
+              {/* Refresh button and status */}
+              {/* <div className="flex items-center gap-4 mb-2">
+                 <Button 
+                   onClick={handleRefreshStatus} 
+                   variant="outline"
+                   className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                 >
+                   Refresh Status
+                 </Button>
+                </div> */}
+              {/* Task Cards */}
+              <div className="space-y-8 mt-8">
+                {/* Transcription Section */}
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
                   </div>
+                  <TaskAccordion task="transcription" title="Audio Extraction" jobStatus={aiJobStatus?.status} />
                 </div>
-              )}
-            </div>
-            {/* Task Cards */}
-            <div className="space-y-8 mt-8">
-              {/* Transcription Section */}
-              <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                  <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                </div>
-                <TaskAccordion
-                  task="transcription"
-                  title="Audio Extraction"
-                  jobStatus={aiJobStatus?.jobStatus}
-                  taskRuns={taskRuns}
-                  acceptedRuns={acceptedRuns}
-                  aiJobId={aiJobId}
-                  aiJobStatus={aiJobStatus}
-                  segParams={segParams}
-                  questionGenParams={questionGenParams}
-                  rerunParams={rerunParams}
-                  handleTask={handleTask}
-                  handleAcceptRun={handleAcceptRun}
-                  canRunTask={canRunTask}
-                  setTaskRuns={setTaskRuns}
-                  setQuestionGenParams={setQuestionGenParams}
-                  setSegParams={setSegParams}
-                  setRerunParams={setRerunParams}
-                  handleStartTranscription={handleStartTranscription}
-                  getStatusIcon={getStatusIcon}
-                />
-              </div>
 
-              {/* Segmentation Section */}
-              <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                  <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
-                </div>
-                <TaskAccordion
-                  task="segmentation"
-                  title="Segmentation"
-                  jobStatus={aiJobStatus?.jobStatus}
-                  taskRuns={taskRuns}
-                  acceptedRuns={acceptedRuns}
-                  aiJobId={aiJobId}
-                  aiJobStatus={aiJobStatus}
-                  segParams={segParams}
-                  questionGenParams={questionGenParams}
-                  rerunParams={rerunParams}
-                  handleTask={handleTask}
-                  handleAcceptRun={handleAcceptRun}
-                  canRunTask={canRunTask}
-                  setTaskRuns={setTaskRuns}
-                  setQuestionGenParams={setQuestionGenParams}
-                  setSegParams={setSegParams}
-                  setRerunParams={setRerunParams}
-                  handleStartTranscription={handleStartTranscription}
-                  getStatusIcon={getStatusIcon}
-                />
-              </div>
-
-              {/* Question Generation Section */}
-              <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
-                </div>
-                <TaskAccordion
-                  task="question"
-                  title="Question Generation"
-                  jobStatus={aiJobStatus?.jobStatus}
-                  taskRuns={taskRuns}
-                  acceptedRuns={acceptedRuns}
-                  aiJobId={aiJobId}
-                  aiJobStatus={aiJobStatus}
-                  segParams={segParams}
-                  questionGenParams={questionGenParams}
-                  rerunParams={rerunParams}
-                  handleTask={handleTask}
-                  handleAcceptRun={handleAcceptRun}
-                  canRunTask={canRunTask}
-                  setTaskRuns={setTaskRuns}
-                  setQuestionGenParams={setQuestionGenParams}
-                  setSegParams={setSegParams}
-                  setRerunParams={setRerunParams}
-                  handleStartTranscription={handleStartTranscription}
-                  getStatusIcon={getStatusIcon}
-                />
-              </div>
-
-              {/* Upload Section */}
-              <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
-                </div>
-                <TaskAccordion
-                  task="upload"
-                  title="Upload to Course"
-                  jobStatus={aiJobStatus?.jobStatus}
-                  taskRuns={taskRuns}
-                  acceptedRuns={acceptedRuns}
-                  aiJobId={aiJobId}
-                  aiJobStatus={aiJobStatus}
-                  segParams={segParams}
-                  questionGenParams={questionGenParams}
-                  rerunParams={rerunParams}
-                  handleTask={handleTask}
-                  handleAcceptRun={handleAcceptRun}
-                  canRunTask={canRunTask}
-                  setTaskRuns={setTaskRuns}
-                  setQuestionGenParams={setQuestionGenParams}
-                  setSegParams={setSegParams}
-                  setRerunParams={setRerunParams}
-                  handleStartTranscription={handleStartTranscription}
-                  getStatusIcon={getStatusIcon}
-                />
-              </div>
-
-              {/* Upload Success Message - Show outside accordion when upload is completed */}
-              {taskRuns.upload.some(run => run.status === "done") && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                    <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                {/* Segmentation Section */}
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                   </div>
-                  <p className="text-green-700 dark:text-green-300 mb-4">
-                    Your AI-generated section has been successfully uploaded to the course. The section is now available for students.
-                  </p>
-                  <Button
-                    onClick={() => {
-                      // Go back to the previous page (where user came from)
-                      window.history.back();
-                    }}
-                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
-                  >
-                    <UploadCloud className="w-4 h-4 mr-2" />
-                    View Generated Section
-                  </Button>
+                  <TaskAccordion task="segmentation" title="Segmentation" jobStatus={aiJobStatus?.status} />
                 </div>
-              )}
-            </div>
-          </div>
 
+                {/* Question Generation Section */}
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
+                  </div>
+                  <TaskAccordion task="question" title="Question Generation" jobStatus={aiJobStatus?.status} />
+                </div>
+
+                {/* Upload Section */}
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                  </div>
+                  <TaskAccordion task="upload" title="Upload to Course" jobStatus={aiJobStatus?.status} />
+                </div>
+
+                {/* Upload Success Message - Show outside accordion when upload is completed */}
+                {taskRuns.upload.some(run => run.status === "done") && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center gap-3 mb-3">
+                      <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                      <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                    </div>
+                    <p className="text-green-700 dark:text-green-300 mb-4">
+                      Your AI-generated section has been successfully uploaded to the course. The section is now available for students.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        // Go back to the previous page (where user came from)
+                        window.history.back();
+                      }}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                    >
+                      <UploadCloud className="w-4 h-4 mr-2" />
+                      View Generated Section
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+
     </div>
   );
+}
+
+function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string | null, run: TaskRun, runIndex: number }) {
+  const [open, setOpen] = useState(false);
+  const [segmentMap, setSegmentMap] = useState<number[]>([]);
+  const [segmentTexts, setSegmentTexts] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Always fetch latest segmentation status and transcript when modal opens
+  useEffect(() => {
+    async function fetchSegmentationData() {
+      if (!aiJobId) return;
+      setLoading(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to fetch segmentation status');
+        const arr = await res.json();
+        if (Array.isArray(arr) && arr.length > 0 && arr[runIndex]?.segmentationMap && arr[runIndex]?.transcriptFileUrl) {
+          const segMap = arr[runIndex].segmentationMap;
+          setSegmentMap([...segMap]);
+          // Fetch transcript JSON and group by segment
+          const transcriptRes = await fetch(arr[runIndex].transcriptFileUrl);
+          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+          const transcriptData = await transcriptRes.json();
+          const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
+          const texts: string[] = [];
+          let segStart = 0;
+          for (let i = 0; i < segMap.length; ++i) {
+            const segEnd = segMap[i];
+            // Chunks whose timestamp[0] >= segStart and < segEnd
+            const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
+              chunk.timestamp &&
+              typeof chunk.timestamp[0] === 'number' &&
+              chunk.timestamp[0] >= segStart &&
+              chunk.timestamp[0] < segEnd
+            );
+            texts.push(segChunks.map((chunk: { text: string }) => chunk.text).join(' '));
+            segStart = segEnd;
+          }
+          setSegmentTexts(texts);
+        } else {
+          setError('Segmentation data or transcript not found.');
+          setSegmentMap([]);
+          setSegmentTexts([]);
+        }
+      } catch (e: any) {
+        setError(e.message || 'Unknown error');
+        setSegmentMap([]);
+        setSegmentTexts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (open) {
+      fetchSegmentationData();
+    }
+  }, [open, aiJobId, runIndex]);
+
+  const handleSegmentChange = (idx: number, value: string) => {
+    const newMap = [...segmentMap];
+    newMap[idx] = parseFloat(value);
+    setSegmentMap(newMap);
+  };
+
+  const handleAddSegment = (idx: number) => {
+    const newMap = [...segmentMap];
+    const prev = idx === 0 ? 0 : newMap[idx - 1];
+    const next = newMap[idx] ?? (prev + 10);
+    const newEnd = prev + (next - prev) / 2;
+    newMap.splice(idx, 0, newEnd);
+    setSegmentMap(newMap);
+    // No change to segmentTexts
+  };
+
+  const handleRemoveSegment = (idx: number) => {
+    if (segmentMap.length <= 1) return;
+    const newMap = [...segmentMap];
+    newMap.splice(idx, 1);
+    setSegmentMap(newMap);
+    // No change to segmentTexts
+  };
+
+  const handleEdit = async () => {
+    if (!aiJobId) return;
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+    try {
+      const token = localStorage.getItem('firebase-auth-token');
+      const url = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
+      const backendUrl = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
+      const body = {
+        segmentMap: segmentMap,
+        index: 0,
+      };
+      let res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        res = await fetch(backendUrl, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(body)
+        });
+      }
+      if (!res.ok) throw new Error('Failed to update segment map');
+      setSuccess(true);
+      setError('');
+    } catch (e: any) {
+      setError(e.message || 'Failed to update segment map');
+      setSuccess(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit Segment Map</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          {segmentMap.map((value, idx) => (
+            <div key={idx} className="flex items-center space-x-4">
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                max={1}
+                value={value}
+                onChange={e => handleSegmentChange(idx, e.target.value)}
+                className="w-20"
+              />
+              {/* Display segment text as read-only (not editable) */}
+              <Input
+                type="text"
+                value={segmentTexts[idx] || ''}
+                readOnly
+                className="flex-1 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                tabIndex={-1}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleRemoveSegment(idx)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleAddSegment(segmentMap.length)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button type="submit" onClick={handleEdit}>
+            Save changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Add this function at the top-level (inside the component, before RunSegmentationSection):
+async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
+  const token = localStorage.getItem('firebase-auth-token');
+  const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+  const body = JSON.stringify({ segmentMap, index });
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body,
+  });
+  if (res.status === 200) return;
+  let errMsg = 'Unknown error';
+  try { errMsg = (await res.json()).message || errMsg; } catch { }
+  if (res.status === 400) throw new Error('Bad request: ' + errMsg);
+  if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
+  if (res.status === 404) throw new Error('Job not found: ' + errMsg);
+  throw new Error(errMsg);
 }

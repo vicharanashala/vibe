@@ -65,6 +65,7 @@ export interface JobStatus {
     type: 'AUDIO_EXTRACTION' | 'TRANSCRIPT_GENERATION' | 'SEGMENTATION' | 'QUESTION_GENERATION';
     status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   };
+  task: string;
   tasksCompleted: number;
   createdAt: string;
   updatedAt: string;
