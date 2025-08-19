@@ -183,7 +183,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
 
   // Load YouTube IFrame API
   useEffect(() => {
-
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
       playerRef.current = new window.YT!.Player(iframeRef.current, {
@@ -330,6 +329,20 @@ export default function Video({ URL, startTime, endTime, points, anomalies, rewi
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1) {
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+            console.log({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+              }
+            });
 
             if (watchItemId) {
               stopItem.mutate({

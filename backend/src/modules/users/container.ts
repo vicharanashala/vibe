@@ -11,7 +11,7 @@ import {UserService} from './services/UserService.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
-  options
+  options 
     .bind(USERS_TYPES.ProgressRepo)
     .to(ProgressRepository)
     .inSingletonScope();

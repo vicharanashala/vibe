@@ -67,7 +67,6 @@ Accessible to:
     @Ability(getCourseVersionAbility) {ability}
   ): Promise<CourseVersion> {
     const {courseId} = params;
-    
     // Build the subject context first
     const courseVersionSubject = subject('CourseVersion', { courseId });
     

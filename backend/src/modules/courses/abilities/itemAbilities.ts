@@ -3,6 +3,7 @@ import { AuthenticatedUser, AuthenticatedUserEnrollements } from "#root/shared/i
 import { ItemScope, createAbilityBuilder } from './types.js';
 import { getFromContainer, InternalServerError } from "routing-controllers";
 import { ProgressService } from "#root/modules/users/services/ProgressService.js";
+import { CourseSettingService } from "#root/modules/setting/services/CourseSettingService.js";
 
 // Actions
 export enum ItemActions {
@@ -36,7 +37,8 @@ export async function setupItemAbilities(
         return;
     }
     const progressService = getFromContainer(ProgressService);
-    
+    const courseSettingService = getFromContainer(CourseSettingService);
+     
     // Use Promise.all to handle async operations properly
     await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
         const versionBounded = { versionId: enrollment.versionId };
@@ -45,22 +47,37 @@ export async function setupItemAbilities(
             case 'STUDENT':
                 can(ItemActions.ViewAll, 'Item', versionBounded);
 
+                // fetch courseVersion (to get linearProgression flag)
+                const courseSettings = await courseSettingService.readCourseSettings(
+                enrollment.courseId,
+                enrollment.versionId
+                );
+
+                
+                const linearProgressionEnabled = courseSettings?.settings?.linearProgressionEnabled ?? true;
+
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
 
                 // return all the itemId having watchtime doc
                 const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
+                
                 if (!progress) {
                     throw new InternalServerError('No progress found for user');
                 }
+
                 const allowedItemIds = [...completedItems];
                 allowedItemIds.push(progress.currentItem.toString());
 
-                // Grant permission to view items that are in the allowed list
-                const itemBounded = {
-                    courseId: enrollment.courseId, 
+                const itemBounded: { courseId: string, versionId: string, itemId?: any } = {
+                    courseId: enrollment.courseId,
                     versionId: enrollment.versionId,
-                    itemId: { $in: allowedItemIds }
                 };
+                
+                // Grant permission to view items that are in the allowed list
+                if (linearProgressionEnabled) {
+                    itemBounded.itemId = { $in: allowedItemIds };
+                }
+
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':

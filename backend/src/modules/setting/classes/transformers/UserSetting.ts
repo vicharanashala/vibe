@@ -109,6 +109,7 @@ class UserSetting implements IUserSetting {
     proctors: {
       detectors: IDetectorSettings[];
     };
+  linearProgressionEnabled: boolean;
   };
 
   constructor(userSettingsBody?: CreateUserSettingBody) {
@@ -133,6 +134,7 @@ class UserSetting implements IUserSetting {
       proctors: {
         detectors: existingDetectors,
       },
+      linearProgressionEnabled: true
     };
   }
 }

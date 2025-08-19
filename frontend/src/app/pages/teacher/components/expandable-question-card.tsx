@@ -20,6 +20,7 @@ import {
   Save,
   X
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   useQuestionById,
   useUpdateQuestion,
@@ -53,6 +54,13 @@ const QUESTION_TYPES = [
 
 
 // Expandable Question Card Component
+interface EditableOption {
+  _id: string;
+  text: string;
+  explaination?: string;
+  isCorrect: boolean;
+}
+
 interface ExpandableQuestionCardProps {
   questionId: string;
   onDelete: () => void;
@@ -66,6 +74,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editableOptions, setEditableOptions] = useState<EditableOption[]>([]);
+  
   const [editForm, setEditForm] = useState<QuestionFormData>({
     question: {
       text: '',
@@ -112,8 +122,31 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   }, [question, isEditing]);
 
   const handleStartEdit = () => {
-    setIsEditing(true);
     if (question) {
+      const initialOptions = [];
+      
+      // For single choice questions
+      if (question.correctLotItem) {
+        initialOptions.push({ ...question.correctLotItem, isCorrect: true });
+      }
+      
+      // For multiple choice questions
+      if (question.correctLotItems && question.correctLotItems.length > 0) {
+        initialOptions.push(...question.correctLotItems.map(item => ({ ...item, isCorrect: true })));
+      }
+      
+      // Add incorrect options
+      if (question.incorrectLotItems && question.incorrectLotItems.length > 0) {
+        initialOptions.push(...question.incorrectLotItems.map(item => ({ ...item, isCorrect: false })));
+      }
+      
+      // Ensure all options have unique IDs
+      setEditableOptions(initialOptions.map((opt, index) => ({
+        ...opt,
+        _id: opt._id || `option-${index}-${Date.now()}`
+      })));
+
+      setIsEditing(true);
       setEditForm({
         question: {
           text: question.text || '',
@@ -125,7 +158,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           points: question.points || 1
         },
         solution: {
-          // Map backend solution fields to frontend format
           correctLotItem: question.correctLotItem,
           incorrectLotItems: question.incorrectLotItems,
           correctLotItems: question.correctLotItems,
@@ -143,6 +175,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setEditableOptions([]);
     if (question) {
       // Reset form to original question data from details
       const details = question as any || {};
@@ -178,22 +211,23 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       const cleanLotItem = (item: any) => {
         if (!item) return item;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _id, ...rest } = item;
+        const { _id, isCorrect, ...rest } = item;
         return rest;
       };
+      
+      const correctOptions = editableOptions.filter(opt => opt.isCorrect);
+      const incorrectOptions = editableOptions.filter(opt => !opt.isCorrect);
+      let solutionForBackend: any = {};
 
-      const solutionForBackend = {
-        correctLotItem: editForm.solution.correctLotItem ? cleanLotItem(editForm.solution.correctLotItem) : undefined,
-        incorrectLotItems: editForm.solution.incorrectLotItems?.map(cleanLotItem),
-        correctLotItems: editForm.solution.correctLotItems?.map(cleanLotItem),
-        ordering: editForm.solution.ordering,
-        solutionText: editForm.solution.solutionText,
-        decimalPrecision: editForm.solution.decimalPrecision,
-        upperLimit: editForm.solution.upperLimit,
-        lowerLimit: editForm.solution.lowerLimit,
-        value: editForm.solution.value,
-        expression: editForm.solution.expression
-      };
+      if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
+        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0]) : undefined;
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+      } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
+        solutionForBackend.correctLotItems = correctOptions.map(cleanLotItem);
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+      } else {
+        solutionForBackend = { ...editForm.solution };
+      }
 
       await updateQuestion.mutateAsync({
         params: { path: { questionId } },
@@ -213,208 +247,54 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
       console.log('Successfully updated question:', questionId);
       setIsEditing(false);
-
-      // Refetch the question data to get the latest updates
+      setEditableOptions([]);
       await refetchQuestion();
+      toast.success("Question has been updated successfully.");
 
     } catch (error) {
       console.error('Failed to update question:', error);
-      // TODO: Add proper error notification/toast here
+      toast.error("Failed to update the question. Please try again.");
     }
   };
 
   // Helper functions for managing options
   const updateOption = (optionId: string, updates: { text?: string; explaination?: string }) => {
-    const newSolution = { ...editForm.solution };
-
-    // Find and update the option in the appropriate array
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      if (newSolution.correctLotItem && (newSolution.correctLotItem._id === optionId || newSolution.correctLotItem._id === undefined)) {
-        newSolution.correctLotItem = {
-          ...newSolution.correctLotItem,
-          ...updates,
-          _id: optionId
-        };
-      } else if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      if (newSolution.correctLotItems) {
-        newSolution.correctLotItems = newSolution.correctLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('correct'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-      if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
-          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
-            ? { ...item, ...updates, _id: optionId }
-            : item
-        );
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
+    setEditableOptions(
+      editableOptions.map(opt =>
+        opt._id === optionId ? { ...opt, ...updates } : opt
+      )
+    );
   };
 
   const setSingleCorrectOption = (selectedOptionId: string) => {
-    const newSolution = { ...editForm.solution };
-
-    // Get all options
-    const allOptions: Array<{
-      id: string;
-      text: string;
-      isCorrect: boolean;
-      explaination?: string;
-    }> = [];
-
-    // Add correct option
-    if (newSolution.correctLotItem) {
-      allOptions.push({
-        id: newSolution.correctLotItem._id || `correct-${Date.now()}`,
-        text: newSolution.correctLotItem.text || '',
-        isCorrect: true,
-        explaination: newSolution.correctLotItem.explaination || ''
-      });
-    }
-
-    // Add incorrect options
-    if (newSolution.incorrectLotItems) {
-      newSolution.incorrectLotItems.forEach((item: any, index: number) => {
-        allOptions.push({
-          id: item._id || `incorrect-${index}-${Date.now()}`,
-          text: item.text || '',
-          isCorrect: false,
-          explaination: item.explaination || ''
-        });
-      });
-    }
-
-    // Find the selected option
-    const selectedOption = allOptions.find(opt => opt.id === selectedOptionId);
-    if (!selectedOption) return;
-
-    // Reset the solution
-    newSolution.correctLotItem = null;
-    newSolution.incorrectLotItems = [];
-
-    // Set the selected option as correct and all others as incorrect
-    allOptions.forEach(option => {
-      const optionData = {
-        _id: option.id,
-        text: option.text,
-        explaination: option.explaination
-      };
-
-      if (option.id === selectedOptionId) {
-        newSolution.correctLotItem = optionData;
-      } else {
-        newSolution.incorrectLotItems.push(optionData);
-      }
-    });
-
-    setEditForm({ ...editForm, solution: newSolution });
+    setEditableOptions(
+      editableOptions.map(opt => ({
+        ...opt,
+        isCorrect: opt._id === selectedOptionId
+      }))
+    );
   };
 
   const toggleCorrectOption = (optionId: string, isCorrect: boolean) => {
-    const newSolution = { ...editForm.solution };
-
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      // For single choice questions, use the dedicated function instead
-      if (isCorrect) {
-        setSingleCorrectOption(optionId);
-        return;
-      }
-
-      // For unsetting (making incorrect), just use the regular logic
-      let targetOption: any = null;
-
-      // Find the option to move
-      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
-        targetOption = newSolution.correctLotItem;
-        newSolution.correctLotItem = null;
-      }
-
-      if (targetOption) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-        newSolution.incorrectLotItems.push(targetOption);
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      // For multiple choice, move between correct and incorrect arrays
-      let targetOption: any = null;
-
-      // Find and remove from current array
-      if (newSolution.correctLotItems) {
-        const index = newSolution.correctLotItems.findIndex((item: any) => item._id === optionId);
-        if (index !== -1) {
-          targetOption = newSolution.correctLotItems[index];
-          newSolution.correctLotItems.splice(index, 1);
-        }
-      }
-
-      if (!targetOption && newSolution.incorrectLotItems) {
-        const index = newSolution.incorrectLotItems.findIndex((item: any) => item._id === optionId);
-        if (index !== -1) {
-          targetOption = newSolution.incorrectLotItems[index];
-          newSolution.incorrectLotItems.splice(index, 1);
-        }
-      }
-
-      // Add to target array
-      if (targetOption) {
-        if (isCorrect) {
-          newSolution.correctLotItems = newSolution.correctLotItems || [];
-          newSolution.correctLotItems.push(targetOption);
-        } else {
-          newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-          newSolution.incorrectLotItems.push(targetOption);
-        }
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
+    setEditableOptions(
+      editableOptions.map(opt =>
+        opt._id === optionId ? { ...opt, isCorrect: isCorrect } : opt
+      )
+    );
   };
 
   const removeOption = (optionId: string) => {
-    const newSolution = { ...editForm.solution };
-
-    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
-        newSolution.correctLotItem = null;
-      } else if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
-      }
-    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-      if (newSolution.correctLotItems) {
-        newSolution.correctLotItems = newSolution.correctLotItems.filter((item: any) => item._id !== optionId);
-      }
-      if (newSolution.incorrectLotItems) {
-        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
-      }
-    }
-
-    setEditForm({ ...editForm, solution: newSolution });
+    setEditableOptions(editableOptions.filter(opt => opt._id !== optionId));
   };
 
   const addNewOption = () => {
     const newOption = {
       _id: `option-${Date.now()}`,
       text: '',
-      explaination: ''
+      explaination: '',
+      isCorrect: false
     };
-
-    const newSolution = { ...editForm.solution };
-
-    // Add as incorrect option by default
-    newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
-    newSolution.incorrectLotItems.push(newOption);
-
-    setEditForm({ ...editForm, solution: newSolution });
+    setEditableOptions([...editableOptions, newOption]);
   };
 
   const renderEditForm = () => (
@@ -426,27 +306,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <Select
             value={editForm.question.type}
             onValueChange={(value: QuestionFormData['question']['type']) => {
-              const newForm = { ...editForm, question: { ...editForm.question, type: value } };
-              if (editForm.question.type === 'SELECT_ONE_IN_LOT' && value === 'SELECT_MANY_IN_LOT') {
-                if (newForm.solution.correctLotItem) {
-                  newForm.solution.correctLotItems = [
-                    ...(newForm.solution.correctLotItems || []),
-                    newForm.solution.correctLotItem
-                  ];
-                  newForm.solution.correctLotItem = null;
-                }
-              } else if (editForm.question.type === 'SELECT_MANY_IN_LOT' && value === 'SELECT_ONE_IN_LOT') {
-                if (newForm.solution.correctLotItems && newForm.solution.correctLotItems.length > 0) {
-                  const [firstCorrect, ...restCorrect] = newForm.solution.correctLotItems;
-                  newForm.solution.correctLotItem = firstCorrect;
-                  newForm.solution.incorrectLotItems = [
-                    ...(newForm.solution.incorrectLotItems || []),
-                    ...restCorrect
-                  ];
-                  newForm.solution.correctLotItems = [];
-                }
-              }
-              setEditForm(newForm);
+              setEditForm({ ...editForm, question: { ...editForm.question, type: value } });
             }}
           >
             <SelectTrigger className="mt-1">
@@ -499,167 +359,106 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <div className="space-y-4">
             <Label className="text-sm font-medium">Answer Options</Label>
             <div className="space-y-3">
-              {/* Render all options with correct/incorrect toggle */}
-              {(() => {
-                // Combine all options into a single array with metadata
-                const allOptions: Array<{
-                  id: string;
-                  text: string;
-                  isCorrect: boolean;
-                  explaination?: string;
-                }> = [];
-
-                // Add correct options
-                if (editForm.question.type === 'SELECT_ONE_IN_LOT' && editForm.solution?.correctLotItem) {
-                  allOptions.push({
-                    id: editForm.solution.correctLotItem._id || `correct-${Date.now()}`,
-                    text: editForm.solution.correctLotItem.text || '',
-                    isCorrect: true,
-                    explaination: editForm.solution.correctLotItem.explaination || ''
-                  });
-                }
-
-                if (editForm.question.type === 'SELECT_MANY_IN_LOT' && editForm.solution?.correctLotItems) {
-                  editForm.solution.correctLotItems.forEach((item: any, index: number) => {
-                    allOptions.push({
-                      id: item._id || `correct-${index}-${Date.now()}`,
-                      text: item.text || '',
-                      isCorrect: true,
-                      explaination: item.explaination || ''
-                    });
-                  });
-                }
-
-                // Add incorrect options
-                if (editForm.solution?.incorrectLotItems) {
-                  editForm.solution.incorrectLotItems.forEach((item: any, index: number) => {
-                    allOptions.push({
-                      id: item._id || `incorrect-${index}-${Date.now()}`,
-                      text: item.text || '',
-                      isCorrect: false,
-                      explaination: item.explaination || ''
-                    });
-                  });
-                }
-
-                // If no options exist, create a default correct option
-                if (allOptions.length === 0) {
-                  allOptions.push({
-                    id: `option-${Date.now()}`,
-                    text: '',
-                    isCorrect: true,
-                    explaination: ''
-                  });
-                }
-
-                return (
-                  <div className="space-y-3">
-                    {editForm.question.type === 'SELECT_ONE_IN_LOT' ? (
-                      <RadioGroup
-                        value={allOptions.find(opt => opt.isCorrect)?.id || ''}
-                        onValueChange={(value) => {
-                          // Use the dedicated function for single choice selection
-                          setSingleCorrectOption(value);
-                        }}
-                        className="space-y-3"
-                      >
-                        {allOptions.map((option, index) => (
-                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
-                            <div className="flex gap-3 items-start">
-                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                                {index + 1}.
-                              </span>
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  placeholder={`Option ${index + 1}`}
-                                  value={option.text}
-                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
-                                  className="flex-1"
-                                />
-                                <Input
-                                  placeholder="explaination (optional)"
-                                  value={option.explaination}
-                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
-                                  className="flex-1 text-sm"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem
-                                    value={option.id}
-                                    id={`correct-${option.id}`}
-                                  />
-                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
-                                    Correct
-                                  </Label>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeOption(option.id)}
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={allOptions.length <= 1}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+              {editForm.question.type === 'SELECT_ONE_IN_LOT' ? (
+                <RadioGroup
+                  value={editableOptions.find(opt => opt.isCorrect)?._id || ''}
+                  onValueChange={setSingleCorrectOption}
+                  className="space-y-3"
+                >
+                  {editableOptions.map((option, index) => (
+                    <div key={option._id} className="space-y-2 p-4 border rounded-lg bg-background">
+                      <div className="flex gap-3 items-start">
+                        <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
+                          {index + 1}.
+                        </span>
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            placeholder={`Option ${index + 1}`}
+                            value={option.text}
+                            onChange={(e) => updateOption(option._id, { text: e.target.value })}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder="explaination (optional)"
+                            value={option.explaination}
+                            onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
+                            className="flex-1 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value={option._id}
+                              id={`correct-${option._id}`}
+                            />
+                            <Label htmlFor={`correct-${option._id}`} className="text-sm text-green-700 dark:text-green-400">
+                              Correct
+                            </Label>
                           </div>
-                        ))}
-                      </RadioGroup>
-                    ) : (
-                      <div className="space-y-3">
-                        {allOptions.map((option, index) => (
-                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
-                            <div className="flex gap-3 items-start">
-                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                                {index + 1}.
-                              </span>
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  placeholder={`Option ${index + 1}`}
-                                  value={option.text}
-                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
-                                  className="flex-1"
-                                />
-                                <Input
-                                  placeholder="explaination (optional)"
-                                  value={option.explaination}
-                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
-                                  className="flex-1 text-sm"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`correct-${option.id}`}
-                                    checked={option.isCorrect}
-                                    onCheckedChange={(checked) => toggleCorrectOption(option.id, checked as boolean)}
-                                  />
-                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
-                                    Correct
-                                  </Label>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeOption(option.id)}
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={allOptions.length <= 1}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeOption(option._id)}
+                            className="text-destructive hover:text-destructive"
+                            disabled={editableOptions.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
+                    </div>
+                  ))}
+                </RadioGroup>
+              ) : (
+                <div className="space-y-3">
+                  {editableOptions.map((option, index) => (
+                    <div key={option._id} className="space-y-2 p-4 border rounded-lg bg-background">
+                      <div className="flex gap-3 items-start">
+                        <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
+                          {index + 1}.
+                        </span>
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            placeholder={`Option ${index + 1}`}
+                            value={option.text}
+                            onChange={(e) => updateOption(option._id, { text: e.target.value })}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder="explaination (optional)"
+                            value={option.explaination}
+                            onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
+                            className="flex-1 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`correct-${option._id}`}
+                              checked={option.isCorrect}
+                              onCheckedChange={(checked) => toggleCorrectOption(option._id, checked as boolean)}
+                            />
+                            <Label htmlFor={`correct-${option._id}`} className="text-sm text-green-700 dark:text-green-400">
+                              Correct
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeOption(option._id)}
+                            className="text-destructive hover:text-destructive"
+                            disabled={editableOptions.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <Button
                 type="button"
