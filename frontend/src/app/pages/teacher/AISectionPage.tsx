@@ -33,13 +33,15 @@ import {
   Clock,
   AlertTriangle,
   Ban,
-  RefreshCw
+  RefreshCw,
+  Workflow
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCourseStore } from "@/store/course-store";
 
 // Import AI generation components
 import { TaskAccordion } from "./ai-gen-components/task-accordion";
+import { Link } from "@tanstack/react-router";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -1118,6 +1120,7 @@ export default function AISectionPage() {
           <h1 className="text-3xl font-bold mb-3 text-primary">
             Generate Section using AI
           </h1>
+          
           <p className="text-muted-foreground text-lg">
             Transform your YouTube content into interactive learning materials
           </p>
@@ -1125,8 +1128,7 @@ export default function AISectionPage() {
         {/* Stepper */}
         <Stepper jobStatus={aiJobStatus?.jobStatus} />
         
-        {/* Unified Workflow Configuration */}
-        <Card className="mb-6">
+        {/* <Card className="mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -1150,7 +1152,6 @@ export default function AISectionPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Task Selection with Linear Dependencies */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {taskOrder.map((task, index) => {
@@ -1212,7 +1213,6 @@ export default function AISectionPage() {
                 })}
               </div>
 
-              {/* Dependency Info */}
               <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-2">
                   <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
@@ -1226,7 +1226,6 @@ export default function AISectionPage() {
                 </div>
               </div>
 
-              {/* Upload Parameters - Always Shown */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border">
                 <div>
                   <Label htmlFor="video-base-name" className="text-sm font-medium">Video Item Name</Label>
@@ -1264,7 +1263,6 @@ export default function AISectionPage() {
                 </div>
               </div>
 
-              {/* Advanced Configuration */}
               {showAdvancedConfig && (
                 <Accordion type="multiple" className="border rounded-lg">
                   {selectedTasks.transcription && (
@@ -1440,7 +1438,7 @@ export default function AISectionPage() {
               )}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
         
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
@@ -1487,7 +1485,7 @@ export default function AISectionPage() {
           </div>
           <div className="space-y-6">
             {/* Refresh button and status */}
-            <div className="flex flex-col gap-4 mb-2">
+            <div className="flex gap-4 mb-2">
               <Button
                 onClick={handleRefreshStatus}
                 variant="outline"
@@ -1496,47 +1494,47 @@ export default function AISectionPage() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh Status
               </Button>
-              
+              <Link to="/teacher/ai-workflow">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
+                  <Workflow className="w-5 h-5" />
+                  Go to AI Workflow
+                </Button>
+              </Link>
               {/* Task Status Display */}
-              {aiJobId && aiJobStatus?.jobStatus && (
+              {/* {aiJobId && aiJobStatus?.jobStatus && (
                 <div className="bg-white dark:bg-card/50 rounded-lg border border-gray-200 dark:border-border p-4 shadow-sm">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                     <Settings className="w-4 h-4" />
                     Task Status Overview
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                    {/* Audio Extraction */}
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Audio Extraction</span>
                       {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'audioExtraction'))}
                     </div>
                     
-                    {/* Transcription */}
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Transcription</span>
                       {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'transcriptGeneration'))}
                     </div>
                     
-                    {/* Segmentation */}
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Segmentation</span>
                       {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'segmentation'))}
                     </div>
                     
-                    {/* Question Generation */}
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Questions</span>
                       {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'questionGeneration'))}
                     </div>
                     
-                    {/* Upload */}
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Upload</span>
                       {getTaskStatusIcon(getTaskStatus(aiJobStatus.jobStatus, 'uploadContent'))}
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
             {/* Task Cards */}
             <div className="space-y-8 mt-8">

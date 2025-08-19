@@ -33,6 +33,7 @@ import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
 import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
+import AiWorkflow from '../pages/teacher/AiWorkflow'
 
 
 // Root route with error and notFound handling
@@ -250,6 +251,13 @@ const teacherAISectionRoute = new Route({
   component: AISectionPage,
 });
 
+// Teacher AI Section route
+const teacherAIWorkflowSectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ai-workflow',
+  component: AiWorkflow,
+});
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -323,6 +331,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseInviteRoute,
     teacherGenerateSectionRoute,
     teacherAISectionRoute,
+    teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
   ]),
   studentLayoutRoute.addChildren([
