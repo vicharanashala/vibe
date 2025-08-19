@@ -228,6 +228,7 @@ export interface UserQuizMetrics {
   remainingAttempts: number;
   latestAttemptId?: string;
   latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
+  skipCount: number;
   attempts: AttemptDetails[];
 }
 

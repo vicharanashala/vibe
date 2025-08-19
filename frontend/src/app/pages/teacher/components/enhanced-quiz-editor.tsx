@@ -207,8 +207,8 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
       </TableCell>
       <TableCell>
         <div className='flex flex-col gap-2'>
-          <p className='text-right text-base font-medium'>{performance.correctRate * 100}%</p>
-          <p className='text-right text-sm text-[#6A7282]'>{questionData?.attemptCount} attempted • 8 skipped</p>
+          <p className='text-right text-base font-medium'>{(performance.correctRate * 100).toFixed(1)}%</p>
+          <p className='text-right text-sm text-[#6A7282]'>{questionData?.attemptCount ?? 0} attempted • {questionData?.skipCount ?? 0} skipped</p>
         </div>
       </TableCell>
       <TableCell>
@@ -305,7 +305,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     console.error("Failed to fetch submission because quizId is ", quizId)
   }
   const { data: submissionsData, refetch, isLoading: submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
-  const { theme } = useTheme()
+  const { theme } = useTheme();
 
   const submissions = submissionsData?.data;
 
@@ -1235,14 +1235,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           >
                             <CartesianGrid
                               strokeDasharray="3 3"
-                              stroke={theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}
+                              stroke={theme === 'system' || theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}
                             />
                             <XAxis
                               dataKey="questionId"
-                              stroke={theme === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)"}
+                              stroke={theme === 'system' || theme === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)"}
                             />
                             <YAxis
-                              stroke={theme === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)"}
+                              stroke={theme === 'system' || theme === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)"}
                               domain={[0, 100]}
                             />
                             <Tooltip

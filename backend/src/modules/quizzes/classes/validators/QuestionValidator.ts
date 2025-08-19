@@ -414,6 +414,15 @@ class QuestionResponse
   _id?: string | ObjectId;
 
   @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Number of times this question was skipped in quizzes that allow skipping',
+    type: 'number',
+    example: 0,
+  })
+  skipCount?: number;
+
+  @IsOptional()
   @IsString()
   @JSONSchema({
     description: 'Descriptive solution text',

@@ -60,6 +60,7 @@ export interface QuestionResponse {
   hint?: string;
   timeLimitSeconds: number;
   points: number;
+  skipCount?: number;
   // Solution fields based on type
   solutionText?: string;
   decimalPrecision?: number;
@@ -255,6 +256,7 @@ export interface UserQuizMetricsResponse {
   latestAttemptId?: string | ObjectId;
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
+  skipCount: number;
   attempts: Array<{
     attemptId: string | ObjectId;
     submissionResultId?: string | ObjectId;
@@ -1455,6 +1457,7 @@ export interface QuestionResponse {
   type: string;
   priority: string;
   details: any;
+  skipCount?: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -1494,6 +1497,17 @@ export interface GetQuestionBankByIdParams {
   questionBankId: string;
 }
 
+export interface QuestionBankResponse {
+  _id?: string | ObjectId;
+  courseId?: string;
+  courseVersionId?: string;
+  questions?: string[];
+  tags?: string[];
+  title: string;
+  description: string;
+}
+
+
 export interface QuestionBankAndQuestionParams {
   questionBankId: string;
   questionId: string;
@@ -1501,6 +1515,14 @@ export interface QuestionBankAndQuestionParams {
 
 export interface ReplaceQuestionResponse {
   newQuestionId: string;
+}
+
+// Quiz types - matching backend validators
+export interface AddQuestionBankBody {
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
 }
 
 export interface RemoveQuestionBankParams {
