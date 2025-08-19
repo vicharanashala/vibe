@@ -608,320 +608,361 @@ const AiWorkflow = () => {
 
   return (
     <div className='py-5'>
-        <Card className="mb-6">
-          <CardHeader>
+        <Card className="mb-8">
+        <CardHeader className="pb-6">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  AI Workflow Tasks
+            <div className="space-y-2">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                <Settings className="w-6 h-6" />
+                AI Workflow Tasks
                 </CardTitle>
-                <CardDescription>
-                  Select which tasks to run automatically. Dependencies are handled automatically.
+                <CardDescription className="text-base">
+                Select which tasks to run automatically. Dependencies are handled automatically.
                 </CardDescription>
-              </div>
-              <Button
+            </div>
+            <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
                 disabled={!!aiJobId}
-                className="text-xs"
-              >
-                {showAdvancedConfig ? 'Hide' : 'Show'} Advanced Settings
-              </Button>
+                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
+            >
+                {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
+            </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            {/* Task Selection with Linear Dependencies */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        </CardHeader>
+
+        <CardContent className="space-y-8">
+            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {taskOrder.map((task, index) => {
-                  const isSelected = selectedTasks[task];
-                  const isDependency = index > 0 && selectedTasks[taskOrder[index + 1]];
-                  const taskLabels = {
-                    transcription: 'Transcription',
-                    segmentation: 'Segmentation', 
-                    questions: 'Question Generation',
-                    upload: 'Upload to Course'
-                  };
-                  const taskIcons = {
-                    transcription: <FileText className="w-4 h-4" />,
-                    segmentation: <ListChecks className="w-4 h-4" />,
-                    questions: <MessageSquareText className="w-4 h-4" />,
-                    upload: <UploadCloud className="w-4 h-4" />
-                  };
-                  
-                  return (
-                    <div key={task} className={`
-                      relative p-4 border rounded-lg transition-all duration-200
-                      ${isSelected 
-                        ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800' 
-                        : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700'
-                      }
-                      ${isDependency ? 'ring-2 ring-blue-300 dark:ring-blue-700' : ''}
-                    `}>
-                      <div className="flex items-start space-x-3">
+                const isSelected = selectedTasks[task]
+                const isDependency = index > 0 && selectedTasks[taskOrder[index - 1]]
+                const taskLabels = {
+                    transcription: "Transcription",
+                    segmentation: "Segmentation",
+                    questions: "Question Generation",
+                    upload: "Upload to Course",
+                }
+                const taskIcons = {
+                    transcription: <FileText className="w-5 h-5" />,
+                    segmentation: <ListChecks className="w-5 h-5" />,
+                    questions: <MessageSquareText className="w-5 h-5" />,
+                    upload: <UploadCloud className="w-5 h-5" />,
+                }
+
+                return (
+                    <div
+                    key={task}
+                    className={`
+                    relative p-6 border rounded-xl transition-all duration-300 hover:shadow-md
+                    ${
+                        isSelected
+                        ? "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 shadow-sm"
+                        : "bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }
+                    ${isDependency ? "ring-2 ring-blue-300 dark:ring-blue-700" : ""}
+                    `}
+                    >
+                    <div className="flex items-start space-x-4">
                         <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleTaskSelection(task, !!checked)}
-                          disabled={!!aiJobId}
-                          className="mt-1"
+                        checked={isSelected}
+                        onCheckedChange={(checked) => handleTaskSelection(task, !!checked)}
+                        disabled={!!aiJobId}
+                        className="mt-1.5"
                         />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                        <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <div
+                            className={`p-1.5 rounded-lg ${isSelected ? "bg-blue-100 dark:bg-blue-900" : "bg-gray-200 dark:bg-gray-700"}`}
+                            >
                             {taskIcons[task]}
-                            <Label className="font-medium text-sm cursor-pointer">
-                              {taskLabels[task]}
-                            </Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {task === 'transcription' && 'Convert audio to text'}
-                            {task === 'segmentation' && 'Split into logical segments'}
-                            {task === 'questions' && 'Generate quiz questions'}
-                            {task === 'upload' && 'Upload content to course'}
-                          </p>
-                          {isDependency && (
-                            <div className="mt-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                Auto-selected
-                              </span>
                             </div>
-                          )}
+                            <Label className="font-semibold text-base cursor-pointer leading-tight">
+                            {taskLabels[task]}
+                            </Label>
                         </div>
-                      </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            {task === "transcription" && "Convert audio to text with high accuracy"}
+                            {task === "segmentation" && "Split content into logical segments"}
+                            {task === "questions" && "Generate comprehensive quiz questions"}
+                            {task === "upload" && "Upload processed content to course"}
+                        </p>
+                        {isDependency && (
+                            <div className="pt-2">
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                Auto-selected
+                            </span>
+                            </div>
+                        )}
+                        </div>
                     </div>
-                  );
+                    </div>
+                )
                 })}
-              </div>
+            </div>
 
-              {/* Dependency Info */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">Smart Dependencies</p>
-                    <p className="text-blue-700 dark:text-blue-300">
-                      Tasks run in sequence: Transcription → Segmentation → Questions → Upload. 
-                      Selecting a later task automatically enables all previous required tasks.
-                    </p>
-                  </div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-4">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                    <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-              </div>
+                <div className="space-y-2">
+                    <p className="font-semibold text-blue-800 dark:text-blue-200 text-base">Smart Dependencies</p>
+                    <p className="text-blue-700 dark:text-blue-300 leading-relaxed">
+                    Tasks run in sequence: Transcription → Segmentation → Questions → Upload. Selecting a later task
+                    automatically enables all previous required tasks.
+                    </p>
+                </div>
+                </div>
+            </div>
 
-              {/* Upload Parameters - Always Shown */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border">
-                <div>
-                  <Label htmlFor="video-base-name" className="text-sm font-medium">Video Item Name</Label>
-                  <Input
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl border p-6 space-y-4">
+                <h4 className="font-semibold text-base text-foreground mb-4">Upload Parameters</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="video-base-name" className="text-sm font-medium">
+                    Video Item Name
+                    </Label>
+                    <Input
                     id="video-base-name"
                     value={uploadParams.videoItemBaseName}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, videoItemBaseName: e.target.value }))}
+                    onChange={(e) => setUploadParams((prev) => ({ ...prev, videoItemBaseName: e.target.value }))}
                     placeholder="video_item"
                     disabled={!!aiJobId}
-                    className="mt-1"
-                  />
+                    className="h-10"
+                    />
                 </div>
-                <div>
-                  <Label htmlFor="quiz-base-name" className="text-sm font-medium">Quiz Item Name</Label>
-                  <Input
+                <div className="space-y-2">
+                    <Label htmlFor="quiz-base-name" className="text-sm font-medium">
+                    Quiz Item Name
+                    </Label>
+                    <Input
                     id="quiz-base-name"
                     value={uploadParams.quizItemBaseName}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, quizItemBaseName: e.target.value }))}
+                    onChange={(e) => setUploadParams((prev) => ({ ...prev, quizItemBaseName: e.target.value }))}
                     placeholder="quiz_item"
                     disabled={!!aiJobId}
-                    className="mt-1"
-                  />
+                    className="h-10"
+                    />
                 </div>
-                <div>
-                  <Label htmlFor="questions-per-quiz" className="text-sm font-medium">Questions Per Quiz</Label>
-                  <Input
+                <div className="space-y-2">
+                    <Label htmlFor="questions-per-quiz" className="text-sm font-medium">
+                    Questions Per Quiz
+                    </Label>
+                    <Input
                     id="questions-per-quiz"
                     type="number"
                     min={1}
                     value={uploadParams.questionsPerQuiz}
-                    onChange={(e) => setUploadParams(prev => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))}
+                    onChange={(e) => setUploadParams((prev) => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))}
                     disabled={!!aiJobId}
-                    className="mt-1"
-                  />
+                    className="h-10"
+                    />
                 </div>
-              </div>
+                </div>
+            </div>
 
-              {/* Advanced Configuration */}
-              {showAdvancedConfig && (
-                <Accordion type="multiple" className="border rounded-lg">
-                  {selectedTasks.transcription && (
-                    <AccordionItem value="transcript">
-                      <AccordionTrigger className="px-4">Transcription Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Language</Label>
-                            <Select 
-                              value={customTranscriptParams.language} 
-                              onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, language: value }))}
-                              disabled={!!aiJobId}
+            {showAdvancedConfig && (
+                <Accordion type="multiple" className="border rounded-xl overflow-hidden">
+                {selectedTasks.transcription && (
+                    <AccordionItem value="transcript" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+                        Transcription Settings
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Language</Label>
+                            <Select
+                            value={customTranscriptParams.language}
+                            onValueChange={(value) => setCustomTranscriptParams((prev) => ({ ...prev, language: value }))}
+                            disabled={!!aiJobId}
                             >
-                              <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select language" />
-                              </SelectTrigger>
-                              <SelectContent>
+                            </SelectTrigger>
+                            <SelectContent>
                                 <SelectItem value="en">English</SelectItem>
                                 <SelectItem value="hi">Hindi</SelectItem>
                                 <SelectItem value="es">Spanish</SelectItem>
                                 <SelectItem value="fr">French</SelectItem>
-                              </SelectContent>
+                            </SelectContent>
                             </Select>
-                          </div>
-                          <div>
-                            <Label>Model Size</Label>
-                            <Select 
-                              value={customTranscriptParams.modelSize} 
-                              onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, modelSize: value }))}
-                              disabled={!!aiJobId}
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Model Size</Label>
+                            <Select
+                            value={customTranscriptParams.modelSize}
+                            onValueChange={(value) =>
+                                setCustomTranscriptParams((prev) => ({ ...prev, modelSize: value }))
+                            }
+                            disabled={!!aiJobId}
                             >
-                              <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select model size" />
-                              </SelectTrigger>
-                              <SelectContent>
+                            </SelectTrigger>
+                            <SelectContent>
                                 <SelectItem value="large">Large (Most Accurate)</SelectItem>
                                 <SelectItem value="medium">Medium</SelectItem>
                                 <SelectItem value="small">Small (Fastest)</SelectItem>
-                              </SelectContent>
+                            </SelectContent>
                             </Select>
-                          </div>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
-                  {selectedTasks.segmentation && (
-                    <AccordionItem value="segmentation">
-                      <AccordionTrigger className="px-4">Segmentation Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <Label>Lambda</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={customSegmentationParams.lam}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, lam: parseFloat(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label>Runs</Label>
-                            <Input
-                              type="number"
-                              value={customSegmentationParams.runs}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, runs: parseInt(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label>Noise ID</Label>
-                            <Input
-                              type="number"
-                              value={customSegmentationParams.noiseId}
-                              onChange={(e) => setCustomSegmentationParams(prev => ({ ...prev, noiseId: parseInt(e.target.value) }))}
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                            />
-                          </div>
                         </div>
-                      </AccordionContent>
+                    </AccordionContent>
                     </AccordionItem>
-                  )}
-                  
-                  {selectedTasks.questions && (
-                    <AccordionItem value="questions">
-                      <AccordionTrigger className="px-4">Question Generation Settings</AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Model</Label>
-                            <Select 
-                              value={customQuestionParams.model} 
-                              onValueChange={(value) => setCustomQuestionParams(prev => ({ ...prev, model: value }))}
-                              disabled={!!aiJobId}
+                )}
+
+                {selectedTasks.segmentation && (
+                    <AccordionItem value="segmentation" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+                        Segmentation Settings
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Lambda</Label>
+                            <Input
+                            type="number"
+                            step="0.1"
+                            value={customSegmentationParams.lam}
+                            onChange={(e) =>
+                                setCustomSegmentationParams((prev) => ({ ...prev, lam: Number.parseFloat(e.target.value) }))
+                            }
+                            disabled={!!aiJobId}
+                            className="h-10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Runs</Label>
+                            <Input
+                            type="number"
+                            value={customSegmentationParams.runs}
+                            onChange={(e) =>
+                                setCustomSegmentationParams((prev) => ({ ...prev, runs: Number.parseInt(e.target.value) }))
+                            }
+                            disabled={!!aiJobId}
+                            className="h-10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Noise ID</Label>
+                            <Input
+                            type="number"
+                            value={customSegmentationParams.noiseId}
+                            onChange={(e) =>
+                                setCustomSegmentationParams((prev) => ({
+                                ...prev,
+                                noiseId: Number.parseInt(e.target.value),
+                                }))
+                            }
+                            disabled={!!aiJobId}
+                            className="h-10"
+                            />
+                        </div>
+                        </div>
+                    </AccordionContent>
+                    </AccordionItem>
+                )}
+
+                {selectedTasks.questions && (
+                    <AccordionItem value="questions" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+                        Question Generation Settings
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 pt-2">
+                        <div className="space-y-6">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Model</Label>
+                            <Select
+                            value={customQuestionParams.model}
+                            onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
+                            disabled={!!aiJobId}
                             >
-                              <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select model" />
-                              </SelectTrigger>
-                              <SelectContent>
+                            </SelectTrigger>
+                            <SelectContent>
                                 <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
                                 <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                                 <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                              </SelectContent>
+                            </SelectContent>
                             </Select>
-                          </div>
-                          <div className="grid grid-cols-4 gap-4">
-                            <div>
-                              <Label>SOL Questions</Label>
-                              <Input
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-2">
+                            <Label className="text-sm font-medium">SOL Questions</Label>
+                            <Input
                                 type="number"
                                 min={0}
                                 value={customQuestionParams.SOL}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, SOL: parseInt(e.target.value) }))}
+                                onChange={(e) =>
+                                setCustomQuestionParams((prev) => ({ ...prev, SOL: Number.parseInt(e.target.value) }))
+                                }
                                 disabled={!!aiJobId}
-                                className="mt-1"
-                              />
+                                className="h-10"
+                            />
                             </div>
-                            <div>
-                              <Label>SML Questions</Label>
-                              <Input
+                            <div className="space-y-2">
+                            <Label className="text-sm font-medium">SML Questions</Label>
+                            <Input
                                 type="number"
                                 min={0}
                                 value={customQuestionParams.SML}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, SML: parseInt(e.target.value) }))}
+                                onChange={(e) =>
+                                setCustomQuestionParams((prev) => ({ ...prev, SML: Number.parseInt(e.target.value) }))
+                                }
                                 disabled={!!aiJobId}
-                                className="mt-1"
-                              />
+                                className="h-10"
+                            />
                             </div>
-                            <div>
-                              <Label>NAT Questions</Label>
-                              <Input
+                            <div className="space-y-2">
+                            <Label className="text-sm font-medium">NAT Questions</Label>
+                            <Input
                                 type="number"
                                 min={0}
                                 value={customQuestionParams.NAT}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, NAT: parseInt(e.target.value) }))}
+                                onChange={(e) =>
+                                setCustomQuestionParams((prev) => ({ ...prev, NAT: Number.parseInt(e.target.value) }))
+                                }
                                 disabled={!!aiJobId}
-                                className="mt-1"
-                              />
+                                className="h-10"
+                            />
                             </div>
-                            <div>
-                              <Label>DES Questions</Label>
-                              <Input
+                            <div className="space-y-2">
+                            <Label className="text-sm font-medium">DES Questions</Label>
+                            <Input
                                 type="number"
                                 min={0}
                                 value={customQuestionParams.DES}
-                                onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, DES: parseInt(e.target.value) }))}
+                                onChange={(e) =>
+                                setCustomQuestionParams((prev) => ({ ...prev, DES: Number.parseInt(e.target.value) }))
+                                }
                                 disabled={!!aiJobId}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label>Custom Prompt</Label>
-                            <Textarea
-                              value={customQuestionParams.prompt}
-                              onChange={(e) => setCustomQuestionParams(prev => ({ ...prev, prompt: e.target.value }))}
-                              placeholder="Enter custom instructions for question generation..."
-                              disabled={!!aiJobId}
-                              className="mt-1"
-                              rows={4}
+                                className="h-10"
                             />
-                          </div>
+                            </div>
                         </div>
-                      </AccordionContent>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Custom Prompt</Label>
+                            <Textarea
+                            value={customQuestionParams.prompt}
+                            onChange={(e) => setCustomQuestionParams((prev) => ({ ...prev, prompt: e.target.value }))}
+                            placeholder="Enter custom instructions for question generation..."
+                            disabled={!!aiJobId}
+                            className="min-h-[100px] resize-none"
+                            rows={4}
+                            />
+                        </div>
+                        </div>
+                    </AccordionContent>
                     </AccordionItem>
-                  )}
+                )}
                 </Accordion>
-              )}
+            )}
             </div>
-          </CardContent>
+        </CardContent>
         </Card>
         <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 ">
             <div className=" mx-auto space-y-8">
@@ -946,7 +987,7 @@ const AiWorkflow = () => {
 
                         {!selectedFile ? (
                         <div
-                            className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer hover:border-blue-600 hover:bg-primary/5 ${
+                            className={`relative border-2 dark:border-blue-900 border-blue-900 border-dashed  rounded-xl p-8 text-center transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-primary/5 ${
                             isDragOver
                                 ? "border-primary bg-primary/10 scale-[1.02]"
                                 : fileError
