@@ -116,17 +116,19 @@ class CourseSettingService extends BaseService {
         session,
       );
 
+      
       if (!courseSettings) {
         // Create new settings as in updateCourseSettings
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = [];
+        settings.linearProgressionEnabled= true;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
             courseVersionId,
             courseId,
-            settings: settings
+            settings,
           })
         );
 
@@ -146,6 +148,7 @@ class CourseSettingService extends BaseService {
     courseId: string,
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
+    linearProgressionEnabled: boolean
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       // Check if the course settings exist
@@ -160,13 +163,16 @@ class CourseSettingService extends BaseService {
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
 
+        // for linear progression
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+
         const result = await this.createCourseSettings(new CourseSetting({
           courseVersionId,
           courseId,
-          settings: settings
+          settings,
         }))
 
-        if (!result) {
+        if (!result) { 
           throw new InternalServerError(
             'Failed to create course settings. Please try again later.',
           );
@@ -178,6 +184,7 @@ class CourseSettingService extends BaseService {
         courseId,
         courseVersionId,
         detectors,
+        linearProgressionEnabled,
         session,
       );
 

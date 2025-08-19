@@ -70,8 +70,9 @@ export interface QuizProps {
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
-  rewindVid: boolean;
+  rewindVid?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
+  linearProgressionEnabled: boolean;
 }
 
 export interface QuizRef {

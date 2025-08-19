@@ -34,8 +34,9 @@ export class SettingRepository implements ISettingRepository {
     if (!this.initialized) {
       this.courseSettingsCollection =
         await this.db.getCollection<CourseSetting>('courseSettings');
-      this.userSettingsCollection =
-        await this.db.getCollection<UserSetting>('userSettings');
+      this.userSettingsCollection = await this.db.getCollection<UserSetting>(
+        'userSettings',
+      );
       this.initialized = true;
     }
   }
@@ -227,10 +228,7 @@ export class SettingRepository implements ISettingRepository {
     if (!courseSettings) {
       return null;
     }
-    return Object.assign(
-      new CourseSetting(),
-      courseSettings,
-    ) as CourseSetting;
+    return Object.assign(new CourseSetting(), courseSettings) as CourseSetting;
   }
 
   // Rename this method (previously addCourseProctoring)
@@ -241,6 +239,7 @@ export class SettingRepository implements ISettingRepository {
    * @param courseVersionId - ID of the course version
    * @param detectorName - Name of the detector to update
    * @param detectorSettings - New settings for the detector
+   * @param linearProgressionEnabled - Linear progression
    * @param session - Optional MongoDB session for transactions
    * @returns True if update succeeded, false otherwise
    */
@@ -248,6 +247,7 @@ export class SettingRepository implements ISettingRepository {
     courseId: string,
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
+    linearProgressionEnabled: boolean,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -255,6 +255,42 @@ export class SettingRepository implements ISettingRepository {
     // We need to do Upsert operation here.
 
     // Try updating the existing detector settings
+
+    // const result = await this.courseSettingsCollection.updateOne(
+    //   {
+    //     courseId: new ObjectId(courseId),
+    //     courseVersionId: new ObjectId(courseVersionId),
+    //   },
+    //   {
+    //     $set: {
+    //       'settings.proctors.detectors': detectors,
+    //       'settings.linearProgressionEnabled': linearProgressionEnabled,
+    //     },
+    //   },
+    //   {
+    //     session,
+    //   },
+    // );
+
+    // // If no document was updated, it means the detector does not exist, so we need to add it.
+    // if (result.matchedCount === 0) {
+    //   const addResult = await this.courseSettingsCollection.updateOne(
+    //     {
+    //       courseId: new ObjectId(courseId),
+    //       courseVersionId: new ObjectId(courseVersionId),
+    //     },
+    //     {
+    //       $addToSet: {
+    //         'settings.proctors.detectors': detectors,
+    //       },
+    //     },
+    //     {
+    //       session,
+    //     },
+    //   );
+
+    //   return addResult;
+    // }
 
     const result = await this.courseSettingsCollection.updateOne(
       {
@@ -264,32 +300,14 @@ export class SettingRepository implements ISettingRepository {
       {
         $set: {
           'settings.proctors.detectors': detectors,
+          'settings.linearProgressionEnabled': linearProgressionEnabled,
         },
       },
       {
+        upsert: true, 
         session,
       },
     );
-
-    // If no document was updated, it means the detector does not exist, so we need to add it.
-    if (result.matchedCount === 0) {
-      const addResult = await this.courseSettingsCollection.updateOne(
-        {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-        },
-        {
-          $addToSet: {
-            'settings.proctors.detectors': detectors,
-          },
-        },
-        {
-          session,
-        },
-      );
-
-      return addResult;
-    }
 
     return result;
   }

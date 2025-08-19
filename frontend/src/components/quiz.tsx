@@ -46,7 +46,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   onPrevVideo,
   setQuizPassed,
   rewindVid,
-  setIsQuizSkipped
+  setIsQuizSkipped,
+  linearProgressionEnabled
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -435,7 +436,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         body: { answers: answersForSubmission, isSkipped }
       });
       
-      if(!response){
+      // No reponse for skipped quiz!
+      if (!response) {
         setQuizCompleted(true);
         handleStopItem(isSkipped);
         return

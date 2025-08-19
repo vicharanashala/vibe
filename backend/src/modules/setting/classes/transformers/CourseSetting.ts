@@ -11,7 +11,7 @@ import {ICourseSetting, IDetectorSettings} from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {CreateCourseSettingBody} from '../index.js';
 import {ObjectId} from 'mongodb';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import {IsBoolean, IsDefined, IsNotEmpty, IsOptional} from 'class-validator';
 
 /**
  * This class represents the settings for a course, including proctoring configurations.
@@ -97,7 +97,10 @@ class CourseSetting implements ICourseSetting {
     proctors: {
       detectors: IDetectorSettings[];
     };
+   
+  linearProgressionEnabled: boolean;
   };
+
 
   constructor(courseSettingsBody?: CreateCourseSettingBody) {
     if (courseSettingsBody) {
@@ -118,7 +121,9 @@ class CourseSetting implements ICourseSetting {
       proctors: {
         detectors: existingDetectors,
       },
+      linearProgressionEnabled: courseSettingsBody?.settings?.linearProgressionEnabled ?? false
     };
+
   }
 }
 

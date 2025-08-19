@@ -1290,6 +1290,7 @@ export default function CoursePage() {
                     setQuizPassed={setQuizPassed}
                     anomalies={anomalies}
                     keyboardLockEnabled={!isFlagModalOpen}
+                    linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
                     setIsQuizSkipped= {setIsQuizSkipped}
                   />
 
