@@ -7,7 +7,9 @@ import { SettingRepository } from '#root/shared/index.js';
 
 export const settingContainerModule = new ContainerModule(options => {
   // Services
+  options.bind(CourseSettingService).toSelf().inSingletonScope();
   options.bind(SETTING_TYPES.CourseSettingService).to(CourseSettingService);
+  
   options.bind(SETTING_TYPES.UserSettingService).to(UserSettingService);
 
   // Controllers

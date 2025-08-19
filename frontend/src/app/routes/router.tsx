@@ -43,7 +43,7 @@ const rootRoute = new RootRoute({
     console.error('Router error:', error);
     // reload page on error
     setTimeout(() => {
-      // window.location.reload();
+      window.location.reload();
     }, 1000);
     return (
       <div className="flex min-h-screen items-center justify-center">

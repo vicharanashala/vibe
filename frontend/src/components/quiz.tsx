@@ -436,7 +436,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         body: { answers: answersForSubmission, isSkipped }
       });
       
-      if(!response){
+      // No reponse for skipped quiz!
+      if (!response) {
         setQuizCompleted(true);
         handleStopItem(isSkipped);
         return
