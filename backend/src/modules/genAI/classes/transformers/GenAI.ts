@@ -62,7 +62,7 @@ export interface UploadParameters {
 
 export interface audioData {
 	status: TaskStatus;
-	error: string;
+	error?: string;
 	fileName?: string;
 	fileUrl?: string;
 }
@@ -125,6 +125,8 @@ export class GenAI {
 export class GenAIBody extends GenAI {
 	_id?: ID;
 	userId: string;
+	audioProvided?: boolean;
+	transcriptProvided?: boolean;
 	createdAt: Date;
 	jobStatus: JobStatus;
 }

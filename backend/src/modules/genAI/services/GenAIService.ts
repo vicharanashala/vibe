@@ -21,6 +21,9 @@ import axios from 'axios';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { aiConfig } from '#root/config/ai.js';
 import { appConfig } from '#root/config/app.js';
+import { ANOMALIES_TYPES } from '#root/modules/anomalies/types.js';
+import { CloudStorageService } from '#root/modules/anomalies/index.js';
+import { storageConfig } from '#root/config/storage.js';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -46,6 +49,9 @@ export class GenAIService extends BaseService {
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
 
+    @inject(ANOMALIES_TYPES.CloudStorageService)
+    private readonly cloudStorageService: CloudStorageService,
+
     private storage = new Storage({
       projectId: appConfig.firebase.projectId,
     })
@@ -58,17 +64,33 @@ export class GenAIService extends BaseService {
    * @param jobData Job configuration data
    * @returns Created job data
    */
-  async startJob(userId: string, jobData: JobBody): Promise<{ jobId: string }> {
+  async startJob(userId: string, jobData: JobBody, audio?: Express.Multer.File): Promise<{ jobId: string }> {
     return this._withTransaction(async session => {
+
       // Prepare job data and send to AI server]
       const result = await this.webhookService.AIServerCheck();
       if (result !== 200) {
         throw new Error('Failed to connect to AI server');
       }
-      const jobId = await this.genAIRepository.save(userId, jobData, session)
-      await this.genAIRepository.createTaskData(jobId, session);
+      const jobId = await this.genAIRepository.save(userId, jobData, audio? true : false, jobData.transcript ? true : false, session)
+      if (audio) {
+        // check file type (audio/)
+        if (!audio.mimetype.startsWith('audio/')) {
+          throw new BadRequestError('Invalid file type. Please upload an audio file.');
+        }
+        // store on buckets
+        const fileName = await this.cloudStorageService.uploadAudio(audio, jobId);
+        await this.genAIRepository.createTaskDataWithAudio(jobId, fileName, `https://storage.googleapis.com/${storageConfig.googleCloud.aiServerBucketName}/${fileName}`, session);
+      }
+      else if (jobData.transcript) {
+        const fileName = await this.cloudStorageService.uploadTranscript(jobData.transcript, jobId);
+        await this.genAIRepository.createTaskDataWithTranscript(jobId, fileName, `https://storage.googleapis.com/${storageConfig.googleCloud.aiServerBucketName}/${fileName}`, session);
+      }
+      else {
+        await this.genAIRepository.createTaskData(jobId, session);
+      }
 
-      return { jobId };
+      return {jobId};
     });
   }
 
@@ -125,12 +147,12 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
       }
       const jobState = await this.getJobState(jobId, usePrevious);
-      jobState.parameters = { ...jobState.parameters, ...this.removeUndefined(parameters) };
+      jobState.parameters = {...jobState.parameters, ...this.removeUndefined(parameters)};
       if (jobState.taskStatus == TaskStatus.COMPLETED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} is already completed, you can either rerun the task or approve to move to the next taask.`);
       }
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
-        const result = await this.uploadContent(jobId, jobState);
+        const result =  await this.uploadContent(jobId, jobState);
         console.log(result);
         return result;
       }
@@ -151,9 +173,9 @@ export class GenAIService extends BaseService {
       if (jobState.taskStatus !== TaskStatus.COMPLETED && jobState.taskStatus !== TaskStatus.FAILED && jobState.taskStatus !== TaskStatus.ABORTED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} has not been completed yet, please approve the task to start.`);
       }
-      jobState.parameters = { ...jobState.parameters, ...this.removeUndefined(parameters) };
+      jobState.parameters = {...jobState.parameters, ...this.removeUndefined(parameters)};
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
-        const result = await this.uploadContent(jobId, jobState);
+        const result =  await this.uploadContent(jobId, jobState);
         console.log(result);
         return result;
       }
@@ -193,7 +215,7 @@ export class GenAIService extends BaseService {
    * @returns Job status data
    */
   async getJobStatus(jobId: string): Promise<GenAIBody> {
-    return this._withTransaction(async session => {
+    return this._withTransaction( async session => {
       const job = await this.genAIRepository.getById(jobId, session);
       if (!job) {
         throw new NotFoundError("job with the given Id not found");
@@ -336,34 +358,34 @@ export class GenAIService extends BaseService {
           case TaskType.AUDIO_EXTRACTION:
             job.jobStatus.audioExtraction = jobData.status;
             if (taskData.audioExtraction) {
-              taskData.audioExtraction.push({ ...jobData as audioData });
-            } else {
-              taskData.audioExtraction = [{ ...jobData as audioData }];
-            }
+                taskData.audioExtraction.push({...jobData as audioData});
+              } else {
+                taskData.audioExtraction = [{...jobData as audioData}];
+              }
             break;
           case TaskType.TRANSCRIPT_GENERATION:
             job.jobStatus.transcriptGeneration = jobData.status;
             if (taskData.transcriptGeneration) {
-              taskData.transcriptGeneration.push({ ...jobData as trascriptGenerationData });
+              taskData.transcriptGeneration.push({...jobData as trascriptGenerationData});
             }
             else {
-              taskData.transcriptGeneration = [{ ...jobData as trascriptGenerationData }];
+              taskData.transcriptGeneration = [{...jobData as trascriptGenerationData}];
             }
             break;
           case TaskType.SEGMENTATION:
             job.jobStatus.segmentation = jobData.status;
             if (taskData.segmentation) {
-              taskData.segmentation.push({ ...jobData as segmentationData });
+              taskData.segmentation.push({...jobData as segmentationData});
             } else {
-              taskData.segmentation = [{ ...jobData as segmentationData }];
+              taskData.segmentation = [{...jobData as segmentationData}];
             }
             break;
           case TaskType.QUESTION_GENERATION:
             job.jobStatus.questionGeneration = jobData.status;
             if (taskData.questionGeneration) {
-              taskData.questionGeneration.push({ ...jobData as questionGenerationData });
+              taskData.questionGeneration.push({...jobData as questionGenerationData});
             } else {
-              taskData.questionGeneration = [{ ...jobData as questionGenerationData }];
+              taskData.questionGeneration = [{...jobData as questionGenerationData}];
             }
             break;
         }
@@ -550,7 +572,7 @@ export class GenAIService extends BaseService {
             (jobState.parameters as UploadParameters).sectionId,
             videoItemBody,
           );
-          createdVideoItemsInfo.push({
+                  createdVideoItemsInfo.push({
             id: createdVideoItem.createdItem?._id?.toString(),
             name: videoSegName,
             segmentId: String(currentSegmentId),
@@ -562,7 +584,7 @@ export class GenAIService extends BaseService {
           // Create Question Bank and Questions for the segment
           const questionsForSegment = questionsGroupedBySegment[currentSegmentId] || [];
           if (questionsForSegment.length > 0) {
-            // Create Question Bank for this segment
+                      // Create Question Bank for this segment
             const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
             const questionBank = new QuestionBank({
               title: questionBankName,
@@ -582,14 +604,14 @@ export class GenAIService extends BaseService {
                 // Validate and truncate hint if it's too long
                 let hint = questionData.question.hint;
                 const MAX_HINT_LENGTH = 80; // Maximum hint length in characters
-
+                
                 if (hint && typeof hint === 'string' && hint.length > MAX_HINT_LENGTH) {
                   // Truncate hint and add ellipsis
                   hint = hint.substring(0, MAX_HINT_LENGTH - 3) + '...';
                   console.log(`Hint truncated for question in segment ${currentSegmentId}: Original length ${questionData.question.hint.length}, truncated to ${hint.length}`);
                 }
 
-                const questionnew = QuestionFactory.createQuestion({ question: questionData.question, solution: questionData.solution }, jobData.userId);
+                const questionnew = QuestionFactory.createQuestion({question: questionData.question,solution: questionData.solution}, jobData.userId);
 
                 const questionId = await this.questionService.create(questionnew);
                 createdQuestionIds.push(questionId);
@@ -612,8 +634,8 @@ export class GenAIService extends BaseService {
             const quizSegName = jobData.uploadParameters.quizItemBaseName ? jobData.uploadParameters.quizItemBaseName : `Quiz`;
 
             const quizItemBody: CreateItemBody = {
-              name: quizSegName,
-              description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. This quiz's points are based on its questions.`,
+                name: quizSegName,
+                description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. This quiz's points are based on its questions.`,
               type: ItemType.QUIZ,
               quizDetails: {
                 passThreshold: 0.7,
@@ -622,7 +644,6 @@ export class GenAIService extends BaseService {
                 approximateTimeToComplete: '00:05:00',
                 allowPartialGrading: true,
                 allowHint: true,
-                allowSkip: false,
                 showCorrectAnswersAfterSubmission: true,
                 showExplanationAfterSubmission: true,
                 showScoreAfterSubmission: true,
@@ -631,7 +652,7 @@ export class GenAIService extends BaseService {
                 deadline: undefined,
               },
             };
-
+            
             const createdQuizItem = await this.itemService.createItem(
               (jobState.parameters as UploadParameters).versionId,
               (jobState.parameters as UploadParameters).moduleId,
@@ -663,13 +684,13 @@ export class GenAIService extends BaseService {
               questionCount: createdQuestionIds.length,
             });
           }
-
+          
           previousSegmentEndTime = currentSegmentEndTime;
         }
         jobData.jobStatus.uploadContent = TaskStatus.COMPLETED;
         const taskDAta = await this.genAIRepository.getTaskDataByJobId(jobId, session);
         if (!taskDAta.uploadContent) {
-          taskDAta.uploadContent = [{ status: TaskStatus.COMPLETED }];
+          taskDAta.uploadContent = [{ status: TaskStatus.COMPLETED}];
         }
         taskDAta.uploadContent.push({
           status: TaskStatus.COMPLETED,

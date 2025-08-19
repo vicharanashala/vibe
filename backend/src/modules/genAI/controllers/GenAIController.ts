@@ -8,6 +8,7 @@ import {
   Get, 
   HttpCode,
   Authorized,
+  UploadedFile,
   ForbiddenError,
   OnUndefined,
   Patch,
@@ -75,6 +76,33 @@ export class GenAIController {
     }
 
     return await this.genAIService.startJob(user._id.toString(), body);
+  }
+
+  @OpenAPI({
+    summary: 'Start a new job',
+    description: 'Starts a new genAI process. Audio file provided.',
+  })
+  @Post("/jobs/audio-provided")
+  @Authorized()
+  @HttpCode(201)
+  @ResponseSchema(GenAIResponse, {
+    description: 'GenAI job created successfully'
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async startWithAudio(
+    @UploadedFile("file")
+          file: Express.Multer.File,
+    @Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
+
+    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+    if (!ability.can('create', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to create a genAI job');
+    }
+
+    return await this.genAIService.startJob(user._id.toString(), body, file);
   }
 
   @OpenAPI({
