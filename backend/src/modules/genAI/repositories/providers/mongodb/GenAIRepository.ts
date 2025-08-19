@@ -1,4 +1,4 @@
-import { JobStatus, GenAIBody, TaskData } from "#root/modules/genAI/classes/transformers/GenAI.js";
+import { JobStatus, GenAIBody, TaskData, TaskStatus } from "#root/modules/genAI/classes/transformers/GenAI.js";
 import { JobBody } from "#root/modules/genAI/classes/validators/GenAIValidators.js";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
@@ -20,14 +20,28 @@ export class GenAIRepository {
 		this.taskDataCollection = await this.db.getCollection<TaskData>('job_task_status')
 	}
 
-	async save(userId: string, jobData: JobBody, session?:ClientSession): Promise<string> {
+	async save(userId: string, jobData: JobBody, audioProvided?: boolean, transcriptProvided?: boolean, session?:ClientSession): Promise<string> {
 		await this.init();
+		const jobStatus = new JobStatus();
+		const jobDataToSave = { ...jobData };
+		if (audioProvided) {
+			jobStatus.audioExtraction = TaskStatus.COMPLETED;
+			jobStatus.transcriptGeneration = TaskStatus.WAITING;
+		}
+		if (transcriptProvided) {
+			jobStatus.audioExtraction = TaskStatus.COMPLETED;
+			jobStatus.transcriptGeneration = TaskStatus.COMPLETED;
+			jobStatus.segmentation = TaskStatus.WAITING;
+			delete jobDataToSave.transcript;
+		}
 		const result = await this.genAICollection.insertOne(
 			{
 				userId: userId,
-				...jobData,
+				audioProvided: audioProvided,
+				transcriptProvided: transcriptProvided,
+				...jobDataToSave,
 				createdAt: new Date(),
-				jobStatus: new JobStatus(),
+				jobStatus: jobStatus,
 			}
 			, { session }
 		);
@@ -39,6 +53,38 @@ export class GenAIRepository {
 		const result = await this.taskDataCollection.insertOne(
 			{ jobId: jobId }, { session }
 		)
+		return result.insertedId?.toString();
+	}
+
+	async createTaskDataWithAudio(jobId: string, audioName: string, audioUrl: string, session?: ClientSession): Promise<string> {
+		await this.init();
+		const result = await this.taskDataCollection.insertOne(
+			{ 
+				jobId: jobId,
+				audioExtraction: [{
+					status: TaskStatus.COMPLETED,
+					fileName: audioName,
+					fileUrl: audioUrl
+				}]
+			}, 
+			{ session }
+		);
+		return result.insertedId?.toString();
+	}
+
+	async createTaskDataWithTranscript(jobId: string, fileName: string, url: string, session?: ClientSession): Promise<string> {
+		await this.init();
+		const result = await this.taskDataCollection.insertOne(
+			{ 
+				jobId: jobId,
+				transcriptGeneration: [{
+					status: TaskStatus.COMPLETED,
+					fileName: fileName,
+					fileUrl: url
+				}]
+			}, 
+			{ session }
+		);
 		return result.insertedId?.toString();
 	}
 

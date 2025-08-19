@@ -8,6 +8,7 @@ import {
   Get, 
   HttpCode,
   Authorized,
+  UploadedFile,
   ForbiddenError,
   OnUndefined,
   Patch,
@@ -75,6 +76,33 @@ export class GenAIController {
     }
 
     return await this.genAIService.startJob(user._id.toString(), body);
+  }
+
+  @OpenAPI({
+    summary: 'Start a new job',
+    description: 'Starts a new genAI process. Audio file provided.',
+  })
+  @Post("/jobs/audio-provided")
+  @Authorized()
+  @HttpCode(201)
+  @ResponseSchema(GenAIResponse, {
+    description: 'GenAI job created successfully'
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async startWithAudio(
+    @UploadedFile("file")
+          file: Express.Multer.File,
+    @Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
+
+    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+    if (!ability.can('create', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to create a genAI job');
+    }
+
+    return await this.genAIService.startJob(user._id.toString(), body, file);
   }
 
   @OpenAPI({
@@ -178,29 +206,6 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Abort job',
-    description: 'Aborts an in-progress job.',
-  })
-  @Post("/jobs/:id/abort")
-  @Authorized()
-  @OnUndefined(200)
-  @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'job not found',
-    statusCode: 404,
-  })
-  async abortJob(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
-    const job = await this.genAIService.getJobStatus(id);
-
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
-    if (!ability.can('modify', genaiRes)) {
-      //throw new ForbiddenError('You do not have permission to abort this job');
-    }
-    
-    await this.webhookService.abortJob(id);
-  }
-
-  @OpenAPI({
     summary: 'Rerun current task',
     description: 'Reruns the current task in the job.',
   })
@@ -222,6 +227,30 @@ export class GenAIController {
     }
 
     await this.genAIService.rerunTask(id, userId, body.usePrevious, body.parameters);
+  }
+
+  @OpenAPI({
+    summary: 'Abort current task',
+    description: 'Aborts the current task in the job.',
+  })
+  @Post("/jobs/:id/tasks/abort")
+  @Authorized()
+  @OnUndefined(200)
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  async abortTask(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability, user}) {
+    const { id } = params;
+    const userId = user._id.toString();
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to abort tasks in this job');
+    }
+
+    await this.genAIService.abortTask(id);
   }
 
   @OpenAPI({

@@ -30,6 +30,7 @@ export interface Item {
     approximateTimeToComplete?: string;
     allowPartialGrading?: boolean;
     allowHint?: boolean;
+    allowSkip?:boolean;
     showCorrectAnswersAfterSubmission?: boolean;
     showExplanationAfterSubmission?: boolean;
     showScoreAfterSubmission?: boolean;
@@ -52,6 +53,7 @@ export interface ItemContainerProps {
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   anomalies?: string[];
   keyboardLockEnabled?:boolean;
+  setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface ItemContainerRef {

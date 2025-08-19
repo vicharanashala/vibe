@@ -13,7 +13,7 @@ import {
   IsJSON,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { LanguageType, JobType, TaskType, TaskStatus, audioData, contentUploadData, questionGenerationData, segmentationData, trascriptGenerationData } from '../transformers/GenAI.js';
 
 @JSONSchema({ title: 'TranscriptParameters' })
@@ -289,6 +289,37 @@ class PartialUploadParameters {
 	questionsPerQuiz?: number;
 }
 
+class Chunk {
+  @JSONSchema({
+    description: 'Timestamps of the chunk',
+    example: [0, 5],
+    type: 'array',
+  })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  timestamp: Array<number>;
+
+  @JSONSchema({
+    description: 'Text content of the chunk',
+    example: 'This is a sample chunk of text.',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  text: string;
+}
+
+class Transcript {
+  @JSONSchema({
+    description: 'Chunks of the transcript',
+    type: 'array'
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => Chunk)
+  chunks: Array<Chunk>;
+}
+
 class GenAIResponse{
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
@@ -343,11 +374,33 @@ class JobBody {
   url: string;
 
   @JSONSchema({
+    title: 'Transcript',
+    description: 'Transcript of the video',
+    example: {},
+    type: 'object',
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => Transcript)
+  transcript?: Transcript;
+
+  @JSONSchema({
     title: 'Transcript Parameters',
     description: 'Parameters for generating transcripts',
     type: 'object',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
+  })
   @IsObject()
   @ValidateNested()
   @Type(() => TranscriptParameters)
@@ -357,6 +410,16 @@ class JobBody {
     title: 'Segmentation Parameters',
     description: 'Parameters for segmenting the video',
     type: 'object',
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
   })
   @IsOptional()
   @IsObject()
@@ -370,6 +433,16 @@ class JobBody {
     type: 'object',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
+  })
   @IsObject()
   @ValidateNested()
   @Type(() => QuestionGenerationParameters)
@@ -381,6 +454,16 @@ class JobBody {
     type: 'object',
   })
   @IsNotEmpty()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
+  })
   @IsObject()
   @ValidateNested()
   @Type(() => UploadParameters)

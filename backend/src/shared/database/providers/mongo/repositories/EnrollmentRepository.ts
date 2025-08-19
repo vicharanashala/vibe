@@ -13,10 +13,12 @@ export class EnrollmentRepository {
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
-    this.enrollmentCollection =
-      await this.db.getCollection<IEnrollment>('enrollment');
-    this.progressCollection =
-      await this.db.getCollection<IProgress>('progress');
+    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
+      'enrollment',
+    );
+    this.progressCollection = await this.db.getCollection<IProgress>(
+      'progress',
+    );
   }
 
   /**
@@ -37,16 +39,27 @@ export class EnrollmentRepository {
    * Find an existing enrollment for a user in a specific course version
    */
   async findEnrollment(
-    userId: string,
+    userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
   ): Promise<IEnrollment | null> {
     await this.init();
 
+    const courseObjectId = new ObjectId(courseId);
+    const courseVersionObjectId = new ObjectId(courseVersionId);
+
+    // temp: Try both userId as string and ObjectId (if valid)
+    const userFilter = [
+      userId,
+      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+    ].filter(Boolean);
+
+    // const userObjectid = new ObjectId(userId)
+
     return await this.enrollmentCollection.findOne({
-      userId: userId,
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      userId: {$in: userFilter},
+      courseId: courseObjectId,
+      courseVersionId: courseVersionObjectId,
     });
   }
 
@@ -86,11 +99,23 @@ export class EnrollmentRepository {
     session?: any,
   ): Promise<void> {
     await this.init();
+
+    const courseObjectId = new ObjectId(courseId);
+    const courseVersionObjectId = new ObjectId(courseVersionId);
+
+    // temp: Try both userId as string and ObjectId (if valid)
+    const userFilter = [
+      userId,
+      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+    ].filter(Boolean);
+
+    // const userObjectid = new ObjectId(userId)
+
     const result = await this.enrollmentCollection.deleteOne(
       {
-        userId: userId,
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+        userId: {$in: userFilter},
+        courseId: courseObjectId,
+        courseVersionId: courseVersionObjectId,
       },
       {session},
     );
@@ -148,8 +173,17 @@ export class EnrollmentRepository {
    */
   async getEnrollments(userId: string, skip: number, limit: number) {
     await this.init();
+
+    // temp: Try both userId as string and ObjectId (if valid)
+    const userFilter = [
+      userId,
+      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+    ].filter(Boolean);
+
+    // const userObjectid = new ObjectId(userId)
+
     return await this.enrollmentCollection
-      .find({userId})
+      .find({userId: {$in: userFilter}})
       .skip(skip)
       .limit(limit)
       .sort({enrollmentDate: -1})
@@ -158,8 +192,17 @@ export class EnrollmentRepository {
 
   async getAllEnrollments(userId: string, session?: ClientSession) {
     await this.init();
+
+    // temp: Try both userId as string and ObjectId (if valid)
+    const userFilter = [
+      userId,
+      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+    ].filter(Boolean);
+
+    // const userObjectid = new ObjectId(userId)
+
     return await this.enrollmentCollection
-      .find({userId}, {session})
+      .find({userId: {$in: userFilter}}, {session})
       .sort({enrollmentDate: -1})
       .toArray();
   }
@@ -187,6 +230,17 @@ export class EnrollmentRepository {
    */
   async countEnrollments(userId: string) {
     await this.init();
-    return await this.enrollmentCollection.countDocuments({userId});
+
+    // temp: Try both userId as string and ObjectId (if valid)
+    const userFilter = [
+      userId,
+      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+    ].filter(Boolean);
+
+    // const userObjectid = new ObjectId(userId)
+
+    return await this.enrollmentCollection.countDocuments({
+      userId: {$in: userFilter},
+    });
   }
 }

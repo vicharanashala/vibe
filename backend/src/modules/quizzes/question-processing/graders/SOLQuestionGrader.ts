@@ -14,16 +14,27 @@ class SOLQuestionGrader implements IGrader {
     answer: ISOLAnswer,
     quiz: QuizItem,
     parameterMap?: ParameterMap,
+    selectedAnswerTexts?: string [],
   ): Promise<any> {
     const correctLotItemId = this.question.correctLotItem._id;
     const isCorrect =
       answer.lotItemId.toString() === correctLotItemId.toString();
+        let answerFeedback = isCorrect
+          ? 'Correct answer!'
+          : 'Incorrect answer.';
+
+    if (selectedAnswerTexts?.length) {
+      const selectedTextList = selectedAnswerTexts.join(', ');
+      answerFeedback += ` Selected answer(s): ${selectedTextList}.`;
+    }
+
     const feedback: IQuestionAnswerFeedback = {
       questionId: this.question._id,
       status: isCorrect ? 'CORRECT' : 'INCORRECT',
       score: isCorrect ? this.question.points : 0,
-      answerFeedback: isCorrect ? 'Correct answer!' : 'Incorrect answer.',
+      answerFeedback,
     };
+    
     return feedback;
   }
 }

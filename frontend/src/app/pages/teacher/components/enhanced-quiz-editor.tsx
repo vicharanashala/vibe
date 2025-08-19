@@ -294,12 +294,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     questionVisibility: 4,
     releaseTime: '',
     deadline: '',
+    allowSkip:false,
     questionBankRefs: []
   });
 
   // Fetch data
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
+  
+  console.log("selected Question bank ID",selectedQuestionBank);
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
@@ -326,6 +329,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         approximateTimeToComplete: details.details.approximateTimeToComplete || '00:05:00',
         allowPartialGrading: details.details.allowPartialGrading ?? true,
         allowHint: details.details.allowHint ?? true,
+        allowSkip:details.details.allowSkip ?? false,
         showCorrectAnswersAfterSubmission: details.details.showCorrectAnswersAfterSubmission ?? true,
         showExplanationAfterSubmission: details.details.showExplanationAfterSubmission ?? true,
         showScoreAfterSubmission: details.details.showScoreAfterSubmission ?? true,
@@ -374,6 +378,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         approximateTimeToComplete: quizSettingsForm.approximateTimeToComplete,
         allowPartialGrading: quizSettingsForm.allowPartialGrading,
         allowHint: quizSettingsForm.allowHint,
+        allowSkip:quizSettingsForm.allowSkip,
         showCorrectAnswersAfterSubmission: quizSettingsForm.showCorrectAnswersAfterSubmission,
         showExplanationAfterSubmission: quizSettingsForm.showExplanationAfterSubmission,
         showScoreAfterSubmission: quizSettingsForm.showScoreAfterSubmission,
