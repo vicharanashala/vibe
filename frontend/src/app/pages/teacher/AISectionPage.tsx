@@ -180,8 +180,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
         const isLast = idx === WORKFLOW_STEPS.length - 1;
         const isCompleted = status === 'completed';
-        const isActive = status === 'active' || (isCurrent && !isCompleted);
         const isFailed = status === 'failed';
+        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed);
 
         return (
           <React.Fragment key={step.key}>
@@ -607,7 +607,7 @@ export default function AISectionPage() {
     setRerunParams: React.Dispatch<React.SetStateAction<{ language: string; model: string }>>;
     handleStartTranscription: () => Promise<void>;
     getStatusIcon: (status: string) => React.ReactNode;
-    handleStopTask: () => Promise<void>;
+    handleStopTask: (task: keyof TaskRuns) => Promise<void>;
   }) => {
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
@@ -830,7 +830,7 @@ export default function AISectionPage() {
             (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING'))
           ) && (
             <Button
-              onClick={handleStopTask}
+              onClick={() => handleStopTask(task)}
               variant="outline"
               className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             >
@@ -1280,6 +1280,8 @@ export default function AISectionPage() {
   const prevJobStatusRef = useRef<any>(null);
   // Track if this is the first status fetch after mount
   const didMountRef = useRef(false);
+  // Track an optimistic failed task for stepper (e.g., after Stop)
+  const optimisticFailedTaskRef = useRef<string | null>(null);
 
   // New: Manual refresh handler
   const handleRefreshStatus = async () => {
@@ -1380,23 +1382,100 @@ export default function AISectionPage() {
     }
   };
 
-  const handleStopTask = async () => {
+  const handleStopTask: (task?: keyof typeof taskRuns) => Promise<void> = async (task?) => {
     if (!aiJobId) return;
     if (!aiSectionAPI.stopJobTask) {
       toast.error('Stop task functionality not available');
       return;
     }
     try {
-      let response: any = await aiSectionAPI.stopJobTask(aiJobId);
-      if (response.ok) {
+      const response: any = await aiSectionAPI.stopJobTask(aiJobId);
+      if (response?.ok) {
         toast.success('Stopped task successfully.');
       } else {
         toast.error('Failed to stop task.');
       }
-      await handleRefreshStatus();
     } catch (error) {
       setAiWorkflowStep('error');
       toast.error('Failed to stop task.');
+    } finally {
+      const createFailedRun = (): TaskRun => ({ id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'failed' });
+      if (task) {
+        setTaskRuns(prev => {
+          const runs = prev[task];
+          const hasLoading = runs.some(r => r.status === 'loading');
+          const updated = hasLoading
+            ? runs.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
+            : [...runs, createFailedRun()];
+          return { ...prev, [task]: updated } as TaskRuns;
+        });
+      } else {
+        setTaskRuns(prev => ({
+          ...prev,
+          transcription: prev.transcription.some(r => r.status === 'loading')
+            ? prev.transcription.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
+            : [...prev.transcription, createFailedRun()],
+          segmentation: prev.segmentation.some(r => r.status === 'loading')
+            ? prev.segmentation.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
+            : [...prev.segmentation, createFailedRun()],
+          question: prev.question.some(r => r.status === 'loading')
+            ? prev.question.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
+            : [...prev.question, createFailedRun()],
+          upload: prev.upload.some(r => r.status === 'loading')
+            ? prev.upload.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
+            : [...prev.upload, createFailedRun()],
+        }));
+      }
+
+      setAiJobStatus(prev => {
+        if (!prev) return prev;
+        const next = { ...prev } as any;
+        const setTop = (taskStr: string) => {
+          next.task = taskStr;
+          next.status = 'FAILED';
+        };
+        const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+        const isActive = (v?: string) => v === 'RUNNING' || v === 'PENDING' || v === 'WAITING';
+        if (task === 'transcription') {
+          let failingTask = next.task;
+          if (failingTask !== 'AUDIO_EXTRACTION' && failingTask !== 'TRANSCRIPT_GENERATION') {
+            const js = next.jobStatus || {};
+            if (isActive(js?.transcriptGeneration)) failingTask = 'TRANSCRIPT_GENERATION';
+            else if (isActive(js?.audioExtraction)) failingTask = 'AUDIO_EXTRACTION';
+            else failingTask = 'TRANSCRIPT_GENERATION';
+          }
+          setTop(failingTask);
+          ensureJobStatus();
+          if (failingTask === 'TRANSCRIPT_GENERATION') next.jobStatus.transcriptGeneration = 'FAILED';
+          if (failingTask === 'AUDIO_EXTRACTION') next.jobStatus.audioExtraction = 'FAILED';
+          optimisticFailedTaskRef.current = failingTask;
+          return next;
+        }
+        if (task === 'segmentation') {
+          setTop('SEGMENTATION');
+          ensureJobStatus();
+          next.jobStatus.segmentation = 'FAILED';
+          optimisticFailedTaskRef.current = 'SEGMENTATION';
+          return next;
+        }
+        if (task === 'question') {
+          setTop('QUESTION_GENERATION');
+          ensureJobStatus();
+          next.jobStatus.questionGeneration = 'FAILED';
+          optimisticFailedTaskRef.current = 'QUESTION_GENERATION';
+          return next;
+        }
+        if (task === 'upload') {
+          setTop('UPLOAD_CONTENT');
+          ensureJobStatus();
+          next.jobStatus.uploadContent = 'FAILED';
+          optimisticFailedTaskRef.current = 'UPLOAD_CONTENT';
+          return next;
+        }
+        setTop(next.task);
+        optimisticFailedTaskRef.current = next.task;
+        return next;
+      });
       await handleRefreshStatus();
     }
   };
@@ -1404,8 +1483,46 @@ export default function AISectionPage() {
   useEffect(() => {
     if (!aiJobId) return;
 
-    const es = connectToLiveStatusUpdates(aiJobId, (status) => {
-      setAiJobStatus(status);
+    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
+      setAiJobStatus((prev) => {
+        let next: any = incoming ? { ...incoming } : incoming;
+        const failing = optimisticFailedTaskRef.current;
+        if (next && failing) {
+          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+          switch (failing) {
+            case 'AUDIO_EXTRACTION':
+              setTop('AUDIO_EXTRACTION');
+              ensureJobStatus();
+              next.jobStatus.audioExtraction = 'FAILED';
+              break;
+            case 'TRANSCRIPT_GENERATION':
+              setTop('TRANSCRIPT_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.transcriptGeneration = 'FAILED';
+              break;
+            case 'SEGMENTATION':
+              setTop('SEGMENTATION');
+              ensureJobStatus();
+              next.jobStatus.segmentation = 'FAILED';
+              break;
+            case 'QUESTION_GENERATION':
+              setTop('QUESTION_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.questionGeneration = 'FAILED';
+              break;
+            case 'UPLOAD_CONTENT':
+              setTop('UPLOAD_CONTENT');
+              ensureJobStatus();
+              next.jobStatus.uploadContent = 'FAILED';
+              break;
+          }
+        }
+        if (next?.status === 'FAILED') {
+          optimisticFailedTaskRef.current = null;
+        }
+        return next;
+      });
     });
     return () => es.close();
 
