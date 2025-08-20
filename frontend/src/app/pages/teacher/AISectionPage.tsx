@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus,getApiUrl } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -270,9 +270,6 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 });
 
 
-function getApiUrl(path: string) {
-  return `https://vibe-backend-staging-239934307367.asia-south1.run.app/api${path}`;
-}
 
 export default function AISectionPage() {
   // AI Section workflow state
