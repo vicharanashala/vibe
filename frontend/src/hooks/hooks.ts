@@ -38,6 +38,7 @@ export interface QuestionBody {
     hint?: string;
     timeLimitSeconds: number;
     points: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // Union type based on question type
 }
@@ -59,6 +60,7 @@ export interface QuestionResponse {
   hint?: string;
   timeLimitSeconds: number;
   points: number;
+  skipCount?: number;
   // Solution fields based on type
   solutionText?: string;
   decimalPrecision?: number;
@@ -254,6 +256,7 @@ export interface UserQuizMetricsResponse {
   latestAttemptId?: string | ObjectId;
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
+  skipCount: number;
   attempts: Array<{
     attemptId: string | ObjectId;
     submissionResultId?: string | ObjectId;
@@ -1454,10 +1457,14 @@ export interface QuestionId {
 export interface QuestionResponse {
   _id: string;
   type: string;
+  priority: string;
   details: any;
+  skipCount?: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  attemptedByUsersCount: number;
+  attemptCount: number;
 }
 
 export interface FlagQuestionBody {
@@ -1492,6 +1499,17 @@ export interface GetQuestionBankByIdParams {
   questionBankId: string;
 }
 
+export interface QuestionBankResponse {
+  _id?: string | ObjectId;
+  courseId?: string;
+  courseVersionId?: string;
+  questions?: string[];
+  tags?: string[];
+  title: string;
+  description: string;
+}
+
+
 export interface QuestionBankAndQuestionParams {
   questionBankId: string;
   questionId: string;
@@ -1499,6 +1517,14 @@ export interface QuestionBankAndQuestionParams {
 
 export interface ReplaceQuestionResponse {
   newQuestionId: string;
+}
+
+// Quiz types - matching backend validators
+export interface AddQuestionBankBody {
+  bankId: string;
+  count: number;
+  difficulty?: string[];
+  tags?: string[];
 }
 
 export interface RemoveQuestionBankParams {
@@ -1746,7 +1772,6 @@ export function useQuestionById(questionId: string): {
 // POST /quizzes/questions
 export function useCreateQuestion(): {
   mutate: (variables: { body: QuestionBody }) => void,
-  mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   mutateAsync: (variables: { body: QuestionBody }) => Promise<{ questionId: string }>,
   data: { questionId: string } | undefined,
   error: string | null,

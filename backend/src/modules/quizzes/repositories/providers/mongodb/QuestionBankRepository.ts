@@ -90,6 +90,18 @@ class QuestionBankRepository {
     );
     return result.deletedCount === 0;
   }
+
+  public async getQuestionBanksByQuestionId(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank[]> {
+    await this.init();
+    const result = await this.questionBankCollection.find(
+      {questions: new ObjectId(questionId)},
+      {session},
+    ).toArray();
+    return result;
+  }
 }
 
 export {QuestionBankRepository};

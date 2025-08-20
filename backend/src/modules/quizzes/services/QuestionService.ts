@@ -1,15 +1,19 @@
-import {injectable, inject} from 'inversify';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {QUIZZES_TYPES} from '../types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ParameterMap} from '../question-processing/tag-parser/tags/Tag.js';
-import {BaseQuestion} from '../classes/transformers/Question.js';
-import {IQuestionRenderView} from '../question-processing/renderers/interfaces/RenderViews.js';
-import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
+import { injectable, inject } from 'inversify';
+import { NotFoundError, BadRequestError } from 'routing-controllers';
+import { QUIZZES_TYPES } from '../types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { QuestionRepository } from '../repositories/providers/mongodb/QuestionRepository.js';
+import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ParameterMap } from '../question-processing/tag-parser/tags/Tag.js';
+import { BaseQuestion } from '../classes/transformers/Question.js';
+import { IQuestionRenderView } from '../question-processing/renderers/interfaces/RenderViews.js';
+import { QuestionProcessor } from '../question-processing/QuestionProcessor.js';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { ClientSession } from 'mongodb';
 
 @injectable()
 class QuestionService extends BaseService {
@@ -20,13 +24,65 @@ class QuestionService extends BaseService {
     @inject(QUIZZES_TYPES.QuestionBankRepo)
     private questionBankRepository: QuestionBankRepository,
 
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
+    private userQuizMetricsRepository: UserQuizMetricsRepository,
+
+    @inject(QUIZZES_TYPES.QuizRepo)
+    private quizRepository: QuizRepository,
+
     @inject(GLOBAL_TYPES.Database)
     private database: MongoDatabase, // Replace with actual database type if needed
   ) {
     super(database);
   }
 
-  private async _getQuestionBanksByQuestionId() {}
+  private async _getQuestionBanksByQuestionId() { }
+
+  private async _getQuestionSkipCount(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    try {
+      const questionBanks = await this.questionBankRepository.getQuestionBanksByQuestionId(
+        questionId,
+        session,
+      );
+
+      if (!questionBanks || questionBanks.length === 0) {
+        return 0;
+      }
+
+      const questionBankIds = questionBanks.map(bank => bank._id?.toString()).filter(Boolean);
+
+      if (questionBankIds.length === 0) {
+        return 0;
+      }
+
+      let totalSkipCount = 0;
+
+      const allMetrics = await this.userQuizMetricsRepository.getAll(session);
+
+      for (const metric of allMetrics) {
+
+        const quiz = await this.quizRepository.getById(metric.quizId.toString(), session);
+        if (quiz && quiz.details.allowSkip) {
+          const hasQuestion = quiz.details.questionBankRefs.some(ref =>
+            questionBankIds.includes(ref.bankId)
+          );
+          if (hasQuestion) {
+            totalSkipCount += metric.skipCount || 0;
+          }
+        }
+      }
+
+      return totalSkipCount;
+    } catch (error) {
+      console.error('Error calculating question skip count:', error);
+      return 0;
+    }
+  }
 
   public async create(question: BaseQuestion): Promise<string> {
     return this._withTransaction(async session => {
@@ -39,21 +95,37 @@ class QuestionService extends BaseService {
     raw?: boolean,
     parameterMap?: ParameterMap,
   ): Promise<BaseQuestion | IQuestionRenderView> {
-    return this._withTransaction(async session => {
-      const question = await this.questionRepository.getById(
-        questionId,
-        session,
-      );
+
+    return this._withTransaction(async (session) => {
+      const question = await this.questionRepository.getById(questionId, session);
       if (!question) {
         throw new NotFoundError(`Question with ID ${questionId} not found`);
       }
 
+      const [attemptCount, attemptedByUsersCount] = await Promise.all([
+        this.attemptRepository.countByQuestionId(questionId, session),
+        this.attemptRepository.countDistinctUsersByQuestionId(questionId, session),
+      ]);
+
       if (raw) {
-        return question;
+        const skipCount = await this._getQuestionSkipCount(questionId, session);
+
+        return {
+          ...(question as BaseQuestion),
+          attemptCount,
+          attemptedByUsersCount,
+          skipCount,
+        } as unknown as BaseQuestion;
       }
 
       const questionProcessor = new QuestionProcessor(question);
-      return questionProcessor.render(parameterMap);
+      const rendered = questionProcessor.render(parameterMap) as IQuestionRenderView;
+    
+      return {
+        ...rendered,
+        attemptCount,
+        attemptedByUsersCount,
+      };
     });
   }
 

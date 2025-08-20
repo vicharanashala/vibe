@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, CheckCircle, Circle } from "lucide-react";
 import { useCreateQuestion, useAddQuestionToBank } from '@/hooks/hooks';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CreateQuestionDialogProps {
     showCreateQuestionDialog: boolean;
@@ -40,7 +41,8 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         hint: '',
         timeLimitSeconds: 60,
         points: 5,
-        options: [] as OptionWithSelection[], // Unified options array
+        options: [] as OptionWithSelection[],
+        priority: 'LOW' as 'LOW' | 'MEDIUM' | 'HIGH'
     });
 
     const createQuestion = useCreateQuestion();
@@ -136,6 +138,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             timeLimitSeconds: 60,
             points: 5,
             options: [],
+            priority: 'LOW'
         });
     };
 
@@ -165,6 +168,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                 hint: questionForm.hint || undefined,
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
+                priority: questionForm.priority,
                 incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
                     ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
@@ -183,7 +187,8 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                         parameters: questionData.parameters,
                         hint: questionData.hint,
                         timeLimitSeconds: questionData.timeLimitSeconds,
-                        points: questionData.points
+                        points: questionData.points,
+                        priority: questionData.priority
                     },
                     solution: {
                         correctLotItems: questionData.correctLotItems,
@@ -292,6 +297,22 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 value={questionForm.points}
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
                                             />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="priority" className='mb-3'>Priority</Label>
+                                            <Select
+                                                value={questionForm.priority}
+                                                onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value }))}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select priority" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="LOW">Low</SelectItem>
+                                                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                                                    <SelectItem value="HIGH">High</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                 </CardContent>
