@@ -26,11 +26,13 @@ import {
   UploadCloud,
   FileText,
   ListChecks,
-  MessageSquareText
+  MessageSquareText,
+  Workflow
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCourseStore } from "@/store/course-store";
+import { Link } from "@tanstack/react-router";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -2389,6 +2391,16 @@ export default function AISectionPage() {
               {aiJobId ? "Job Created" : "Create AI Job"}
             </Button>
           </div>
+
+          {/* Navigation to ai workflow */}
+            <Link to="/teacher/ai-workflow">
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
+                <Workflow className="w-5 h-5" />
+                Go to AI Workflow
+              </Button>
+            </Link>
+
+            
           {aiJobId && (
             <div className="space-y-6">
               {/* Refresh button and status */}
@@ -2401,6 +2413,7 @@ export default function AISectionPage() {
                    Refresh Status
                  </Button>
                 </div> */}
+
 
               {/* Task Cards */}
               <div className="space-y-8 mt-8">

@@ -64,7 +64,7 @@ export function useTranscriber(): Transcriber {
     const webWorker = useWorker((event) => {
         const message = event.data;
         // Update the state with the result
-        switch (message.status) {
+        switch (message.status) { 
             case "progress":
                 // Model file progress: update one of the progress items.
                 setProgressItems((prev) =>
@@ -92,7 +92,6 @@ export function useTranscriber(): Transcriber {
                 // console.log("complete", message);
                 // eslint-disable-next-line no-case-declarations
                 const completeMessage = message as TranscriberCompleteData;
-                console.log("Complete message: ", completeMessage)
                 setTranscript({
                     isBusy: false,
                     text: completeMessage.data.text,
@@ -171,13 +170,13 @@ export function useTranscriber(): Transcriber {
                 }
 
                 webWorker.postMessage({
-                    audio,
-                    model,
-                    multilingual,
-                    quantized,
-                    subtask: multilingual ? subtask : null,
-                    language:
-                        multilingual && language !== "auto" ? language : null,
+                    audio, 
+                    model, 
+                    multilingual, 
+                    quantized, 
+                    subtask: multilingual ? subtask : null, 
+                    language: 
+                        multilingual && language !== "auto" ? language : null, 
                 });
             }
         },
