@@ -28,6 +28,7 @@ import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
+import { Label } from "@/components/ui/label";
 
 
 // ✅ Icons per item type
@@ -874,6 +875,7 @@ export default function TeacherCoursePage() {
                   <div className="space-y-3">
                     {(selectedEntity.type !== "item") && (
                       <>
+                        <Label className="text-sm font-bold text-foreground">Title *</Label>
                         <Input
                           value={
                             selectedEntity.type === "item"
@@ -928,6 +930,7 @@ export default function TeacherCoursePage() {
 
                     {(selectedEntity.type !== "item") && (
                       <>
+                        <Label className="text-sm font-bold text-foreground">Description *</Label>
                         <textarea
                           value={
                             selectedEntity.type === "item"

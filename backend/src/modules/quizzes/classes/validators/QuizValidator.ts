@@ -911,6 +911,15 @@ class UserQuizMetricsResponse {
   })
   remainingAttempts: number;
 
+  @IsNumber()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'Number of times the quiz was skipped',
+    type: 'number',
+    example: 0,
+  })
+  skipCount: number;
+
   @IsNotEmpty()
   @ValidateNested({each: true})
   @Type(() => AttemptDetails)

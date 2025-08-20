@@ -26,6 +26,10 @@ import {
   useUpdateQuestion,
 } from '@/hooks/hooks';
 
+type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
+const toPriority = (value: any): Priority =>
+  value === 'LOW' || value === 'MEDIUM' || value === 'HIGH' ? value : 'LOW';
+
 interface QuestionFormData {
   question: {
     text: string;
@@ -39,6 +43,7 @@ interface QuestionFormData {
     hint?: string;
     timeLimitSeconds: number;
     points: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // This would be the appropriate solution type based on question type
 }
@@ -82,7 +87,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       type: 'SELECT_ONE_IN_LOT',
       isParameterized: false,
       timeLimitSeconds: 60,
-      points: 1
+      points: 1,
+      priority: 'LOW'
     },
     solution: {}
   });
@@ -102,7 +108,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: question.parameters || [],
           hint: question.hint || '',
           timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1
+          points: question.points || 1,
+          priority: toPriority((question as any).priority)
         },
         solution: {
           // Map backend solution fields to frontend format
@@ -155,7 +162,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: question.parameters || [],
           hint: question.hint || '',
           timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1
+          points: question.points || 1,
+          priority: toPriority((question as any).priority)
         },
         solution: {
           correctLotItem: question.correctLotItem,
@@ -187,7 +195,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: details.parameters || [],
           hint: details.hint || '',
           timeLimitSeconds: details.timeLimitSeconds || 60,
-          points: details.points || 1
+          points: details.points || 1,
+          priority: toPriority((details as any).priority)
         },
         solution: {
           // Map backend solution fields to frontend format
@@ -239,7 +248,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             parameters: editForm.question.parameters,
             hint: editForm.question.hint,
             timeLimitSeconds: editForm.question.timeLimitSeconds,
-            points: editForm.question.points
+            points: editForm.question.points,
+            priority: editForm.question.priority
           },
           solution: solutionForBackend
         }
@@ -540,7 +550,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         )}
 
         {/* Points and Time Limit */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="points" className="text-sm font-medium">Points</Label>
             <Input
@@ -568,6 +578,27 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
               })}
               className="mt-1"
             />
+          </div>
+          <div>
+            <Label htmlFor="priority" className='text-sm font-medium mb-1'>Priority</Label>
+            <Select
+              value={editForm.question.priority}
+              onValueChange={(value) =>
+                setEditForm(prev => ({
+                  ...prev,
+                  question: { ...prev.question, priority: toPriority(value) },
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LOW">Low</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
+                <SelectItem value="HIGH">High</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
