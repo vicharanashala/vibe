@@ -125,7 +125,6 @@ export const TaskAccordion = React.memo(({
   setRerunParams,
   handleStartTranscription
 }: TaskAccordionProps) => {
-    console.log(`[TaskAccordion render] task: ${task}, runs:`, taskRuns[task]);
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
     const { currentCourse } = useCourseStore();

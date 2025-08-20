@@ -33,10 +33,7 @@ class PipelineFactory {
     }
 }
 
-self.onmessage = (event) => {
-  console.log("👷 Worker received in worker:", event.data);
-  self.postMessage({ status: "pong", received: event.data });
-};
+
 
 self.addEventListener("message", async (event) => {
     const message = event.data;
