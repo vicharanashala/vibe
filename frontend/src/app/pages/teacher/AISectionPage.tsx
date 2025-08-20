@@ -569,7 +569,49 @@ export default function AISectionPage() {
     }
   };
 
-  const TaskAccordion = React.memo(({ task, title, jobStatus }: { task: keyof typeof taskRuns; title: string; jobStatus?: any }) => {
+  const TaskAccordion = React.memo(({ 
+    task, 
+    title, 
+    jobStatus,
+    taskRuns,
+    acceptedRuns,
+    aiJobId,
+    aiJobStatus: accordionAiJobStatus,
+    segParams,
+    questionGenParams,
+    rerunParams,
+    handleTask,
+    handleAcceptRun,
+    canRunTask,
+    setTaskRuns,
+    setQuestionGenParams,
+    setSegParams,
+    setRerunParams,
+    handleStartTranscription,
+    getStatusIcon,
+    handleStopTask
+  }: { 
+    task: keyof typeof taskRuns; 
+    title: string; 
+    jobStatus?: any;
+    taskRuns: TaskRuns;
+    acceptedRuns: Partial<Record<keyof TaskRuns, string>>;
+    aiJobId: string | null;
+    aiJobStatus: any;
+    segParams: { lam: number; runs: number; noiseId: number };
+    questionGenParams: QuestionGenParams;
+    rerunParams: { language: string; model: string };
+    handleTask: (task: keyof TaskRuns, segParams: any, questionGenParams: any) => Promise<void>;
+    handleAcceptRun: (task: keyof TaskRuns, runId: string) => Promise<void>;
+    canRunTask: (task: keyof TaskRuns) => boolean;
+    setTaskRuns: React.Dispatch<React.SetStateAction<TaskRuns>>;
+    setQuestionGenParams: React.Dispatch<React.SetStateAction<QuestionGenParams>>;
+    setSegParams: React.Dispatch<React.SetStateAction<{ lam: number; runs: number; noiseId: number }>>;
+    setRerunParams: React.Dispatch<React.SetStateAction<{ language: string; model: string }>>;
+    handleStartTranscription: () => Promise<void>;
+    getStatusIcon: (status: string) => React.ReactNode;
+    handleStopTask: () => Promise<void>;
+  }) => {
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
     const { currentCourse } = useCourseStore();
@@ -642,7 +684,7 @@ export default function AISectionPage() {
           </div>
         )}
         {/* Show Start Transcription button for transcription task when audio extraction is completed */}
-        {task === 'transcription' && aiJobStatus?.status === 'COMPLETED' && aiJobStatus?.task === 'AUDIO_EXTRACTION' && (
+        {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && (
           <div className="mb-4">
             <TooltipProvider>
               <Tooltip>
@@ -650,24 +692,24 @@ export default function AISectionPage() {
                   <Button
                     onClick={handleStartTranscription}
                     variant="default"
-                    disabled={aiJobStatus?.status !== 'COMPLETED' || aiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+                    disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
                     className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
                   >
                     Start Transcription Task
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) === 'PENDING' && (
+                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) === 'PENDING' && (
                     <span>
                       Approves the transcript task. Click again when status is <b>WAITING</b> to actually start transcription.
                     </span>
                   )}
-                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) === 'WAITING' && (
+                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) === 'WAITING' && (
                     <span>
                       Starts the transcript generation task. Status will move to <b>RUNNING</b>.
                     </span>
                   )}
-                  {(aiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (aiJobStatus?.status as string) !== 'PENDING' && (aiJobStatus?.status as string) !== 'WAITING' && (
+                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) !== 'PENDING' && (accordionAiJobStatus?.status as string) !== 'WAITING' && (
                     <span>
                       Transcript generation is not ready to start yet.
                     </span>
@@ -781,6 +823,24 @@ export default function AISectionPage() {
           >
             {title}
           </Button>
+          
+          {aiJobId && (
+            runs.some(r => r.status === "loading") || 
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING')) ||
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING')) ||
+            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING')) ||
+            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING')) ||
+            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING'))
+          ) && (
+            <Button
+              onClick={handleStopTask}
+              variant="outline"
+              className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Stop Task
+            </Button>
+          )}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
@@ -917,7 +977,7 @@ export default function AISectionPage() {
                     run.parameters.lam !== undefined ? (<span key="lam"><strong>Lambda:</strong> {run.parameters.lam}</span>) : undefined,
                     run.parameters.runs !== undefined ? (<span key="runs"><strong>Runs:</strong> {run.parameters.runs}</span>) : undefined,
                     run.parameters.noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {run.parameters.noiseId}</span>) : undefined,
-                  ].filter((x): x is React.ReactNode => x != null)
+                  ].filter((x): x is React.ReactElement => x != null)
                   : [];
               // --- Fix for readable parameters display for question task ---
               let readableParams: React.ReactNode = null;
@@ -1323,6 +1383,26 @@ export default function AISectionPage() {
     }
   };
 
+  const handleStopTask = async () => {
+    if (!aiJobId) return;
+    if (!aiSectionAPI.stopJobTask) {
+      toast.error('Stop task functionality not available');
+      return;
+    }
+    try {
+      let response: any = await aiSectionAPI.stopJobTask(aiJobId);
+      if (response.ok) {
+        toast.success('Stopped task successfully.');
+      } else {
+        toast.error('Failed to stop task.');
+      }
+      await handleRefreshStatus();
+    } catch (error) {
+      setAiWorkflowStep('error');
+      toast.error('Failed to stop task.');
+      await handleRefreshStatus();
+    }
+  };
 
   useEffect(() => {
     if (!aiJobId) return;
@@ -2284,7 +2364,6 @@ export default function AISectionPage() {
           <h1 className="text-3xl font-bold mb-3 text-primary">
             Generate Section using AI
           </h1>
-          
           <p className="text-muted-foreground text-lg">
             Transform your YouTube content into interactive learning materials
           </p>
@@ -2325,6 +2404,7 @@ export default function AISectionPage() {
                    Refresh Status
                  </Button>
                 </div> */}
+
               {/* Task Cards */}
               <div className="space-y-8 mt-8">
                 {/* Transcription Section */}
@@ -2333,7 +2413,28 @@ export default function AISectionPage() {
                     <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
                   </div>
-                  <TaskAccordion task="transcription" title="Audio Extraction" jobStatus={aiJobStatus?.status} />
+                  <TaskAccordion 
+                    task="transcription" 
+                    title="Audio Extraction" 
+                    jobStatus={aiJobStatus?.status}
+                    taskRuns={taskRuns}
+                    acceptedRuns={acceptedRuns}
+                    aiJobId={aiJobId}
+                    aiJobStatus={aiJobStatus}
+                    segParams={segParams}
+                    questionGenParams={questionGenParams}
+                    rerunParams={rerunParams}
+                    handleTask={handleTask}
+                    handleAcceptRun={handleAcceptRun}
+                    canRunTask={canRunTask}
+                    setTaskRuns={setTaskRuns}
+                    setQuestionGenParams={setQuestionGenParams}
+                    setSegParams={setSegParams}
+                    setRerunParams={setRerunParams}
+                    handleStartTranscription={handleStartTranscription}
+                    getStatusIcon={getStatusIcon}
+                    handleStopTask={handleStopTask}
+                  />
                 </div>
 
                 {/* Segmentation Section */}
@@ -2342,7 +2443,28 @@ export default function AISectionPage() {
                     <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                   </div>
-                  <TaskAccordion task="segmentation" title="Segmentation" jobStatus={aiJobStatus?.status} />
+                  <TaskAccordion 
+                    task="segmentation" 
+                    title="Segmentation" 
+                    jobStatus={aiJobStatus?.status}
+                    taskRuns={taskRuns}
+                    acceptedRuns={acceptedRuns}
+                    aiJobId={aiJobId}
+                    aiJobStatus={aiJobStatus}
+                    segParams={segParams}
+                    questionGenParams={questionGenParams}
+                    rerunParams={rerunParams}
+                    handleTask={handleTask}
+                    handleAcceptRun={handleAcceptRun}
+                    canRunTask={canRunTask}
+                    setTaskRuns={setTaskRuns}
+                    setQuestionGenParams={setQuestionGenParams}
+                    setSegParams={setSegParams}
+                    setRerunParams={setRerunParams}
+                    handleStartTranscription={handleStartTranscription}
+                    getStatusIcon={getStatusIcon}
+                    handleStopTask={handleStopTask}
+                  />
                 </div>
 
                 {/* Question Generation Section */}
@@ -2351,7 +2473,28 @@ export default function AISectionPage() {
                     <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
                   </div>
-                  <TaskAccordion task="question" title="Question Generation" jobStatus={aiJobStatus?.status} />
+                  <TaskAccordion 
+                    task="question" 
+                    title="Question Generation" 
+                    jobStatus={aiJobStatus?.status}
+                    taskRuns={taskRuns}
+                    acceptedRuns={acceptedRuns}
+                    aiJobId={aiJobId}
+                    aiJobStatus={aiJobStatus}
+                    segParams={segParams}
+                    questionGenParams={questionGenParams}
+                    rerunParams={rerunParams}
+                    handleTask={handleTask}
+                    handleAcceptRun={handleAcceptRun}
+                    canRunTask={canRunTask}
+                    setTaskRuns={setTaskRuns}
+                    setQuestionGenParams={setQuestionGenParams}
+                    setSegParams={setSegParams}
+                    setRerunParams={setRerunParams}
+                    handleStartTranscription={handleStartTranscription}
+                    getStatusIcon={getStatusIcon}
+                    handleStopTask={handleStopTask}
+                  />
                 </div>
 
                 {/* Upload Section */}
@@ -2360,7 +2503,28 @@ export default function AISectionPage() {
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
                   </div>
-                  <TaskAccordion task="upload" title="Upload to Course" jobStatus={aiJobStatus?.status} />
+                  <TaskAccordion 
+                    task="upload" 
+                    title="Upload to Course" 
+                    jobStatus={aiJobStatus?.status}
+                    taskRuns={taskRuns}
+                    acceptedRuns={acceptedRuns}
+                    aiJobId={aiJobId}
+                    aiJobStatus={aiJobStatus}
+                    segParams={segParams}
+                    questionGenParams={questionGenParams}
+                    rerunParams={rerunParams}
+                    handleTask={handleTask}
+                    handleAcceptRun={handleAcceptRun}
+                    canRunTask={canRunTask}
+                    setTaskRuns={setTaskRuns}
+                    setQuestionGenParams={setQuestionGenParams}
+                    setSegParams={setSegParams}
+                    setRerunParams={setRerunParams}
+                    handleStartTranscription={handleStartTranscription}
+                    getStatusIcon={getStatusIcon}
+                    handleStopTask={handleStopTask}
+                  />
                 </div>
 
                 {/* Upload Success Message - Show outside accordion when upload is completed */}

@@ -179,6 +179,20 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   return result;
 };
 
+export const stopJobTask = async (jobId: string): Promise<void> => {
+
+  const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/stop`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to stop job task: ${response.status} ${response.statusText}`);
+  }
+
+  console.log('Job task stopped successfully');
+  return response.json();
+};
+
 export const connectToLiveStatusUpdates = (
   jobId: string,
   setAiJobStatus: (status: JobStatus) => void
