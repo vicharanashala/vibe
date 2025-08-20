@@ -5,7 +5,7 @@ export function LiveQuiz() {
     const transcriber = useTranscriber();
 
     return (
-        <div className="flex justify-center items-start py-10">
+        <div className="flex justify-center items-start py-10 ">
             <div className="w-full max-w-3xl flex flex-col items-center gap-6">
             {/* Audio Manager */}
             <AudioManager transcriber={transcriber} />

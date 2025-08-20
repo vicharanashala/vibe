@@ -608,7 +608,7 @@ const AiWorkflow = () => {
 
 
   return (
-    <div className='py-5'>
+    <div className='py-2'>
         <Card className="mb-2">
             <CardHeader className="pb-6">
                 <div className="flex items-center justify-between">
@@ -626,7 +626,7 @@ const AiWorkflow = () => {
                     size="sm"
                     onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
                     disabled={!!aiJobId}
-                    className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
+                    className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
                 >
                     {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
                 </Button>
@@ -965,25 +965,25 @@ const AiWorkflow = () => {
                 </div>
             </CardContent>
         </Card>
-        <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 ">
+        <div className=" bg-gradient-to-br from-background to-muted/20 ">
             <div className=" mx-auto space-y-8">
                 <div className="bg-card rounded-2xl border shadow-lg p-8 space-y-6">
                     <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
                         <div className='flex items-center gap-3 pb-2'>
-                            <Upload className="w-6 h-6 text-white" />
+                            <Upload className="w-6 h-6 dark:text-white " />
                             <h2 className="text-xl font-bold">Upload Audio</h2>
                         </div>
                         <Button
                             onClick={handleRefreshStatus}
                             variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                             >
                             <RefreshCw className="w-4 h-4 mr-2" />
                              Refresh Status
                          </Button>
                     </div>
 
-                    <p className="text-md text-gray-200">
+                    <p className="text-md text-gray-600 dark:text-gray-200">
                         Select your preferred method to upload audio — via File, Link, or Recording.
                     </p>
 
