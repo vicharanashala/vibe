@@ -101,11 +101,32 @@ class UserQuizMetricsRepository {
         {session},
       );
 
+      return true;
     } catch (error) {
-      throw new InternalServerError(
-        `Failed to remove attempts from metrics /More ${error}`,
-      );
+      console.error('Error resetting user metrics:', error);
+      throw new InternalServerError('Failed to reset user metrics');
     }
+  }
+
+  public async getByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IUserQuizMetrics[]> {
+    await this.init();
+    const result = await this.userQuizMetricsCollection.find(
+      {quizId: new ObjectId(quizId)},
+      {session},
+    ).toArray();
+    return result;
+  }
+
+  public async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
+    await this.init();
+    const result = await this.userQuizMetricsCollection.find(
+      {},
+      {session},
+    ).toArray();
+    return result;
   }
 }
 

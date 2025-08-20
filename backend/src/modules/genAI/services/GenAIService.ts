@@ -651,6 +651,7 @@ export class GenAIService extends BaseService {
                 questionVisibility: createdQuestionIds.length,
                 releaseTime: new Date(),
                 deadline: undefined,
+                allowSkip: true,
               },
             };
 

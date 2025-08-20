@@ -13,6 +13,8 @@ interface IQuestionParameter {
   type: 'number' | 'string';
 }
 
+export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
+
 interface IQuestion {
   _id?: string | ObjectId;
   text: string;
@@ -22,6 +24,7 @@ interface IQuestion {
   hint?: string;
   timeLimitSeconds: number;
   points: number;
+  priority: Priority;
 }
 
 interface INATSolution {
