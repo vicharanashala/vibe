@@ -254,6 +254,30 @@ export class GenAIController {
   }
 
   @OpenAPI({
+    summary: 'Stop current task',
+    description: 'Stops the current task in the job (alias of abort).',
+  })
+  @Post("/jobs/:id/tasks/stop")
+  @Authorized()
+  @OnUndefined(200)
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'GenAI not found',
+    statusCode: 404,
+  })
+  async stopTask(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability, user}) {
+    const { id } = params;
+    const userId = user._id.toString();
+    const job = await this.genAIService.getJobStatus(id);
+
+    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    if (!ability.can('modify', genaiRes)) {
+      //throw new ForbiddenError('You do not have permission to stop tasks in this job');
+    }
+
+    await this.genAIService.abortTask(id);
+  }
+
+  @OpenAPI({
     summary: 'Edit segment map',
     description: 'Edits the segment map of a job.',
   })
