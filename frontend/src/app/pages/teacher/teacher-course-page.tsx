@@ -137,7 +137,7 @@ export default function TeacherCoursePage() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData
+    data: selectedItemData,refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -198,6 +198,7 @@ useEffect(() => {
   ) {
     refetchVersion();
     refetchItems();
+    refetchItem()
 
     if (activeSectionInfo) {
       setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
@@ -333,8 +334,8 @@ useEffect(() => {
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
   };
 
   // Add Section
@@ -345,8 +346,8 @@ useEffect(() => {
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
   };
 
   // Add Item (now only for article/quiz, video handled via modal)
@@ -373,8 +374,8 @@ useEffect(() => {
         }
       }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
       function convertToMinSecMs(time: number) {
@@ -1085,8 +1086,8 @@ useEffect(() => {
                               }
                             }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                           }
                           if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
                             updateSectionAsync({
@@ -1103,8 +1104,8 @@ useEffect(() => {
                               }
                             }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                           }
                           if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
                            updateItemAsync({
@@ -1122,8 +1123,8 @@ useEffect(() => {
                               }
                             }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                           }
                         }}
                         className="mr-2"
@@ -1143,8 +1144,8 @@ useEffect(() => {
                                 params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
                               }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                             }
@@ -1155,8 +1156,8 @@ useEffect(() => {
                                 params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
                               }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
                             }
@@ -1202,8 +1203,8 @@ useEffect(() => {
                               body: formattedVideo,
                             }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
                           }
@@ -1218,8 +1219,8 @@ useEffect(() => {
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
                             }
@@ -1247,8 +1248,8 @@ useEffect(() => {
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
          refetchVersion();
-    refetchItems();
-      })
+    refetchItems();refetchItem()
+      });
                           setSelectedEntity(null);
                         }}
                       />
