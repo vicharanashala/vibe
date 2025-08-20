@@ -123,13 +123,13 @@ interface QuestionPerformanceRowProps {
   onCacheUpdate?: () => void;
 }
 
-var questionTextCache: Record<string, { text: string, points: number }> = {};
+var questionTextCache: Record<string, { text: string, points: number, priority?: string, type?: string }> = {};
 
 const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance, index, onCacheUpdate }) => {
   const { data: questionData } = useQuestionById(performance.questionId);
   useEffect(() => {
     if (questionData && questionData.text) {
-      questionTextCache[performance.questionId] = { text: questionData.text, points: questionData.points || 1 };
+      questionTextCache[performance.questionId] = { text: questionData.text, points: questionData.points || 1, priority: questionData.priority, type: questionData.type };
       console.log(`Cached question text for ${performance.questionId}: ${questionData.text}`);
       // Trigger parent component to update
       if (onCacheUpdate) {
@@ -289,6 +289,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [selectedGradeStatus, setSelectedGradeStatus] = useState<GradingSystemStatus>("All");
   const [sort, setSort] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("All");
+  const [typeFilter, setTypeFilter] = useState<string>("All");
 
   const gradeStatusOptions = ["All", 'PENDING', 'PASSED', 'FAILED'];
 
@@ -408,31 +410,39 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }, [details]);
 
   // Memoized chart data that updates when questionTextCache changes
-  const chartData = React.useMemo(() => {
-    const performanceData = performance && performance.length > 0
+  const performanceData = React.useMemo(() => {
+    const base = performance && performance.length > 0
       ? performance
       : calculatePerformanceFromSubmissions(submissions || []);
 
+    return base.filter((p: any) => {
+      const meta = questionTextCache[p.questionId] || {} as any;
+      const passPriority = priorityFilter === 'All' || (meta.priority ? String(meta.priority).toLowerCase() === String(priorityFilter).toLowerCase() : false);
+      const passType = typeFilter === 'All' || (meta.type ? String(meta.type) === String(typeFilter) : false);
+      return passPriority && passType;
+    });
+  }, [performance, submissions, questionCacheUpdateTrigger, priorityFilter, typeFilter]);
+
+  const chartData = React.useMemo(() => {
     return performanceData.map((p: any, index: number) => ({
       questionId: `Q${index + 1}`,
       questionText: questionTextCache[p.questionId]?.text,
       correctRate: (p.correctRate * 100)?.toFixed(1),
       averageScore: p.averageScore ? (p.averageScore / (questionTextCache[p.questionId]?.points || 1) * 100)?.toFixed(1) : '0'
     }));
-  }, [performance, submissions, questionCacheUpdateTrigger]);
+  }, [performanceData]);
 
   // Function to trigger chart data update when cache changes
   const handleCacheUpdate = React.useCallback(() => {
     setQuestionCacheUpdateTrigger(prev => prev + 1);
-  }, []);
-
+  }, [])
   const handleSaveQuizSettings = async () => {
     try {
 
       if (!questionBanks) questionBanks = [];
 
       const questionBankRefs: QuestionBankRef[] = questionBanks?.map((bank: QuestionBankRef) => ({
-        bankId: bank.bankId,
+        bankId: bank.bankId, 
         count: bank.count,
         difficulty: bank.difficulty,
         tags: bank.tags
@@ -1153,34 +1163,28 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <div className="p-0 md:py-4 lg:py-6 space-y-6">
                   <div className='flex items-center gap-4 '>
                     <Label>Filters:</Label>
-                    <Select
-                    // value={customTranscriptParams.language}
-                    // onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, language: value }))}
-                    // disabled={!!aiJobId}
-                    >
+                    <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="All Questions" />
+                        <SelectValue placeholder="Priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="hi">Hindi</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="All">All Priorities</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="LOW">Low</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select
-                    // value={customTranscriptParams.language}
-                    // onValueChange={(value) => setCustomTranscriptParams(prev => ({ ...prev, language: value }))}
-                    // disabled={!!aiJobId}
-                    >
+                    <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="All Types" />
+                        <SelectValue placeholder="Type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="hi">Hindi</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="All">All Types</SelectItem>
+                        <SelectItem value="SELECT_ONE_IN_LOT">Single Choice</SelectItem>
+                        <SelectItem value="SELECT_MANY_IN_LOT">Multiple Choice</SelectItem>
+                        <SelectItem value="ORDER_THE_LOTS">Order The Items</SelectItem>
+                        <SelectItem value="NUMERIC_ANSWER_TYPE">Numeric Answer</SelectItem>
+                        <SelectItem value="DESCRIPTIVE">Descriptive</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1199,12 +1203,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           </TableHeader> */}
                           <TableBody>
                             {(() => {
-                              const performanceData = performance && performance.length > 0
-                                ? performance
-                                : calculatePerformanceFromSubmissions(submissions || []);
-
-                              return performanceData?.length > 0 ? (
-                                performanceData.map((p: any, index: number) => (
+                              const data = performanceData;
+                              return data?.length > 0 ? (
+                                data.map((p: any, index: number) => (
                                   <QuestionPerformanceRow key={p.questionId} index={index} performance={p} onCacheUpdate={handleCacheUpdate} />
                                 ))
                               ) : (
