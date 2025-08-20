@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, {  useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
@@ -255,49 +255,47 @@ function Modal({
     submitEnabled = true,
 }: ModalProps) {
     return (
-        <Dialog.Root open={show} onOpenChange={onClose}>
-            <Dialog.Portal>
-                <Dialog.Overlay className='fixed inset-0 bg-black bg-opacity-25' />
-                <Dialog.Content className='fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl'>
-                    <Dialog.Title className='text-lg font-medium leading-6 text-gray-900'>
-                        {title}
-                    </Dialog.Title>
-                    <div className='mt-3 text-sm text-gray-500'>
-                        {content}
-                    </div>
+    <Dialog.Root open={show} onOpenChange={onClose}>
+        <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
 
-                    <div className='mt-4 flex flex-row-reverse'>
-                        {submitText && (
-                            <button
-                                type='button'
-                                disabled={!submitEnabled}
-                                className={`inline-flex ml-4 justify-center rounded-md border border-transparent ${
-                                    submitEnabled
-                                        ? "bg-indigo-600"
-                                        : "bg-grey-300"
-                                } px-4 py-2 text-sm font-medium text-indigo-100 ${
-                                    submitEnabled
-                                        ? "hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-                                        : ""
-                                } transition-all duration-300`}
-                                onClick={onSubmit}
-                            >
-                                {submitText}
-                            </button>
-                        )}
-                        <Dialog.Close asChild>
-                            <button
-                                type='button'
-                                className='inline-flex justify-center rounded-md border border-transparent bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-900 hover:bg-indigo-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-all duration-300'
-                                onClick={onClose}
-                            >
-                                Close
-                            </button>
-                        </Dialog.Close>
-                    </div>
-                </Dialog.Content>
-            </Dialog.Portal>
-        </Dialog.Root>
+            <Dialog.Content className="fixed top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-2xl animate-scale-in">
+            <Dialog.Title className="text-lg font-semibold text-gray-100">
+                {title}
+            </Dialog.Title>
+
+            <div className="mt-3 text-sm text-gray-300">{content}</div>
+
+            <div className="mt-6 flex flex-row-reverse gap-3">
+                {submitText && (
+                <button
+                    type="button"
+                    disabled={!submitEnabled}
+                    className={`inline-flex justify-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 shadow-md
+                    ${
+                        submitEnabled
+                        ? "bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        : "bg-gray-600 text-gray-300 cursor-not-allowed opacity-70"
+                    }`}
+                    onClick={onSubmit}
+                >
+                    {submitText}
+                </button>
+                )}
+
+                <Dialog.Close asChild>
+                <button
+                    type="button"
+                    className="inline-flex justify-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all duration-300"
+                    onClick={onClose}
+                >
+                    Close
+                </button>
+                </Dialog.Close>
+            </div>
+            </Dialog.Content>
+        </Dialog.Portal>
+    </Dialog.Root>
     );
 }
 
@@ -338,7 +336,7 @@ export default function AudioPlayer(props: {
     }, [props.audioUrl]);
 
     return (
-        <div className='flex relative z-10 p-4 w-full'>
+        <div className='flex relative p-4 w-full'>
             <audio
                 ref={audioPlayer}
                 controls
@@ -599,7 +597,7 @@ export function AudioManager(props: { transcriber: Transcriber }) {
 
     return (
         <>
-            <div className='flex flex-col justify-center items-center rounded-lg bg-white shadow-xl shadow-black/5 ring-1 ring-slate-700/10'>
+            <div className='flex flex-col justify-center items-center rounded-xl border-1 border-blue-700 shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4'>
                 <div className='flex flex-row space-x-2 py-2 w-full px-2'>
                     <UrlTile
                         icon={<AnchorIcon />}
@@ -1043,7 +1041,7 @@ function Tile(props: {
     return (
         <button
             onClick={props.onClick}
-            className='flex items-center justify-center rounded-lg p-2 bg-blue text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200'
+            className='flex items-center justify-center rounded-lg p-2 bg-blue text-slate-500 hover:text-blue-500  hover:scale-[1.02] hover:shadow-blue-500/30 transition-all duration-200'
         >
             <div className='w-7 h-7'>{props.icon}</div>
             {props.text && (
@@ -1056,39 +1054,27 @@ function Tile(props: {
 }
 
 function AnchorIcon() {
-    return (
-        <svg
-            xmlns='http://www.w3.org/2000/svg'
-            fill='none'
-            viewBox='0 0 24 24'
-            strokeWidth='1.5'
-            stroke='currentColor'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244'
-            />
-        </svg>
-    );
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+      />
+    </svg>
+  )
 }
 
 function FolderIcon() {
-    return (
-        <svg
-            xmlns='http://www.w3.org/2000/svg'
-            fill='none'
-            viewBox='0 0 24 24'
-            strokeWidth='1.5'
-            stroke='currentColor'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776'
-            />
-        </svg>
-    );
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"
+      />
+    </svg>
+  )
 }
 
 function SettingsIcon() {
@@ -1115,19 +1101,13 @@ function SettingsIcon() {
 }
 
 function MicrophoneIcon() {
-    return (
-        <svg
-            xmlns='http://www.w3.org/2000/svg'
-            fill='none'
-            viewBox='0 0 24 24'
-            strokeWidth={1.5}
-            stroke='currentColor'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z'
-            />
-        </svg>
-    );
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+      />
+    </svg>
+  )
 }
