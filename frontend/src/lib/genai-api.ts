@@ -2,7 +2,7 @@
 // Updated to use job+task system
 
 // Environment-based API configuration
-const getApiBaseUrl = (): string => {
+export const getApiBaseUrl = (): string => {
   return import.meta.env.VITE_BASE_URL;
 };
 
@@ -130,7 +130,7 @@ export const createGenAIJob = async (
     segmentationParameters,
     questionGenerationParameters,
   } = params;
-  
+
   const uploadParameters: Record<string, any> = {
     courseId,
     versionId,
@@ -181,7 +181,7 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
 
 export const stopJobTask = async (jobId: string): Promise<void> => {
 
-  const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/stop`, {
+  const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/abort`, {
     method: 'POST',
   });
 
@@ -560,11 +560,13 @@ export const aiSectionAPI: {
   approveStartTask: typeof approveStartTask;
   editQuestionData?: typeof editQuestionData;
   editTranscriptData?: typeof editTranscriptData;
+  stopJobTask?: typeof stopJobTask;
 
 } = {
   createJob: createGenAIJob,
   getJobStatus,
   postJobTask,
+  stopJobTask,
   pollForTaskCompletion,
   runTranscriptionWorkflow,
   approveContinueTask,
