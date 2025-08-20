@@ -250,19 +250,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
                     </div>
                     <div className="space-y-4">
                         <Input
-                            placeholder="Video Name"
+                            placeholder="Video Name *"
                             value={name}
                             onChange={e => setName(e.target.value)}
                             disabled={action === "view"}
                         />
                         <Input
-                            placeholder="Paste YouTube video URL"
+                            placeholder="Paste YouTube video URL *"
                             value={url}
                             onChange={e => setUrl(e.target.value)}
                             disabled={action === "view"}
                         />
                         <textarea
-                            placeholder="Description"
+                            placeholder="Description *"
                             value={description}
                             onChange={e => setDescription(e.target.value)}
                             disabled={action === "view"}
