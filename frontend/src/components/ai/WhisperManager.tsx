@@ -1,4 +1,4 @@
-import React, {  useEffect, useState } from "react";
+import React, {  JSX, useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
@@ -104,6 +104,7 @@ function AudioRecorder(props: {
     const [duration, setDuration] = useState(0);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
+    
     const streamRef = useRef<MediaStream | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
@@ -169,7 +170,7 @@ function AudioRecorder(props: {
     };
 
     useEffect(() => {
-        const stream: MediaStream | null = null;
+        // const stream: MediaStream | null = null;
 
         if (recording) {
             const timer = setInterval(() => {
@@ -182,12 +183,13 @@ function AudioRecorder(props: {
         }
 
         return () => {
-            if (stream) {
-                stream.getTracks().forEach((track) => track.stop());
+            if (streamRef.current ) {
+                streamRef.current.getTracks().forEach((track) => track.stop());
             }
         };
     }, [recording]);
 
+    
     const handleToggleRecording = () => {
         if (recording) {
             stopRecording();
@@ -926,9 +928,10 @@ function FileTile(props: {
         const files = (event.target as HTMLInputElement).files;
         if (!files) return;
 
+        const file = files[0];
         // Create a blob that we can use as an src for our audio element
-        const urlObj = URL.createObjectURL(files[0]);
-        const mimeType = files[0].type;
+        const urlObj = URL.createObjectURL(file);
+        const mimeType = file.type;
 
         const reader = new FileReader();
         reader.addEventListener("load", async (e) => {

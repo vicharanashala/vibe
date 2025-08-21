@@ -7,12 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { aiSectionAPI, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import {  AlertTriangle, Ban, CheckCircle, Clock, FileText, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Settings, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
 import { useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter, validateTranscript } from './AudioTranscripter';
+import { TranscriberData } from '@/hooks/useTranscriber';
 
 
 interface TaskRun {
@@ -96,31 +97,40 @@ const AiWorkflow = () => {
     });
 
     const [aiWorkflowStep, setAiWorkflowStep] = useState("");
-    const [finalTranscription, setFinalTranscription] = useState("");
+    const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
+
+    const errorRef = useRef<HTMLDivElement | null>(null);
 
     // Validation
     const isValidYouTubeUrl = (url: string): boolean => {
         const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
         return youtubeRegex.test(url);
     };
-
+  
 
     // Handlers
     const handleCreateJob = async () => {
 
         if (!youtubeUrl.trim()) {
             setUrlError("YouTube URL is required");
+            scrollToError();
             return;
         }
         if (!isValidYouTubeUrl(youtubeUrl.trim())) {
-        setUrlError("Please enter a valid YouTube URL");
-        return;
+            setUrlError("Please enter a valid YouTube URL");
+            scrollToError();
+            return;
         }
 
-        if(!finalTranscription){
+        if(!transcribedData?.text){
             toast.error("No transcript found, Try again!");
             return;
         };
+        
+        const chunks: Chunk[] = transcribedData.chunks.map(c => ({
+            text: c.text,
+            timestamp: c.timestamp.map(t => t ?? 0), // convert null to 0
+        }));
 
         setUrlError(null);
         // Get courseId and versionId from store
@@ -134,6 +144,7 @@ const AiWorkflow = () => {
         // Build job parameters
         const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
             videoUrl: youtubeUrl,
+            transcript: { chunks },
             courseId: currentCourse.courseId,
             versionId: currentCourse.versionId,
             moduleId: currentCourse.moduleId,
@@ -202,6 +213,14 @@ const AiWorkflow = () => {
         }
     };
 
+    const scrollToError = () => {
+        if (errorRef.current) {
+        errorRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
+        }
+    };
     // Task dependency order (linear workflow)
     const taskOrder = ['transcription', 'segmentation', 'questions', 'upload'] as const;
 
@@ -930,7 +949,7 @@ const AiWorkflow = () => {
                         />
                         </div>
                     {urlError && (
-                        <p className="text-red-500 text-sm mt-1">{urlError}</p>
+                        <p ref={errorRef} className="text-red-500 text-sm mt-1">{urlError}</p>
                     )}
                 </div>
             </CardContent>
@@ -960,8 +979,9 @@ const AiWorkflow = () => {
                     {/* Transcribe component */}
 
                     <AudioTranscripter 
-                        onSave={setFinalTranscription}
-                        setFinalTranscript={setFinalTranscription}
+                        // onSave={setTranscribedData}
+                        transcribedData = {transcribedData}
+                        setTranscribedData={setTranscribedData}
                     />
 
                     <div className="flex justify-center">

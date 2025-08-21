@@ -1,12 +1,12 @@
 import { AudioManager } from "@/components/ai/WhisperManager";
 import { Button } from "@/components/ui/button";
-import { useTranscriber } from "@/hooks/useTranscriber";
+import { TranscriberData, useTranscriber } from "@/hooks/useTranscriber";
 import { useEffect, useState } from "react";
 
 
 interface IAudioTranscripter {
-    onSave:(currentText: string) => void
-    setFinalTranscript:(transcript: string) => void
+    transcribedData: TranscriberData | undefined;
+    setTranscribedData:(transcript: TranscriberData | undefined) => void
 }
 
 // Validation
@@ -31,29 +31,53 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
 
     useEffect(() => {
         if (transcriber.output?.text) {
+            props.setTranscribedData(transcriber.output);
+
             const transcribedText = transcriber.output?.text
-            props.setFinalTranscript(transcribedText);
             setTranscriptText(transcribedText);
             setPrevTranscript(transcribedText);
         }
-    }, [transcriber.output?.text]);
+    }, [transcriber.output]);
 
-
-      const handleSave = () => {
+    const handleSave = () => {
         const currentText = transcriptText;
-        const errorMsg = validateTranscript(transcriptText);
+        const errorMsg = validateTranscript(currentText);
 
         if (errorMsg) {
             setTranscriptText(prevTranscript);
             setError(errorMsg);
             return;
         }
-        
+
         setError("");
         setPrevTranscript(currentText);
-        props.onSave(currentText)
+
+        const originalChunks = props.transcribedData?.chunks ?? [];
+        const totalLength = originalChunks.reduce((sum, c) => sum + c.text.length, 0);
+
+        const newChunks = originalChunks.map((chunk) => {
+            const proportion = chunk.text.length / totalLength;
+            const newChunkLength = Math.round(currentText.length * proportion);
+            const startIndex = originalChunks
+                .slice(0, originalChunks.indexOf(chunk))
+                .reduce((sum, c) => sum + Math.round(currentText.length * (c.text.length / totalLength)), 0);
+
+            const newChunkText = currentText.slice(startIndex, startIndex + newChunkLength);
+            return {
+                ...chunk,
+                text: newChunkText
+            };
+        });
+
+        props.setTranscribedData({
+            text: currentText,
+            isBusy: props.transcribedData?.isBusy ?? false,
+            chunks: newChunks,
+        });
+
         setIsEditing(false);
-      };
+    };
+
 
       return (
         <div className="flex justify-center items-start py-10 ">

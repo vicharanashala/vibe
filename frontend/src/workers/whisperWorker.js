@@ -38,6 +38,7 @@ class PipelineFactory {
 self.addEventListener("message", async (event) => {
     const message = event.data;
 
+    console.log("From worker.js message: ", message);
     // Do some work...
     // TODO use message data
     let transcript = await transcribe(
@@ -72,6 +73,10 @@ const transcribe = async (
     subtask,
     language,
 ) => {
+
+    if (!model || typeof model !== "string") {
+        throw new Error("Model name is missing or invalid");
+    }
 
     const isDistilWhisper = model.startsWith("distil-whisper/");
 
