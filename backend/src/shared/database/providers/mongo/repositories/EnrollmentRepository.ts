@@ -212,20 +212,43 @@ export class EnrollmentRepository {
     courseVersionId: string,
     skip: number,
     limit: number,
+    search: string,
+    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortOrder: 'asc' | 'desc',
   ) {
     await this.init();
 
-    const matchStage = {
+    const matchStage: any = {
       $match: {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
     };
 
-    const sortStage = { $sort: { enrollmentDate: -1 } };
+    // 🔎 Search filter (works with even 1 char)
+    if (search && search.trim()) {
+      matchStage.$match.$or = [
+        { 'user.firstName': { $regex: search, $options: 'i' } },
+        { 'user.lastName': { $regex: search, $options: 'i' } },
+        { 'user.email': { $regex: search, $options: 'i' } },
+        { userId: { $regex: search, $options: 'i' } }, // treat userId as string
+      ];
+    }
 
+    // 📌 Sorting
+    let sortStage: any = {};
+    if (sortBy === 'name') {
+      sortStage = { $sort: { 'user.firstName': sortOrder === 'asc' ? 1 : -1 } };
+    } else if (sortBy === 'enrollmentDate') {
+      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
+    } else if (sortBy === 'progress') {
+      sortStage = { $sort: { 'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1 } };
+    }
+
+    // 📌 Pagination stages
     const paginationStages = [{ $skip: skip }, { $limit: limit }];
 
+    // 📌 Main aggregation pipeline
     const aggregationPipeline = [
       matchStage,
       sortStage,
@@ -240,11 +263,10 @@ export class EnrollmentRepository {
       },
     ];
 
-    const countPipeline = [
-      matchStage,
-      { $count: 'total' },
-    ];
+    // 📌 Count pipeline
+    const countPipeline = [matchStage, { $count: 'total' }];
 
+    // 📌 Run both in parallel
     const [countResult, enrollments] = await Promise.all([
       this.enrollmentCollection.aggregate(countPipeline).toArray(),
       this.enrollmentCollection.aggregate(aggregationPipeline).toArray(),
@@ -260,6 +282,7 @@ export class EnrollmentRepository {
       enrollments,
     };
   }
+
 
   /**
    * Count total enrollments for a user

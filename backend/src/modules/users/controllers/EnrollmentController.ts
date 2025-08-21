@@ -1,5 +1,5 @@
 
-import { EnrollmentRole, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
+import { EnrollmentRole, EnrollmentsQuery, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -263,25 +263,21 @@ export class EnrollmentController {
   async getCourseVersionEnrollments(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
-    @QueryParams() query: PaginationQuery,
+    @QueryParams() query: EnrollmentsQuery,
     @Ability(getEnrollmentAbility) { ability }
   ): Promise<CourseVersionEnrollmentResponse> {
-    // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', {
-      courseId,
-      versionId
-    });
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
 
-    // Check permission using ability.can() with the actual enrollment resource
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to view enrollments for this course');
     }
 
-    const { page, limit } = query;
+    const { page, limit, search = '', sortBy = 'enrollmentDate', sortOrder = 'desc' } = query;
 
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
+
     const skip = (page - 1) * limit;
 
     const enrollmentsData = await this.enrollmentService.getCourseVersionEnrollments(
@@ -289,6 +285,9 @@ export class EnrollmentController {
       versionId,
       skip,
       limit,
+      search,
+      sortBy,
+      sortOrder
     );
 
     if (!enrollmentsData || !enrollmentsData.enrollments || enrollmentsData.enrollments.length === 0) {
@@ -302,4 +301,5 @@ export class EnrollmentController {
       currentPage: page,
     };
   }
+
 }

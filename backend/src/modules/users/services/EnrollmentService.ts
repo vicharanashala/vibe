@@ -212,6 +212,9 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     skip: number,
     limit: number,
+    search: string,
+    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortOrder: 'asc' | 'desc'
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -230,7 +233,11 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         skip,
         limit,
+        search,
+        sortBy,
+        sortOrder
       );
+
 
       // Create enriched enrollments with user data using Promise.all for concurrent fetching
       const userPromises = enrollmentsData.enrollments.map(async (enrollment) => {
