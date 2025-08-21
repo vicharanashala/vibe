@@ -1,16 +1,16 @@
-import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { IEnrollment, IProgress } from '#shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private progressCollection!: Collection<IProgress>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -27,7 +27,7 @@ export class EnrollmentRepository {
   async findById(id: string): Promise<IEnrollment | null> {
     await this.init();
     try {
-      return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
+      return await this.enrollmentCollection.findOne({ _id: new ObjectId(id) });
     } catch (error) {
       throw new InternalServerError(
         `Failed to find enrollment by ID: ${error.message}`,
@@ -57,7 +57,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.findOne({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
       courseId: courseObjectId,
       courseVersionId: courseVersionObjectId,
     });
@@ -113,11 +113,11 @@ export class EnrollmentRepository {
 
     const result = await this.enrollmentCollection.deleteOne(
       {
-        userId: {$in: userFilter},
+        userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
-      {session},
+      { session },
     );
     if (result.deletedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
@@ -164,7 +164,7 @@ export class EnrollmentRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
   }
 
@@ -183,10 +183,10 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}})
+      .find({ userId: { $in: userFilter } })
       .skip(skip)
       .limit(limit)
-      .sort({enrollmentDate: -1})
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -202,8 +202,8 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}}, {session})
-      .sort({enrollmentDate: -1})
+      .find({ userId: { $in: userFilter } }, { session })
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -215,24 +215,24 @@ export class EnrollmentRepository {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
-    session?:ClientSession
+    session?: ClientSession
   ) {
     await this.init();
     const matchStage: any = {
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
     };
 
     let sortStage: any = {};
 
     if (sortBy === 'name') {
-      sortStage = {$sort: {'firstName': sortOrder === 'asc' ? 1 : -1}};
+      sortStage = { $sort: { 'firstName': sortOrder === 'asc' ? 1 : -1 } };
     } else if (sortBy === 'enrollmentDate') {
-      sortStage = {$sort: {enrollmentDate: sortOrder === 'asc' ? 1 : -1}};
-    // } else if (sortBy === 'progress') {
-    //   sortStage = {
-    //     $sort: {'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1},
-    //   };
+      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
+      // } else if (sortBy === 'progress') {
+      //   sortStage = {
+      //     $sort: {'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1},
+      //   };
     }
 
     const aggregationPipeline: any[] = [
@@ -241,7 +241,7 @@ export class EnrollmentRepository {
       },
       {
         $addFields: {
-          userId: {$toObjectId: '$userId'},
+          userId: { $toObjectId: '$userId' },
         },
       },
       {
@@ -272,11 +272,12 @@ export class EnrollmentRepository {
     ];
 
     if (search && search.trim() !== '') {
+      skip = 1;
       aggregationPipeline.push({
         $match: {
           $or: [
-            {'userInfo.firstName': {$regex: search, $options: 'i'}},
-            {'userInfo.email': {$regex: search, $options: 'i'}},
+            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
+            { 'userInfo.email': { $regex: search, $options: 'i' } },
           ],
         },
       });
@@ -284,21 +285,21 @@ export class EnrollmentRepository {
 
     aggregationPipeline.push(sortStage);
 
-     let totalDocuments = 0;
-      aggregationPipeline.push( {$skip: skip} , {$limit: limit});
-      totalDocuments = await this.enrollmentCollection.countDocuments(
-        matchStage,
-      );
+    let totalDocuments = 0;
+    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
+    totalDocuments = await this.enrollmentCollection.countDocuments(
+      matchStage,
+    );
 
-      const enrollments = await this.enrollmentCollection
-      .aggregate(aggregationPipeline, {session})
+    const enrollments = await this.enrollmentCollection
+      .aggregate(aggregationPipeline, { session })
       .toArray();
-    
-      const totalPages =
-        typeof limit === 'number' && limit > 0
-          ? Math.ceil(totalDocuments / limit)
-          : 1;
-   
+
+    const totalPages =
+      typeof limit === 'number' && limit > 0
+        ? Math.ceil(totalDocuments / limit)
+        : 1;
+
     return {
       totalDocuments,
       totalPages,
@@ -322,7 +323,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.countDocuments({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
     });
   }
 }
