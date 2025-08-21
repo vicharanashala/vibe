@@ -1,16 +1,16 @@
-import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { IEnrollment, IProgress } from '#shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private progressCollection!: Collection<IProgress>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -27,7 +27,7 @@ export class EnrollmentRepository {
   async findById(id: string): Promise<IEnrollment | null> {
     await this.init();
     try {
-      return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
+      return await this.enrollmentCollection.findOne({ _id: new ObjectId(id) });
     } catch (error) {
       throw new InternalServerError(
         `Failed to find enrollment by ID: ${error.message}`,
@@ -57,7 +57,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.findOne({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
       courseId: courseObjectId,
       courseVersionId: courseVersionObjectId,
     });
@@ -113,11 +113,11 @@ export class EnrollmentRepository {
 
     const result = await this.enrollmentCollection.deleteOne(
       {
-        userId: {$in: userFilter},
+        userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
-      {session},
+      { session },
     );
     if (result.deletedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
@@ -164,7 +164,7 @@ export class EnrollmentRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
   }
 
@@ -183,10 +183,10 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}})
+      .find({ userId: { $in: userFilter } })
       .skip(skip)
       .limit(limit)
-      .sort({enrollmentDate: -1})
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -202,8 +202,8 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}}, {session})
-      .sort({enrollmentDate: -1})
+      .find({ userId: { $in: userFilter } }, { session })
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -214,15 +214,51 @@ export class EnrollmentRepository {
     limit: number,
   ) {
     await this.init();
-    return await this.enrollmentCollection
-      .find({
+
+    const matchStage = {
+      $match: {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-      })
-      .skip(skip)
-      .limit(limit)
-      .sort({enrollmentDate: -1})
-      .toArray();
+      },
+    };
+
+    const sortStage = { $sort: { enrollmentDate: -1 } };
+
+    const paginationStages = [{ $skip: skip }, { $limit: limit }];
+
+    const aggregationPipeline = [
+      matchStage,
+      sortStage,
+      ...paginationStages,
+      {
+        $addFields: {
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          courseVersionId: { $toString: '$courseVersionId' },
+          userId: { $toString: '$userId' },
+        },
+      },
+    ];
+
+    const countPipeline = [
+      matchStage,
+      { $count: 'total' },
+    ];
+
+    const [countResult, enrollments] = await Promise.all([
+      this.enrollmentCollection.aggregate(countPipeline).toArray(),
+      this.enrollmentCollection.aggregate(aggregationPipeline).toArray(),
+    ]);
+
+    const totalDocuments = countResult[0]?.total ?? 0;
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    return {
+      totalDocuments,
+      totalPages,
+      currentPage: Math.floor(skip / limit) + 1,
+      enrollments,
+    };
   }
 
   /**
@@ -240,7 +276,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.countDocuments({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
     });
   }
 }

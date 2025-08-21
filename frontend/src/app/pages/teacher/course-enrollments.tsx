@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { redirect, useNavigate } from "@tanstack/react-router"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
-
+import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -164,13 +164,17 @@ export default function CourseEnrollments() {
   const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
   const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
 
-  // Fetch enrollments data
+  //Pagination state
+    const [currentPage, setCurrentPage] = useState(1)
+  const pageLimit = 50;
+
+    // Fetch enrollments data
   const {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch: refetchEnrollments,
-  } = useCourseVersionEnrollments(courseId, versionId, 1, 100, !!(courseId && versionId))
+  } = useCourseVersionEnrollments(courseId, versionId, currentPage, pageLimit, !!(courseId && versionId))
 
   // API Hooks
   const resetProgressMutation = useResetProgress()
@@ -182,6 +186,11 @@ export default function CourseEnrollments() {
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+
+  // Pagination state
+    const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const totalPages = enrollmentsData?.totalPages || 1
 
   const filteredUsers = studentEnrollments.filter(
     (enrollment: any) =>
@@ -225,6 +234,13 @@ export default function CourseEnrollments() {
       setSortOrder('asc')
     }
   }
+
+    const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -1085,6 +1101,14 @@ export default function CourseEnrollments() {
             </div>
           </div>
         )}
+        {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={totalDocuments}
+                    onPageChange={handlePageChange}
+                  />
+                )}
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsMongoId,
   IsString,
@@ -11,8 +11,8 @@ import {
   IsEmail,
   IsOptional,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ProgressDataResponse} from './ProgressValidators.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ProgressDataResponse } from './ProgressValidators.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
@@ -63,7 +63,7 @@ export class EnrollmentBody {
   @IsNotEmpty()
   role: EnrollmentRole;
 }
-  
+
 export class EnrollmentDataResponse {
   @JSONSchema({
     description: 'Unique identifier for the enrollment record',
@@ -267,7 +267,7 @@ class AllEnrollmentsResponse {
   @IsString()
   role: EnrollmentRole;
 
-  
+
   @JSONSchema({
     description: 'Status of the enrollment',
     example: 'active',
@@ -345,7 +345,7 @@ export class EnrollmentResponse {
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => EnrollmentDataResponse)
   enrollments: EnrollmentDataResponse[];
 
@@ -367,9 +367,12 @@ export class CourseVersionEnrollmentResponse {
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => AllEnrollmentsResponse)
   enrollments: AllEnrollmentsResponse[];
+  totalDocuments: number;
+  totalPages: number;
+  currentPage: number;
 }
 
 export class EnrollmentNotFoundErrorResponse {
