@@ -164,7 +164,7 @@ export default function CoursePage() {
   } | null>(null);
 
   // Fetch course version data
-  const { data: courseVersionData, isLoading: versionLoading, error: versionError } =
+  const { data: courseVersionData, isLoading: versionLoading, error: versionError ,refetch: refetchVersion} =
     useCourseVersionById(VERSION_ID);
 
   // Fetch user progress
@@ -814,6 +814,10 @@ export default function CoursePage() {
       selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [selectedItemId]);
+
+  useEffect(()=>{
+    refetchVersion();
+  },[courseVersionData]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
