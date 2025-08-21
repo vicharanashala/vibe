@@ -406,7 +406,7 @@ export default function CourseEnrollments() {
     setExpandedSections(newExpanded)
   }
   // Stats calculations based on filtered users (search results)
-  const totalUsers = filteredUsers.length
+  const totalUsers = searchQuery!==''?filteredUsers.length:enrollmentsData.totalDocumnets
   // Count users with 100% progress
   const completedUsers = filteredUsers.filter(
     (enrollment: any) => (enrollment.progress?.percentCompleted || 0) >= 1
