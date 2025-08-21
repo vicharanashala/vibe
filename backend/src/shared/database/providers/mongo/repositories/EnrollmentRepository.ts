@@ -272,7 +272,7 @@ export class EnrollmentRepository {
     ];
 
     if (search && search.trim() !== '') {
-      skip = 1;
+
       aggregationPipeline.push({
         $match: {
           $or: [
