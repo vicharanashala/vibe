@@ -38,7 +38,7 @@ type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS
 interface TaskRun {
   id: string;
   timestamp: Date;
-  status: "loading" | "done" | "failed";
+  status: "loading" | "done" | "failed" | "stopped";
   result?: JobStatus;
   parameters?: Record<string, unknown>;
 }
@@ -142,6 +142,7 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
     if (status === 'running') return 'active';
     if (status === 'completed') return 'completed';
     if (status === 'failed') return 'failed';
+    if (status === 'stopped') return 'stopped';
     if (status === 'waiting' || status === 'pending') return 'pending';
     return 'pending';
   }
@@ -181,7 +182,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
         const isLast = idx === WORKFLOW_STEPS.length - 1;
         const isCompleted = status === 'completed';
         const isFailed = status === 'failed';
-        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed);
+        const isStopped = status === 'stopped';
+        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
 
         return (
           <React.Fragment key={step.key}>
@@ -192,7 +194,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                 ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
                   isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
                     isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
-                      'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                      isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
+                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:shadow-lg hover:ring-2 hover:ring-primary/20'
                 }`}
                 style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -204,6 +207,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                     <Loader2 className="w-6 h-6 animate-spin" />
                   ) : isFailed ? (
                     <XCircle className="w-6 h-6 animate-pulse" />
+                  ) : isStopped ? (
+                    <PauseCircle className="w-6 h-6 animate-pulse" />
                   ) : (
                     <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
                       {step.icon}
@@ -219,7 +224,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                   ${isCompleted ? 'text-green-600 dark:text-green-400' :
                     isActive ? 'text-blue-600 dark:text-blue-400' :
                       isFailed ? 'text-red-600 dark:text-red-400' :
-                        'text-muted-foreground'
+                        isStopped ? 'text-orange-600 dark:text-orange-400' :
+                          'text-muted-foreground'
                   }`}
                 >
                   {step.label}
@@ -247,6 +253,14 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                     <div className="w-2 h-2 bg-red-500 rounded-full" />
                     <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
                       Failed
+                    </span>
+                  </div>
+                )}
+                {isStopped && (
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                    <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      Stopped
                     </span>
                   </div>
                 )}
@@ -387,6 +401,16 @@ export default function AISectionPage() {
     };
     try {
       if (task === "transcription") {
+        const hasStoppedRun = taskRuns.transcription.some(r => r.status === 'stopped');
+        if (hasStoppedRun) {
+          setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+          await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
+          setAiWorkflowStep('audio_extraction');
+          toast.success("Transcription restarted. Click Refresh to check status.");
+          await handleRefreshStatus();
+          return;
+        }
+        
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
@@ -423,6 +447,17 @@ export default function AISectionPage() {
       switch (task) {
         case "segmentation": {
           taskType = "SEGMENTATION";
+          const hasStoppedRun = taskRuns.segmentation.some(r => r.status === 'stopped');
+          if (hasStoppedRun) {
+            setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
+            await aiSectionAPI.postJobTask(aiJobId, taskType, params, 0);
+            toast.success("Segmentation restarted. Click Refresh to check status.");
+            await handleRefreshStatus();
+            return;
+          }
+          
           // Add a new loading run
           const runId = `run-${Date.now()}-${Math.random()}`;
           const newRun: TaskRun = {
@@ -449,9 +484,17 @@ export default function AISectionPage() {
         }
         case "question":
           taskType = "QUESTION_GENERATION";
+          const hasStoppedQuestionRun = taskRuns.question.some(r => r.status === 'stopped');
+          if (hasStoppedQuestionRun) {
+            setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+            params = { ...questionGenParams };
+            await aiSectionAPI.postJobTask(aiJobId, taskType, params);
+            toast.success("Question generation restarted. Click Refresh to check status.");
+            await handleRefreshStatus();
+            return;
+          }
           params = { ...questionGenParams };
           break;
-
 
         case "upload":
           taskType = "UPLOAD_TO_COURSE";
@@ -514,13 +557,13 @@ export default function AISectionPage() {
   const canRunTask = (task: keyof typeof taskRuns): boolean => {
     switch (task) {
       case "transcription":
-        return !!aiJobId;
+        return !!aiJobId && !taskRuns.transcription.some(r => r.status === 'loading');
       case "segmentation":
-        return !!acceptedRuns.transcription;
+        return !!acceptedRuns.transcription && !taskRuns.segmentation.some(r => r.status === 'loading');
       case "question":
-        return !!acceptedRuns.segmentation;
+        return !!acceptedRuns.segmentation && !taskRuns.question.some(r => r.status === 'loading');
       case "upload":
-        return !!acceptedRuns.question;
+        return !!acceptedRuns.question && !taskRuns.upload.some(r => r.status === 'loading');
       default:
         return false;
     }
@@ -538,6 +581,9 @@ export default function AISectionPage() {
       case 'FAILED':
       case 'failed':
         return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><XCircle className="text-red-600" /></span></TooltipTrigger><TooltipContent>Failed</TooltipContent></Tooltip></TooltipProvider>;
+      case 'stopped':
+      case 'STOPPED':
+        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-orange-500" /></span></TooltipTrigger><TooltipContent>Stopped</TooltipContent></Tooltip></TooltipProvider>;
       case 'WAITING':
       case 'PENDING':
         return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-yellow-500" /></span></TooltipTrigger><TooltipContent>Waiting/Pending</TooltipContent></Tooltip></TooltipProvider>;
@@ -818,11 +864,12 @@ export default function AISectionPage() {
             disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
             className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
           >
-            {title}
+            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : title}
           </Button>
           
           {aiJobId && (
             runs.some(r => r.status === "loading") || 
+            runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING')) ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING')) ||
             (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING')) ||
@@ -832,10 +879,11 @@ export default function AISectionPage() {
             <Button
               onClick={() => handleStopTask(task)}
               variant="outline"
-              className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+              disabled={runs.some(r => r.status === "stopped")}
+              className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <XCircle className="w-4 h-4 mr-2" />
-              Stop Task
+              {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
             </Button>
           )}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
@@ -1000,7 +1048,7 @@ export default function AISectionPage() {
                 );
               }
               return (
-                <AccordionItem key={run.id} value={run.id} className="border rounded my-2">
+                <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                     <span>Run {index + 1}</span>
                     <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
@@ -1376,6 +1424,11 @@ export default function AISectionPage() {
         toast.error('A step failed.');
         return;
       }
+      if ((status?.task === 'AUDIO_EXTRACTION' && status?.status === 'STOPPED') || (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'STOPPED')) {
+        setAiWorkflowStep('idle');
+        toast.info('A step was stopped. You can restart it.');
+        return;
+      }
     } catch (error) {
       setAiWorkflowStep('error');
       toast.error('Failed to refresh status.');
@@ -1399,31 +1452,31 @@ export default function AISectionPage() {
       setAiWorkflowStep('error');
       toast.error('Failed to stop task.');
     } finally {
-      const createFailedRun = (): TaskRun => ({ id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'failed' });
+      const createStoppedRun = (): TaskRun => ({ id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'stopped' });
       if (task) {
         setTaskRuns(prev => {
           const runs = prev[task];
           const hasLoading = runs.some(r => r.status === 'loading');
           const updated = hasLoading
-            ? runs.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
-            : [...runs, createFailedRun()];
+            ? runs.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...runs, createStoppedRun()];
           return { ...prev, [task]: updated } as TaskRuns;
         });
       } else {
         setTaskRuns(prev => ({
           ...prev,
           transcription: prev.transcription.some(r => r.status === 'loading')
-            ? prev.transcription.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
-            : [...prev.transcription, createFailedRun()],
+            ? prev.transcription.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.transcription, createStoppedRun()],
           segmentation: prev.segmentation.some(r => r.status === 'loading')
-            ? prev.segmentation.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
-            : [...prev.segmentation, createFailedRun()],
+            ? prev.segmentation.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.segmentation, createStoppedRun()],
           question: prev.question.some(r => r.status === 'loading')
-            ? prev.question.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
-            : [...prev.question, createFailedRun()],
+            ? prev.question.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.question, createStoppedRun()],
           upload: prev.upload.some(r => r.status === 'loading')
-            ? prev.upload.map(r => (r.status === 'loading' ? { ...r, status: 'failed' } : r))
-            : [...prev.upload, createFailedRun()],
+            ? prev.upload.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.upload, createStoppedRun()],
         }));
       }
 
@@ -1432,48 +1485,48 @@ export default function AISectionPage() {
         const next = { ...prev } as any;
         const setTop = (taskStr: string) => {
           next.task = taskStr;
-          next.status = 'FAILED';
+          next.status = 'STOPPED';
         };
         const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
         const isActive = (v?: string) => v === 'RUNNING' || v === 'PENDING' || v === 'WAITING';
         if (task === 'transcription') {
-          let failingTask = next.task;
-          if (failingTask !== 'AUDIO_EXTRACTION' && failingTask !== 'TRANSCRIPT_GENERATION') {
+          let stoppingTask = next.task;
+          if (stoppingTask !== 'AUDIO_EXTRACTION' && stoppingTask !== 'TRANSCRIPT_GENERATION') {
             const js = next.jobStatus || {};
-            if (isActive(js?.transcriptGeneration)) failingTask = 'TRANSCRIPT_GENERATION';
-            else if (isActive(js?.audioExtraction)) failingTask = 'AUDIO_EXTRACTION';
-            else failingTask = 'TRANSCRIPT_GENERATION';
+            if (isActive(js?.transcriptGeneration)) stoppingTask = 'TRANSCRIPT_GENERATION';
+            else if (isActive(js?.audioExtraction)) stoppingTask = 'AUDIO_EXTRACTION';
+            else stoppingTask = 'TRANSCRIPT_GENERATION';
           }
-          setTop(failingTask);
+          setTop(stoppingTask);
           ensureJobStatus();
-          if (failingTask === 'TRANSCRIPT_GENERATION') next.jobStatus.transcriptGeneration = 'FAILED';
-          if (failingTask === 'AUDIO_EXTRACTION') next.jobStatus.audioExtraction = 'FAILED';
-          optimisticFailedTaskRef.current = failingTask;
+          if (stoppingTask === 'TRANSCRIPT_GENERATION') next.jobStatus.transcriptGeneration = 'STOPPED';
+          if (stoppingTask === 'AUDIO_EXTRACTION') next.jobStatus.audioExtraction = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
           return next;
         }
         if (task === 'segmentation') {
           setTop('SEGMENTATION');
           ensureJobStatus();
-          next.jobStatus.segmentation = 'FAILED';
-          optimisticFailedTaskRef.current = 'SEGMENTATION';
+          next.jobStatus.segmentation = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
           return next;
         }
         if (task === 'question') {
           setTop('QUESTION_GENERATION');
           ensureJobStatus();
-          next.jobStatus.questionGeneration = 'FAILED';
-          optimisticFailedTaskRef.current = 'QUESTION_GENERATION';
+          next.jobStatus.questionGeneration = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
           return next;
         }
         if (task === 'upload') {
           setTop('UPLOAD_CONTENT');
           ensureJobStatus();
-          next.jobStatus.uploadContent = 'FAILED';
-          optimisticFailedTaskRef.current = 'UPLOAD_CONTENT';
+          next.jobStatus.uploadContent = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
           return next;
         }
         setTop(next.task);
-        optimisticFailedTaskRef.current = next.task;
+        optimisticFailedTaskRef.current = null;
         return next;
       });
       await handleRefreshStatus();
@@ -1518,7 +1571,7 @@ export default function AISectionPage() {
               break;
           }
         }
-        if (next?.status === 'FAILED') {
+        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
           optimisticFailedTaskRef.current = null;
         }
         return next;
