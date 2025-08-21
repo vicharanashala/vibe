@@ -20,7 +20,7 @@ import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
-import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
+import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
 import CoursePage from '@/app/pages/student/course-page'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
@@ -170,7 +170,7 @@ const teacherProfileRoute = new Route({
 const teacherAudioManagerRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/transcribe',
-  component: LiveQuiz,
+  component: AudioTranscripter,
 });
 
 const teacherViewCourseRoute = new Route({

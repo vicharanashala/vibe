@@ -27,6 +27,8 @@ const makeAuthenticatedRequest = async (
   if (!token) {
     throw new Error('Authentication token not found');
   }
+  
+  const isFormData = options.body instanceof FormData;
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -34,7 +36,7 @@ const makeAuthenticatedRequest = async (
       mode: 'cors',
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         'Authorization': `Bearer ${token}`,
         'Origin': window.location.origin,
         ...options.headers,
@@ -98,6 +100,88 @@ export interface QuestionGenerationParameters {
   NAT?: number;
   DES?: number;
   prompt?: string;
+}
+
+export interface IChunk {
+  timestamp: number[];
+  text: string;
+}
+
+export interface ITranscript {
+  chunks: IChunk[];
+}
+
+export const createAutoGenAIJob = async (
+  params:{
+    file: File; 
+    videoUrl: string;
+    transcript?: ITranscript;
+    courseId: string;
+    versionId: string;
+    moduleId?: string | null;
+    sectionId?: string | null;
+    videoItemBaseName?: string;
+    quizItemBaseName?: string;
+    questionsPerQuiz?: number;
+
+    transcriptParameters?: TranscriptParameters;
+    segmentationParameters?: SegmentationParameters;
+    questionGenerationParameters?: QuestionGenerationParameters;
+
+  }
+): Promise<{ jobId: string }> => {
+  const {
+    file,
+    videoUrl,
+    courseId,
+    versionId,
+    moduleId,
+    sectionId,
+    videoItemBaseName = 'video_item',
+    quizItemBaseName = 'quiz_item',
+    questionsPerQuiz,
+    transcriptParameters,
+    segmentationParameters,
+    questionGenerationParameters,
+  } = params;
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("url", videoUrl);
+  formData.append("type", "VIDEO");
+
+  const uploadParameters: Record<string, any> = {
+    courseId,
+    versionId,
+    videoItemBaseName,
+    quizItemBaseName,
+  };
+  // Setting optional parameters
+  if (moduleId) uploadParameters.moduleId = moduleId;
+  if (sectionId) uploadParameters.sectionId = sectionId;
+  if (questionsPerQuiz) uploadParameters.questionsPerQuiz = questionsPerQuiz;
+
+  formData.append("uploadParameters", JSON.stringify(uploadParameters));
+
+  // Add optional task parameters if provided
+  if (transcriptParameters) {
+    formData.append("transcriptParameters", JSON.stringify(transcriptParameters));
+  }
+  if (segmentationParameters) {
+    formData.append("segmentationParameters", JSON.stringify(segmentationParameters));
+  }
+  if (questionGenerationParameters) {
+    formData.append("questionGenerationParameters", JSON.stringify(questionGenerationParameters));
+  }
+
+  console.log("Final form data: ", formData);
+  const response = await makeAuthenticatedRequest('/genai/jobs/audio-provided', {
+    method: 'POST',
+    body: formData,
+  });
+  const result = await response.json();
+  return { jobId: result.jobId };
+
 }
 
 // 1. Create GenAI Job
@@ -550,6 +634,7 @@ export const editTranscriptData = async (jobId: string, index: number, transcrip
 // aiSectionAPI for modal usage
 export const aiSectionAPI: {
   createJob: typeof createGenAIJob;
+  createAutoJob: typeof createAutoGenAIJob;
   getJobStatus: typeof getJobStatus;
   postJobTask: typeof postJobTask;
   pollForTaskCompletion: typeof pollForTaskCompletion;
@@ -564,6 +649,7 @@ export const aiSectionAPI: {
 
 } = {
   createJob: createGenAIJob,
+  createAutoJob: createAutoGenAIJob, 
   getJobStatus,
   postJobTask,
   stopJobTask,
