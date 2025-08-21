@@ -175,7 +175,6 @@ class SubmissionRepository {
         $match: {
           $or: [
             {'userInfo.firstName': {$regex: search, $options: 'i'}},
-            {'userInfo.lastName': {$regex: search, $options: 'i'}},
             {'userInfo.email': {$regex: search, $options: 'i'}},
           ],
         },

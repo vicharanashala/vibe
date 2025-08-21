@@ -235,9 +235,9 @@ export class EnrollmentService extends BaseService {
         limit,
         search,
         sortBy,
-        sortOrder
+        sortOrder,
+        session
       );
-
 
       // Create enriched enrollments with user data using Promise.all for concurrent fetching
       const userPromises = enrollmentsData.enrollments.map(async (enrollment) => {

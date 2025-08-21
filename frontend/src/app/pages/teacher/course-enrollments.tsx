@@ -213,6 +213,7 @@ const {
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
+    if(column== "progress" ) return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -433,7 +434,7 @@ const {
   ]
 
   // Loading state
-  if (courseLoading || versionLoading || enrollmentsLoading) {
+  if ((courseLoading || versionLoading || enrollmentsLoading )&& !searchQuery) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -565,7 +566,7 @@ const {
                           className={`font-bold text-foreground cursor-pointer select-none ${className}`}
                           onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
                         >
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1" >
                             {label}
                             {sortBy === key && (
                               sortOrder === 'asc'
