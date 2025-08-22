@@ -732,7 +732,7 @@ const {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
-                  <EnrollmentProgress progress={(selectedUser.progress || 0) * 100} />
+                  <EnrollmentProgress progress={(selectedUser.progress || 0) } />
                 </div>
               </div>
 
