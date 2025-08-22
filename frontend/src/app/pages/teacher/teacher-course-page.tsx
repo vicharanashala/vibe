@@ -137,7 +137,7 @@ export default function TeacherCoursePage() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData
+    data: selectedItemData,refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -162,43 +162,113 @@ export default function TeacherCoursePage() {
 
   // CRUD hooks
 
-  const createModule = useCreateModule();
-  const updateModule = useUpdateModule();
-  const deleteModule = useDeleteModule();
-  const { mutateAsync: mutateModuleAsync } = useMoveModule();
+// --- MODULES ---
+const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
+const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
+const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
+const { mutateAsync: moveModuleAsync } = useMoveModule();
 
-  const createSection = useCreateSection();
-  const updateSection = useUpdateSection();
-  const deleteSection = useDeleteSection();
-  const { mutateAsync: mutateSectionAsync } = useMoveSection();
+// --- SECTIONS ---
+const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
+const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
+const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
+const { mutateAsync: moveSectionAsync } = useMoveSection();
 
-  const createItem = useCreateItem();
-  const updateItem = useUpdateItem();
-  const updateVideo = useUpdateCourseItem();
-  const deleteItem = useDeleteItem();
-  const { mutateAsync, isPending, isError, error } = useMoveItem();
+// --- ITEMS ---
+const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
+const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
+const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
+const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
 
-  useEffect(() => {
-    if (createModule.isSuccess || createSection.isSuccess || createItem.isSuccess || updateModule.isSuccess || updateSection.isSuccess || updateItem.isSuccess || deleteModule.isSuccess || deleteSection.isSuccess || deleteItem.isSuccess) {
-      refetchVersion();
-      refetchItems();
-      // Also refetch items for active section
-      
-      if (activeSectionInfo) {
-        setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
-      }
+
+
+// Refetch after any success
+useEffect(() => {
+  if (
+    isCreateModuleSuccess ||
+    isUpdateModuleSuccess ||
+    isDeleteModuleSuccess ||
+    isCreateSectionSuccess ||
+    isUpdateSectionSuccess ||
+    isDeleteSectionSuccess ||
+    isCreateItemSuccess ||
+    isUpdateItemSuccess ||
+    isDeleteItemSuccess
+  ) {
+    refetchVersion();
+    refetchItems();
+    refetchItem()
+
+    if (activeSectionInfo) {
+      setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createModule.isSuccess, createSection.isSuccess, createItem.isSuccess, updateModule.isSuccess, updateSection.isSuccess, updateItem.isSuccess, deleteModule.isSuccess, deleteSection.isSuccess, deleteItem.isSuccess]);
+  }
+}, [
+  isCreateModuleSuccess,
+  isUpdateModuleSuccess,
+  isDeleteModuleSuccess,
+  isCreateSectionSuccess,
+  isUpdateSectionSuccess,
+  isDeleteSectionSuccess,
+  isCreateItemSuccess,
+  isUpdateItemSuccess,
+  isDeleteItemSuccess,
+]);
 
-  // Show toast notification when module is created successfully
-  useEffect(() => {
-    if (createModule.isSuccess) {
-      toast.success("Module created successfully!", {
-        description: "Your new module has been added to the course.",
-      });
-    }
-  }, [createModule.isSuccess]);
+// Success toasts
+useEffect(() => {
+  if (isCreateModuleSuccess) toast.success("Module created successfully!");
+  if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
+  if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
+
+  if (isCreateSectionSuccess) toast.success("Section created successfully!");
+  if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
+  if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
+
+  if (isCreateItemSuccess) toast.success("Item created successfully!");
+  if (isUpdateItemSuccess) toast.success("Item updated successfully!");
+  if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
+}, [
+  isCreateModuleSuccess,
+  isUpdateModuleSuccess,
+  isDeleteModuleSuccess,
+  isCreateSectionSuccess,
+  isUpdateSectionSuccess,
+  isDeleteSectionSuccess,
+  isCreateItemSuccess,
+  isUpdateItemSuccess,
+  isDeleteItemSuccess,
+]);
+
+// Error toasts
+useEffect(() => {
+  if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
+  if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
+  if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
+
+  if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
+  if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
+  if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
+
+  if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
+  if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
+  if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
+
+  if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
+}, [
+  isCreateModuleError,
+  isUpdateModuleError,
+  isDeleteModuleError,
+  isCreateSectionError,
+  isUpdateSectionError,
+  isDeleteSectionError,
+  isCreateItemError,
+  isUpdateItemError,
+  isDeleteItemError,
+  isMoveItemError,
+]);
+
 
   // Reload items when quiz wizard closes
   useEffect(() => {
@@ -259,19 +329,25 @@ export default function TeacherCoursePage() {
   // Add Module
   const handleAddModule = () => {
     if (!versionId) return;
-    createModule.mutate({
+    createModuleAsync({
       params: { path: { versionId } },
       body: { name: "Untitled Module", description: "Module description" }
-    });
+    }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
   };
 
   // Add Section
   const handleAddSection = (moduleId: string) => {
     if (!versionId) return;
-    createSection.mutate({
+    createSectionAsync({
       params: { path: { versionId, moduleId } },
       body: { name: "New Section", description: "Section description" }
-    });
+    }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
   };
 
   // Add Item (now only for article/quiz, video handled via modal)
@@ -283,7 +359,7 @@ export default function TeacherCoursePage() {
       article: "BLOG"
     };
     if (type === "VIDEO" && videoData) {
-      createItem.mutate({
+      createItemAsync({
         params: { path: { versionId, moduleId, sectionId } },
         body: {
           type: "VIDEO",
@@ -296,7 +372,10 @@ export default function TeacherCoursePage() {
             points: videoData.details.points,
           }
         }
-      });
+      }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
       function convertToMinSecMs(time: number) {
@@ -349,7 +428,7 @@ export default function TeacherCoursePage() {
 
 
     if (versionId && moduleId) {
-      mutateModuleAsync({
+      moveModuleAsync({
         params: {
           path: {
             versionId,
@@ -385,7 +464,7 @@ export default function TeacherCoursePage() {
     const after = order[movedIndex - 1] || null;
     const before = order[movedIndex + 1] || null;
 
-    mutateSectionAsync({
+    moveSectionAsync({
       params: {
         path: {
           versionId,
@@ -421,7 +500,7 @@ export default function TeacherCoursePage() {
     const after = order[movedIndex - 1] || null;
     const before = order[movedIndex + 1] || null;
 
-    mutateAsync({
+    moveItemAsync({
       params: {
         path: {
           versionId,
@@ -999,16 +1078,19 @@ export default function TeacherCoursePage() {
                           }
                           setErrors({ title: "", description: "" });
                           if (selectedEntity.type === "module" && versionId) {
-                            updateModule.mutate({
+                           updateModuleAsync({
                               params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
                               body: {
                                 name: selectedEntity.data.name,
                                 description: selectedEntity.data.description || ""
                               }
-                            });
+                            }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                           }
                           if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
-                            updateSection.mutate({
+                            updateSectionAsync({
                               params: {
                                 path: {
                                   versionId,
@@ -1020,10 +1102,13 @@ export default function TeacherCoursePage() {
                                 name: selectedEntity.data.name,
                                 description: selectedEntity.data.description || ""
                               }
-                            });
+                            }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                           }
                           if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
-                            updateItem.mutate({
+                           updateItemAsync({
                               params: {
                                 path: {
                                   versionId,
@@ -1036,7 +1121,10 @@ export default function TeacherCoursePage() {
                                 name: selectedEntity.data.name,
                                 description: selectedEntity.data.description || ""
                               }
-                            });
+                            }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                           }
                         }}
                         className="mr-2"
@@ -1052,18 +1140,24 @@ export default function TeacherCoursePage() {
                           const { type, parentIds } = selectedEntity;
                           if (type === "module" && versionId) {
                             if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                              deleteModule.mutate({
+                              deleteModuleAsync({
                                 params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                              });
+                              }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                             }
                           }
                           if (type === "section" && versionId && parentIds?.moduleId) {
                             if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                              deleteSection.mutate({
+                              deleteSectionAsync({
                                 params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                              });
+                              }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
                             }
@@ -1099,7 +1193,7 @@ export default function TeacherCoursePage() {
                             selectedEntity.data?._id &&
                             versionId
                           ) {
-                            updateVideo.mutate({
+                            updateVideoAsync({
                               params: {
                                 path: {
                                   versionId,
@@ -1107,7 +1201,10 @@ export default function TeacherCoursePage() {
                                 }
                               },
                               body: formattedVideo,
-                            });
+                            }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
                           }
@@ -1118,9 +1215,12 @@ export default function TeacherCoursePage() {
                             selectedEntity.data?._id
                           ) {
                             if (window.confirm("Are you sure you want to delete this item?")) {
-                              deleteItem.mutate({
+                              deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                              });
+                              }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
                             }
@@ -1144,9 +1244,12 @@ export default function TeacherCoursePage() {
                         // submissions={quizSubmissions}
                         performance={quizPerformance}
                         onDelete={() => {
-                          deleteItem.mutate({
+                          deleteItemAsync({
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
-                          });
+                          }).then((res) => {
+         refetchVersion();
+    refetchItems();refetchItem()
+      });
                           setSelectedEntity(null);
                         }}
                       />

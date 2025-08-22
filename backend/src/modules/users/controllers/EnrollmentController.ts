@@ -1,5 +1,5 @@
 
-import { EnrollmentRole, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
+import { EnrollmentRole, EnrollmentsQuery, IEnrollment, IProgress, PaginationQuery } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
   EnrollUserResponse,
@@ -65,22 +65,22 @@ export class EnrollmentController {
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
-    @Ability(getEnrollmentAbility) {ability}
+    @Ability(getEnrollmentAbility) { ability }
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
-    
+
     // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', { 
-      userId, 
-      courseId, 
-      versionId 
+    const enrollmentResource = subject('Enrollment', {
+      userId,
+      courseId,
+      versionId
     });
-    
+
     // Check permission using ability.can() with the actual enrollment resource
     if (!ability.can(EnrollmentActions.Create, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to enroll users in this course');
     }
-    
+
     const { role } = body;
     const responseData = await this.enrollmentService.enrollUser(
       userId,
@@ -113,7 +113,7 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability}
+    @Ability(getEnrollmentAbility) { ability }
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
     const enrollmentData = await this.enrollmentService.findEnrollment(
@@ -122,12 +122,12 @@ export class EnrollmentController {
       versionId,
     );
     // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', { 
-      courseId, 
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
       versionId,
       role: enrollmentData.role,
     });
-    
+
     // Check permission using ability.can() with the actual enrollment resource
     if (!ability.can(EnrollmentActions.Delete, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to unenroll users from this course');
@@ -166,7 +166,7 @@ export class EnrollmentController {
   })
   async getUserEnrollments(
     @QueryParams() query: PaginationQuery,
-    @Ability(getEnrollmentAbility) {user},
+    @Ability(getEnrollmentAbility) { user },
   ): Promise<EnrollmentResponse> {
     const { page, limit } = query
     const userId = user._id.toString();
@@ -214,22 +214,22 @@ export class EnrollmentController {
   })
   async getEnrollment(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability}
+    @Ability(getEnrollmentAbility) { ability }
   ): Promise<EnrolledUserResponse> {
     const { userId, courseId, versionId } = params;
-    
+
     // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', { 
-      userId, 
-      courseId, 
-      versionId 
+    const enrollmentResource = subject('Enrollment', {
+      userId,
+      courseId,
+      versionId
     });
-    
+
     // Check permission using ability.can() with the actual enrollment resource
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to view this enrollment');
     }
-    
+
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
@@ -237,7 +237,7 @@ export class EnrollmentController {
     );
     return new EnrolledUserResponse(
       enrollmentData.role,
-      enrollmentData.status,  
+      enrollmentData.status,
       enrollmentData.enrollmentDate,
     );
   }
@@ -263,40 +263,45 @@ export class EnrollmentController {
   async getCourseVersionEnrollments(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
-    @QueryParams() query: PaginationQuery,
-    @Ability(getEnrollmentAbility) {ability}
+    @QueryParams() query: EnrollmentsQuery,
+    @Ability(getEnrollmentAbility) { ability }
   ): Promise<CourseVersionEnrollmentResponse> {
-    // Create an enrollment resource object for permission checking
-    const enrollmentResource = subject('Enrollment', { 
-      courseId, 
-      versionId 
-    });
-    
-    // Check permission using ability.can() with the actual enrollment resource
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError('You do not have permission to view enrollments for this course');
     }
 
-    const { page, limit } = query;
+    const { page, limit, search = '', sortBy = 'enrollmentDate', sortOrder = 'desc' } = query;
 
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
-    const skip = (page - 1) * limit;
 
-    const enrollments = await this.enrollmentService.getCourseVersionEnrollments(
+
+
+    const skip = (search && search.trim() !== '') ? 0 : ((page - 1) * limit);
+
+    const enrollmentsData = await this.enrollmentService.getCourseVersionEnrollments(
       courseId,
       versionId,
       skip,
       limit,
+      search,
+      sortBy,
+      sortOrder
     );
-    
-    if (!enrollments || enrollments.length === 0) {
+
+    if (!enrollmentsData || !enrollmentsData.enrollments || enrollmentsData.enrollments.length === 0) {
       throw new NotFoundError('No enrollments found for the given course version.');
     }
 
     return {
-      enrollments: enrollments
+      enrollments: enrollmentsData.enrollments,
+      totalDocuments: enrollmentsData.totalDocuments,
+      totalPages: enrollmentsData.totalPages,
+      currentPage: page,
     };
   }
+
 }
