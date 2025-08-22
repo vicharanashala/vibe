@@ -213,7 +213,7 @@ const {
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
-    if(column== "progress" ) return;
+    // if(column== "progress" ) return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {

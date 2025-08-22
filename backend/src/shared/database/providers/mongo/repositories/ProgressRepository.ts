@@ -1,10 +1,10 @@
-import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
-import { IAttempt } from '#quizzes/interfaces/grading.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ObjectId, ClientSession } from 'mongodb';
-import { MongoDatabase } from '../MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { InternalServerError } from 'routing-controllers';
+import {IProgress, IWatchTime} from '#shared/interfaces/models.js';
+import {IAttempt} from '#quizzes/interfaces/grading.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ObjectId, ClientSession} from 'mongodb';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {InternalServerError} from 'routing-controllers';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -17,7 +17,7 @@ class ProgressRepository {
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
     this.progressCollection = await this.db.getCollection<IProgress>(
@@ -40,18 +40,17 @@ class ProgressRepository {
     await this.init();
 
     const distinctItemIds = await this.watchTimeCollection.distinct(
-      "itemId",
+      'itemId',
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session }
+      {session},
     );
 
     return distinctItemIds.map(id => id.toString());
   }
-
 
   async getAllWatchTime(
     userId: string,
@@ -59,7 +58,7 @@ class ProgressRepository {
   ): Promise<IWatchTime[]> {
     await this.init();
     const result = await this.watchTimeCollection
-      .find({ userId: new ObjectId(userId) }, { session })
+      .find({userId: new ObjectId(userId)}, {session})
       .toArray();
     return result.map(item => ({
       ...item,
@@ -77,8 +76,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     await this.watchTimeCollection.deleteMany(
-      { itemId: new ObjectId(itemId) },
-      { session },
+      {itemId: new ObjectId(itemId)},
+      {session},
     );
   }
 
@@ -88,8 +87,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { courseId: new ObjectId(courseId) },
-      { session },
+      {courseId: new ObjectId(courseId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       throw new Error(`No watch time records found for course ID: ${courseId}`);
@@ -102,8 +101,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { courseVersionId: new ObjectId(courseVersionId) },
-      { session },
+      {courseVersionId: new ObjectId(courseVersionId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       console.log(
@@ -120,8 +119,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { userId: new ObjectId(userId), courseId: new ObjectId(courseId) },
-      { session },
+      {userId: new ObjectId(userId), courseId: new ObjectId(courseId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       throw new Error(
@@ -143,7 +142,7 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
     if (result?.deletedCount === 0) {
       throw new Error(
@@ -163,7 +162,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
-      { session },
+      {session},
     );
   }
 
@@ -175,8 +174,8 @@ class ProgressRepository {
     try {
       await this.init();
       const docsToDelete = await this.attemptCollection
-        .find({ userId, quizId }, { session })
-        .project({ _id: 1 })
+        .find({userId, quizId}, {session})
+        .project({_id: 1})
         .toArray();
 
       // if (!docsToDelete?.length) {
@@ -185,7 +184,7 @@ class ProgressRepository {
       //   );
       // }
 
-      await this.attemptCollection.deleteMany({ userId, quizId }, { session });
+      await this.attemptCollection.deleteMany({userId, quizId}, {session});
 
       return docsToDelete.map(doc => doc._id.toString());
     } catch (error) {
@@ -220,7 +219,7 @@ class ProgressRepository {
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
-      { _id: new ObjectId(id) },
+      {_id: new ObjectId(id)},
       {
         session,
       },
@@ -241,8 +240,8 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { $set: progress },
-      { returnDocument: 'after', session },
+      {$set: progress},
+      {returnDocument: 'after', session},
     );
     return result;
   }
@@ -252,7 +251,7 @@ class ProgressRepository {
     session: ClientSession,
   ): Promise<IProgress> {
     await this.init();
-    const result = await this.progressCollection.insertOne(progress, { session });
+    const result = await this.progressCollection.insertOne(progress, {session});
     const newProgress = await this.progressCollection.findOne(
       {
         _id: result.insertedId,
@@ -304,8 +303,8 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
       },
-      { $set: { endTime: new Date() } },
-      { returnDocument: 'after', session },
+      {$set: {endTime: new Date()}},
+      {returnDocument: 'after', session},
     );
     return result;
   }
@@ -333,7 +332,7 @@ class ProgressRepository {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
     const result = await this.watchTimeCollection
-      .find(query, { session })
+      .find(query, {session})
       .toArray();
     return result.map(item => ({
       ...item,
@@ -375,11 +374,30 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { $set: progress },
-      { returnDocument: 'after', session },
+      {$set: progress},
+      {returnDocument: 'after', session},
     );
+    return result;
+  }
+
+  async getWatchTimeByVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+    const result = await this.watchTimeCollection.find(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {session},
+    ).toArray();
+
     return result;
   }
 }
 
-export { ProgressRepository };
+export {ProgressRepository};

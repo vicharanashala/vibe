@@ -1,22 +1,23 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {ProgressService} from './ProgressService.js';
+import {ProgressRepository} from '#root/shared/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -27,7 +28,10 @@ export class EnrollmentService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
-    @inject(USERS_TYPES.ProgressService) private readonly progressService: ProgressService,
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -67,11 +71,13 @@ export class EnrollmentService extends BaseService {
       // If the user is already enrolled and not enrolling through an invite, throw an error
       // This prevents duplicate enrollments unless it's through an invite
       if (existingEnrollment && !throughInvite) {
-        throw new BadRequestError('User is already enrolled in this course version');
+        throw new BadRequestError(
+          'User is already enrolled in this course version',
+        );
       }
       // If the user is already enrolled through an invite, we will skip the enrollment creation
       if (existingEnrollment && throughInvite) {
-        let status: InviteStatus = 'ALREADY_ENROLLED'
+        let status: InviteStatus = 'ALREADY_ENROLLED';
         return status;
       }
 
@@ -181,13 +187,13 @@ export class EnrollmentService extends BaseService {
         limit,
       );
       return result.map(enrollment => {
-        const { userId, ...rest } = enrollment;
+        const {userId, ...rest} = enrollment;
         return {
           ...rest,
           _id: enrollment._id.toString(),
           courseId: enrollment.courseId.toString(),
           courseVersionId: enrollment.courseVersionId.toString(),
-        }
+        };
       });
     });
   }
@@ -196,7 +202,7 @@ export class EnrollmentService extends BaseService {
     return this._withTransaction(async (session: ClientSession) => {
       const result = await this.enrollmentRepo.getAllEnrollments(
         userId,
-        session
+        session,
       );
       return result.map(enrollment => ({
         ...enrollment,
@@ -214,7 +220,7 @@ export class EnrollmentService extends BaseService {
     limit: number,
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
-    sortOrder: 'asc' | 'desc'
+    sortOrder: 'asc' | 'desc',
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -228,19 +234,42 @@ export class EnrollmentService extends BaseService {
       }
 
       // This already contains { totalDocuments, totalPages, currentPage, enrollments }
-      const enrollmentsData = await this.enrollmentRepo.getCourseVersionEnrollments(
-        courseId,
-        courseVersionId,
-        skip,
-        limit,
-        search,
-        sortBy,
-        sortOrder,
-        session
-      );
+      const enrollmentsData =
+        await this.enrollmentRepo.getCourseVersionEnrollments(
+          courseId,
+          courseVersionId,
+          skip,
+          limit,
+          search,
+          sortBy,
+          sortOrder,
+          session,
+        );
+
+       if (sortBy === 'progress') {
+
+        for (const enrollment of enrollmentsData.enrollments) {
+          const watchTimeDocs = await this.progressRepo.getWatchTimeByVersion(
+            enrollment.userId,
+            courseId,
+            courseVersionId,
+            session,
+          );
+
+          const uniqueItems = new Set(watchTimeDocs.map(doc => doc.itemId));
+
+          enrollment.watchTimeCount = uniqueItems.size;
+        }
+
+        enrollmentsData.enrollments.sort((a, b) => {
+          return sortOrder === 'asc'
+            ? a.watchTimeCount - b.watchTimeCount
+            : b.watchTimeCount - a.watchTimeCount;
+        });
+      }
 
       // Create enriched enrollments with user data using Promise.all for concurrent fetching
-      const userPromises = enrollmentsData.enrollments.map(async (enrollment) => {
+      const userPromises = enrollmentsData.enrollments.map(async enrollment => {
         try {
           const user = await this.userRepo.findById(enrollment.userId);
 
@@ -277,7 +306,7 @@ export class EnrollmentService extends BaseService {
         totalDocuments: enrollmentsData.totalDocuments,
         totalPages: enrollmentsData.totalPages,
         currentPage: enrollmentsData.currentPage,
-        enrollments: enrollmentsWithUser.map((enrollment) => ({
+        enrollments: enrollmentsWithUser.map(enrollment => ({
           role: enrollment.role,
           status: enrollment.status,
           enrollmentDate: enrollment.enrollmentDate,
@@ -297,7 +326,6 @@ export class EnrollmentService extends BaseService {
       };
     });
   }
-
 
   async countEnrollments(userId: string) {
     return this._withTransaction(async (session: ClientSession) => {

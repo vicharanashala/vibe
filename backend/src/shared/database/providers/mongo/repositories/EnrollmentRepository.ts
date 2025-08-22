@@ -222,7 +222,7 @@ export class EnrollmentRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
     };
-
+    sortBy = sortBy == "progress" ? "name" : sortBy;
     let sortStage: any = {};
 
     if (sortBy === 'name') {
@@ -283,6 +283,7 @@ export class EnrollmentRepository {
       });
     }
 
+    console.log("Sort stage: ", sortStage);
     aggregationPipeline.push(sortStage);
 
     // Build a pipeline for counting
