@@ -276,8 +276,8 @@ export class EnrollmentRepository {
       aggregationPipeline.push({
         $match: {
           $or: [
-            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
-            { 'userInfo.email': { $regex: search, $options: 'i' } },
+            { firstName: { $regex: search, $options: 'i' } },
+            // { 'email': { $regex: search, $options: 'i' } },
           ],
         },
       });
@@ -285,11 +285,45 @@ export class EnrollmentRepository {
 
     aggregationPipeline.push(sortStage);
 
-    let totalDocuments = 0;
+    // Build a pipeline for counting
+    const countPipeline: any[] = [
+      { $match: matchStage }, // match courseId & versionId
+      { $addFields: { userId: { $toObjectId: '$userId' } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          firstName: '$userInfo.firstName',
+          email: '$userInfo.email',
+        },
+      },
+    ];
+
+    // Apply search filter if needed
+    if (search && search.trim() !== '') {
+      countPipeline.push({
+        $match: {
+          $or: [
+            { firstName: { $regex: search, $options: 'i' } },
+            // { email: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Count total documents
+    countPipeline.push({ $count: 'total' });
+    const countResult = await this.enrollmentCollection.aggregate(countPipeline).toArray();
+    const totalDocuments = countResult[0]?.total ?? 0;
+
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
-    totalDocuments = await this.enrollmentCollection.countDocuments(
-      matchStage,
-    );
 
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
