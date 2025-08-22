@@ -858,7 +858,52 @@ export default function AISectionPage() {
                 }
                 return;
               }
-              // ... existing logic for other tasks ...
+              if (runs.some(r => r.status === 'stopped')) {
+                if (!aiJobId) {
+                  toast.error("No AI job ID available");
+                  return;
+                }
+                const runId = `run-${Date.now()}-${Math.random()}`;
+                const newRun: TaskRun = {
+                  id: runId,
+                  timestamp: new Date(),
+                  status: "loading",
+                  parameters: task === "segmentation" ? { ...localSegParams } : task === "question" ? { ...localParams } : task === "transcription" ? { ...rerunParams } : undefined,
+                };
+                setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+                try {
+                  let taskType: string;
+                  switch (task) {
+                    case "transcription":
+                      taskType = "AUDIO_EXTRACTION";
+                      break;
+                    case "segmentation":
+                      taskType = "SEGMENTATION";
+                      break;
+                    case "question":
+                      taskType = "QUESTION_GENERATION";
+                      break;
+                    case "upload":
+                      taskType = "UPLOAD_CONTENT";
+                      break;
+                    default:
+                      throw new Error(`Unsupported task type: ${task}`);
+                  }
+                  const response = await aiSectionAPI.rerunJobTask(aiJobId, taskType, newRun.parameters);
+                  if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                  }
+                  toast.success(`${title} restarted. Click Refresh to check status.`);
+                  await handleRefreshStatus();
+                } catch (error) {
+                  setTaskRuns(prev => ({
+                    ...prev,
+                    [task]: prev[task].map(run => run.id === runId ? { ...run, status: "failed" } : run),
+                  }));
+                  toast.error(`Failed to restart ${title}: ${error instanceof Error ? error.message : "Unknown error"}`);
+                }
+                return;
+              }
               handleTask(task, localSegParams, localParams);
             }}
             disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
