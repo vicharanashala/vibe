@@ -218,27 +218,14 @@ export class EnrollmentRepository {
     session?: ClientSession
   ) {
     await this.init();
+
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
     };
-    sortBy = sortBy == "progress" ? "name" : sortBy;
-    let sortStage: any = {};
-
-    if (sortBy === 'name') {
-      sortStage = { $sort: { 'firstName': sortOrder === 'asc' ? 1 : -1 } };
-    } else if (sortBy === 'enrollmentDate') {
-      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
-      // } else if (sortBy === 'progress') {
-      //   sortStage = {
-      //     $sort: {'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1},
-      //   };
-    }
 
     const aggregationPipeline: any[] = [
-      {
-        $match: matchStage,
-      },
+      { $match: matchStage },
       {
         $addFields: {
           userId: { $toObjectId: '$userId' },
@@ -252,79 +239,92 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+
+      // attach progress
       {
-        $unwind: {
-          path: '$userInfo',
-          preserveNullAndEmptyArrays: true,
+        $lookup: {
+          from: 'progresses',
+          let: { uId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$uId'] },
+                    { $eq: ['$courseId', new ObjectId(courseId)] },
+                    { $eq: ['$courseVersionId', new ObjectId(courseVersionId)] },
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                completedItems: { $addToSet: '$itemId' },
+              },
+            },
+            {
+              $project: {
+                completedCount: { $size: '$completedItems' },
+              },
+            },
+          ],
+          as: 'progressInfo',
         },
       },
       {
+        $unwind: {
+          path: '$progressInfo',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // flatten fields for ease
+      {
         $addFields: {
-          userId: { $toString: "$userInfo._id" },
-          _id: { $toString: "$_id" },
-          courseId: { $toString: "$courseId" },
-          courseVersionId: { $toString: "$courseVersionId" },
-          firstName: "$userInfo.firstName",
-          lastName: "$userInfo.lastName",
-          email: "$userInfo.email"
-        }
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+          progressCompleted: { $ifNull: ['$progressInfo.completedCount', 0] },
+        },
       },
     ];
 
+    // search
     if (search && search.trim() !== '') {
-
       aggregationPipeline.push({
         $match: {
           $or: [
             { firstName: { $regex: search, $options: 'i' } },
-            // { 'email': { $regex: search, $options: 'i' } },
+            { lastName: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
           ],
         },
       });
     }
 
-    console.log("Sort stage: ", sortStage);
+    // sorting
+    let sortStage: any = {};
+    if (sortBy === 'name') {
+      sortStage = { $sort: { firstName: sortOrder === 'asc' ? 1 : -1 } };
+    } else if (sortBy === 'enrollmentDate') {
+      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
+    } else if (sortBy === 'progress') {
+      sortStage = { $sort: { progressCompleted: sortOrder === 'asc' ? 1 : -1 } };
+    }
     aggregationPipeline.push(sortStage);
 
-    // Build a pipeline for counting
+    // pagination
+    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
+
+    // count pipeline
     const countPipeline: any[] = [
-      { $match: matchStage }, // match courseId & versionId
-      { $addFields: { userId: { $toObjectId: '$userId' } } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
-      {
-        $addFields: {
-          firstName: '$userInfo.firstName',
-          email: '$userInfo.email',
-        },
-      },
+      { $match: matchStage },
+      { $count: 'total' },
     ];
-
-    // Apply search filter if needed
-    if (search && search.trim() !== '') {
-      countPipeline.push({
-        $match: {
-          $or: [
-            { firstName: { $regex: search, $options: 'i' } },
-            // { email: { $regex: search, $options: 'i' } },
-          ],
-        },
-      });
-    }
-
-    // Count total documents
-    countPipeline.push({ $count: 'total' });
     const countResult = await this.enrollmentCollection.aggregate(countPipeline).toArray();
     const totalDocuments = countResult[0]?.total ?? 0;
-
-    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
@@ -342,6 +342,7 @@ export class EnrollmentRepository {
       enrollments,
     };
   }
+
 
   /**
    * Count total enrollments for a user
