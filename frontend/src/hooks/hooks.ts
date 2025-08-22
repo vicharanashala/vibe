@@ -231,7 +231,7 @@ export interface QuestionAnswersBody {
 export interface CreateAttemptResponse {
   attemptId: string;
   questionRenderViews: QuestionRenderView[];
-  userAttempts:number;
+  userAttempts: number;
 }
 
 export interface SubmitAttemptResponse {
@@ -297,7 +297,7 @@ interface IGradingResult {
 export interface QuizSubmissionResponseUpdated {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
-  userId: string | ObjectId | {firstName:string, lastName:string, email:string};
+  userId: string | ObjectId | { firstName: string, lastName: string, email: string };
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;
@@ -823,7 +823,7 @@ export function useUpdateCourseItem(): {
   isIdle: boolean,
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
-}{
+} {
   const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}");
   return {
     ...result,
@@ -956,26 +956,41 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 }
 
 // GET /enrollments/courses/{courseId}/versions/{courseVersionId}
-export function useCourseVersionEnrollments(courseId: string | undefined, courseVersionId: string | undefined, page?: number, limit?: number, enabled: boolean = true): {
+export function useCourseVersionEnrollments(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  search: string = "",
+  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
+  sortOrder: 'asc' | 'desc' = 'desc',
+  enabled: boolean = true
+): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}", {
-    params: {
-      path: { courseId, courseVersionId },
-      query: { page, limit }
-    },
-    enabled: enabled && !!courseId && !!courseVersionId
-  });
+  const result = api.useQuery(
+    "get",
+    "/users/enrollments/courses/{courseId}/versions/{courseVersionId}",
+    {
+      params: {
+        path: { courseId, courseVersionId },
+        query: { page, limit, search, sortBy, sortOrder },
+      },
+      enabled: enabled && !!courseId && !!courseVersionId,
+    }
+  );
+
   return {
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
   };
 }
+
 
 // Progress hooks
 
@@ -1089,22 +1104,26 @@ export function useStartItem(): {
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/stop
 export function useStopItem(): {
-  mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: {
-    watchItemId: string;
-    itemId: string;
-    sectionId: string;
-    moduleId: string;
-    attemptId?: string | null | undefined;
-    isSkipped?:boolean
-} }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: {
-    watchItemId: string;
-    itemId: string;
-    sectionId: string;
-    moduleId: string;
-    attemptId?: string | null | undefined;
-    isSkipped?:boolean
-} }) => Promise<unknown>,
+  mutate: (variables: {
+    params: { path: { courseId: string, courseVersionId: string } }, body: {
+      watchItemId: string;
+      itemId: string;
+      sectionId: string;
+      moduleId: string;
+      attemptId?: string | null | undefined;
+      isSkipped?: boolean
+    }
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { courseId: string, courseVersionId: string } }, body: {
+      watchItemId: string;
+      itemId: string;
+      sectionId: string;
+      moduleId: string;
+      attemptId?: string | null | undefined;
+      isSkipped?: boolean
+    }
+  }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -1668,8 +1687,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?:boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string  } }, body: { answers: SaveQuestion[], isSkipped?:boolean } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -1891,7 +1910,7 @@ export function useQuestionBankById(questionBankId: string): {
 }
 
 // PATCH /quizzes/question-bank/{questionBankId}/questions/{questionId}/add
-export function useAddQuestionToBank(): {                                                           
+export function useAddQuestionToBank(): {
   mutate: (variables: { params: { path: { questionBankId: string, questionId: string } } }) => void,
   mutateAsync: (variables: { params: { path: { questionBankId: string, questionId: string } } }) => Promise<QuestionBankResponse>,
   data: QuestionBankResponse | undefined,
@@ -2324,23 +2343,25 @@ export function useQuizResults(quizId: string): {
   };
 }
 
-export function useQuizSubmissions(quizId: string,gradeStatus:GradingSystemStatus, search:string, sort:string, currentPage:number, limit:number,selectedTab:string): {
-  data: {totalCount:number, totalPages:number, currentPage:number, data: QuizSubmissionResponseUpdated[]} | undefined,
+export function useQuizSubmissions(quizId: string, gradeStatus: GradingSystemStatus, search: string, sort: string, currentPage: number, limit: number, selectedTab: string): {
+  data: { totalCount: number, totalPages: number, currentPage: number, data: QuizSubmissionResponseUpdated[] } | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const isPaginatedResult = selectedTab == "submissions";
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions", {
-    params: { path: { quizId }, query: isPaginatedResult
+    params: {
+      path: { quizId }, query: isPaginatedResult
         ? {
-            ...(gradeStatus && gradeStatus !== "All" ? { gradeStatus } : {}),
-            ...(search ? { search } : {}),
-            ...(sort && sort !== "All" ? { sort } : {}),
-            currentPage,
-            limit,
-          }
-        : undefined,  }
+          ...(gradeStatus && gradeStatus !== "All" ? { gradeStatus } : {}),
+          ...(search ? { search } : {}),
+          ...(sort && sort !== "All" ? { sort } : {}),
+          currentPage,
+          limit,
+        }
+        : undefined,
+    }
   }, { enabled: !!quizId });
   // const result = api.useQuery("get", "/quizzes/quiz/{quizId}/submissions", {
   //   params: { path: { quizId }, query: { ...(gradeStatus && gradeStatus=="All" ? {}:{gradeStatus}), search, ...(sort && sort=="All" ? {}:{sort}), currentPage, limit   } }
@@ -2378,7 +2399,7 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
   error: string | null,
   refetch: () => void
 } {
-  
+
   const result = api.useQuery(
     "get",
     "/reports/{courseId}/{versionId}",
