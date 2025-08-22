@@ -217,17 +217,11 @@ export class EnrollmentService extends BaseService {
     sortOrder: 'asc' | 'desc'
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      const courseVersion = await this.courseRepo.readVersion(
-        courseVersionId,
-        session,
-      );
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-        throw new NotFoundError(
-          'Course version not found or does not belong to this course',
-        );
+        throw new NotFoundError('Course version not found or does not belong to this course');
       }
 
-      // This already contains { totalDocuments, totalPages, currentPage, enrollments }
       const enrollmentsData = await this.enrollmentRepo.getCourseVersionEnrollments(
         courseId,
         courseVersionId,
@@ -236,67 +230,13 @@ export class EnrollmentService extends BaseService {
         search,
         sortBy,
         sortOrder,
-        session
-      );
-
-      // Create enriched enrollments with user data using Promise.all for concurrent fetching
-      const userPromises = enrollmentsData.enrollments.map(async (enrollment) => {
-        try {
-          const user = await this.userRepo.findById(enrollment.userId);
-
-          const progress =
-            await this.progressService.getUserProgressPercentageWithoutTotal(
-              user._id.toString(),
-              courseId,
-              courseVersionId,
-            );
-
-          return {
-            role: enrollment.role,
-            status: enrollment.status,
-            enrollmentDate: enrollment.enrollmentDate,
-            userId: enrollment.userId,
-            user,
-            progress,
-          };
-        } catch (error) {
-          console.log(enrollment.userId, error);
-        }
-      });
-
-      const enrollmentsWithUser = await Promise.all(userPromises);
-
-      const totalItems = await this.itemRepo.getTotalItemsCount(
-        courseId,
-        courseVersionId,
         session,
       );
 
-      // return enriched + counts
-      return {
-        totalDocuments: enrollmentsData.totalDocuments,
-        totalPages: enrollmentsData.totalPages,
-        currentPage: enrollmentsData.currentPage,
-        enrollments: enrollmentsWithUser.map((enrollment) => ({
-          role: enrollment.role,
-          status: enrollment.status,
-          enrollmentDate: enrollment.enrollmentDate,
-          user: {
-            userId: enrollment.userId.toString(),
-            firstName: enrollment.user.firstName,
-            lastName: enrollment.user.lastName,
-            email: enrollment.user.email,
-          },
-          progress: {
-            completedItems: enrollment.progress,
-            totalItems,
-            percentCompleted:
-              totalItems > 0 ? enrollment.progress / totalItems : 0,
-          },
-        })),
-      };
+      return enrollmentsData; // already enriched with user + progress + sorting
     });
   }
+
 
 
   async countEnrollments(userId: string) {
@@ -359,4 +299,76 @@ export class EnrollmentService extends BaseService {
       completed: false,
     });
   }
+
+  async updateAllEnrollmentsProgress(): Promise<void> {
+    return this._withTransaction(async session => {
+      const courses = await this.courseRepo.getAllCourses(session);
+      const courseVersionIds = courses.flatMap(course => course.versions);
+
+      const bulkOperations = [];
+
+      for (const courseVersionId of courseVersionIds) {
+        try {
+          const courseVersion = await this.courseRepo.readVersion(courseVersionId as string, session);
+          if (!courseVersion) continue;
+
+          // total items for this version
+          const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+            courseVersion.courseId.toString(),
+            courseVersion._id.toString(),
+            session,
+          );
+
+          // get all enrollments for this course version
+          const enrollments = await this.enrollmentRepo.getByCourseVersion(
+            courseVersion.courseId.toString(),
+            courseVersion._id.toString(),
+            session,
+          );
+
+          for (const enrollment of enrollments) {
+            try {
+              const completedItems =
+                await this.progressService.getUserProgressPercentageWithoutTotal(
+                  enrollment.userId.toString(),
+                  courseVersion.courseId.toString(),
+                  courseVersion._id.toString(),
+                );
+
+              bulkOperations.push({
+                updateOne: {
+                  filter: { _id: new ObjectId(enrollment._id) },
+                  update: {
+                    $set: {
+                      progress: {
+                        completedItems,
+                        totalItems,
+                        percentCompleted: totalItems > 0 ? completedItems / totalItems : 0,
+                      },
+                    },
+                  },
+                },
+              });
+            } catch (err) {
+              console.error(
+                `Failed to compute progress for enrollment ${enrollment._id}`,
+                err,
+              );
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Failed to process course version: ${courseVersionId}`,
+            error,
+          );
+        }
+      }
+
+      if (bulkOperations.length > 0) {
+        await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+        console.log(`Bulk updated ${bulkOperations.length} enrollments`);
+      }
+    });
+  }
+
 }

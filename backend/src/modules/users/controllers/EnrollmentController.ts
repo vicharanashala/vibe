@@ -27,6 +27,7 @@ import {
   ForbiddenError,
   Authorized,
   QueryParams,
+  Patch,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { EnrollmentActions, getEnrollmentAbility } from '../abilities/enrollmentAbilities.js';
@@ -302,6 +303,21 @@ export class EnrollmentController {
       totalPages: enrollmentsData.totalPages,
       currentPage: page,
     };
+  }
+  @OpenAPI({
+    summary: 'Update Enrollment Progress for All Courses',
+    description: 'Recomputes and updates progress for all enrollments across all courses.',
+  })
+  @Authorized()
+  @Patch('/enrollments/progress', { transformResponse: true })
+  @ResponseSchema(BadRequestError, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateAllEnrollmentsProgress(
+    @Ability(getEnrollmentAbility) { ability },
+  ) {
+    await this.enrollmentService.updateAllEnrollmentsProgress();
   }
 
 }

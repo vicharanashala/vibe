@@ -170,7 +170,7 @@ export default function CourseEnrollments() {
 
   //Pagination state
     const [currentPage, setCurrentPage] = useState(1)
-  const pageLimit = 50;
+  const pageLimit = 2;
 
 const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
@@ -213,7 +213,7 @@ const {
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
-    if(column== "progress" ) return;
+    // if(column== "progress" ) return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {

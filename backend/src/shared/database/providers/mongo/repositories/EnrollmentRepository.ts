@@ -218,27 +218,25 @@ export class EnrollmentRepository {
     session?: ClientSession
   ) {
     await this.init();
+
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
     };
 
-    let sortStage: any = {};
-
+    // decide sort field
+    let sortField: any = {};
     if (sortBy === 'name') {
-      sortStage = { $sort: { 'firstName': sortOrder === 'asc' ? 1 : -1 } };
+      // sort by firstName + lastName
+      sortField = { firstName: sortOrder === 'asc' ? 1 : -1, lastName: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'enrollmentDate') {
-      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
-      // } else if (sortBy === 'progress') {
-      //   sortStage = {
-      //     $sort: {'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1},
-      //   };
+      sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
+    } else if (sortBy === 'progress') {
+      sortField = { 'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
-      {
-        $match: matchStage,
-      },
+      { $match: matchStage },
       {
         $addFields: {
           userId: { $toObjectId: '$userId' },
@@ -260,45 +258,43 @@ export class EnrollmentRepository {
       },
       {
         $addFields: {
-          userId: { $toString: "$userInfo._id" },
-          _id: { $toString: "$_id" },
-          courseId: { $toString: "$courseId" },
-          courseVersionId: { $toString: "$courseVersionId" },
-          firstName: "$userInfo.firstName",
-          lastName: "$userInfo.lastName",
-          email: "$userInfo.email"
-        }
+          userId: { $toString: '$userInfo._id' },
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          courseVersionId: { $toString: '$courseVersionId' },
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+        },
       },
     ];
 
+    // search
     if (search && search.trim() !== '') {
-
       aggregationPipeline.push({
         $match: {
           $or: [
             { 'userInfo.firstName': { $regex: search, $options: 'i' } },
+            { 'userInfo.lastName': { $regex: search, $options: 'i' } },
             { 'userInfo.email': { $regex: search, $options: 'i' } },
           ],
         },
       });
     }
 
-    aggregationPipeline.push(sortStage);
+    // sorting
+    aggregationPipeline.push({ $sort: sortField });
 
-    let totalDocuments = 0;
+    // pagination
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
-    totalDocuments = await this.enrollmentCollection.countDocuments(
-      matchStage,
-    );
 
+    // count separately
+    const totalDocuments = await this.enrollmentCollection.countDocuments(matchStage);
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
       .toArray();
 
-    const totalPages =
-      typeof limit === 'number' && limit > 0
-        ? Math.ceil(totalDocuments / limit)
-        : 1;
+    const totalPages = typeof limit === 'number' && limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
 
     return {
       totalDocuments,
@@ -307,6 +303,7 @@ export class EnrollmentRepository {
       enrollments,
     };
   }
+
 
   /**
    * Count total enrollments for a user
@@ -326,4 +323,37 @@ export class EnrollmentRepository {
       userId: { $in: userFilter },
     });
   }
+
+  async bulkUpdateEnrollments(
+    bulkOperations: any[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    try {
+      const result = await this.enrollmentCollection.bulkWrite(bulkOperations, { session });
+      console.log(`Enrollment bulk update result: ${JSON.stringify(result)}`);
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to bulk update enrollments.\n More Details: ' + error,
+      );
+    }
+  }
+  async getByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+    return this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        { session },
+      )
+      .toArray();
+  }
+
+
 }
