@@ -169,20 +169,20 @@ export default function CourseEnrollments() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   //Pagination state
-    const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
   const pageLimit = 50;
 
-const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
-useEffect(() => {
-  const handler = setTimeout(() => {
-    setDebouncedSearch(searchQuery);
-  }, 300); // debounce delay (ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300); 
 
-  return () => {
-    clearTimeout(handler);
-  };
-}, [searchQuery]);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
 
     // Fetch enrollments data
 const {
@@ -412,21 +412,21 @@ const {
   const stats = [
     {
       title: "Total Enrolled",
-      value: totalUsers,
+      value: totalUsers ?? 0,
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
       title: "Completed",
-      value: completedUsers,
+      value: completedUsers ?? 0,
       icon: CheckCircle,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
     {
       title: "Avg. Progress",
-      value: `${averageProgress}%`,
+      value: `${averageProgress ?? 0}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -434,7 +434,7 @@ const {
   ]
 
   // Loading state
-  if ((courseLoading || versionLoading || enrollmentsLoading )&& !searchQuery) {
+  if ((courseLoading || versionLoading || enrollmentsLoading) && !searchQuery) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -448,10 +448,13 @@ const {
   }
 
   // Error state
-  if (courseError || versionError || enrollmentsError || !course || !version) {
+  if (courseError || versionError || (!searchQuery && enrollmentsError) || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
+          <div>
+            <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher" })}>Go Back</Button>
+          </div>
           <div className="text-center py-12">
             <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load course data</h3>
             <p className="text-muted-foreground mb-4">
@@ -532,6 +535,12 @@ const {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
             />
+            <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSearchQuery("");
+              }} />
           </div>
         </div>
 
@@ -580,111 +589,119 @@ const {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {enrollmentsData?.enrollments?.map((enrollment:any) => (
-                      <TableRow
-                        key={enrollment._id}
-                        className="border-border hover:bg-muted/20 transition-colors duration-200 group"
-                      >
-                        <TableCell className="pl-6 py-6">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {[
-                                  enrollment?.user?.firstName?.[0],
-                                  enrollment?.user?.lastName?.[0],
-                                ]
-                                  .filter(Boolean)
-                                  .map((ch) => ch.toUpperCase())
-                                  .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
-                              </p>
-                              <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                    {enrollmentsData?.enrollments?.length > 0 ? (
+                      enrollmentsData?.enrollments?.map((enrollment: any) => (
+                        <TableRow
+                          key={enrollment._id}
+                          className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                        >
+                          <TableCell className="pl-6 py-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                                <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
+                                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                  {[
+                                    enrollment?.user?.firstName?.[0],
+                                    enrollment?.user?.lastName?.[0],
+                                  ]
+                                    .filter(Boolean)
+                                    .map((ch) => ch.toUpperCase())
+                                    .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                  {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
+                                </p>
+                                <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-6">
-                          <div className="text-muted-foreground font-medium">
-                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-6">
-                          <EnrollmentProgress progress={Math.round((enrollment.progress?.percentCompleted || 0) * 100)} />
-                        </TableCell>
-                        <TableCell className="py-6 pr-6">
-                          <div className="flex items-center gap-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleViewProgress({
-                                  id: enrollment.user.userId,
-                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                  email: enrollment.userId,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress:Math.round((enrollment.progress?.percentCompleted || 0) * 100)
-                                    })}
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Progress
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleResetProgress({
-                                  id: enrollment.user.userId,
-                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                  email: enrollment.userId,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress: 0,
-                                })
-                              }
-                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={resetProgressMutation.isPending || Math.round((enrollment.progress?.percentCompleted || 0) * 100) == 0}
-                            >
-                              {resetProgressMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-4 w-4 mr-2" />
-                              )}
-                              Reset
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleRemoveStudent({
-                                  id: enrollment.user.userId,
-                                  name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                  email: enrollment.user.email,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress: 0,
-                                })
-                              }
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={unenrollMutation.isPending}
-                            >
-                              {unenrollMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <UserX className="h-4 w-4 mr-2" />
-                              )}
-                              Remove
-                            </Button>
-                          </div>
+                          </TableCell>
+                          <TableCell className="py-6">
+                            <div className="text-muted-foreground font-medium">
+                              {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-6">
+                            <EnrollmentProgress progress={Math.round((enrollment.progress?.percentCompleted || 0) * 100)} />
+                          </TableCell>
+                          <TableCell className="py-6 pr-6">
+                            <div className="flex items-center gap-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleViewProgress({
+                                    id: enrollment.user.userId,
+                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                    email: enrollment.userId,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: Math.round((enrollment.progress?.percentCompleted || 0) * 100)
+                                  })}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Progress
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleResetProgress({
+                                    id: enrollment.user.userId,
+                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                    email: enrollment.userId,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: 0,
+                                  })
+                                }
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                                disabled={resetProgressMutation.isPending || Math.round((enrollment.progress?.percentCompleted || 0) * 100) == 0}
+                              >
+                                {resetProgressMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4 mr-2" />
+                                )}
+                                Reset
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleRemoveStudent({
+                                    id: enrollment.user.userId,
+                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
+                                    email: enrollment.user.email,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: 0,
+                                  })
+                                }
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                                disabled={unenrollMutation.isPending}
+                              >
+                                {unenrollMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <UserX className="h-4 w-4 mr-2" />
+                                )}
+                                Remove
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4">
+                          No enrollments found.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -732,7 +749,7 @@ const {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
-                  <EnrollmentProgress progress={(selectedUser.progress || 0) } />
+                  <EnrollmentProgress progress={(selectedUser.progress || 0)} />
                 </div>
               </div>
 
