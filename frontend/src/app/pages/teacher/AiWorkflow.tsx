@@ -96,8 +96,12 @@ const AiWorkflow = () => {
     upload: [],
     });
 
+    const [currentTask, setCurrentTask] = useState("");
+
     const [aiWorkflowStep, setAiWorkflowStep] = useState("");
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
+
+    const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
 
     const errorRef = useRef<HTMLDivElement | null>(null);
 
@@ -249,6 +253,36 @@ const AiWorkflow = () => {
     setSelectedTasks(newSelectedTasks);
     };
 
+    // Passing the task and recieving appproval
+    const canRunTask = (task: keyof typeof taskRuns): boolean => {
+        switch (task) {
+        case "transcription":
+            return !!aiJobId;
+        case "segmentation":
+            return !!acceptedRuns.transcription;
+        case "question":
+            return !!acceptedRuns.segmentation;
+        case "upload":
+            return !!acceptedRuns.question;
+        default:
+            return false;
+        }
+    };
+
+    const handleAcceptRun = async (task: keyof typeof taskRuns, runId: string) => {
+        if ((task === 'transcription' || task === 'segmentation' || task === 'question') && aiJobId) {
+        try {
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            toast.success(`${task === 'question' ? 'Question generation' : task.charAt(0).toUpperCase() + task.slice(1)} run approved and continued!`);
+        } catch (e: any) {
+            toast.error(`Failed to approve ${task === 'question' ? 'question generation' : task}.`);
+            return;
+        }
+        }
+        setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
+        if (task !== 'segmentation' && task !== 'question' && task !== 'transcription') toast.success(`${task} run accepted!`);
+    };
+
 
     // ----------------------
     // Manual Refresh Handler
@@ -256,12 +290,13 @@ const AiWorkflow = () => {
 
     const handleRefreshStatus = async () => {
     if (!aiJobId) return;
-
     try {
         const status = await aiSectionAPI.getJobStatus(aiJobId);
+        console.log("Status: ", status)
         setAiJobStatus(status);
 
         const prevJobStatus = prevJobStatusRef.current;
+
 
         // --- Transcript Generation ---
         if (
@@ -969,6 +1004,33 @@ const AiWorkflow = () => {
                             >
                             <RefreshCw className="w-4 h-4 mr-2" />
                              Refresh Status
+                         </Button>
+                        <Button
+                            onClick={ async () =>{ 
+                                try{
+
+                                    if(!aiJobId) {
+                                        toast.error("Job id not found");
+                                        return;
+                                    }
+                                    await aiSectionAPI.approveContinueTask(aiJobId);
+                                            await aiSectionAPI.approveStartTask(aiJobId, {
+                                              type: 'SEGMENTATION',
+                                              parameters: {
+                                                "lam": 4.6,
+                                                "runs": 25,
+                                                "noiseId": -1,
+                                            },usePrevious: 0})
+                                    toast.success("Task approved!")
+                                }catch(error){
+                                    toast.error("Failed to approve task");
+                                }
+                            } }
+                            variant="outline"
+                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                             Approve Run
                          </Button>
                     </div>
 

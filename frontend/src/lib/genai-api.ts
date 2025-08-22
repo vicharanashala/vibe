@@ -27,7 +27,6 @@ const makeAuthenticatedRequest = async (
   if (!token) {
     throw new Error('Authentication token not found');
   }
-
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
