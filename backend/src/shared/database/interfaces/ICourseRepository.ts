@@ -54,4 +54,8 @@ export interface ICourseRepository {
     itemGroupId: string,
     session?: ClientSession,
   ): Promise<ICourseVersion | null>
+
+  getAllCourses(
+    session?: ClientSession,
+  ): Promise<ICourse []>
 }

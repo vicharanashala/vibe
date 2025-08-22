@@ -236,13 +236,17 @@ export class CourseRepository implements ICourseRepository {
     try {
       const {_id: _, ...fields} = courseVersion;
 
+      const isExistVersion = await this.courseVersionCollection.findOne({_id: new ObjectId(versionId)});
+
+      if(!isExistVersion)
+        throw new InternalServerError('Failed to update course version, version not founded!');
+
       const result = await this.courseVersionCollection.updateOne(
         {_id: new ObjectId(versionId)},
         {$set: fields},
         {session},
       );
-
-      if (result.modifiedCount === 1) {
+      // if (result.modifiedCount === 1) {
         const updatedCourseVersion = await this.courseVersionCollection.findOne(
           {
             _id: new ObjectId(versionId),
@@ -252,9 +256,9 @@ export class CourseRepository implements ICourseRepository {
         return instanceToPlain(
           Object.assign(new CourseVersion(), updatedCourseVersion),
         ) as CourseVersion;
-      } else {
-        throw new InternalServerError('Failed to update course version');
-      }
+      // } else {
+      //   throw new InternalServerError('Failed to update course version');
+      // }
     } catch (error) {
       throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
@@ -542,5 +546,17 @@ export class CourseRepository implements ICourseRepository {
     return instanceToPlain(
       Object.assign(new CourseVersion(), courseVersion),
     ) as CourseVersion;
+  }
+
+  async getAllCourses(session?:ClientSession): Promise<ICourse[]> {
+    try {
+      await this.init();
+      const query = this.courseCollection.find({},{session});
+      return await query.toArray();
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to fetch courses: ${(error as Error).message}`,
+      );
+    }
   }
 }

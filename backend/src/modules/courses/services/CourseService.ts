@@ -1,7 +1,9 @@
 import {Course} from '#courses/classes/transformers/Course.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {IItemRepository} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
@@ -10,6 +12,8 @@ class CourseService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(USERS_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
@@ -63,6 +67,45 @@ class CourseService extends BaseService {
         throw new NotFoundError(
           'No course found with the specified ID. Please verify the ID and try again.',
         );
+      }
+    });
+  }
+
+  async updateCourseVersionTotalItemCount(): Promise<void> {
+    return this._withTransaction(async session => {
+      const courses = await this.courseRepo.getAllCourses(session);
+
+      const courseVersionIds = courses.flatMap(course => course.versions);
+      console.log(courseVersionIds) 
+      for (const courseVersionId of courseVersionIds) {
+        try {
+          const courseVersion = await this.courseRepo.readVersion(
+            courseVersionId as string,
+            session,
+          );
+
+          courseVersion.totalItems =
+            await this.itemRepo.CalculateTotalItemsCount(
+              courseVersion.courseId.toString(),
+              courseVersion._id.toString(),
+              session,
+            );
+
+          await this.courseRepo.updateVersion(
+            courseVersion._id.toString(),
+            courseVersion,
+            session,
+          );
+          console.log(
+            `Updated totalItems for course version: ${courseVersionId}`,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to update course version: ${courseVersionId}`,
+            error,
+          );
+          throw new InternalServerError('Failed to updates count');
+        }
       }
     });
   }
