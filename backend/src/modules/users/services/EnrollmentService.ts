@@ -255,7 +255,6 @@ export class EnrollmentService extends BaseService {
     versionId: string,
   ): Promise<EnrollmentStats> {
     return this._withTransaction(async (session: ClientSession) => {
-      console.log("Hey from service")
       return await this.enrollmentRepo.getVersionEnrollmentStats(courseId, versionId, session);
     });
   }

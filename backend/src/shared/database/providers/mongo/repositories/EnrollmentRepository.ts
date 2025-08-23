@@ -336,7 +336,6 @@ export class EnrollmentRepository {
       .aggregate(aggregationPipeline, {session})
       .toArray();
 
-    console.log('Enrollments: ', enrollments);
     const totalPages =
       typeof limit === 'number' && limit > 0
         ? Math.ceil(totalDocuments / limit)
