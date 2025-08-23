@@ -955,8 +955,8 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   };
 }
 
-// GET /api/anomalies/course/{courseId}/version/{versionId}/stats
-export function useCourseAnomaliesStats(
+// GET /users/enrollments/courses/{courseId}/versions/{versionId}/statistics
+export function useCourseEnrollmentsStats(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true

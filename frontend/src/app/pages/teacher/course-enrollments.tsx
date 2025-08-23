@@ -23,7 +23,7 @@ import {
   useCourseVersionEnrollments,
   useResetProgress,
   useUnenrollUser,
-  useCourseAnomaliesStats
+  useCourseEnrollmentsStats
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser } from "@/types/course.types"
@@ -148,7 +148,7 @@ export default function CourseEnrollments() {
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   
   // Fetch course anomalies stats
-  const { data: anomaliesStats, isLoading: statsLoading, error: statsError } = useCourseAnomaliesStats(
+  const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
     versionId,
     !!(courseId && versionId)
@@ -423,21 +423,21 @@ const {
   const stats = [
     {
       title: "Total Enrolled",
-      value: anomaliesStats?.totalEnrollments ?? 0,
+      value: enrollmentStats?.totalEnrollments ?? 0,
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
       title: "Completed",
-      value: anomaliesStats?.completedCount ?? 0,
+      value: enrollmentStats?.completedCount ?? 0,
       icon: CheckCircle,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
     {
       title: "Avg. Progress",
-      value: `${anomaliesStats?.averageProgressPercent}%`,
+      value: `${enrollmentStats?.averageProgressPercent}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
