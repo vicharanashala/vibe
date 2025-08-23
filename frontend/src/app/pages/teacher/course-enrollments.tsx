@@ -574,7 +574,7 @@ const {
                         { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
                         { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
                         { key: 'progress', label: 'Progress', className: 'w-[200px]' },
-                        { key: 'status', label: 'Status', className: 'w-[200px]' },
+                        // { key: 'status', label: 'Status', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
                         <TableHead
                           key={key}
@@ -644,11 +644,11 @@ const {
                             </div>
                           </TableCell>
                           <TableCell className="py-6">
-                            <EnrollmentProgress progress={Math.round((enrollment.progress?.percentCompleted || 0) * 100)} />
+                            <EnrollmentProgress progress={Math.round((enrollment.progress || 0) )} />
                           </TableCell>
-                          <TableCell className="py-6">
+                          {/* <TableCell className="py-6">
                            <span className={`text-xs font-medium ${enrollment.status === "ACTIVE" ? "text-green-500" : "text-red-500"}`}>{enrollment.status}</span>
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className="py-6 pr-6">
                             <div className="flex items-center gap-3">
                               <Button
@@ -660,7 +660,7 @@ const {
                                     name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
                                     email: enrollment.userId,
                                     enrolledDate: enrollment.enrollmentDate,
-                                    progress: Math.round((enrollment.progress?.percentCompleted || 0) * 100)
+                                    progress: Math.round((enrollment.progress || 0))
                                   })}
                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                               >
