@@ -11,3 +11,9 @@
 };
 
 export {TYPES as USERS_TYPES};
+
+export interface EnrollmentStats {
+  totalEnrollments: number;
+  completedCount: number;
+  averageProgressPercent: number;
+}

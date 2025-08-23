@@ -1,23 +1,23 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
-import { ProgressRepository } from '#root/shared/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {ProgressService} from './ProgressService.js';
+import {ProgressRepository} from '#root/shared/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -90,6 +90,7 @@ export class EnrollmentService extends BaseService {
         role: role,
         status: 'ACTIVE',
         enrollmentDate: new Date(),
+        percentCompleted: 0
       });
 
       const initialProgress = await this.initializeProgress(
@@ -187,7 +188,7 @@ export class EnrollmentService extends BaseService {
         limit,
       );
       return result.map(enrollment => {
-        const { userId, ...rest } = enrollment;
+        const {userId, ...rest} = enrollment;
         return {
           ...rest,
           _id: enrollment._id.toString(),
@@ -223,27 +224,40 @@ export class EnrollmentService extends BaseService {
     sortOrder: 'asc' | 'desc',
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
-      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-        throw new NotFoundError('Course version not found or does not belong to this course');
-      }
-
-      const enrollmentsData = await this.enrollmentRepo.getCourseVersionEnrollments(
-        courseId,
+      const courseVersion = await this.courseRepo.readVersion(
         courseVersionId,
-        skip,
-        limit,
-        search,
-        sortBy,
-        sortOrder,
         session,
       );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+
+      const enrollmentsData =
+        await this.enrollmentRepo.getCourseVersionEnrollments(
+          courseId,
+          courseVersionId,
+          skip,
+          limit,
+          search,
+          sortBy,
+          sortOrder,
+          session,
+        );
 
       return enrollmentsData;
     });
   }
 
-
+  async getCourseVersionEnrollmentStatistics(
+    courseId: string,
+    versionId: string,
+  ): Promise<EnrollmentStats> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return await this.enrollmentRepo.getVersionEnrollmentStats(courseId, versionId, session);
+    });
+  }
 
   async countEnrollments(userId: string) {
     return this._withTransaction(async (session: ClientSession) => {
@@ -315,7 +329,10 @@ export class EnrollmentService extends BaseService {
 
       for (const courseVersionId of courseVersionIds) {
         try {
-          const courseVersion = await this.courseRepo.readVersion(courseVersionId as string, session);
+          const courseVersion = await this.courseRepo.readVersion(
+            courseVersionId as string,
+            session,
+          );
           if (!courseVersion) continue;
 
           // total items for this version
@@ -343,13 +360,14 @@ export class EnrollmentService extends BaseService {
 
               bulkOperations.push({
                 updateOne: {
-                  filter: { _id: new ObjectId(enrollment._id) },
+                  filter: {_id: new ObjectId(enrollment._id)},
                   update: {
                     $set: {
                       progress: {
                         completedItems,
                         totalItems,
-                        percentCompleted: totalItems > 0 ? completedItems / totalItems : 0,
+                        percentCompleted:
+                          totalItems > 0 ? completedItems / totalItems : 0,
                       },
                     },
                   },
@@ -371,10 +389,12 @@ export class EnrollmentService extends BaseService {
       }
 
       if (bulkOperations.length > 0) {
-        await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+        await this.enrollmentRepo.bulkUpdateEnrollments(
+          bulkOperations,
+          session,
+        );
         console.log(`Bulk updated ${bulkOperations.length} enrollments`);
       }
     });
   }
-
 }
