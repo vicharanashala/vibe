@@ -173,16 +173,21 @@ export default function CourseEnrollments() {
   const pageLimit = 50;
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
+    if (searchQuery !== debouncedSearch) {
+      setIsSearching(true);
+    }
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
+      setIsSearching(false);
     }, 300); 
 
     return () => {
       clearTimeout(handler);
     };
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
     // Fetch enrollments data
 const {
@@ -434,7 +439,7 @@ const {
   ]
 
   // Loading state
-  if ((courseLoading || versionLoading || enrollmentsLoading) && !searchQuery) {
+  if ((courseLoading || versionLoading) && !course && !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -448,7 +453,7 @@ const {
   }
 
   // Error state
-  if (courseError || versionError || (!searchQuery && enrollmentsError) || !course || !version) {
+  if (courseError || versionError || (enrollmentsError && !debouncedSearch) || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -569,6 +574,7 @@ const {
                         { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
                         { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
                         { key: 'progress', label: 'Progress', className: 'w-[200px]' },
+                        { key: 'status', label: 'Status', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
                         <TableHead
                           key={key}
@@ -589,7 +595,18 @@ const {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {enrollmentsData?.enrollments?.length > 0 ? (
+                    {(enrollmentsLoading || isSearching) ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-16">
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">
+                              Loading enrollments...
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : enrollmentsData?.enrollments?.length > 0 ? (
                       enrollmentsData?.enrollments?.map((enrollment: any) => (
                         <TableRow
                           key={enrollment._id}
@@ -628,6 +645,9 @@ const {
                           </TableCell>
                           <TableCell className="py-6">
                             <EnrollmentProgress progress={Math.round((enrollment.progress?.percentCompleted || 0) * 100)} />
+                          </TableCell>
+                          <TableCell className="py-6">
+                           <span className={`text-xs font-medium ${enrollment.status === "ACTIVE" ? "text-green-500" : "text-red-500"}`}>{enrollment.status}</span>
                           </TableCell>
                           <TableCell className="py-6 pr-6">
                             <div className="flex items-center gap-3">
