@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus,getApiUrl } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus, getApiUrl } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -298,6 +298,8 @@ export default function AISectionPage() {
     upload: [],
   });
   const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
+  const [expandedAccordionItems, setExpandedAccordionItems] = useState<string[]>([]);
+  const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
 
 
 
@@ -350,6 +352,87 @@ export default function AISectionPage() {
   };
 
 
+
+  useEffect(() => {
+    const allCompletedRunIds: string[] = [];
+
+    const completedTranscriptionIds = taskRuns?.transcription
+      .filter(run => {
+        return run?.status === "done" &&
+          run?.result?.task === 'TRANSCRIPT_GENERATION' &&
+          !expandedAccordionItems?.includes(run?.id) &&
+          !manuallyCollapsedItems?.includes(run?.id);
+      })
+      .map(run => run?.id) || [];
+
+    const completedSegmentationIds = taskRuns?.segmentation
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    const completedQuestionIds = taskRuns?.question
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    const completedUploadIds = taskRuns?.upload
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    allCompletedRunIds.push(...completedTranscriptionIds, ...completedSegmentationIds, ...completedQuestionIds, ...completedUploadIds);
+
+    if (allCompletedRunIds.length > 0) {
+      setExpandedAccordionItems(prev => {
+        const newItems = allCompletedRunIds.filter(id => !manuallyCollapsedItems.includes(id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [taskRuns.transcription, taskRuns.segmentation, taskRuns.question, taskRuns.upload]);
+
+  useEffect(() => {
+    const recentTranscriptionRun = taskRuns.transcription
+      .filter(run => run.status === 'done' && run.result?.task === 'TRANSCRIPT_GENERATION')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+    if (recentTranscriptionRun &&
+      !expandedAccordionItems.includes(recentTranscriptionRun.id) &&
+      !manuallyCollapsedItems.includes(recentTranscriptionRun.id)) {
+
+      console.log('useEffect: Found completed transcription run, expanding:', recentTranscriptionRun.id);
+      console.log('useEffect: Current expanded items:', expandedAccordionItems);
+      console.log('useEffect: Manually collapsed items:', manuallyCollapsedItems);
+
+      setTimeout(() => {
+        setExpandedAccordionItems(prev => {
+          if (!prev.includes(recentTranscriptionRun.id)) {
+            console.log('useEffect: Adding to expanded items:', recentTranscriptionRun.id);
+            const newExpanded = [...prev, recentTranscriptionRun.id];
+            console.log('useEffect: New expanded items will be:', newExpanded);
+            return newExpanded;
+          }
+          console.log('useEffect: Run already expanded, skipping');
+          return prev;
+        });
+      }, 500);
+    }
+  }, [taskRuns.transcription.map(run => `${run.id}-${run.status}-${run.result?.task}`).join(','), expandedAccordionItems, manuallyCollapsedItems]);
+
+  useEffect(() => {
+    const completedTranscriptionRuns = taskRuns.transcription.filter(run => run.status === 'done');
+
+    completedTranscriptionRuns.forEach(run => {
+      if (!expandedAccordionItems.includes(run.id) && !manuallyCollapsedItems.includes(run.id)) {
+        console.log('Backup expansion: Found completed transcription run not expanded:', run.id);
+        setTimeout(() => {
+          setExpandedAccordionItems(prev => {
+            if (!prev.includes(run.id)) {
+              console.log('Backup expansion: Expanding run:', run.id);
+              return [...prev, run.id];
+            }
+            return prev;
+          });
+        }, 1000);
+      }
+    });
+  }, [taskRuns.transcription.length, taskRuns.transcription.filter(run => run.status === 'done').length]);
 
   const handleCreateJob = async () => {
     if (!youtubeUrl.trim()) {
@@ -410,7 +493,7 @@ export default function AISectionPage() {
           await handleRefreshStatus();
           return;
         }
-        
+
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
@@ -457,7 +540,7 @@ export default function AISectionPage() {
             await handleRefreshStatus();
             return;
           }
-          
+
           // Add a new loading run
           const runId = `run-${Date.now()}-${Math.random()}`;
           const newRun: TaskRun = {
@@ -549,6 +632,10 @@ export default function AISectionPage() {
       }
     }
     setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
+
+    setExpandedAccordionItems(prev => prev.filter(id => id !== runId));
+    setManuallyCollapsedItems(prev => [...prev, runId]);
+
     if (task !== 'segmentation' && task !== 'question' && task !== 'transcription') toast.success(`${task} run accepted!`);
   };
 
@@ -612,9 +699,9 @@ export default function AISectionPage() {
     }
   };
 
-  const TaskAccordion = React.memo(({ 
-    task, 
-    title, 
+  const TaskAccordion = React.memo(({
+    task,
+    title,
     jobStatus,
     taskRuns,
     acceptedRuns,
@@ -632,10 +719,12 @@ export default function AISectionPage() {
     setRerunParams,
     handleStartTranscription,
     getStatusIcon,
-    handleStopTask
-  }: { 
-    task: keyof typeof taskRuns; 
-    title: string; 
+    handleStopTask,
+    expandedAccordionItems,
+    setExpandedAccordionItems,
+  }: {
+    task: keyof typeof taskRuns;
+    title: string;
     jobStatus?: any;
     taskRuns: TaskRuns;
     acceptedRuns: Partial<Record<keyof TaskRuns, string>>;
@@ -654,6 +743,8 @@ export default function AISectionPage() {
     handleStartTranscription: () => Promise<void>;
     getStatusIcon: (status: string) => React.ReactNode;
     handleStopTask: (task: keyof TaskRuns) => Promise<void>;
+    expandedAccordionItems: string[];
+    setExpandedAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
   }) => {
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
@@ -911,9 +1002,9 @@ export default function AISectionPage() {
           >
             {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : title}
           </Button>
-          
+
           {aiJobId && (
-            runs.some(r => r.status === "loading") || 
+            runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING')) ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING')) ||
@@ -921,16 +1012,16 @@ export default function AISectionPage() {
             (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING')) ||
             (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING'))
           ) && (
-            <Button
-              onClick={() => handleStopTask(task)}
-              variant="outline"
-              disabled={runs.some(r => r.status === "stopped")}
-              className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
-            </Button>
-          )}
+              <Button
+                onClick={() => handleStopTask(task)}
+                variant="outline"
+                disabled={runs.some(r => r.status === "stopped")}
+                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
+              </Button>
+            )}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
@@ -1057,8 +1148,32 @@ export default function AISectionPage() {
             </Button>
           )}
         </div>
+
         {runs.length > 0 && (
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion
+            type="multiple"
+            collapsible
+            value={expandedAccordionItems}
+            onValueChange={(newValue) => {
+              const currentlyExpanded = expandedAccordionItems;
+              const newlyCollapsed = currentlyExpanded.filter(id => !newValue.includes(id));
+              const newlyExpanded = newValue.filter(id => !currentlyExpanded.includes(id));
+
+              if (newlyCollapsed.length > 0) {
+                setManuallyCollapsedItems(prev => {
+                  const updated = [...prev, ...newlyCollapsed];
+                  return updated;
+                });
+              }
+
+              if (newlyExpanded.length > 0) {
+                setManuallyCollapsedItems(prev => prev.filter(id => !newlyExpanded.includes(id)));
+              }
+
+              setExpandedAccordionItems(newValue);
+            }}
+            className="w-full"
+          >
             {runs.map((run: any, index) => {
               // Declare segParamsNodes for this run
               const segParamsNodes: React.ReactNode[] =
@@ -1394,6 +1509,28 @@ export default function AISectionPage() {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
           const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+
+          return {
+            ...prev,
+            transcription: prev.transcription.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'loading', result: status } : run // Keep as 'loading' until transcription completes
+            ),
+          };
+        });
+        toast.success('Audio extraction completed!');
+      }
+      if (
+        didMountRef.current &&
+        status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'COMPLETED'
+      ) {
+        let completedRunId: string | null = null;
+        setTaskRuns(prev => {
+          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+          const updatedRun = prev.transcription[idxToUpdate];
+          completedRunId = updatedRun.id;
+
           return {
             ...prev,
             transcription: prev.transcription.map((run, idx) =>
@@ -1401,6 +1538,22 @@ export default function AISectionPage() {
             ),
           };
         });
+
+        if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
+          console.log('Transcription completed, expanding accordion for run:', completedRunId);
+          setTimeout(() => {
+            setExpandedAccordionItems(prevExpanded => {
+              console.log('Current expanded items:', prevExpanded);
+              console.log('Adding run to expanded:', completedRunId);
+              if (!prevExpanded.includes(completedRunId!)) {
+                const newExpanded = [...prevExpanded, completedRunId!];
+                console.log('New expanded items:', newExpanded);
+                return newExpanded;
+              }
+              return prevExpanded;
+            });
+          }, 500);
+        }
         toast.success('Transcription completed!');
       }
       if (
@@ -1619,12 +1772,54 @@ export default function AISectionPage() {
         if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
           optimisticFailedTaskRef.current = null;
         }
+
+        if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
+          setTimeout(() => {
+            setTaskRuns(prevTaskRuns => {
+              const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
+              if (lastLoadingIdx === -1) {
+                console.log('Live update: No loading transcription run found');
+                return prevTaskRuns;
+              }
+
+              const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
+              const updatedRun = prevTaskRuns.transcription[idxToUpdate];
+              const completedRunId = updatedRun.id;
+
+              const updatedTaskRuns = {
+                ...prevTaskRuns,
+                transcription: prevTaskRuns.transcription.map((run, idx) =>
+                  idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
+                ),
+              };
+
+              if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
+
+                setExpandedAccordionItems(prevExpanded => {
+                  console.log('Live update: Current expanded items before update:', prevExpanded);
+                  if (!prevExpanded.includes(completedRunId)) {
+                    const newExpanded = [...prevExpanded, completedRunId];
+                    return newExpanded;
+                  }
+                  console.log('Live update: Run already in expanded items');
+                  return prevExpanded;
+                });
+              } else {
+                console.log('Live update: Not expanding accordion - completedRunId:', completedRunId, 'manuallyCollapsed:', manuallyCollapsedItems.includes(completedRunId));
+              }
+
+              return updatedTaskRuns;
+            });
+            toast.success('Transcription completed!');
+          }, 50);
+        }
+
         return next;
       });
     });
     return () => es.close();
 
-  }, [aiJobId]);
+  }, [aiJobId, manuallyCollapsedItems]);
 
   useEffect(() => {
     if (!aiJobStatus) return;
@@ -2625,9 +2820,9 @@ export default function AISectionPage() {
                     <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
                   </div>
-                  <TaskAccordion 
-                    task="transcription" 
-                    title="Audio Extraction" 
+                  <TaskAccordion
+                    task="transcription"
+                    title="Audio Extraction"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2646,6 +2841,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2655,9 +2852,9 @@ export default function AISectionPage() {
                     <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                   </div>
-                  <TaskAccordion 
-                    task="segmentation" 
-                    title="Segmentation" 
+                  <TaskAccordion
+                    task="segmentation"
+                    title="Segmentation"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2676,6 +2873,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2685,9 +2884,9 @@ export default function AISectionPage() {
                     <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
                   </div>
-                  <TaskAccordion 
-                    task="question" 
-                    title="Question Generation" 
+                  <TaskAccordion
+                    task="question"
+                    title="Question Generation"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2706,6 +2905,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2715,9 +2916,9 @@ export default function AISectionPage() {
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
                   </div>
-                  <TaskAccordion 
-                    task="upload" 
-                    title="Upload to Course" 
+                  <TaskAccordion
+                    task="upload"
+                    title="Upload to Course"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2736,6 +2937,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
