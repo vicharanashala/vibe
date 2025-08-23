@@ -90,7 +90,7 @@ export class EnrollmentService extends BaseService {
         role: role,
         status: 'ACTIVE',
         enrollmentDate: new Date(),
-        percentCompleted: 0
+        percentCompleted: 0,
       });
 
       const initialProgress = await this.initializeProgress(
@@ -255,7 +255,11 @@ export class EnrollmentService extends BaseService {
     versionId: string,
   ): Promise<EnrollmentStats> {
     return this._withTransaction(async (session: ClientSession) => {
-      return await this.enrollmentRepo.getVersionEnrollmentStats(courseId, versionId, session);
+      return await this.enrollmentRepo.getVersionEnrollmentStats(
+        courseId,
+        versionId,
+        session,
+      );
     });
   }
 
@@ -358,17 +362,15 @@ export class EnrollmentService extends BaseService {
                   courseVersion._id.toString(),
                 );
 
+              const percentCompleted = Math.round(
+                (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+              );
               bulkOperations.push({
                 updateOne: {
                   filter: {_id: new ObjectId(enrollment._id)},
                   update: {
                     $set: {
-                      progress: {
-                        completedItems,
-                        totalItems,
-                        percentCompleted:
-                          totalItems > 0 ? completedItems / totalItems : 0,
-                      },
+                      percentCompleted,
                     },
                   },
                 },

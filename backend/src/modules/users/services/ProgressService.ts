@@ -26,7 +26,11 @@ import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/Subm
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {WatchTime} from '../classes/transformers/WatchTime.js';
 import {CompletedProgressResponse} from '../classes/index.js';
-import {QuizRepository, UserQuizMetricsRepository} from '#root/modules/quizzes/repositories/index.js';
+import {
+  QuizRepository,
+  UserQuizMetricsRepository,
+} from '#root/modules/quizzes/repositories/index.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -46,9 +50,12 @@ class ProgressService extends BaseService {
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
 
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
+
     @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
-    
+
     @inject(QUIZZES_TYPES.QuestionRepo)
     private quizRepo: QuizRepository,
 
@@ -274,6 +281,42 @@ class ProgressService extends BaseService {
       section.sectionId.toString(),
       item._id.toString(),
     );
+  }
+  private async updateEnrollmentProgressPercent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<void> {
+    return this._withTransaction(async session => {
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+      if (!enrollment) throw new NotFoundError('User has no enrollments');
+
+      const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      const completedItems = await this.getUserProgressPercentageWithoutTotal(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      const percentCompleted = Math.round(
+        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+      );
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        session,
+      );
+    });
   }
 
   private async verifyDetails(
@@ -863,6 +906,13 @@ class ProgressService extends BaseService {
       if (!updatedProgress) {
         throw new InternalServerError('Progress could not be updated');
       }
+
+      //  for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+      );
     });
   }
 
@@ -919,6 +969,13 @@ class ProgressService extends BaseService {
         courseId,
         courseVersionId,
         session,
+      );
+
+      // for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
       );
 
       // delete all the attemps document (userId, quizId) and return the deleted _id's
@@ -1066,9 +1123,19 @@ class ProgressService extends BaseService {
         }
       }
       // Clear all completed items (watch time) for this user/course/version
-      for(const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId, session);
+      for (const itemId of itemIds) {
+        await this.progressRepository.deleteUserWatchTimeByItemId(
+          userId,
+          itemId,
+          session,
+        );
       }
+      // for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
@@ -1185,18 +1252,25 @@ class ProgressService extends BaseService {
         itemIds.push(item._id as string);
       }
 
-      
       // Clear all completed items (watch time) for this user/course/version
 
-      for(const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId)
+      for (const itemId of itemIds) {
+        await this.progressRepository.deleteUserWatchTimeByItemId(
+          userId,
+          itemId,
+        );
       }
+      // for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
         // deleting quiz attempts
         for (const quizId of quizItemIds) {
-
           const quiz = await this.quizRepo.getById(quizId);
           const maxAttempts = quiz?.details?.maxAttempts;
 
@@ -1338,7 +1412,18 @@ class ProgressService extends BaseService {
       }
 
       // Clear all items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByItemId(userId, itemId, session);
+      await this.progressRepository.deleteUserWatchTimeByItemId(
+        userId,
+        itemId,
+        session,
+      );
+
+      // for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
       // Set progress
       const result = await this.progressRepository.findAndReplaceProgress(
