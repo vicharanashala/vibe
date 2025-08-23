@@ -274,47 +274,6 @@ export class EnrollmentRepository {
         },
       },
       { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
-
-      // // attach progress
-      // {
-      //   $lookup: {
-      //     from: 'progresses',
-      //     let: {uId: '$userId'},
-      //     pipeline: [
-      //       {
-      //         $match: {
-      //           $expr: {
-      //             $and: [
-      //               {$eq: ['$userId', '$$uId']},
-      //               {$eq: ['$courseId', new ObjectId(courseId)]},
-      //               {$eq: ['$courseVersionId', new ObjectId(courseVersionId)]},
-      //             ],
-      //           },
-      //         },
-      //       },
-      //       {
-      //         $group: {
-      //           _id: '$userId',
-      //           completedItems: {$addToSet: '$itemId'},
-      //         },
-      //       },
-      //       {
-      //         $project: {
-      //           completedCount: {$size: '$completedItems'},
-      //         },
-      //       },
-      //     ],
-      //     as: 'progressInfo',
-      //   },
-      // },
-      // {
-      //   $unwind: {
-      //     path: '$progressInfo',
-      //     preserveNullAndEmptyArrays: true,
-      //   },
-      // },
-
-      // flatten fields for ease
       {
         $addFields: {
           userId: { $toString: '$userInfo._id' },
@@ -334,7 +293,6 @@ export class EnrollmentRepository {
         $match: {
           $or: [
             { 'userInfo.firstName': { $regex: search, $options: 'i' } },
-            { 'userInfo.lastName': { $regex: search, $options: 'i' } },
             { 'userInfo.email': { $regex: search, $options: 'i' } },
           ],
         },

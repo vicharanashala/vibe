@@ -206,7 +206,6 @@ const {
   !!(courseId && versionId)
 );
 
-
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
@@ -656,7 +655,7 @@ const {
                                 size="sm"
                                 onClick={() =>
                                   handleViewProgress({
-                                    id: enrollment.user.userId,
+                                    id: enrollment.user?._id,
                                     name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
                                     email: enrollment.userId,
                                     enrolledDate: enrollment.enrollmentDate,
@@ -672,7 +671,7 @@ const {
                                 size="sm"
                                 onClick={() =>
                                   handleResetProgress({
-                                    id: enrollment.user.userId,
+                                    id: enrollment.user?._id,
                                     name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
                                     email: enrollment.userId,
                                     enrolledDate: enrollment.enrollmentDate,
@@ -694,7 +693,7 @@ const {
                                 size="sm"
                                 onClick={() =>
                                   handleRemoveStudent({
-                                    id: enrollment.user.userId,
+                                    id: enrollment.user?._id,
                                     name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
                                     email: enrollment.user.email,
                                     enrolledDate: enrollment.enrollmentDate,

@@ -16,7 +16,7 @@ import {ProgressRepository} from '#shared/database/providers/mongo/repositories/
 import {Progress} from '#users/classes/transformers/Progress.js';
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
-import {ObjectId} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
@@ -286,15 +286,18 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    session?: ClientSession,
+    isReset?: boolean,
   ): Promise<void> {
-    return this._withTransaction(async session => {
-      const enrollment = await this.enrollmentRepo.findEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-      );
-      if (!enrollment) throw new NotFoundError('User has no enrollments');
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) throw new NotFoundError('User has no enrollments');
 
+    let percentCompleted = 0;
+    if (!isReset) {
       const totalItems = await this.itemRepo.CalculateTotalItemsCount(
         courseId,
         courseVersionId,
@@ -307,16 +310,16 @@ class ProgressService extends BaseService {
         courseVersionId,
       );
 
-      const percentCompleted = Math.round(
+      percentCompleted = Math.round(
         (totalItems > 0 ? completedItems / totalItems : 0) * 100,
       );
+    }
 
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        session,
-      );
-    });
+    await this.enrollmentRepo.updateProgressPercentById(
+      enrollment._id.toString(),
+      percentCompleted,
+      session,
+    );
   }
 
   private async verifyDetails(
@@ -912,6 +915,7 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
       );
     });
   }
@@ -976,6 +980,8 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
+        true,
       );
 
       // delete all the attemps document (userId, quizId) and return the deleted _id's
@@ -1135,6 +1141,8 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
+        true,
       );
 
       // to remove all the quiz related data of the user
@@ -1265,6 +1273,8 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
+        true,
       );
 
       // to remove all the quiz related data of the user
@@ -1423,6 +1433,8 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
+        true,
       );
 
       // Set progress

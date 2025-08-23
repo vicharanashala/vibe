@@ -338,7 +338,7 @@ export class EnrollmentController {
         role: enrollment.role,
         status: enrollment.status,
         enrollmentDate: enrollment.enrollmentDate,
-        user: enrollment.userInfo,
+        user: {...enrollment.userInfo, _id: enrollment.userId},
         progress: enrollment.percentCompleted,
       })),
       totalDocuments: enrollmentsData.totalDocuments,
@@ -359,7 +359,7 @@ export class EnrollmentController {
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
   ) {
-    await this.enrollmentService.bulkUpdateAllEnrollments();
+    // await this.enrollmentService.bulkUpdateAllEnrollments();
   }
 
   @OpenAPI({
