@@ -437,7 +437,7 @@ export class GenAIService extends BaseService {
         if (job.jobStatus.transcriptGeneration === TaskStatus.WAITING) jobState.currentTask = TaskType.AUDIO_EXTRACTION;
         jobState.taskStatus = job.jobStatus.transcriptGeneration;
         jobState.parameters = job.transcriptParameters;
-        jobState.file = task.audioExtraction[usePrevious ? usePrevious : task.audioExtraction.length - 1]?.fileUrl;
+        if (task.audioExtraction) jobState.file = task.audioExtraction[usePrevious ? usePrevious : task.audioExtraction.length - 1]?.fileUrl;
       }
       if (!(job.jobStatus.segmentation === TaskStatus.PENDING || job.jobStatus.segmentation === TaskStatus.RUNNING)) {
         jobState.currentTask = TaskType.SEGMENTATION;
