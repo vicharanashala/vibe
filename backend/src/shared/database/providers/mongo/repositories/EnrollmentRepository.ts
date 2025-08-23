@@ -356,7 +356,13 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<EnrollmentStats> {
     const enrollments = await this.enrollmentCollection
-      .find({courseId, courseVersionId}, {session})
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
       .toArray();
 
     const totalEnrollments = enrollments.length;
