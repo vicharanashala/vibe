@@ -64,6 +64,25 @@ export class EnrollmentRepository {
     });
   }
 
+  async updateProgressPercentById(
+    enrollmentId: string,
+    percentCompleted: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      
+      await this.enrollmentCollection.findOneAndUpdate(
+        {_id: new ObjectId(enrollmentId)},
+        {$set: {percentCompleted}},
+        {session},
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update progress in enrollment. More/${error}`,
+      );
+    }
+  }
   /**
    * Create a new enrollment record
    */
