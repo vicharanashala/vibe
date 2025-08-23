@@ -324,7 +324,7 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-  async updateAllEnrollmentsProgress(): Promise<void> {
+  async bulkUpdateAllEnrollments(): Promise<void> {
     return this._withTransaction(async session => {
       const courses = await this.courseRepo.getAllCourses(session);
       const courseVersionIds = courses.flatMap(course => course.versions);
@@ -370,7 +370,8 @@ export class EnrollmentService extends BaseService {
                   filter: {_id: new ObjectId(enrollment._id)},
                   update: {
                     $set: {
-                      percentCompleted,
+                      // percentCompleted
+                      userId: enrollment.userId instanceof ObjectId ? enrollment.userId : new ObjectId(enrollment.userId)
                     },
                   },
                 },
