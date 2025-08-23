@@ -1,17 +1,17 @@
-import {IEnrollment, IProgress} from '#shared/interfaces/models.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentStats} from '#root/modules/users/types.js';
+import { IEnrollment, IProgress } from '#shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentStats } from '#root/modules/users/types.js';
 
 @injectable()
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private progressCollection!: Collection<IProgress>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -28,7 +28,7 @@ export class EnrollmentRepository {
   async findById(id: string): Promise<IEnrollment | null> {
     await this.init();
     try {
-      return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
+      return await this.enrollmentCollection.findOne({ _id: new ObjectId(id) });
     } catch (error) {
       throw new InternalServerError(
         `Failed to find enrollment by ID: ${error.message}`,
@@ -58,7 +58,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.findOne({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
       courseId: courseObjectId,
       courseVersionId: courseVersionObjectId,
     });
@@ -114,11 +114,11 @@ export class EnrollmentRepository {
 
     const result = await this.enrollmentCollection.deleteOne(
       {
-        userId: {$in: userFilter},
+        userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
-      {session},
+      { session },
     );
     if (result.deletedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
@@ -165,7 +165,7 @@ export class EnrollmentRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
   }
 
@@ -184,10 +184,10 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}})
+      .find({ userId: { $in: userFilter } })
       .skip(skip)
       .limit(limit)
-      .sort({enrollmentDate: -1})
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -203,8 +203,8 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}}, {session})
-      .sort({enrollmentDate: -1})
+      .find({ userId: { $in: userFilter } }, { session })
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
@@ -234,16 +234,16 @@ export class EnrollmentRepository {
         lastName: sortOrder === 'asc' ? 1 : -1,
       };
     } else if (sortBy === 'enrollmentDate') {
-      sortField = {enrollmentDate: sortOrder === 'asc' ? 1 : -1};
+      sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'progress') {
-      sortField = {percentCompleted: sortOrder === 'asc' ? 1 : -1};
+      sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
-      {$match: matchStage},
+      { $match: matchStage },
       {
         $addFields: {
-          userId: {$toObjectId: '$userId'},
+          userId: { $toObjectId: '$userId' },
         },
       },
       {
@@ -254,7 +254,7 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
-      {$unwind: {path: '$userInfo', preserveNullAndEmptyArrays: true}},
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
 
       // // attach progress
       // {
@@ -298,10 +298,10 @@ export class EnrollmentRepository {
       // flatten fields for ease
       {
         $addFields: {
-          userId: {$toString: '$userInfo._id'},
-          _id: {$toString: '$_id'},
-          courseId: {$toString: '$courseId'},
-          courseVersionId: {$toString: '$courseVersionId'},
+          userId: { $toString: '$userInfo._id' },
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          courseVersionId: { $toString: '$courseVersionId' },
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
@@ -314,26 +314,26 @@ export class EnrollmentRepository {
       aggregationPipeline.push({
         $match: {
           $or: [
-            {'userInfo.firstName': {$regex: search, $options: 'i'}},
-            {'userInfo.lastName': {$regex: search, $options: 'i'}},
-            {'userInfo.email': {$regex: search, $options: 'i'}},
+            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
+            { 'userInfo.lastName': { $regex: search, $options: 'i' } },
+            { 'userInfo.email': { $regex: search, $options: 'i' } },
           ],
         },
       });
     }
 
     // sorting
-    aggregationPipeline.push({$sort: sortField});
+    aggregationPipeline.push({ $sort: sortField });
 
     // pagination
-    aggregationPipeline.push({$skip: skip}, {$limit: limit});
+    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
     // count separately
     const totalDocuments = await this.enrollmentCollection.countDocuments(
       matchStage,
     );
     const enrollments = await this.enrollmentCollection
-      .aggregate(aggregationPipeline, {session})
+      .aggregate(aggregationPipeline, { session })
       .toArray();
 
     const totalPages =
@@ -354,36 +354,61 @@ export class EnrollmentRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<EnrollmentStats> {
-    const enrollments = await this.enrollmentCollection
-      .find(
-        {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-        },
-        {session},
+
+    const [result] = await this.enrollmentCollection
+      .aggregate<{
+        totalEnrollments: number;
+        completedCount: number;
+        averageProgressPercent: number;
+      }>(
+        [
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalEnrollments: { $sum: 1 },
+              completedCount: {
+                $sum: {
+                  $cond: [{ $gte: ["$percentCompleted", 1] }, 1, 0],
+                },
+              },
+              totalProgress: {
+                $sum: {
+                  $multiply: [{ $ifNull: ["$percentCompleted", 0] }, 100],
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalEnrollments: 1,
+              completedCount: 1,
+              averageProgressPercent: {
+                $cond: [
+                  { $gt: ["$totalEnrollments", 0] },
+                  { $round: [{ $divide: ["$totalProgress", "$totalEnrollments"] }, 1] },
+                  0,
+                ],
+              },
+            },
+          },
+        ],
+        { session }
       )
       .toArray();
 
-    const totalEnrollments = enrollments.length;
 
-    const completedCount = enrollments.filter(
-      enrollment => (enrollment.percentCompleted || 0) >= 1,
-    ).length;
-
-    const averageProgressPercent =
-      totalEnrollments > 0
-        ? parseFloat(
-            (
-              enrollments?.reduce(
-                (sum: number, enrollment: IEnrollment) =>
-                  sum + (enrollment.percentCompleted || 0) * 100,
-                0,
-              ) / totalEnrollments
-            ).toFixed(1),
-          )
-        : 0;
-
-    return {totalEnrollments, completedCount, averageProgressPercent};
+    return result || {
+      totalEnrollments: 0,
+      completedCount: 0,
+      averageProgressPercent: 0
+    };
   }
 
   /**
@@ -401,7 +426,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.countDocuments({
-      userId: {$in: userFilter},
+      userId: { $in: userFilter },
     });
   }
 
@@ -433,7 +458,7 @@ export class EnrollmentRepository {
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
         },
-        {session},
+        { session },
       )
       .toArray();
   }
