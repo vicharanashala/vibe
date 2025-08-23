@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus,getApiUrl } from "@/lib/genai-api";
+import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus, getApiUrl } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -40,7 +40,7 @@ type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS
 interface TaskRun {
   id: string;
   timestamp: Date;
-  status: "loading" | "done" | "failed";
+  status: "loading" | "done" | "failed" | "stopped";
   result?: JobStatus;
   parameters?: Record<string, unknown>;
 }
@@ -144,6 +144,7 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
     if (status === 'running') return 'active';
     if (status === 'completed') return 'completed';
     if (status === 'failed') return 'failed';
+    if (status === 'stopped') return 'stopped';
     if (status === 'waiting' || status === 'pending') return 'pending';
     return 'pending';
   }
@@ -182,8 +183,9 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
         const isLast = idx === WORKFLOW_STEPS.length - 1;
         const isCompleted = status === 'completed';
-        const isActive = status === 'active' || (isCurrent && !isCompleted);
         const isFailed = status === 'failed';
+        const isStopped = status === 'stopped';
+        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
 
         return (
           <React.Fragment key={step.key}>
@@ -194,7 +196,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                 ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
                   isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
                     isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
-                      'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                      isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
+                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:shadow-lg hover:ring-2 hover:ring-primary/20'
                 }`}
                 style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -206,6 +209,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                     <Loader2 className="w-6 h-6 animate-spin" />
                   ) : isFailed ? (
                     <XCircle className="w-6 h-6 animate-pulse" />
+                  ) : isStopped ? (
+                    <PauseCircle className="w-6 h-6 animate-pulse" />
                   ) : (
                     <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
                       {step.icon}
@@ -221,7 +226,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                   ${isCompleted ? 'text-green-600 dark:text-green-400' :
                     isActive ? 'text-blue-600 dark:text-blue-400' :
                       isFailed ? 'text-red-600 dark:text-red-400' :
-                        'text-muted-foreground'
+                        isStopped ? 'text-orange-600 dark:text-orange-400' :
+                          'text-muted-foreground'
                   }`}
                 >
                   {step.label}
@@ -249,6 +255,14 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                     <div className="w-2 h-2 bg-red-500 rounded-full" />
                     <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
                       Failed
+                    </span>
+                  </div>
+                )}
+                {isStopped && (
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                    <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      Stopped
                     </span>
                   </div>
                 )}
@@ -286,6 +300,8 @@ export default function AISectionPage() {
     upload: [],
   });
   const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
+  const [expandedAccordionItems, setExpandedAccordionItems] = useState<string[]>([]);
+  const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
 
 
 
@@ -339,6 +355,87 @@ export default function AISectionPage() {
 
 
 
+  useEffect(() => {
+    const allCompletedRunIds: string[] = [];
+
+    const completedTranscriptionIds = taskRuns?.transcription
+      .filter(run => {
+        return run?.status === "done" &&
+          run?.result?.task === 'TRANSCRIPT_GENERATION' &&
+          !expandedAccordionItems?.includes(run?.id) &&
+          !manuallyCollapsedItems?.includes(run?.id);
+      })
+      .map(run => run?.id) || [];
+
+    const completedSegmentationIds = taskRuns?.segmentation
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    const completedQuestionIds = taskRuns?.question
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    const completedUploadIds = taskRuns?.upload
+      .filter(run => run?.status === "done" && !expandedAccordionItems?.includes(run?.id) && !manuallyCollapsedItems?.includes(run?.id))
+      .map(run => run?.id) || [];
+
+    allCompletedRunIds.push(...completedTranscriptionIds, ...completedSegmentationIds, ...completedQuestionIds, ...completedUploadIds);
+
+    if (allCompletedRunIds.length > 0) {
+      setExpandedAccordionItems(prev => {
+        const newItems = allCompletedRunIds.filter(id => !manuallyCollapsedItems.includes(id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [taskRuns.transcription, taskRuns.segmentation, taskRuns.question, taskRuns.upload]);
+
+  useEffect(() => {
+    const recentTranscriptionRun = taskRuns.transcription
+      .filter(run => run.status === 'done' && run.result?.task === 'TRANSCRIPT_GENERATION')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+    if (recentTranscriptionRun &&
+      !expandedAccordionItems.includes(recentTranscriptionRun.id) &&
+      !manuallyCollapsedItems.includes(recentTranscriptionRun.id)) {
+
+      console.log('useEffect: Found completed transcription run, expanding:', recentTranscriptionRun.id);
+      console.log('useEffect: Current expanded items:', expandedAccordionItems);
+      console.log('useEffect: Manually collapsed items:', manuallyCollapsedItems);
+
+      setTimeout(() => {
+        setExpandedAccordionItems(prev => {
+          if (!prev.includes(recentTranscriptionRun.id)) {
+            console.log('useEffect: Adding to expanded items:', recentTranscriptionRun.id);
+            const newExpanded = [...prev, recentTranscriptionRun.id];
+            console.log('useEffect: New expanded items will be:', newExpanded);
+            return newExpanded;
+          }
+          console.log('useEffect: Run already expanded, skipping');
+          return prev;
+        });
+      }, 500);
+    }
+  }, [taskRuns.transcription.map(run => `${run.id}-${run.status}-${run.result?.task}`).join(','), expandedAccordionItems, manuallyCollapsedItems]);
+
+  useEffect(() => {
+    const completedTranscriptionRuns = taskRuns.transcription.filter(run => run.status === 'done');
+
+    completedTranscriptionRuns.forEach(run => {
+      if (!expandedAccordionItems.includes(run.id) && !manuallyCollapsedItems.includes(run.id)) {
+        console.log('Backup expansion: Found completed transcription run not expanded:', run.id);
+        setTimeout(() => {
+          setExpandedAccordionItems(prev => {
+            if (!prev.includes(run.id)) {
+              console.log('Backup expansion: Expanding run:', run.id);
+              return [...prev, run.id];
+            }
+            return prev;
+          });
+        }, 1000);
+      }
+    });
+  }, [taskRuns.transcription.length, taskRuns.transcription.filter(run => run.status === 'done').length]);
+
   const handleCreateJob = async () => {
     if (!youtubeUrl.trim()) {
       setUrlError("YouTube URL is required");
@@ -389,6 +486,16 @@ export default function AISectionPage() {
     };
     try {
       if (task === "transcription") {
+        const hasStoppedRun = taskRuns.transcription.some(r => r.status === 'stopped');
+        if (hasStoppedRun) {
+          setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+          await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
+          setAiWorkflowStep('audio_extraction');
+          toast.success("Transcription restarted. Click Refresh to check status.");
+          await handleRefreshStatus();
+          return;
+        }
+
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
@@ -425,6 +532,17 @@ export default function AISectionPage() {
       switch (task) {
         case "segmentation": {
           taskType = "SEGMENTATION";
+          const hasStoppedRun = taskRuns.segmentation.some(r => r.status === 'stopped');
+          if (hasStoppedRun) {
+            setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
+            await aiSectionAPI.postJobTask(aiJobId, taskType, params, 0);
+            toast.success("Segmentation restarted. Click Refresh to check status.");
+            await handleRefreshStatus();
+            return;
+          }
+
           // Add a new loading run
           const runId = `run-${Date.now()}-${Math.random()}`;
           const newRun: TaskRun = {
@@ -451,9 +569,17 @@ export default function AISectionPage() {
         }
         case "question":
           taskType = "QUESTION_GENERATION";
+          const hasStoppedQuestionRun = taskRuns.question.some(r => r.status === 'stopped');
+          if (hasStoppedQuestionRun) {
+            setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+            params = { ...questionGenParams };
+            await aiSectionAPI.postJobTask(aiJobId, taskType, params);
+            toast.success("Question generation restarted. Click Refresh to check status.");
+            await handleRefreshStatus();
+            return;
+          }
           params = { ...questionGenParams };
           break;
-
 
         case "upload":
           taskType = "UPLOAD_TO_COURSE";
@@ -508,6 +634,10 @@ export default function AISectionPage() {
       }
     }
     setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
+
+    setExpandedAccordionItems(prev => prev.filter(id => id !== runId));
+    setManuallyCollapsedItems(prev => [...prev, runId]);
+
     if (task !== 'segmentation' && task !== 'question' && task !== 'transcription') toast.success(`${task} run accepted!`);
   };
 
@@ -516,13 +646,13 @@ export default function AISectionPage() {
   const canRunTask = (task: keyof typeof taskRuns): boolean => {
     switch (task) {
       case "transcription":
-        return !!aiJobId;
+        return !!aiJobId && !taskRuns.transcription.some(r => r.status === 'loading');
       case "segmentation":
-        return !!acceptedRuns.transcription;
+        return !!acceptedRuns.transcription && !taskRuns.segmentation.some(r => r.status === 'loading');
       case "question":
-        return !!acceptedRuns.segmentation;
+        return !!acceptedRuns.segmentation && !taskRuns.question.some(r => r.status === 'loading');
       case "upload":
-        return !!acceptedRuns.question;
+        return !!acceptedRuns.question && !taskRuns.upload.some(r => r.status === 'loading');
       default:
         return false;
     }
@@ -540,6 +670,9 @@ export default function AISectionPage() {
       case 'FAILED':
       case 'failed':
         return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><XCircle className="text-red-600" /></span></TooltipTrigger><TooltipContent>Failed</TooltipContent></Tooltip></TooltipProvider>;
+      case 'stopped':
+      case 'STOPPED':
+        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-orange-500" /></span></TooltipTrigger><TooltipContent>Stopped</TooltipContent></Tooltip></TooltipProvider>;
       case 'WAITING':
       case 'PENDING':
         return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-yellow-500" /></span></TooltipTrigger><TooltipContent>Waiting/Pending</TooltipContent></Tooltip></TooltipProvider>;
@@ -568,9 +701,9 @@ export default function AISectionPage() {
     }
   };
 
-  const TaskAccordion = React.memo(({ 
-    task, 
-    title, 
+  const TaskAccordion = React.memo(({
+    task,
+    title,
     jobStatus,
     taskRuns,
     acceptedRuns,
@@ -588,10 +721,12 @@ export default function AISectionPage() {
     setRerunParams,
     handleStartTranscription,
     getStatusIcon,
-    handleStopTask
-  }: { 
-    task: keyof typeof taskRuns; 
-    title: string; 
+    handleStopTask,
+    expandedAccordionItems,
+    setExpandedAccordionItems,
+  }: {
+    task: keyof typeof taskRuns;
+    title: string;
     jobStatus?: any;
     taskRuns: TaskRuns;
     acceptedRuns: Partial<Record<keyof TaskRuns, string>>;
@@ -609,7 +744,9 @@ export default function AISectionPage() {
     setRerunParams: React.Dispatch<React.SetStateAction<{ language: string; model: string }>>;
     handleStartTranscription: () => Promise<void>;
     getStatusIcon: (status: string) => React.ReactNode;
-    handleStopTask: () => Promise<void>;
+    handleStopTask: (task: keyof TaskRuns) => Promise<void>;
+    expandedAccordionItems: string[];
+    setExpandedAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
   }) => {
     const runs = taskRuns[task];
     const acceptedRunId = acceptedRuns[task];
@@ -814,32 +951,79 @@ export default function AISectionPage() {
                 }
                 return;
               }
-              // ... existing logic for other tasks ...
+              if (runs.some(r => r.status === 'stopped')) {
+                if (!aiJobId) {
+                  toast.error("No AI job ID available");
+                  return;
+                }
+                const runId = `run-${Date.now()}-${Math.random()}`;
+                const newRun: TaskRun = {
+                  id: runId,
+                  timestamp: new Date(),
+                  status: "loading",
+                  parameters: task === "segmentation" ? { ...localSegParams } : task === "question" ? { ...localParams } : task === "transcription" ? { ...rerunParams } : undefined,
+                };
+                setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+                try {
+                  let taskType: string;
+                  switch (task) {
+                    case "transcription":
+                      taskType = "AUDIO_EXTRACTION";
+                      break;
+                    case "segmentation":
+                      taskType = "SEGMENTATION";
+                      break;
+                    case "question":
+                      taskType = "QUESTION_GENERATION";
+                      break;
+                    case "upload":
+                      taskType = "UPLOAD_CONTENT";
+                      break;
+                    default:
+                      throw new Error(`Unsupported task type: ${task}`);
+                  }
+                  const response = await aiSectionAPI.rerunJobTask(aiJobId, taskType, newRun.parameters);
+                  if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                  }
+                  toast.success(`${title} restarted. Click Refresh to check status.`);
+                  await handleRefreshStatus();
+                } catch (error) {
+                  setTaskRuns(prev => ({
+                    ...prev,
+                    [task]: prev[task].map(run => run.id === runId ? { ...run, status: "failed" } : run),
+                  }));
+                  toast.error(`Failed to restart ${title}: ${error instanceof Error ? error.message : "Unknown error"}`);
+                }
+                return;
+              }
               handleTask(task, localSegParams, localParams);
             }}
             disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
             className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
           >
-            {title}
+            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : title}
           </Button>
-          
+
           {aiJobId && (
-            runs.some(r => r.status === "loading") || 
+            runs.some(r => r.status === "loading") ||
+            runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING')) ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING')) ||
             (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING')) ||
             (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING')) ||
             (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING'))
           ) && (
-            <Button
-              onClick={handleStopTask}
-              variant="outline"
-              className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Stop Task
-            </Button>
-          )}
+              <Button
+                onClick={() => handleStopTask(task)}
+                variant="outline"
+                disabled={runs.some(r => r.status === "stopped")}
+                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
+              </Button>
+            )}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
@@ -966,8 +1150,32 @@ export default function AISectionPage() {
             </Button>
           )}
         </div>
+
         {runs.length > 0 && (
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion
+            type="multiple"
+            collapsible
+            value={expandedAccordionItems}
+            onValueChange={(newValue) => {
+              const currentlyExpanded = expandedAccordionItems;
+              const newlyCollapsed = currentlyExpanded.filter(id => !newValue.includes(id));
+              const newlyExpanded = newValue.filter(id => !currentlyExpanded.includes(id));
+
+              if (newlyCollapsed.length > 0) {
+                setManuallyCollapsedItems(prev => {
+                  const updated = [...prev, ...newlyCollapsed];
+                  return updated;
+                });
+              }
+
+              if (newlyExpanded.length > 0) {
+                setManuallyCollapsedItems(prev => prev.filter(id => !newlyExpanded.includes(id)));
+              }
+
+              setExpandedAccordionItems(newValue);
+            }}
+            className="w-full"
+          >
             {runs.map((run: any, index) => {
               // Declare segParamsNodes for this run
               const segParamsNodes: React.ReactNode[] =
@@ -1002,7 +1210,7 @@ export default function AISectionPage() {
                 );
               }
               return (
-                <AccordionItem key={run.id} value={run.id} className="border rounded my-2">
+                <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                     <span>Run {index + 1}</span>
                     <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
@@ -1282,6 +1490,8 @@ export default function AISectionPage() {
   const prevJobStatusRef = useRef<any>(null);
   // Track if this is the first status fetch after mount
   const didMountRef = useRef(false);
+  // Track an optimistic failed task for stepper (e.g., after Stop)
+  const optimisticFailedTaskRef = useRef<string | null>(null);
 
   // New: Manual refresh handler
   const handleRefreshStatus = async () => {
@@ -1301,6 +1511,28 @@ export default function AISectionPage() {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
           const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+
+          return {
+            ...prev,
+            transcription: prev.transcription.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'loading', result: status } : run // Keep as 'loading' until transcription completes
+            ),
+          };
+        });
+        toast.success('Audio extraction completed!');
+      }
+      if (
+        didMountRef.current &&
+        status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'COMPLETED'
+      ) {
+        let completedRunId: string | null = null;
+        setTaskRuns(prev => {
+          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+          const updatedRun = prev.transcription[idxToUpdate];
+          completedRunId = updatedRun.id;
+
           return {
             ...prev,
             transcription: prev.transcription.map((run, idx) =>
@@ -1308,6 +1540,22 @@ export default function AISectionPage() {
             ),
           };
         });
+
+        if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
+          console.log('Transcription completed, expanding accordion for run:', completedRunId);
+          setTimeout(() => {
+            setExpandedAccordionItems(prevExpanded => {
+              console.log('Current expanded items:', prevExpanded);
+              console.log('Adding run to expanded:', completedRunId);
+              if (!prevExpanded.includes(completedRunId!)) {
+                const newExpanded = [...prevExpanded, completedRunId!];
+                console.log('New expanded items:', newExpanded);
+                return newExpanded;
+              }
+              return prevExpanded;
+            });
+          }, 500);
+        }
         toast.success('Transcription completed!');
       }
       if (
@@ -1376,29 +1624,111 @@ export default function AISectionPage() {
         toast.error('A step failed.');
         return;
       }
+      if ((status?.task === 'AUDIO_EXTRACTION' && status?.status === 'STOPPED') || (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'STOPPED')) {
+        setAiWorkflowStep('idle');
+        toast.info('A step was stopped. You can restart it.');
+        return;
+      }
     } catch (error) {
       setAiWorkflowStep('error');
       toast.error('Failed to refresh status.');
     }
   };
 
-  const handleStopTask = async () => {
+  const handleStopTask: (task?: keyof typeof taskRuns) => Promise<void> = async (task?) => {
     if (!aiJobId) return;
     if (!aiSectionAPI.stopJobTask) {
       toast.error('Stop task functionality not available');
       return;
     }
     try {
-      let response: any = await aiSectionAPI.stopJobTask(aiJobId);
-      if (response.ok) {
+      const response: any = await aiSectionAPI.stopJobTask(aiJobId);
+      if (response?.ok) {
         toast.success('Stopped task successfully.');
       } else {
         toast.error('Failed to stop task.');
       }
-      await handleRefreshStatus();
     } catch (error) {
       setAiWorkflowStep('error');
       toast.error('Failed to stop task.');
+    } finally {
+      const createStoppedRun = (): TaskRun => ({ id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'stopped' });
+      if (task) {
+        setTaskRuns(prev => {
+          const runs = prev[task];
+          const hasLoading = runs.some(r => r.status === 'loading');
+          const updated = hasLoading
+            ? runs.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...runs, createStoppedRun()];
+          return { ...prev, [task]: updated } as TaskRuns;
+        });
+      } else {
+        setTaskRuns(prev => ({
+          ...prev,
+          transcription: prev.transcription.some(r => r.status === 'loading')
+            ? prev.transcription.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.transcription, createStoppedRun()],
+          segmentation: prev.segmentation.some(r => r.status === 'loading')
+            ? prev.segmentation.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.segmentation, createStoppedRun()],
+          question: prev.question.some(r => r.status === 'loading')
+            ? prev.question.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.question, createStoppedRun()],
+          upload: prev.upload.some(r => r.status === 'loading')
+            ? prev.upload.map(r => (r.status === 'loading' ? { ...r, status: 'stopped' } : r))
+            : [...prev.upload, createStoppedRun()],
+        }));
+      }
+
+      setAiJobStatus(prev => {
+        if (!prev) return prev;
+        const next = { ...prev } as any;
+        const setTop = (taskStr: string) => {
+          next.task = taskStr;
+          next.status = 'STOPPED';
+        };
+        const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+        const isActive = (v?: string) => v === 'RUNNING' || v === 'PENDING' || v === 'WAITING';
+        if (task === 'transcription') {
+          let stoppingTask = next.task;
+          if (stoppingTask !== 'AUDIO_EXTRACTION' && stoppingTask !== 'TRANSCRIPT_GENERATION') {
+            const js = next.jobStatus || {};
+            if (isActive(js?.transcriptGeneration)) stoppingTask = 'TRANSCRIPT_GENERATION';
+            else if (isActive(js?.audioExtraction)) stoppingTask = 'AUDIO_EXTRACTION';
+            else stoppingTask = 'TRANSCRIPT_GENERATION';
+          }
+          setTop(stoppingTask);
+          ensureJobStatus();
+          if (stoppingTask === 'TRANSCRIPT_GENERATION') next.jobStatus.transcriptGeneration = 'STOPPED';
+          if (stoppingTask === 'AUDIO_EXTRACTION') next.jobStatus.audioExtraction = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
+          return next;
+        }
+        if (task === 'segmentation') {
+          setTop('SEGMENTATION');
+          ensureJobStatus();
+          next.jobStatus.segmentation = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
+          return next;
+        }
+        if (task === 'question') {
+          setTop('QUESTION_GENERATION');
+          ensureJobStatus();
+          next.jobStatus.questionGeneration = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
+          return next;
+        }
+        if (task === 'upload') {
+          setTop('UPLOAD_CONTENT');
+          ensureJobStatus();
+          next.jobStatus.uploadContent = 'STOPPED';
+          optimisticFailedTaskRef.current = null;
+          return next;
+        }
+        setTop(next.task);
+        optimisticFailedTaskRef.current = null;
+        return next;
+      });
       await handleRefreshStatus();
     }
   };
@@ -1406,12 +1736,92 @@ export default function AISectionPage() {
   useEffect(() => {
     if (!aiJobId) return;
 
-    const es = connectToLiveStatusUpdates(aiJobId, (status) => {
-      setAiJobStatus(status);
+    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
+      setAiJobStatus((prev) => {
+        let next: any = incoming ? { ...incoming } : incoming;
+        const failing = optimisticFailedTaskRef.current;
+        if (next && failing) {
+          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+          switch (failing) {
+            case 'AUDIO_EXTRACTION':
+              setTop('AUDIO_EXTRACTION');
+              ensureJobStatus();
+              next.jobStatus.audioExtraction = 'FAILED';
+              break;
+            case 'TRANSCRIPT_GENERATION':
+              setTop('TRANSCRIPT_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.transcriptGeneration = 'FAILED';
+              break;
+            case 'SEGMENTATION':
+              setTop('SEGMENTATION');
+              ensureJobStatus();
+              next.jobStatus.segmentation = 'FAILED';
+              break;
+            case 'QUESTION_GENERATION':
+              setTop('QUESTION_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.questionGeneration = 'FAILED';
+              break;
+            case 'UPLOAD_CONTENT':
+              setTop('UPLOAD_CONTENT');
+              ensureJobStatus();
+              next.jobStatus.uploadContent = 'FAILED';
+              break;
+          }
+        }
+        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+          optimisticFailedTaskRef.current = null;
+        }
+
+        if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
+          setTimeout(() => {
+            setTaskRuns(prevTaskRuns => {
+              const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
+              if (lastLoadingIdx === -1) {
+                console.log('Live update: No loading transcription run found');
+                return prevTaskRuns;
+              }
+
+              const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
+              const updatedRun = prevTaskRuns.transcription[idxToUpdate];
+              const completedRunId = updatedRun.id;
+
+              const updatedTaskRuns = {
+                ...prevTaskRuns,
+                transcription: prevTaskRuns.transcription.map((run, idx) =>
+                  idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
+                ),
+              };
+
+              if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
+
+                setExpandedAccordionItems(prevExpanded => {
+                  console.log('Live update: Current expanded items before update:', prevExpanded);
+                  if (!prevExpanded.includes(completedRunId)) {
+                    const newExpanded = [...prevExpanded, completedRunId];
+                    return newExpanded;
+                  }
+                  console.log('Live update: Run already in expanded items');
+                  return prevExpanded;
+                });
+              } else {
+                console.log('Live update: Not expanding accordion - completedRunId:', completedRunId, 'manuallyCollapsed:', manuallyCollapsedItems.includes(completedRunId));
+              }
+
+              return updatedTaskRuns;
+            });
+            toast.success('Transcription completed!');
+          }, 50);
+        }
+
+        return next;
+      });
     });
     return () => es.close();
 
-  }, [aiJobId]);
+  }, [aiJobId, manuallyCollapsedItems]);
 
   useEffect(() => {
     if (!aiJobStatus) return;
@@ -2423,9 +2833,9 @@ export default function AISectionPage() {
                     <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
                   </div>
-                  <TaskAccordion 
-                    task="transcription" 
-                    title="Audio Extraction" 
+                  <TaskAccordion
+                    task="transcription"
+                    title="Audio Extraction"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2444,6 +2854,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2453,9 +2865,9 @@ export default function AISectionPage() {
                     <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                   </div>
-                  <TaskAccordion 
-                    task="segmentation" 
-                    title="Segmentation" 
+                  <TaskAccordion
+                    task="segmentation"
+                    title="Segmentation"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2474,6 +2886,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2483,9 +2897,9 @@ export default function AISectionPage() {
                     <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
                   </div>
-                  <TaskAccordion 
-                    task="question" 
-                    title="Question Generation" 
+                  <TaskAccordion
+                    task="question"
+                    title="Question Generation"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2504,6 +2918,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
@@ -2513,9 +2929,9 @@ export default function AISectionPage() {
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
                   </div>
-                  <TaskAccordion 
-                    task="upload" 
-                    title="Upload to Course" 
+                  <TaskAccordion
+                    task="upload"
+                    title="Upload to Course"
                     jobStatus={aiJobStatus?.status}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
@@ -2534,6 +2950,8 @@ export default function AISectionPage() {
                     handleStartTranscription={handleStartTranscription}
                     getStatusIcon={getStatusIcon}
                     handleStopTask={handleStopTask}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
 
