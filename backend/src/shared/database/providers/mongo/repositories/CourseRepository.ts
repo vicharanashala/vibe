@@ -211,9 +211,9 @@ export class CourseRepository implements ICourseRepository {
         {session},
       );
 
-      if (courseVersion === null) {
-        throw new NotFoundError('Course Version not found');
-      }
+      // if (courseVersion === null) {
+      //   throw new NotFoundError('Course Version not found');
+      // }
 
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion),
