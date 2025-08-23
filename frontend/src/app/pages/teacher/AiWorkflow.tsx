@@ -7,12 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { aiSectionAPI, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import { AlertCircle, AlertTriangle, Ban, CheckCircle, Clock, File, FileText, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Settings, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
-import React, { useCallback, useRef, useState } from 'react'
+import {  AlertTriangle, Ban, CheckCircle, Clock, FileText, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Settings, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
+import { useRef, useState } from 'react'
 import { toast } from 'sonner';
-import { LiveQuiz } from './live-quiz';
+import { AudioTranscripter, validateTranscript } from './AudioTranscripter';
+import { TranscriberData } from '@/hooks/useTranscriber';
 
 
 interface TaskRun {
@@ -22,7 +23,6 @@ interface TaskRun {
   result?: JobStatus;
   parameters?: Record<string, unknown>;
 }
-
 
 interface TaskRuns {
   transcription: TaskRun[];
@@ -96,22 +96,47 @@ const AiWorkflow = () => {
     upload: [],
     });
 
-    const [aiWorkflowStep, setAiWorkflowStep] = useState("");
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [fileError, setFileError] = useState<string>("");
-    const [isDragOver, setIsDragOver] = useState(false)
+    const [currentTask, setCurrentTask] = useState("");
 
-    const formatFileSize = (bytes: number) => {
-        if (bytes === 0) return "0 Bytes"
-        const k = 1024
-        const sizes = ["Bytes", "KB", "MB", "GB"]
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-        return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-    }
+    const [aiWorkflowStep, setAiWorkflowStep] = useState("");
+    const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
+
+    const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
+
+    const errorRef = useRef<HTMLDivElement | null>(null);
+
+    // Validation
+    const isValidYouTubeUrl = (url: string): boolean => {
+        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
+        return youtubeRegex.test(url);
+    };
+  
 
     // Handlers
     const handleCreateJob = async () => {
+
+        if (!youtubeUrl.trim()) {
+            setUrlError("YouTube URL is required");
+            scrollToError();
+            return;
+        }
+        if (!isValidYouTubeUrl(youtubeUrl.trim())) {
+            setUrlError("Please enter a valid YouTube URL");
+            scrollToError();
+            return;
+        }
+
+        if(!transcribedData?.text){
+            toast.error("No transcript found, Try again!");
+            return;
+        };
+        
+        const chunks: Chunk[] = transcribedData.chunks.map(c => ({
+            text: c.text,
+            timestamp: c.timestamp.map(t => t ?? 0), // convert null to 0
+        }));
+
+        setUrlError(null);
         // Get courseId and versionId from store
         const { currentCourse } = useCourseStore.getState();
         if (!currentCourse?.courseId || !currentCourse?.versionId) {
@@ -122,23 +147,23 @@ const AiWorkflow = () => {
         try {
         // Build job parameters
         const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
-        videoUrl: "https://youtu.be/s2skans2dP4?si=Vl-kvqLY40QBdm_7",
-        // videoUrl: youtubeUrl,
-        courseId: currentCourse.courseId,
-        versionId: currentCourse.versionId,
-        moduleId: currentCourse.moduleId,
-        sectionId: currentCourse.sectionId,
-        videoItemBaseName: uploadParams.videoItemBaseName,
-        quizItemBaseName: uploadParams.quizItemBaseName,
-        questionsPerQuiz: uploadParams.questionsPerQuiz,
+            videoUrl: youtubeUrl,
+            transcript: { chunks },
+            courseId: currentCourse.courseId,
+            versionId: currentCourse.versionId,
+            moduleId: currentCourse.moduleId,
+            sectionId: currentCourse.sectionId,
+            videoItemBaseName: uploadParams.videoItemBaseName,
+            quizItemBaseName: uploadParams.quizItemBaseName,
+            questionsPerQuiz: uploadParams.questionsPerQuiz,
         };
 
         // Optional parameters
         if (selectedTasks.transcription) {
-        jobParams.transcriptParameters = {
-            language: customTranscriptParams.language || "en",
-            modelSize: customTranscriptParams.modelSize || "large",
-        };
+            jobParams.transcriptParameters = {
+                language: customTranscriptParams.language || "en",
+                modelSize: customTranscriptParams.modelSize || "large",
+            };
         }
 
         if (selectedTasks.segmentation) {
@@ -192,6 +217,14 @@ const AiWorkflow = () => {
         }
     };
 
+    const scrollToError = () => {
+        if (errorRef.current) {
+        errorRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
+        }
+    };
     // Task dependency order (linear workflow)
     const taskOrder = ['transcription', 'segmentation', 'questions', 'upload'] as const;
 
@@ -219,75 +252,37 @@ const AiWorkflow = () => {
 
     setSelectedTasks(newSelectedTasks);
     };
-    // File validation function
-    const validateMP3File = (file: File): string => {
-        // Check file type
-        if (
-        !file.type.includes("audio/mpeg") &&
-        !file.type.includes("audio/mp3") &&
-        !file.name.toLowerCase().endsWith(".mp3")
-        ) {
-        return "Please select a valid MP3 file"
+
+    // Passing the task and recieving appproval
+    const canRunTask = (task: keyof typeof taskRuns): boolean => {
+        switch (task) {
+        case "transcription":
+            return !!aiJobId;
+        case "segmentation":
+            return !!acceptedRuns.transcription;
+        case "question":
+            return !!acceptedRuns.segmentation;
+        case "upload":
+            return !!acceptedRuns.question;
+        default:
+            return false;
         }
+    };
 
-        // Check file size (max 50MB)
-        const maxSize = 50 * 1024 * 1024 // 50MB in bytes
-        if (file.size > maxSize) {
-        return "File size must be less than 50MB"
+    const handleAcceptRun = async (task: keyof typeof taskRuns, runId: string) => {
+        if ((task === 'transcription' || task === 'segmentation' || task === 'question') && aiJobId) {
+        try {
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            toast.success(`${task === 'question' ? 'Question generation' : task.charAt(0).toUpperCase() + task.slice(1)} run approved and continued!`);
+        } catch (e: any) {
+            toast.error(`Failed to approve ${task === 'question' ? 'question generation' : task}.`);
+            return;
         }
-
-        // Check minimum file size (1KB)
-        if (file.size < 1024) {
-        return "File appears to be corrupted or too small"
         }
+        setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
+        if (task !== 'segmentation' && task !== 'question' && task !== 'transcription') toast.success(`${task} run accepted!`);
+    };
 
-        return ""
-    }
-
-    const handleFileSelect = useCallback((file: File) => {
-        const error = validateMP3File(file)
-        if (error) {
-        setFileError(error)
-        setSelectedFile(null)
-        return
-        }
-
-        setFileError("")
-        setSelectedFile(file)
-    }, []);
-
-    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            handleFileSelect(file)
-        }
-
-    }
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragOver(true)
-    }
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragOver(false)
-    }
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragOver(false)
-        const files = e.dataTransfer.files
-        if (files.length > 0) {
-        handleFileSelect(files[0])
-        }
-    }
-
-    const handleRemoveFile = () => {
-        setSelectedFile(null)
-        setFileError("")
-        if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-        }
-    }
 
     // ----------------------
     // Manual Refresh Handler
@@ -295,12 +290,13 @@ const AiWorkflow = () => {
 
     const handleRefreshStatus = async () => {
     if (!aiJobId) return;
-
     try {
         const status = await aiSectionAPI.getJobStatus(aiJobId);
+        console.log("Status: ", status)
         setAiJobStatus(status);
 
         const prevJobStatus = prevJobStatusRef.current;
+
 
         // --- Transcript Generation ---
         if (
@@ -608,7 +604,7 @@ const AiWorkflow = () => {
 
 
   return (
-    <div className='py-5'>
+    <div className='py-2'>
         <Card className="mb-2">
             <CardHeader className="pb-6">
                 <div className="flex items-center justify-between">
@@ -626,7 +622,7 @@ const AiWorkflow = () => {
                     size="sm"
                     onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
                     disabled={!!aiJobId}
-                    className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
+                    className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
                 >
                     {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
                 </Button>
@@ -963,37 +959,97 @@ const AiWorkflow = () => {
                     </Accordion>
                 )}
                 </div>
+
+                <div className="flex-1 w-full">
+                    <div className="relative w-full">
+                        <div
+                            className={`absolute left-3 top-1/2 -translate-y-1/2 text-red-500 transition-transform duration-300 ease-in-out ${
+                            youtubeUrl ? "scale-110" : "scale-100"
+                            }`}
+                        >
+                            <YoutubeIcon /> 
+                        </div>
+
+                        <input
+                            placeholder="YouTube URL"
+                            value={youtubeUrl}
+                            onChange={(e) => {
+                            setUrlError(null);
+                            setYoutubeUrl(e.target.value);
+                            }}
+                            disabled={!!aiJobId}
+                            className={`pl-10 flex-1 w-full border rounded-md py-2 transition-all duration-300 ease-in-out ${
+                            urlError ? "border-red-500" : "border-blue-600"
+                            } focus:border-blue-500 focus:ring-2 focus:ring-blue-800 outline-none`}
+                        />
+                        </div>
+                    {urlError && (
+                        <p ref={errorRef} className="text-red-500 text-sm mt-1">{urlError}</p>
+                    )}
+                </div>
             </CardContent>
         </Card>
-        <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 ">
+        <div className=" bg-gradient-to-br from-background to-muted/20 ">
             <div className=" mx-auto space-y-8">
                 <div className="bg-card rounded-2xl border shadow-lg p-8 space-y-6">
                     <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
                         <div className='flex items-center gap-3 pb-2'>
-                            <Upload className="w-6 h-6 text-white" />
+                            <Upload className="w-6 h-6 dark:text-white " />
                             <h2 className="text-xl font-bold">Upload Audio</h2>
                         </div>
                         <Button
                             onClick={handleRefreshStatus}
                             variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                             >
                             <RefreshCw className="w-4 h-4 mr-2" />
                              Refresh Status
                          </Button>
+                        <Button
+                            onClick={ async () =>{ 
+                                try{
+
+                                    if(!aiJobId) {
+                                        toast.error("Job id not found");
+                                        return;
+                                    }
+                                    await aiSectionAPI.approveContinueTask(aiJobId);
+                                            await aiSectionAPI.approveStartTask(aiJobId, {
+                                              type: 'SEGMENTATION',
+                                              parameters: {
+                                                "lam": 4.6,
+                                                "runs": 25,
+                                                "noiseId": -1,
+                                            },usePrevious: 0})
+                                    toast.success("Task approved!")
+                                }catch(error){
+                                    toast.error("Failed to approve task");
+                                }
+                            } }
+                            variant="outline"
+                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                             Approve Run
+                         </Button>
                     </div>
 
-                    <p className="text-md text-gray-200">
+                    <p className="text-md text-gray-600 dark:text-gray-200">
                         Select your preferred method to upload audio — via File, Link, or Recording.
                     </p>
 
                     {/* Transcribe component */}
-                    <LiveQuiz/>
+
+                    <AudioTranscripter 
+                        // onSave={setTranscribedData}
+                        transcribedData = {transcribedData}
+                        setTranscribedData={setTranscribedData}
+                    />
 
                     <div className="flex justify-center">
                         <Button
                         onClick={handleCreateJob}
-                        disabled={!selectedFile || !!aiJobId}
+                        disabled={!!aiJobId}
                         className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                         {aiJobId
@@ -1024,18 +1080,11 @@ const AiWorkflow = () => {
                     </div>
                 </div>
 
-                    {/* Refresh Button */}
-                    <div className="flex justify-between items-center">
-                     <h2 className="text-xl font-semibold">{aiJobId && aiJobStatus?.jobStatus && "Processing Status"}</h2>
-                        {/* <Button
-                            onClick={handleRefreshStatus}
-                            variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                        >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Refresh Status
-                        </Button> */}
-                    </div>
+                {/* Refresh Button */}
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold">{aiJobId && aiJobStatus?.jobStatus && "Processing Status"}</h2>
+                </div>
+                
                 {/* Status Section */}
                 {aiJobId && aiJobStatus?.jobStatus && (
                 <div className="bg-card rounded-2xl border shadow-lg p-8 space-y-6">
@@ -1086,5 +1135,18 @@ const AiWorkflow = () => {
     </div>
   )
 }
+
+const YoutubeIcon = () => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="18" 
+    height="18" 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className="text-red-500"
+  >
+    <path d="M23.498 6.186a2.998 2.998 0 0 0-2.115-2.122C19.397 3.5 12 3.5 12 3.5s-7.397 0-9.383.564A2.998 2.998 0 0 0 .502 6.186C0 8.17 0 12 0 12s0 3.83.502 5.814a2.998 2.998 0 0 0 2.115 2.122C4.603 20.5 12 20.5 12 20.5s7.397 0 9.383-.564a2.998 2.998 0 0 0 2.115-2.122C24 15.83 24 12 24 12s0-3.83-.502-5.814zM9.75 15.568V8.432L15.818 12 9.75 15.568z"/>
+  </svg>
+);
 
 export default AiWorkflow

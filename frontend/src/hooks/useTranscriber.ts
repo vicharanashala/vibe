@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorker } from "./useWorker";
 import Constants from "@/utils/AudioUtils";
 
@@ -60,10 +60,11 @@ export function useTranscriber(): Transcriber {
 
     const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
 
+    
     const webWorker = useWorker((event) => {
         const message = event.data;
         // Update the state with the result
-        switch (message.status) {
+        switch (message.status) { 
             case "progress":
                 // Model file progress: update one of the progress items.
                 setProgressItems((prev) =>
@@ -126,6 +127,10 @@ export function useTranscriber(): Transcriber {
         }
     });
 
+    useEffect(() => {
+        webWorker.postMessage({ type: "ping" });
+    }, [webWorker]);
+
     const [model, setModel] = useState<string>(Constants.DEFAULT_MODEL);
     const [subtask, setSubtask] = useState<string>(Constants.DEFAULT_SUBTASK);
     const [quantized, setQuantized] = useState<boolean>(
@@ -165,13 +170,13 @@ export function useTranscriber(): Transcriber {
                 }
 
                 webWorker.postMessage({
-                    audio,
-                    model,
-                    multilingual,
-                    quantized,
-                    subtask: multilingual ? subtask : null,
-                    language:
-                        multilingual && language !== "auto" ? language : null,
+                    audio, 
+                    model, 
+                    multilingual, 
+                    quantized, 
+                    subtask: multilingual ? subtask : null, 
+                    language: 
+                        multilingual && language !== "auto" ? language : null, 
                 });
             }
         },

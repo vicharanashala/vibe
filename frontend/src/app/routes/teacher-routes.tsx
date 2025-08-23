@@ -7,7 +7,7 @@ import GetCourse from "@/app/pages/teacher/get-course";
 import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
-import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you want to use AudioManager
+import { LiveQuiz } from "@/app/pages/teacher/AudioTranscripter" // Uncomment if you want to use AudioManager
 import CourseEnrollments from "../pages/teacher/course-enrollments";
 import FlaggedList from "../pages/teacher/FlaggedList";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";

@@ -45,6 +45,14 @@ class CourseIdParams {
   courseId: string;
 }
 
+
+export class CourseVersionParams {
+  @IsMongoId()
+  courseId: string;
+
+  @IsMongoId()
+  courseVersionId: string;
+}
 class CourseDataResponse implements ICourse {
   @JSONSchema({
     description: 'Unique identifier for the course',
