@@ -170,7 +170,7 @@ export default function CourseEnrollments() {
 
   //Pagination state
     const [currentPage, setCurrentPage] = useState(1)
-  const pageLimit = 2;
+  const pageLimit = 50;
 
 const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
