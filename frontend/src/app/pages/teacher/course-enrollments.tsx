@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { redirect, useNavigate } from "@tanstack/react-router"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
-
+import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -164,60 +164,56 @@ export default function CourseEnrollments() {
   const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
   const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
 
-  // Fetch enrollments data
-  const {
-    data: enrollmentsData,
-    isLoading: enrollmentsLoading,
-    error: enrollmentsError,
-    refetch: refetchEnrollments,
-  } = useCourseVersionEnrollments(courseId, versionId, 1, 100, !!(courseId && versionId))
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  //Pagination state
+    const [currentPage, setCurrentPage] = useState(1)
+  const pageLimit = 50;
+
+const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+useEffect(() => {
+  const handler = setTimeout(() => {
+    setDebouncedSearch(searchQuery);
+  }, 300); // debounce delay (ms)
+
+  return () => {
+    clearTimeout(handler);
+  };
+}, [searchQuery]);
+
+    // Fetch enrollments data
+const {
+  data: enrollmentsData,
+  isLoading: enrollmentsLoading,
+  error: enrollmentsError,
+  refetch: refetchEnrollments,
+} = useCourseVersionEnrollments(
+  courseId,
+  versionId,
+  currentPage,
+  pageLimit,
+  debouncedSearch,
+  sortBy,
+  sortOrder,
+  !!(courseId && versionId)
+);
+
 
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
 
-  // Show all enrollments regardless of role or status
-  const studentEnrollments = enrollmentsData?.enrollments || []
+  // Pagination state
+    const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const totalPages = enrollmentsData?.totalPages || 1
 
-  // Sorting state
-  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-
-  const filteredUsers = studentEnrollments.filter(
-    (enrollment: any) =>
-      enrollment &&
-      (enrollment?.userID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        enrollment?.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        enrollment?.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        enrollment?.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (enrollment?.user?.firstName + " " + enrollment?.user?.lastName)
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())),
-  )
-
-
-  // Sorting logic
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (sortBy === 'name') {
-      const nameA = ((a.user?.firstName || '') + ' ' + (a.user?.lastName || '')).toLowerCase()
-      const nameB = ((b.user?.firstName || '') + ' ' + (b.user?.lastName || '')).toLowerCase()
-      if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1
-      if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    } else if (sortBy === 'enrollmentDate') {
-      const dateA = new Date(a.enrollmentDate).getTime()
-      const dateB = new Date(b.enrollmentDate).getTime()
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
-    } else if (sortBy === 'progress') {
-      const progA = (a.progress?.percentCompleted || 0)
-      const progB = (b.progress?.percentCompleted || 0)
-      return sortOrder === 'asc' ? progA - progB : progB - progA
-    }
-    return 0
-  })
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
+    if(column== "progress" ) return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -225,6 +221,13 @@ export default function CourseEnrollments() {
       setSortOrder('asc')
     }
   }
+
+    const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -390,16 +393,16 @@ export default function CourseEnrollments() {
     setExpandedSections(newExpanded)
   }
   // Stats calculations based on filtered users (search results)
-  const totalUsers = filteredUsers.length
+  const totalUsers = enrollmentsData?.totalDocuments
   // Count users with 100% progress
-  const completedUsers = filteredUsers.filter(
+  const completedUsers = enrollmentsData?.enrollments?.filter(
     (enrollment: any) => (enrollment.progress?.percentCompleted || 0) >= 1
   ).length
   // Calculate average progress (as percent, rounded to 1 decimal)
   const averageProgress =
     totalUsers > 0
       ? (
-        filteredUsers.reduce(
+        enrollmentsData?.enrollments?.reduce(
           (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
           0
         ) / totalUsers
@@ -431,7 +434,7 @@ export default function CourseEnrollments() {
   ]
 
   // Loading state
-  if (courseLoading || versionLoading || enrollmentsLoading) {
+  if ((courseLoading || versionLoading || enrollmentsLoading )&& !searchQuery) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -538,7 +541,7 @@ export default function CourseEnrollments() {
             <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {sortedUsers.length === 0 ? (
+            {enrollmentsData?.enrollments?.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <Users className="h-10 w-10 text-muted-foreground" />
@@ -563,7 +566,7 @@ export default function CourseEnrollments() {
                           className={`font-bold text-foreground cursor-pointer select-none ${className}`}
                           onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
                         >
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1" >
                             {label}
                             {sortBy === key && (
                               sortOrder === 'asc'
@@ -577,7 +580,7 @@ export default function CourseEnrollments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedUsers.map((enrollment) => (
+                    {enrollmentsData?.enrollments?.map((enrollment:any) => (
                       <TableRow
                         key={enrollment._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -729,7 +732,7 @@ export default function CourseEnrollments() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
-                  <EnrollmentProgress progress={(selectedUser.progress || 0) * 100} />
+                  <EnrollmentProgress progress={(selectedUser.progress || 0) } />
                 </div>
               </div>
 
@@ -1085,6 +1088,14 @@ export default function CourseEnrollments() {
             </div>
           </div>
         )}
+        {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={totalDocuments}
+                    onPageChange={handlePageChange}
+                  />
+                )}
       </div>
     </div>
   )

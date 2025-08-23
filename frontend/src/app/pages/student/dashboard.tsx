@@ -62,8 +62,13 @@ function DashboardContent() {
   const {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
-    error: enrollmentsError
+    error: enrollmentsError,
+    refetch:refetchEnrollments
   } = useUserEnrollments(1, 5, !!token);
+  
+  useEffect(()=>{
+    refetchEnrollments();
+  },[refetchEnrollments]);
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
