@@ -71,11 +71,11 @@ export class EnrollmentRepository {
   ): Promise<void> {
     try {
       await this.init();
-      
+
       await this.enrollmentCollection.findOneAndUpdate(
-        {_id: new ObjectId(enrollmentId)},
-        {$set: {percentCompleted}},
-        {session},
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { percentCompleted } },
+        { session },
       );
     } catch (error) {
       throw new InternalServerError(
@@ -351,12 +351,12 @@ export class EnrollmentRepository {
               totalEnrollments: { $sum: 1 },
               completedCount: {
                 $sum: {
-                  $cond: [{ $gte: ["$percentCompleted", 1] }, 1, 0],
+                  $cond: [{ $gte: ["$percentCompleted", 100] }, 1, 0],
                 },
               },
               totalProgress: {
                 $sum: {
-                  $multiply: [{ $ifNull: ["$percentCompleted", 0] }, 100],
+                  $multiply: [{ $ifNull: ["$percentCompleted", 0] }, 1],
                 },
               },
             },
