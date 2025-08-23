@@ -22,7 +22,8 @@ import {
   useItemsBySectionId,
   useCourseVersionEnrollments,
   useResetProgress,
-  useUnenrollUser
+  useUnenrollUser,
+  useCourseAnomaliesStats
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser } from "@/types/course.types"
@@ -145,6 +146,13 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
+  
+  // Fetch course anomalies stats
+  const { data: anomaliesStats, isLoading: statsLoading, error: statsError } = useCourseAnomaliesStats(
+    courseId,
+    versionId,
+    !!(courseId && versionId)
+  )
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -396,41 +404,40 @@ const {
     }
     setExpandedSections(newExpanded)
   }
-  // Stats calculations based on filtered users (search results)
-  const totalUsers = enrollmentsData?.totalDocuments
-  // Count users with 100% progress
-  const completedUsers = enrollmentsData?.enrollments?.filter(
-    (enrollment: any) => (enrollment.progress?.percentCompleted || 0) >= 1
-  ).length
-  // Calculate average progress (as percent, rounded to 1 decimal)
-  const averageProgress =
-    totalUsers > 0
-      ? (
-        enrollmentsData?.enrollments?.reduce(
-          (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
-          0
-        ) / totalUsers
-      ).toFixed(1)
-      : 0
+  // Use API stats data or fallback to manual calculations
+  // const totalUsers = anomaliesStats?.totalEnrolled ?? enrollmentsData?.totalDocuments ?? 0
+  // const completedUsers = anomaliesStats?.completedCount ?? enrollmentsData?.enrollments?.filter(
+  //   (enrollment: any) => (enrollment.progress?.percentCompleted || 0) >= 1
+  // ).length ?? 0
+  // const averageProgress = anomaliesStats?.averageProgressPercent ?? (
+  //   enrollmentsData?.totalDocuments > 0
+  //     ? (
+  //       enrollmentsData?.enrollments?.reduce(
+  //         (sum: number, enrollment: any) => sum + ((enrollment.progress?.percentCompleted || 0) * 100),
+  //         0
+  //       ) / enrollmentsData.totalDocuments
+  //     ).toFixed(1)
+  //     : 0
+  // )
 
   const stats = [
     {
       title: "Total Enrolled",
-      value: totalUsers ?? 0,
+      value: anomaliesStats?.totalEnrollments ?? 0,
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
       title: "Completed",
-      value: completedUsers ?? 0,
+      value: anomaliesStats?.completedCount ?? 0,
       icon: CheckCircle,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
     {
       title: "Avg. Progress",
-      value: `${averageProgress ?? 0}%`,
+      value: `${anomaliesStats?.averageProgressPercent}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -452,7 +459,7 @@ const {
   }
 
   // Error state
-  if (courseError || versionError || (enrollmentsError && !debouncedSearch) || !course || !version) {
+  if (courseError || versionError || (enrollmentsError && !debouncedSearch) || !course || !version || statsError) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
