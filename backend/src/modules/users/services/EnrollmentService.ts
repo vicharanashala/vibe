@@ -1,23 +1,23 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {BadRequestError, NotFoundError} from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {ProgressRepository} from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { BadRequestError, NotFoundError } from 'routing-controllers';
+import { ProgressService } from './ProgressService.js';
+import { ProgressRepository } from '#root/shared/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -188,7 +188,7 @@ export class EnrollmentService extends BaseService {
         limit,
       );
       return result.map(enrollment => {
-        const {userId, ...rest} = enrollment;
+        const { userId, ...rest } = enrollment;
         return {
           ...rest,
           _id: enrollment._id.toString(),
@@ -324,80 +324,162 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  // async bulkUpdateAllEnrollments(): Promise<void> {
+  //   return this._withTransaction(async session => {
+  //     const courses = await this.courseRepo.getAllCourses(session);
+  //     const courseVersionIds = courses.flatMap(course => course.versions);
+
+  //     const bulkOperations = [];
+
+  //     for (const courseVersionId of courseVersionIds) {
+  //       try {
+  //         const courseVersion = await this.courseRepo.readVersion(
+  //           courseVersionId as string,
+  //           session,
+  //         );
+  //         if (!courseVersion) continue;
+
+  //         // total items for this version
+  //         // const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+  //         //   courseVersion.courseId.toString(),
+  //         //   courseVersion._id.toString(),
+  //         //   session,
+  //         // );
+
+  //         // get all enrollments for this course version
+  //         const enrollments = await this.enrollmentRepo.getByCourseVersion(
+  //           courseVersion.courseId.toString(),
+  //           courseVersion._id.toString(),
+  //           session,
+  //         );
+
+  //         for (const enrollment of enrollments) {
+  //           try {
+  //             // const completedItems =
+  //             //   await this.progressService.getUserProgressPercentageWithoutTotal(
+  //             //     enrollment.userId.toString(),
+  //             //     courseVersion.courseId.toString(),
+  //             //     courseVersion._id.toString(),
+  //             //   );
+
+  //             // const percentCompleted = Math.round(
+  //             //   (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+  //             // );
+  //             bulkOperations.push({
+  //               updateOne: {
+  //                 filter: { _id: new ObjectId(enrollment._id) },
+  //                 update: {
+  //                   $set: {
+  //                     // percentCompleted
+  //                     userId: enrollment.userId instanceof ObjectId ? enrollment.userId : new ObjectId(enrollment.userId)
+  //                   },
+  //                 },
+  //               },
+  //             });
+  //           } catch (err) {
+  //             console.error(
+  //               `Failed to compute progress for enrollment ${enrollment._id}`,
+  //               err,
+  //             );
+  //           }
+  //         }
+  //       } catch (error) {
+  //         console.error(
+  //           `Failed to process course version: ${courseVersionId}`,
+  //           error,
+  //         );
+  //       }
+  //     }
+
+  //     if (bulkOperations.length > 0) {
+  //       await this.enrollmentRepo.bulkUpdateEnrollments(
+  //         bulkOperations,
+  //         session,
+  //       );
+  //       console.log(`Bulk updated ${bulkOperations.length} enrollments`);
+  //     }
+  //   });
+  // }
+
+
+
+
   async bulkUpdateAllEnrollments(): Promise<void> {
-    return this._withTransaction(async session => {
-      const courses = await this.courseRepo.getAllCourses(session);
-      const courseVersionIds = courses.flatMap(course => course.versions);
+    const BATCH_SIZE = 10;
+    const courses = await this.courseRepo.getAllCourses();
+    const courseVersionIds = courses.flatMap(course => course.versions);
 
-      const bulkOperations = [];
+    const bulkOperations = [];
+    let batchCount = 0;
 
-      for (const courseVersionId of courseVersionIds) {
-        try {
-          const courseVersion = await this.courseRepo.readVersion(
-            courseVersionId as string,
-            session,
-          );
-          if (!courseVersion) continue;
+    for (const courseVersionId of courseVersionIds) {
+      try {
+        const courseVersion = await this.courseRepo.readVersion(courseVersionId as string);
+        if (!courseVersion) continue;
 
-          // total items for this version
-          const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-            courseVersion.courseId.toString(),
-            courseVersion._id.toString(),
-            session,
-          );
+        const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+          courseVersion.courseId.toString(),
+          courseVersion._id.toString(),
+        );
 
-          // get all enrollments for this course version
-          const enrollments = await this.enrollmentRepo.getByCourseVersion(
-            courseVersion.courseId.toString(),
-            courseVersion._id.toString(),
-            session,
-          );
+        const enrollments = await this.enrollmentRepo.getByCourseVersion(
+          courseVersion.courseId.toString(),
+          courseVersion._id.toString(),
+        );
 
-          for (const enrollment of enrollments) {
-            try {
-              const completedItems =
-                await this.progressService.getUserProgressPercentageWithoutTotal(
-                  enrollment.userId.toString(),
-                  courseVersion.courseId.toString(),
-                  courseVersion._id.toString(),
-                );
+        for (const enrollment of enrollments) {
+          try {
+            const completedItems = await this.progressService.getUserProgressPercentageWithoutTotal(
+              enrollment.userId.toString(),
+              courseVersion.courseId.toString(),
+              courseVersion._id.toString(),
+            );
 
-              const percentCompleted = Math.round(
-                (totalItems > 0 ? completedItems / totalItems : 0) * 100,
-              );
-              bulkOperations.push({
-                updateOne: {
-                  filter: {_id: new ObjectId(enrollment._id)},
-                  update: {
-                    $set: {
-                      // percentCompleted
-                      userId: enrollment.userId instanceof ObjectId ? enrollment.userId : new ObjectId(enrollment.userId)
-                    },
+            const percentCompleted = Math.round(
+              (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+            );
+
+            // const normalizedUserId =
+            //   enrollment.userId instanceof ObjectId
+            //     ? enrollment.userId
+            //     : new ObjectId(enrollment.userId);
+
+            bulkOperations.push({
+              updateOne: {
+                filter: { _id: new ObjectId(enrollment._id) },
+                update: {
+                  $set: {
+                    percentCompleted,
+                    // userId: normalizedUserId,
                   },
                 },
-              });
-            } catch (err) {
-              console.error(
-                `Failed to compute progress for enrollment ${enrollment._id}`,
-                err,
-              );
-            }
-          }
-        } catch (error) {
-          console.error(
-            `Failed to process course version: ${courseVersionId}`,
-            error,
-          );
-        }
-      }
+              },
+            });
 
-      if (bulkOperations.length > 0) {
-        await this.enrollmentRepo.bulkUpdateEnrollments(
-          bulkOperations,
-          session,
-        );
-        console.log(`Bulk updated ${bulkOperations.length} enrollments`);
+            if (bulkOperations.length === BATCH_SIZE) {
+              await this._withTransaction(async session => {
+                await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+                console.log(`✅ Batch ${++batchCount}: Updated ${bulkOperations.length} enrollments`);
+                bulkOperations.length = 0; // Clear the array
+              });
+            }
+          } catch (err) {
+            console.error(`Failed to process enrollment ${enrollment._id}`, err);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to process course version ${courseVersionId}`, err);
       }
-    });
+    }
+
+    // Process any remaining operations
+    if (bulkOperations.length > 0) {
+      await this._withTransaction(async session => {
+        await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+        console.log(`✅ Final batch: Updated ${bulkOperations.length} enrollments`);
+      });
+    }
   }
+
+
 }
