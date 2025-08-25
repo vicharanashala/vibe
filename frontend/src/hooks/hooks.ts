@@ -934,7 +934,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true): {
+export function useUserEnrollments( page?: number, limit?: number, enabled: boolean = true, search?:string, role = "STUDENT" ): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -942,7 +942,7 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
-      query: { page, limit }
+      query: { page, limit, search, role }
     },
     enabled: enabled
   });

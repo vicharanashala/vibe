@@ -56,6 +56,7 @@ export default function TeacherCoursesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
+  const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
   const { token } = useAuthStore()
   const {
@@ -63,17 +64,16 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, !!token) // Use pagination with 10 items per page
+  } = useUserEnrollments( currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
 
   const enrollments = enrollmentsResponse?.enrollments || []
-  console.log("Enrollments: ", enrollments);
+
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
-  const filteredEnrollements = enrollments.filter((enrollment) => enrollment.role !== "STUDENT");
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
-  const uniqueCourses = filteredEnrollements.reduce((acc: any[], enrollment: any) => {
+  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
     const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
@@ -120,21 +120,21 @@ export default function TeacherCoursesPage() {
   }
 
   // Loading state
-  if (enrollmentsLoading) {
-    return (
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-xl animate-pulse"></div>
-              <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
-            </div>
-            <span className="ml-3 text-muted-foreground font-medium">Loading your courses...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // if (enrollmentsLoading) {
+  //   return (
+  //     <div className="flex-1 overflow-auto p-6">
+  //       <div className="max-w-6xl mx-auto">
+  //         <div className="flex items-center justify-center py-12">
+  //           <div className="relative">
+  //             <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-xl animate-pulse"></div>
+  //             <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
+  //           </div>
+  //           <span className="ml-3 text-muted-foreground font-medium">Loading your courses...</span>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   // Error state
   if (enrollmentsError) {
@@ -160,7 +160,7 @@ export default function TeacherCoursesPage() {
     )
   }
 
-  if (uniqueCourses.length === 0) {
+  if (uniqueCourses.length === 0 && !searchQuery) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -260,7 +260,7 @@ export default function TeacherCoursesPage() {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4" />
-                <span>{filteredCourses.length} courses</span>
+                <span>{uniqueCourses.length} courses</span>
               </div>
             </div>
           </div>
@@ -268,7 +268,20 @@ export default function TeacherCoursesPage() {
 
         {/* Courses List with Beautiful Cards */}
         <div className="space-y-6">
-          {filteredCourses.map((enrollment: any, index: number) => (
+          {
+            enrollmentsLoading ? 
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">
+                Loading courses...
+              </span>
+            </div> : 
+             searchQuery && uniqueCourses.length === 0 ? (
+              <div className="flex items-center justify-center text-muted-foreground">
+                No courses found.
+              </div>
+            ) : 
+           filteredCourses.map((enrollment: any, index: number) => (
             <div
               key={enrollment._id}
               className="animate-in slide-in-from-bottom-4 duration-500"
@@ -276,7 +289,7 @@ export default function TeacherCoursesPage() {
             >
               <CourseCard
                 enrollment={enrollment}
-                searchQuery={searchQuery}
+                // searchQuery={searchQuery}
                 onInvalidate={invalidateAllQueries}
               />
             </div>
@@ -308,7 +321,7 @@ function CourseCard({
   onInvalidate,
 }: {
   enrollment: RawEnrollment
-  searchQuery: string
+  searchQuery?: string
   onInvalidate: () => void
 }) {
   const [showNewVersionForm, setShowNewVersionForm] = useState(false)
