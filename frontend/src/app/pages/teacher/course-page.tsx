@@ -66,6 +66,7 @@ export default function TeacherCoursesPage() {
   } = useUserEnrollments(currentPage, 10, !!token) // Use pagination with 10 items per page
 
   const enrollments = enrollmentsResponse?.enrollments || []
+  console.log("Enrollments: ", enrollments);
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
   const filteredEnrollements = enrollments.filter((enrollment) => enrollment.role !== "STUDENT");

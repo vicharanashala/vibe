@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { redirect, useNavigate } from "@tanstack/react-router"
+import {  useNavigate } from "@tanstack/react-router"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
@@ -27,23 +27,11 @@ import {
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser } from "@/types/course.types"
+import { useAuthStore } from "@/store/auth-store"
+import { EnrollmentRole } from "@/types/invite.types"
 
 // Types for quiz functionality
-interface IAttemptDetails {
-  attemptId: string | ObjectId;
-  submissionResultId?: string | ObjectId;
-}
 
-interface UserQuizMetricsResponse {
-  _id?: string;
-  quizId: string;
-  userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
-  latestAttemptId?: string;
-  latestSubmissionResultId?: string;
-  remainingAttempts: number;
-  attempts: IAttemptDetails[];
-}
 
 interface IQuestionAnswerFeedback {
   questionId: string;
@@ -59,15 +47,6 @@ interface IGradingResult {
   gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
   gradedAt?: string;
   gradedBy?: string;
-}
-
-interface QuizSubmissionResponse {
-  _id?: string;
-  quizId: string;
-  userId: string;
-  attemptId: string;
-  submittedAt: string;
-  gradingResult?: IGradingResult;
 }
 
 // Helper function to generate default names for items with empty names
@@ -128,10 +107,26 @@ const getProgressBg = (progress: number) => {
   return "bg-red-50 dark:bg-red-950/30"
 }
 
+  const getRoleBadge = (role: EnrollmentRole) => {
+    const variants: Record<EnrollmentRole, string> = {
+      INSTRUCTOR: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+      STUDENT: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+      MANAGER: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+      TA: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+      STAFF: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    }
+
+    return (
+      <Badge variant="outline" className={variants[role]}>
+        {role}
+      </Badge>
+    )
+  }
 
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
 
   // Get course info from store
   const { currentCourse } = useCourseStore()
@@ -213,7 +208,6 @@ const {
   sortOrder,
   !!(courseId && versionId)
 );
-
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
@@ -266,7 +260,6 @@ const {
   }
 
   const handleViewProgress = (user: EnrolledUser) => {
-    console.log("Viewing progress for user:", user)
     setSelectedUser(user)
     setIsViewProgressDialogOpen(true)
   }
@@ -278,7 +271,6 @@ const {
 
   const confirmRemoveStudent = async () => {
     if (userToRemove && courseId && versionId) {
-      console.log("Removing student:", userToRemove)
       try {
         await unenrollMutation.mutateAsync({
           params: {
@@ -614,101 +606,108 @@ const {
                       </TableRow>
                     ) : enrollmentsData?.enrollments?.length > 0 ? (
                       enrollmentsData?.enrollments?.map((enrollment: any) => (
-                        <TableRow
-                          key={enrollment._id}
-                          className="border-border hover:bg-muted/20 transition-colors duration-200 group"
-                        >
-                          <TableCell className="pl-6 py-6">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                                <AvatarImage src="/placeholder.svg" alt={enrollment.email} />
-                                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                  {[
-                                    enrollment?.user?.firstName?.[0],
-                                    enrollment?.user?.lastName?.[0],
-                                  ]
-                                    .filter(Boolean)
-                                    .map((ch) => ch.toUpperCase())
-                                    .join('') || (enrollment?.user?.firstName?.[0]?.toUpperCase() || enrollment?.user?.lastName?.[0]?.toUpperCase() || '?')}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
+                      <TableRow
+                        key={enrollment._id}
+                        className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
+                      >
+                        <TableCell className="pl-6 py-6">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                              <AvatarImage src="/placeholder.svg" alt={enrollment.email || enrollment.user?.email || ""} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
+                                  .filter(Boolean)
+                                  .map((ch) => ch.toUpperCase())
+                                  .join("") ||
+                                  enrollment?.user?.firstName?.[0]?.toUpperCase() ||
+                                  enrollment?.user?.lastName?.[0]?.toUpperCase() ||
+                                  "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
                                 <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                  {enrollment?.user?.firstName + " " + enrollment?.user?.lastName || "Unknown User"}
+                                  {enrollment?.user?.firstName && enrollment?.user?.lastName
+                                    ? `${enrollment.user.firstName} ${enrollment.user.lastName}`
+                                    : "Unknown User"}
                                 </p>
-                                <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
+                                <span>{getRoleBadge(enrollment?.role)}</span>
                               </div>
+                              <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
                             </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="text-muted-foreground font-medium">
-                              {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <EnrollmentProgress progress={Math.round((enrollment.progress || 0) )} />
-                          </TableCell>
-                          {/* <TableCell className="py-6">
-                           <span className={`text-xs font-medium ${enrollment.status === "ACTIVE" ? "text-green-500" : "text-red-500"}`}>{enrollment.status}</span>
-                          </TableCell> */}
-                          <TableCell className="py-6 pr-6">
-                            <div className="flex items-center gap-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewProgress({
-                                    id: enrollment.user?._id,
-                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: Math.round((enrollment.progress || 0))
-                                  })}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Progress
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResetProgress({
-                                    id: enrollment.user?._id,
-                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || Math.round((enrollment.progress || 0)) == 0}
-                              >
-                                {resetProgressMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Reset
-                              </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-6">
+                          <div className="text-muted-foreground font-medium">
+                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-6">
+                          <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                        </TableCell>
+                        <TableCell className="py-6 pr-6">
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleViewProgress({
+                                  id: enrollment.user?._id,
+                                  name:
+                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                  email: enrollment.userId,
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: Math.round(enrollment.progress || 0),
+                                })
+                              }
+                              disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Progress
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleResetProgress({
+                                  id: enrollment.user?._id,
+                                  name:
+                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                  email: enrollment.userId,
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: 0,
+                                })
+                              }
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                              disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
+                            >
+                              {resetProgressMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                              )}
+                              Reset
+                            </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() =>
                                   handleRemoveStudent({
                                     id: enrollment.user?._id,
-                                    name: `${enrollment?.user?.firstName} ${enrollment?.user?.lastName}`,
-                                    email: enrollment.user.email,
+                                    name:
+                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                    email: enrollment.user?.email,
                                     enrolledDate: enrollment.enrollmentDate,
                                     progress: 0,
                                   })
                                 }
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending}
+                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email }
                               >
                                 {unenrollMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -717,9 +716,9 @@ const {
                                 )}
                                 Remove
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                       ))
                     ) : (
                       <TableRow>
@@ -828,8 +827,6 @@ const {
                                     setSelectedViewItem(itemId)
                                     setSelectedViewItemType(itemType)
                                     setSelectedViewItemName(itemName)
-                                    console.log("Selected Item:", itemId, itemType, itemName)
-                                    console.log("selected vars", selectedViewItem, selectedViewItemType, selectedViewItemName)
                                   }}
                                   getItemIcon={getItemIcon}
                                 />
