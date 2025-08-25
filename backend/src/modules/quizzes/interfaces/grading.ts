@@ -81,7 +81,8 @@ interface PaginatedSubmissions {
   data: ISubmissionWithUser[];
   totalCount: number;
   currentPage: number;
-  totalPages: number; 
+  totalPages: number;
+  message?:string;
 }
 
 interface IAttemptDetails {
