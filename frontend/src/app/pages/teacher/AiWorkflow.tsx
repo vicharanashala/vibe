@@ -465,7 +465,7 @@ const AiWorkflow = () => {
         if (pendingTask) return pendingTask;
 
         const completedTasks = TASK_ORDER.filter((key) => jobStatus[key] === "COMPLETED");
-        
+
         return completedTasks.length > 0 ? completedTasks[completedTasks.length - 1] : null;
     };
 
@@ -493,7 +493,7 @@ const AiWorkflow = () => {
                     params = {...customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
                     break;
                 case 'questionGeneration':
-                    params = {...customQuestionParams, usePrevious: 1, type: "QUESTION_GENERATION"};
+                    params = {...customQuestionParams, type: "QUESTION_GENERATION"};
                     break;
                 default: 
                     console.error("Invalid current task", currentTask);
