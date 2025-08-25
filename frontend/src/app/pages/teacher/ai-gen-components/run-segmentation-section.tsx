@@ -15,7 +15,7 @@ interface TaskRun {
 }
 
 function getApiUrl(path: string) {
-  return `${import.meta.env.VITE_BASE_URL}${path}`;
+  return `https://vibe-backend-staging-239934307367.asia-south1.run.app/api${path}`;
 }
 
 // Helper to fetch segmentation file from fileUrl

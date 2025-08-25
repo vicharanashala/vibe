@@ -552,7 +552,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         {/* Points and Time Limit */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <Label htmlFor="points" className="text-sm font-medium">Points</Label>
+            <Label htmlFor="points" className="text-sm font-medium">Points *</Label>
             <Input
               id="points"
               type="number"
@@ -566,7 +566,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             />
           </div>
           <div>
-            <Label htmlFor="timeLimit" className="text-sm font-medium">Time Limit (seconds)</Label>
+            <Label htmlFor="timeLimit" className="text-sm font-medium">Time Limit (seconds) *</Label>
             <Input
               id="timeLimit"
               type="number"
@@ -580,7 +580,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             />
           </div>
           <div>
-            <Label htmlFor="priority" className='text-sm font-medium mb-1'>Priority</Label>
+            <Label htmlFor="priority" className='text-sm font-medium mb-1'>Priority *</Label>
             <Select
               value={editForm.question.priority}
               onValueChange={(value) =>
