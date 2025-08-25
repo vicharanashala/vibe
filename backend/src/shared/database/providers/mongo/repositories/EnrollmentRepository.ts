@@ -4,6 +4,7 @@ import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentStats } from '#root/modules/users/types.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -63,6 +64,25 @@ export class EnrollmentRepository {
     });
   }
 
+  async updateProgressPercentById(
+    enrollmentId: string,
+    percentCompleted: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+
+      await this.enrollmentCollection.findOneAndUpdate(
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { percentCompleted } },
+        { session },
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update progress in enrollment. More/${error}`,
+      );
+    }
+  }
   /**
    * Create a new enrollment record
    */
@@ -215,30 +235,31 @@ export class EnrollmentRepository {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
-    session?: ClientSession
+    session?: ClientSession,
   ) {
     await this.init();
+
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
     };
 
-    let sortStage: any = {};
-
+    // decide sort field
+    let sortField: any = {};
     if (sortBy === 'name') {
-      sortStage = { $sort: { 'firstName': sortOrder === 'asc' ? 1 : -1 } };
+      // sort by firstName + lastName
+      sortField = {
+        firstName: sortOrder === 'asc' ? 1 : -1,
+        lastName: sortOrder === 'asc' ? 1 : -1,
+      };
     } else if (sortBy === 'enrollmentDate') {
-      sortStage = { $sort: { enrollmentDate: sortOrder === 'asc' ? 1 : -1 } };
-      // } else if (sortBy === 'progress') {
-      //   sortStage = {
-      //     $sort: {'progress.percentCompleted': sortOrder === 'asc' ? 1 : -1},
-      //   };
+      sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
+    } else if (sortBy === 'progress') {
+      sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
-      {
-        $match: matchStage,
-      },
+      { $match: matchStage },
       {
         $addFields: {
           userId: { $toObjectId: '$userId' },
@@ -252,27 +273,22 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
-      {
-        $unwind: {
-          path: '$userInfo',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          userId: { $toString: "$userInfo._id" },
-          _id: { $toString: "$_id" },
-          courseId: { $toString: "$courseId" },
-          courseVersionId: { $toString: "$courseVersionId" },
-          firstName: "$userInfo.firstName",
-          lastName: "$userInfo.lastName",
-          email: "$userInfo.email"
-        }
+          userId: { $toString: '$userInfo._id' },
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          courseVersionId: { $toString: '$courseVersionId' },
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+        },
       },
     ];
 
+    // search
     if (search && search.trim() !== '') {
-
       aggregationPipeline.push({
         $match: {
           $or: [
@@ -283,14 +299,16 @@ export class EnrollmentRepository {
       });
     }
 
-    aggregationPipeline.push(sortStage);
+    // sorting
+    aggregationPipeline.push({ $sort: sortField });
 
-    let totalDocuments = 0;
+    // pagination
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
-    totalDocuments = await this.enrollmentCollection.countDocuments(
+
+    // count separately
+    const totalDocuments = await this.enrollmentCollection.countDocuments(
       matchStage,
     );
-
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
       .toArray();
@@ -305,6 +323,68 @@ export class EnrollmentRepository {
       totalPages,
       currentPage: Math.floor(skip / limit) + 1,
       enrollments,
+    };
+  }
+
+  async getVersionEnrollmentStats(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<EnrollmentStats> {
+
+    const [result] = await this.enrollmentCollection
+      .aggregate<{
+        totalEnrollments: number;
+        completedCount: number;
+        averageProgressPercent: number;
+      }>(
+        [
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalEnrollments: { $sum: 1 },
+              completedCount: {
+                $sum: {
+                  $cond: [{ $gte: ["$percentCompleted", 100] }, 1, 0],
+                },
+              },
+              totalProgress: {
+                $sum: {
+                  $multiply: [{ $ifNull: ["$percentCompleted", 0] }, 1],
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalEnrollments: 1,
+              completedCount: 1,
+              averageProgressPercent: {
+                $cond: [
+                  { $gt: ["$totalEnrollments", 0] },
+                  { $round: [{ $divide: ["$totalProgress", "$totalEnrollments"] }, 1] },
+                  0,
+                ],
+              },
+            },
+          },
+        ],
+        { session }
+      )
+      .toArray();
+
+
+    return result || {
+      totalEnrollments: 0,
+      completedCount: 0,
+      averageProgressPercent: 0
     };
   }
 
@@ -325,5 +405,38 @@ export class EnrollmentRepository {
     return await this.enrollmentCollection.countDocuments({
       userId: { $in: userFilter },
     });
+  }
+
+  async bulkUpdateEnrollments(
+    bulkOperations: any[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    try {
+      const result = await this.enrollmentCollection.bulkWrite(bulkOperations, {
+        session,
+      });
+      console.log(`Enrollment bulk update result: ${JSON.stringify(result)}`);
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to bulk update enrollments.\n More Details: ' + error,
+      );
+    }
+  }
+  async getByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+    return this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        { session },
+      )
+      .toArray();
   }
 }

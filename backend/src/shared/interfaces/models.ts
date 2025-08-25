@@ -340,6 +340,7 @@ export interface IEnrollment {
   role: EnrollmentRole;
   status: EnrollmentStatus;
   enrollmentDate: Date;
+  percentCompleted: number;
 }
 
 export interface IProgress {

@@ -13,6 +13,7 @@ import {
   OnUndefined,
   ForbiddenError,
   Authorized,
+  Patch,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -23,6 +24,7 @@ import {
   CourseBody,
   CourseNotFoundErrorResponse,
   CourseIdParams,
+  CourseVersionParams,
 } from '#courses/classes/validators/CourseValidators.js';
 import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -162,6 +164,27 @@ Accessible to:
     }
     
     await this.courseService.deleteCourse(courseId);
+  }
+
+  @OpenAPI({
+  summary: 'Update Course Version Total Item Count',
+  description: 'Updates the total item count for a specific course version by ID.',
+  })
+  @Authorized()
+  @Patch('/version/total-item-count', { transformResponse: true })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course or Course Version not found',
+    statusCode: 404,
+  })
+  async updateCourseVersionTotalItemCount(
+    @Ability(getCourseAbility) { ability },
+  ) {
+    // Update total item count in service
+    await this.courseService.updateCourseVersionTotalItemCount();
   }
 }
 

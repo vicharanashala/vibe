@@ -1,4 +1,4 @@
-import {ICourse, ICourseVersion} from '#shared/interfaces/models.js';
+import { ICourse, ICourseVersion } from '#shared/interfaces/models.js';
 import {
   MongoClient,
   ClientSession,
@@ -54,4 +54,11 @@ export interface ICourseRepository {
     itemGroupId: string,
     session?: ClientSession,
   ): Promise<ICourseVersion | null>
+  bulkUpdateVersions(
+    operations: any[],
+    session?: ClientSession,
+  ): Promise<void>;
+  getAllCourses(
+    session?: ClientSession,
+  ): Promise<ICourse[]>
 }

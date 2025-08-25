@@ -253,6 +253,9 @@ export default function TeacherCoursesPage() {
                     className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                   />
                 </div>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground">
+                  <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
+                </div>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4" />
