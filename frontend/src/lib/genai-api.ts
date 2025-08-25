@@ -55,6 +55,9 @@ const makeAuthenticatedRequest = async (
 };
 
 // Job status types
+
+type JobStatusValue = "COMPLETED" | "FAILED" | "PENDING" | "WAITING" | "RUNNING";
+
 export interface JobStatus {
   _id: string;
   type: 'VIDEO';
@@ -70,11 +73,11 @@ export interface JobStatus {
   updatedAt: string;
   result?: any; // Final result when job is completed
   jobStatus?: {
-    audioExtraction: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    transcriptGeneration?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    segmentation?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    questionGeneration?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    uploadContent?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
+    audioExtraction: JobStatusValue;
+    transcriptGeneration?: JobStatusValue;
+    segmentation?: JobStatusValue;
+    questionGeneration?: JobStatusValue;
+    uploadContent?: JobStatusValue;
   };
 }
 

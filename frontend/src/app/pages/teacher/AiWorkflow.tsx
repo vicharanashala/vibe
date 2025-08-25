@@ -292,9 +292,8 @@ const AiWorkflow = () => {
     if (!aiJobId) return;
     try {
         const status = await aiSectionAPI.getJobStatus(aiJobId);
-        console.log("Status: ", status)
         setAiJobStatus(status);
-
+        console.log("Status: ", status);
         const prevJobStatus = prevJobStatusRef.current;
 
 
@@ -444,6 +443,73 @@ const AiWorkflow = () => {
         toast.error('Failed to refresh status.');
     }
     };
+
+    const getCurrentTask = (jobStatus: JobStatus["jobStatus"]) => {
+        if (!jobStatus) return null;
+
+        const TASK_ORDER: (keyof typeof jobStatus)[] = [
+            "audioExtraction",
+            "transcriptGeneration",
+            "segmentation",
+            "questionGeneration",
+            "uploadContent",
+        ];
+
+        const failedTask = TASK_ORDER.find((key) => jobStatus[key] === "FAILED");
+        if (failedTask) return failedTask;
+
+        const pendingTask = TASK_ORDER.find(
+            (key) => jobStatus[key] === "WAITING" || jobStatus[key] === "PENDING"
+        );
+
+        if (pendingTask) return pendingTask;
+
+        const completedTasks = TASK_ORDER.filter((key) => jobStatus[key] === "COMPLETED");
+        
+        return completedTasks.length > 0 ? completedTasks[completedTasks.length - 1] : null;
+    };
+
+
+    const handleApproveTask = async() => {
+        try {
+
+            if (!aiJobId || !aiJobStatus || !aiJobStatus.jobStatus) {
+                toast.error("Job not found");
+                return;
+            }
+
+            const currentTask = getCurrentTask(aiJobStatus.jobStatus);
+
+            console.log("Current task: ", currentTask);
+            if (!currentTask) {
+                toast.error("Current task is missing");
+                return;
+            }
+            
+            let params: Record<string, any> | null = null;
+
+            switch (currentTask) {
+                case 'segmentation':
+                    params = {...customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
+                    break;
+                case 'questionGeneration':
+                    params = {...customQuestionParams, usePrevious: 1, type: "QUESTION_GENERATION"};
+                    break;
+                default: 
+                    console.error("Invalid current task", currentTask);
+                    toast.error("Invalida current task");
+                    return;
+            }
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            await aiSectionAPI.approveStartTask(aiJobId, params);
+
+            toast.success("Task approved!")
+        } catch(error) {
+            toast.error("Failed to approve task");
+            console.log("Failed to approve task", error);
+        }
+    }
+
     // Define possible task statuses for type safety
     type TaskStatus =
     | "PENDING"
@@ -1006,26 +1072,7 @@ const AiWorkflow = () => {
                              Refresh Status
                          </Button>
                         <Button
-                            onClick={ async () =>{ 
-                                try{
-
-                                    if(!aiJobId) {
-                                        toast.error("Job id not found");
-                                        return;
-                                    }
-                                    await aiSectionAPI.approveContinueTask(aiJobId);
-                                            await aiSectionAPI.approveStartTask(aiJobId, {
-                                              type: 'SEGMENTATION',
-                                              parameters: {
-                                                "lam": 4.6,
-                                                "runs": 25,
-                                                "noiseId": -1,
-                                            },usePrevious: 0})
-                                    toast.success("Task approved!")
-                                }catch(error){
-                                    toast.error("Failed to approve task");
-                                }
-                            } }
+                            onClick={handleApproveTask}
                             variant="outline"
                             className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                             >
