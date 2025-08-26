@@ -110,8 +110,6 @@ class SubmissionRepository {
 
     const {search, gradeStatus, sort = 'DATE_DESC', currentPage, limit} = query;
 
-    const skip = (currentPage - 1) * limit;
-
     const matchStage = {
       quizId,
     };
