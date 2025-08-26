@@ -282,12 +282,13 @@ class ProgressService extends BaseService {
       item._id.toString(),
     );
   }
-  private async updateEnrollmentProgressPercent(
+   async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
     isReset?: boolean,
+    totalItemCount?: number,
   ): Promise<void> {
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
@@ -298,7 +299,7 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     if (!isReset) {
-      const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+      const totalItems = totalItemCount || await this.itemRepo.CalculateTotalItemsCount(
         courseId,
         courseVersionId,
         session,

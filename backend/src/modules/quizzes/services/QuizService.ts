@@ -248,6 +248,7 @@ class QuizService extends BaseService {
       questionId: string;
       correctRate: number;
       averageScore: number;
+      message?:string;
     }[]
   > {
     return this._withTransaction(async session => {
@@ -256,7 +257,13 @@ class QuizService extends BaseService {
         session,
       );
       if (!submissions.data || submissions.data.length === 0) {
-        throw new NotFoundError('No submissions found for quiz');
+        // throw new NotFoundError('No submissions found for quiz performance');
+        return [{
+          questionId: '',
+          correctRate: 0,
+          averageScore: 0,
+          message: 'No submissions found for quiz'
+        }]
       }
       const statsMap = new Map<
         string,
@@ -463,7 +470,14 @@ class QuizService extends BaseService {
         query,
       );
       if (!submissions.data || submissions.data.length === 0) {
-        throw new NotFoundError('No submissions found for quiz');
+        // throw new NotFoundError('No submissions found for quiz');
+        return {
+          data: [],
+          totalCount: 0,
+          currentPage: query.currentPage || 1,
+          totalPages: 0,
+          message: 'No submissions found for quiz'
+        };
       }
       // Convert _id to string for each submission
       // return submissions.data.map(sub => ({

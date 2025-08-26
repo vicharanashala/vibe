@@ -53,16 +53,10 @@ export class EnrollmentRepository {
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
 
-    // temp: Try both userId as string and ObjectId (if valid)
-    const userFilter = [
-      userId,
-      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
-    ].filter(Boolean);
-
-    // const userObjectid = new ObjectId(userId)
+    const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.findOne({
-      userId: {$in: userFilter},
+      userId: userObjectid,
       courseId: courseObjectId,
       courseVersionId: courseVersionObjectId,
     });
