@@ -181,7 +181,7 @@ class AttemptService extends BaseService {
   public async attempt(
     userId: string | ObjectId,
     quizId: string,
-  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
+  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]} | {message: string}> {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
@@ -226,7 +226,7 @@ class AttemptService extends BaseService {
 
       //3. Check if available attempts > 0
       if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
-        throw new BadRequestError('No available attempts left for this quiz');
+        return { message: 'No available attempts left for this quiz' };
       }
 
       //4. Fetch questions for the quiz attempt
