@@ -22,11 +22,13 @@ import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase
 import {GLOBAL_TYPES} from '#root/types.js';
 import {Module} from '#courses/classes/transformers/Module.js';
 import {
+  EnrollmentRepository,
   ICourseVersion,
   ItemType,
   ProgressRepository,
 } from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -37,6 +39,10 @@ export class ItemService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -148,7 +154,28 @@ export class ItemService extends BaseService {
         );
       }
 
-      //Step 4: Create a new ItemDB instance to represent the item in the itemsGroup.
+      const courseId = version.courseId.toString();
+
+      //Step 4: Update the progress percent in enrollment doc
+      const enrollments = await this.enrollmentRepo.getByCourseVersion(
+        courseId,
+        versionId,
+        session,
+      );
+      for (const enrollment of enrollments) {
+        const userId = enrollment?.userId?.toString();
+        // helper to update progress
+        await this.progressService.updateEnrollmentProgressPercent(
+          userId,
+          courseId,
+          versionId,
+          session,
+          false, // flag for reset progress percent to 0
+          version.totalItems,
+        );
+      }
+
+      //Step 5: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
       newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
@@ -245,9 +272,29 @@ export class ItemService extends BaseService {
           version.courseId.toString(),
           version._id.toString(),
           session,
-        ); 
+        );
         // }
         await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
+        const versionId = version._id.toString();
+        const courseId = version.courseId.toString();
+        // To update the progress percent in enrollment doc
+        const enrollments = await this.enrollmentRepo.getByCourseVersion(
+          courseId,
+          versionId,
+          session,
+        );
+        for (const enrollment of enrollments) {
+          const userId = enrollment?.userId?.toString();
+          // helper to update progress
+          await this.progressService.updateEnrollmentProgressPercent(
+            userId,
+            courseId,
+            versionId,
+            session, 
+            false, 
+            version.totalItems
+          );
+        }
 
         const updatedVersion = await this.courseRepo.updateVersion(
           version._id.toString(),
@@ -263,7 +310,9 @@ export class ItemService extends BaseService {
         deleted._id = deleted._id.toString();
         return {deletedItemId: itemId, itemsGroup: deleted};
       } catch (error) {
-        throw new InternalServerError(`Failed to delete Item after / Error: ${error}`);
+        throw new InternalServerError(
+          `Failed to delete Item after / Error: ${error}`,
+        );
       }
     });
   }
