@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Loader2,
   Plus,
+  Search,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ import {
 import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
 import { useNavigate, redirect } from "@tanstack/react-router"
+import { Pagination } from "@/components/ui/Pagination"
 
 export default function InvitePage() {
   const navigate = useNavigate()
@@ -55,9 +57,20 @@ export default function InvitePage() {
   ])
 
   // State to track which invite operations are in progress
-  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
-  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null)
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
+  // filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sort, setSort] = useState("");
+  const [inviteStatus, setInviteStatus] = useState("");
+  const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
+  const sortOptions = [
+    { label: "All Invites", value: "All" },
+    { label: "Recently Accepted", value: "accept_date_desc" },
+    { label: "Earliest Accepted", value: "accept_date_asc" },
+  ];
   // Hooks
   const { data: course, isLoading: courseLoading } = useCourseById(courseId || "")
   const {
@@ -65,7 +78,8 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId))
+  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), searchQuery, 
+      currentPage, 15, inviteStatus, sort);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -96,6 +110,12 @@ export default function InvitePage() {
     // The backend will handle this check when trying to initialize progress
     // For now, we'll assume that if a section exists, it should have an itemsGroup
     return true
+  }
+  
+  const handlePageChange = (newPage: number) => {
+    if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
+      setCurrentPage(newPage)
+    }
   }
 
   // Function to get the reason why invites can't be sent
@@ -337,6 +357,7 @@ export default function InvitePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          
           <div className="space-y-3">
             {inviteEmails.map((invite, index) => (
               <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
@@ -479,12 +500,78 @@ export default function InvitePage() {
               disabled={invitesLoading}
             >
               {invitesLoading ? (
+                <>
                 <Loader2 className="w-4 h-4 animate-spin" />
+                
+                </>
               ) : (
                 <RotateCcw className="w-4 h-4" />
               )}
             </Button>
           </CardTitle>
+          <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10 mb-2">
+            <div className="relative flex-1 max-w-md">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by student name, email ... "
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value) }}
+                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+              />
+            </div>
+            </div>
+          
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+                Filter by Status:
+              </label>
+              <Select
+                value={inviteStatus}
+                onValueChange={(value) => {
+                  setInviteStatus(value === "All" ? "" : value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inviteStatusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status === "All" ? "Select an option" : status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          
+            <div className="flex items-center gap-2">
+              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+                Sort by:
+              </label>
+              <Select
+                value={sort}
+                onValueChange={(value) => {
+                  setSort(value === "All" ? "" : value);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label === "All Invites" ? "Select an option" : option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
         </CardHeader>
         <CardContent>
           {invitesError && (
@@ -495,7 +582,7 @@ export default function InvitePage() {
 
           {invitesLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" /><span className="text-gray-800 dark:text-gray-200 text-sm ms-2">Loading invites ...</span>
             </div>
           ) : invitesData?.invites?.length ? (
             <Table>
@@ -509,6 +596,7 @@ export default function InvitePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                
                 {/* Display invites in reverse order */}
                 {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
                   <TableRow key={invite.inviteId}>
@@ -569,6 +657,14 @@ export default function InvitePage() {
                   </TableRow>
                 ))}
               </TableBody>
+              {invitesData && invitesData?.totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={invitesData.totalPages}
+                  totalDocuments={invitesData.totalDocuments}
+                  onPageChange={handlePageChange}
+                />
+              )}
             </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">

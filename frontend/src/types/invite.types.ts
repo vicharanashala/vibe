@@ -23,6 +23,8 @@ export interface InviteResult {
 
 export interface InviteResponse {
   invites: InviteResult[];
+  totalDocuments: number;
+  totalPages: number;
 }
 
 export interface MessageResponse {
