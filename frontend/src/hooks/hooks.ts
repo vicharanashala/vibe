@@ -455,15 +455,20 @@ export async function useProcessInvites(inviteId: string): Promise<{
 }
 
 // GET /courses/{id}
-export function useCourseById(id: string): {
+export function useCourseById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+
+  const enabledOptions = enabled !== undefined
+    ? { enabled: !!id && enabled }
+    : undefined;
+
   const result = api.useQuery("get", "/courses/{id}", {
     params: { path: { id } }
-  }, { enabled: !!id });
+  }, enabledOptions);
 
   return {
     data: result.data,
@@ -538,15 +543,20 @@ export function useCreateCourseVersion(): {
 }
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string): {
+export function useCourseVersionById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+
+  const enabledOptions = enabled !== undefined
+    ? { enabled: !!id && enabled }
+    : undefined;
+
   const result = api.useQuery("get", "/courses/versions/{id}", {
     params: { path: { id } }
-  }, { enabled: !!id }
+  }, enabledOptions
   );
 
   return {

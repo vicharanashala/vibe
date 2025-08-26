@@ -45,7 +45,7 @@ export default function InvitePage() {
   const versionId = currentCourse?.versionId
 
   if (!currentCourse || !courseId || !versionId) {
-    navigate({ to: '/teacher/courses/list' });
+    navigate({ to: '/teacher' });
     return null
   }
 

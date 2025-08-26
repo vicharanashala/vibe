@@ -195,7 +195,7 @@ export class EnrollmentService extends BaseService {
         limit,
         search,
         role,
-        session
+        session,
       );
       return result.map(enrollment => {
         const {userId, ...rest} = enrollment;
@@ -207,6 +207,7 @@ export class EnrollmentService extends BaseService {
           role: enrollment.role,
           status: enrollment.status,
           enrollmentDate: new Date(enrollment.enrollmentDate),
+          course: enrollment.course,
         };
       });
     });

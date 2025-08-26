@@ -1,4 +1,8 @@
-import {EnrollmentRole, IEnrollment, IProgress} from '#shared/interfaces/models.js';
+import {
+  EnrollmentRole,
+  IEnrollment,
+  IProgress,
+} from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
@@ -197,14 +201,13 @@ export class EnrollmentRepository {
     limit: number,
     search: string,
     role: EnrollmentRole,
-    session?: ClientSession
+    session?: ClientSession,
   ) {
     try {
       await this.init();
       const userObjectId = new ObjectId(userId);
-
       const aggregationPipeline: any[] = [
-        { $match: { userId: userObjectId, role } },
+        {$match: {userId: userObjectId, role}},
         {
           $lookup: {
             from: 'newCourse',
@@ -214,6 +217,55 @@ export class EnrollmentRepository {
           },
         },
         {$unwind: {path: '$course', preserveNullAndEmptyArrays: true}},
+        {
+          $addFields: {
+            'course.versions': {
+              $map: {
+                input: '$course.versions',
+                as: 'v',
+                in: {$toObjectId: '$$v'},
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'course.versions',
+            foreignField: '_id',
+            as: 'course.versionDetails',
+          },
+        },
+        {
+          $set: {
+            'course.versionDetails': {
+              $map: {
+                input: '$course.versionDetails',
+                as: 'version',
+                in: {
+                  $mergeObjects: [
+                    '$$version',
+                    {id: {$toString: '$$version._id'}},
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $unset: 'course.versionDetails._id', 
+        },
+        {
+          $set: {
+            'course.versions': {
+              $map: {
+                input: '$course.versions',
+                as: 'v',
+                in: {$toString: '$$v'},
+              },
+            },
+          },
+        },
       ];
 
       // Only add search filter if search is provided
@@ -224,16 +276,6 @@ export class EnrollmentRepository {
       }
 
       aggregationPipeline.push(
-        {
-          $project: {
-            _id: 1,
-            courseId: 1,
-            courseVersionId: 1,
-            role: 1,
-            status: 1,
-            enrollmentDate: 1,
-          },
-        },
         {$sort: {enrollmentDate: -1}},
         {$skip: skip},
         {$limit: limit},
@@ -437,11 +479,11 @@ export class EnrollmentRepository {
   async countEnrollments(userId: string, role: EnrollmentRole) {
     await this.init();
 
-    const userObjectid = new ObjectId(userId)
+    const userObjectid = new ObjectId(userId);
 
     return await this.enrollmentCollection.countDocuments({
       userId: userObjectid,
-      role
+      role,
     });
   }
 

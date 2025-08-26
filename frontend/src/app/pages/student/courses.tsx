@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { BookOpen, Search } from "lucide-react";
+import { useState,  useMemo } from "react";
+import { Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserEnrollments } from "@/hooks/hooks";
@@ -96,16 +96,24 @@ export default function StudentCourses() {
           <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
           <p className="text-muted-foreground">Manage your learning journey</p>
         </section>
-        <div className="relative w-1/2">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search courses..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-          />
-        </div>
+         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+          <div className="relative flex-1 max-w-md">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search courses..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+              />
+            </div>
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground">
+              <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
+            </div>
+          </div>
           <TabsList>
             <TabsTrigger value="enrolled">
               Enrolled ({isLoading ? "..." : activeEnrollments.length})
@@ -115,7 +123,7 @@ export default function StudentCourses() {
               Completed ({isLoading ? "..." : completedEnrollments.length})
             </TabsTrigger>
           </TabsList>
-
+          </div>
           <TabsContent value="enrolled" className="space-y-4">
             {isLoading ? (
               <div className="space-y-2">
@@ -146,7 +154,6 @@ export default function StudentCourses() {
               </>
             ) : (
               <EmptyState
-                icon={<BookOpen className="h-12 w-12 text-muted-foreground mb-4" />}
                 title="No enrolled courses"
                 description="Start your learning journey by enrolling in a course"
                 actionText="Browse Available Courses"
@@ -184,7 +191,6 @@ export default function StudentCourses() {
               </div>
             ) : (
               <EmptyState
-                icon={<BookOpen className="h-12 w-12 text-muted-foreground mb-4" />}
                 title="No completed courses yet"
                 description="Complete your first course to see it here"
                 actionText="View Enrolled Courses"

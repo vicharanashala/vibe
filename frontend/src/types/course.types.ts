@@ -1,3 +1,5 @@
+import { components } from "./schema";
+
 export interface itemref {
   order?: string;
   type?: string;
@@ -55,6 +57,7 @@ export type RawEnrollment = {
   _id: string
   courseId: { buffer: { data: number[] } }
   courseVersionId: { buffer: { data: number[] } }
+  course?: components['schemas']['CourseDataResponse'] & { versionDetails?: components['schemas']['CourseVersionDataResponse'][] };
 }
 
 export interface EnrolledUser {

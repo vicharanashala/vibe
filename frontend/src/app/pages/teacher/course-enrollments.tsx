@@ -134,7 +134,7 @@ export default function CourseEnrollments() {
   const versionId = currentCourse?.versionId
 
   if (!currentCourse || !courseId || !versionId) {
-    navigate({ to: '/teacher/courses/list' });
+    navigate({ to: '/teacher' });
     return null
   }
 

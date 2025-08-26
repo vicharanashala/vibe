@@ -26,9 +26,9 @@ import {
   CourseIdParams,
   CourseVersionParams,
 } from '#courses/classes/validators/CourseValidators.js';
-import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
+import {CourseActions, getCourseAbility} from '../abilities/courseAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -56,13 +56,16 @@ export class CourseController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async create(@Body() body: CourseBody, @Ability(getCourseAbility) {ability}): Promise<Course> {
+  async create(
+    @Body() body: CourseBody,
+    @Ability(getCourseAbility) {ability},
+  ): Promise<Course> {
     // Build subject context first
-    
+
     if (!ability.can(CourseActions.Create, 'Course')) {
       throw new ForbiddenError('You do not have permission to create courses');
     }
-    
+
     const course = new Course(body);
     const createdCourse = await this.courseService.createCourse(course);
     return createdCourse;
@@ -88,17 +91,22 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async read(@Params() params: CourseIdParams, @Ability(getCourseAbility) {ability}) {
+  async read(
+    @Params() params: CourseIdParams,
+    @Ability(getCourseAbility) {ability},
+  ) {
     const {courseId} = params;
-    
+
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
-    
+    const courseResource = subject('Course', {courseId});
+
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.View, courseResource)) {
-      throw new ForbiddenError('You do not have permission to view this course');
+      throw new ForbiddenError(
+        'You do not have permission to view this course',
+      );
     }
-    
+
     const course = await this.courseService.readCourse(courseId);
     return course;
   }
@@ -122,17 +130,23 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async update(@Params() params: CourseIdParams, @Body() body: CourseBody, @Ability(getCourseAbility) {ability}) {
+  async update(
+    @Params() params: CourseIdParams,
+    @Body() body: CourseBody,
+    @Ability(getCourseAbility) {ability},
+  ) {
     const {courseId} = params;
-    
+
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
-    
+    const courseResource = subject('Course', {courseId});
+
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Modify, courseResource)) {
-      throw new ForbiddenError('You do not have permission to update this course');
+      throw new ForbiddenError(
+        'You do not have permission to update this course',
+      );
     }
-    
+
     const updatedCourse = await this.courseService.updateCourse(courseId, body);
     return updatedCourse;
   }
@@ -152,26 +166,32 @@ Accessible to:
     description: 'Course not found',
     statusCode: 404,
   })
-  async delete(@Params() params: CourseIdParams, @Ability(getCourseAbility) {ability}) {
+  async delete(
+    @Params() params: CourseIdParams,
+    @Ability(getCourseAbility) {ability},
+  ) {
     const {courseId} = params;
-    
+
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
-    
+    const courseResource = subject('Course', {courseId});
+
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Delete, courseResource)) {
-      throw new ForbiddenError('You do not have permission to delete this course');
+      throw new ForbiddenError(
+        'You do not have permission to delete this course',
+      );
     }
-    
+
     await this.courseService.deleteCourse(courseId);
   }
 
   @OpenAPI({
-  summary: 'Update Course Version Total Item Count',
-  description: 'Updates the total item count for a specific course version by ID.',
+    summary: 'Update Course Version Total Item Count',
+    description:
+      'Updates the total item count for a specific course version by ID.',
   })
   @Authorized()
-  @Patch('/version/total-item-count', { transformResponse: true })
+  @Patch('/version/total-item-count', {transformResponse: true})
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -181,7 +201,7 @@ Accessible to:
     statusCode: 404,
   })
   async updateCourseVersionTotalItemCount(
-    @Ability(getCourseAbility) { ability },
+    @Ability(getCourseAbility) {ability},
   ) {
     // Update total item count in service
     await this.courseService.updateCourseVersionTotalItemCount();
