@@ -303,6 +303,58 @@ export interface QuizSubmissionResponseUpdated {
   gradingResult?: IGradingResult;
 }
 
+// Anomalies hooks
+export interface Anomaly {
+  id: string;
+  studentName: string;
+  studentId: string;
+  type: string;
+  description: string;
+  date: string;
+  status: 'Pending' | 'Investigated' | 'Resolved';
+}
+
+export function useAnomaliesByCourseItem(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  itemId?: string | undefined
+): {
+  data: Anomaly[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/anomalies/course/{courseId}/version/{versionId}",
+    {
+      params: {
+        path: {
+          courseId: courseId || "",
+          versionId: versionId || ""
+        },
+        query: {
+          itemId: itemId || undefined
+        }
+      }
+    },
+    {
+      enabled: !!courseId && !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const anomalies = Array.isArray(result.data) ? result.data : [];
+
+  return {
+    data: anomalies,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch anomalies') : null,
+    refetch: result.refetch
+  };
+}
+
 // Auth hooks
 
 // POST /auth/verify

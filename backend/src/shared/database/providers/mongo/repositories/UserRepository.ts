@@ -129,4 +129,16 @@ export class UserRepository implements IUserRepository {
       { session },
     );
   }
+
+  async getUsersByIds(ids: string[]): Promise<IUser[]> {
+    await this.init();
+    const objectIds = ids.map(id => new ObjectId(id));
+    const users = await this.usersCollection
+      .find({ _id: { $in: objectIds } })
+      .toArray();
+    return users.map(user => ({
+      ...user,
+      _id: user._id.toString()
+    }));
+  }
 }

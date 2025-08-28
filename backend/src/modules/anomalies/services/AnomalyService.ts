@@ -72,18 +72,23 @@ export class AnomalyService extends BaseService {
 
   async getUserAnomalies(userId: string, courseId: string, versionId: string, limit: number, skip: number): Promise<AnomalyData[]> {
     return await this._withTransaction(async (session) => {
-      const anomaly = await this.anomalyRepository.getByUser(userId, courseId, versionId, limit, skip, session);
+      const anomalies = await this.anomalyRepository.getByUser(userId, courseId, versionId, limit, skip, session);
 
-      if (!anomaly || anomaly.length === 0) {
+      if (!anomalies || anomalies.length === 0) {
         throw new NotFoundError('No anomalies found for this user in the specified course and version');
       }
 
-      return anomaly.map((a) => {
-        a._id = a._id.toString();
-        delete a.fileName;
-        delete a.fileType;
-        return a;
-      });
+  
+      const user = await this.userRepo.findById(userId);
+      
+      return anomalies.map((a) => ({
+        ...a,
+        _id: a._id.toString(),
+        studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+        studentEmail: user?.email || '',
+        fileName: undefined,
+        fileType: undefined
+      } as unknown as AnomalyData));
     });
   }
 
@@ -99,11 +104,20 @@ export class AnomalyService extends BaseService {
           throw new NotFoundError('No anomalies found for this course version');
       }
 
+      const userIds = [...new Set(anomalies.map(a => a.userId))];
+      const users = await this.userRepo.getUsersByIds(userIds);
+      const userMap = new Map(users.map(user => [user._id.toString(), user]));
+
       return anomalies.map((a) => {
-          a._id = a._id.toString();
-          delete a.fileName;
-          delete a.fileType;
-          return a;
+          const user = userMap.get(a.userId);
+          return {
+              ...a,
+              _id: a._id.toString(),
+              studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+              studentEmail: user?.email || '',
+              fileName: undefined,
+              fileType: undefined
+          } as unknown as AnomalyData;
       });
     });
   }
@@ -120,11 +134,20 @@ export class AnomalyService extends BaseService {
           throw new NotFoundError('No anomalies found for this course version');
       }
 
+      const userIds = [...new Set(anomalies.map(a => a.userId))];
+      const users = await this.userRepo.getUsersByIds(userIds);
+      const userMap = new Map(users.map(user => [user._id.toString(), user]));
+
       return anomalies.map((a) => {
-          a._id = a._id.toString();
-          delete a.fileName;
-          delete a.fileType;
-          return a;
+          const user = userMap.get(a.userId);
+          return {
+              ...a,
+              _id: a._id.toString(),
+              studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+              studentEmail: user?.email || '',
+              fileName: undefined,
+              fileType: undefined
+          } as unknown as AnomalyData;
       });
     });
   }

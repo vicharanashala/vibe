@@ -13,6 +13,7 @@ import FlaggedList from "../pages/teacher/FlaggedList";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
 import AISectionPage from "@/app/pages/teacher/AISectionPage";
+import AnomaliesList from "../pages/teacher/AnomaliesList";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -50,6 +51,10 @@ const teacherRoutes: RouteObject = {
      {
       path: "courses/flags",
       element: <FlaggedList />,
+    },
+    {
+      path: "courses/anomalies",
+      element: <AnomaliesList />,
     },
     {
       index: true,

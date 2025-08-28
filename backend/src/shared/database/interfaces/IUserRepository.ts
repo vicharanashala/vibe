@@ -71,4 +71,11 @@ export interface IUserRepository {
     userData: Partial<IUser>,
     session?: ClientSession,
   ): Promise<void>;
+
+  /**
+   * Finds multiple users by their IDs.
+   * @param ids - Array of user IDs to find.
+   * @returns A promise that resolves to an array of users.
+   */
+  getUsersByIds(ids: string[]): Promise<IUser[]>;
 }

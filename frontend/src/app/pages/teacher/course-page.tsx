@@ -51,6 +51,7 @@ import { bufferToHex } from "@/utils/helpers"
 // Define types for better TypeScript support
 import type { RawEnrollment } from "@/types/course.types"
 import { components } from "@/types/schema"
+import { useAnomalyStore } from "@/store/anomaly-store"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -841,6 +842,7 @@ function VersionCard({
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
+  const { setCurrentAnomaly } = useAnomalyStore();
 
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
@@ -903,6 +905,19 @@ function VersionCard({
     navigate({
       to: "/teacher/courses/flags/list",
     })
+  }
+  const viewAnomalies = () => {
+    setCurrentAnomaly({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null
+    });
+    navigate({
+      to: "/teacher/courses/anomalies/list"
+    });
   }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
@@ -975,6 +990,10 @@ function VersionCard({
             </div>
 
             <div className="flex items-center flex-wrap gap-2 shrink-0 mt-2 lg:mt-0">
+              <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                <Eye className="h-3 w-3 mr-1" />
+                View Anomalies
+              </Button>
               <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                 <FlagTriangleRight className="h-3 w-3 mr-1" />
                 View Flags
