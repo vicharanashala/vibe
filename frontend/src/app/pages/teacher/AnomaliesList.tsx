@@ -35,6 +35,7 @@ export default function AnomaliesList() {
     sortBy,
     sortOrder
   );
+    console.log("🚀 ~ AnomaliesList ~ total:", total)
 
   const getTypeBadge = (type: string) => {
     switch (type) {
@@ -172,7 +173,8 @@ export default function AnomaliesList() {
                               </TableCell>
                               <TableCell>{getTypeBadge(anomaly.type)}</TableCell>
                               <TableCell>
-                                {new Date(anomaly.createdAt).toLocaleString()}
+                                {new Date(anomaly.createdAt).toLocaleDateString('en-GB') + ' ' + 
+                                 new Date(anomaly.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                               </TableCell>
                             </TableRow>
                           ))

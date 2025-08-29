@@ -363,7 +363,7 @@ export function useAnomaliesByCourseItem(
 
 
   const data = Array.isArray(result?.data?.data) ? result?.data?.data : [];
-  const total = result?.data?.total || 0;
+  const total = result?.data?.totalDocuments || 0;
   const totalPages = result?.data?.totalPages || 1;
 
   return {
