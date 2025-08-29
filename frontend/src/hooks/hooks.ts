@@ -306,10 +306,17 @@ export interface QuizSubmissionResponseUpdated {
 // Anomalies hooks
 export interface Anomaly {
   id: string;
+  _id?: string;
   studentName: string;
   studentId: string;
+  studentEmail: string;
   type: string;
-  description: string;
+  description?: string;
+  courseId: string;
+  versionId: string;
+  itemId?: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
   date: string;
   status: 'Pending' | 'Investigated' | 'Resolved';
 }
@@ -317,14 +324,20 @@ export interface Anomaly {
 export function useAnomaliesByCourseItem(
   courseId: string | undefined,
   versionId: string | undefined,
-  itemId?: string | undefined
+  page: number = 1,
+  limit: number = 10,
+  sortField?: string,
+  sortOrder: 'asc' | 'desc' = 'desc'
 ): {
   data: Anomaly[];
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  total: number;
+  page: number;
+  totalPages: number;
 } {
-  const result = api.useQuery(
+  const result: any = api.useQuery(
     "get",
     "/anomalies/course/{courseId}/version/{versionId}",
     {
@@ -334,7 +347,10 @@ export function useAnomaliesByCourseItem(
           versionId: versionId || ""
         },
         query: {
-          itemId: itemId || undefined
+          page,
+          limit,
+          sortField,
+          sortOrder
         }
       }
     },
@@ -345,13 +361,19 @@ export function useAnomaliesByCourseItem(
     }
   );
 
-  const anomalies = Array.isArray(result.data) ? result.data : [];
+
+  const data = Array.isArray(result?.data?.data) ? result?.data?.data : [];
+  const total = result?.data?.total || 0;
+  const totalPages = result?.data?.totalPages || 1;
 
   return {
-    data: anomalies,
+    data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch anomalies') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    total,
+    page,
+    totalPages
   };
 }
 

@@ -69,14 +69,29 @@ export class AnomalyRepository {
     versionId: string,
     limit: number,
     skip: number,
+    sortOptions?: { field: string; order: 'asc' | 'desc' },
     session?: ClientSession
-  ): Promise<IAnomalyData[]> {
+  ): Promise<{ data: IAnomalyData[]; total: number }> {
     await this.init();
-    return await this.anomalyCollection
-      .find({ courseId: courseId, versionId: versionId }, { session })
-      .limit(limit)
-      .skip(skip)
-      .toArray();
+    
+    const sort: { [key: string]: 1 | -1 } = {};
+    if (sortOptions?.field) {
+      sort[sortOptions.field] = sortOptions.order === 'asc' ? 1 : -1;
+    } else {
+      sort['createdAt'] = -1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.anomalyCollection
+        .find({ courseId, versionId }, { session })
+        .sort(sort)
+        .limit(limit)
+        .skip(skip)
+        .toArray(),
+      this.anomalyCollection.countDocuments({ courseId, versionId }, { session })
+    ]);
+
+    return { data, total };
   }
 
 

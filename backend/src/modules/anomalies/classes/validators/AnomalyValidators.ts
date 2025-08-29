@@ -2,6 +2,7 @@ import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "cl
 import { JSONSchema } from "class-validator-jsonschema";
 import { AnomalyType, FileType, IAnomalyData } from "../../index.js";
 import { ObjectId } from "mongodb";
+import { SortOrder, PaginationWithSortQuery } from '#root/shared/interfaces/models.js';
 
 export class NewAnomalyData {
   @JSONSchema({
@@ -213,3 +214,5 @@ export class StatsQueryParams {
   @IsString()
   userId?: string;
 }
+
+export { SortOrder, PaginationWithSortQuery };

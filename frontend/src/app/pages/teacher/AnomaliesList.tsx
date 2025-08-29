@@ -8,27 +8,38 @@ import { ArrowUp, ArrowDown, Loader2, AlertCircle } from "lucide-react"
 import { useAnomaliesByCourseItem, type Anomaly } from "@/hooks/hooks"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Pagination } from "@/components/ui/Pagination"
 
 export default function AnomaliesList() {
  
   const courseId = useAnomalyStore.getState().courseId
   const versionId = useAnomalyStore.getState().versionId
-  const itemId = useAnomalyStore.getState().itemId
 
-  const { data: anomalies = [], isLoading, error, refetch } = useAnomaliesByCourseItem(
-    courseId as string, 
-    versionId as string,
-    itemId as string
-  );
-  
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState<'createdAt' | 'type' | 'studentName'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const {
+    data: anomalies = [],
+    isLoading,
+    error,
+    refetch,
+    total,
+    totalPages
+  } = useAnomaliesByCourseItem(
+    courseId as string,
+    versionId as string,
+    page,
+    limit,
+    sortBy,
+    sortOrder
+  );
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'MULTIPLE_FACES':
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Multiple Faces Detected</Badge>
-      // Add more cases as needed
       default:
         return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">{type}</Badge>
     }
@@ -36,29 +47,31 @@ export default function AnomaliesList() {
 
   const handleSort = (column: 'createdAt' | 'type' | 'studentName') => {
     if (sortBy === column) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
-      setSortBy(column)
-      setSortOrder('asc')
+      setSortBy(column);
+      setSortOrder('asc');
     }
+    setPage(1);
   }
 
-  const sortedAnomalies = [...anomalies].sort((a, b) => {
-    let comparison = 0
-    
-    if (sortBy === 'createdAt') {
-      comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    } else if (sortBy === 'type') {
-      comparison = a.type.localeCompare(b.type)
-    } else if (sortBy === 'studentName') {
-      const nameA = a.studentName || ''
-      const nameB = b.studentName || ''
-      comparison = nameA.localeCompare(nameB)
-    }
-    
-    return sortOrder === 'asc' ? comparison : -comparison
-  })
-  
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setLimit(Number(e.target.value));
+    setPage(1); 
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-4 space-y-8">
@@ -70,137 +83,112 @@ export default function AnomaliesList() {
                 Course Anomalies
               </h1>
             </div>
-            {courseId && versionId && itemId && (
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <span>Course: {courseId}</span>
-                <span>•</span>
-                <span>Version: {versionId}</span>
-                <span>•</span>
-                <span>Item: {itemId}</span>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Anomalies Table */}
-        <Card className="border-0 shadow-lg overflow-hidden">
+        <Card className="border-0 shadow-lg overflow-hidden px-6">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/30 transition-colors pl-6"
-                      onClick={() => handleSort('studentName')}
-                    >
-                      <div className="flex items-center">
-                        Student
-                        {sortBy === 'studentName' && (
-                          sortOrder === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                        )}
+              <Card className="w-full">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold">Anomalies</h2>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-muted-foreground">Show</span>
+                        <select
+                          value={limit}
+                          onChange={handleLimitChange}
+                          className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                        <span className="text-sm text-muted-foreground">per page</span>
                       </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => handleSort('type')}
-                    >
-                      <div className="flex items-center">
-                        Anomaly Type
-                        {sortBy === 'type' && (
-                          sortOrder === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      <div className="flex items-center">
-                        Detected At
-                        {sortBy === 'createdAt' && (
-                          sortOrder === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {error ? (
-                    <TableRow>
-                      <TableCell colSpan={2} className="text-center py-12">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <AlertCircle className="h-8 w-8 text-destructive" />
-                          <p className="text-destructive text-sm">{error}</p>
-                          <button
-                            onClick={() => refetch()}
-                            className="text-sm text-primary hover:underline mt-2 flex items-center space-x-1"
-                            disabled={isLoading}
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-muted/30 transition-colors"
+                            onClick={() => handleSort('createdAt')}
                           >
-                            <span>Try again</span>
-                            {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={2} className="text-center py-6">
-                        <div className="flex items-center justify-center space-x-2">
-                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                          <span className="text-muted-foreground">Loading anomalies...</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : !isLoading && sortedAnomalies.length > 0 ? (
-                    sortedAnomalies.map((anomaly) => (
-                      <TableRow key={anomaly._id} className="hover:bg-muted/30">
-                        <TableCell className="pl-6 py-6">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={anomaly.studentEmail} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {(() => {
-                                  if (!anomaly?.studentName) return "?";
-                                  const nameParts = anomaly.studentName.trim().split(" ");
-                                  const initials = nameParts
-                                    .slice(0, 2)
-                                    .map((part) => part[0]?.toUpperCase())
-                                    .join("");
-                                  return initials || "?";
-                                })()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                  {anomaly?.studentName && anomaly?.studentName
-                                    ? `${anomaly?.studentName}`
-                                    : "Unknown User"}
-                                </p>
-                              </div>
-                              <p className="text-xs md:text-sm text-muted-foreground truncate">{anomaly?.studentEmail || ""}</p>
+                            <div className="flex items-center">
+                              Detected At
+                              {sortBy === 'createdAt' && (
+                                sortOrder === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
+                              )}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-6">
-                          {getTypeBadge(anomaly.type)}
-                        </TableCell>
-                        <TableCell className="py-6">
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(anomaly.createdAt).toLocaleString()}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={2} className="text-center py-6 text-muted-foreground">
-                        No anomalies found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {error ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-12">
+                              <div className="flex flex-col items-center justify-center space-y-2">
+                                <AlertCircle className="h-8 w-8 text-destructive" />
+                                <p className="text-destructive text-sm">{error}</p>
+                                <button
+                                  onClick={() => refetch()}
+                                  className="text-sm text-primary hover:underline mt-2 flex items-center space-x-1"
+                                  disabled={isLoading}
+                                >
+                                  <span>Try again</span>
+                                  {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : anomalies.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
+                              No anomalies found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          anomalies.map((anomaly) => (
+                            <TableRow key={anomaly.id || anomaly._id}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center space-x-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${anomaly.studentName}`} />
+                                    <AvatarFallback>{anomaly.studentName?.charAt(0) || 'U'}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-medium">{anomaly.studentName || 'Unknown User'}</div>
+                                    <div className="text-xs text-muted-foreground">{anomaly.studentEmail}</div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>{getTypeBadge(anomaly.type)}</TableCell>
+                              <TableCell>
+                                {new Date(anomaly.createdAt).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalDocuments={total}
+                    onPageChange={handlePageChange}
+                  />
+                </CardContent>
+              </Card>
             </div>
           </CardContent>
         </Card>
