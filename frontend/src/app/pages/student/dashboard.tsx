@@ -70,10 +70,11 @@ function DashboardContent() {
     refetchEnrollments();
   },[refetchEnrollments]);
 
+  console.log("Enrollment data: ", enrollmentsData);
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
-  const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
+  // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = Math.round(
     completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
@@ -111,7 +112,7 @@ function DashboardContent() {
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
-            enrollments={filteredEnrollement}
+            enrollments={enrollments}
             isLoading={enrollmentsLoading}
             error={enrollmentsError}
             totalEnrollments={totalEnrollments}

@@ -1,36 +1,36 @@
-import { Item } from '#courses/classes/transformers/Item.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Item} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import { Progress } from '#users/classes/transformers/Progress.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {Progress} from '#users/classes/transformers/Progress.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import { QUIZZES_TYPES } from '#quizzes/types.js';
-import { WatchTime } from '../classes/transformers/WatchTime.js';
-import { CompletedProgressResponse } from '../classes/index.js';
+import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {WatchTime} from '../classes/transformers/WatchTime.js';
+import {CompletedProgressResponse} from '../classes/index.js';
 import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { EnrollmentRepository } from '#root/shared/index.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -299,11 +299,13 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     if (!isReset) {
-      const totalItems = totalItemCount || await this.itemRepo.CalculateTotalItemsCount(
-        courseId,
-        courseVersionId,
-        session,
-      );
+      const totalItems =
+        totalItemCount ||
+        (await this.itemRepo.CalculateTotalItemsCount(
+          courseId,
+          courseVersionId,
+          session,
+        ));
 
       const completedItems = await this.getUserProgressPercentageWithoutTotal(
         userId,
@@ -324,13 +326,12 @@ class ProgressService extends BaseService {
   }
 
   async updateEnrollmentProgressPercentBulk(
-    enrollments: any[],               // pass the enrollments array directly
+    enrollments: any[], // pass the enrollments array directly
     courseId: string,
     versionId: string,
     totalItems: number,
     session?: ClientSession,
   ) {
-
     const bulkOps = enrollments.map(enrollment => {
       const userId = enrollment.userId?.toString();
 
@@ -363,7 +364,6 @@ class ProgressService extends BaseService {
     if (!totalItems || totalItems === 0) return 0;
     return ((enrollment.completedItems ?? 0) / totalItems) * 100;
   }
-
 
   private async verifyDetails(
     userId: string | ObjectId,
@@ -963,6 +963,46 @@ class ProgressService extends BaseService {
     });
   }
 
+  // helper to reset quiz realted data
+  private async resetUserQuizData(
+    userId: string,
+    quizItemIds: string[],
+    session: ClientSession,
+  ): Promise<void> {
+    if (!quizItemIds.length) return;
+
+    // Fetch all quizzes in one go
+    const quizzes = await this.quizRepo.getByIds(quizItemIds);
+    const maxAttemptsMap = quizzes.reduce((acc, quiz) => {
+      acc[quiz._id.toString()] = quiz?.details?.maxAttempts || 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Collect attemptIds to delete and bulk ops for all collections
+    const {attemptDeletes, metricsUpdates, submissionDeletes} =
+      await this.progressRepository.prepareBulkQuizOperations(
+        userId,
+        quizItemIds,
+        maxAttemptsMap,
+        session,
+      );
+
+    // Perform bulk operations per collection
+    await this.progressRepository.executeBulkAttemptDelete(
+      attemptDeletes,
+      session,
+    );
+    await this.userQuizMetricsRepository.executeBulkMetricsReset(
+      metricsUpdates,
+      session,
+    );
+    await this.submissionRepository.executeBulkSubmissionDelete(
+      userId,
+      submissionDeletes,
+      session,
+    );
+  }
+
   // Admin Level Endpoint
   async resetCourseProgress(
     userId: string,
@@ -1032,33 +1072,8 @@ class ProgressService extends BaseService {
       // delete all the submissions of the user
 
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1190,35 +1205,8 @@ class ProgressService extends BaseService {
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1322,35 +1310,8 @@ class ProgressService extends BaseService {
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1420,34 +1381,8 @@ class ProgressService extends BaseService {
       }
 
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Get the new progress after resetting to the item
@@ -1521,4 +1456,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export { ProgressService };
+export {ProgressService};

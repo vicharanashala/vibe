@@ -166,6 +166,69 @@ class ProgressRepository {
       {session},
     );
   }
+  async executeBulkAttemptDelete(
+    operations: Array<{deleteOne: {filter: any}}>,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    if (operations.length) {
+      await this.attemptCollection.bulkWrite(operations, {session});
+    }
+  }
+  async prepareBulkQuizOperations(
+    userId: string,
+    quizItemIds: string[],
+    maxAttemptsMap: Record<string, number>,
+    session?: ClientSession,
+  ): Promise<{
+    attemptDeletes: Array<{deleteOne: {filter: any}}>;
+    metricsUpdates: Array<{updateOne: {filter: any; update: any}}>;
+    submissionDeletes: string[];
+  }> {
+    await this.init();
+    const attemptDeletes: Array<{deleteOne: {filter: any}}> = [];
+    const metricsUpdates: Array<{updateOne: {filter: any; update: any}}> = [];
+    let submissionDeletes: string[] = [];
+
+    for (const quizId of quizItemIds) {
+      // 1. Fetch attempt having userId and quizId
+      const docsToDelete = await this.attemptCollection
+        .find({userId, quizId}, {session})
+        .project({_id: 1})
+        .toArray();
+
+      // 2. If no docs then no need to include in bulk operation
+      if (!docsToDelete.length) continue;
+
+      // 3. push to attempts which we want to delete
+      attemptDeletes.push({
+        deleteOne: {filter: {userId, quizId}},
+      });
+
+      // 4. push metrics reset options
+      metricsUpdates.push({
+        updateOne: {
+          filter: {quizId, userId},
+          update: {
+            $set: {
+              attempts: [],
+              latestAttemptId: null,
+              latestSubmissionResultId: null,
+              latestAttemptStatus: null,
+              skipCount: 0,
+              remainingAttempts: maxAttemptsMap[quizId] || 0,
+            },
+          },
+        },
+      });
+      // 5. push attempt ids to delete realted submissions
+      submissionDeletes = submissionDeletes.concat(
+        docsToDelete.map(d => d._id.toString()),
+      );
+    }
+
+    return {attemptDeletes, metricsUpdates, submissionDeletes};
+  }
 
   async deleteUserQuizAttemptsByCourseVersion(
     userId: string,
@@ -388,14 +451,16 @@ class ProgressRepository {
     session?: ClientSession,
   ) {
     await this.init();
-    const result = await this.watchTimeCollection.find(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-      },
-      {session},
-    ).toArray();
+    const result = await this.watchTimeCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .toArray();
 
     return result;
   }
