@@ -1,34 +1,34 @@
-import {injectable, inject} from 'inversify';
-import {ClientSession} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { COURSES_TYPES } from '#courses/types.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
 } from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
+import { Section } from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
 } from '#courses/classes/validators/ItemValidators.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Module} from '#courses/classes/transformers/Module.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Module } from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
   ICourseVersion,
   ItemType,
   ProgressRepository,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -88,13 +88,13 @@ export class ItemService extends BaseService {
       );
     }
 
-    return {version, module, section, itemsGroup};
+    return { version, module, section, itemsGroup };
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: {updatedAt: Date},
-    section: {updatedAt: Date},
+    module: { updatedAt: Date },
+    section: { updatedAt: Date },
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -109,6 +109,7 @@ export class ItemService extends BaseService {
     )) as CourseVersion; // Assuming version has _id
   }
 
+  //Lets update this api with queue later
   public async createItem(
     versionId: string,
     moduleId: string,
@@ -118,7 +119,7 @@ export class ItemService extends BaseService {
     return this._withTransaction(async session => {
       //Step 1: Fetch and validate parent entities (version, module, section) and the itemsGroup.
 
-      const {version, module, section, itemsGroup} =
+      const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
@@ -162,18 +163,16 @@ export class ItemService extends BaseService {
         versionId,
         session,
       );
-      for (const enrollment of enrollments) {
-        const userId = enrollment?.userId?.toString();
-        // helper to update progress
-        await this.progressService.updateEnrollmentProgressPercent(
-          userId,
-          courseId,
-          versionId,
-          session,
-          false, // flag for reset progress percent to 0
-          version.totalItems,
-        );
-      }
+
+      await this.progressService.updateEnrollmentProgressPercentBulk(
+        enrollments,
+        courseId,
+        versionId,
+        version.totalItems,
+        session,
+
+      );
+
 
       //Step 5: Create a new ItemDB instance to represent the item in the itemsGroup.
       const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
@@ -207,7 +206,7 @@ export class ItemService extends BaseService {
     moduleId: string,
     sectionId: string,
   ): Promise<ItemRef[]> {
-    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
@@ -290,8 +289,8 @@ export class ItemService extends BaseService {
             userId,
             courseId,
             versionId,
-            session, 
-            false, 
+            session,
+            false,
             version.totalItems
           );
         }
@@ -308,7 +307,7 @@ export class ItemService extends BaseService {
           );
         }
         deleted._id = deleted._id.toString();
-        return {deletedItemId: itemId, itemsGroup: deleted};
+        return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -325,7 +324,7 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const {afterItemId, beforeItemId} = body;
+      const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
@@ -367,7 +366,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
     });
   }
 

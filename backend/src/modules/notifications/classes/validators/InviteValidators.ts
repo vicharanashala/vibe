@@ -51,7 +51,6 @@ class CourseAndVersionId {
 }
 
 class InviteQueryParams {
-
   @IsOptional()
   @IsString()
   @IsIn([
@@ -61,16 +60,17 @@ class InviteQueryParams {
     'EMAIL_FAILED',
     'ALREADY_ENROLLED',
   ])
+  @Transform(({value}) => (value === '' ? undefined : value))
   @JSONSchema({
     description: 'Filter by invite status (e.g., ACCEPTED, PENDING)',
     example: 'PASSED',
   })
-  inviteStatus:
+  inviteStatus?:
     | 'ACCEPTED'
     | 'PENDING'
     | 'CANCELLED'
     | 'EMAIL_FAILED'
-    | 'ALREADY_ENROLLED' ;
+    | 'ALREADY_ENROLLED';
 
   @IsOptional()
   @IsString()
@@ -83,6 +83,7 @@ class InviteQueryParams {
   @IsOptional()
   @IsString()
   @IsIn(['accept_date_desc', 'accept_date_asc'])
+  @Transform(({value}) => (value === '' ? undefined : value))
   @JSONSchema({
     description: 'Sort option (e.g., RECENT, OLDER)',
     example: 'RECENT',
@@ -263,7 +264,11 @@ class InviteResponse {
   @IsInt()
   totalPages?: number;
 
-  constructor(invites: InviteResult[], totalDocuments?: number, totalPages?: number) {
+  constructor(
+    invites: InviteResult[],
+    totalDocuments?: number,
+    totalPages?: number,
+  ) {
     this.invites = invites;
     this.totalDocuments = totalDocuments;
     this.totalPages = totalPages;

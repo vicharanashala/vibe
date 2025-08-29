@@ -485,7 +485,7 @@ export class EnrollmentRepository {
       role,
     });
   }
-
+  /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
     bulkOperations: any[],
     session?: ClientSession,
@@ -518,4 +518,22 @@ export class EnrollmentRepository {
       )
       .toArray();
   }
+
+  /* Update progress percentage for array of users */
+  async bulkUpdateProgressPercents(
+    updates: { enrollmentId: string; percentCompleted: number }[],
+    session?: ClientSession,
+  ): Promise<void> {
+    if (!updates.length) return;
+
+    const operations = updates.map(update => ({
+      updateOne: {
+        filter: { _id: new ObjectId(update.enrollmentId) },
+        update: { $set: { progressPercent: update.percentCompleted } },
+      },
+    }));
+
+    await this.enrollmentCollection.bulkWrite(operations, { session });
+  }
+
 }
