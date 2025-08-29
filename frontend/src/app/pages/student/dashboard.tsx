@@ -70,7 +70,6 @@ function DashboardContent() {
     refetchEnrollments();
   },[refetchEnrollments]);
 
-  console.log("Enrollment data: ", enrollmentsData);
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
@@ -147,7 +146,7 @@ function DashboardContent() {
         </main>
         <aside className="w-full md:w-80">
           <div className="sticky top-6">
-            <DashboardSidebar enrollments={filteredEnrollement} />
+            <DashboardSidebar enrollments={enrollments} />
           </div>
         </aside>
       </div>

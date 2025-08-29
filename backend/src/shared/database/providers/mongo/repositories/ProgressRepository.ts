@@ -156,16 +156,29 @@ class ProgressRepository {
     userId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<void> {
+  ): Promise<{deletedCount: number; remainingCount: number}> {
     await this.init();
-    await this.watchTimeCollection.deleteMany(
+
+    const deleteResult = await this.watchTimeCollection.deleteMany(
       {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
       {session},
     );
+
+    const distinctItems = await this.watchTimeCollection.distinct(
+      'itemId',
+      {userId: new ObjectId(userId)},
+      {session},
+    );
+
+    return {
+      deletedCount: deleteResult.deletedCount ?? 0,
+      remainingCount: distinctItems.length,
+    };
   }
+
   async executeBulkAttemptDelete(
     operations: Array<{deleteOne: {filter: any}}>,
     session?: ClientSession,

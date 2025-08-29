@@ -289,6 +289,7 @@ class ProgressService extends BaseService {
     session?: ClientSession,
     isReset?: boolean,
     totalItemCount?: number,
+    completedItemCount?: number,
   ): Promise<void> {
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
@@ -307,11 +308,13 @@ class ProgressService extends BaseService {
           session,
         ));
 
-      const completedItems = await this.getUserProgressPercentageWithoutTotal(
-        userId,
-        courseId,
-        courseVersionId,
-      );
+      const completedItems =
+        completedItemCount ||
+        (await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        ));
 
       percentCompleted = Math.round(
         (totalItems > 0 ? completedItems / totalItems : 0) * 100,
@@ -1186,21 +1189,35 @@ class ProgressService extends BaseService {
           itemIds.push(item._id as string);
         }
       }
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(
-          userId,
-          itemId,
-          session,
-        );
+        const {deletedCount} =
+          await this.progressRepository.deleteUserWatchTimeByItemId(
+            userId,
+            itemId,
+            session,
+          );
+        deletedWatchTimeCount += deletedCount;
       }
+
+      const updatedCompletedItemCount =
+        completedItemCount - deletedWatchTimeCount || 0;
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // to remove all the quiz related data of the user
@@ -1291,21 +1308,34 @@ class ProgressService extends BaseService {
         itemIds.push(item._id as string);
       }
 
-      // Clear all completed items (watch time) for this user/course/version
-
-      for (const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
           userId,
-          itemId,
+          courseId,
+          courseVersionId,
         );
+      let deletedWatchTimeCount = 0;
+      // Clear all completed items (watch time) for this user/course/version
+      for (const itemId of itemIds) {
+        const {deletedCount} =
+          await this.progressRepository.deleteUserWatchTimeByItemId(
+            userId,
+            itemId,
+          );
+        deletedWatchTimeCount += deletedCount;
       }
+
+      const updatedCompletedItemCount =
+        completedItemCount - deletedWatchTimeCount || 0;
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // to remove all the quiz related data of the user
@@ -1399,12 +1429,21 @@ class ProgressService extends BaseService {
         throw new InternalServerError('New progress could not be calculated');
       }
 
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        );
       // Clear all items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByItemId(
-        userId,
-        itemId,
-        session,
-      );
+      const {deletedCount} =
+        await this.progressRepository.deleteUserWatchTimeByItemId(
+          userId,
+          itemId,
+          session,
+        );
+
+      const updatedCompletedItemCount = completedItemCount - deletedCount || 0;
 
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
@@ -1412,7 +1451,9 @@ class ProgressService extends BaseService {
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // Set progress
