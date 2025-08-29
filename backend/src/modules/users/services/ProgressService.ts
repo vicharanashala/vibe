@@ -1,36 +1,36 @@
-import {Item} from '#courses/classes/transformers/Item.js';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { Item } from '#courses/classes/transformers/Item.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {Progress} from '#users/classes/transformers/Progress.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { Progress } from '#users/classes/transformers/Progress.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {WatchTime} from '../classes/transformers/WatchTime.js';
-import {CompletedProgressResponse} from '../classes/index.js';
+import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import { QUIZZES_TYPES } from '#quizzes/types.js';
+import { WatchTime } from '../classes/transformers/WatchTime.js';
+import { CompletedProgressResponse } from '../classes/index.js';
 import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -282,7 +282,7 @@ class ProgressService extends BaseService {
       item._id.toString(),
     );
   }
-   async updateEnrollmentProgressPercent(
+  async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
     courseVersionId: string,
@@ -322,6 +322,48 @@ class ProgressService extends BaseService {
       session,
     );
   }
+
+  async updateEnrollmentProgressPercentBulk(
+    enrollments: any[],               // pass the enrollments array directly
+    courseId: string,
+    versionId: string,
+    totalItems: number,
+    session?: ClientSession,
+  ) {
+
+    const bulkOps = enrollments.map(enrollment => {
+      const userId = enrollment.userId?.toString();
+
+      return {
+        updateOne: {
+          filter: {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+          },
+          update: {
+            $set: {
+              totalItems,
+              progressPercent: this._calculateProgress(enrollment, totalItems), // helper if needed
+              updatedAt: new Date(),
+            },
+          },
+        },
+      };
+    });
+
+    if (bulkOps.length > 0) {
+      return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
+    }
+    return null;
+  }
+
+  // Helper to calculate progress based on completed items
+  private _calculateProgress(enrollment: any, totalItems: number): number {
+    if (!totalItems || totalItems === 0) return 0;
+    return ((enrollment.completedItems ?? 0) / totalItems) * 100;
+  }
+
 
   private async verifyDetails(
     userId: string | ObjectId,
@@ -1479,4 +1521,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export {ProgressService};
+export { ProgressService };

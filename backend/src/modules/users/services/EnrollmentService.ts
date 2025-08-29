@@ -1,24 +1,24 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {BadRequestError, NotFoundError} from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {ProgressRepository} from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { BadRequestError, NotFoundError } from 'routing-controllers';
+import { ProgressService } from './ProgressService.js';
+import { ProgressRepository } from '#root/shared/index.js';
+import { EnrollmentDataResponse } from '../classes/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -198,7 +198,7 @@ export class EnrollmentService extends BaseService {
         session,
       );
       return result.map(enrollment => {
-        const {userId, ...rest} = enrollment;
+        const { userId, ...rest } = enrollment;
         return {
           ...rest,
           _id: enrollment._id.toString(),
@@ -460,7 +460,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
+                filter: { _id: new ObjectId(enrollment._id) },
                 update: {
                   $set: {
                     percentCompleted,
@@ -477,8 +477,7 @@ export class EnrollmentService extends BaseService {
                   session,
                 );
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${
-                    bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0; // Clear the array
