@@ -27,12 +27,13 @@ import {
   FileText,
   ListChecks,
   MessageSquareText,
-  Workflow
+  Workflow,
+  CircleChevronLeft
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCourseStore } from "@/store/course-store";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -352,7 +353,7 @@ export default function AISectionPage() {
     return youtubeRegex.test(url);
   };
 
-
+  const navigate = useNavigate();
 
   useEffect(() => {
     const allCompletedRunIds: string[] = [];
@@ -2769,6 +2770,10 @@ export default function AISectionPage() {
 
   // Render the AI workflow UI and the quiz question editor
   return (
+    <>
+    <div className="mb-4">
+        <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher/courses/view" })}>Back</Button>
+    </div>
     <div className="max-w-6xl w-full mx-auto px-4">
       {/* AI Section Workflow Inline */}
       <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
@@ -2997,6 +3002,7 @@ export default function AISectionPage() {
 
 
     </div>
+    </>
   );
 }
 
