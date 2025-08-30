@@ -1,8 +1,16 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min, IsString, IsIn } from 'class-validator';
-import { Priority } from './quiz.js';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  IsString,
+  IsIn,
+  isString,
+  IsEnum
+} from 'class-validator';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -329,7 +337,12 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
-export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
+export type EnrollmentRole =
+  | 'INSTRUCTOR'
+  | 'STUDENT'
+  | 'MANAGER'
+  | 'TA'
+  | 'STAFF';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
 // New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
@@ -427,6 +440,16 @@ export interface ICourseSetting {
   settings: ISettings;
 }
 
+export enum SortOrder {
+  ASC = 'asc',
+  DESC = 'desc'
+}
+
+export interface SortOptions {
+  field: string;
+  order: SortOrder;
+}
+
 export class PaginationQuery {
   @IsOptional()
   @Type(() => Number)
@@ -439,6 +462,38 @@ export class PaginationQuery {
   @IsInt()
   @Min(1)
   limit: number = 10;
+}
+
+export class PaginationWithSortQuery extends PaginationQuery {
+  @IsOptional()
+  @IsString()
+  sortField?: string;
+
+  @IsOptional()
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC;
+}
+
+export class EnrollmentFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search: string = '';
+
+  @IsString()
+  @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
+  role: EnrollmentRole;
 }
 
 export class EnrollmentsQuery {
@@ -479,13 +534,13 @@ export interface IUserAnomaly {
 }
 
 export interface AuthenticatedUserEnrollements {
-  courseId: string,
-  versionId: string,
-  role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
+  courseId: string;
+  versionId: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'MANAGER' | 'TA' | 'STAFF';
 }
 
 export interface AuthenticatedUser {
-  userId: string,
-  globalRole: 'admin' | 'user',
-  enrollments: AuthenticatedUserEnrollements[],
+  userId: string;
+  globalRole: 'admin' | 'user';
+  enrollments: AuthenticatedUserEnrollements[];
 }

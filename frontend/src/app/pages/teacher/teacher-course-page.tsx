@@ -1247,9 +1247,9 @@ useEffect(() => {
                           deleteItemAsync({
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+                          refetchVersion();
+                          refetchItems();refetchItem()
+                          });
                           setSelectedEntity(null);
                         }}
                       />

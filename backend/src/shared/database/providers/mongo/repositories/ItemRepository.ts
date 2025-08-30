@@ -323,6 +323,7 @@ export class ItemRepository implements IItemRepository {
       throw new NotFoundError(`Course version ${versionId} not found.`);
     }
 
+    console.log("Version from calculate totalCount: ", version, versionId)
     // Verify that the version belongs to the specified course
     if (version.courseId.toString() !== courseId) {
       throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);

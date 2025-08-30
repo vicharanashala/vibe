@@ -34,6 +34,7 @@ import AISectionPage from '@/app/pages/teacher/AISectionPage';
 import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
+import AnomaliesList from '../pages/teacher/AnomaliesList'
 
 
 // Root route with error and notFound handling
@@ -223,6 +224,13 @@ const teacherCourseFlagsRoute = new Route({
   component: FlaggedList,
 });
 
+// Teacher Course Anomalies route
+const teacherCourseAnomaliesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/anomalies',
+  component: AnomaliesList,
+});
+
 // Teacher Course Invites route
 const teacherCourseInviteRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -333,6 +341,7 @@ const routeTree = rootRoute.addChildren([
     teacherAISectionRoute,
     teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
+    teacherCourseAnomaliesRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

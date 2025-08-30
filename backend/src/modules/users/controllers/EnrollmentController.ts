@@ -1,9 +1,9 @@
 import {
+  EnrollmentFilterQuery,
   EnrollmentRole,
   EnrollmentsQuery,
   IEnrollment,
   IProgress,
-  PaginationQuery,
 } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -183,10 +183,11 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async getUserEnrollments(
-    @QueryParams() query: PaginationQuery,
+    @QueryParams() query: EnrollmentFilterQuery,
     @Ability(getEnrollmentAbility) { user },
   ): Promise<EnrollmentResponse> {
-    const { page, limit } = query;
+
+    const { page, limit, search = "", role } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
 
@@ -194,9 +195,13 @@ export class EnrollmentController {
       userId,
       skip,
       limit,
+      role,
+      search,
     );
+
     const totalDocuments = await this.enrollmentService.countEnrollments(
       userId,
+      role
     );
 
     if (!enrollments || enrollments.length === 0) {
@@ -404,4 +409,18 @@ export class EnrollmentController {
 
     return stats;
   }
+  // @Authorized()
+  // @Patch('/enrollments/progress-percent/initialize')
+  // @HttpCode(200)
+  // @ResponseSchema(ForbiddenError, {
+  //   description: 'User does not have permission to update progress percent',
+  //   statusCode: 403,
+  // })
+  // async initializeProgressPercent(
+  //   @Ability(getEnrollmentAbility) { ability },
+  // ): Promise<void> {
+
+  //   const result = await this.enrollmentService.addProgressPercentToAll(); // default 0%
+
+  // }
 }

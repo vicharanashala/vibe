@@ -50,12 +50,15 @@ import { bufferToHex } from "@/utils/helpers"
 
 // Define types for better TypeScript support
 import type { RawEnrollment } from "@/types/course.types"
+import { components } from "@/types/schema"
+import { useAnomalyStore } from "@/store/anomaly-store"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
+  const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
   const { token } = useAuthStore()
   const {
@@ -63,16 +66,17 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, !!token) // Use pagination with 10 items per page
+  } = useUserEnrollments( currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
+
 
   const enrollments = enrollmentsResponse?.enrollments || []
+
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
-  const filteredEnrollements = enrollments.filter((enrollment) => enrollment.role !== "STUDENT");
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
-  const uniqueCourses = filteredEnrollements.reduce((acc: any[], enrollment: any) => {
+  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
     const courseIdHex = bufferToHex(enrollment.courseId)
     const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
     if (!existingCourse) {
@@ -118,22 +122,6 @@ export default function TeacherCoursesPage() {
     })
   }
 
-  // Loading state
-  if (enrollmentsLoading) {
-    return (
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-xl animate-pulse"></div>
-              <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
-            </div>
-            <span className="ml-3 text-muted-foreground font-medium">Loading your courses...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // Error state
   if (enrollmentsError) {
@@ -159,7 +147,7 @@ export default function TeacherCoursesPage() {
     )
   }
 
-  if (uniqueCourses.length === 0) {
+  if (uniqueCourses.length === 0 && !searchQuery) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -259,7 +247,7 @@ export default function TeacherCoursesPage() {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4" />
-                <span>{filteredCourses.length} courses</span>
+                <span>{uniqueCourses.length} courses</span>
               </div>
             </div>
           </div>
@@ -267,7 +255,20 @@ export default function TeacherCoursesPage() {
 
         {/* Courses List with Beautiful Cards */}
         <div className="space-y-6">
-          {filteredCourses.map((enrollment: any, index: number) => (
+          {
+            enrollmentsLoading ? 
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">
+                Loading courses...
+              </span>
+            </div> : 
+             searchQuery && uniqueCourses.length === 0 ? (
+              <div className="flex items-center justify-center text-muted-foreground">
+                No courses found.
+              </div>
+            ) : 
+           filteredCourses.map((enrollment: any, index: number) => (
             <div
               key={enrollment._id}
               className="animate-in slide-in-from-bottom-4 duration-500"
@@ -275,7 +276,6 @@ export default function TeacherCoursesPage() {
             >
               <CourseCard
                 enrollment={enrollment}
-                searchQuery={searchQuery}
                 onInvalidate={invalidateAllQueries}
               />
             </div>
@@ -303,11 +303,9 @@ export default function TeacherCoursesPage() {
 
 function CourseCard({
   enrollment,
-  searchQuery,
   onInvalidate,
 }: {
   enrollment: RawEnrollment
-  searchQuery: string
   onInvalidate: () => void
 }) {
   const [showNewVersionForm, setShowNewVersionForm] = useState(false)
@@ -334,17 +332,17 @@ function CourseCard({
   const createVersionMutation = useCreateCourseVersion()
   const deleteVersionMutation = useDeleteCourseVersion()
 
-  // Fetch full course data
-  const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex)
-  // Filter based on search query
-  const matchesSearch =
-    !searchQuery ||
-    course?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course?.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
-  if (!matchesSearch) {
-    return null
-  }
+  // 1. Use course from enrollment if available
+  const localCourse = enrollment?.course;
+  const localCourseVersionDetails = enrollment?.course?.versionDetails
+  // 2. Fetch from API only if not present in enrollment
+  const { data: fetchedCourse, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex,
+    !localCourse ? true : false
+  );
+
+  // 3. Choose final course value
+  const course = localCourse || fetchedCourse;
 
   if (courseLoading) {
     return (
@@ -767,8 +765,23 @@ function CourseCard({
               )}
 
               {/* Display All Versions */}
-              <div className="space-y-3">
-                {course.versions && course.versions.length > 0 ? (
+             <div className="space-y-3">
+                {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
+                  localCourseVersionDetails.map((versionData, index: number) => (
+                    <div
+                      key={versionData.id}
+                      className="animate-in slide-in-from-left-4 duration-500"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <VersionCard
+                        versionData={versionData}
+                        courseId={courseIdHex}
+                        onInvalidate={onInvalidate}
+                        deleteVersionMutation={deleteVersionMutation}
+                      />
+                    </div>
+                  ))
+                ) : course.versions && course.versions.length > 0 ? (
                   course.versions.map((versionId: string, index: number) => (
                     <div
                       key={versionId}
@@ -801,6 +814,7 @@ function CourseCard({
                   </div>
                 )}
               </div>
+
             </div>
           </CardContent>
         )}
@@ -811,12 +825,14 @@ function CourseCard({
 
 // Separate component for individual version cards
 function VersionCard({
-  versionId,
+  versionData,
+  versionId = "",
   courseId,
   onInvalidate,
   deleteVersionMutation,
 }: {
-  versionId: string
+  versionData?:  components['schemas']['CourseVersionDataResponse'];
+  versionId?: string
   courseId: string
   onInvalidate: () => void
   deleteVersionMutation: any
@@ -826,9 +842,14 @@ function VersionCard({
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
+  const { setCurrentAnomaly } = useAnomalyStore();
 
   // Fetch individual version data
-  const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId)
+  const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
+
+  const version = versionData || fetchedVersion;
+
+  const selectedVersionId = version?.id;
 
   const deleteVersion = async () => {
     if (!confirm("Are you sure you want to delete this version? This action cannot be undone.")) {
@@ -837,12 +858,12 @@ function VersionCard({
 
     try {
       await deleteVersionMutation.mutateAsync({
-        params: { path: { courseId: courseId, versionId: versionId } },
+        params: { path: { courseId: courseId, versionId: selectedVersionId } },
       })
 
       // Invalidate the specific version query
       queryClient.invalidateQueries({
-        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: versionId } } }],
+        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: selectedVersionId } } }],
       })
 
       // Invalidate the course query to refresh versions list
@@ -860,7 +881,7 @@ function VersionCard({
     // Set course info in store and navigate to enrollments page
     setCurrentCourse({
       courseId: courseId,
-      versionId: versionId,
+      versionId: selectedVersionId ? selectedVersionId : null,
       moduleId: null,
       sectionId: null,
       itemId: null,
@@ -875,7 +896,7 @@ function VersionCard({
     // Set course info in store and navigate to enrollments page
     setCurrentCourseFlag({
       courseId: courseId,
-      versionId: versionId,
+      versionId: selectedVersionId ? selectedVersionId : null,
       moduleId: null,
       sectionId: null,
       itemId: null,
@@ -885,11 +906,24 @@ function VersionCard({
       to: "/teacher/courses/flags/list",
     })
   }
+  const viewAnomalies = () => {
+    setCurrentAnomaly({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null
+    });
+    navigate({
+      to: "/teacher/courses/anomalies/list"
+    });
+  }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
     setCurrentCourse({
       courseId: courseId,
-      versionId: versionId,
+      versionId: selectedVersionId ? selectedVersionId : null,
       moduleId: null,
       sectionId: null,
       itemId: null,
@@ -904,7 +938,7 @@ function VersionCard({
     // Set course info in store and navigate to course content
     setCurrentCourse({
       courseId: courseId,
-      versionId: versionId,
+      versionId: selectedVersionId ? selectedVersionId : null,
       moduleId: null,
       sectionId: null,
       itemId: null,
@@ -956,6 +990,10 @@ function VersionCard({
             </div>
 
             <div className="flex items-center flex-wrap gap-2 shrink-0 mt-2 lg:mt-0">
+              <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                <Eye className="h-3 w-3 mr-1" />
+                View Anomalies
+              </Button>
               <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                 <FlagTriangleRight className="h-3 w-3 mr-1" />
                 View Flags

@@ -303,6 +303,80 @@ export interface QuizSubmissionResponseUpdated {
   gradingResult?: IGradingResult;
 }
 
+// Anomalies hooks
+export interface Anomaly {
+  id: string;
+  _id?: string;
+  studentName: string;
+  studentId: string;
+  studentEmail: string;
+  type: string;
+  description?: string;
+  courseId: string;
+  versionId: string;
+  itemId?: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+  date: string;
+  status: 'Pending' | 'Investigated' | 'Resolved';
+}
+
+export function useAnomaliesByCourseItem(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  sortField?: string,
+  sortOrder: 'asc' | 'desc' = 'desc'
+): {
+  data: Anomaly[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  total: number;
+  page: number;
+  totalPages: number;
+} {
+  const result: any = api.useQuery(
+    "get",
+    "/anomalies/course/{courseId}/version/{versionId}",
+    {
+      params: {
+        path: {
+          courseId: courseId || "",
+          versionId: versionId || ""
+        },
+        query: {
+          page,
+          limit,
+          sortField,
+          sortOrder
+        }
+      }
+    },
+    {
+      enabled: !!courseId && !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+
+  const data = Array.isArray(result?.data?.data) ? result?.data?.data : [];
+  const total = result?.data?.totalDocuments || 0;
+  const totalPages = result?.data?.totalPages || 1;
+
+  return {
+    data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch anomalies') : null,
+    refetch: result.refetch,
+    total,
+    page,
+    totalPages
+  };
+}
+
 // Auth hooks
 
 // POST /auth/verify
@@ -455,15 +529,20 @@ export async function useProcessInvites(inviteId: string): Promise<{
 }
 
 // GET /courses/{id}
-export function useCourseById(id: string): {
+export function useCourseById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+
+  const enabledOptions = enabled !== undefined
+    ? { enabled: !!id && enabled }
+    : undefined;
+
   const result = api.useQuery("get", "/courses/{id}", {
     params: { path: { id } }
-  }, { enabled: !!id });
+  }, enabledOptions);
 
   return {
     data: result.data,
@@ -538,15 +617,20 @@ export function useCreateCourseVersion(): {
 }
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string): {
+export function useCourseVersionById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+
+  const enabledOptions = enabled !== undefined
+    ? { enabled: !!id && enabled }
+    : undefined;
+
   const result = api.useQuery("get", "/courses/versions/{id}", {
     params: { path: { id } }
-  }, { enabled: !!id }
+  }, enabledOptions
   );
 
   return {
@@ -934,7 +1018,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true): {
+export function useUserEnrollments( page?: number, limit?: number, enabled: boolean = true, search?:string, role = "STUDENT" ): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -942,7 +1026,7 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
-      query: { page, limit }
+      query: { page, limit, search, role }
     },
     enabled: enabled
   });
@@ -1283,14 +1367,14 @@ export function useInviteUsers(): {
   };
 }
 
-export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true): {
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search:string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId } },
+    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus} },
     enabled: enabled
   });
 

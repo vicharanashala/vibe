@@ -1,4 +1,8 @@
-import { IEnrollment, IProgress } from '#shared/interfaces/models.js';
+import {
+  EnrollmentRole,
+  IEnrollment,
+  IProgress,
+} from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
@@ -49,16 +53,10 @@ export class EnrollmentRepository {
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
 
-    // temp: Try both userId as string and ObjectId (if valid)
-    const userFilter = [
-      userId,
-      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
-    ].filter(Boolean);
-
-    // const userObjectid = new ObjectId(userId)
+    const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection.findOne({
-      userId: { $in: userFilter },
+      userId: userObjectid,
       courseId: courseObjectId,
       courseVersionId: courseVersionObjectId,
     });
@@ -191,23 +189,99 @@ export class EnrollmentRepository {
   /**
    * Get paginated enrollments for a user
    */
-  async getEnrollments(userId: string, skip: number, limit: number) {
-    await this.init();
+  async getEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    search: string,
+    role: EnrollmentRole,
+    session?: ClientSession,
+  ) {
+    try {
+      await this.init();
+      const userObjectId = new ObjectId(userId);
+      const aggregationPipeline: any[] = [
+        { $match: { userId: userObjectId, role } },
+        {
+          $lookup: {
+            from: 'newCourse',
+            localField: 'courseId',
+            foreignField: '_id',
+            as: 'course',
+          },
+        },
+        { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            'course.versions': {
+              $map: {
+                input: '$course.versions',
+                as: 'v',
+                in: { $toObjectId: '$$v' },
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'course.versions',
+            foreignField: '_id',
+            as: 'course.versionDetails',
+          },
+        },
+        {
+          $set: {
+            'course.versionDetails': {
+              $map: {
+                input: '$course.versionDetails',
+                as: 'version',
+                in: {
+                  $mergeObjects: [
+                    '$$version',
+                    { id: { $toString: '$$version._id' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $unset: 'course.versionDetails._id',
+        },
+        {
+          $set: {
+            'course.versions': {
+              $map: {
+                input: '$course.versions',
+                as: 'v',
+                in: { $toString: '$$v' },
+              },
+            },
+          },
+        },
+      ];
 
-    // temp: Try both userId as string and ObjectId (if valid)
-    const userFilter = [
-      userId,
-      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
-    ].filter(Boolean);
+      // Only add search filter if search is provided
+      if (search && search.trim()) {
+        aggregationPipeline.push({
+          $match: { 'course.name': { $regex: search, $options: 'i' } },
+        });
+      }
 
-    // const userObjectid = new ObjectId(userId)
+      aggregationPipeline.push(
+        { $sort: { enrollmentDate: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      );
 
-    return await this.enrollmentCollection
-      .find({ userId: { $in: userFilter } })
-      .skip(skip)
-      .limit(limit)
-      .sort({ enrollmentDate: -1 })
-      .toArray();
+      return await this.enrollmentCollection
+        .aggregate(aggregationPipeline)
+        .toArray();
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerError(`Failed to get enrollments /More ${error}`);
+    }
   }
 
   async getAllEnrollments(userId: string, session?: ClientSession) {
@@ -225,6 +299,11 @@ export class EnrollmentRepository {
       .find({ userId: { $in: userFilter } }, { session })
       .sort({ enrollmentDate: -1 })
       .toArray();
+  }
+
+  async getAllExisitingEnrollments(session?: ClientSession) {
+    await this.init();
+    return await this.enrollmentCollection.find({}, { session }).toArray();
   }
 
   async getCourseVersionEnrollments(
@@ -331,7 +410,6 @@ export class EnrollmentRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<EnrollmentStats> {
-
     const [result] = await this.enrollmentCollection
       .aggregate<{
         totalEnrollments: number;
@@ -351,12 +429,12 @@ export class EnrollmentRepository {
               totalEnrollments: { $sum: 1 },
               completedCount: {
                 $sum: {
-                  $cond: [{ $gte: ["$percentCompleted", 100] }, 1, 0],
+                  $cond: [{ $gte: ['$percentCompleted', 100] }, 1, 0],
                 },
               },
               totalProgress: {
                 $sum: {
-                  $multiply: [{ $ifNull: ["$percentCompleted", 0] }, 1],
+                  $multiply: [{ $ifNull: ['$percentCompleted', 0] }, 1],
                 },
               },
             },
@@ -368,45 +446,46 @@ export class EnrollmentRepository {
               completedCount: 1,
               averageProgressPercent: {
                 $cond: [
-                  { $gt: ["$totalEnrollments", 0] },
-                  { $round: [{ $divide: ["$totalProgress", "$totalEnrollments"] }, 1] },
+                  { $gt: ['$totalEnrollments', 0] },
+                  {
+                    $round: [
+                      { $divide: ['$totalProgress', '$totalEnrollments'] },
+                      1,
+                    ],
+                  },
                   0,
                 ],
               },
             },
           },
         ],
-        { session }
+        { session },
       )
       .toArray();
 
-
-    return result || {
-      totalEnrollments: 0,
-      completedCount: 0,
-      averageProgressPercent: 0
-    };
+    return (
+      result || {
+        totalEnrollments: 0,
+        completedCount: 0,
+        averageProgressPercent: 0,
+      }
+    );
   }
 
   /**
    * Count total enrollments for a user
    */
-  async countEnrollments(userId: string) {
+  async countEnrollments(userId: string, role: EnrollmentRole) {
     await this.init();
 
-    // temp: Try both userId as string and ObjectId (if valid)
-    const userFilter = [
-      userId,
-      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
-    ].filter(Boolean);
-
-    // const userObjectid = new ObjectId(userId)
+    const userObjectid = new ObjectId(userId);
 
     return await this.enrollmentCollection.countDocuments({
-      userId: { $in: userFilter },
+      userId: userObjectid,
+      role,
     });
   }
-
+  /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
     bulkOperations: any[],
     session?: ClientSession,
@@ -439,4 +518,22 @@ export class EnrollmentRepository {
       )
       .toArray();
   }
+
+  /* Update progress percentage for array of users */
+  async bulkUpdateProgressPercents(
+    updates: { enrollmentId: string; percentCompleted: number }[],
+    session?: ClientSession,
+  ): Promise<void> {
+    if (!updates.length) return;
+
+    const operations = updates.map(update => ({
+      updateOne: {
+        filter: { _id: new ObjectId(update.enrollmentId) },
+        update: { $set: { progressPercent: update.percentCompleted } },
+      },
+    }));
+
+    await this.enrollmentCollection.bulkWrite(operations, { session });
+  }
+
 }

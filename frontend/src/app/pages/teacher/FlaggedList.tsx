@@ -49,7 +49,7 @@ export default function FlaggedList() {
   const versionId = currentCourseFlag?.versionId
 
   if (!currentCourseFlag || !courseId || !versionId) {
-    navigate({ to: '/teacher/courses/list' });
+    navigate({ to: '/teacher' });
     return null
   }
   const [currentPage, setCurrentPage] = useState(1)

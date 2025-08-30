@@ -282,12 +282,14 @@ class ProgressService extends BaseService {
       item._id.toString(),
     );
   }
-  private async updateEnrollmentProgressPercent(
+  async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
     isReset?: boolean,
+    totalItemCount?: number,
+    completedItemCount?: number,
   ): Promise<void> {
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
@@ -298,17 +300,21 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     if (!isReset) {
-      const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-        courseId,
-        courseVersionId,
-        session,
-      );
+      const totalItems =
+        totalItemCount ||
+        (await this.itemRepo.CalculateTotalItemsCount(
+          courseId,
+          courseVersionId,
+          session,
+        ));
 
-      const completedItems = await this.getUserProgressPercentageWithoutTotal(
-        userId,
-        courseId,
-        courseVersionId,
-      );
+      const completedItems =
+        completedItemCount ||
+        (await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        ));
 
       percentCompleted = Math.round(
         (totalItems > 0 ? completedItems / totalItems : 0) * 100,
@@ -320,6 +326,46 @@ class ProgressService extends BaseService {
       percentCompleted,
       session,
     );
+  }
+
+  async updateEnrollmentProgressPercentBulk(
+    enrollments: any[], // pass the enrollments array directly
+    courseId: string,
+    versionId: string,
+    totalItems: number,
+    session?: ClientSession,
+  ) {
+    const bulkOps = enrollments.map(enrollment => {
+      const userId = enrollment.userId?.toString();
+
+      return {
+        updateOne: {
+          filter: {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+          },
+          update: {
+            $set: {
+              totalItems,
+              progressPercent: this._calculateProgress(enrollment, totalItems), // helper if needed
+              updatedAt: new Date(),
+            },
+          },
+        },
+      };
+    });
+
+    if (bulkOps.length > 0) {
+      return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
+    }
+    return null;
+  }
+
+  // Helper to calculate progress based on completed items
+  private _calculateProgress(enrollment: any, totalItems: number): number {
+    if (!totalItems || totalItems === 0) return 0;
+    return ((enrollment.completedItems ?? 0) / totalItems) * 100;
   }
 
   private async verifyDetails(
@@ -920,6 +966,46 @@ class ProgressService extends BaseService {
     });
   }
 
+  // helper to reset quiz realted data
+  private async resetUserQuizData(
+    userId: string,
+    quizItemIds: string[],
+    session: ClientSession,
+  ): Promise<void> {
+    if (!quizItemIds.length) return;
+
+    // Fetch all quizzes in one go
+    const quizzes = await this.quizRepo.getByIds(quizItemIds);
+    const maxAttemptsMap = quizzes.reduce((acc, quiz) => {
+      acc[quiz._id.toString()] = quiz?.details?.maxAttempts || 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Collect attemptIds to delete and bulk ops for all collections
+    const {attemptDeletes, metricsUpdates, submissionDeletes} =
+      await this.progressRepository.prepareBulkQuizOperations(
+        userId,
+        quizItemIds,
+        maxAttemptsMap,
+        session,
+      );
+
+    // Perform bulk operations per collection
+    await this.progressRepository.executeBulkAttemptDelete(
+      attemptDeletes,
+      session,
+    );
+    await this.userQuizMetricsRepository.executeBulkMetricsReset(
+      metricsUpdates,
+      session,
+    );
+    await this.submissionRepository.executeBulkSubmissionDelete(
+      userId,
+      submissionDeletes,
+      session,
+    );
+  }
+
   // Admin Level Endpoint
   async resetCourseProgress(
     userId: string,
@@ -989,33 +1075,8 @@ class ProgressService extends BaseService {
       // delete all the submissions of the user
 
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1128,54 +1189,41 @@ class ProgressService extends BaseService {
           itemIds.push(item._id as string);
         }
       }
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(
-          userId,
-          itemId,
-          session,
-        );
+        const {deletedCount} =
+          await this.progressRepository.deleteUserWatchTimeByItemId(
+            userId,
+            itemId,
+            session,
+          );
+        deletedWatchTimeCount += deletedCount;
       }
+
+      const updatedCompletedItemCount =
+        completedItemCount - deletedWatchTimeCount || 0;
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1260,54 +1308,40 @@ class ProgressService extends BaseService {
         itemIds.push(item._id as string);
       }
 
-      // Clear all completed items (watch time) for this user/course/version
-
-      for (const itemId of itemIds) {
-        await this.progressRepository.deleteUserWatchTimeByItemId(
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
           userId,
-          itemId,
+          courseId,
+          courseVersionId,
         );
+      let deletedWatchTimeCount = 0;
+      // Clear all completed items (watch time) for this user/course/version
+      for (const itemId of itemIds) {
+        const {deletedCount} =
+          await this.progressRepository.deleteUserWatchTimeByItemId(
+            userId,
+            itemId,
+          );
+        deletedWatchTimeCount += deletedCount;
       }
+
+      const updatedCompletedItemCount =
+        completedItemCount - deletedWatchTimeCount || 0;
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // to remove all the quiz related data of the user
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Set progress
@@ -1377,34 +1411,8 @@ class ProgressService extends BaseService {
       }
 
       if (quizItemIds.length) {
-        // deleting quiz attempts
-        for (const quizId of quizItemIds) {
-          const quiz = await this.quizRepo.getById(quizId);
-          const maxAttempts = quiz?.details?.maxAttempts;
-          const deletedAttemptIds =
-            await this.progressRepository.deleteUserQuizAttemptsByCourseVersion(
-              userId,
-              quizId,
-              session,
-            );
-
-          if (!deletedAttemptIds.length) continue;
-
-          // pull attempts from quiz metrics
-          await this.userQuizMetricsRepository.resetUserMetrics(
-            userId,
-            quizId,
-            maxAttempts,
-            session,
-          );
-
-          // removing the all the user submissions
-          await this.submissionRepository.removeByAttemptIds(
-            userId,
-            deletedAttemptIds,
-            session,
-          );
-        }
+        // deleting quiz related data
+        await this.resetUserQuizData(userId, quizItemIds, session);
       }
 
       // Get the new progress after resetting to the item
@@ -1421,12 +1429,21 @@ class ProgressService extends BaseService {
         throw new InternalServerError('New progress could not be calculated');
       }
 
+      const completedItemCount =
+        await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+        );
       // Clear all items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByItemId(
-        userId,
-        itemId,
-        session,
-      );
+      const {deletedCount} =
+        await this.progressRepository.deleteUserWatchTimeByItemId(
+          userId,
+          itemId,
+          session,
+        );
+
+      const updatedCompletedItemCount = completedItemCount - deletedCount || 0;
 
       // for updating enrollment progress percent
       await this.updateEnrollmentProgressPercent(
@@ -1434,7 +1451,9 @@ class ProgressService extends BaseService {
         courseId,
         courseVersionId,
         session,
-        true,
+        false,
+        undefined,
+        updatedCompletedItemCount,
       );
 
       // Set progress

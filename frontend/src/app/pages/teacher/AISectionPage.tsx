@@ -27,12 +27,13 @@ import {
   FileText,
   ListChecks,
   MessageSquareText,
-  Workflow
+  Workflow,
+  CircleChevronLeft
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCourseStore } from "@/store/course-store";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -302,8 +303,7 @@ export default function AISectionPage() {
   const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
   const [expandedAccordionItems, setExpandedAccordionItems] = useState<string[]>([]);
   const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
-
-
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
 
   // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -353,7 +353,7 @@ export default function AISectionPage() {
     return youtubeRegex.test(url);
   };
 
-
+  const navigate = useNavigate();
 
   useEffect(() => {
     const allCompletedRunIds: string[] = [];
@@ -452,6 +452,8 @@ export default function AISectionPage() {
       toast.error("Missing course or version information");
       return;
     }
+    
+    setIsCreatingJob(true);
     try {
       const { jobId } = await aiSectionAPI.createJob({
         videoUrl: youtubeUrl,
@@ -467,6 +469,8 @@ export default function AISectionPage() {
       // Do NOT start audio extraction here. Wait for user to click Transcription button.
     } catch (error) {
       toast.error("Failed to create AI job. Please try again.");
+    } finally {
+      setIsCreatingJob(false);
     }
   };
 
@@ -1008,11 +1012,11 @@ export default function AISectionPage() {
           {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING')) ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING')) ||
-            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING')) ||
-            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING')) ||
-            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING'))
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.transcriptGeneration !== 'FAILED') ||
+            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING') && accordionAiJobStatus?.jobStatus?.segmentation !== 'FAILED') ||
+            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.questionGeneration !== 'FAILED') ||
+            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING') && accordionAiJobStatus?.jobStatus?.uploadContent !== 'FAILED')
           ) && (
               <Button
                 onClick={() => handleStopTask(task)}
@@ -2766,6 +2770,10 @@ export default function AISectionPage() {
 
   // Render the AI workflow UI and the quiz question editor
   return (
+    <>
+    <div className="mb-4">
+        <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher/courses/view" })}>Back</Button>
+    </div>
     <div className="max-w-6xl w-full mx-auto px-4">
       {/* AI Section Workflow Inline */}
       <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
@@ -2795,10 +2803,19 @@ export default function AISectionPage() {
             </div>
             <Button
               onClick={handleCreateJob}
-              disabled={!youtubeUrl || !!aiJobId}
+              disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
               className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
             >
-              {aiJobId ? "Job Created" : "Create AI Job"}
+              {isCreatingJob ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Creating Job...
+                </>
+              ) : aiJobId ? (
+                "Job Created"
+              ) : (
+                "Create AI Job"
+              )}
             </Button>
           </div>
 
@@ -2985,6 +3002,7 @@ export default function AISectionPage() {
 
 
     </div>
+    </>
   );
 }
 

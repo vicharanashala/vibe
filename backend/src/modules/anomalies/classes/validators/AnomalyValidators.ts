@@ -1,7 +1,8 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
 import { AnomalyType, FileType, IAnomalyData } from "../../index.js";
 import { ObjectId } from "mongodb";
+import { SortOrder, PaginationWithSortQuery } from '#root/shared/interfaces/models.js';
 
 export class NewAnomalyData {
   @JSONSchema({
@@ -58,6 +59,27 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   @IsMongoId()
   @IsString()
   userId: string;
+
+  @JSONSchema({
+    description: 'Full name of the student who triggered the anomaly',
+    type: 'string',
+    readOnly: true,
+    example: 'John Doe'
+  })
+  @IsOptional()
+  @IsString()
+  studentName?: string;
+
+  @JSONSchema({
+    description: 'Email of the student who triggered the anomaly',
+    type: 'string',
+    format: 'email',
+    readOnly: true,
+    example: 'john.doe@example.com'
+  })
+  @IsOptional()
+  @IsEmail()
+  studentEmail?: string;
 
   @JSONSchema({
     description: 'URL of the anomaly image stored in cloud storage',
@@ -192,3 +214,5 @@ export class StatsQueryParams {
   @IsString()
   userId?: string;
 }
+
+export { SortOrder, PaginationWithSortQuery };
