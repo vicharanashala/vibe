@@ -20,7 +20,8 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   const navigate = useNavigate();
 
   // Use real progress data or fallback to 0
-  const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
+  // const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
+  const progress = enrollment.percentCompleted || 0
   const totalLessons = progressData?.totalItems || 0;
   const completedLessons = progressData?.completedItems || 0;
   const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;

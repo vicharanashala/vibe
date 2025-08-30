@@ -13,8 +13,9 @@ class AttemptRepository {
   ) {}
 
   private async init() {
-    this.attemptCollection =
-      await this.db.getCollection<IAttempt>('quiz_attempts');
+    this.attemptCollection = await this.db.getCollection<IAttempt>(
+      'quiz_attempts',
+    );
   }
 
   public async create(attempt: IAttempt, session?: ClientSession) {
@@ -25,12 +26,19 @@ class AttemptRepository {
     }
     throw new InternalServerError('Failed to create quiz attempt');
   }
-  public async getById(attemptId: string, quizId: string, session: ClientSession): Promise<IAttempt | null> {
+  public async getById(
+    attemptId: string,
+    quizId: string,
+    session: ClientSession,
+  ): Promise<IAttempt | null> {
     await this.init();
-    const result = await this.attemptCollection.findOne({
-      _id: new ObjectId(attemptId),
-      quizId: quizId,
-    }, {session});
+    const result = await this.attemptCollection.findOne(
+      {
+        _id: new ObjectId(attemptId),
+        quizId: quizId,
+      },
+      {session},
+    );
     if (!result) {
       return null;
     }
@@ -76,11 +84,17 @@ class AttemptRepository {
   ): Promise<number> {
     await this.init();
     const filter = {
-      'questionDetails.questionId': { $in: [questionId, new ObjectId(questionId)] },
+      'questionDetails.questionId': {
+        $in: [questionId, new ObjectId(questionId)],
+      },
     } as any;
-    const count = await this.attemptCollection.countDocuments(filter, {session});
+    const count = await this.attemptCollection.countDocuments(filter, {
+      session,
+    });
     return count;
   }
+
+
 
   public async countDistinctUsersByQuestionId(
     questionId: string,
@@ -88,9 +102,15 @@ class AttemptRepository {
   ): Promise<number> {
     await this.init();
     const filter = {
-      'questionDetails.questionId': { $in: [questionId, new ObjectId(questionId)] },
+      'questionDetails.questionId': {
+        $in: [questionId, new ObjectId(questionId)],
+      },
     } as any;
-    const distinctUsers = await this.attemptCollection.distinct('userId', filter, {session});
+    const distinctUsers = await this.attemptCollection.distinct(
+      'userId',
+      filter,
+      {session},
+    );
     return distinctUsers.length;
   }
 }
