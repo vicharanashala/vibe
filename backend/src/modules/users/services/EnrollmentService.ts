@@ -197,19 +197,82 @@ export class EnrollmentService extends BaseService {
         role,
         session,
       );
-      return result.map(enrollment => {
-        const { userId, ...rest } = enrollment;
-        return {
-          ...rest,
-          _id: enrollment._id.toString(),
-          courseId: enrollment.courseId.toString(),
-          courseVersionId: enrollment.courseVersionId.toString(),
-          role: enrollment.role,
-          status: enrollment.status,
-          enrollmentDate: new Date(enrollment.enrollmentDate),
-          course: enrollment.course,
-        };
-      });
+      
+      const enrollmentsWithContentCounts = await Promise.all(
+        result.map(async (enrollment:any) => {
+          const { userId, ...rest } = enrollment;
+          
+          const contentCounts = await this.getContentCounts(
+            enrollment.courseVersionId.toString(),
+            session,
+          );
+          
+          return {
+            ...rest,
+            _id: enrollment._id.toString(),
+            courseId: enrollment.courseId.toString(),
+            courseVersionId: enrollment.courseVersionId.toString(),
+            role: enrollment.role,
+            status: enrollment.status,
+            enrollmentDate: new Date(enrollment.enrollmentDate),
+            course: enrollment.course,
+            contentCounts,
+          };
+        })
+      );
+      
+      return enrollmentsWithContentCounts;
+    });
+  }
+
+  async getContentCounts(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{ videos: number; quizzes: number; articles: number }> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      
+      if (!courseVersion) {
+        return { videos: 0, quizzes: 0, articles: 0 };
+      }
+
+      let videoCount = 0;
+      let quizCount = 0;
+      let articleCount = 0;
+
+      for (const module of courseVersion.modules) {
+        for (const section of module.sections) {
+          const itemsGroup = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+          
+          if (itemsGroup && itemsGroup.items) {
+            for (const item of itemsGroup.items) {
+              switch (item.type) {
+                case 'VIDEO':
+                  videoCount++;
+                  break;
+                case 'QUIZ':
+                  quizCount++;
+                  break;
+                case 'BLOG':
+                  articleCount++;
+                  break;
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        videos: videoCount,
+        quizzes: quizCount,
+        articles: articleCount,
+      };
     });
   }
 
