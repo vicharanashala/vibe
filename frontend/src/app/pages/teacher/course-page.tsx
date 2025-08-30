@@ -255,30 +255,30 @@ export default function TeacherCoursesPage() {
         {/* Courses List with Beautiful Cards */}
         <div className="space-y-6">
           {
-            enrollmentsLoading ? 
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">
-                Loading courses...
-              </span>
-            </div> : 
-             searchQuery && uniqueCourses.length === 0 ? (
-              <div className="flex items-center justify-center text-muted-foreground">
-                No courses found.
-              </div>
-            ) : 
-           filteredCourses.map((enrollment: any, index: number) => (
-            <div
-              key={enrollment._id}
-              className="animate-in slide-in-from-bottom-4 duration-500"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <CourseCard
-                enrollment={enrollment}
-                onInvalidate={invalidateAllQueries}
-              />
-            </div>
-          ))}
+            enrollmentsLoading ?
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">
+                  Loading courses...
+                </span>
+              </div> :
+              searchQuery && uniqueCourses.length === 0 ? (
+                <div className="flex items-center justify-center text-muted-foreground">
+                  No courses found.
+                </div>
+              ) :
+                filteredCourses.map((enrollment: any, index: number) => (
+                  <div
+                    key={enrollment._id}
+                    className="animate-in slide-in-from-bottom-4 duration-500"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <CourseCard
+                      enrollment={enrollment}
+                      onInvalidate={invalidateAllQueries}
+                    />
+                  </div>
+                ))}
         </div>
 
         {/* Pagination with Enhanced Design */}
@@ -764,7 +764,7 @@ function CourseCard({
               )}
 
               {/* Display All Versions */}
-             <div className="space-y-3">
+              <div className="space-y-3">
                 {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
                   localCourseVersionDetails.map((versionData, index: number) => (
                     <div
@@ -963,86 +963,96 @@ function VersionCard({
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
         <CardContent className="p-4">
-          <div className="lg:flex items-start justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-start justify-between gap-4">
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center gap-3">
                 <h4 className="font-semibold text-foreground">{version.version}</h4>
                 <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
                   Version
                 </Badge>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                    <BookOpen className="h-3 w-3" />
+                    <span>{(version as any).modules?.length || 0} Modules</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                    <FileText className="h-3 w-3" />
+                    <span>
+                      {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{version.description}</p>
+
+              <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
+                <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
+                  <FlagTriangleRight className="h-3 w-3 mr-1" />
+                  View Flags
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewEnrollments}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  View Enrollments
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={sendInvites}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Send Invites
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewCourse}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deleteVersion}
+                  className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
+                  disabled={deleteVersionMutation.isPending}
+                >
+                  {deleteVersionMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3 mr-1" />
+                  )}
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowProctoringModal(true)
+                  }}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Settings
+                </Button>
+              </div>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2 shrink-0 mt-2 lg:mt-0">
-              <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
-                <FlagTriangleRight className="h-3 w-3 mr-1" />
-                View Flags
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={viewEnrollments}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-              >
-                <Users className="h-3 w-3 mr-1" />
-                View Enrollments
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={sendInvites}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-              >
-                <Users className="h-3 w-3 mr-1" />
-                Send Invites
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={viewCourse}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                View
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={deleteVersion}
-                className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                disabled={deleteVersionMutation.isPending}
-              >
-                {deleteVersionMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3 mr-1" />
-                )}
-                Delete
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowProctoringModal(true)
-                }}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                Settings
-              </Button>
-            </div>
+            <ProctoringModal
+              open={showProctoringModal}
+              onClose={() => setShowProctoringModal(false)}
+              courseId={courseId}
+              courseVersionId={versionId}
+              isNew={false}
+            />
           </div>
-
-          <ProctoringModal
-            open={showProctoringModal}
-            onClose={() => setShowProctoringModal(false)}
-            courseId={courseId}
-            courseVersionId={versionId}
-            isNew={false}
-          />
-
         </CardContent>
       </Card>
     </div>

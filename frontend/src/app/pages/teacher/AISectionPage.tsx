@@ -287,6 +287,16 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
 
 
+const formatTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) {
+    return "00:00";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
+
 export default function AISectionPage() {
   // AI Section workflow state
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -303,6 +313,7 @@ export default function AISectionPage() {
   const [expandedAccordionItems, setExpandedAccordionItems] = useState<string[]>([]);
   const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
+  const [currentUiStep, setCurrentUiStep] = useState(0);
 
   // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -451,7 +462,7 @@ export default function AISectionPage() {
       toast.error("Missing course or version information");
       return;
     }
-    
+
     setIsCreatingJob(true);
     try {
       const { jobId } = await aiSectionAPI.createJob({
@@ -465,6 +476,7 @@ export default function AISectionPage() {
       });
       setAiJobId(jobId);
       toast.success("AI job created successfully!");
+      setCurrentUiStep(1); // Move to the first step (transcription)
       // Do NOT start audio extraction here. Wait for user to click Transcription button.
     } catch (error) {
       toast.error("Failed to create AI job. Please try again.");
@@ -494,7 +506,7 @@ export default function AISectionPage() {
           setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
           await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
           setAiWorkflowStep('audio_extraction');
-          toast.success("Transcription restarted. Click Refresh to check status.");
+          toast.success("Transcription restarted");
           await handleRefreshStatus();
           return;
         }
@@ -503,7 +515,7 @@ export default function AISectionPage() {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
           setAiWorkflowStep('transcription');
-          toast.success("Transcription rerun started. Click Refresh to check status.");
+          toast.success("Transcription rerun started.");
           setTaskRuns(prev => ({
             ...prev,
             transcription: [...prev.transcription, {
@@ -520,7 +532,7 @@ export default function AISectionPage() {
         setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
-        toast.success("Audio extraction started. Click Refresh to check status.");
+        toast.success("Audio extraction started.");
         setTaskRuns(prev => ({
           ...prev,
           [task]: prev[task].map(run =>
@@ -541,7 +553,7 @@ export default function AISectionPage() {
             await aiSectionAPI.approveContinueTask(aiJobId);
             params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
             await aiSectionAPI.postJobTask(aiJobId, taskType, params, 0);
-            toast.success("Segmentation restarted. Click Refresh to check status.");
+            toast.success("Segmentation restarted.");
             await handleRefreshStatus();
             return;
           }
@@ -577,7 +589,7 @@ export default function AISectionPage() {
             setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
             params = { ...questionGenParams };
             await aiSectionAPI.postJobTask(aiJobId, taskType, params);
-            toast.success("Question generation restarted. Click Refresh to check status.");
+            toast.success("Question generation restarted.");
             await handleRefreshStatus();
             return;
           }
@@ -989,7 +1001,7 @@ export default function AISectionPage() {
                   if (!response.ok) {
                     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
                   }
-                  toast.success(`${title} restarted. Click Refresh to check status.`);
+                  toast.success(`${title} restarted.`);
                   await handleRefreshStatus();
                 } catch (error) {
                   setTaskRuns(prev => ({
@@ -1061,7 +1073,7 @@ export default function AISectionPage() {
                 try {
                   const params = rerunParams;
                   await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', params);
-                  toast.success('Transcription rerun started. Click Refresh to check status.');
+                  toast.success('Transcription rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     transcription: [
@@ -1095,7 +1107,7 @@ export default function AISectionPage() {
                   // const params = questionGenParams;
 
                   await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
-                  toast.success('Question generation rerun started. Click Refresh to check status.');
+                  toast.success('Question generation rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     question: [
@@ -1129,7 +1141,7 @@ export default function AISectionPage() {
 
                   const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
-                  toast.success('Segmentation rerun started. Click Refresh to check status.');
+                  toast.success('Segmentation rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     segmentation: [
@@ -1845,7 +1857,7 @@ export default function AISectionPage() {
         if (status.jobStatus?.transcriptGeneration === 'WAITING') {
           await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
           setAiWorkflowStep('transcription');
-          toast.success('Transcript generation started. Click Refresh to check status.');
+          toast.success('Transcript generation started.');
           await handleRefreshStatus();
         } else {
           toast.info('Transcript generation is not ready to start yet.');
@@ -1853,7 +1865,7 @@ export default function AISectionPage() {
       } else if (status.jobStatus?.transcriptGeneration === 'WAITING') {
         await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
         setAiWorkflowStep('transcription');
-        toast.success('Transcript generation started. Click Refresh to check status.');
+        toast.success('Transcript generation started.');
         await handleRefreshStatus();
       } else {
         toast.info('Transcript generation is not ready to start.');
@@ -2065,7 +2077,7 @@ export default function AISectionPage() {
                 {editChunks.map((chunk, idx) => (
                   <div key={idx} className="flex flex-col gap-1 border-b pb-2">
                     <div className="text-xs text-gray-400">
-                      Segment: {chunk.timestamp[0]}s - {chunk.timestamp[1]}s
+                      Segment: {formatTime(chunk.timestamp[0])} - {formatTime(chunk.timestamp[1])}
                     </div>
                     <textarea
                       className="w-full p-2 rounded border"
@@ -2397,7 +2409,7 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="w-full"
           >
             Accept This Run
           </Button>
@@ -2439,14 +2451,14 @@ export default function AISectionPage() {
       if (hasQuestionRun) {
         // Rerun logic
         await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', params);
-        toast.success('Question generation rerun started. Click Refresh to check status.');
+        toast.success('Question generation rerun started.');
       } else {
         // First run logic
         await aiSectionAPI.approveStartTask(aiJobId, {
           type: 'QUESTION_GENERATION',
           parameters: params
         });
-        toast.success('Question generation started. Click Refresh to check status.');
+        toast.success('Question generation started.');
       }
       setTaskRuns(prev => ({
         ...prev,
@@ -2815,14 +2827,14 @@ export default function AISectionPage() {
           </div>
 
           {/* Navigation to ai workflow */}
-            <Link to="/teacher/ai-workflow">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
-                <Workflow className="w-5 h-5" />
-                Go to AI Workflow
-              </Button>
-            </Link>
+          <Link to="/teacher/ai-workflow">
+            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
+              <Workflow className="w-5 h-5" />
+              Go to AI Workflow
+            </Button>
+          </Link>
 
-            
+
           {aiJobId && (
             <div className="space-y-6">
               {/* Refresh button and status */}
@@ -2840,38 +2852,47 @@ export default function AISectionPage() {
               {/* Task Cards */}
               <div className="space-y-8 mt-8">
                 {/* Transcription Section */}
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                  </div>
-                  <TaskAccordion
-                    task="transcription"
-                    title="Audio Extraction"
-                    jobStatus={aiJobStatus?.status}
-                    taskRuns={taskRuns}
-                    acceptedRuns={acceptedRuns}
-                    aiJobId={aiJobId}
-                    aiJobStatus={aiJobStatus}
-                    segParams={segParams}
-                    questionGenParams={questionGenParams}
-                    rerunParams={rerunParams}
-                    handleTask={handleTask}
-                    handleAcceptRun={handleAcceptRun}
-                    canRunTask={canRunTask}
-                    setTaskRuns={setTaskRuns}
-                    setQuestionGenParams={setQuestionGenParams}
-                    setSegParams={setSegParams}
-                    setRerunParams={setRerunParams}
-                    handleStartTranscription={handleStartTranscription}
-                    getStatusIcon={getStatusIcon}
-                    handleStopTask={handleStopTask}
-                    expandedAccordionItems={expandedAccordionItems}
-                    setExpandedAccordionItems={setExpandedAccordionItems}
-                  />
-                </div>
+                {currentUiStep === 1 && (
+                    <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                        <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
+                      </div>
+                      <TaskAccordion
+                        task="transcription"
+                        title="Audio Extraction"
+                        jobStatus={aiJobStatus?.status}
+                        taskRuns={taskRuns}
+                        acceptedRuns={acceptedRuns}
+                        aiJobId={aiJobId}
+                        aiJobStatus={aiJobStatus}
+                        segParams={segParams}
+                        questionGenParams={questionGenParams}
+                        rerunParams={rerunParams}
+                        handleTask={handleTask}
+                        handleAcceptRun={handleAcceptRun}
+                        canRunTask={canRunTask}
+                        setTaskRuns={setTaskRuns}
+                        setQuestionGenParams={setQuestionGenParams}
+                        setSegParams={setSegParams}
+                        setRerunParams={setRerunParams}
+                        handleStartTranscription={handleStartTranscription}
+                        getStatusIcon={getStatusIcon}
+                        handleStopTask={handleStopTask}
+                        expandedAccordionItems={expandedAccordionItems}
+                        setExpandedAccordionItems={setExpandedAccordionItems}
+                      />
+                      {acceptedRuns.transcription && (
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={() => setCurrentUiStep(2)}>Next Step</Button>
+                    </div>
+                  )}
+                    </div>
+                )}
 
                 {/* Segmentation Section */}
+                {
+                  currentUiStep === 2 && (
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
@@ -2901,9 +2922,17 @@ export default function AISectionPage() {
                     expandedAccordionItems={expandedAccordionItems}
                     setExpandedAccordionItems={setExpandedAccordionItems}
                   />
+                  {acceptedRuns.segmentation && currentUiStep === 2 && (
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={() => setCurrentUiStep(3)}>Next Step</Button>
+                    </div>
+                  )}
                 </div>
-
+                )
+                } 
                 {/* Question Generation Section */}
+                {
+                  currentUiStep === 3 && (
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -2933,9 +2962,16 @@ export default function AISectionPage() {
                     expandedAccordionItems={expandedAccordionItems}
                     setExpandedAccordionItems={setExpandedAccordionItems}
                   />
+                  {acceptedRuns.question && (
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                    </div>
+                  )}
                 </div>
-
+                  )}
                 {/* Upload Section */}
+                {
+                  currentUiStep === 4 && (
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -2966,7 +3002,7 @@ export default function AISectionPage() {
                     setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
-
+                  )}
                 {/* Upload Success Message - Show outside accordion when upload is completed */}
                 {taskRuns.upload.some(run => run.status === "done") && (
                   <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
