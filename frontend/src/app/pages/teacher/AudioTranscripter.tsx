@@ -6,7 +6,10 @@ import { useEffect, useState } from "react";
 
 interface IAudioTranscripter {
     transcribedData: TranscriberData | undefined;
-    setTranscribedData:(transcript: TranscriberData | undefined) => void
+    setTranscribedData:(transcript: TranscriberData | undefined) => void;
+    setIsTranscribing: (value: boolean) => void;
+    setIsAudioExtracting: (value: boolean) => void;
+    isRunningAiJob: boolean;
 }
 
 // Validation
@@ -30,6 +33,10 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
     const [error, setError] = useState("");
 
     useEffect(() => {
+
+        transcriber.isBusy ?  props.setIsTranscribing(true): props.setIsTranscribing(false);
+        transcriber.isModelLoading ?  props.setIsAudioExtracting(true): props.setIsAudioExtracting(false);
+
         if (transcriber.output?.text) {
             props.setTranscribedData(transcriber.output);
 
@@ -37,7 +44,8 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
             setTranscriptText(transcribedText);
             setPrevTranscript(transcribedText);
         }
-    }, [transcriber.output]);
+
+    }, [transcriber.output, transcriber.isBusy, transcriber.isModelLoading]);
 
     const handleSave = () => {
         const currentText = transcriptText;
@@ -83,7 +91,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
         <div className="flex justify-center items-start py-10 ">
             <div className="w-full max-w-3xl flex flex-col items-center gap-6">
 
-                <AudioManager transcriber={transcriber} />
+                <AudioManager transcriber={transcriber} isRunningAiJob = {props.isRunningAiJob}/>
 
                 {transcriber.output?.text && (
                     <div className="w-full bg-white dark:bg-card/50 border border-gray-200 dark:border-border rounded-xl p-6 shadow-sm">
@@ -95,7 +103,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                                 )}
                             </div>
 
-                            {!transcriber.isBusy && (
+                            {!transcriber.isBusy && props.transcribedData && (
                                 <Button
                                     onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
                                     className="

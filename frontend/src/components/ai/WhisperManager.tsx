@@ -9,10 +9,11 @@ import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
+    disable: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, disable, onClick, ...buttonProps } = props;
     return (
         <button
             {...buttonProps}
@@ -21,17 +22,29 @@ function TranscribeButton(props: Props) {
                     onClick(event);
                 }
             }}
-            disabled={isTranscribing}
-            className='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 inline-flex items-center'
+            disabled={isTranscribing || isModelLoading || disable }
+            className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
         >
-            {isModelLoading ? (
-                <Spinner text={"Loading model..."} />
-            ) : isTranscribing ? (
-                <Spinner text={"Transcribing..."} />
-            ) : (
-                "Transcribe Audio"
-            )}
+            Start AI Job
         </button>
+        // <button
+        //     {...buttonProps}
+        //     onClick={(event) => {
+        //         if (onClick && !isTranscribing && !isModelLoading) {
+        //             onClick(event);
+        //         }
+        //     }}
+        //     disabled={isTranscribing}
+        //     className='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 inline-flex items-center'
+        // >
+        //     {isModelLoading ? (
+        //         <Spinner text={"Loading model..."} />
+        //     ) : isTranscribing ? (
+        //         <Spinner text={"Transcribing..."} />
+        //     ) : (
+        //         "Transcribe Audio"
+        //     )}
+        // </button>
     );
 }
 
@@ -61,25 +74,25 @@ export function Spinner(props: { text: string }): JSX.Element {
 }
 
 
-function Progress({
-    text,
-    percentage,
-}: {
-    text: string;
-    percentage: number;
-}) {
-    percentage = percentage ?? 0;
-    return (
-        <div className='mt-0.5 w-full relative text-sm text-white background-bg-cyan-400 bg-gray-200 border-1 border-gray-400 rounded-lg text-left overflow-hidden'>
-            <div
-                className='top-0 h-full bg-blue-500 whitespace-nowrap px-2'
-                style={{ width: `${percentage}%` }}
-            >
-                {text} ({`${percentage.toFixed(2)}%`})
-            </div>
-        </div>
-    );
-}
+// function Progress({
+//     text,
+//     percentage,
+// }: {
+//     text: string;
+//     percentage: number;
+// }) {
+//     percentage = percentage ?? 0;
+//     return (
+//         <div className='mt-0.5 w-full relative text-sm text-white background-bg-cyan-400 bg-gray-200 border-1 border-gray-400 rounded-lg text-left overflow-hidden'>
+//             <div
+//                 className='top-0 h-full bg-blue-500 whitespace-nowrap px-2'
+//                 style={{ width: `${percentage}%` }}
+//             >
+//                 {text} ({`${percentage.toFixed(2)}%`})
+//             </div>
+//         </div>
+//     );
+// }
 
 function getMimeType() {
     const types = [
@@ -462,7 +475,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber }) {
+export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: boolean }) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -473,6 +486,7 @@ export function AudioManager(props: { transcriber: Transcriber }) {
           }
         | undefined
     >(undefined);
+    
     const [audioDownloadUrl, setAudioDownloadUrl] = useState<
         string | undefined
     >(undefined);
@@ -645,23 +659,25 @@ export function AudioManager(props: { transcriber: Transcriber }) {
                         mimeType={audioData.mimeType}
                     />
 
-                    <div className='relative w-full flex justify-center items-center'>
-                        <TranscribeButton
-                            onClick={() => {
-                                props.transcriber.start(audioData.buffer);
-                            }}
-                            isModelLoading={props.transcriber.isModelLoading}
-                            // isAudioLoading ||
-                            isTranscribing={props.transcriber.isBusy}
-                        />
+                    {!props.isRunningAiJob && 
+                        <div className='relative w-full flex justify-center items-center'>
+                            <TranscribeButton
+                                onClick={() => {
+                                    props.transcriber.start(audioData.buffer);
+                                }}
+                                isModelLoading={props.transcriber.isModelLoading}
+                                isTranscribing={props.transcriber.isBusy}
+                                disabled = {!props.transcriber.isBusy}
+                            />
 
-                        <SettingsTile
-                            className='absolute right-4'
-                            transcriber={props.transcriber}
-                            icon={<SettingsIcon />}
-                        />
-                    </div>
-                    {props.transcriber.progressItems.length > 0 && (
+                            <SettingsTile
+                                className='absolute right-4'
+                                transcriber={props.transcriber}
+                                icon={<SettingsIcon />}
+                                />
+                        </div>
+                    }
+                    {/* {props.transcriber.progressItems.length > 0 && (
                         <div className='relative z-10 p-4 w-full'>
                             <label>
                                 Loading model files... (only run once)
@@ -675,7 +691,7 @@ export function AudioManager(props: { transcriber: Transcriber }) {
                                 </div>
                             ))}
                         </div>
-                    )}
+                    )} */}
                 </>
             )}
         </>
