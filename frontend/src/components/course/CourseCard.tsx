@@ -26,6 +26,12 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   const completedLessons = progressData?.completedItems || 0;
   const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;
 
+  const videoCount: number = enrollment.contentCounts?.videos || 0;
+  const quizCount: number = enrollment.contentCounts?.quizzes || 0;
+  const articleCount: number = enrollment.contentCounts?.articles || 0;
+
+  console.log(videoCount, quizCount, articleCount, "---------count");
+
   // Find if this courseVersionId is already in completion
   const existingCompletionIndex = completion?.findIndex(
     (c) => c.courseVersionId === versionId
@@ -96,14 +102,14 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                   <span>Content</span>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
-                    {totalLessons} Lessons
+                    {videoCount} videos , {quizCount} quizzes , {articleCount} articles
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-1 sm:mb-0">
                   <span>Completion</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
                         style={{ width: `${progress}%` }}
                       />
@@ -118,10 +124,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                     <span className="text-green-500">
                       {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
                         ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
                         : 'Recently'}
                     </span>
                   </div>
@@ -133,10 +139,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
             {courseDetails?.name || `Course ${index + 1}`}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            {isCompleted 
-              ? 'Course completed!' 
-              : progress === 0 
-                ? 'Start your learning journey' 
+            {isCompleted
+              ? 'Course completed!'
+              : progress === 0
+                ? 'Start your learning journey'
                 : 'Continue Learning'}
           </p>
           <div className="mt-auto">
@@ -163,10 +169,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
               {courseDetails?.name || `Course ${index + 1}`}
             </CardTitle>
             <CardDescription>
-              by <b>{courseDetails?.instructors 
-                ? (Array.isArray(courseDetails.instructors) 
-                   ? courseDetails.instructors.join(', ') 
-                   : courseDetails.instructors) 
+              by <b>{courseDetails?.instructors
+                ? (Array.isArray(courseDetails.instructors)
+                  ? courseDetails.instructors.join(', ')
+                  : courseDetails.instructors)
                 : "Unknown Instructor"}</b>
             </CardDescription>
           </div>

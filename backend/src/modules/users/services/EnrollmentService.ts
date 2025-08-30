@@ -189,6 +189,7 @@ export class EnrollmentService extends BaseService {
     search: string,
   ): Promise<EnrollmentDataResponse[]> {
     return this._withTransaction(async (session: ClientSession) => {
+      // Step 1: Fetch the enrollments
       const result = await this.enrollmentRepo.getEnrollments(
         userId,
         skip,
@@ -197,10 +198,18 @@ export class EnrollmentService extends BaseService {
         role,
         session,
       );
-      return result.map(enrollment => {
-        const { userId, ...rest } = enrollment;
+
+      // Step 2: Extract unique courseVersionIds for batching
+      const courseVersionIds = [...new Set(result.map((enrollment: any) => enrollment.courseVersionId))];
+
+      // Step 3: Fetch content counts in parallel for all unique courseVersionIds
+      const contentCountsMap = await this.batchGetContentCounts(courseVersionIds, session);
+
+      // Step 4: Map enrollments with content counts
+      return result.map((enrollment: any) => {
+        const contentCounts = contentCountsMap[enrollment.courseVersionId.toString()];
+
         return {
-          ...rest,
           _id: enrollment._id.toString(),
           courseId: enrollment.courseId.toString(),
           courseVersionId: enrollment.courseVersionId.toString(),
@@ -208,8 +217,77 @@ export class EnrollmentService extends BaseService {
           status: enrollment.status,
           enrollmentDate: new Date(enrollment.enrollmentDate),
           course: enrollment.course,
+          contentCounts,
         };
       });
+    });
+  }
+
+  // Helper method to batch get content counts
+  async batchGetContentCounts(courseVersionIds: string[], session: ClientSession) {
+    const contentCountsPromises = courseVersionIds.map(courseVersionId =>
+      this.getContentCounts(courseVersionId, session)
+    );
+
+    // Wait for all content counts to be fetched
+    const contentCounts = await Promise.all(contentCountsPromises);
+
+    // Create a mapping of courseVersionId to contentCounts for quick lookup
+    return courseVersionIds.reduce((acc, courseVersionId, index) => {
+      acc[courseVersionId] = contentCounts[index];
+      return acc;
+    }, {} as Record<string, any>);
+  }
+
+
+  async getContentCounts(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{ videos: number; quizzes: number; articles: number }> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+
+      if (!courseVersion) {
+        return { videos: 0, quizzes: 0, articles: 0 };
+      }
+
+      let videoCount = 0;
+      let quizCount = 0;
+      let articleCount = 0;
+
+      for (const module of courseVersion.modules) {
+        for (const section of module.sections) {
+          const itemsGroup = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+
+          if (itemsGroup && itemsGroup.items) {
+            for (const item of itemsGroup.items) {
+              switch (item.type) {
+                case 'VIDEO':
+                  videoCount++;
+                  break;
+                case 'QUIZ':
+                  quizCount++;
+                  break;
+                case 'BLOG':
+                  articleCount++;
+                  break;
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        videos: videoCount,
+        quizzes: quizCount,
+        articles: articleCount,
+      };
     });
   }
 

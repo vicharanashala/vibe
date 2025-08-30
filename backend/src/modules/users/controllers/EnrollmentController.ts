@@ -42,6 +42,8 @@ import {
 } from '../abilities/enrollmentAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -52,7 +54,17 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
   ) { }
+
+  private async getContentCounts(courseVersionId: string): Promise<{ videos: number; quizzes: number; articles: number }> {
+    return {
+      videos: 24,
+      quizzes: 12,
+      articles: 9,
+    };
+  }
 
   @OpenAPI({
     summary: 'Enroll a user in a course version',
