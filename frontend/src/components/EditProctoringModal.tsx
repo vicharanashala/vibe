@@ -60,8 +60,10 @@ export function ProctoringModal({
     const fetchSettings = async () => {
       try {
         const result = await getSettings(courseId, courseVersionId);
-        setDetectors(result?.settings.proctors.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
-        setLinearProgressionEnabled(result.settings.linearProgressionEnabled)
+        if (result) {
+          setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+          setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
+        }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
       }
