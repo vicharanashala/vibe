@@ -11,20 +11,23 @@ import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
-  const courseId = bufferToHex(enrollment.courseId);
-  const versionId = bufferToHex(enrollment.courseVersionId) || "";
+  const courseId = bufferToHex(enrollment.courseId as string );
+  const versionId = bufferToHex(enrollment.courseVersionId as string ) || "";
   
   const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
-  const { data: progressData, isLoading: isProgressLoading } = useUserProgressPercentage(courseId, versionId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
 
-  // Use real progress data or fallback to 0
-  // const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
-  const progress = enrollment.percentCompleted || 0
-  const totalLessons = progressData?.totalItems || 0;
-  const completedLessons = progressData?.completedItems || 0;
-  const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;
+  const progress = enrollment.percentCompleted as number || 0
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number } || {};
+  const totalLessons = contentCounts.totalItems || 0;
+  const completedLessons = enrollment.completedItems as number || 0;
+  const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
+
+  const videoCount: number = contentCounts.videos || 0;
+  const quizCount: number = contentCounts.quizzes || 0;
+  const articleCount: number = contentCounts.articles || 0;
+
 
   // Find if this courseVersionId is already in completion
   const existingCompletionIndex = completion?.findIndex(
@@ -32,14 +35,14 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   );
 
   // If not found, append the user progress percentage to the list
-  if (existingCompletionIndex === -1 && progressData) {
+  if (existingCompletionIndex === -1 && enrollment) {
     setCompletion?.([
       ...(completion || []),
       {
         courseVersionId: versionId,
-        percentage: progressData.percentCompleted,
-        totalItems: progressData.totalItems,
-        completedItems: progressData.completedItems
+        percentage:  typeof progress === 'number' ? progress : 0,
+        totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
+        completedItems: typeof completedLessons === 'number' ? completedLessons : 0
       },
     ]);
   }
@@ -63,7 +66,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
     navigate({ to: "/student/learn" });
   };
 
-  if (isCourseLoading || isProgressLoading) {
+  if (isCourseLoading) {
     return <CourseCardSkeleton variant={variant} />;
   }
 
@@ -96,14 +99,14 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                   <span>Content</span>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
-                    {totalLessons} Lessons
+                    {videoCount} videos , {quizCount} quizzes , {articleCount} articles
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-1 sm:mb-0">
                   <span>Completion</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
                         style={{ width: `${progress}%` }}
                       />
@@ -118,10 +121,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
                     <span className="text-green-500">
                       {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
                         ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
                         : 'Recently'}
                     </span>
                   </div>
@@ -133,10 +136,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
             {courseDetails?.name || `Course ${index + 1}`}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            {isCompleted 
-              ? 'Course completed!' 
-              : progress === 0 
-                ? 'Start your learning journey' 
+            {isCompleted
+              ? 'Course completed!'
+              : progress === 0
+                ? 'Start your learning journey'
                 : 'Continue Learning'}
           </p>
           <div className="mt-auto">
@@ -163,10 +166,10 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
               {courseDetails?.name || `Course ${index + 1}`}
             </CardTitle>
             <CardDescription>
-              by <b>{courseDetails?.instructors 
-                ? (Array.isArray(courseDetails.instructors) 
-                   ? courseDetails.instructors.join(', ') 
-                   : courseDetails.instructors) 
+              by <b>{courseDetails?.instructors
+                ? (Array.isArray(courseDetails.instructors)
+                  ? courseDetails.instructors.join(', ')
+                  : courseDetails.instructors)
                 : "Unknown Instructor"}</b>
             </CardDescription>
           </div>
