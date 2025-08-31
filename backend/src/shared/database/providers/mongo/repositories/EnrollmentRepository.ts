@@ -189,6 +189,231 @@ export class EnrollmentRepository {
   /**
    * Get paginated enrollments for a user
    */
+  //old code
+  // async getEnrollments(
+  //   userId: string,
+  //   skip: number,
+  //   limit: number,
+  //   search: string,
+  //   role: EnrollmentRole,
+  //   session?: ClientSession,
+  // ) {
+  //   try {
+  //     await this.init();
+  //     const userObjectId = new ObjectId(userId);
+
+  //     const aggregationPipeline: any[] = [
+  //       { $match: { userId: userObjectId, role } },
+  //       { $sort: { enrollmentDate: -1 } },
+  //       { $skip: skip },
+  //       { $limit: limit },
+  //       {
+  //         $lookup: {
+  //           from: 'newCourse',
+  //           localField: 'courseId',
+  //           foreignField: '_id',
+  //           as: 'course',
+  //           pipeline: [
+  //             { $project: { name: 1, versions: 1 } }
+  //           ]
+  //         },
+  //       },
+  //       { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
+  //       {
+  //         $addFields: {
+  //           'course.versions': {
+  //             $map: {
+  //               input: '$course.versions',
+  //               as: 'v',
+  //               in: { $toObjectId: '$$v' },
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'newCourseVersion',
+  //           localField: 'course.versions',
+  //           foreignField: '_id',
+  //           as: 'course.versionDetails',
+  //         },
+  //       },
+  //       {
+  //         $set: {
+  //           'course.versionDetails': {
+  //             $map: {
+  //               input: '$course.versionDetails',
+  //               as: 'version',
+  //               in: {
+  //                 $mergeObjects: [
+  //                   '$$version',
+  //                   { id: { $toString: '$$version._id' } },
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $unset: 'course.versionDetails._id',
+  //       },
+  //       {
+  //         $set: {
+  //           'course.versions': {
+  //             $map: {
+  //               input: '$course.versions',
+  //               as: 'v',
+  //               in: { $toString: '$$v' },
+  //             },
+  //           },
+  //         },
+  //       },
+  //       // Lookup content counts
+  //       {
+  //         $lookup: {
+  //           from: 'newCourseVersion',
+  //           let: { versionId: '$courseVersionId' },
+  //           pipeline: [
+  //             { $match: { $expr: { $eq: ['$_id', '$$versionId'] } } },
+  //             {
+  //               $project: {
+  //                 itemGroupIds: {
+  //                   $reduce: {
+  //                     input: {
+  //                       $map: {
+  //                         input: '$modules',
+  //                         as: 'm',
+  //                         in: {
+  //                           $map: {
+  //                             input: '$$m.sections',
+  //                             as: 's',
+  //                             in: '$$s.itemsGroupId',
+  //                           },
+  //                         },
+  //                       },
+  //                     },
+  //                     initialValue: [],
+  //                     in: { $concatArrays: ['$$value', '$$this'] },
+  //                   },
+  //                 },
+  //               },
+  //             },
+
+  //             { $unwind: '$itemGroupIds' },
+  //             {
+  //               $addFields: {
+  //                 itemGroupObjId: { $toObjectId: '$itemGroupIds' },
+  //               },
+  //             },
+  //             {
+  //               $lookup: {
+  //                 from: 'itemsGroup',
+  //                 localField: 'itemGroupObjId',
+  //                 foreignField: '_id',
+  //                 as: 'itemsGroup',
+  //               },
+  //             },
+
+  //             { $unwind: '$itemsGroup' },
+  //             { $unwind: '$itemsGroup.items' },
+  //             {
+  //               $group: {
+  //                 _id: '$_id',
+  //                 totalItems: { $sum: 1 },
+  //                 videos: {
+  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0] },
+  //                 },
+  //                 quizzes: {
+  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0] },
+  //                 },
+  //                 articles: {
+  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'ARTICLE'] }, 1, 0] },
+  //                 },
+  //               },
+  //             },
+  //           ],
+  //           as: 'contentCounts',
+  //         },
+  //       },
+  //       {
+  //         $set: {
+  //           contentCounts: {
+  //             $ifNull: [
+  //               { $arrayElemAt: ['$contentCounts', 0] },
+  //               { totalItems: 0, videos: 0, quizzes: 0, articles: 0 },
+  //             ],
+  //           },
+  //         },
+  //       },
+  //       //  Lookup watched items
+  //       {
+  //         $lookup: {
+  //           from: 'watchTime',
+  //           let: {
+  //             userId: '$userId',
+  //             courseId: '$courseId',
+  //             courseVersionId: '$courseVersionId',
+  //           },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ['$userId', '$$userId'] },
+  //                     { $eq: ['$courseId', '$$courseId'] },
+  //                     { $eq: ['$courseVersionId', '$$courseVersionId'] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //             {
+  //               $group: {
+  //                 _id: null,
+  //                 distinctItemIds: { $addToSet: '$itemId' },
+  //               },
+  //             },
+  //           ],
+  //           as: 'watchedItems',
+  //         },
+  //       },
+  //       {
+  //         $set: {
+  //           watchedItemCount: {
+  //             $size: {
+  //               $ifNull: [
+  //                 { $arrayElemAt: ['$watchedItems.distinctItemIds', 0] },
+  //                 [],
+  //               ],
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $unset: 'watchedItems',
+  //       }
+
+
+
+  //     ];
+
+  //     // Only add search filter if search is provided
+  //     if (search && search.trim()) {
+  //       aggregationPipeline.push({
+  //         $match: { 'course.name': { $regex: search, $options: 'i' } },
+  //       });
+  //     }
+
+
+
+  //     return await this.enrollmentCollection
+  //       .aggregate(aggregationPipeline, { session, maxTimeMS: 120000 })
+  //       .toArray();
+  //   } catch (error) {
+  //     console.log(error);
+  //     throw new InternalServerError(`Failed to get enrollments /More ${error}`);
+  //   }
+  // }
+
   async getEnrollments(
     userId: string,
     skip: number,
@@ -200,89 +425,174 @@ export class EnrollmentRepository {
     try {
       await this.init();
       const userObjectId = new ObjectId(userId);
+
       const aggregationPipeline: any[] = [
         { $match: { userId: userObjectId, role } },
+        { $sort: { enrollmentDate: -1 } },
+        { $skip: skip },
+        { $limit: limit },
         {
           $lookup: {
             from: 'newCourse',
             localField: 'courseId',
             foreignField: '_id',
             as: 'course',
+            pipeline: [
+              { $project: { name: 1, versions: 1 } }
+            ]
           },
         },
         { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
-        {
-          $addFields: {
-            'course.versions': {
-              $map: {
-                input: '$course.versions',
-                as: 'v',
-                in: { $toObjectId: '$$v' },
-              },
-            },
-          },
-        },
+        // Lookup content counts (optimized)
         {
           $lookup: {
             from: 'newCourseVersion',
-            localField: 'course.versions',
-            foreignField: '_id',
-            as: 'course.versionDetails',
-          },
-        },
-        {
-          $set: {
-            'course.versionDetails': {
-              $map: {
-                input: '$course.versionDetails',
-                as: 'version',
-                in: {
-                  $mergeObjects: [
-                    '$$version',
-                    { id: { $toString: '$$version._id' } },
-                  ],
+            let: { versionId: '$courseVersionId' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$versionId'] } } },
+              {
+                $project: {
+                  itemGroupIds: {
+                    $reduce: {
+                      input: {
+                        $map: {
+                          input: '$modules',
+                          as: 'm',
+                          in: {
+                            $map: {
+                              input: '$$m.sections',
+                              as: 's',
+                              in: '$$s.itemsGroupId',
+                            },
+                          },
+                        },
+                      },
+                      initialValue: [],
+                      in: { $concatArrays: ['$$value', '$$this'] },
+                    },
+                  },
                 },
               },
-            },
+              { $unwind: '$itemGroupIds' },
+              {
+                $addFields: {
+                  itemGroupObjId: { $toObjectId: '$itemGroupIds' },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'itemsGroup',
+                  localField: 'itemGroupObjId',
+                  foreignField: '_id',
+                  as: 'itemsGroup',
+                },
+              },
+              { $unwind: '$itemsGroup' },
+              { $unwind: '$itemsGroup.items' },
+              {
+                $group: {
+                  _id: '$_id',
+                  totalItems: { $sum: 1 },
+                  videos: {
+                    $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0] },
+                  },
+                  quizzes: {
+                    $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0] },
+                  },
+                  articles: {
+                    $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'ARTICLE'] }, 1, 0] },
+                  },
+                },
+              },
+            ],
+            as: 'contentCounts',
           },
         },
         {
-          $unset: 'course.versionDetails._id',
+          $set: {
+            contentCounts: {
+              $ifNull: [
+                { $arrayElemAt: ['$contentCounts', 0] },
+                { totalItems: 0, videos: 0, quizzes: 0, articles: 0 },
+              ],
+            },
+          },
+        },
+        // Lookup watched items (optimized)
+        {
+          $lookup: {
+            from: 'watchTime',
+            let: {
+              userId: '$userId',
+              courseId: '$courseId',
+              courseVersionId: '$courseVersionId',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$userId', '$$userId'] },
+                      { $eq: ['$courseId', '$$courseId'] },
+                      { $eq: ['$courseVersionId', '$$courseVersionId'] },
+                    ],
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  distinctItemIds: { $addToSet: '$itemId' },
+                },
+              },
+            ],
+            as: 'watchedItems',
+          },
         },
         {
           $set: {
-            'course.versions': {
-              $map: {
-                input: '$course.versions',
-                as: 'v',
-                in: { $toString: '$$v' },
+            watchedItemCount: {
+              $size: {
+                $ifNull: [
+                  { $arrayElemAt: ['$watchedItems.distinctItemIds', 0] },
+                  [],
+                ],
               },
             },
+          },
+        },
+        { $unset: 'watchedItems' },
+        // Only add search filter if search is provided
+        ...(search && search.trim()
+          ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
+          : []),
+        // Project only required fields
+        {
+          $project: {
+            _id: { $toString: '$_id' },
+            courseId: { $toString: '$courseId' },
+            courseVersionId: { $toString: '$courseVersionId' },
+            role: 1,
+            status: 1,
+            enrollmentDate: 1,
+            course: 1,
+            percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+            contentCounts: 1,
+            watchedItemCount: 1,
           },
         },
       ];
 
-      // Only add search filter if search is provided
-      if (search && search.trim()) {
-        aggregationPipeline.push({
-          $match: { 'course.name': { $regex: search, $options: 'i' } },
-        });
-      }
-
-      aggregationPipeline.push(
-        { $sort: { enrollmentDate: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-      );
-
       return await this.enrollmentCollection
-        .aggregate(aggregationPipeline)
+        .aggregate(aggregationPipeline, { session })
         .toArray();
     } catch (error) {
       console.log(error);
       throw new InternalServerError(`Failed to get enrollments /More ${error}`);
     }
   }
+
+
 
   async getAllEnrollments(userId: string, session?: ClientSession) {
     await this.init();
@@ -502,6 +812,26 @@ export class EnrollmentRepository {
       );
     }
   }
+
+  async addEnrollmentIndexes(
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+
+
+
+      await this.enrollmentCollection.createIndex({ userId: 1, role: 1 });
+      await this.enrollmentCollection.createIndex({ courseId: 1 });
+      await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
+      await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
+
+      console.log('Indexes created successfully!');
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+
   async getByCourseVersion(
     courseId: string,
     courseVersionId: string,
