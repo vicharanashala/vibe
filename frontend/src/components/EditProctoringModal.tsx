@@ -11,6 +11,7 @@ import { useEffect, useState } from "react"
 import { Label } from "./ui/label"
 import { Separator } from "./ui/separator"
 import { Switch } from "./ui/switch"
+import { toast } from "sonner"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -50,6 +51,7 @@ export function ProctoringModal({
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
 
+  console.log("Course id: ", courseId, "CourseVersionId: ", courseVersionId)
   const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
@@ -83,10 +85,15 @@ export function ProctoringModal({
   }
 
   const handleSubmit = async () => {
-    const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled)
-    console.log("Proctoring settings updated:", result)
-    if(result != undefined) {
-      onClose();
+    try{
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled)
+      console.log("Proctoring settings updated:", result)
+      if(result != undefined) {
+        onClose();
+      }
+      toast.success("Settings updated!")
+    } catch(error) {
+      toast.error("Failed to update settings!")
     }
   }
 
