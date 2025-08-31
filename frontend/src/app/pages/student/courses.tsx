@@ -1,4 +1,4 @@
-import { useState,  useMemo } from "react";
+import { useState,  useMemo,useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,12 +15,28 @@ export default function StudentCourses() {
   const [activeTab, setActiveTab] = useState("enrolled");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("")
+    const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+    const [isSearching, setIsSearching] = useState(false);
+  
+    useEffect(() => {
+      if (searchQuery !== debouncedSearch) {
+        setIsSearching(true);
+      }
+      const handler = setTimeout(() => {
+        setDebouncedSearch(searchQuery);
+        setIsSearching(false);
+      }, 300); 
+  
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [searchQuery, debouncedSearch]);
   
   // Get the current user from auth store
   const { isAuthenticated, token } = useAuthStore();
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
-    currentPage, 10, !!token, searchQuery
+    currentPage, 10, !!token, debouncedSearch
   );
 
   const enrollments = enrollmentsData?.enrollments || [];
@@ -29,11 +45,11 @@ export default function StudentCourses() {
   const totalDocuments = enrollmentsData?.totalDocuments || 0;
   // Filter enrollments based on completion status
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => !enrollment.completed);
+    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.completed);
+    return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
   }, [enrollments]);
 
   // Update current page when API response changes
@@ -125,7 +141,7 @@ export default function StudentCourses() {
           </TabsList>
           </div>
           <TabsContent value="enrolled" className="space-y-4">
-            {isLoading ? (
+            {isLoading || isSearching ? (
               <div className="space-y-2">
                 {Array.from({ length: 4 }, (_, i) => (
                   <Card key={i}>
