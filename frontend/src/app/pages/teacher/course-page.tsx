@@ -335,7 +335,7 @@ function CourseCard({
 
   // 1. Use course from enrollment if available
   const localCourse = enrollment?.course;
-  const localCourseVersionDetails = enrollment?.course?.versionDetails
+  const localCourseVersionDetails = enrollment?.course?.versionDetails;
   // 2. Fetch from API only if not present in enrollment
   const { data: fetchedCourse, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex,
     !localCourse ? true : false
@@ -849,7 +849,8 @@ function VersionCard({
 
   const version = versionData || fetchedVersion;
 
-  const selectedVersionId = version?.id;
+
+  const selectedVersionId = version?.id || versionId;
 
   const deleteVersion = async () => {
     if (!confirm("Are you sure you want to delete this version? This action cannot be undone.")) {
@@ -1058,7 +1059,7 @@ function VersionCard({
             open={showProctoringModal}
             onClose={() => setShowProctoringModal(false)}
             courseId={courseId}
-            courseVersionId={versionId}
+            courseVersionId={selectedVersionId}
             isNew={false}
           />
 
