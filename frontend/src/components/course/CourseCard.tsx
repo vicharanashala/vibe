@@ -11,26 +11,23 @@ import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
-  const courseId = bufferToHex(enrollment.courseId);
-  const versionId = bufferToHex(enrollment.courseVersionId) || "";
+  const courseId = bufferToHex(enrollment.courseId as string );
+  const versionId = bufferToHex(enrollment.courseVersionId as string ) || "";
   
   const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
-  const { data: progressData, isLoading: isProgressLoading } = useUserProgressPercentage(courseId, versionId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
 
-  // Use real progress data or fallback to 0
-  // const progress = progressData ? Math.round(progressData.percentCompleted * 100) : 0;
-  const progress = enrollment.percentCompleted || 0
-  const totalLessons = progressData?.totalItems || 0;
-  const completedLessons = progressData?.completedItems || 0;
-  const isCompleted = (progressData?.percentCompleted !== undefined && progressData.percentCompleted >= 1) || progressData?.completed || false;
+  const progress = enrollment.percentCompleted as number || 0
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number } || {};
+  const totalLessons = contentCounts.totalItems || 0;
+  const completedLessons = enrollment.completedItems as number || 0;
+  const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
-  const videoCount: number = enrollment.contentCounts?.videos || 0;
-  const quizCount: number = enrollment.contentCounts?.quizzes || 0;
-  const articleCount: number = enrollment.contentCounts?.articles || 0;
+  const videoCount: number = contentCounts.videos || 0;
+  const quizCount: number = contentCounts.quizzes || 0;
+  const articleCount: number = contentCounts.articles || 0;
 
-  console.log(videoCount, quizCount, articleCount, "---------count");
 
   // Find if this courseVersionId is already in completion
   const existingCompletionIndex = completion?.findIndex(
@@ -38,14 +35,14 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
   );
 
   // If not found, append the user progress percentage to the list
-  if (existingCompletionIndex === -1 && progressData) {
+  if (existingCompletionIndex === -1 && enrollment) {
     setCompletion?.([
       ...(completion || []),
       {
         courseVersionId: versionId,
-        percentage: progressData.percentCompleted,
-        totalItems: progressData.totalItems,
-        completedItems: progressData.completedItems
+        percentage:  typeof progress === 'number' ? progress : 0,
+        totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
+        completedItems: typeof completedLessons === 'number' ? completedLessons : 0
       },
     ]);
   }
@@ -69,7 +66,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
     navigate({ to: "/student/learn" });
   };
 
-  if (isCourseLoading || isProgressLoading) {
+  if (isCourseLoading) {
     return <CourseCardSkeleton variant={variant} />;
   }
 
