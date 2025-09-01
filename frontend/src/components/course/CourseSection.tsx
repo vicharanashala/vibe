@@ -33,7 +33,7 @@ export const CourseSection = ({
     }
 
     if (error) {
-      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5"){
+      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5") {
         onRetry?.()
       }
       return (
@@ -71,16 +71,17 @@ export const CourseSection = ({
     return (
       <>
         <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
-          {enrollments.map((enrollment, index) => {
+          {enrollments.map((enrollment: any, index) => {
             const courseId = enrollment.courseVersionId as string;
 
             return (
-              <CourseCard 
-                key={courseId} 
-                enrollment={enrollment} 
-                index={index} 
+              <CourseCard
+                key={courseId}
+                enrollment={enrollment}
+                index={index}
                 variant={variant}
                 completion={completion}
+                isLoading={isLoading}
                 setCompletion={setCompletion}
               />
             );

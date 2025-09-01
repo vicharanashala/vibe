@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useR
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -395,7 +396,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // Create new quiz attempt
       const response = await attemptQuiz({
         params: { path: { quizId: processedQuizId } }
-      });
+      }) as CreateAttemptResponse | { message: string };
+
+      // Check if we got a message about no attempts left
+      if ('message' in response) {
+        toast.error(response.message);
+        return;
+      }
       
       const currentAttemptId = response.attemptId;
       setAttemptId?.(currentAttemptId);
