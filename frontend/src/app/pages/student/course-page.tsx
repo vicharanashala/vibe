@@ -153,6 +153,12 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
 
+  // State to track when we're waiting for next section items to load
+  const [waitingForNextSection, setWaitingForNextSection] = useState<{
+    moduleId: string;
+    sectionId: string;
+  } | null>(null);
+
 
   // State to store all fetched section items
   const [sectionItems, setSectionItems] = useState<Record<string, itemref[]>>({});
@@ -283,12 +289,97 @@ export default function CoursePage() {
   }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
   // console.log('Section items:', sectionItems);
 
+  // Handle navigation to next section after items are loaded
+  useEffect(() => {
+    if (waitingForNextSection && 
+        sectionItems[waitingForNextSection.sectionId] && 
+        sectionItems[waitingForNextSection.sectionId].length > 0) {
+      
+      const firstItem = sectionItems[waitingForNextSection.sectionId][0];
+      
+      // Clear waiting state
+      setWaitingForNextSection(null);
+      
+      // Navigate to the first item of the newly loaded section
+      setSelectedModuleId(waitingForNextSection.moduleId);
+      setSelectedSectionId(waitingForNextSection.sectionId);
+      setSelectedItemId(firstItem._id);
+      
+      // Auto-expand the module and section
+      setExpandedModules(prev => ({ ...prev, [waitingForNextSection.moduleId]: true }));
+      setExpandedSections(prev => ({ ...prev, [waitingForNextSection.sectionId]: true }));
+      
+      // Update course store navigation
+      updateCourseNavigation(waitingForNextSection.moduleId, waitingForNextSection.sectionId, firstItem._id);
+      
+      // Clear loading state
+      setIsNavigatingToNext(false);
+      
+      console.log('Successfully navigated to next section:', waitingForNextSection.sectionId);
+    }
+  }, [sectionItems, waitingForNextSection, updateCourseNavigation]);
+
   // Notification effects
   useEffect(() => {
     if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 5000);
   }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // Track the last known progress data to detect resets
+  const [lastProgressData, setLastProgressData] = useState<any>(null);
+
+  // Effect to detect progress reset and clear cached data
+  useEffect(() => {
+    if (progressData && lastProgressData) {
+      // Check if progress has been reset (current position moved backward significantly)
+      const currentModule = progressData.currentModule;
+      const currentSection = progressData.currentSection;
+      const currentItem = progressData.currentItem;
+      
+      const lastModule = lastProgressData.currentModule;
+      const lastSection = lastProgressData.currentSection;
+      const lastItem = lastProgressData.currentItem;
+      
+      // If we've moved to a different module/section/item that suggests a reset
+      const hasProgressChanged = (
+        currentModule !== lastModule ||
+        currentSection !== lastSection ||
+        currentItem !== lastItem
+      );
+      
+      if (hasProgressChanged) {
+        console.log('Progress reset detected, clearing cached section items');
+        
+        // Clear all cached section items to force fresh load
+        setSectionItems({});
+        
+        // Clear waiting states
+        setWaitingForNextSection(null);
+        
+        // Update selected items
+        setSelectedModuleId(currentModule);
+        setSelectedSectionId(currentSection);
+        setSelectedItemId(currentItem);
+        
+        // Auto-expand the module and section
+        setExpandedModules(prev => ({ ...prev, [currentModule]: true }));
+        setExpandedSections(prev => ({ ...prev, [currentSection]: true }));
+        
+        // Set active section to fetch items fresh
+        setActiveSectionInfo({
+          moduleId: currentModule,
+          sectionId: currentSection
+        });
+        
+        // Update the course store with the current progress
+        updateCourseNavigation(currentModule, currentSection, currentItem);
+      }
+    }
+    
+    // Update last known progress data
+    setLastProgressData(progressData);
+  }, [progressData, lastProgressData, updateCourseNavigation]);
 
   // Effect to initialize based on user progress ONLY ON INITIAL LOAD
   useEffect(() => {
@@ -501,6 +592,14 @@ export default function CoursePage() {
           sectionId: nextSection.sectionId,
           itemId: nextSectionItems[0]._id
         };
+      } else {
+        // Next section exists but items not loaded - return section info to trigger loading
+        return {
+          moduleId: selectedModuleId,
+          sectionId: nextSection.sectionId,
+          itemId: null, // Will be set after items are loaded
+          needsLoading: true
+        };
       }
     }
 
@@ -516,6 +615,14 @@ export default function CoursePage() {
             moduleId: nextModule.moduleId,
             sectionId: firstNextSection.sectionId,
             itemId: nextModuleItems[0]._id
+          };
+        } else {
+          // Next section exists but items not loaded - return section info to trigger loading
+          return {
+            moduleId: nextModule.moduleId,
+            sectionId: firstNextSection.sectionId,
+            itemId: null, // Will be set after items are loaded
+            needsLoading: true
           };
         }
       }
@@ -584,11 +691,36 @@ export default function CoursePage() {
         return;
       }
 
+      // Check if we need to load items for the next section
+      if ((nextItem as any).needsLoading) {
+        const { moduleId, sectionId } = nextItem;
+        console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
+        
+        // Store current valid item before switching
+        if (selectedItemId && selectedSectionId && selectedModuleId) {
+          setPreviousValidItem({
+            moduleId: selectedModuleId,
+            sectionId: selectedSectionId,
+            itemId: selectedItemId
+          });
+        }
+        
+        // Set waiting state to track when items are loaded
+        setWaitingForNextSection({ moduleId, sectionId });
+        
+        // Trigger loading of next section items
+        setActiveSectionInfo({ moduleId, sectionId });
+        
+        // Keep loading state active (will be cleared when navigation completes)
+        return;
+      }
+
       const { moduleId, sectionId, itemId } = nextItem;
 
-      // Ensure all values are defined before switching
+      // Ensure all values are defined before switching (for regular navigation)
       if (!moduleId || !sectionId || !itemId) {
         console.log('Invalid next item data');
+        setIsNavigatingToNext(false);
         return;
       }
 
@@ -623,6 +755,8 @@ export default function CoursePage() {
 
       // Update the course store with the next item
       updateCourseNavigation(moduleId, sectionId, itemId);
+      
+      console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
     } catch (error) {
       console.error('Error navigating to next item:', error);
       // Clear loading state on error
@@ -1062,7 +1196,8 @@ export default function CoursePage() {
                   settings: {
                     proctors: {
                       detectors: []
-                    }
+                    },
+                    linearProgressionEnabled: true
                   }
                 }}
                 anomalies={anomalies}
