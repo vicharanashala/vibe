@@ -9,11 +9,10 @@ import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
-    disable: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, disable, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, onClick, ...buttonProps } = props;
     return (
         <button
             {...buttonProps}
@@ -22,7 +21,7 @@ function TranscribeButton(props: Props) {
                     onClick(event);
                 }
             }}
-            disabled={isTranscribing || isModelLoading || disable }
+            disabled={isTranscribing || isModelLoading }
             className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
         >
             Start AI Job
@@ -667,7 +666,6 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
                                 }}
                                 isModelLoading={props.transcriber.isModelLoading}
                                 isTranscribing={props.transcriber.isBusy}
-                                disabled = {!props.transcriber.isBusy}
                             />
 
                             <SettingsTile

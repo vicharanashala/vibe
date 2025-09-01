@@ -236,7 +236,6 @@ export const connectToLiveStatusUpdates = (
   };
 
   eventSource.addEventListener('jobStatus', (event) => {
-    console.log('Named event "jobStatus":', event.data);
     let data: JobStatus = JSON.parse(event.data);
     setAiJobStatus(data);
   });
