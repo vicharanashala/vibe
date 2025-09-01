@@ -1,12 +1,12 @@
-﻿import {GLOBAL_TYPES} from '#root/types.js';
-import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#shared/database/interfaces/IItemRepository.js';
-import {ItemType} from '#shared/interfaces/models.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
+﻿import { GLOBAL_TYPES } from '#root/types.js';
+import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
+import { ItemType } from '#shared/interfaces/models.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
 import {
   ItemsGroup,
   VideoItem,
@@ -28,7 +28,7 @@ export class ItemRepository implements IItemRepository {
     private db: MongoDatabase,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) {}
+  ) { }
 
   private async init() {
     this.itemsGroupCollection =
@@ -52,8 +52,8 @@ export class ItemRepository implements IItemRepository {
       throw new InternalServerError('Failed to create items group.');
     }
     const newItemsGroup = await this.itemsGroupCollection.findOne(
-      {_id: result.insertedId},
-      {session},
+      { _id: result.insertedId },
+      { session },
     );
     if (!newItemsGroup) {
       throw new InternalServerError(
@@ -71,27 +71,27 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup> {
     await this.init();
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      {_id: new ObjectId(itemsGroupId)},
-      {session},
+      { _id: new ObjectId(itemsGroupId) },
+      { session },
     );
     if (!itemsGroup) {
       throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
     }
     return instanceToPlain(
-      Object.assign(new ItemsGroup(), itemsGroup), 
+      Object.assign(new ItemsGroup(), itemsGroup),
     ) as ItemsGroup;
   }
   async updateItemsGroup(
-    itemsGroupId: string, 
+    itemsGroupId: string,
     itemsGroup: ItemsGroup,
     session: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    const {_id, ...fields} = itemsGroup;
+    const { _id, ...fields } = itemsGroup;
     const result = await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemsGroupId)},
-      {$set: fields},
-      {session},
+      { _id: new ObjectId(itemsGroupId) },
+      { $set: fields },
+      { session },
     );
     if (result.modifiedCount !== 1) {
       throw new InternalServerError(
@@ -99,8 +99,8 @@ export class ItemRepository implements IItemRepository {
       );
     }
     const updated = await this.itemsGroupCollection.findOne(
-      {_id: new ObjectId(itemsGroupId)},
-      {session},
+      { _id: new ObjectId(itemsGroupId) },
+      { session },
     );
     if (!updated) {
       throw new InternalServerError(
@@ -121,11 +121,11 @@ export class ItemRepository implements IItemRepository {
       { 'items._id': itemId },
       { session }
     );
-    
+
     if (!itemsGroup) {
       return null;
     }
-    
+
     return instanceToPlain(
       Object.assign(new ItemsGroup(), itemsGroup),
     ) as ItemsGroup;
@@ -149,14 +149,14 @@ export class ItemRepository implements IItemRepository {
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
-    const result = await collection.insertOne(item, {session});
+    const result = await collection.insertOne(item, { session });
     if (!result.insertedId) {
       throw new Error(`Failed to insert item of type ${item.type}.`);
     }
 
     const createdItem = await collection.findOne(
-      {_id: result.insertedId},
-      {session},
+      { _id: result.insertedId },
+      { session },
     );
 
     return createdItem as Item;
@@ -233,7 +233,7 @@ export class ItemRepository implements IItemRepository {
     }
 
     const result = await collection.findOneAndUpdate(
-      {_id: new ObjectId(itemId)},
+      { _id: new ObjectId(itemId) },
       {
         $set: {
           name: item.name,
@@ -241,7 +241,7 @@ export class ItemRepository implements IItemRepository {
           details: item.details,
         },
       },
-      {returnDocument: 'after', session},
+      { returnDocument: 'after', session },
     );
 
     if (!result) {
@@ -264,26 +264,26 @@ export class ItemRepository implements IItemRepository {
     }
     // If the item is a video, delete it from the video collection
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
-      await this.videoCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+      await this.videoCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
     } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
-      await this.quizCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+      await this.quizCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
-      await this.blogCollection.deleteOne({_id: new ObjectId(itemId)}, {session});
+      await this.blogCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
     } else {
       throw new InternalServerError(`Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`);
     }
     itemsGroup.items.splice(itemIndex, 1);
     await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemGroupsId)},
-      {$set: {items: itemsGroup.items}},
-      {session},
+      { _id: new ObjectId(itemGroupsId) },
+      { $set: { items: itemsGroup.items } },
+      { session },
     );
     return itemsGroup;
   }
 
   async getFirstOrderItems(
     courseVersionId: string,
-  ): Promise<{moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId}> {
+  ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId }> {
     const version = await this.courseRepo.readVersion(courseVersionId);
     if (!version || version.modules.length === 0) {
       throw new InternalServerError('Course version has no modules');
@@ -323,7 +323,7 @@ export class ItemRepository implements IItemRepository {
       throw new NotFoundError(`Course version ${versionId} not found.`);
     }
 
-    console.log("Version from calculate totalCount: ", version, versionId)
+    // console.log("Version from calculate totalCount: ", version, versionId)
     // Verify that the version belongs to the specified course
     if (version.courseId.toString() !== courseId) {
       throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);

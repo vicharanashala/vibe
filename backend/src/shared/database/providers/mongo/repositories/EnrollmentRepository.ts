@@ -818,12 +818,18 @@ export class EnrollmentRepository {
   ): Promise<void> {
     try {
 
+      await this.enrollmentCollection.dropIndex("courseVersionId_1")
+      await this.enrollmentCollection.dropIndex("courseId_1")
+      await this.enrollmentCollection.dropIndex("enrollmentDate_-1")
 
-
-      await this.enrollmentCollection.createIndex({ userId: 1, role: 1 });
-      await this.enrollmentCollection.createIndex({ courseId: 1 });
-      await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
-      await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
+      await this.enrollmentCollection.createIndex(
+        { courseId: 1, courseVersionId: 1 },
+        { name: "courseId_1_courseVersionId_1" }
+      )
+      // await this.enrollmentCollection.createIndex({ userId: 1, role: 1 });
+      // await this.enrollmentCollection.createIndex({ courseId: 1 });
+      // await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
+      // await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
 
       console.log('Indexes created successfully!');
     } catch (err) {

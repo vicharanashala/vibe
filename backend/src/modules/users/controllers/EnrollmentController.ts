@@ -376,7 +376,7 @@ export class EnrollmentController {
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
   ) {
-    await this.enrollmentService.addIndex();
+    await this.enrollmentService.bulkUpdateAllEnrollments();
   }
 
   @OpenAPI({
