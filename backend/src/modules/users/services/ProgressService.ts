@@ -335,26 +335,39 @@ class ProgressService extends BaseService {
     totalItems: number,
     session?: ClientSession,
   ) {
-    const bulkOps = enrollments.map(enrollment => {
-      const userId = enrollment.userId?.toString();
+    // resolve all async operations first
+    const bulkOps = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const userId = enrollment.userId?.toString();
 
-      return {
-        updateOne: {
-          filter: {
-            userId: new ObjectId(userId),
-            courseId: new ObjectId(courseId),
-            courseVersionId: new ObjectId(versionId),
-          },
-          update: {
-            $set: {
-              totalItems,
-              progressPercent: this._calculateProgress(enrollment, totalItems), // helper if needed
-              updatedAt: new Date(),
+        const completedItems =
+          await this.getUserProgressPercentageWithoutTotal(
+            userId,
+            courseId,
+            versionId,
+          );
+
+        return {
+          updateOne: {
+            filter: {
+              userId: new ObjectId(userId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(versionId),
+            },
+            update: {
+              $set: {
+                progressPercent: this._calculateProgress(
+                  enrollment,
+                  totalItems,
+                  completedItems,
+                ),
+                updatedAt: new Date(),
+              },
             },
           },
-        },
-      };
-    });
+        };
+      }),
+    );
 
     if (bulkOps.length > 0) {
       return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
@@ -362,10 +375,13 @@ class ProgressService extends BaseService {
     return null;
   }
 
+
   // Helper to calculate progress based on completed items
-  private _calculateProgress(enrollment: any, totalItems: number): number {
+  private _calculateProgress(enrollment: any, totalItems: number, completedItems: number): number {
+
+
     if (!totalItems || totalItems === 0) return 0;
-    return ((enrollment.completedItems ?? 0) / totalItems) * 100;
+    return ((completedItems ?? 0) / totalItems) * 100;
   }
 
   private async verifyDetails(

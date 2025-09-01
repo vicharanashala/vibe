@@ -10,11 +10,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
-export const CourseCard = ({ enrollment, index, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
-  const courseId = bufferToHex(enrollment.courseId as string );
-  const versionId = bufferToHex(enrollment.courseVersionId as string ) || "";
-  
-  const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
+export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+  const courseId = bufferToHex(enrollment.courseId as string);
+  const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+
+  // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
 
@@ -40,7 +40,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
       ...(completion || []),
       {
         courseVersionId: versionId,
-        percentage:  typeof progress === 'number' ? progress : 0,
+        percentage: typeof progress === 'number' ? progress : 0,
         totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
         completedItems: typeof completedLessons === 'number' ? completedLessons : 0
       },
@@ -66,7 +66,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
     navigate({ to: "/student/learn" });
   };
 
-  if (isCourseLoading) {
+  if (isLoading) {
     return <CourseCardSkeleton variant={variant} />;
   }
 
@@ -76,7 +76,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
         <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
           <ImageWithFallback
             src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
-            alt={courseDetails?.name || `Course ${index + 1}`}
+            alt={enrollment?.course?.name || `Course ${index + 1}`}
             aspectRatio="aspect-square"
             className="rounded-l-lg w-full h-full"
           />
@@ -133,7 +133,7 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
             </div>
           </div>
           <h3 className="font-medium text-lg mb-auto">
-            {courseDetails?.name || `Course ${index + 1}`}
+            {enrollment?.course?.name || `Course ${index + 1}`}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
             {isCompleted
@@ -163,13 +163,13 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-lg">
-              {courseDetails?.name || `Course ${index + 1}`}
+              {enrollment?.course?.name || `Course ${index + 1}`}
             </CardTitle>
             <CardDescription>
-              by <b>{courseDetails?.instructors
-                ? (Array.isArray(courseDetails.instructors)
-                  ? courseDetails.instructors.join(', ')
-                  : courseDetails.instructors)
+              by <b>{enrollment?.course?.instructors
+                ? (Array.isArray(enrollment?.course.instructors)
+                  ? enrollment?.course.instructors.join(', ')
+                  : enrollment?.course.instructors)
                 : "Unknown Instructor"}</b>
             </CardDescription>
           </div>
@@ -184,9 +184,9 @@ export const CourseCard = ({ enrollment, index, variant = 'dashboard', className
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {courseDetails?.description && (
+        {enrollment?.course?.description && (
           <p className="text-sm text-muted-foreground line-clamp-2">
-            {courseDetails.description}
+            {enrollment?.course.description}
           </p>
         )}
         <div className="space-y-2">

@@ -198,7 +198,7 @@ export class EnrollmentService extends BaseService {
         role,
         session,
       );
-      console.log('Enrollments fetched:', result);
+
 
       return result.map((enrollment: any) => {
         return {
