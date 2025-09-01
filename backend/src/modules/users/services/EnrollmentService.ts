@@ -189,33 +189,58 @@ export class EnrollmentService extends BaseService {
     search: string,
   ): Promise<EnrollmentDataResponse[]> {
     return this._withTransaction(async (session: ClientSession) => {
-      // Step 1: Fetch the enrollments
-      const result = await this.enrollmentRepo.getEnrollments(
+      const enrollments = await this.enrollmentRepo.getBasicEnrollments(
         userId,
         skip,
         limit,
-        search,
         role,
+        search,
         session,
       );
 
+      if (!enrollments.length) return [];
 
-      return result.map((enrollment: any) => {
+      const versionIds = [
+        ...new Set(enrollments.map((e) => e.courseVersionId.toString())),
+      ].map((id) => new ObjectId(id));
+
+      const watchedKeys = enrollments.map((e) => ({
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(e.courseId),
+        courseVersionId: new ObjectId(e.courseVersionId),
+      }));
+
+      const [contentCountsMap, watchedItemsMap] = await Promise.all([
+        this.enrollmentRepo.getContentCountsForVersions(versionIds),
+        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+      ]);
+
+      return enrollments.map((enr) => {
+        const versionIdStr = enr.courseVersionId.toString();
+        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+
         return {
-          _id: enrollment._id.toString(),
-          courseId: enrollment.courseId.toString(),
-          courseVersionId: enrollment.courseVersionId.toString(),
-          role: enrollment.role,
-          status: enrollment.status,
-          enrollmentDate: new Date(enrollment.enrollmentDate),
-          course: enrollment.course,
-          percentCompleted: enrollment.percentCompleted || 0,
-          contentCounts: enrollment.contentCounts,
-          completedItems: enrollment.watchedItemCount || 0,
+          _id: enr._id.toString(),
+          courseId: enr.courseId.toString(),
+          courseVersionId: versionIdStr,
+          role: enr.role,
+          status: enr.status,
+          enrollmentDate: new Date(enr.enrollmentDate),
+          course: enr.course,
+          percentCompleted: enr.percentCompleted || 0,
+          contentCounts: contentCountsMap.get(versionIdStr) || {
+            totalItems: 0,
+            videos: 0,
+            quizzes: 0,
+            articles: 0,
+          },
+          completedItems: watchedItemsMap.get(watchedKey) || 0,
         };
       });
     });
   }
+
+
 
 
   async getAllEnrollments(userId: string) {
@@ -441,13 +466,8 @@ export class EnrollmentService extends BaseService {
   }
 
   async addIndex(): Promise<void> {
-
-
-
-
     await this._withTransaction(async session => {
       await this.enrollmentRepo.addEnrollmentIndexes(
-
         session,
       );
 

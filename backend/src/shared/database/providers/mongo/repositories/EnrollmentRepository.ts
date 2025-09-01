@@ -2,6 +2,7 @@ import {
   EnrollmentRole,
   IEnrollment,
   IProgress,
+  ICourseVersion, IWatchTime
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
@@ -14,6 +15,8 @@ import { EnrollmentStats } from '#root/modules/users/types.js';
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private progressCollection!: Collection<IProgress>;
+  private courseVersionCollection!: Collection<ICourseVersion>;
+  private watchTimeCollection!: Collection<IWatchTime>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
@@ -23,6 +26,12 @@ export class EnrollmentRepository {
     );
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
+    );
+    this.courseVersionCollection = await this.db.getCollection<ICourseVersion>(
+      'newCourseVersion',
+    );
+    this.watchTimeCollection = await this.db.getCollection<IWatchTime>(
+      'watchTime',
     );
   }
 
@@ -186,233 +195,7 @@ export class EnrollmentRepository {
     );
   }
 
-  /**
-   * Get paginated enrollments for a user
-   */
-  //old code
-  // async getEnrollments(
-  //   userId: string,
-  //   skip: number,
-  //   limit: number,
-  //   search: string,
-  //   role: EnrollmentRole,
-  //   session?: ClientSession,
-  // ) {
-  //   try {
-  //     await this.init();
-  //     const userObjectId = new ObjectId(userId);
 
-  //     const aggregationPipeline: any[] = [
-  //       { $match: { userId: userObjectId, role } },
-  //       { $sort: { enrollmentDate: -1 } },
-  //       { $skip: skip },
-  //       { $limit: limit },
-  //       {
-  //         $lookup: {
-  //           from: 'newCourse',
-  //           localField: 'courseId',
-  //           foreignField: '_id',
-  //           as: 'course',
-  //           pipeline: [
-  //             { $project: { name: 1, versions: 1 } }
-  //           ]
-  //         },
-  //       },
-  //       { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $addFields: {
-  //           'course.versions': {
-  //             $map: {
-  //               input: '$course.versions',
-  //               as: 'v',
-  //               in: { $toObjectId: '$$v' },
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: 'newCourseVersion',
-  //           localField: 'course.versions',
-  //           foreignField: '_id',
-  //           as: 'course.versionDetails',
-  //         },
-  //       },
-  //       {
-  //         $set: {
-  //           'course.versionDetails': {
-  //             $map: {
-  //               input: '$course.versionDetails',
-  //               as: 'version',
-  //               in: {
-  //                 $mergeObjects: [
-  //                   '$$version',
-  //                   { id: { $toString: '$$version._id' } },
-  //                 ],
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $unset: 'course.versionDetails._id',
-  //       },
-  //       {
-  //         $set: {
-  //           'course.versions': {
-  //             $map: {
-  //               input: '$course.versions',
-  //               as: 'v',
-  //               in: { $toString: '$$v' },
-  //             },
-  //           },
-  //         },
-  //       },
-  //       // Lookup content counts
-  //       {
-  //         $lookup: {
-  //           from: 'newCourseVersion',
-  //           let: { versionId: '$courseVersionId' },
-  //           pipeline: [
-  //             { $match: { $expr: { $eq: ['$_id', '$$versionId'] } } },
-  //             {
-  //               $project: {
-  //                 itemGroupIds: {
-  //                   $reduce: {
-  //                     input: {
-  //                       $map: {
-  //                         input: '$modules',
-  //                         as: 'm',
-  //                         in: {
-  //                           $map: {
-  //                             input: '$$m.sections',
-  //                             as: 's',
-  //                             in: '$$s.itemsGroupId',
-  //                           },
-  //                         },
-  //                       },
-  //                     },
-  //                     initialValue: [],
-  //                     in: { $concatArrays: ['$$value', '$$this'] },
-  //                   },
-  //                 },
-  //               },
-  //             },
-
-  //             { $unwind: '$itemGroupIds' },
-  //             {
-  //               $addFields: {
-  //                 itemGroupObjId: { $toObjectId: '$itemGroupIds' },
-  //               },
-  //             },
-  //             {
-  //               $lookup: {
-  //                 from: 'itemsGroup',
-  //                 localField: 'itemGroupObjId',
-  //                 foreignField: '_id',
-  //                 as: 'itemsGroup',
-  //               },
-  //             },
-
-  //             { $unwind: '$itemsGroup' },
-  //             { $unwind: '$itemsGroup.items' },
-  //             {
-  //               $group: {
-  //                 _id: '$_id',
-  //                 totalItems: { $sum: 1 },
-  //                 videos: {
-  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0] },
-  //                 },
-  //                 quizzes: {
-  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0] },
-  //                 },
-  //                 articles: {
-  //                   $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'ARTICLE'] }, 1, 0] },
-  //                 },
-  //               },
-  //             },
-  //           ],
-  //           as: 'contentCounts',
-  //         },
-  //       },
-  //       {
-  //         $set: {
-  //           contentCounts: {
-  //             $ifNull: [
-  //               { $arrayElemAt: ['$contentCounts', 0] },
-  //               { totalItems: 0, videos: 0, quizzes: 0, articles: 0 },
-  //             ],
-  //           },
-  //         },
-  //       },
-  //       //  Lookup watched items
-  //       {
-  //         $lookup: {
-  //           from: 'watchTime',
-  //           let: {
-  //             userId: '$userId',
-  //             courseId: '$courseId',
-  //             courseVersionId: '$courseVersionId',
-  //           },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: {
-  //                   $and: [
-  //                     { $eq: ['$userId', '$$userId'] },
-  //                     { $eq: ['$courseId', '$$courseId'] },
-  //                     { $eq: ['$courseVersionId', '$$courseVersionId'] },
-  //                   ],
-  //                 },
-  //               },
-  //             },
-  //             {
-  //               $group: {
-  //                 _id: null,
-  //                 distinctItemIds: { $addToSet: '$itemId' },
-  //               },
-  //             },
-  //           ],
-  //           as: 'watchedItems',
-  //         },
-  //       },
-  //       {
-  //         $set: {
-  //           watchedItemCount: {
-  //             $size: {
-  //               $ifNull: [
-  //                 { $arrayElemAt: ['$watchedItems.distinctItemIds', 0] },
-  //                 [],
-  //               ],
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $unset: 'watchedItems',
-  //       }
-
-
-
-  //     ];
-
-  //     // Only add search filter if search is provided
-  //     if (search && search.trim()) {
-  //       aggregationPipeline.push({
-  //         $match: { 'course.name': { $regex: search, $options: 'i' } },
-  //       });
-  //     }
-
-
-
-  //     return await this.enrollmentCollection
-  //       .aggregate(aggregationPipeline, { session, maxTimeMS: 120000 })
-  //       .toArray();
-  //   } catch (error) {
-  //     console.log(error);
-  //     throw new InternalServerError(`Failed to get enrollments /More ${error}`);
-  //   }
-  // }
 
   async getEnrollments(
     userId: string,
@@ -591,6 +374,168 @@ export class EnrollmentRepository {
       throw new InternalServerError(`Failed to get enrollments /More ${error}`);
     }
   }
+
+  async getBasicEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role: EnrollmentRole,
+    search: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+    const userObjectId = new ObjectId(userId);
+
+    const pipeline: any[] = [
+      { $match: { userId: userObjectId, role } },
+      { $sort: { enrollmentDate: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+          pipeline: [{ $project: { name: 1, versions: 1 } }],
+        },
+      },
+      { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
+      ...(search?.trim()
+        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
+        : []),
+      {
+        $project: {
+          _id: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          role: 1,
+          status: 1,
+          enrollmentDate: 1,
+          course: 1,
+          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+        },
+      },
+    ];
+
+    return await this.enrollmentCollection.aggregate(pipeline, { session }).toArray();
+  }
+
+  async getContentCountsForVersions(versionIds: ObjectId[]): Promise<Map<string, any>> {
+    const results = await this.courseVersionCollection.aggregate([
+      { $match: { _id: { $in: versionIds } } },
+      {
+        $project: {
+          _id: 1,
+          itemGroupIds: {
+            $reduce: {
+              input: {
+                $map: {
+                  input: '$modules',
+                  as: 'm',
+                  in: {
+                    $map: {
+                      input: '$$m.sections',
+                      as: 's',
+                      in: '$$s.itemsGroupId',
+                    },
+                  },
+                },
+              },
+              initialValue: [],
+              in: { $concatArrays: ['$$value', '$$this'] },
+            },
+          },
+        },
+      },
+      { $unwind: '$itemGroupIds' },
+      {
+        $addFields: {
+          itemGroupObjId: { $toObjectId: '$itemGroupIds' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'itemsGroup',
+          localField: 'itemGroupObjId',
+          foreignField: '_id',
+          as: 'itemsGroup',
+        },
+      },
+      { $unwind: '$itemsGroup' },
+      { $unwind: '$itemsGroup.items' },
+      {
+        $group: {
+          _id: '$_id',
+          totalItems: { $sum: 1 },
+          videos: {
+            $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0] },
+          },
+          quizzes: {
+            $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0] },
+          },
+          articles: {
+            $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'ARTICLE'] }, 1, 0] },
+          },
+        },
+      },
+    ]).toArray();
+
+    const map = new Map<string, any>();
+    for (const doc of results) {
+      map.set(doc._id.toString(), {
+        totalItems: doc.totalItems,
+        videos: doc.videos,
+        quizzes: doc.quizzes,
+        articles: doc.articles,
+      });
+    }
+    return map;
+  }
+
+
+  async getWatchedItemCountsBatch(entries: {
+    userId: ObjectId;
+    courseId: ObjectId;
+    courseVersionId: ObjectId;
+  }[]): Promise<Map<string, number>> {
+    const matchConditions = entries.map((e) => ({
+      userId: e.userId,
+      courseId: e.courseId,
+      courseVersionId: e.courseVersionId,
+    }));
+
+    const results = await this.watchTimeCollection.aggregate([
+      { $match: { $or: matchConditions } },
+      {
+        $group: {
+          _id: {
+            userId: '$userId',
+            courseId: '$courseId',
+            courseVersionId: '$courseVersionId',
+          },
+          itemIds: { $addToSet: '$itemId' },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          count: { $size: '$itemIds' },
+        },
+      },
+    ]).toArray();
+
+    const map = new Map<string, number>();
+    for (const doc of results) {
+      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}`;
+      map.set(key, doc.count);
+    }
+
+    return map;
+  }
+
+
+
 
 
 
