@@ -4,6 +4,12 @@ import {
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Reorder } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -806,25 +812,52 @@ export default function TeacherCoursePage() {
                                             <TooltipProvider>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                  <Button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setCurrentCourse({
-                                                        courseId,
-                                                        versionId,
-                                                        moduleId: module.moduleId,
-                                                        sectionId: section.sectionId,
-                                                        itemId: null,
-                                                        watchItemId: null,
-                                                      });
-                                                      navigate({ to: '/teacher/ai-section' });
-                                                    }}
-                                                    className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                    style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                  >
-                                                    <Sparkles className="h-2 w-2" />
-                                                    <span>AI</span>
-                                                  </Button>
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                      <Button
+                                                        type="button"
+                                                        className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                        style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                      >
+                                                        <Sparkles className="h-2 w-2" />
+                                                        <span>AI</span>
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="start" className="w-40">
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-section' });
+                                                        }}
+                                                      >
+                                                        Normal mode
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-workflow' });
+                                                        }}
+                                                      >
+                                                        Wizard mode
+                                                      </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right" align="center">
                                                   Generate Section with AI

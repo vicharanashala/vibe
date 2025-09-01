@@ -7,7 +7,25 @@ export interface itemref {
 }
 
 export interface CourseCardProps {
-  enrollment: Record<string, unknown>;
+  enrollment: {
+    courseId: string | { buffer: { data: number[] } };
+    courseVersionId: string | { buffer: { data: number[] } };
+    percentCompleted?: number;
+    contentCounts?: {
+      totalItems?: number;
+      videos?: number;
+      quizzes?: number;
+      articles?: number;
+    };
+    completedItems?: number;
+    course?: {
+      name: string;
+      description: string;
+      instructors?: Array<{ name: string }>;
+    };
+    enrollmentDate?: string;
+  };
+  isLoading: boolean;
   index: number;
   variant?: 'dashboard' | 'courses';
   className?: string;
