@@ -105,6 +105,7 @@ export default function AuthPage() {
     fullName?: string;
     auth?: string;
   }>({});
+  const [showAuthForm, setShowAuthForm] = useState(false);
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
@@ -439,357 +440,377 @@ export default function AuthPage() {
         {/* Right Side - Auth Forms */}
         <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-md space-y-8">
-            {/* Header */}
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold tracking-tight">
-                {isSignUp ? "Create Account" : "Welcome Back"}
-              </h2>
-              <p className="text-muted-foreground">
-                {isSignUp
-                  ? "Join thousands of learners worldwide"
-                  : "Sign in to your account to continue"
-                }
-              </p>
-            </div>
-
-            {/* Auth Card with Shine Border */}
-            <Card className="relative overflow-hidden">
-              <ShineBorder
-                shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
-                duration={8}
-                borderWidth={2}
-              />
-
-              {!isSignUp ? (
-                // Login Section
-                <div>
-                  {/* Role Selection Tabs */}
-                  <CardHeader className="pb-4">
-                    <Tabs
-                      defaultValue="student"
-                      className="w-full flex justify-center"
-                      onValueChange={(v: string) => setActiveRole(v as "student" | "teacher")}
-                      value={activeRole}
-                    >
-                      <TabsList className="grid w-3/4 mx-auto grid-cols-2 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-1 border border-primary/20 shadow-lg">
-                        <TabsTrigger
-                          value="student"
-                          className={cn(
-                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                            activeRole === "student"
-                              ? "bg-white border border-primary text-primary shadow-md"
-                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
-                          )}
-                        >
-                          <span className="flex items-center gap-2 justify-center">
-                            {/* Using Lucide icon for student */}
-                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill={activeRole === "student" ? "currentColor" : "#888"} /></svg>
-                            Student
-                          </span>
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="teacher"
-                          className={cn(
-                            "rounded-lg py-2 px-4 transition-all duration-200 font-semibold text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                            activeRole === "teacher"
-                              ? "bg-white border border-primary text-primary shadow-md"
-                              : "bg-transparent border border-transparent text-muted-foreground hover:bg-primary/10"
-                          )}
-                        >
-                          <span className="flex items-center gap-2 justify-center">
-                            {/* Using Lucide icon for teacher */}
-                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6-2V7a6 6 0 1 0-12 0v1a2 2 0 0 0-2 2v2h16V9a2 2 0 0 0-2-2Z" fill={activeRole === "teacher" ? "currentColor" : "#888"} /></svg>
-                            Teacher
-                          </span>
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">{/* Content based on activeRole */}
-                    {/* Auth Error Alert */}
-                    {formErrors.auth && (
-                      <div className="rounded-lg border border-red-600 bg-destructive/10 p-3">
-                        <div className="flex items-center space-x-2">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          <p className="text-sm text-red-600 font-medium">{formErrors.auth}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Email Field */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium">
-                        Email Address
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          formErrors.email && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                      {formErrors.email && (
-                        <p className="text-xs text-destructive">{formErrors.email}</p>
-                      )}
-                    </div>
-
-                    {/* Password Field */}
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium">
-                        Password
-                      </Label>
-                      <Input
-                        id="password"
-                        name="new-password"
-                        type="password"
-                        placeholder="Enter your password"
-                        autoComplete="new-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          formErrors.password && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                      {formErrors.password && (
-                        <p className="text-xs text-destructive">{formErrors.password}</p>
-                      )}
-                    </div>
-
-                    {/* Login Button */}
-                    <Button
-                      className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                      onClick={handleEmailLogin}
-                      disabled={loading}
-                    >
-                      {loading ? "Signing in..." : `Sign in as ${activeRole}`}
-                    </Button>
-
-                    {/* Divider */}
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <Separator />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">
-                          or continue with
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Google Login */}
-                    <Button
-                      variant="outline"
-                      className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200"
-                      onClick={handleGoogleLogin}
-                      disabled={loading}
-                    >
-                      <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                      </svg>
-                      Continue with Google
-                    </Button>
-                  </CardContent>
-
-                  <CardFooter className="pt-4">
-                    <Button
-                      variant="link"
-                      className="w-full text-sm text-muted-foreground hover:text-foreground"
-                      onClick={toggleSignUpMode}
-                    >
-                      Don't have an account? <span className="ml-1 font-medium">Sign up</span>
-                    </Button>
-                  </CardFooter>
+            {!showAuthForm ? (
+              <>
+                {/* Role Selection */}
+                <div className="text-center space-y-4">
+                  <h2 className="text-3xl font-bold tracking-tight">
+                    Welcome to Vibe
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Select your role to continue
+                  </p>
                 </div>
-              ) : (
-                // Sign Up Section
-                <div>
-                  <CardHeader>
-                    <CardTitle className="text-xl">Create Student Account</CardTitle>
-                    <CardDescription>
-                      Join our learning community and start your educational journey
-                    </CardDescription>
-                  </CardHeader>
 
-                  <CardContent className="space-y-4">
-                    {/* Auth Error Alert */}
-                    {formErrors.auth && (
-                      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-                        <div className="flex items-center space-x-2">
-                          <AlertCircle className="h-4 w-4 text-destructive" />
-                          <p className="text-sm text-destructive">{formErrors.auth}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Full Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">
-                        Full Name
-                      </Label>
-                      <Input
-                        id="fullName"
-                        placeholder="Enter your full name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          formErrors.fullName && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                      {formErrors.fullName && (
-                        <p className="text-xs text-destructive">{formErrors.fullName}</p>
-                      )}
+                <div className="space-y-4">
+                  <Button 
+                    onClick={() => {
+                      setActiveRole('student');
+                      setShowAuthForm(true);
+                    }}
+                    className="w-full h-14 text-lg"
+                    variant="outline"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-primary">
+                        <path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill="currentColor" />
+                      </svg>
+                      Continue as Student
+                    </span>
+                  </Button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
                     </div>
-
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email" className="text-sm font-medium">
-                        Email Address
-                      </Label>
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          formErrors.email && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                      {formErrors.email && (
-                        <p className="text-xs text-destructive">{formErrors.email}</p>
-                      )}
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or
+                      </span>
                     </div>
+                  </div>
 
-                    {/* Password with Strength Indicator */}
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password" className="text-sm font-medium">
-                        Password
-                      </Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="Create a strong password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          formErrors.password && "border-destructive focus-visible:ring-destructive"
+                  <Button 
+                    onClick={() => {
+                      setActiveRole('teacher');
+                      setShowAuthForm(true);
+                    }}
+                    className="w-full h-14 text-lg"
+                    variant="outline"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-primary">
+                        <path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6-2V7a6 6 0 1 0-12 0v1a2 2 0 0 0-2 2v2h16V9a2 2 0 0 0-2-2Z" fill="currentColor" />
+                      </svg>
+                      Continue as Instructor
+                    </span>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Back Button */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-muted-foreground hover:bg-transparent -ml-2"
+                  onClick={() => setShowAuthForm(false)}
+                >
+                  ← Back
+                </Button>
+                
+                {/* Auth Card */}
+                <Card className="relative overflow-hidden">
+                  <ShineBorder
+                    shineColor={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
+                    duration={8}
+                    borderWidth={2}
+                  />
+                  
+                  {!isSignUp ? (
+                    // Login Section
+                    <div>
+                      <CardHeader>
+                        <CardTitle className="text-2xl">Welcome Back</CardTitle>
+                        <CardDescription>Sign in to your account to continue</CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        {/* Auth Error Alert */}
+                        {formErrors.auth && (
+                          <div className="rounded-lg border border-red-600 bg-destructive/10 p-3">
+                            <div className="flex items-center space-x-2">
+                              <AlertCircle className="h-4 w-4 text-red-600" />
+                              <p className="text-sm text-red-600 font-medium">{formErrors.auth}</p>
+                            </div>
+                          </div>
                         )}
-                      />
-                      {password && (
+
+                        {/* Email Field */}
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Password strength</span>
-                            <span className={cn(
-                              "text-xs font-medium",
-                              passwordStrength.value <= 25 && "text-red-500",
-                              passwordStrength.value > 25 && passwordStrength.value <= 50 && "text-yellow-500",
-                              passwordStrength.value > 50 && passwordStrength.value <= 75 && "text-blue-500",
-                              passwordStrength.value > 75 && "text-green-500"
-                            )}>
-                              {passwordStrength.label}
+                          <Label htmlFor="email" className="text-sm font-medium">
+                            Email Address
+                          </Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="Enter your email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.email && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {formErrors.email && (
+                            <p className="text-xs text-destructive">{formErrors.email}</p>
+                          )}
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="space-y-2">
+                          <Label htmlFor="password" className="text-sm font-medium">
+                            Password
+                          </Label>
+                          <Input
+                            id="password"
+                            name="new-password"
+                            type="password"
+                            placeholder="Enter your password"
+                            autoComplete="new-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.password && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {formErrors.password && (
+                            <p className="text-xs text-destructive">{formErrors.password}</p>
+                          )}
+                        </div>
+
+                        {/* Login Button */}
+                        <Button
+                          className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                          onClick={handleEmailLogin}
+                          disabled={loading}
+                        >
+                          {loading ? "Signing in..." : `Sign in as ${activeRole}`}
+                        </Button>
+
+                        {/* Divider */}
+                        <div className="relative my-6">
+                          <div className="absolute inset-0 flex items-center">
+                            <Separator />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-muted-foreground">
+                              or continue with
                             </span>
                           </div>
-                          <div className="w-full bg-muted rounded-full h-1.5">
-                            <div
-                              className={cn(
-                                "h-1.5 rounded-full transition-all duration-300",
-                                passwordStrength.color
-                              )}
-                              style={{ width: `${passwordStrength.value}%` }}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Check className={cn(
-                                "h-3 w-3",
-                                password.length >= 8 ? 'text-green-500' : 'text-muted-foreground'
-                              )} />
-                              8+ characters
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Check className={cn(
-                                "h-3 w-3",
-                                /[A-Z]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} />
-                              Uppercase
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Check className={cn(
-                                "h-3 w-3",
-                                /\d/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} />
-                              Numbers
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Check className={cn(
-                                "h-3 w-3",
-                                /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
-                              )} />
-                              Special chars
-                            </div>
-                          </div>
                         </div>
-                      )}
-                      {formErrors.password && (
-                        <p className="text-xs text-destructive">{formErrors.password}</p>
-                      )}
-                    </div>
 
-                    {/* Confirm Password */}
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                        Confirm Password
-                      </Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        placeholder="Confirm your password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className={cn(
-                          "transition-all duration-200",
-                          !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
+                        {/* Google Login */}
+                        <Button
+                          variant="outline"
+                          className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200"
+                          onClick={handleGoogleLogin}
+                          disabled={loading}
+                        >
+                          <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                          </svg>
+                          Continue with Google
+                        </Button>
+                      </CardContent>
+
+                      <CardFooter className="pt-4">
+                        <Button
+                          variant="link"
+                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          onClick={toggleSignUpMode}
+                        >
+                          Don't have an account? <span className="ml-1 font-medium">Sign up</span>
+                        </Button>
+                      </CardFooter>
+                    </div>
+                  ) : (
+                    // Sign Up Section
+                    <div>
+                      <CardHeader>
+                        <CardTitle className="text-2xl">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
+                        <CardDescription>
+                          Join our learning community and start your educational journey
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        {/* Auth Error Alert */}
+                        {formErrors.auth && (
+                          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                            <div className="flex items-center space-x-2">
+                              <AlertCircle className="h-4 w-4 text-destructive" />
+                              <p className="text-sm text-destructive">{formErrors.auth}</p>
+                            </div>
+                          </div>
                         )}
-                      />
-                      {!passwordsMatch && confirmPassword && (
-                        <p className="text-xs text-destructive">Passwords do not match</p>
-                      )}
+
+                        {/* Full Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="fullName" className="text-sm font-medium">
+                            Full Name
+                          </Label>
+                          <Input
+                            id="fullName"
+                            placeholder="Enter your full name"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.fullName && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {formErrors.fullName && (
+                            <p className="text-xs text-destructive">{formErrors.fullName}</p>
+                          )}
+                        </div>
+
+                        {/* Email */}
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-email" className="text-sm font-medium">
+                            Email Address
+                          </Label>
+                          <Input
+                            id="signup-email"
+                            type="email"
+                            placeholder="Enter your email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.email && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {formErrors.email && (
+                            <p className="text-xs text-destructive">{formErrors.email}</p>
+                          )}
+                        </div>
+
+                        {/* Password with Strength Indicator */}
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-password" className="text-sm font-medium">
+                            Password
+                          </Label>
+                          <Input
+                            id="signup-password"
+                            type="password"
+                            placeholder="Create a strong password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.password && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {password && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">Password strength</span>
+                                <span className={cn(
+                                  "text-xs font-medium",
+                                  passwordStrength.value <= 25 && "text-red-500",
+                                  passwordStrength.value > 25 && passwordStrength.value <= 50 && "text-yellow-500",
+                                  passwordStrength.value > 50 && passwordStrength.value <= 75 && "text-blue-500",
+                                  passwordStrength.value > 75 && "text-green-500"
+                                )}>
+                                  {passwordStrength.label}
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className={cn(
+                                    "h-1.5 rounded-full transition-all duration-300",
+                                    passwordStrength.color
+                                  )}
+                                  style={{ width: `${passwordStrength.value}%` }}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Check className={cn(
+                                    "h-3 w-3",
+                                    password.length >= 8 ? 'text-green-500' : 'text-muted-foreground'
+                                  )} />
+                                  8+ characters
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Check className={cn(
+                                    "h-3 w-3",
+                                    /[A-Z]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
+                                  )} />
+                                  Uppercase
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Check className={cn(
+                                    "h-3 w-3",
+                                    /\d/.test(password) ? 'text-green-500' : 'text-muted-foreground'
+                                  )} />
+                                  Numbers
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Check className={cn(
+                                    "h-3 w-3",
+                                    /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : 'text-muted-foreground'
+                                  )} />
+                                  Special chars
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {formErrors.password && (
+                            <p className="text-xs text-destructive">{formErrors.password}</p>
+                          )}
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                            Confirm Password
+                          </Label>
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="Confirm your password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          {!passwordsMatch && confirmPassword && (
+                            <p className="text-xs text-destructive">Passwords do not match</p>
+                          )}
+                        </div>
+
+                        {/* Sign Up Button */}
+                        <Button
+                          className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
+                          onClick={handleEmailSignup}
+                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
+                        >
+                          {loading ? "Creating account..." : "Create Account"}
+                        </Button>
+                      </CardContent>
+
+                      <CardFooter>
+                        <Button
+                          variant="link"
+                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          onClick={toggleSignUpMode}
+                        >
+                          Already have an account? <span className="ml-1 font-medium">Sign in</span>
+                        </Button>
+                      </CardFooter>
                     </div>
-
-                    {/* Sign Up Button */}
-                    <Button
-                      className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
-                      onClick={handleEmailSignup}
-                      disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
-                    >
-                      {loading ? "Creating account..." : "Create Account"}
-                    </Button>
-                  </CardContent>
-
-                  <CardFooter>
-                    <Button
-                      variant="link"
-                      className="w-full text-sm text-muted-foreground hover:text-foreground"
-                      onClick={toggleSignUpMode}
-                    >
-                      Already have an account? <span className="ml-1 font-medium">Sign in</span>
-                    </Button>
-                  </CardFooter>
-                </div>
-              )}
-            </Card>
+                  )}
+                </Card>
+              </>
+            )}
           </div>
         </div>
       </div>

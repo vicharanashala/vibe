@@ -20,8 +20,8 @@ import {
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
-import {User} from '#root/modules/auth/classes/index.js';
 import {CourseDataResponse} from '#root/modules/courses/classes/index.js';
+import {ContentCountsValidator} from './ContentCountsValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -140,6 +140,15 @@ export class EnrollmentDataResponse {
   @ValidateNested()
   @Type(() => CourseDataResponse)
   course: ICourse;
+
+  @JSONSchema({
+    description: 'Content counts for the course (videos, quizzes, articles)',
+    type: 'object',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ContentCountsValidator)
+  contentCounts?: ContentCountsValidator;
 }
 
 export class EnrollUserResponseData {

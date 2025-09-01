@@ -91,3 +91,19 @@ export class AnomalyStats {
     this.FACE_RECOGNITION = 0;
   }
 }
+
+export class PaginatedResponse<T> {
+  data: T[];
+  currentPage: number;
+  totalDocuments: number;
+  totalPages: number;
+  limit: number;
+
+  constructor(data: T[], currentPage: number, totalDocuments: number, limit: number) {
+    this.data = data;
+    this.currentPage = currentPage;
+    this.totalDocuments = totalDocuments;
+    this.limit = limit;
+    this.totalPages = Math.ceil(totalDocuments / limit) || 1;
+  }
+}

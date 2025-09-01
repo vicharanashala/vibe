@@ -1041,7 +1041,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                  <span className=" text-md font-semibold ">Bank {bank.bankId.slice(-8)}</span>
+                                  <div>
+                                    <p className=" text-md font-semibold ">{bank.title}</p>
+                                    <p className="text-[12px] font-normal">{bank.description}</p>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Button

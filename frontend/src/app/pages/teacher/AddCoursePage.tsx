@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, BookOpen, Plus } from "lucide-react";
 import { useCreateCourse, useCreateCourseVersion, useInviteUsers } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
+import { Label } from "@/components/ui/label";
 
 
 export default function CreateCourse() {
@@ -128,6 +129,7 @@ export default function CreateCourse() {
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
           <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
             <div>
+            <Label htmlFor="courseTitle" className='mb-3'>Course Title *</Label>
               <Input
                 className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                 placeholder="Course Title"
@@ -146,6 +148,7 @@ export default function CreateCourse() {
               )}
             </div>
             <div>
+            <Label htmlFor="courseDescription" className='mb-3'>Course Description *</Label>
               <Textarea
                 className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                 placeholder="Course Description"

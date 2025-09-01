@@ -143,9 +143,9 @@ export class GenAIService extends BaseService {
       if (!job) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      if (job.userId !== userId) {
-        throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
-      }
+      // if (job.userId !== userId) {
+      //   throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
+      // }
       const jobState = await this.getJobState(jobId, usePrevious);
       jobState.parameters = { ...jobState.parameters, ...this.removeUndefined(parameters) };
       if (jobState.taskStatus == TaskStatus.COMPLETED) {
@@ -166,9 +166,9 @@ export class GenAIService extends BaseService {
       if (!job) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      if (job.userId !== userId) {
-        throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
-      }
+      // if (job.userId !== userId) {
+      //   throw new NotFoundError(`User with ID ${userId} does not have permission to approve this job`);
+      // }
       const jobState = await this.getJobState(jobId, usePrevious);
       if (jobState.taskStatus !== TaskStatus.COMPLETED && jobState.taskStatus !== TaskStatus.FAILED && jobState.taskStatus !== TaskStatus.ABORTED) {
         throw new BadRequestError(`The task ${jobState.currentTask} for job ID ${jobId} has not been completed yet, please approve the task to start.`);

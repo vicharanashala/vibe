@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles,
+  X
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -73,7 +74,7 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
-  const [selectedItem, setSelectedItem] = useState({ id:"", name:"" });
+  const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
 
   const [errors, setErrors] = useState({
     title: "",
@@ -118,7 +119,7 @@ export default function TeacherCoursePage() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
-  
+
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -137,7 +138,7 @@ export default function TeacherCoursePage() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData,refetch: refetchItem
+    data: selectedItemData, refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -162,112 +163,112 @@ export default function TeacherCoursePage() {
 
   // CRUD hooks
 
-// --- MODULES ---
-const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
-const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
-const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
-const { mutateAsync: moveModuleAsync } = useMoveModule();
+  // --- MODULES ---
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
+  const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
+  const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
+  const { mutateAsync: moveModuleAsync } = useMoveModule();
 
-// --- SECTIONS ---
-const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
-const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
-const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
-const { mutateAsync: moveSectionAsync } = useMoveSection();
+  // --- SECTIONS ---
+  const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
+  const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
+  const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
+  const { mutateAsync: moveSectionAsync } = useMoveSection();
 
-// --- ITEMS ---
-const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
-const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
-const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
-const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
-const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  // --- ITEMS ---
+  const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
+  const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+  const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
+  const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
+  const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
 
 
 
-// Refetch after any success
-useEffect(() => {
-  if (
-    isCreateModuleSuccess ||
-    isUpdateModuleSuccess ||
-    isDeleteModuleSuccess ||
-    isCreateSectionSuccess ||
-    isUpdateSectionSuccess ||
-    isDeleteSectionSuccess ||
-    isCreateItemSuccess ||
-    isUpdateItemSuccess ||
-    isDeleteItemSuccess
-  ) {
-    refetchVersion();
-    refetchItems();
-    refetchItem()
+  // Refetch after any success
+  useEffect(() => {
+    if (
+      isCreateModuleSuccess ||
+      isUpdateModuleSuccess ||
+      isDeleteModuleSuccess ||
+      isCreateSectionSuccess ||
+      isUpdateSectionSuccess ||
+      isDeleteSectionSuccess ||
+      isCreateItemSuccess ||
+      isUpdateItemSuccess ||
+      isDeleteItemSuccess
+    ) {
+      refetchVersion();
+      refetchItems();
+      refetchItem()
 
-    if (activeSectionInfo) {
-      setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
+      if (activeSectionInfo) {
+        setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
+      }
     }
-  }
-}, [
-  isCreateModuleSuccess,
-  isUpdateModuleSuccess,
-  isDeleteModuleSuccess,
-  isCreateSectionSuccess,
-  isUpdateSectionSuccess,
-  isDeleteSectionSuccess,
-  isCreateItemSuccess,
-  isUpdateItemSuccess,
-  isDeleteItemSuccess,
-]);
+  }, [
+    isCreateModuleSuccess,
+    isUpdateModuleSuccess,
+    isDeleteModuleSuccess,
+    isCreateSectionSuccess,
+    isUpdateSectionSuccess,
+    isDeleteSectionSuccess,
+    isCreateItemSuccess,
+    isUpdateItemSuccess,
+    isDeleteItemSuccess,
+  ]);
 
-// Success toasts
-useEffect(() => {
-  if (isCreateModuleSuccess) toast.success("Module created successfully!");
-  if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
-  if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
+  // Success toasts
+  useEffect(() => {
+    if (isCreateModuleSuccess) toast.success("Module created successfully!");
+    if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
+    if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
 
-  if (isCreateSectionSuccess) toast.success("Section created successfully!");
-  if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
-  if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
+    if (isCreateSectionSuccess) toast.success("Section created successfully!");
+    if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
+    if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
 
-  if (isCreateItemSuccess) toast.success("Item created successfully!");
-  if (isUpdateItemSuccess) toast.success("Item updated successfully!");
-  if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
-}, [
-  isCreateModuleSuccess,
-  isUpdateModuleSuccess,
-  isDeleteModuleSuccess,
-  isCreateSectionSuccess,
-  isUpdateSectionSuccess,
-  isDeleteSectionSuccess,
-  isCreateItemSuccess,
-  isUpdateItemSuccess,
-  isDeleteItemSuccess,
-]);
+    if (isCreateItemSuccess) toast.success("Item created successfully!");
+    if (isUpdateItemSuccess) toast.success("Item updated successfully!");
+    if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
+  }, [
+    isCreateModuleSuccess,
+    isUpdateModuleSuccess,
+    isDeleteModuleSuccess,
+    isCreateSectionSuccess,
+    isUpdateSectionSuccess,
+    isDeleteSectionSuccess,
+    isCreateItemSuccess,
+    isUpdateItemSuccess,
+    isDeleteItemSuccess,
+  ]);
 
-// Error toasts
-useEffect(() => {
-  if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
-  if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
-  if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
+  // Error toasts
+  useEffect(() => {
+    if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
+    if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
+    if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
 
-  if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
-  if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
-  if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
+    if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
+    if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
+    if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
 
-  if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
-  if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
-  if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
+    if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
+    if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
+    if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
 
-  if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
-}, [
-  isCreateModuleError,
-  isUpdateModuleError,
-  isDeleteModuleError,
-  isCreateSectionError,
-  isUpdateSectionError,
-  isDeleteSectionError,
-  isCreateItemError,
-  isUpdateItemError,
-  isDeleteItemError,
-  isMoveItemError,
-]);
+    if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
+  }, [
+    isCreateModuleError,
+    isUpdateModuleError,
+    isDeleteModuleError,
+    isCreateSectionError,
+    isUpdateSectionError,
+    isDeleteSectionError,
+    isCreateItemError,
+    isUpdateItemError,
+    isDeleteItemError,
+    isMoveItemError,
+  ]);
 
 
   // Reload items when quiz wizard closes
@@ -288,7 +289,7 @@ useEffect(() => {
       currentSectionItems &&
       !itemsLoading
     ) {
-      
+
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
       setSectionItems(prev => ({
         ...prev,
@@ -333,9 +334,9 @@ useEffect(() => {
       params: { path: { versionId } },
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+      refetchVersion();
+      refetchItems(); refetchItem()
+    });
   };
 
   // Add Section
@@ -345,9 +346,9 @@ useEffect(() => {
       params: { path: { versionId, moduleId } },
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+      refetchVersion();
+      refetchItems(); refetchItem()
+    });
   };
 
   // Add Item (now only for article/quiz, video handled via modal)
@@ -373,8 +374,8 @@ useEffect(() => {
           }
         }
       }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
+        refetchVersion();
+        refetchItems(); refetchItem()
       });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
@@ -684,7 +685,7 @@ useEffect(() => {
                                                       itemType: item.type,
                                                       sectionItems,
                                                       sectionId: section.sectionId
-                                                      }) && selectedItem.id == item._id
+                                                    }) && selectedItem.id == item._id
                                                       ? "bg-zinc-600 text-gray-200"
                                                       : "bg-transparent transition-none"
                                                       }`}
@@ -696,7 +697,7 @@ useEffect(() => {
                                                         sectionId: section.sectionId
                                                       });
 
-                                                      setSelectedItem({id:item._id, name:label});
+                                                      setSelectedItem({ id: item._id, name: label });
 
                                                       setSelectedEntity({
                                                         type: "item",
@@ -1046,131 +1047,133 @@ useEffect(() => {
                         )}
                       </>
                     )}
+                    <div className="flex items-center gap-2">
+                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        <Button
+                          onClick={() => {
+                            const moduleName = selectedEntity.data.name?.trim();
+                            const moduleDescription = selectedEntity.data.description?.trim() ?? "";
+                            const sectionName = selectedEntity.data.name?.trim();
+                            const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                            if (selectedEntity.type === "module") {
 
-                    {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          const moduleName = selectedEntity.data.name?.trim();
-                          const moduleDescription = selectedEntity.data.description?.trim() ?? "";
-                          const sectionName = selectedEntity.data.name?.trim();
-                          const sectionDescription = selectedEntity.data.description?.trim() ?? "";
-                          if (selectedEntity.type === "module") {
+                              if (!moduleName || !moduleDescription) {
+                                setErrors({
+                                  title: !moduleName ? "Module name is required." : "",
+                                  description: !moduleDescription ? "Module description is required." : ""
+                                });
+                                return;
+                              }
 
-                            if (!moduleName || !moduleDescription) {
-                              setErrors({
-                                title: !moduleName ? "Module name is required." : "",
-                                description: !moduleDescription ? "Module description is required." : ""
-                              });
-                              return;
                             }
-                            
-                          }
-                          if (selectedEntity.type === "section") {
-                            if (!sectionName || !sectionDescription) {
-                              setErrors({
-                                title: !sectionName ? "Section name is required." : "",
-                                description: !sectionDescription ? "Section description is required." : ""
-                              });
-                              return;
-                            }
-            
-                          }
-                          setErrors({ title: "", description: "" });
-                          if (selectedEntity.type === "module" && versionId) {
-                           updateModuleAsync({
-                              params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
+                            if (selectedEntity.type === "section") {
+                              if (!sectionName || !sectionDescription) {
+                                setErrors({
+                                  title: !sectionName ? "Section name is required." : "",
+                                  description: !sectionDescription ? "Section description is required." : ""
+                                });
+                                return;
                               }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                          if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
-                            updateSectionAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.data.sectionId
+
+                            }
+                            setErrors({ title: "", description: "" });
+                            if (selectedEntity.type === "module" && versionId) {
+                              updateModuleAsync({
+                                params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
                                 }
-                              },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
-                              }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                          if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
-                           updateItemAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.parentIds.sectionId,
-                                  itemId: selectedEntity.data._id
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
+                            }
+                            if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
+                              updateSectionAsync({
+                                params: {
+                                  path: {
+                                    versionId,
+                                    moduleId: selectedEntity.parentIds.moduleId,
+                                    sectionId: selectedEntity.data.sectionId
+                                  }
+                                },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
                                 }
-                              },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
+                            }
+                            if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
+                              updateItemAsync({
+                                params: {
+                                  path: {
+                                    versionId,
+                                    moduleId: selectedEntity.parentIds.moduleId,
+                                    sectionId: selectedEntity.parentIds.sectionId,
+                                    itemId: selectedEntity.data._id
+                                  }
+                                },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
+                                }
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
+                            }
+                          }}
+                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                        >
+                          Update {selectedEntity.type}
+                        </Button>
+                      )}
+
+                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        <Button
+                          variant="outline"
+                          className="border-border bg-background"
+                          onClick={() => {
+                            const { type, parentIds } = selectedEntity;
+                            if (type === "module" && versionId) {
+                              if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
+                                deleteModuleAsync({
+                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems(); refetchItem()
+                                });
+                                setSelectedEntity(null);
+                                setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                               }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                        }}
-                        className="mr-2"
-                      >
-                        Update {selectedEntity.type}
-                      </Button>
-                    )}
-                         
-                    {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          const { type, parentIds } = selectedEntity;
-                          if (type === "module" && versionId) {
-                            if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                              deleteModuleAsync({
-                                params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                              }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                              setSelectedEntity(null);
-                              setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                             }
-                          }
-                          if (type === "section" && versionId && parentIds?.moduleId) {
-                            if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                              deleteSectionAsync({
-                                params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                              }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                              setSelectedEntity(null);
-                              setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                            if (type === "section" && versionId && parentIds?.moduleId) {
+                              if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                                deleteSectionAsync({
+                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems(); refetchItem()
+                                });
+                                setSelectedEntity(null);
+                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                              }
                             }
-                          }
-                          setErrors({ title: "", description: "" });
-                        }}
-                      >
-                        Delete {selectedEntity.type}
-                      </Button>
-                    )}
+                            setErrors({ title: "", description: "" });
+                          }}
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Delete {selectedEntity.type}
+                        </Button>
+                      )}
+                    </div>
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-                     
+
                       <VideoModal
                         isLoading={isLoading}
                         selectedItemName={selectedItem.name}
@@ -1202,9 +1205,9 @@ useEffect(() => {
                               },
                               body: formattedVideo,
                             }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+                              refetchVersion();
+                              refetchItems(); refetchItem()
+                            });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
                           }
@@ -1218,9 +1221,9 @@ useEffect(() => {
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
                             }
@@ -1247,8 +1250,8 @@ useEffect(() => {
                           deleteItemAsync({
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
-                          refetchVersion();
-                          refetchItems();refetchItem()
+                            refetchVersion();
+                            refetchItems(); refetchItem()
                           });
                           setSelectedEntity(null);
                         }}
@@ -1263,29 +1266,29 @@ useEffect(() => {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
                   <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
                 </div>
-                
+
                 {/* Animated Icon */}
                 <div className="relative z-10 mb-8">
                   <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
                     <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
                   </div>
                 </div>
-                
+
                 {/* ViBe Branded Heading */}
                 <h3 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-3 tracking-tight animate-fade-in">
                   Welcome to <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">ViBe</span>
                 </h3>
-                
+
                 {/* Subtitle */}
                 <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-2 animate-fade-in">
                   Ready to Edit Your Course
                 </p>
-                
+
                 {/* Animated AI tagline */}
                 <p className="mb-2 max-w-xl mx-auto text-sm md:text-base lg:text-lg font-medium bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-x">
                   Let AI help you build your course faster and smarter!
                 </p>
-                
+
                 {/* Animated message */}
                 <div className="h-12 mb-3 flex items-center justify-center">
                   <p
@@ -1297,7 +1300,7 @@ useEffect(() => {
                     {displayedMessage}
                   </p>
                 </div>
-                
+
                 {/* CTA Button */}
                 <Button
                   onClick={handleAddModule}
@@ -1306,7 +1309,7 @@ useEffect(() => {
                   <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
                   Add new module
                 </Button>
-                
+
                 {/* ViBe Features */}
                 <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-2 mb-2 md:mb-0">

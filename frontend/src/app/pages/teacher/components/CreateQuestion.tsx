@@ -236,7 +236,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div>
-                                        <Label htmlFor="questionText" className='mb-3'>Question Text</Label>
+                                        <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
                                         <Textarea
                                             id="questionText"
                                             placeholder="Enter your question here..."
@@ -248,7 +248,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <Label className='mb-3'>Question Type</Label>
+                                            <Label className='mb-3'>Question Type *</Label>
                                             <RadioGroup
                                                 value={questionForm.type}
                                                 onValueChange={(value: QuestionType) => handleTypeChange(value)}
@@ -266,7 +266,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="hint" className='mb-3'>Hint</Label>
+                                            <Label htmlFor="hint" className='mb-3'>Hint *</Label>
                                             <Input
                                                 id="hint"
                                                 placeholder="Enter a hint for students..."
@@ -278,7 +278,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds)</Label>
+                                            <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds) *</Label>
                                             <Input
                                                 id="timeLimit"
                                                 type="number"
@@ -289,7 +289,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="points" className='mb-3'>Points</Label>
+                                            <Label htmlFor="points" className='mb-3'>Points *</Label>
                                             <Input
                                                 id="points"
                                                 type="number"
@@ -299,7 +299,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="priority" className='mb-3'>Priority</Label>
+                                            <Label htmlFor="priority" className='mb-3'>Priority *</Label>
                                             <Select
                                                 value={questionForm.priority}
                                                 onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value }))}

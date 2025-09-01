@@ -8,6 +8,7 @@ import {
   IsString,
   IsIn,
   isString,
+  IsEnum
 } from 'class-validator';
 import {Priority} from './quiz.js';
 
@@ -439,6 +440,16 @@ export interface ICourseSetting {
   settings: ISettings;
 }
 
+export enum SortOrder {
+  ASC = 'asc',
+  DESC = 'desc'
+}
+
+export interface SortOptions {
+  field: string;
+  order: SortOrder;
+}
+
 export class PaginationQuery {
   @IsOptional()
   @Type(() => Number)
@@ -452,6 +463,17 @@ export class PaginationQuery {
   @Min(1)
   limit: number = 10;
 }
+
+export class PaginationWithSortQuery extends PaginationQuery {
+  @IsOptional()
+  @IsString()
+  sortField?: string;
+
+  @IsOptional()
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC;
+}
+
 export class EnrollmentFilterQuery {
   @IsOptional()
   @Type(() => Number)

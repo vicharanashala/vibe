@@ -32,6 +32,18 @@ class QuizRepository {
     return result;
   }
 
+  async getByIds(
+    quizId: string[],
+    session?: ClientSession,
+  ): Promise<QuizItem[]> {
+    await this.init();
+
+    const quizItems = await this.quizCollection
+      .find({_id: {$in: quizId}}, {session})
+      .toArray();
+    return quizItems;
+  }
+
   public async updateQuiz(
     quiz: QuizItem,
     session?: ClientSession,

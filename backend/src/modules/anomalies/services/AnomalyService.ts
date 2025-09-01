@@ -9,7 +9,7 @@ import { ANOMALIES_TYPES } from '../types.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType, IAnomalyData } from '../classes/transformers/Anomaly.js';
+import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType, IAnomalyData, PaginatedResponse } from '../classes/transformers/Anomaly.js';
 
 @injectable()
 export class AnomalyService extends BaseService {
@@ -72,39 +72,70 @@ export class AnomalyService extends BaseService {
 
   async getUserAnomalies(userId: string, courseId: string, versionId: string, limit: number, skip: number): Promise<AnomalyData[]> {
     return await this._withTransaction(async (session) => {
-      const anomaly = await this.anomalyRepository.getByUser(userId, courseId, versionId, limit, skip, session);
+      const anomalies = await this.anomalyRepository.getByUser(userId, courseId, versionId, limit, skip, session);
 
-      if (!anomaly || anomaly.length === 0) {
+      if (!anomalies || anomalies.length === 0) {
         throw new NotFoundError('No anomalies found for this user in the specified course and version');
       }
 
-      return anomaly.map((a) => {
-        a._id = a._id.toString();
-        delete a.fileName;
-        delete a.fileType;
-        return a;
-      });
+  
+      const user = await this.userRepo.findById(userId);
+      
+      return anomalies.map((a) => ({
+        ...a,
+        _id: a._id.toString(),
+        studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+        studentEmail: user?.email || '',
+        fileName: undefined,
+        fileType: undefined
+      } as unknown as AnomalyData));
     });
   }
 
-  async getCourseAnomalies(courseId: string, versionId: string, limit: number, skip: number): Promise<AnomalyData[]> {
+  async getCourseAnomalies(
+    courseId: string, 
+    versionId: string, 
+    limit: number, 
+    skip: number,
+    sortOptions?: { field: string; order: 'asc' | 'desc' },
+    page: number = 1
+  ): Promise<PaginatedResponse<AnomalyData>> {
     return this._withTransaction(async (session) => {
       const courseVersion = await this.courseRepo.readVersion(versionId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-          throw new NotFoundError('Course version not found');
+        throw new NotFoundError('Course version not found');
       }
 
-      const anomalies = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, limit, skip, session);
+      const { data: anomalies, total } = await this.anomalyRepository.getAnomaliesByCourse(
+        courseId, 
+        versionId, 
+        limit, 
+        skip,
+        sortOptions,
+        session
+      );
+
       if (!anomalies || anomalies.length === 0) {
-          throw new NotFoundError('No anomalies found for this course version');
+        return new PaginatedResponse<AnomalyData>([], page, 0, limit);
       }
 
-      return anomalies.map((a) => {
-          a._id = a._id.toString();
-          delete a.fileName;
-          delete a.fileType;
-          return a;
+      const userIds = [...new Set(anomalies.map(a => a.userId))];
+      const users = await this.userRepo.getUsersByIds(userIds);
+      const userMap = new Map(users.map(user => [user._id.toString(), user]));
+
+      const formattedAnomalies = anomalies.map((a) => {
+        const user = userMap.get(a.userId);
+        return {
+          ...a,
+          _id: a._id.toString(),
+          studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+          studentEmail: user?.email || '',
+          fileName: undefined,
+          fileType: undefined
+        } as unknown as AnomalyData;
       });
+
+      return new PaginatedResponse<AnomalyData>(formattedAnomalies, page, total, limit);
     });
   }
 
@@ -120,11 +151,20 @@ export class AnomalyService extends BaseService {
           throw new NotFoundError('No anomalies found for this course version');
       }
 
+      const userIds = [...new Set(anomalies.map(a => a.userId))];
+      const users = await this.userRepo.getUsersByIds(userIds);
+      const userMap = new Map(users.map(user => [user._id.toString(), user]));
+
       return anomalies.map((a) => {
-          a._id = a._id.toString();
-          delete a.fileName;
-          delete a.fileType;
-          return a;
+          const user = userMap.get(a.userId);
+          return {
+              ...a,
+              _id: a._id.toString(),
+              studentName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+              studentEmail: user?.email || '',
+              fileName: undefined,
+              fileType: undefined
+          } as unknown as AnomalyData;
       });
     });
   }
