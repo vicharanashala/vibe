@@ -9,10 +9,11 @@ import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
+    isDisableButton: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, isDisableButton, onClick, ...buttonProps } = props;
     return (
         <button
             {...buttonProps}
@@ -21,7 +22,7 @@ function TranscribeButton(props: Props) {
                     onClick(event);
                 }
             }}
-            disabled={isTranscribing || isModelLoading }
+            disabled={isTranscribing || isModelLoading || isDisableButton}
             className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
         >
             Start AI Job
@@ -474,7 +475,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: boolean }) {
+export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean }) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -613,13 +614,19 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
     return (
         <>
             <div className='flex flex-col justify-center items-center shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800'>
-                <div className='flex flex-row space-x-2 py-2 w-full px-2'>
+                <div
+                    className='flex flex-row space-x-2 py-2 w-full px-2'
+                    style={{
+                        pointerEvents: props.isTranscribing ? 'none' : 'auto',
+                        opacity: props.isTranscribing ? 0.5 : 1,
+                    }}
+                    >
                     <UrlTile
                         icon={<AnchorIcon />}
                         text={"From URL"}
                         onUrlUpdate={(e) => {
-                            props.transcriber.onInputChange();
-                            setAudioDownloadUrl(e);
+                        props.transcriber.onInputChange();
+                        setAudioDownloadUrl(e);
                         }}
                     />
                     <VerticalBar />
@@ -627,26 +634,26 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
                         icon={<FolderIcon />}
                         text={"From file"}
                         onFileUpdate={(decoded, blobUrl, mimeType) => {
-                            props.transcriber.onInputChange();
-                            setAudioData({
-                                buffer: decoded,
-                                url: blobUrl,
-                                source: AudioSource.FILE,
-                                mimeType: mimeType,
-                            });
+                        props.transcriber.onInputChange();
+                        setAudioData({
+                            buffer: decoded,
+                            url: blobUrl,
+                            source: AudioSource.FILE,
+                            mimeType: mimeType,
+                        });
                         }}
                     />
                     {navigator.mediaDevices && (
                         <>
-                            <VerticalBar />
-                            <RecordTile
-                                icon={<MicrophoneIcon />}
-                                text={"Record"}
-                                setAudioData={(e) => {
-                                    props.transcriber.onInputChange();
-                                    setAudioFromRecording(e);
-                                }}
-                            />
+                        <VerticalBar />
+                        <RecordTile
+                            icon={<MicrophoneIcon />}
+                            text={"Record"}
+                            setAudioData={(e) => {
+                            props.transcriber.onInputChange();
+                            setAudioFromRecording(e);
+                            }}
+                        />
                         </>
                     )}
                 </div>
@@ -658,7 +665,7 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
                         mimeType={audioData.mimeType}
                     />
 
-                    {!props.isRunningAiJob && 
+                    {!props.isTranscriptionCompleted && 
                         <div className='relative w-full flex justify-center items-center'>
                             <TranscribeButton
                                 onClick={() => {
@@ -666,6 +673,7 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
                                 }}
                                 isModelLoading={props.transcriber.isModelLoading}
                                 isTranscribing={props.transcriber.isBusy}
+                                isDisableButton = {props.isDisableButton}
                             />
 
                             <SettingsTile
@@ -675,21 +683,6 @@ export function AudioManager(props: { transcriber: Transcriber, isRunningAiJob: 
                                 />
                         </div>
                     }
-                    {/* {props.transcriber.progressItems.length > 0 && (
-                        <div className='relative z-10 p-4 w-full'>
-                            <label>
-                                Loading model files... (only run once)
-                            </label>
-                            {props.transcriber.progressItems.map((data) => (
-                                <div key={data.file}>
-                                    <Progress
-                                        text={data.file}
-                                        percentage={data.progress}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    )} */}
                 </>
             )}
         </>

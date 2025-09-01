@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  AlertTriangle, Ban, CheckCircle, Clock, FileText, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Settings, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
+import {  AlertTriangle, ArrowLeft, Ban, CheckCircle, Clock, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Scissors, Settings, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
 import { TranscriberData } from '@/hooks/useTranscriber';
+import { useNavigate } from '@tanstack/react-router';
 
 
 interface TaskRun {
@@ -40,7 +41,6 @@ const AiWorkflow = () => {
     const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null);
     const [aiJobId, setAiJobId] = useState<string | null>(null);
-    const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING", task: any} | null>(null)
 
     // Ref
     const optimisticFailedTaskRef = useRef<string | null>(null);
@@ -86,7 +86,7 @@ const AiWorkflow = () => {
     const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
     const prevJobStatusRef = useRef<any>(null);
     const didMountRef = useRef(false);
-
+    const navigate = useNavigate();
     const [taskRuns, setTaskRuns] = useState<TaskRuns>({
     transcription: [],
     segmentation: [],
@@ -97,12 +97,103 @@ const AiWorkflow = () => {
 
     const [aiWorkflowStep, setAiWorkflowStep] = useState("");
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
+    const errorRef = useRef<HTMLDivElement | null>(null);
 
 
+    const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING", task: any} | null>(null)
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false); //will true once segmentation starts (backend)
-    const errorRef = useRef<HTMLDivElement | null>(null);
+    const [isURLValidated, setIsURLValidated] = useState(false); // will true once yt url is validated
+    const [isLoading, setIsLoading] = useState(false); // mock loading for yt url
+    const [progress, setProgress] = useState(0);
+    const [taskResponse, setTaskResponse] = useState();
+    const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
+    const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); // array of arrays of transcript chunks per segment
+    const [segments, setSegments] = useState<any[]>([]);
+
+    const [isTaskResultLoading, setIsTaskResultLoading] = useState(false);
+    const [error, setError] = useState("");
+
+        const handleShowHandleResult = async(task: string) => {
+            if (!aiJobId) return;
+            try {
+                if(!task){
+                    toast.error("No task found to show result!");
+                    return;
+                }
+                const token = localStorage.getItem('firebase-auth-token');
+                const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
+                console.log("Requested url: ", url);
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) throw new Error('Failed to fetch task status');
+                const data = await res.json();
+                console.log("Data", data);
+                handleExtractSegmentationResponse(data);
+            } catch(error) {
+
+            }
+        }
+
+        const handleExtractSegmentationResponse = async(response:any) => {
+            try {
+                    const segData = Array.isArray(response) ? response[0] : null;
+                //     if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap) && segData.transcriptFileUrl) {
+                //     setSegmentationMap(segData.segmentationMap);
+                //     const transcriptRes = await fetch(segData.transcriptFileUrl);
+                //     if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+                //     const transcriptData = await transcriptRes.json();
+                //     const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
+                //     const segMap = segData.segmentationMap;
+                //     const grouped: any[][] = [];
+                //     let segStart = 0;
+                //     for (let i = 0; i < segMap.length; ++i) {
+                //         const segEnd = segMap[i];
+                //         // Chunks whose timestamp[0] >= segStart and < segEnd
+                //         const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
+                //             chunk.timestamp &&
+                //         typeof chunk.timestamp[0] === 'number' &&
+                //         chunk.timestamp[0] >= segStart &&
+                //         chunk.timestamp[0] < segEnd
+                //     );
+                //     grouped.push(segChunks);
+                //     segStart = segEnd;
+                //     }
+                //     setSegmentationChunks(grouped);
+                // } else
+                     if (segData?.transcriptFileUrl) {
+                    // fallback: fetch segments from fileUrl as before
+                    const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
+                    console.log("Extracted segments: ", segs);
+                    setSegments(segs);
+                    setSegmentationMap(null);
+                    setSegmentationChunks(null);
+                } else {
+                    setError('Segmentation data not found.');
+                    setSegmentationChunks(null);
+                }
+            } catch(error){
+
+            } finally {
+                setIsTaskResultLoading(false);
+            }
+        }
+
+          // Helper to fetch segmentation file from fileUrl
+        const fetchSegmentationFromUrl = async (url: string) => {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch segmentation file');
+            const data = await response.json();
+            // Assume data.segments or data.chunks or similar
+            if (Array.isArray(data.segments)) {
+            return data.segments;
+            }
+            if (Array.isArray(data.chunks)) {
+            // fallback for chunked format
+            return data.chunks;
+            }
+            return data;
+        };
 
     // Validation
     const isValidYouTubeUrl = (url: string): boolean => {
@@ -111,103 +202,117 @@ const AiWorkflow = () => {
     };
   
   
-  useEffect(() => {
-    if (!aiJobId) return;
+    useEffect(() => {
+        if (!aiJobId) return;
 
-    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-      if (!incoming){
-        handleRefreshStatus()
-          return;
-      } 
-      console.log("Incoming: ", incoming);
-      setCurrentJob((prev)=> ({
-        ...prev,
-        task: incoming.task,
-        status: incoming.status
-      }))
-      setAiJobStatus(() => {
-        let next: any =  { ...incoming } ;
-        const failing = optimisticFailedTaskRef.current;
-        if (next && failing) {
-          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-          switch (failing) {
-            case 'AUDIO_EXTRACTION':
-              setTop('AUDIO_EXTRACTION');
-              ensureJobStatus();
-              next.jobStatus.audioExtraction = 'FAILED';
-              break;
-            case 'TRANSCRIPT_GENERATION':
-              setTop('TRANSCRIPT_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.transcriptGeneration = 'FAILED';
-              break;
-            case 'SEGMENTATION':
-              setTop('SEGMENTATION');
-              ensureJobStatus();
-              next.jobStatus.segmentation = 'FAILED';
-              break;
-            case 'QUESTION_GENERATION':
-              setTop('QUESTION_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.questionGeneration = 'FAILED';
-              break;
-            case 'UPLOAD_CONTENT':
-              setTop('UPLOAD_CONTENT');
-              ensureJobStatus();
-              next.jobStatus.uploadContent = 'FAILED';
-              break;
-          }
-        }
-        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-          optimisticFailedTaskRef.current = null;
+        const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
+            console.log("Incoming >>>>", incoming)
+
+        if(incoming.status == "COMPLETED")
+            handleShowHandleResult(incoming.task);
+
+        if(incoming.status == "COMPLETED" && incoming.task!= "uploadContent"){
+            setProgress(100);
+            setTimeout(() => setIsLoading(false), 500);
         }
 
-        return next;
-      });
-    });
-    return () => es.close();
+        setCurrentJob({
+            task: incoming.task,
+            status: incoming.status
+        })
+        setAiJobStatus(() => {
+            let next: any =  { ...incoming } ;
+            const failing = optimisticFailedTaskRef.current;
+            if (next && failing) {
+            const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+            const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+            switch (failing) {
+                case 'AUDIO_EXTRACTION':
+                setTop('AUDIO_EXTRACTION');
+                ensureJobStatus();
+                next.jobStatus.audioExtraction = 'FAILED';
+                break;
+                case 'TRANSCRIPT_GENERATION':
+                setTop('TRANSCRIPT_GENERATION');
+                ensureJobStatus();
+                next.jobStatus.transcriptGeneration = 'FAILED';
+                break;
+                case 'SEGMENTATION':
+                setTop('SEGMENTATION');
+                ensureJobStatus();
+                next.jobStatus.segmentation = 'FAILED';
+                break;
+                case 'QUESTION_GENERATION':
+                setTop('QUESTION_GENERATION');
+                ensureJobStatus();
+                next.jobStatus.questionGeneration = 'FAILED';
+                break;
+                case 'UPLOAD_CONTENT':
+                setTop('UPLOAD_CONTENT');
+                ensureJobStatus();
+                next.jobStatus.uploadContent = 'FAILED';
+                break;
+            }
+            }
+            if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+            optimisticFailedTaskRef.current = null;
+            }
 
-  }, [aiJobId]);
+            return next;
+        });
+        });
+        return () => es.close();
+
+    }, [aiJobId]);
 
 
 
     useEffect(()=> {
-
         if(isAudioExtracting) 
-            setCurrentJob((prev) => ({
-                ...prev,
+            setCurrentJob({
                 status: "RUNNING",
                 task: 'AUDIO_EXTRACTION'
-            }));
+            });
         if (isTranscribing) {
-            setCurrentJob((prev) => ({
-                ...prev,
+            setIsLoading(true);
+            setCurrentJob({
                 status: "RUNNING",
                 task: 'TRANSCRIPT_GENERATION'
-            }));
+            });
         }
         else if (!isTranscribing && transcribedData && !aiJobId) {
             handleCreateJob(); // creating ai job first, then only transcript will complete
-            setIsAiJobStarted(true);
         }
 
     }, [isTranscribing, isAudioExtracting]);
 
+   useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (isLoading || isTranscribing) {
+        interval = setInterval(() => {
+        setProgress((prev) => {
+            if (prev >= 98) return prev;
+
+            let increment = Math.max(0.2, (98 - prev) / 25);
+
+            if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+            increment = Math.max(0.1, increment / 2);
+            }
+
+            return Math.min(prev + increment, 98);
+        });
+        }, 1200); 
+    } else {
+        setProgress(0);
+    }
+
+    return () => clearInterval(interval);
+    }, [isLoading, isTranscribing, isTranscribing, currentJob?.task]);
+
   
     // Handlers
     const handleCreateJob = async () => {
-
-        if (!youtubeUrl.trim()) {
-            setUrlError("YouTube URL is required");
-            scrollToError();
-            return;
-        }
-        if (!isValidYouTubeUrl(youtubeUrl.trim())) {
-            setUrlError("Please enter a valid YouTube URL");
-            scrollToError();
-            return;
-        }
 
         if(!transcribedData?.text){
             toast.error("No transcript found, Try again!");
@@ -269,13 +374,14 @@ const AiWorkflow = () => {
         // Create AI Job
         const { jobId } = await aiSectionAPI.createJob(jobParams);
         setAiJobId(jobId);
-        console.log("[handleCreateJob] Set aiJobId:", jobId);
-        toast.success("AI job created successfully!");
-        
+        setIsAiJobStarted(true);
+        toast.success("Transcription completed successfully!"); // Job will create only when transcription complete
         } catch (error) {
-            toast.error("Failed to create AI job. Please try again.");
+            toast.error("An error occured. Please try again!");
         } finally {
             setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
+            setProgress(100);
+            setTimeout(() => setIsLoading(false), 500);
         }
     };
 
@@ -289,15 +395,33 @@ const AiWorkflow = () => {
     };
 
     // ----------------------
-    // Manual Refresh Handler
+    // Manual Handlers
     // ----------------------
+
+    const handleValidateURL = () => {
+        if (!youtubeUrl.trim()) {
+            setUrlError("YouTube URL is required");
+            scrollToError();
+            return;
+        }
+        if (!isValidYouTubeUrl(youtubeUrl.trim())) {
+            setUrlError("Please enter a valid YouTube URL");
+            scrollToError();
+            return;
+        }
+        setIsLoading(true)
+
+        setTimeout(() => {
+            setIsURLValidated(true);
+            setIsLoading(false); 
+        }, 500); 
+    }
 
     const handleRefreshStatus = async () => {
         if (!aiJobId) return;
         try {
             const status = await aiSectionAPI.getJobStatus(aiJobId);
             const currentTaskData = getCurrentTask(status.jobStatus);
-            console.log("Current task: ", currentTaskData);
 
             if (!currentTaskData) {
                 toast.error("Current task is missing");
@@ -306,12 +430,10 @@ const AiWorkflow = () => {
 
             const currentTask = currentTaskData.task; 
             const currentStatus = currentTaskData.status;
-            console.log("From Refresh => CurrentTask: ", currentTask, "Current status: ", currentStatus);
             // const current
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
             updateCurrentJob(currentTask, currentStatus);
 
-            console.log("Status from handle refresh status: ", status);
             const prevJobStatus = prevJobStatusRef.current;
 
 
@@ -464,7 +586,6 @@ const AiWorkflow = () => {
 
     const getCurrentTask = (jobStatus: JobStatus["jobStatus"]): {task: any, status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING"} | null => {
         if (!jobStatus) return null;
-        console.log(jobStatus);
         const TASK_ORDER: (keyof typeof jobStatus)[] = [
             "audioExtraction",
             "transcriptGeneration",
@@ -505,11 +626,10 @@ const AiWorkflow = () => {
             uploadContent: "UPLOAD_CONTENT",
         };
 
-        setCurrentJob((prev) => ({
-            ...(prev || {}), 
+        setCurrentJob({
             status,
             task: taskMap[task],
-        }));
+        });
     };
 
 
@@ -529,7 +649,6 @@ const AiWorkflow = () => {
             }
             
             const currentTaskData = getCurrentTask(status.jobStatus);
-            console.log("Current task: ", currentTaskData);
 
             if (!currentTaskData) {
                 toast.error("Current task is missing");
@@ -555,13 +674,13 @@ const AiWorkflow = () => {
 
             switch (currentTask) {
                 case 'segmentation':
-                    params = {...customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
+                    params = {parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
                     break;
                 case 'questionGeneration':
-                    params = {...customQuestionParams, type: "QUESTION_GENERATION"};
+                    params = { parameters: customQuestionParams, type: "QUESTION_GENERATION"};
                     break;
                 case 'uploadContent': 
-                    params = { ...customUploadParams , type: "UPLOAD_CONTENT" };
+                    params = { parameters: customUploadParams , type: "UPLOAD_CONTENT", usePrevious: 0 };
                     break;
                 default: 
                     console.error("Invalid current task", currentTask);
@@ -572,11 +691,19 @@ const AiWorkflow = () => {
             await aiSectionAPI.approveStartTask(aiJobId, params);
                     
             // updateCurrentJob(currentTask, currentStatus);
+            toast.success("Task approved!");
 
-            toast.success("Task approved!")
+            if(currentTask != "uploadContent"){
+                setIsLoading(true);
+            }
+            else{
+                handleRefreshStatus();
+            }
+
         } catch(error) {
             toast.error("Failed to approve task");
             console.log("Failed to approve task", error);
+            setIsLoading(false);
         } 
     }
 
@@ -590,159 +717,22 @@ const AiWorkflow = () => {
     | "ABORTED"
     | string; // fallback for unexpected values
 
-    // ✅ Helper to map status → icon + tooltip
-    const getTaskStatusIcon = (status: TaskStatus | null) => {
-    if (!status) return null;
-
-    const baseClass =
-        "flex items-center gap-2 px-3 py-1 rounded-full border text-sm font-medium";
-
-    switch (status) {
-        case "PENDING":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div className={`${baseClass} bg-gray-100 dark:bg-gray-800`}>
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-700 dark:text-gray-300">
-                    Pending
-                    </span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Task is pending and waiting to start</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        case "RUNNING":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800`}
-                >
-                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    <span className="text-blue-700 dark:text-blue-300">Running</span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Task is currently running</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        case "WAITING":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800`}
-                >
-                    <PauseCircle className="w-4 h-4 text-yellow-600" />
-                    <span className="text-yellow-700 dark:text-yellow-300">
-                    Waiting
-                    </span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                Task is waiting for approval or dependencies
-                </TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        case "COMPLETED":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800`}
-                >
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="text-green-700 dark:text-green-300">
-                    Completed
-                    </span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Task completed successfully</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        case "FAILED":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800`}
-                >
-                    <XCircle className="w-4 h-4 text-red-600" />
-                    <span className="text-red-700 dark:text-red-300">Failed</span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Task failed to complete</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        case "ABORTED":
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800`}
-                >
-                    <Ban className="w-4 h-4 text-orange-600" />
-                    <span className="text-orange-700 dark:text-orange-300">
-                    Aborted
-                    </span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Task was aborted</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-
-        default:
-        return (
-            <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <div
-                    className={`${baseClass} bg-gray-100 dark:bg-gray-800`}
-                >
-                    <AlertTriangle className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-700 dark:text-gray-300">
-                    Unknown
-                    </span>
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>Unknown status: {status}</TooltipContent>
-            </Tooltip>
-            </TooltipProvider>
-        );
-    }
-    };
-
-    // Helper to safely extract status
-    const getTaskStatus = (
-    jobStatus: Record<string, TaskStatus> | null,
-    taskKey: string
-    ): TaskStatus | null => {
-    if (!jobStatus) return null;
-    return jobStatus[taskKey] ?? null;
-    };
 
 
   return (
     <div className='py-2'>
-        <Card className="mb-2">
-            <CardHeader className="pb-6">
+       <div className="mb-4"> 
+        <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate({ to: "/teacher/courses/view" })}
+            className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+            >
+            <ArrowLeft className="h-4 w-4" />
+        </Button>
+        </div>
+        <Card>
+            <CardHeader >
                 <div className="flex items-center justify-between">
                 <div className="space-y-2">
                     <CardTitle className="flex items-center gap-3 text-xl">
@@ -753,8 +743,9 @@ const AiWorkflow = () => {
                     Click to instantly generate engaging learning content. All essential steps are handled in the background.
                     </CardDescription>
                 </div>
+                {!isURLValidated && 
                 <Button
-                    variant="outline"
+                variant="outline"
                     size="sm"
                     onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
                     disabled={!!aiJobId}
@@ -762,9 +753,10 @@ const AiWorkflow = () => {
                 >
                     {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
                 </Button>
+                }
                 </div>
             </CardHeader>
-
+            {!isURLValidated ?
             <CardContent className="space-y-4">
                 <div className="space-y-6">
                 {showAdvancedConfig && (
@@ -963,7 +955,7 @@ const AiWorkflow = () => {
                             </AccordionContent>
                             </AccordionItem>
                         </Accordion>
-                        <div className=" rounded-xl border p-6 space-y-4 mb-10">
+                        <div className=" rounded-xl border p-6 space-y-4 pb-10 mt-5 ">
                             <h4 className="font-semibold text-base text-foreground mb-4">Upload Parameters</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
@@ -1008,22 +1000,23 @@ const AiWorkflow = () => {
                                 </div>
                             </div>
                         </div>
+                        <div className="border-t dark:border-gray-800  border-gray-200 mt-6"></div>
                     </div>
                 )}
                 </div>
-                <Stepper currentJobData={currentJob}/>
-                <div className="flex-1 w-full mt-5">
-                    <div className="relative w-full">
+                    <div className="flex-1 w-full mt-5 space-y-3">
+                        
+                        <div className="relative w-full">
                         <div
                             className={`absolute left-3 top-1/2 -translate-y-1/2 text-red-500 transition-transform duration-300 ease-in-out ${
                             youtubeUrl ? "scale-110" : "scale-100"
                             }`}
                         >
-                            <YoutubeIcon /> 
+                            <YoutubeIcon />
                         </div>
 
                         <Input
-                            placeholder="YouTube URL"
+                            placeholder="Enter YouTube URL"
                             value={youtubeUrl}
                             onChange={(e) => {
                             setUrlError(null);
@@ -1031,49 +1024,75 @@ const AiWorkflow = () => {
                             }}
                             disabled={!!aiJobId}
                             onFocus={() => setShowAdvancedConfig(false)}
-                            className={`pl-10 flex-1 w-full border rounded-md py-2 transition-all duration-300 ease-in-out ${
-                            urlError ? "border-red-500" : "border-gray-900"
-                            } `}
+                            className={`pl-10 flex-1 w-full border rounded-lg py-2.5 focus:ring-2 focus:ring-primary/50 transition-all duration-300 ease-in-out ${
+                            urlError ? "border-red-500" : "border-gray-300"
+                            }`}
                         />
+
+                        {urlError && (
+                            <p 
+                            ref={errorRef}
+                            className="absolute left-0 mt-1 text-red-500 text-sm"
+                            style={{ top: '100%' }} 
+                            >
+                            {urlError}
+                            </p>
+                        )}
                         </div>
-                    {urlError && (
-                        <p ref={errorRef} className="text-red-500 text-sm mt-1">{urlError}</p>
-                    )}
-                </div>
-            </CardContent>
-            
-        </Card>
+
+                        {/* Confirm Button */}
+                        <Button
+                            onClick={handleValidateURL}
+                            variant="default"
+                            disabled={isLoading}
+                            className="flex items-center gap-2 w-full mx-auto mt-5 sm:w-auto bg-primary text-black hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-transform duration-300 hover:scale-105"
+                            >
+                            {isLoading ? (
+                                <Loader2 className="w-5 h-5 animate-spin" /> 
+                            ) : (
+                                <CheckCircle className="w-5 h-5" />
+                            )}
+                            {isLoading ? "Validating..." : "Confirm URL"}
+                        </Button>
+                    </div>
+            </CardContent>:
         <div className=" bg-gradient-to-br from-background to-muted/20 ">
-            <div className=" mx-auto space-y-8">
-                <div className="bg-card rounded-2xl border shadow-lg p-8 space-y-6">
+
+            {isURLValidated && <Stepper currentJobData={currentJob}/> }
+            {isLoading && (
+                <div className="space-y-2  bg-card w-full">
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div
+                        className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${progress}%` }}
+                    />
+                    </div>
+
+                    <div className="text-sm text-gray-600 font-medium text-center">
+                    {progress.toFixed(2)}% Completed
+                    </div>
+                </div>
+            )}
+            {/* <div className="mx-auto">
+                <div className="bg-card shadow-lg p-8 space-y-6">
                     <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
                         <div className='flex items-center gap-3 pb-2'>
                             <Upload className="w-6 h-6 dark:text-white " />
                             <h2 className="text-xl font-bold">Upload Audio</h2>
                         </div>
-                         {/* <Button
-                            onClick={handleApproveTask}
-                            variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                            >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                             Approve Run
-                         </Button> */}
                         <Button
                             onClick={handleRefreshStatus}
                             variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                             >
                             <RefreshCw className="w-4 h-4" />
                          </Button>
-                       
                     </div>
 
                     <p className="text-md text-gray-600 dark:text-gray-200">
                         Select your preferred method to upload audio — via File, Link, or Recording.
                     </p>
 
-                    {/* Transcribe component */}
 
                     <AudioTranscripter 
                         setIsAudioExtracting ={setIsAudioExtracting}
@@ -1093,62 +1112,128 @@ const AiWorkflow = () => {
                         </div>
                     }
                 </div>
-
-                {/* Refresh Button */}
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">{aiJobId && aiJobStatus?.jobStatus && "Processing Status"}</h2>
-                </div>
-                
-                {/* Status Section */}
-                {aiJobId && aiJobStatus?.jobStatus && (
-                <div className="bg-card rounded-2xl border shadow-lg p-8 space-y-6">
-
-                    {/* Task Status Display */}
-                    <div className="bg-muted/30 rounded-xl border p-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <Settings className="w-4 h-4" />
-                        Task Status Overview
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {/* Audio Extraction */}
-                        <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border">
-                        <span className="text-xs font-medium text-muted-foreground">Audio Extraction</span>
-                        {getTaskStatusIcon(getTaskStatus(aiJobStatus?.jobStatus, "audioExtraction"))}
-                        </div>
-
-                        {/* Transcription */}
-                        <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border">
-                        <span className="text-xs font-medium text-muted-foreground">Transcription</span>
-                        {getTaskStatusIcon(getTaskStatus(aiJobStatus?.jobStatus, "transcriptGeneration"))}
-                        </div>
-
-                        {/* Segmentation */}
-                        <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border">
-                        <span className="text-xs font-medium text-muted-foreground">Segmentation</span>
-                        {getTaskStatusIcon(getTaskStatus(aiJobStatus?.jobStatus, "segmentation"))}
-                        </div>
-
-                        {/* Question Generation */}
-                        <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border">
-                        <span className="text-xs font-medium text-muted-foreground">Questions</span>
-                        {getTaskStatusIcon(getTaskStatus(aiJobStatus?.jobStatus, "questionGeneration"))}
-                        </div>
-
-                        {/* Upload */}
-                        <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border">
-                        <span className="text-xs font-medium text-muted-foreground">Upload</span>
-                        {getTaskStatusIcon(getTaskStatus(aiJobStatus?.jobStatus, "uploadContent"))}
-                        </div>
+            </div> */}
+            <div className="mx-auto">
+                <div className="bg-card shadow-lg p-8 space-y-6">
+                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
+                    <div className="flex items-center gap-3 pb-2">
+                        {currentJob?.task === "SEGMENTATION" ? (
+                        <>
+                            <Scissors className="w-6 h-6 dark:text-white" />
+                            <h2 className="text-xl font-bold">Segmenting Content</h2>
+                        </>
+                        ) : currentJob?.task === "QUESTION_GENERATION" ? (
+                        <>
+                            <HelpCircle className="w-6 h-6 dark:text-white" />
+                            <h2 className="text-xl font-bold">Generating Questions</h2>
+                        </>
+                        ) : currentJob?.task === "UPLOAD_CONTENT" ? (
+                        <>
+                            <CheckCircle className="w-6 h-6 text-green-500" />
+                            <h2 className="text-xl font-bold">Course Upload</h2>
+                        </>
+                        ) : (
+                        <>
+                            <Upload className="w-6 h-6 dark:text-white" />
+                            <h2 className="text-xl font-bold">Upload Audio</h2>
+                        </>
+                        )}
                     </div>
+                    <Button
+                        onClick={handleRefreshStatus}
+                        variant="outline"
+                        className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                    </Button>
                     </div>
+
+                    {/* Dynamic Content */}
+                    {currentJob?.task === "SEGMENTATION" ? (
+                    <div className="py-12 text-center text-gray-500">
+                        {isLoading || isTaskResultLoading ? "Loading segmentation..." : 
+                                    //  {!isTaskResultLoading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
+              <ol className="mt-2 space-y-2">
+                {segments?.map((seg, idx) => (
+                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
+                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
+                    <div className="text-xs text-white dark:text-gray-300">{seg.text}</div>
+                  </li>
+                ))}
+              </ol>
+            // )} 
+                        }
+
+                        {isAiJobStarted && aiJobId && (
+                        <div className="flex justify-center">
+                            <Button
+                            disabled={isLoading}
+                            onClick={handleApproveTask}
+                            className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            >
+                            Next
+                            </Button>
+                        </div>)}
+                    </div>
+                    ) : currentJob?.task === "QUESTION_GENERATION" ? (
+                    <div className="py-12 text-center text-gray-500">
+                        {isLoading || isTaskResultLoading ? "Generating questions..." : "Question generation content goes here"}
+                        {isAiJobStarted && aiJobId && (
+                        <div className="flex justify-center">
+                            <Button
+                            disabled={isLoading}
+                            onClick={handleApproveTask}
+                            className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            >
+                            Next
+                            </Button>
+                        </div>)}
+                    </div>
+                    ) : currentJob?.task === "UPLOAD_CONTENT" ? (
+                    <div className="text-center py-8">
+                        <p className="text-lg font-medium text-green-600">
+                        Course uploaded successfully!
+                        </p>
+                        <Button className="mt-4 px-6 py-2 bg-primary  text-black rounded-lg shadow-md hover:shadow-lg transition-all duration-300" onClick={() => navigate({ to: "/teacher/courses/view" })}>
+                        View Course
+                        </Button>
+                    </div>
+                    ) : (
+                    <>
+                        <p className="text-md text-gray-600 dark:text-gray-200">
+                        Select your preferred method to upload audio — via File, Link, or Recording.
+                        </p>
+                        <AudioTranscripter
+                            setIsAudioExtracting={setIsAudioExtracting}
+                            setIsTranscribing={setIsTranscribing}
+                            transcribedData={transcribedData}
+                            setTranscribedData={setTranscribedData}
+                            isRunningAiJob={!!aiJobId}
+                        />
+                        {isAiJobStarted && aiJobId && (
+                        <div className="flex justify-center">
+                            <Button
+                            onClick={handleApproveTask}
+                            disabled={isLoading}
+                            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            >
+                            Next
+                            </Button>
+                        </div>
+                        )}
+                    </>
+                    )}
                 </div>
-                )}
             </div>
+
         </div>
+        }
+    </Card>
     </div>
   )
 }
+
+
 
 const YoutubeIcon = () => (
   <svg 
@@ -1237,111 +1322,113 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   }, [currentJobData]);
 
   return (
-    <div className="flex items-center justify-between mb-8 px-8 relative animate-fade-in">
-      {WORKFLOW_STEPS.map((step, idx) => {
-        const status = getStepStatus(currentJobData, step.key);
-        const isCurrent = step.key === activeStep;
+    <div className=" bg-card pb-3">
+        <div className="flex items-center justify-between  px-8 relative animate-fade-in ">
+        {WORKFLOW_STEPS.map((step, idx) => {
+            const status = getStepStatus(currentJobData, step.key);
+            const isCurrent = step.key === activeStep;
 
-        const isLast = idx === WORKFLOW_STEPS.length - 1;
-        const isCompleted = status === 'completed';
-        const isFailed = status === 'failed';
-        const isStopped = status === 'stopped';
-        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
+            const isLast = idx === WORKFLOW_STEPS.length - 1;
+            const isCompleted = status === 'completed';
+            const isFailed = status === 'failed';
+            const isStopped = status === 'stopped';
+            const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
 
-        return (
-          <React.Fragment key={step.key}>
-            <div className="flex flex-col items-center relative z-10 animate-step-appear">
-              {/* Step Circle */}
-              <div className={`
-                stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
-                ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
-                  isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
-                    isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
-                      isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
-                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
-                }`}
-                style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                {/* Animated Icons */}
-                <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
-                  {isCompleted ? (
-                    <CheckCircle className="w-6 h-6 animate-bounce" />
-                  ) : isActive ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : isFailed ? (
-                    <XCircle className="w-6 h-6 animate-pulse" />
-                  ) : isStopped ? (
-                    <PauseCircle className="w-6 h-6 animate-pulse" />
-                  ) : (
-                    <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
-                      {step.icon}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Step Label */}
-              <div className="text-center max-w-24">
-                <span className={`
-                  text-sm font-semibold transition-all duration-300 ease-out
-                  ${isCompleted ? 'text-green-600 dark:text-green-400' :
-                    isActive ? 'text-blue-600 dark:text-blue-400' :
-                      isFailed ? 'text-red-600 dark:text-red-400' :
-                        isStopped ? 'text-orange-600 dark:text-orange-400' :
-                          'text-muted-foreground'
-                  }`}
-                >
-                  {step.label}
-                </span>
-
-                {/* Status Indicator */}
-                {isActive && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-                    <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
-                      Processing...
-                    </span>
-                  </div>
-                )}
-                {isCompleted && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
-                      Complete
-                    </span>
-                  </div>
-                )}
-                {isFailed && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full" />
-                    <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      Failed
-                    </span>
-                  </div>
-                )}
-                {isStopped && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                    <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                      Stopped
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Connecting Line */}
-            {!isLast && (
-              <div className="flex-1 flex items-center justify-center relative z-0">
+            return (
+            <React.Fragment key={step.key}>
+                <div className="flex flex-col items-center relative z-10 animate-step-appear">
+                {/* Step Circle */}
                 <div className={`
-                  stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out
-                  ${isCompleted ? 'bg-green-500' : 'bg-muted'}
-                `} style={{ minWidth: 32 }} />
-              </div>
-            )}
-          </React.Fragment>
-        );
-      })}
+                    stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
+                    ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
+                    isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
+                        isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
+                        isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
+                            'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                    }`}
+                    style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                    {/* Animated Icons */}
+                    <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
+                    {isCompleted ? (
+                        <CheckCircle className="w-6 h-6 animate-bounce" />
+                    ) : isActive ? (
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : isFailed ? (
+                        <XCircle className="w-6 h-6 animate-pulse" />
+                    ) : isStopped ? (
+                        <PauseCircle className="w-6 h-6 animate-pulse" />
+                    ) : (
+                        <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
+                        {step.icon}
+                        </div>
+                    )}
+                    </div>
+                </div>
+
+                {/* Step Label */}
+                <div className="text-center max-w-24">
+                    <span className={`
+                    text-sm font-semibold transition-all duration-300 ease-out
+                    ${isCompleted ? 'text-green-600 dark:text-green-400' :
+                        isActive ? 'text-blue-600 dark:text-blue-400' :
+                        isFailed ? 'text-red-600 dark:text-red-400' :
+                            isStopped ? 'text-orange-600 dark:text-orange-400' :
+                            'text-muted-foreground'
+                    }`}
+                    >
+                    {step.label}
+                    </span>
+
+                    {/* Status Indicator */}
+                    {isActive && (
+                    <div className="mt-1 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        Processing...
+                        </span>
+                    </div>
+                    )}
+                    {isCompleted && (
+                    <div className="mt-1 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-green-500 rounded-full" />
+                        <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                        Complete
+                        </span>
+                    </div>
+                    )}
+                    {isFailed && (
+                    <div className="mt-1 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                        Failed
+                        </span>
+                    </div>
+                    )}
+                    {isStopped && (
+                    <div className="mt-1 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                        <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+                        Stopped
+                        </span>
+                    </div>
+                    )}
+                </div>
+                </div>
+
+                {/* Connecting Line */}
+                {!isLast && (
+                <div className="flex-1 flex items-center justify-center relative z-0">
+                    <div className={`
+                    stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out
+                    ${isCompleted ? 'bg-green-500' : 'bg-muted'}
+                    `} style={{ minWidth: 32 }} />
+                </div>
+                )}
+            </React.Fragment>
+            );
+        })}
+        </div>
     </div>
   );
 });
