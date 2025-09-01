@@ -18,12 +18,13 @@ import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams, PaginationWithSortQuery } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
 import { subject } from '@casl/ability';
+import { PaginatedResponse } from '../classes/transformers/Anomaly.js';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -149,18 +150,18 @@ export class AnomalyController {
 
   @OpenAPI({
     summary: 'Get course anomalies',
-    description: 'Retrieves all anomalies for a specific course',
+    description: 'Retrieves all anomalies for a specific course with optional sorting and pagination',
   })
   @Get('/course/:courseId/version/:versionId')
   @Authorized()
-  @ResponseSchema(AnomalyData)
+  @ResponseSchema(PaginatedResponse, { isArray: false })
   async getCourseAnomalies(
     @Params() params: GetCourseAnomalyParams,
-    @QueryParams() query: PaginationQuery,
+    @QueryParams() query: PaginationWithSortQuery,
     @Ability(getAnomalyAbility) {ability}
-  ): Promise<AnomalyData[]> {
+  ): Promise<PaginatedResponse<AnomalyData>> {
     const { courseId, versionId } = params;
-    const { page, limit } =  query
+    const { page = 1, limit = 10, sortField, sortOrder } = query;
     const skip = (page - 1) * limit;
 
     const anomalyRes = subject('Anomaly', { courseId, versionId });
@@ -168,9 +169,8 @@ export class AnomalyController {
       throw new ForbiddenError('You do not have permission to view anomalies for this course');
     }
 
-    const anomalies = await this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip);
-
-    return anomalies;
+    const sortOptions = sortField ? { field: sortField, order: sortOrder } : undefined;
+    return this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip, sortOptions, page);
   }
 
   @OpenAPI({

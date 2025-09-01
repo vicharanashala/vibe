@@ -51,6 +51,7 @@ import { bufferToHex } from "@/utils/helpers"
 // Define types for better TypeScript support
 import type { RawEnrollment } from "@/types/course.types"
 import { components } from "@/types/schema"
+import { useAnomalyStore } from "@/store/anomaly-store"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -65,7 +66,7 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments( currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
 
 
   const enrollments = enrollmentsResponse?.enrollments || []
@@ -334,7 +335,7 @@ function CourseCard({
 
   // 1. Use course from enrollment if available
   const localCourse = enrollment?.course;
-  const localCourseVersionDetails = enrollment?.course?.versionDetails
+  const localCourseVersionDetails = enrollment?.course?.versionDetails;
   // 2. Fetch from API only if not present in enrollment
   const { data: fetchedCourse, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex,
     !localCourse ? true : false
@@ -830,7 +831,7 @@ function VersionCard({
   onInvalidate,
   deleteVersionMutation,
 }: {
-  versionData?:  components['schemas']['CourseVersionDataResponse'];
+  versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
   courseId: string
   onInvalidate: () => void
@@ -841,13 +842,15 @@ function VersionCard({
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
+  const { setCurrentAnomaly } = useAnomalyStore();
 
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
   const version = versionData || fetchedVersion;
 
-  const selectedVersionId = version?.id;
+
+  const selectedVersionId = version?.id || versionId;
 
   const deleteVersion = async () => {
     if (!confirm("Are you sure you want to delete this version? This action cannot be undone.")) {
@@ -903,6 +906,19 @@ function VersionCard({
     navigate({
       to: "/teacher/courses/flags/list",
     })
+  }
+  const viewAnomalies = () => {
+    setCurrentAnomaly({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null
+    });
+    navigate({
+      to: "/teacher/courses/anomalies/list"
+    });
   }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
@@ -985,6 +1001,10 @@ function VersionCard({
               </div>
 
               <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
+                <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                  <Eye className="h-3 w-3 mr-1" />
+                  View Anomalies
+                </Button>
                 <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                   <FlagTriangleRight className="h-3 w-3 mr-1" />
                   View Flags

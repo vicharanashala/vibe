@@ -47,6 +47,17 @@ class UserQuizMetricsRepository {
     }
     return result;
   }
+
+  async executeBulkMetricsReset(
+    operations: Array<{updateOne: {filter: any; update: any}}>,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    if (!operations.length) return;
+
+    await this.userQuizMetricsCollection.bulkWrite(operations, {session});
+  }
+  
   public async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
@@ -83,7 +94,7 @@ class UserQuizMetricsRepository {
         {session},
       );
 
-      console.log("User metrics: ", metricsDoc)
+      console.log('User metrics: ', metricsDoc);
 
       // Step 2: Reset the quiz metrics fields
       await this.userQuizMetricsCollection.updateOne(
@@ -113,19 +124,17 @@ class UserQuizMetricsRepository {
     session?: ClientSession,
   ): Promise<IUserQuizMetrics[]> {
     await this.init();
-    const result = await this.userQuizMetricsCollection.find(
-      {quizId: new ObjectId(quizId)},
-      {session},
-    ).toArray();
+    const result = await this.userQuizMetricsCollection
+      .find({quizId: new ObjectId(quizId)}, {session})
+      .toArray();
     return result;
   }
 
   public async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
     await this.init();
-    const result = await this.userQuizMetricsCollection.find(
-      {},
-      {session},
-    ).toArray();
+    const result = await this.userQuizMetricsCollection
+      .find({}, {session})
+      .toArray();
     return result;
   }
 }

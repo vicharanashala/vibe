@@ -117,8 +117,7 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
-      //Step 1: Fetch and validate parent entities (version, module, section) and the itemsGroup.
-
+      // Step 1: Fetch and validate parent entities
       const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
@@ -127,14 +126,27 @@ export class ItemService extends BaseService {
           session,
         );
 
-      //Step 2: Create a new item instance in memory.
+      // Step 2: Create a new item instance
       const item = new ItemBase(body, itemsGroup.items);
 
-      //Step 3: Store the item-specific details in the repository.
-      const createdItemDetailsPersistenceResult =
-        await this.itemRepo.createItem(item.itemDetails, session);
+      const courseId = version.courseId.toString();
 
-      // Step 3a: Check if the item-specific details were successfully created.
+      // Step 3: Run multiple async operations in parallel
+      const [
+        createdItemDetailsPersistenceResult,
+        totalItemsCountIfNeeded,
+        enrollments,
+      ] = await Promise.all([
+        this.itemRepo.createItem(item.itemDetails, session),
+        version.totalItems ? Promise.resolve(null) : this.itemRepo.CalculateTotalItemsCount(
+          courseId,
+          version._id.toString(),
+          session,
+        ),
+        this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
+      ]);
+
+      // Step 3a: Validate creation
       if (!createdItemDetailsPersistenceResult) {
         throw new InternalServerError(
           'Persistence of item-specific details failed in the repository.',
@@ -142,57 +154,41 @@ export class ItemService extends BaseService {
       }
       createdItemDetailsPersistenceResult._id =
         createdItemDetailsPersistenceResult._id.toString();
-      if (version.totalItems) {
-        version.totalItems += 1; // Increment the total items count in the version.
-      } else {
-        version.totalItems = Math.max(
-          await this.itemRepo.CalculateTotalItemsCount(
-            version.courseId.toString(),
-            version._id.toString(),
-            session,
-          ),
-          1,
-        );
-      }
 
-      const courseId = version.courseId.toString();
+      // Step 3b: Update totalItems
+      version.totalItems = version.totalItems
+        ? version.totalItems + 1
+        : Math.max(totalItemsCountIfNeeded || 0, 1);
 
-      //Step 4: Update the progress percent in enrollment doc
-      const enrollments = await this.enrollmentRepo.getByCourseVersion(
-        courseId,
-        versionId,
-        session,
-      );
-
+      // Step 4: Update enrollment progress in bulk
       await this.progressService.updateEnrollmentProgressPercentBulk(
         enrollments,
         courseId,
         versionId,
         version.totalItems,
         session,
-
       );
 
-
-      //Step 5: Create a new ItemDB instance to represent the item in the itemsGroup.
-      const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
+      // Step 5: Add item to itemsGroup
+      const newItemDB = new ItemRef(item);
       newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
 
-      //Step 5: Save the modified 'itemsGroup' (now containing the new item) back to the database.
+      // Step 5b: Persist updated itemsGroup
       const updatedItemsGroupResult = await this.itemRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
         itemsGroup,
         session,
       );
 
-      //Step 6: Update the 'updatedAt' timestamps for the modified section, module, and version.
+      // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
         version,
         module,
         section,
         session,
       );
+
       return {
         itemsGroup: updatedItemsGroupResult,
         version: updatedVersion,
@@ -200,6 +196,7 @@ export class ItemService extends BaseService {
       };
     });
   }
+
 
   public async readAllItems(
     versionId: string,
@@ -226,86 +223,93 @@ export class ItemService extends BaseService {
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
-      const version = await this.courseRepo.readVersion(versionId, session);
+      // 🔄 Run version and item fetch in parallel
+      const [version, item] = await Promise.all([
+        this.courseRepo.readVersion(versionId, session),
+        this.itemRepo.readItem(versionId, itemId, session),
+      ]);
+
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      const item = await this.itemRepo.readItem(versionId, itemId, session);
       if (!item)
         throw new NotFoundError(
           `Item ${itemId} not found in version ${versionId}.`,
         );
+
       if (item.type !== body.type) {
         throw new InternalServerError(
           `Item type mismatch: expected ${item.type}, got ${body.type}.`,
         );
       }
+
       const result = await this.itemRepo.updateItem(itemId, body, session);
+
       version.updatedAt = new Date();
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
       );
+
       if (!updatedVersion) {
         throw new InternalServerError(
           'Failed to update version after item update',
         );
       }
+
       result._id = result._id.toString();
       return result;
     });
   }
 
+
   public async deleteItem(itemsGroupId: string, itemId: string) {
     return this._withTransaction(async session => {
       try {
-        const deleted = await this.itemRepo.deleteItem(
-          itemsGroupId,
-          itemId,
-          session,
-        );
+        // Step 1: Delete item
+        const deleted = await this.itemRepo.deleteItem(itemsGroupId, itemId, session);
         if (!deleted) throw new InternalServerError('Item deletion failed');
-        const version = await this.findVersion(itemsGroupId);
-        // if (version.totalItems) {
-        //   version.totalItems -= 1;
-        // } else {
-        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-          version.courseId.toString(),
-          version._id.toString(),
-          session,
-        );
-        // }
-        await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
-        const versionId = version._id.toString();
-        const courseId = version.courseId.toString();
-        // To update the progress percent in enrollment doc
-        const enrollments = await this.enrollmentRepo.getByCourseVersion(
-          courseId,
-          versionId,
-          session,
-        );
-        for (const enrollment of enrollments) {
-          const userId = enrollment?.userId?.toString();
-          // helper to update progress
-          await this.progressService.updateEnrollmentProgressPercent(
-            userId,
-            courseId,
-            versionId,
-            session,
-            false,
-            version.totalItems
-          );
-        }
 
+        // Step 2: Fetch version
+        const version = await this.findVersion(itemsGroupId);
+
+        const courseId = version.courseId.toString();
+        const versionId = version._id.toString();
+
+        // Step 3: Run in parallel: count total items, delete watch time, get enrollments
+        const [totalItems, _, enrollments] = await Promise.all([
+          this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
+          this.progressRepo.deleteWatchTimeByItemId(itemId, session),
+          this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
+        ]);
+
+        version.totalItems = totalItems;
+
+        // Step 4: Update progress for all users in parallel
+        await Promise.all(
+          enrollments.map(enrollment => {
+            const userId = enrollment?.userId?.toString();
+            return this.progressService.updateEnrollmentProgressPercent(
+              userId,
+              courseId,
+              versionId,
+              session,
+              false,
+              totalItems,
+            );
+          })
+        );
+
+        // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
-          version._id.toString(),
+          versionId,
           version,
           session,
         );
-
         if (!updatedVersion) {
           throw new InternalServerError(
             'Failed to update version after item deletion',
           );
         }
+
         deleted._id = deleted._id.toString();
         return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
@@ -315,6 +319,7 @@ export class ItemService extends BaseService {
       }
     });
   }
+
 
   public async moveItem(
     versionId: string,

@@ -303,6 +303,80 @@ export interface QuizSubmissionResponseUpdated {
   gradingResult?: IGradingResult;
 }
 
+// Anomalies hooks
+export interface Anomaly {
+  id: string;
+  _id?: string;
+  studentName: string;
+  studentId: string;
+  studentEmail: string;
+  type: string;
+  description?: string;
+  courseId: string;
+  versionId: string;
+  itemId?: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+  date: string;
+  status: 'Pending' | 'Investigated' | 'Resolved';
+}
+
+export function useAnomaliesByCourseItem(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  sortField?: string,
+  sortOrder: 'asc' | 'desc' = 'desc'
+): {
+  data: Anomaly[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  total: number;
+  page: number;
+  totalPages: number;
+} {
+  const result: any = api.useQuery(
+    "get",
+    "/anomalies/course/{courseId}/version/{versionId}",
+    {
+      params: {
+        path: {
+          courseId: courseId || "",
+          versionId: versionId || ""
+        },
+        query: {
+          page,
+          limit,
+          sortField,
+          sortOrder
+        }
+      }
+    },
+    {
+      enabled: !!courseId && !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+
+  const data = Array.isArray(result?.data?.data) ? result?.data?.data : [];
+  const total = result?.data?.totalDocuments || 0;
+  const totalPages = result?.data?.totalPages || 1;
+
+  return {
+    data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch anomalies') : null,
+    refetch: result.refetch,
+    total,
+    page,
+    totalPages
+  };
+}
+
 // Auth hooks
 
 // POST /auth/verify
