@@ -157,6 +157,75 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Enrollment not found');
       }
 
+      // Get course version to extract quiz items for cleanup
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      if (courseVersion) {
+        const quizItemIds: string[] = [];
+        
+        if (courseVersion.modules) {
+          for (const module of courseVersion.modules) {
+            if (module.sections) {
+              for (const section of module.sections) {
+                const itemsGroup = await this.itemRepo.readItemsGroup(
+                  section.itemsGroupId.toString(),
+                );
+                
+                if (itemsGroup?.items) {
+                  const quizItems = itemsGroup.items.filter(item => item.type === 'QUIZ');
+                  quizItemIds.push(...quizItems.map(item => item._id.toString()));
+                }
+              }
+            }
+          }
+        }
+
+        // Clean up quiz data if there are quizzes in the course  
+        if (quizItemIds.length > 0) {
+          // 1. Delete quiz attempts, quiz submissions, 
+          const attemptCollection = await this.database.getCollection('quiz_attempts');
+          await attemptCollection.deleteMany(
+            {
+              userId: userId,
+              quizId: { $in: quizItemIds }
+            },
+            {session}
+          );
+          
+          const submissionCollection = await this.database.getCollection('quiz_submission_results');
+          await submissionCollection.deleteMany(
+            {
+              userId: userId,
+              quizId: { $in: quizItemIds }
+            },
+            {session}
+          );
+           // Completely delete user quiz metrics (not reset)
+          const userQuizMetricsCollection = await this.database.getCollection('user_quiz_metrics');
+          await userQuizMetricsCollection.deleteMany(
+            {
+              userId: userId,
+              quizId: { $in: quizItemIds }
+            },
+            {session}
+          );
+        }
+
+        // Clean up watch time data for the course version
+        const watchTimeCollection = await this.database.getCollection('watchTime');
+        const watchTimeResult = await watchTimeCollection.deleteMany(
+          {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+          },
+          {session},
+        );
+        
+        if (watchTimeResult?.deletedCount === 0) {
+          console.info(`No watch time data found for user ${userId} in course version ${courseVersionId}`);
+        }
+      }
+
       // Remove enrollment
       await this.enrollmentRepo.deleteEnrollment(
         userId,
