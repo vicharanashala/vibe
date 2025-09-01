@@ -5,10 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  AlertTriangle, ArrowLeft, Ban, CheckCircle, Clock, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Scissors, Settings, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
+import {  ArrowLeft, CheckCircle, Clock, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Scissors, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -68,16 +67,9 @@ const AiWorkflow = () => {
     - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
     });
 
-    // Custom configuration parameters
-    const [customTranscriptParams, setCustomTranscriptParams] =
-    useState<TranscriptParameters>({
-        language: "en",
-        modelSize: "large",
-    });
-
     const [customSegmentationParams, setCustomSegmentationParams] =
     useState<SegmentationParameters>({
-        lam: 4.6,
+        lam: 4.5,
         runs: 25,
         noiseId: -1,
     });
@@ -100,14 +92,13 @@ const AiWorkflow = () => {
     const errorRef = useRef<HTMLDivElement | null>(null);
 
 
-    const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING", task: any} | null>(null)
+    const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null>(null)
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false); //will true once segmentation starts (backend)
     const [isURLValidated, setIsURLValidated] = useState(false); // will true once yt url is validated
     const [isLoading, setIsLoading] = useState(false); // mock loading for yt url
     const [progress, setProgress] = useState(0);
-    const [taskResponse, setTaskResponse] = useState();
     const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
     const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); // array of arrays of transcript chunks per segment
     const [segments, setSegments] = useState<any[]>([]);
@@ -115,85 +106,100 @@ const AiWorkflow = () => {
     const [isTaskResultLoading, setIsTaskResultLoading] = useState(false);
     const [error, setError] = useState("");
 
-        const handleShowHandleResult = async(task: string) => {
-            if (!aiJobId) return;
-            try {
-                if(!task){
-                    toast.error("No task found to show result!");
-                    return;
-                }
-                const token = localStorage.getItem('firebase-auth-token');
-                const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
-                console.log("Requested url: ", url);
-                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!res.ok) throw new Error('Failed to fetch task status');
-                const data = await res.json();
-                console.log("Data", data);
-                handleExtractSegmentationResponse(data);
-            } catch(error) {
-
+    const handleShowHandleResult = async (task: string) => {
+        if (!aiJobId) return;
+        
+        try {
+            if (!task) {
+            toast.error("No task found to show result!");
+            return;
             }
+
+            const token = localStorage.getItem("firebase-auth-token");
+            const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
+            console.log("Requested url: ", url);
+
+            const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error("Failed to fetch task status");
+
+            const data = await res.json();
+            console.log("Data", data);
+            handleExtractSegmentationResponse(data);
+        } catch (error) {
+            console.error("Error fetching task result:", error);
+            toast.error("Failed to fetch task result");
         }
+    };
 
-        const handleExtractSegmentationResponse = async(response:any) => {
-            try {
-                    const segData = Array.isArray(response) ? response[0] : null;
-                //     if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap) && segData.transcriptFileUrl) {
-                //     setSegmentationMap(segData.segmentationMap);
-                //     const transcriptRes = await fetch(segData.transcriptFileUrl);
-                //     if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-                //     const transcriptData = await transcriptRes.json();
-                //     const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
-                //     const segMap = segData.segmentationMap;
-                //     const grouped: any[][] = [];
-                //     let segStart = 0;
-                //     for (let i = 0; i < segMap.length; ++i) {
-                //         const segEnd = segMap[i];
-                //         // Chunks whose timestamp[0] >= segStart and < segEnd
-                //         const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
-                //             chunk.timestamp &&
-                //         typeof chunk.timestamp[0] === 'number' &&
-                //         chunk.timestamp[0] >= segStart &&
-                //         chunk.timestamp[0] < segEnd
-                //     );
-                //     grouped.push(segChunks);
-                //     segStart = segEnd;
-                //     }
-                //     setSegmentationChunks(grouped);
-                // } else
-                     if (segData?.transcriptFileUrl) {
-                    // fallback: fetch segments from fileUrl as before
-                    const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
-                    console.log("Extracted segments: ", segs);
-                    setSegments(segs);
-                    setSegmentationMap(null);
-                    setSegmentationChunks(null);
-                } else {
-                    setError('Segmentation data not found.');
-                    setSegmentationChunks(null);
-                }
-            } catch(error){
+    const handleExtractSegmentationResponse = async (response: any) => {
+    try {
+        const segData = Array.isArray(response) ? response[0] : null;
 
-            } finally {
-                setIsTaskResultLoading(false);
-            }
+        if (
+        segData &&
+        segData.segmentationMap &&
+        Array.isArray(segData.segmentationMap) &&
+        segData.transcriptFileUrl
+        ) {
+        setSegmentationMap(segData.segmentationMap);
+
+        const transcriptRes = await fetch(segData.transcriptFileUrl);
+        if (!transcriptRes.ok)
+            throw new Error("Failed to fetch transcript file");
+
+        const transcriptData = await transcriptRes.json();
+        const chunks = Array.isArray(transcriptData.chunks)
+            ? transcriptData.chunks
+            : [];
+        const segMap = segData.segmentationMap;
+        const grouped: any[][] = [];
+
+        let segStart = 0;
+        for (let i = 0; i < segMap.length; ++i) {
+            const segEnd = segMap[i];
+            const segChunks = chunks.filter(
+            (chunk: { timestamp: [number, number]; text: string }) =>
+                chunk.timestamp &&
+                typeof chunk.timestamp[0] === "number" &&
+                chunk.timestamp[0] >= segStart &&
+                chunk.timestamp[0] < segEnd
+            );
+            grouped.push(segChunks);
+            segStart = segEnd;
         }
+        setSegmentationChunks(grouped);
+        } else if (segData?.transcriptFileUrl) {
+        const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
+        console.log("Extracted segments: ", segs);
+        setSegments(segs);
+        setSegmentationMap(null);
+        setSegmentationChunks(null);
+        } else {
+        setError("Segmentation data not found.");
+        setSegmentationChunks(null);
+        }
+    } catch (error) {
+        console.error("Error extracting segmentation response:", error);
+    } finally {
+        setIsTaskResultLoading(false);
+    }
+    };
 
-          // Helper to fetch segmentation file from fileUrl
-        const fetchSegmentationFromUrl = async (url: string) => {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch segmentation file');
-            const data = await response.json();
-            // Assume data.segments or data.chunks or similar
-            if (Array.isArray(data.segments)) {
-            return data.segments;
-            }
-            if (Array.isArray(data.chunks)) {
-            // fallback for chunked format
-            return data.chunks;
-            }
-            return data;
-        };
+    const fetchSegmentationFromUrl = async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch segmentation file");
+    const data = await response.json();
+
+    if (Array.isArray(data.segments)) {
+        return data.segments;
+    }
+    if (Array.isArray(data.chunks)) {
+        return data.chunks;
+    }
+    return data;
+    };
 
     // Validation
     const isValidYouTubeUrl = (url: string): boolean => {
@@ -208,18 +214,36 @@ const AiWorkflow = () => {
         const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
             console.log("Incoming >>>>", incoming)
 
-        if(incoming.status == "COMPLETED")
-            handleShowHandleResult(incoming.task);
+            //  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
 
-        if(incoming.status == "COMPLETED" && incoming.task!= "uploadContent"){
-            setProgress(100);
-            setTimeout(() => setIsLoading(false), 500);
-        }
-
+            //  const taskToStep: Record<string, string> = {
+            //   'AUDIO_EXTRACTION': 'audioExtraction',
+            //   'TRANSCRIPT_GENERATION': 'transcriptGeneration',
+            //   'SEGMENTATION': 'segmentation',
+            //   'QUESTION_GENERATION': 'questionGeneration',
+            //   'UPLOAD_CONTENT': 'uploadContent',
+            // };
         setCurrentJob({
             task: incoming.task,
             status: incoming.status
         })
+
+        if(incoming.status == "COMPLETED"){
+            handleShowHandleResult(incoming.task); // to show the result of the tasks
+            setProgress(100);
+            setTimeout(() => setIsLoading(false), 500);
+
+            if(incoming.task == "SEGMENTATION"){
+                toast.success("Segmentation completed!")
+                setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
+            }
+            else if (incoming.task == "QUESTION_GENERATION"){
+                toast.success("Question generation completed!")
+                setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
+            }
+
+        }
+
         setAiJobStatus(() => {
             let next: any =  { ...incoming } ;
             const failing = optimisticFailedTaskRef.current;
@@ -264,8 +288,6 @@ const AiWorkflow = () => {
         return () => es.close();
 
     }, [aiJobId]);
-
-
 
     useEffect(()=> {
         if(isAudioExtracting) 
@@ -348,7 +370,7 @@ const AiWorkflow = () => {
 
 
         jobParams.segmentationParameters = {
-            lam: customSegmentationParams.lam ?? 4.6,
+            lam: customSegmentationParams.lam ?? 4.5,
             runs: customSegmentationParams.runs ?? 25,
             noiseId: customSegmentationParams.noiseId ?? -1,
         };
@@ -380,6 +402,8 @@ const AiWorkflow = () => {
             toast.error("An error occured. Please try again!");
         } finally {
             setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
+            setCurrentJob({status: "WAITING", task: 'SEGMENTATION'}); 
+
             setProgress(100);
             setTimeout(() => setIsLoading(false), 500);
         }
@@ -671,6 +695,7 @@ const AiWorkflow = () => {
             };
 
             let params: Record<string, any> | null = null;
+            console.log("Segmentation params while approving: ", customSegmentationParams)
 
             switch (currentTask) {
                 case 'segmentation':
@@ -707,17 +732,6 @@ const AiWorkflow = () => {
         } 
     }
 
-    // Define possible task statuses for type safety
-    type TaskStatus =
-    | "PENDING"
-    | "RUNNING"
-    | "WAITING"
-    | "COMPLETED"
-    | "FAILED"
-    | "ABORTED"
-    | string; // fallback for unexpected values
-
-
 
   return (
     <div className='py-2'>
@@ -743,7 +757,7 @@ const AiWorkflow = () => {
                     Click to instantly generate engaging learning content. All essential steps are handled in the background.
                     </CardDescription>
                 </div>
-                {!isURLValidated && 
+                {/* {!isURLValidated && 
                 <Button
                 variant="outline"
                     size="sm"
@@ -753,66 +767,19 @@ const AiWorkflow = () => {
                 >
                     {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
                 </Button>
-                }
+                } */}
                 </div>
             </CardHeader>
             {!isURLValidated ?
             <CardContent className="space-y-4">
                 <div className="space-y-6">
-                {showAdvancedConfig && (
+                {/* {showAdvancedConfig && (
                     <div
                     className={`transition-all duration-500 ease-in-out overflow-hidden ${
                         showAdvancedConfig ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                     }`}
                     >
                         <Accordion type="multiple" className="border rounded-xl overflow-hidden">
-                            <AccordionItem value="transcript" className="border-b-0">
-                            <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
-                                Transcription Settings
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6 pt-2">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Language</Label>
-                                    <Select
-                                    value={customTranscriptParams.language}
-                                    onValueChange={(value) => setCustomTranscriptParams((prev) => ({ ...prev, language: value }))}
-                                    disabled={!!aiJobId}
-                                    >
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="Select language" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="en">English</SelectItem>
-                                        <SelectItem value="hi">Hindi</SelectItem>
-                                        <SelectItem value="es">Spanish</SelectItem>
-                                        <SelectItem value="fr">French</SelectItem>
-                                    </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Model Size</Label>
-                                    <Select
-                                    value={customTranscriptParams.modelSize}
-                                    onValueChange={(value) =>
-                                        setCustomTranscriptParams((prev) => ({ ...prev, modelSize: value }))
-                                    }
-                                    disabled={!!aiJobId}
-                                    >
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="Select model size" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="large">Large (Most Accurate)</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="small">Small (Fastest)</SelectItem>
-                                    </SelectContent>
-                                    </Select>
-                                </div>
-                                </div>
-                            </AccordionContent>
-                            </AccordionItem>
-
                             <AccordionItem value="segmentation" className="border-b-0">
                             <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
                                 Segmentation Settings
@@ -1002,7 +969,7 @@ const AiWorkflow = () => {
                         </div>
                         <div className="border-t dark:border-gray-800  border-gray-200 mt-6"></div>
                     </div>
-                )}
+                )} */}
                 </div>
                     <div className="flex-1 w-full mt-5 space-y-3">
                         
@@ -1057,8 +1024,9 @@ const AiWorkflow = () => {
                     </div>
             </CardContent>:
         <div className=" bg-gradient-to-br from-background to-muted/20 ">
-
+            
             {isURLValidated && <Stepper currentJobData={currentJob}/> }
+
             {isLoading && (
                 <div className="space-y-2  bg-card w-full">
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
@@ -1073,46 +1041,6 @@ const AiWorkflow = () => {
                     </div>
                 </div>
             )}
-            {/* <div className="mx-auto">
-                <div className="bg-card shadow-lg p-8 space-y-6">
-                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
-                        <div className='flex items-center gap-3 pb-2'>
-                            <Upload className="w-6 h-6 dark:text-white " />
-                            <h2 className="text-xl font-bold">Upload Audio</h2>
-                        </div>
-                        <Button
-                            onClick={handleRefreshStatus}
-                            variant="outline"
-                            className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                            >
-                            <RefreshCw className="w-4 h-4" />
-                         </Button>
-                    </div>
-
-                    <p className="text-md text-gray-600 dark:text-gray-200">
-                        Select your preferred method to upload audio — via File, Link, or Recording.
-                    </p>
-
-
-                    <AudioTranscripter 
-                        setIsAudioExtracting ={setIsAudioExtracting}
-                        setIsTranscribing ={setIsTranscribing}
-                        transcribedData = {transcribedData}
-                        setTranscribedData={setTranscribedData}
-                        isRunningAiJob = {!!aiJobId}
-                    />
-                    {isAiJobStarted &&  aiJobId &&
-                        <div className="flex justify-center">
-                            <Button
-                            onClick={handleApproveTask}
-                            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                            >
-                            Next
-                            </Button>
-                        </div>
-                    }
-                </div>
-            </div> */}
             <div className="mx-auto">
                 <div className="bg-card shadow-lg p-8 space-y-6">
                     <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
@@ -1150,54 +1078,42 @@ const AiWorkflow = () => {
 
                     {/* Dynamic Content */}
                     {currentJob?.task === "SEGMENTATION" ? (
-                    <div className="py-12 text-center text-gray-500">
-                        {isLoading || isTaskResultLoading ? "Loading segmentation..." : 
-                                    //  {!isTaskResultLoading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
-              <ol className="mt-2 space-y-2">
-                {segments?.map((seg, idx) => (
-                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
-                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
-                    <div className="text-xs text-white dark:text-gray-300">{seg.text}</div>
-                  </li>
-                ))}
-              </ol>
-            // )} 
-                        }
-
-                        {isAiJobStarted && aiJobId && (
-                        <div className="flex justify-center">
-                            <Button
-                            disabled={isLoading}
-                            onClick={handleApproveTask}
-                            className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                            >
-                            Next
-                            </Button>
-                        </div>)}
-                    </div>
+                        <SegmentationView
+                            isLoading={isLoading || isTaskResultLoading}
+                            error={error}
+                            segmentationMap={segmentationMap}
+                            segmentationChunks={segmentationChunks}
+                            segments={segments}
+                            isAiJobStarted={isAiJobStarted}
+                            aiJobId={aiJobId}
+                            handleApproveTask={handleApproveTask}
+                            currentJobStatus = {currentJob.status}
+                            setCustomSegmentationParams ={setCustomSegmentationParams}
+                            customSegmentationParams = {customSegmentationParams}
+                        />
                     ) : currentJob?.task === "QUESTION_GENERATION" ? (
                     <div className="py-12 text-center text-gray-500">
                         {isLoading || isTaskResultLoading ? "Generating questions..." : "Question generation content goes here"}
                         {isAiJobStarted && aiJobId && (
                         <div className="flex justify-center">
                             <Button
-                            disabled={isLoading}
-                            onClick={handleApproveTask}
-                            className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                disabled={isLoading}
+                                onClick={handleApproveTask}
+                                className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                             >
-                            Next
+                                Generate question
+                                <Zap className="w-5 h-5" />
                             </Button>
                         </div>)}
                     </div>
                     ) : currentJob?.task === "UPLOAD_CONTENT" ? (
-                    <div className="text-center py-8">
-                        <p className="text-lg font-medium text-green-600">
-                        Course uploaded successfully!
-                        </p>
-                        <Button className="mt-4 px-6 py-2 bg-primary  text-black rounded-lg shadow-md hover:shadow-lg transition-all duration-300" onClick={() => navigate({ to: "/teacher/courses/view" })}>
-                        View Course
-                        </Button>
-                    </div>
+                        <UploadContentView
+                            currentJobStatus = {currentJob.status} 
+                            setUploadParams = {setUploadParams}
+                            uploadParams = {uploadParams} 
+                            handleApproveTask = {handleApproveTask} 
+                            isLoading = {isLoading}
+                        />
                     ) : (
                     <>
                         <p className="text-md text-gray-600 dark:text-gray-200">
@@ -1292,7 +1208,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
       if (status === 'completed') return 'completed';
       if (status === 'failed') return 'failed';
       if (status === 'stopped') return 'stopped';
-      if (status === 'waiting' || status === 'pending') return 'pending';
+      if (status === 'waiting' ) return 'waiting';
       return 'pending';
     }
   }  
@@ -1331,8 +1247,9 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
             const isLast = idx === WORKFLOW_STEPS.length - 1;
             const isCompleted = status === 'completed';
             const isFailed = status === 'failed';
-            const isStopped = status === 'stopped';
-            const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
+            const isStopped = status === 'stopped' ;
+            const isWaiting = status == 'waiting';
+            const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped && !isWaiting);
 
             return (
             <React.Fragment key={step.key}>
@@ -1342,9 +1259,10 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
                     ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
                     isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
-                        isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
-                        isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
-                            'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                    isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
+                    isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
+                    isWaiting ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-500/20 animate-stepper-pending-glow':
+                    'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
                     }`}
                     style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
@@ -1358,7 +1276,10 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                         <XCircle className="w-6 h-6 animate-pulse" />
                     ) : isStopped ? (
                         <PauseCircle className="w-6 h-6 animate-pulse" />
-                    ) : (
+                    ) : isWaiting ? (
+                        <Clock className="w-6 h-6 animate-pulse" />
+                    )
+                     : (
                         <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
                         {step.icon}
                         </div>
@@ -1373,8 +1294,9 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     ${isCompleted ? 'text-green-600 dark:text-green-400' :
                         isActive ? 'text-blue-600 dark:text-blue-400' :
                         isFailed ? 'text-red-600 dark:text-red-400' :
-                            isStopped ? 'text-orange-600 dark:text-orange-400' :
-                            'text-muted-foreground'
+                        isStopped ? 'text-orange-600 dark:text-orange-400' :
+                        isWaiting ? 'text-purple-600 dark:text-purple-400 animate-pulse':
+                        'text-muted-foreground'
                     }`}
                     >
                     {step.label}
@@ -1413,6 +1335,14 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                         </span>
                     </div>
                     )}
+                   {isWaiting && (
+                    <div className="mt-1 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                        <span className="ml-1 text-xs text-purple-600 dark:text-purple-400 font-medium">
+                         Wating ...
+                        </span>
+                    </div>
+                   )}
                 </div>
                 </div>
 
@@ -1433,4 +1363,222 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   );
 });
 
+const SegmentationView = ({
+  isLoading,
+  error,
+  segmentationMap,
+  segmentationChunks,
+  segments,
+  isAiJobStarted,
+  aiJobId,
+  handleApproveTask,
+  currentJobStatus,
+  customSegmentationParams,
+  setCustomSegmentationParams
+}: any) => {
+  const isAnyLoading = isLoading;
+  const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
+  const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
+
+  return (
+    <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
+      {isAnyLoading ? (
+        "Loading segmentation..."
+      ) : hasSegmentationData ? (
+        <ol className="mt-2 space-y-4">
+          {segmentationMap.map((end: any, idx: any) => {
+            const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+            const segChunks = segmentationChunks[idx] || [];
+            return (
+              <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                <div>
+                  <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
+                </div>
+                {segChunks.length > 0 && (
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    {segChunks.map((chunk: { text: string }) => chunk.text).join(' ')}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      ) : hasFallbackSegments ? (
+        <ol className="mt-2 space-y-2">
+          {segments.map((seg: any, idx: any) => (
+            <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
+              <div>
+                <b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    {currentJobStatus != "WAITING" && !isAnyLoading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
+
+        {currentJobStatus === "WAITING" && (
+            <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card">
+                <div className="flex-1">
+                <Label className="text-sm font-medium dark:text-gray-200 text-gray-800">
+                    Segmentation Frequency
+                </Label>
+                <Select
+                    onValueChange={(value) => {
+                    setCustomSegmentationParams((prev: any) => ({
+                        ...prev,
+                        lam: parseFloat(value),
+                    }));
+                    }}
+                    value={customSegmentationParams.lam.toString()}
+                >
+                    <SelectTrigger className="mt-2 h-10 w-full md:w-64">
+                    <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="0.5">Very Frequent</SelectItem>
+                    <SelectItem value="2">Frequent</SelectItem>
+                    <SelectItem value="4.5">Normal</SelectItem>
+                    <SelectItem value="5.5">Less Frequent</SelectItem>
+                    <SelectItem value="7">Very Less Frequent</SelectItem>
+                    </SelectContent>
+                </Select>
+                </div>
+
+                <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
+                {customSegmentationParams.lam === 0.5 &&
+                    "Segments will be created very frequently, providing high detail and precision."}
+                {customSegmentationParams.lam === 2 &&
+                    "Segments will be created frequently, offering a balance between detail and performance."}
+                {customSegmentationParams.lam === 4.5 &&
+                    "Normal segmentation – balanced detail and efficiency for general use cases."}
+                {customSegmentationParams.lam === 5.5 &&
+                    "Less frequent segmentation – fewer segments, faster processing but lower detail."}
+                {customSegmentationParams.lam === 7 &&
+                    "Very minimal segmentation – ideal for large datasets where performance is critical."}
+                </div>
+            </div>
+        )}
+
+      {isAiJobStarted && aiJobId && (
+        <div className="flex justify-center">
+          <Button
+            disabled={isLoading}
+            onClick={handleApproveTask}
+            className="w-full sm:w-auto mt-8 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+        >
+            Confirm
+            <CheckCircle className="w-5 h-5" />
+        </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface UploadParams {
+  videoItemBaseName: string;
+  quizItemBaseName: string;
+  questionsPerQuiz: number;
+}
+
+interface UploadContentProps {
+  currentJobStatus: string;
+  uploadParams: UploadParams;
+  setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
+  isLoading: boolean;
+  handleApproveTask: () => void
+}
+
+const UploadContentView: React.FC<UploadContentProps> = ({
+  currentJobStatus,
+  uploadParams,
+  setUploadParams,
+  isLoading, 
+  handleApproveTask
+}) => {
+  const navigate = useNavigate();
+
+  if(currentJobStatus == "WAITING") { 
+    return(<div className="space-y-6">
+        {/* Upload Parameters */}
+        <div className="rounded-xl border p-6 space-y-4 pb-10 mt-5">
+        <h4 className="font-semibold text-base text-foreground mb-4">Upload Parameters</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+            <Label htmlFor="video-base-name" className="text-sm font-medium">
+                Video Item Name
+            </Label>
+            <Input
+                id="video-base-name"
+                value={uploadParams.videoItemBaseName}
+                onChange={(e) =>
+                setUploadParams((prev) => ({ ...prev, videoItemBaseName: e.target.value }))
+                }
+                placeholder="video_item"
+                className="h-10"
+            />
+            </div>
+            <div className="space-y-2">
+            <Label htmlFor="quiz-base-name" className="text-sm font-medium">
+                Quiz Item Name
+            </Label>
+            <Input
+                id="quiz-base-name"
+                value={uploadParams.quizItemBaseName}
+                onChange={(e) =>
+                setUploadParams((prev) => ({ ...prev, quizItemBaseName: e.target.value }))
+                }
+                placeholder="quiz_item"
+                className="h-10"
+            />
+            </div>
+            <div className="space-y-2">
+            <Label htmlFor="questions-per-quiz" className="text-sm font-medium">
+                Questions Per Quiz
+            </Label>
+            <Input
+                id="questions-per-quiz"
+                type="number"
+                min={1}
+                value={uploadParams.questionsPerQuiz}
+                onChange={(e) =>
+                setUploadParams((prev) => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))
+                }
+                className="h-10"
+            />
+            </div>
+        </div>
+        </div>
+
+        {/* Centered Next Button */}
+        <div className="flex justify-center">
+        <Button
+            onClick={handleApproveTask}
+            disabled={isLoading}
+            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+        >
+            Upload Content
+            <UploadCloud className="w-5 h-5" />
+        </Button>
+        </div>
+    </div>)
+    }
+
+
+  return (
+    <div className="text-center py-8">
+      <p className="text-lg font-medium text-green-600">Course uploaded successfully!</p>
+      <Button
+        className="mt-4 px-6 py-2 bg-primary text-black rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+        onClick={() => navigate({ to: "/teacher/courses/view" })}
+      >
+        View Course
+      </Button>
+    </div>
+  );
+};
+
+
 export default AiWorkflow
+
