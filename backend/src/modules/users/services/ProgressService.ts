@@ -335,8 +335,14 @@ class ProgressService extends BaseService {
     totalItems: number,
     session?: ClientSession,
   ) {
-    const bulkOps = enrollments.map(enrollment => {
+    const bulkOps = enrollments.map(async (enrollment) => {
       const userId = enrollment.userId?.toString();
+      const completedItems =
+        await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          versionId,
+        );
 
       return {
         updateOne: {
@@ -347,8 +353,8 @@ class ProgressService extends BaseService {
           },
           update: {
             $set: {
-              totalItems,
-              progressPercent: this._calculateProgress(enrollment, totalItems), // helper if needed
+
+              progressPercent: this._calculateProgress(enrollment, totalItems, completedItems), // helper if needed
               updatedAt: new Date(),
             },
           },
@@ -363,9 +369,11 @@ class ProgressService extends BaseService {
   }
 
   // Helper to calculate progress based on completed items
-  private _calculateProgress(enrollment: any, totalItems: number): number {
+  private _calculateProgress(enrollment: any, totalItems: number, completedItems: number): number {
+
+
     if (!totalItems || totalItems === 0) return 0;
-    return ((enrollment.completedItems ?? 0) / totalItems) * 100;
+    return ((completedItems ?? 0) / totalItems) * 100;
   }
 
   private async verifyDetails(

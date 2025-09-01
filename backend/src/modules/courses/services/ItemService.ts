@@ -284,18 +284,12 @@ export class ItemService extends BaseService {
         version.totalItems = totalItems;
 
         // Step 4: Update progress for all users in parallel
-        await Promise.all(
-          enrollments.map(enrollment => {
-            const userId = enrollment?.userId?.toString();
-            return this.progressService.updateEnrollmentProgressPercent(
-              userId,
-              courseId,
-              versionId,
-              session,
-              false,
-              totalItems,
-            );
-          })
+        await this.progressService.updateEnrollmentProgressPercentBulk(
+          enrollments,
+          courseId,
+          versionId,
+          version.totalItems,
+          session,
         );
 
         // Step 5: Update version
