@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  AlertTriangle, Ban, Bot, CheckCircle, Clock, FileText, ListChecks, Loader2, MessageSquareText, MoveRightIcon, PauseCircle, RefreshCw, Settings, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
+import {  AlertTriangle, Ban, CheckCircle, Clock, FileText, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Settings, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -98,7 +98,6 @@ const AiWorkflow = () => {
     const [aiWorkflowStep, setAiWorkflowStep] = useState("");
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
 
-    const [acceptedRuns, setAcceptedRuns] = useState<Partial<Record<keyof TaskRuns, string>>>({});
 
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
@@ -112,91 +111,84 @@ const AiWorkflow = () => {
     };
   
   
-    useEffect(() => {
-      if (!aiJobId) return;
-      handleRefreshStatus();
-      const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-        setAiJobStatus((prev) => {
-          let next: any = incoming ? { ...incoming } : incoming;
-          const failing = optimisticFailedTaskRef.current;
-          if (next && failing) {
-            const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-            const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-            switch (failing) {
-              case 'AUDIO_EXTRACTION':
-                setTop('AUDIO_EXTRACTION');
-                ensureJobStatus();
-                next.jobStatus.audioExtraction = 'FAILED';
-                break;
-              case 'TRANSCRIPT_GENERATION':
-                setTop('TRANSCRIPT_GENERATION');
-                ensureJobStatus();
-                next.jobStatus.transcriptGeneration = 'FAILED';
-                break;
-              case 'SEGMENTATION':
-                setTop('SEGMENTATION');
-                ensureJobStatus();
-                next.jobStatus.segmentation = 'FAILED';
-                break;
-              case 'QUESTION_GENERATION':
-                setTop('QUESTION_GENERATION');
-                ensureJobStatus();
-                next.jobStatus.questionGeneration = 'FAILED';
-                break;
-              case 'UPLOAD_CONTENT':
-                setTop('UPLOAD_CONTENT');
-                ensureJobStatus();
-                next.jobStatus.uploadContent = 'FAILED';
-                break;
-            }
+  useEffect(() => {
+    if (!aiJobId) return;
+
+    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
+      if (!incoming){
+        handleRefreshStatus()
+          return;
+      } 
+      console.log("Incoming: ", incoming);
+      setCurrentJob((prev)=> ({
+        ...prev,
+        task: incoming.task,
+        status: incoming.status
+      }))
+      setAiJobStatus(() => {
+        let next: any =  { ...incoming } ;
+        const failing = optimisticFailedTaskRef.current;
+        if (next && failing) {
+          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+          switch (failing) {
+            case 'AUDIO_EXTRACTION':
+              setTop('AUDIO_EXTRACTION');
+              ensureJobStatus();
+              next.jobStatus.audioExtraction = 'FAILED';
+              break;
+            case 'TRANSCRIPT_GENERATION':
+              setTop('TRANSCRIPT_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.transcriptGeneration = 'FAILED';
+              break;
+            case 'SEGMENTATION':
+              setTop('SEGMENTATION');
+              ensureJobStatus();
+              next.jobStatus.segmentation = 'FAILED';
+              break;
+            case 'QUESTION_GENERATION':
+              setTop('QUESTION_GENERATION');
+              ensureJobStatus();
+              next.jobStatus.questionGeneration = 'FAILED';
+              break;
+            case 'UPLOAD_CONTENT':
+              setTop('UPLOAD_CONTENT');
+              ensureJobStatus();
+              next.jobStatus.uploadContent = 'FAILED';
+              break;
           }
-          if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-            optimisticFailedTaskRef.current = null;
-          }
-  
-          if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
-            setTimeout(() => {
-              setTaskRuns((prevTaskRuns: any) => {
-                const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
-                if (lastLoadingIdx === -1) {
-                  console.log('Live update: No loading transcription run found');
-                  return prevTaskRuns;
-                }
-  
-                const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
-                const updatedRun = prevTaskRuns.transcription[idxToUpdate];
-                const completedRunId = updatedRun.id;
-  
-                const updatedTaskRuns = {
-                  ...prevTaskRuns,
-                  transcription: prevTaskRuns.transcription.map((run, idx) =>
-                    idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
-                  ),
-                };
-  
-                return updatedTaskRuns;
-              });
-              toast.success('Transcription completed!');
-            }, 50);
-          }
-  
-          return next;
-        });
+        }
+        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+          optimisticFailedTaskRef.current = null;
+        }
+
+        return next;
       });
-      return () => es.close();
-  
-    }, [aiJobId]);
+    });
+    return () => es.close();
+
+  }, [aiJobId]);
+
 
 
     useEffect(()=> {
 
         if(isAudioExtracting) 
-            setCurrentJob({status: "RUNNING", task: 'AUDIO_EXTRACTION'}); 
-
-        if(isTranscribing) 
-             setCurrentJob({status: "RUNNING", task: 'TRANSCRIPT_GENERATION'});
-            else if(!isTranscribing && transcribedData){
-            setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'});
+            setCurrentJob((prev) => ({
+                ...prev,
+                status: "RUNNING",
+                task: 'AUDIO_EXTRACTION'
+            }));
+        if (isTranscribing) {
+            setCurrentJob((prev) => ({
+                ...prev,
+                status: "RUNNING",
+                task: 'TRANSCRIPT_GENERATION'
+            }));
+        }
+        else if (!isTranscribing && transcribedData && !aiJobId) {
+            handleCreateJob(); // creating ai job first, then only transcript will complete
             setIsAiJobStarted(true);
         }
 
@@ -249,23 +241,13 @@ const AiWorkflow = () => {
             questionsPerQuiz: uploadParams.questionsPerQuiz,
         };
 
-        // Optional parameters
-        // if (selectedTasks.transcription) {
-        //     jobParams.transcriptParameters = {
-        //         language: customTranscriptParams.language || "en",
-        //         modelSize: customTranscriptParams.modelSize || "large",
-        //     };
-        // }
 
-        // if (selectedTasks.segmentation) {
         jobParams.segmentationParameters = {
             lam: customSegmentationParams.lam ?? 4.6,
             runs: customSegmentationParams.runs ?? 25,
             noiseId: customSegmentationParams.noiseId ?? -1,
         };
-        // }
 
-        // if (selectedTasks.questions) {
         jobParams.questionGenerationParameters = {
             model: customQuestionParams.model || "deepseek-r1:70b",
             SOL: customQuestionParams.SOL ?? 1,
@@ -287,14 +269,13 @@ const AiWorkflow = () => {
         // Create AI Job
         const { jobId } = await aiSectionAPI.createJob(jobParams);
         setAiJobId(jobId);
-
-        await handleApproveTask();
         console.log("[handleCreateJob] Set aiJobId:", jobId);
         toast.success("AI job created successfully!");
+        
         } catch (error) {
             toast.error("Failed to create AI job. Please try again.");
         } finally {
-            handleRefreshStatus();
+            setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
         }
     };
 
@@ -306,211 +287,179 @@ const AiWorkflow = () => {
         });
         }
     };
-    // Task dependency order (linear workflow)
-    const taskOrder = ['transcription', 'segmentation', 'questions', 'upload'] as const;
-
-
-    // Passing the task and recieving appproval
-    const canRunTask = (task: keyof typeof taskRuns): boolean => {
-        switch (task) {
-        case "transcription":
-            return !!aiJobId;
-        case "segmentation":
-            return !!acceptedRuns.transcription;
-        case "question":
-            return !!acceptedRuns.segmentation;
-        case "upload":
-            return !!acceptedRuns.question;
-        default:
-            return false;
-        }
-    };
-
-    const handleAcceptRun = async (task: keyof typeof taskRuns, runId: string) => {
-        if ((task === 'transcription' || task === 'segmentation' || task === 'question') && aiJobId) {
-        try {
-            await aiSectionAPI.approveContinueTask(aiJobId);
-            toast.success(`${task === 'question' ? 'Question generation' : task.charAt(0).toUpperCase() + task.slice(1)} run approved and continued!`);
-        } catch (e: any) {
-            toast.error(`Failed to approve ${task === 'question' ? 'question generation' : task}.`);
-            return;
-        }
-        }
-        setAcceptedRuns(prev => ({ ...prev, [task]: runId }));
-        if (task !== 'segmentation' && task !== 'question' && task !== 'transcription') toast.success(`${task} run accepted!`);
-    };
-
 
     // ----------------------
     // Manual Refresh Handler
     // ----------------------
 
     const handleRefreshStatus = async () => {
-    if (!aiJobId) return;
+        if (!aiJobId) return;
+        try {
+            const status = await aiSectionAPI.getJobStatus(aiJobId);
+            const currentTaskData = getCurrentTask(status.jobStatus);
+            console.log("Current task: ", currentTaskData);
 
-    try {
-        const status = await aiSectionAPI.getJobStatus(aiJobId);
-        const currentTaskData = getCurrentTask(status.jobStatus);
-        console.log("Current task: ", currentTaskData);
+            if (!currentTaskData) {
+                toast.error("Current task is missing");
+                return;
+            }
 
-        if (!currentTaskData) {
-            toast.error("Current task is missing");
-            return;
-        }
+            const currentTask = currentTaskData.task; 
+            const currentStatus = currentTaskData.status;
+            console.log("From Refresh => CurrentTask: ", currentTask, "Current status: ", currentStatus);
+            // const current
+            setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
+            updateCurrentJob(currentTask, currentStatus);
 
-        const currentTask = currentTaskData.task; 
-        const currentStatus = currentTaskData.status;
-        // const current
-        setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
-        console.log("Status from handle refresh status: ", status);
-        const prevJobStatus = prevJobStatusRef.current;
+            console.log("Status from handle refresh status: ", status);
+            const prevJobStatus = prevJobStatusRef.current;
 
 
-        // --- Transcript Generation ---
-        if (
-        didMountRef.current &&
-        status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
-        prevJobStatus?.transcriptGeneration !== 'COMPLETED'
-        ) {
-        setTaskRuns(prev => {
-            const lastLoadingIdx = [...prev.transcription]
-            .reverse()
-            .findIndex(run => run.status === 'loading');
-
-            if (lastLoadingIdx === -1) return prev;
-
-            const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
-            return {
-            ...prev,
-            transcription: prev.transcription.map((run, idx) =>
-                idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-            };
-        });
-
-        toast.success('Transcription completed!');
-        }
-
-        // --- Segmentation ---
-        if (
-        didMountRef.current &&
-        status.jobStatus?.segmentation === 'COMPLETED' &&
-        prevJobStatus?.segmentation !== 'COMPLETED'
-        ) {
-        setTaskRuns(prev => {
-            const lastLoadingIdx = [...prev.segmentation]
-            .reverse()
-            .findIndex(run => run.status === 'loading');
-
-            if (lastLoadingIdx === -1) return prev;
-
-            const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
-            return {
-            ...prev,
-            segmentation: prev.segmentation.map((run, idx) =>
-                idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-            ),
-            };
-        });
-
-        toast.success('Segmentation completed!');
-        }
-
-        // --- Question Generation ---
-        if (
-        didMountRef.current &&
-        status.jobStatus?.questionGeneration === 'COMPLETED' &&
-        prevJobStatus?.questionGeneration !== 'COMPLETED'
-        ) {
-        // Fetch QUESTION_GENERATION task status (for fileUrl)
-        const token = localStorage.getItem('firebase-auth-token');
-        const backendUrl = getApiUrl(
-            `/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`
-        );
-
-        let res = await fetch(backendUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // Retry once if failed
-        if (!res.ok) {
-            res = await fetch(backendUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-            });
-        }
-
-        if (res.ok) {
-            const arr = await res.json();
-
+            // --- Transcript Generation ---
+            if (
+            didMountRef.current &&
+            status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
+            prevJobStatus?.transcriptGeneration !== 'COMPLETED'
+            ) {
             setTaskRuns(prev => {
-            const lastLoadingIdx = [...prev.question]
+                const lastLoadingIdx = [...prev.transcription]
                 .reverse()
                 .findIndex(run => run.status === 'loading');
 
-            const lastDoneIdx = [...prev.question]
-                .reverse()
-                .findIndex(run => run.status === 'done');
+                if (lastLoadingIdx === -1) return prev;
 
-            const idxToUpdate =
-                lastLoadingIdx !== -1
-                ? prev.question.length - 1 - lastLoadingIdx
-                : lastDoneIdx !== -1
-                ? prev.question.length - 1 - lastDoneIdx
-                : -1;
-
-            if (idxToUpdate === -1) return prev;
-
-            return {
+                const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+                return {
                 ...prev,
-                question: prev.question.map((run, idx) => {
-                if (idx === idxToUpdate) {
-                    const { id, timestamp, result, parameters } = run;
-                    return {
-                    id,
-                    timestamp,
-                    status: 'done',
-                    result: { ...result, questionTaskStatus: arr },
-                    parameters,
-                    } as TaskRun;
-                }
-                return run;
-                }),
-            };
+                transcription: prev.transcription.map((run, idx) =>
+                    idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+                ),
+                };
             });
 
-            toast.success('Questions generated!');
-        }
-        }
+            toast.success('Transcription completed!');
+            }
 
-        // --- Update refs at the end ---
-        prevJobStatusRef.current = status.jobStatus;
+            // --- Segmentation ---
+            if (
+            didMountRef.current &&
+            status.jobStatus?.segmentation === 'COMPLETED' &&
+            prevJobStatus?.segmentation !== 'COMPLETED'
+            ) {
+            setTaskRuns(prev => {
+                const lastLoadingIdx = [...prev.segmentation]
+                .reverse()
+                .findIndex(run => run.status === 'loading');
 
-        // Mark first mount after initial fetch
-        if (!didMountRef.current) didMountRef.current = true;
+                if (lastLoadingIdx === -1) return prev;
 
-        // --- Workflow step management ---
-        if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
-        setAiWorkflowStep('transcription_done');
-        return;
+                const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
+                return {
+                ...prev,
+                segmentation: prev.segmentation.map((run, idx) =>
+                    idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+                ),
+                };
+            });
+
+            toast.success('Segmentation completed!');
+            }
+
+            // --- Question Generation ---
+            if (
+            didMountRef.current &&
+            status.jobStatus?.questionGeneration === 'COMPLETED' &&
+            prevJobStatus?.questionGeneration !== 'COMPLETED'
+            ) {
+            // Fetch QUESTION_GENERATION task status (for fileUrl)
+            const token = localStorage.getItem('firebase-auth-token');
+            const backendUrl = getApiUrl(
+                `/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`
+            );
+
+            let res = await fetch(backendUrl, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            // Retry once if failed
+            if (!res.ok) {
+                res = await fetch(backendUrl, {
+                headers: { Authorization: `Bearer ${token}` },
+                });
+            }
+
+            if (res.ok) {
+                const arr = await res.json();
+
+                setTaskRuns(prev => {
+                const lastLoadingIdx = [...prev.question]
+                    .reverse()
+                    .findIndex(run => run.status === 'loading');
+
+                const lastDoneIdx = [...prev.question]
+                    .reverse()
+                    .findIndex(run => run.status === 'done');
+
+                const idxToUpdate =
+                    lastLoadingIdx !== -1
+                    ? prev.question.length - 1 - lastLoadingIdx
+                    : lastDoneIdx !== -1
+                    ? prev.question.length - 1 - lastDoneIdx
+                    : -1;
+
+                if (idxToUpdate === -1) return prev;
+
+                return {
+                    ...prev,
+                    question: prev.question.map((run, idx) => {
+                    if (idx === idxToUpdate) {
+                        const { id, timestamp, result, parameters } = run;
+                        return {
+                        id,
+                        timestamp,
+                        status: 'done',
+                        result: { ...result, questionTaskStatus: arr },
+                        parameters,
+                        } as TaskRun;
+                    }
+                    return run;
+                    }),
+                };
+                });
+
+                toast.success('Questions generated!');
+            }
+            }
+
+            // --- Update refs at the end ---
+            prevJobStatusRef.current = status.jobStatus;
+
+            // Mark first mount after initial fetch
+            if (!didMountRef.current) didMountRef.current = true;
+
+            // --- Workflow step management ---
+            if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
+            setAiWorkflowStep('transcription_done');
+            return;
+            }
+
+            if (status.jobStatus?.audioExtraction === 'COMPLETED') {
+            setAiWorkflowStep('audio_extraction_done');
+            return;
+            }
+
+            if (
+            status.jobStatus?.audioExtraction === 'FAILED' ||
+            status.jobStatus?.transcriptGeneration === 'FAILED'
+            ) {
+            setAiWorkflowStep('error');
+            toast.error('A step failed.');
+            return;
+            }
+        } catch (error) {
+            setAiWorkflowStep('error');
+            toast.error('Failed to refresh status.');
         }
-
-        if (status.jobStatus?.audioExtraction === 'COMPLETED') {
-        setAiWorkflowStep('audio_extraction_done');
-        return;
-        }
-
-        if (
-        status.jobStatus?.audioExtraction === 'FAILED' ||
-        status.jobStatus?.transcriptGeneration === 'FAILED'
-        ) {
-        setAiWorkflowStep('error');
-        toast.error('A step failed.');
-        return;
-        }
-    } catch (error) {
-        setAiWorkflowStep('error');
-        toast.error('Failed to refresh status.');
-    }
     };
 
     const getCurrentTask = (jobStatus: JobStatus["jobStatus"]): {task: any, status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING"} | null => {
@@ -546,28 +495,40 @@ const AiWorkflow = () => {
         return null;
     };
 
-    const handleAiJob = async () => {
-        if (isAiJobStarted && aiJobId) {
-            // alert('Approving task...')
-            await handleApproveTask()
-        } else {
-            // alert('Creating job...')
-            await handleCreateJob();
-        }
-    }
+    const updateCurrentJob = (
+    task: "segmentation" | "questionGeneration" | "uploadContent",
+    status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING",
+    ) => {
+        const taskMap: Record<string, string> = {
+            segmentation: "SEGMENTATION",
+            questionGeneration: "QUESTION_GENERATION",
+            uploadContent: "UPLOAD_CONTENT",
+        };
+
+        setCurrentJob((prev) => ({
+            ...(prev || {}), 
+            status,
+            task: taskMap[task],
+        }));
+    };
 
 
     const handleApproveTask = async() => {
-        alert("Aproving task...")
         try {
 
-            if (!aiJobId || !aiJobStatus || !aiJobStatus.jobStatus) {
+            if (!aiJobId) {
                 toast.error("Job not found");
                 return;
             }
-
-            const currentTaskData = getCurrentTask(aiJobStatus.jobStatus);
-            setCurrentJob(currentJob);
+            
+            const status = await aiSectionAPI.getJobStatus(aiJobId);
+            
+            if(!status || !status.jobStatus){
+                toast.error("Failed to fetch job status, Try again!");
+                return;
+            }
+            
+            const currentTaskData = getCurrentTask(status.jobStatus);
             console.log("Current task: ", currentTaskData);
 
             if (!currentTaskData) {
@@ -576,8 +537,10 @@ const AiWorkflow = () => {
             }
 
             const currentTask = currentTaskData.task; 
+            const currentStatus = currentTaskData.status;
 
-            console.log('currentTask from approve: ', currentTask)
+            setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
+ 
 
             const customUploadParams = { 
                 courseId: currentCourse?.courseId, 
@@ -607,14 +570,14 @@ const AiWorkflow = () => {
             }
             await aiSectionAPI.approveContinueTask(aiJobId);
             await aiSectionAPI.approveStartTask(aiJobId, params);
+                    
+            // updateCurrentJob(currentTask, currentStatus);
+
             toast.success("Task approved!")
         } catch(error) {
             toast.error("Failed to approve task");
             console.log("Failed to approve task", error);
-        } finally {
-            console.log("Refreshing at finally block of handle approve task...");
-            handleRefreshStatus();
-        }
+        } 
     }
 
     // Define possible task statuses for type safety
@@ -778,7 +741,6 @@ const AiWorkflow = () => {
 
   return (
     <div className='py-2'>
-        <Stepper jobStatus={aiJobStatus} currentJobData={currentJob}/>
         <Card className="mb-2">
             <CardHeader className="pb-6">
                 <div className="flex items-center justify-between">
@@ -1049,8 +1011,8 @@ const AiWorkflow = () => {
                     </div>
                 )}
                 </div>
-
-                <div className="flex-1 w-full">
+                <Stepper currentJobData={currentJob}/>
+                <div className="flex-1 w-full mt-5">
                     <div className="relative w-full">
                         <div
                             className={`absolute left-3 top-1/2 -translate-y-1/2 text-red-500 transition-transform duration-300 ease-in-out ${
@@ -1079,6 +1041,7 @@ const AiWorkflow = () => {
                     )}
                 </div>
             </CardContent>
+            
         </Card>
         <div className=" bg-gradient-to-br from-background to-muted/20 ">
             <div className=" mx-auto space-y-8">
@@ -1119,10 +1082,10 @@ const AiWorkflow = () => {
                         setTranscribedData={setTranscribedData}
                         isRunningAiJob = {!!aiJobId}
                     />
-                    {isAiJobStarted && 
+                    {isAiJobStarted &&  aiJobId &&
                         <div className="flex justify-center">
                             <Button
-                            onClick={handleAiJob}
+                            onClick={handleApproveTask}
                             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                             >
                             Next
@@ -1200,7 +1163,7 @@ const YoutubeIcon = () => (
   </svg>
 );
 
-const Stepper = React.memo(({ jobStatus, currentJobData }: { jobStatus: any, currentJobData: any }) => {
+const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 
   const WORKFLOW_STEPS = [
     { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
@@ -1251,7 +1214,6 @@ const Stepper = React.memo(({ jobStatus, currentJobData }: { jobStatus: any, cur
 
 
 
-  console.log("Job status from stepper: ", jobStatus, 'Current status: ', currentJobData);
   const activeStep = React.useMemo(() => {
     if (!currentJobData) return null;
 
@@ -1275,7 +1237,7 @@ const Stepper = React.memo(({ jobStatus, currentJobData }: { jobStatus: any, cur
   }, [currentJobData]);
 
   return (
-    <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
+    <div className="flex items-center justify-between mb-8 px-8 relative animate-fade-in">
       {WORKFLOW_STEPS.map((step, idx) => {
         const status = getStepStatus(currentJobData, step.key);
         const isCurrent = step.key === activeStep;
@@ -1296,7 +1258,7 @@ const Stepper = React.memo(({ jobStatus, currentJobData }: { jobStatus: any, cur
                   isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
                     isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
                       isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
-                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:shadow-lg hover:ring-2 hover:ring-primary/20'
+                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:ring-2 hover:ring-primary/20'
                 }`}
                 style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
