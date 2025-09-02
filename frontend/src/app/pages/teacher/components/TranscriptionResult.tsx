@@ -266,8 +266,8 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       )}
 
       {/* Main Content */}
-      <div className="p-6 bg-card">
-        <div className={`transition-all duration-300 ${isExpanded ? 'min-h-[400px]' : 'min-h-[250px]'}`}>
+      <div className="p-6 pb-0 bg-card">
+        <div className={`transition-all duration-300 ${isExpanded ? 'min-h-[400px]' : 'min-h-[230px]'}`}>
           {isEditing ? (
             <div className="space-y-3">
               <textarea
@@ -276,6 +276,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
                 onChange={(e) => {
                   setError('');
                   setEditedText(e.target.value);
+                  setHighlightedText(e.target.value);
                 }}
                 className={`w-full p-4 text-base leading-relaxed text-gray-800 dark:text-gray-100 bg-card border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all shadow-sm ${isExpanded ? 'h-[350px]' : 'h-[200px]'}`}
                 placeholder="Edit your transcription here..."
@@ -325,14 +326,13 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
         </div>
       </div>
 
-      {/* Footer */}
       {transcription && (
-        <div className="px-6 py-3 bg-card rounded-b-2xl border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+        <div className="px-6 py-2 bg-card rounded-b-2xl border-t border-gray-200 dark:border-gray-700">
+          {/* <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
             <span>Language: {language}</span>
             {copySuccess && <span className="text-green-600">✓ Copied to clipboard</span>}
             {downloadSuccess && <span className="text-green-600">✓ Downloaded successfully</span>}
-          </div>
+          </div> */}
         </div>
       )}
     </div>

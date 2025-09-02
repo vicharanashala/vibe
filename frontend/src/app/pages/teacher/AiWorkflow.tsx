@@ -24,12 +24,6 @@ interface TaskRun {
   parameters?: Record<string, unknown>;
 }
 
-interface TaskRuns {
-  transcription: TaskRun[];
-  segmentation: TaskRun[];
-  question: TaskRun[];
-  upload: TaskRun[];
-}
 
 interface UploadParams {
   videoItemBaseName: string;
@@ -45,7 +39,6 @@ const AiWorkflow = () => {
 
     // <<<<<<<<< State >>>>>>>>>>
     const [youtubeUrl, setYoutubeUrl] = useState("");
-    const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null); // yt url error
     const [aiJobId, setAiJobId] = useState<string | null>(null); 
 
@@ -80,13 +73,6 @@ const AiWorkflow = () => {
     });
 
     const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null); // to track current job status
-    const [taskRuns, setTaskRuns] = useState<TaskRuns>({ // 
-        transcription: [],
-    segmentation: [],
-    question: [],
-    upload: [],
-    });
-    const [aiWorkflowStep, setAiWorkflowStep] = useState("");
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined); // to store the generated transcription
     const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null>(null)
     const [isTranscribing, setIsTranscribing] = useState(false); 
@@ -109,8 +95,6 @@ const AiWorkflow = () => {
 
     // <<<<<<<<<< Ref >>>>>>>>>>
     const optimisticFailedTaskRef = useRef<string | null>(null);
-    const prevJobStatusRef = useRef<any>(null);
-    const didMountRef = useRef(false);
     const errorRef = useRef<HTMLDivElement | null>(null);
     
     
@@ -197,7 +181,7 @@ const AiWorkflow = () => {
                 status: "RUNNING",
                 task: 'AUDIO_EXTRACTION'
             });
-        if (isTranscribing) {
+        if (isTranscribing && transcribedData) {
             setIsLoading(true);
             setCurrentJob({
                 status: "RUNNING",
@@ -212,7 +196,7 @@ const AiWorkflow = () => {
             toast.success("Transcription completed successfully!"); 
         }
 
-    }, [isTranscribing, isAudioExtracting]);
+    }, [isTranscribing, isAudioExtracting, transcribedData]);
 
     // Mock progress % bar
     useEffect(() => {
@@ -231,7 +215,7 @@ const AiWorkflow = () => {
 
             return Math.min(prev + increment, 98);
         });
-        }, 1200); 
+        }, 1600); 
     } else {
         setProgress(0);
     }
@@ -552,7 +536,6 @@ const AiWorkflow = () => {
             }
 
         } catch (error) {
-            setAiWorkflowStep('error');
             toast.error('Failed to refresh status.');
         }
     };
@@ -663,7 +646,6 @@ const AiWorkflow = () => {
                         <YoutubeUrlInput 
                             handleValidateURL={handleValidateURL}
                             isLoading={isLoading}
-                            setShowAdvancedConfig={setShowAdvancedConfig}
                             setUrlError={setUrlError}
                             setYoutubeUrl={setYoutubeUrl}
                             urlError={urlError}
@@ -830,7 +812,6 @@ interface YoutubeUrlInputProps {
   aiJobId: string | null;
   isLoading: boolean;
   handleValidateURL: () => void;
-  setShowAdvancedConfig: (show: boolean) => void;
 }
 
 export const YoutubeUrlInput = ({
@@ -841,7 +822,6 @@ export const YoutubeUrlInput = ({
   aiJobId,
   isLoading,
   handleValidateURL,
-  setShowAdvancedConfig
 }: YoutubeUrlInputProps) => {
 
   return (
@@ -863,7 +843,6 @@ export const YoutubeUrlInput = ({
             setYoutubeUrl(e.target.value);
           }}
           disabled={!!aiJobId}
-          onFocus={() => setShowAdvancedConfig(false)}
           className={`pl-10 flex-1 w-full border rounded-lg py-2.5 focus:ring-2 focus:ring-primary/50 transition-all duration-300 ease-in-out ${
             urlError ? "border-red-500" : "border-gray-300"
           }`}
@@ -2006,7 +1985,7 @@ const SegmentationView = ({
         {currentJobStatus === "WAITING" && (
             <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card">
                 <div className="flex-1">
-                <Label className="text-sm font-medium dark:text-gray-200 text-gray-800">
+                <Label className="text-sm font-medium dark:text-gray-100 text-gray-800">
                     Segmentation Frequency
                 </Label>
                 <Select
@@ -2022,7 +2001,7 @@ const SegmentationView = ({
                     <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                    <SelectItem value="0.5">Very Frequent</SelectItem>
+                    <SelectItem value="0.5" >Very Frequent</SelectItem>
                     <SelectItem value="2">Frequent</SelectItem>
                     <SelectItem value="4.5">Normal</SelectItem>
                     <SelectItem value="5.5">Less Frequent</SelectItem>
