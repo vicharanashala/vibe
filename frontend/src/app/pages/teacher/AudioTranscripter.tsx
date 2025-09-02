@@ -6,7 +6,13 @@ import { useEffect, useState } from "react";
 
 interface IAudioTranscripter {
     transcribedData: TranscriberData | undefined;
-    setTranscribedData:(transcript: TranscriberData | undefined) => void
+    setTranscribedData:(transcript: TranscriberData | undefined) => void;
+    setIsTranscribing: (value: boolean) => void;
+    setIsAudioExtracting: (value: boolean) => void;
+    isRunningAiJob: boolean;
+    isCreatingAiJob: boolean;
+    jobError: string;
+    createAiJob: () => void
 }
 
 // Validation
@@ -30,6 +36,10 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
     const [error, setError] = useState("");
 
     useEffect(() => {
+
+        transcriber.isBusy ?  props.setIsTranscribing(true): props.setIsTranscribing(false);
+        transcriber.isModelLoading ?  props.setIsAudioExtracting(true): props.setIsAudioExtracting(false);
+
         if (transcriber.output?.text) {
             props.setTranscribedData(transcriber.output);
 
@@ -37,7 +47,8 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
             setTranscriptText(transcribedText);
             setPrevTranscript(transcribedText);
         }
-    }, [transcriber.output]);
+
+    }, [transcriber.output, transcriber.isBusy, transcriber.isModelLoading]);
 
     const handleSave = () => {
         const currentText = transcriptText;
@@ -82,9 +93,6 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
       return (
         <div className="flex justify-center items-start py-10 ">
             <div className="w-full max-w-3xl flex flex-col items-center gap-6">
-
-                <AudioManager transcriber={transcriber} />
-
                 {transcriber.output?.text && (
                     <div className="w-full bg-white dark:bg-card/50 border border-gray-200 dark:border-border rounded-xl p-6 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
@@ -95,7 +103,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                                 )}
                             </div>
 
-                            {!transcriber.isBusy && (
+                            { props.isRunningAiJob &&(
                                 <Button
                                     onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
                                     className="
@@ -132,6 +140,18 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         </div>
                     </div>
                 )}
+                <AudioManager 
+                    transcriber={transcriber} 
+                    isDisableButton={
+                    (transcriber.output?.text && !props.isRunningAiJob && !props.isCreatingAiJob) ? false : 
+                    (!!transcriber.output?.text || props.isRunningAiJob)
+                    } 
+                    isTranscriptionCompleted = {props.isRunningAiJob} isTranscribing = {transcriber.isBusy}
+                    jobError = {props.jobError}
+                    createAiJob = {props.createAiJob}
+                    isCreatingAiJob = {props.isCreatingAiJob}
+                />
+                 
             </div>
         </div>
     )

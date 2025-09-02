@@ -4,33 +4,32 @@ import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
+import { Loader2 } from "lucide-react";
+import { Button } from "../ui/button";
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
+    isDisableButton: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, isDisableButton, onClick, ...buttonProps } = props;
+    const isLoading = isTranscribing || isModelLoading ;
     return (
         <button
             {...buttonProps}
             onClick={(event) => {
-                if (onClick && !isTranscribing && !isModelLoading) {
-                    onClick(event);
+                if (isTranscribing || isModelLoading) return;
+                 if (onClick) {
+                    onClick(event); 
                 }
             }}
-            disabled={isTranscribing}
-            className='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 inline-flex items-center'
+            disabled={isLoading || isDisableButton}
+            className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2'
         >
-            {isModelLoading ? (
-                <Spinner text={"Loading model..."} />
-            ) : isTranscribing ? (
-                <Spinner text={"Transcribing..."} />
-            ) : (
-                "Transcribe Audio"
-            )}
+            Start AI Job
         </button>
     );
 }
@@ -61,25 +60,25 @@ export function Spinner(props: { text: string }): JSX.Element {
 }
 
 
-function Progress({
-    text,
-    percentage,
-}: {
-    text: string;
-    percentage: number;
-}) {
-    percentage = percentage ?? 0;
-    return (
-        <div className='mt-0.5 w-full relative text-sm text-white background-bg-cyan-400 bg-gray-200 border-1 border-gray-400 rounded-lg text-left overflow-hidden'>
-            <div
-                className='top-0 h-full bg-blue-500 whitespace-nowrap px-2'
-                style={{ width: `${percentage}%` }}
-            >
-                {text} ({`${percentage.toFixed(2)}%`})
-            </div>
-        </div>
-    );
-}
+// function Progress({
+//     text,
+//     percentage,
+// }: {
+//     text: string;
+//     percentage: number;
+// }) {
+//     percentage = percentage ?? 0;
+//     return (
+//         <div className='mt-0.5 w-full relative text-sm text-white background-bg-cyan-400 bg-gray-200 border-1 border-gray-400 rounded-lg text-left overflow-hidden'>
+//             <div
+//                 className='top-0 h-full bg-blue-500 whitespace-nowrap px-2'
+//                 style={{ width: `${percentage}%` }}
+//             >
+//                 {text} ({`${percentage.toFixed(2)}%`})
+//             </div>
+//         </div>
+//     );
+// }
 
 function getMimeType() {
     const types = [
@@ -462,7 +461,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber }) {
+export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean, jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean }, ) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -473,6 +472,7 @@ export function AudioManager(props: { transcriber: Transcriber }) {
           }
         | undefined
     >(undefined);
+    
     const [audioDownloadUrl, setAudioDownloadUrl] = useState<
         string | undefined
     >(undefined);
@@ -600,13 +600,19 @@ export function AudioManager(props: { transcriber: Transcriber }) {
     return (
         <>
             <div className='flex flex-col justify-center items-center shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800'>
-                <div className='flex flex-row space-x-2 py-2 w-full px-2'>
+                <div
+                    className='flex flex-row space-x-2 py-2 w-full px-2'
+                    style={{
+                        pointerEvents: props.isTranscribing ? 'none' : 'auto',
+                        opacity: props.isTranscribing ? 0.5 : 1,
+                    }}
+                    >
                     <UrlTile
                         icon={<AnchorIcon />}
                         text={"From URL"}
                         onUrlUpdate={(e) => {
-                            props.transcriber.onInputChange();
-                            setAudioDownloadUrl(e);
+                        props.transcriber.onInputChange();
+                        setAudioDownloadUrl(e);
                         }}
                     />
                     <VerticalBar />
@@ -614,26 +620,26 @@ export function AudioManager(props: { transcriber: Transcriber }) {
                         icon={<FolderIcon />}
                         text={"From file"}
                         onFileUpdate={(decoded, blobUrl, mimeType) => {
-                            props.transcriber.onInputChange();
-                            setAudioData({
-                                buffer: decoded,
-                                url: blobUrl,
-                                source: AudioSource.FILE,
-                                mimeType: mimeType,
-                            });
+                        props.transcriber.onInputChange();
+                        setAudioData({
+                            buffer: decoded,
+                            url: blobUrl,
+                            source: AudioSource.FILE,
+                            mimeType: mimeType,
+                        });
                         }}
                     />
                     {navigator.mediaDevices && (
                         <>
-                            <VerticalBar />
-                            <RecordTile
-                                icon={<MicrophoneIcon />}
-                                text={"Record"}
-                                setAudioData={(e) => {
-                                    props.transcriber.onInputChange();
-                                    setAudioFromRecording(e);
-                                }}
-                            />
+                        <VerticalBar />
+                        <RecordTile
+                            icon={<MicrophoneIcon />}
+                            text={"Record"}
+                            setAudioData={(e) => {
+                            props.transcriber.onInputChange();
+                            setAudioFromRecording(e);
+                            }}
+                        />
                         </>
                     )}
                 </div>
@@ -645,37 +651,46 @@ export function AudioManager(props: { transcriber: Transcriber }) {
                         mimeType={audioData.mimeType}
                     />
 
-                    <div className='relative w-full flex justify-center items-center'>
-                        <TranscribeButton
-                            onClick={() => {
-                                props.transcriber.start(audioData.buffer);
-                            }}
-                            isModelLoading={props.transcriber.isModelLoading}
-                            // isAudioLoading ||
-                            isTranscribing={props.transcriber.isBusy}
-                        />
+                    {/* {!props.isTranscriptionCompleted &&  */}
+                        <div className='relative w-full flex justify-center items-center'>
+                            {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text ?
+                                <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
+                                text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
+                                hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+                                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
+                                flex items-center justify-center gap-2" 
+                                onClick={(event) => {
+                                    if(props.createAiJob)
+                                        props.createAiJob ()
+                                }}
+                                disabled={props.isCreatingAiJob}>
+                                    {props.isCreatingAiJob ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            {props.jobError ? "Try again..." : "Next"}
+                                        </>
+                                        ) : (
+                                        props.jobError ? "Try again!" : "Next"
+                                    )}
+                                </Button> : 
 
-                        <SettingsTile
-                            className='absolute right-4'
-                            transcriber={props.transcriber}
-                            icon={<SettingsIcon />}
-                        />
-                    </div>
-                    {props.transcriber.progressItems.length > 0 && (
-                        <div className='relative z-10 p-4 w-full'>
-                            <label>
-                                Loading model files... (only run once)
-                            </label>
-                            {props.transcriber.progressItems.map((data) => (
-                                <div key={data.file}>
-                                    <Progress
-                                        text={data.file}
-                                        percentage={data.progress}
-                                    />
-                                </div>
-                            ))}
+                                <TranscribeButton
+                                    onClick={() => {
+                                        props.transcriber.start(audioData.buffer);
+                                    }}
+                                    isModelLoading={props.transcriber.isModelLoading}
+                                    isTranscribing={props.transcriber.isBusy}
+                                    isDisableButton = {props.isDisableButton}
+                                />
+                            }
+
+                            <SettingsTile
+                                className='absolute right-4'
+                                transcriber={props.transcriber}
+                                icon={<SettingsIcon />}
+                                />
                         </div>
-                    )}
+                    {/* } */}
                 </>
             )}
         </>
