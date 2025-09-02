@@ -4,47 +4,45 @@ import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
+import { Loader2 } from "lucide-react";
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
     isDisableButton: boolean;
+    jobError: string;
+    retryAiJob: () => void;
+    isCreatingAiJob: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, isDisableButton, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, isDisableButton, isCreatingAiJob, jobError, retryAiJob, onClick, ...buttonProps } = props;
+    const isLoading = isTranscribing || isModelLoading || isCreatingAiJob;
     return (
         <button
             {...buttonProps}
             onClick={(event) => {
-                if (onClick && !isTranscribing && !isModelLoading) {
-                    onClick(event);
+                if (isTranscribing || isModelLoading) return;
+
+                if (jobError && retryAiJob) {
+                    retryAiJob(); 
+                } else if (onClick) {
+                    onClick(event); 
                 }
             }}
-            disabled={isTranscribing || isModelLoading || isDisableButton}
-            className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
+            disabled={isLoading || isDisableButton}
+            className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2'
         >
-            Start AI Job
+             {isLoading ? (
+                <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    {jobError ? "Retrying AI Job..." : "Starting AI Job..."}
+                </>
+                ) : (
+                jobError ? "Retry AI Job" : "Start AI Job"
+              )}
         </button>
-        // <button
-        //     {...buttonProps}
-        //     onClick={(event) => {
-        //         if (onClick && !isTranscribing && !isModelLoading) {
-        //             onClick(event);
-        //         }
-        //     }}
-        //     disabled={isTranscribing}
-        //     className='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 inline-flex items-center'
-        // >
-        //     {isModelLoading ? (
-        //         <Spinner text={"Loading model..."} />
-        //     ) : isTranscribing ? (
-        //         <Spinner text={"Transcribing..."} />
-        //     ) : (
-        //         "Transcribe Audio"
-        //     )}
-        // </button>
     );
 }
 
@@ -475,7 +473,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean }) {
+export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean, jobError: string, retryAiJob: () =>void, isCreatingAiJob: boolean }, ) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -674,6 +672,9 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                 isModelLoading={props.transcriber.isModelLoading}
                                 isTranscribing={props.transcriber.isBusy}
                                 isDisableButton = {props.isDisableButton}
+                                jobError = {props.jobError}
+                                retryAiJob={props.retryAiJob}
+                                isCreatingAiJob={props.isCreatingAiJob}
                             />
 
                             <SettingsTile
