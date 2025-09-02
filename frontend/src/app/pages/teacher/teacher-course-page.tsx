@@ -4,6 +4,12 @@ import {
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Reorder } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -199,7 +205,6 @@ export default function TeacherCoursePage() {
     ) {
       refetchVersion();
       refetchItems();
-      refetchItem()
 
       if (activeSectionInfo) {
         setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
@@ -335,7 +340,7 @@ export default function TeacherCoursePage() {
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems(); refetchItem()
+      refetchItems();
     });
   };
 
@@ -347,7 +352,7 @@ export default function TeacherCoursePage() {
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems(); refetchItem()
+      refetchItems();
     });
   };
 
@@ -375,7 +380,6 @@ export default function TeacherCoursePage() {
         }
       }).then((res) => {
         refetchVersion();
-        refetchItems(); refetchItem()
       });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
@@ -806,25 +810,52 @@ export default function TeacherCoursePage() {
                                             <TooltipProvider>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                  <Button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setCurrentCourse({
-                                                        courseId,
-                                                        versionId,
-                                                        moduleId: module.moduleId,
-                                                        sectionId: section.sectionId,
-                                                        itemId: null,
-                                                        watchItemId: null,
-                                                      });
-                                                      navigate({ to: '/teacher/ai-section' });
-                                                    }}
-                                                    className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                    style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                  >
-                                                    <Sparkles className="h-2 w-2" />
-                                                    <span>AI</span>
-                                                  </Button>
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                      <Button
+                                                        type="button"
+                                                        className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                        style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                      >
+                                                        <Sparkles className="h-2 w-2" />
+                                                        <span>AI</span>
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="start" className="w-40">
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-section' });
+                                                        }}
+                                                      >
+                                                        Normal mode
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-workflow' });
+                                                        }}
+                                                      >
+                                                        Wizard mode
+                                                      </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right" align="center">
                                                   Generate Section with AI
@@ -1086,7 +1117,7 @@ export default function TeacherCoursePage() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                refetchItems();
                               });
                             }
                             if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
@@ -1104,7 +1135,7 @@ export default function TeacherCoursePage() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                refetchItems();
                               });
                             }
                             if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
@@ -1145,7 +1176,7 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems(); refetchItem()
+                                  refetchItems();
                                 });
                                 setSelectedEntity(null);
                                 setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
@@ -1157,7 +1188,7 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems(); refetchItem()
+                                  refetchItems();
                                 });
                                 setSelectedEntity(null);
                                 setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
@@ -1251,7 +1282,7 @@ export default function TeacherCoursePage() {
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
                             refetchVersion();
-                            refetchItems(); refetchItem()
+                            refetchItems();
                           });
                           setSelectedEntity(null);
                         }}

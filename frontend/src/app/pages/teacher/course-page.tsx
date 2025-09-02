@@ -601,7 +601,7 @@ function CourseCard({
               {editingCourse ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Course Name</label>
+                    <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
                     <Input
                       value={editingValues.name}
                       onChange={(e) => {
@@ -624,7 +624,7 @@ function CourseCard({
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Description</label>
+                    <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
                     <Textarea
                       value={editingValues.description}
                       onChange={(e) => {

@@ -28,7 +28,8 @@ import {
   ListChecks,
   MessageSquareText,
   Workflow,
-  CircleChevronLeft
+  CircleChevronLeft,
+  Info
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -104,13 +105,37 @@ type QuestionGenParams = {
 };
 
 // Stepper icons
-
 const WORKFLOW_STEPS = [
-  { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
-  { key: 'transcriptGeneration', label: 'Transcription', icon: <FileText className="w-5 h-5" /> },
-  { key: 'segmentation', label: 'Segmentation', icon: <ListChecks className="w-5 h-5" /> },
-  { key: 'questionGeneration', label: 'Question Generation', icon: <MessageSquareText className="w-5 h-5" /> },
-  { key: 'uploadContent', label: 'Upload', icon: <UploadCloud className="w-5 h-5" /> },
+  { 
+    key: 'audioExtraction', 
+    label: 'Audio Extraction', 
+    icon: <UploadCloud className="w-5 h-5" />,
+    explanation: "Extracts audio from uploaded files (video or audio) for further processing."
+  },
+  { 
+    key: 'transcriptGeneration', 
+    label: 'Transcription', 
+    icon: <FileText className="w-5 h-5" />,
+    explanation: "Converts extracted audio into accurate text transcripts."
+  },
+  { 
+    key: 'segmentation', 
+    label: 'Segmentation', 
+    icon: <ListChecks className="w-5 h-5" />,
+    explanation: "Breaks down the transcript into logical sections or chunks."
+  },
+  { 
+    key: 'questionGeneration', 
+    label: 'Question Generation', 
+    icon: <MessageSquareText className="w-5 h-5" />,
+    explanation: "Automatically generates relevant questions from the segmented transcript."
+  },
+  { 
+    key: 'uploadContent', 
+    label: 'Upload', 
+    icon: <UploadCloud className="w-5 h-5" />,
+    explanation: "Saves and uploads the processed content with questions for later use."
+  },
 ];
 
 const getStepStatus = (jobStatus: any, stepKey: string) => {
@@ -838,7 +863,15 @@ export default function AISectionPage() {
         {/* Show Start Transcription button for transcription task when audio extraction is completed */}
         {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && (
           <div className="mb-4">
-            <TooltipProvider>
+            <Button
+              onClick={handleStartTranscription}
+              variant="default"
+              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+              className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+            >
+              Start Transcription Task
+            </Button>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -868,7 +901,7 @@ export default function AISectionPage() {
                   )}
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
           </div>
         )}
         {/* Always show question generation parameter inputs for 'question' task */}
@@ -2859,9 +2892,32 @@ export default function AISectionPage() {
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
                     <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 mb-4">
                         <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                         <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
+                      </div>
+                      <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {(currentUiStep === 1 && aiJobStatus === null)   &&
+                              <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                          }
+                          {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION")  &&
+                          (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                            <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                          )
+                          }
+                          {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
+                          (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                            <span>Converts extracted audio into accurate text transcripts.</span>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                       </div>
                       <TaskAccordion
                         task="transcription"
@@ -2899,10 +2955,22 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 2 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
                         </div>
+                        <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    </div>
                         <TaskAccordion
                           task="segmentation"
                           title="Segmentation"
@@ -2939,10 +3007,22 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 3 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
                         </div>
+                        <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    </div>
                         <TaskAccordion
                           task="question"
                           title="Question Generation"
@@ -3012,10 +3092,22 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 4 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
                         </div>
+                        <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    </div>
 
                         {/* Simplified upload form */}
                         <div className="flex flex-col gap-4 mb-4">
