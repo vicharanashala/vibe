@@ -5,43 +5,31 @@ import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 import { Loader2 } from "lucide-react";
+import { Button } from "../ui/button";
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
     isDisableButton: boolean;
-    jobError: string;
-    retryAiJob: () => void;
-    isCreatingAiJob: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, isDisableButton, isCreatingAiJob, jobError, retryAiJob, onClick, ...buttonProps } = props;
-    const isLoading = isTranscribing || isModelLoading || isCreatingAiJob;
+    const { isModelLoading, isTranscribing, isDisableButton, onClick, ...buttonProps } = props;
+    const isLoading = isTranscribing || isModelLoading ;
     return (
         <button
             {...buttonProps}
             onClick={(event) => {
                 if (isTranscribing || isModelLoading) return;
-
-                if (jobError && retryAiJob) {
-                    retryAiJob(); 
-                } else if (onClick) {
+                 if (onClick) {
                     onClick(event); 
                 }
             }}
             disabled={isLoading || isDisableButton}
             className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2'
         >
-             {isLoading ? (
-                <>
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    {jobError ? "Retrying AI Job..." : "Starting AI Job..."}
-                </>
-                ) : (
-                jobError ? "Retry AI Job" : "Start AI Job"
-              )}
+            Start AI Job
         </button>
     );
 }
@@ -473,7 +461,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean, jobError: string, retryAiJob: () =>void, isCreatingAiJob: boolean }, ) {
+export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean, jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean }, ) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -663,19 +651,38 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                         mimeType={audioData.mimeType}
                     />
 
-                    {!props.isTranscriptionCompleted && 
+                    {/* {!props.isTranscriptionCompleted &&  */}
                         <div className='relative w-full flex justify-center items-center'>
-                            <TranscribeButton
-                                onClick={() => {
-                                    props.transcriber.start(audioData.buffer);
+                            {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text ?
+                                <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
+                                text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
+                                hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+                                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
+                                flex items-center justify-center gap-2" 
+                                onClick={(event) => {
+                                    if(props.createAiJob)
+                                        props.createAiJob ()
                                 }}
-                                isModelLoading={props.transcriber.isModelLoading}
-                                isTranscribing={props.transcriber.isBusy}
-                                isDisableButton = {props.isDisableButton}
-                                jobError = {props.jobError}
-                                retryAiJob={props.retryAiJob}
-                                isCreatingAiJob={props.isCreatingAiJob}
-                            />
+                                disabled={props.isCreatingAiJob}>
+                                    {props.isCreatingAiJob ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            {props.jobError ? "Try again..." : "Next"}
+                                        </>
+                                        ) : (
+                                        props.jobError ? "Try again!" : "Next"
+                                    )}
+                                </Button> : 
+
+                                <TranscribeButton
+                                    onClick={() => {
+                                        props.transcriber.start(audioData.buffer);
+                                    }}
+                                    isModelLoading={props.transcriber.isModelLoading}
+                                    isTranscribing={props.transcriber.isBusy}
+                                    isDisableButton = {props.isDisableButton}
+                                />
+                            }
 
                             <SettingsTile
                                 className='absolute right-4'
@@ -683,7 +690,7 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                 icon={<SettingsIcon />}
                                 />
                         </div>
-                    }
+                    {/* } */}
                 </>
             )}
         </>
