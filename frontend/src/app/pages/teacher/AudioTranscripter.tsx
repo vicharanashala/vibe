@@ -100,7 +100,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                                 )}
                             </div>
 
-                            {!transcriber.isBusy && props.transcribedData && (
+                            { props.isRunningAiJob &&(
                                 <Button
                                     onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
                                     className="

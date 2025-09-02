@@ -1,11 +1,9 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters, TranscriptParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import {  ArrowLeft, CheckCircle, Clock, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Scissors, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
@@ -302,6 +300,7 @@ const AiWorkflow = () => {
                 task: 'TRANSCRIPT_GENERATION'
             });
         }
+        
         else if (!isTranscribing && transcribedData && !aiJobId) {
             handleCreateJob(); // creating ai job first, then only transcript will complete
         }
@@ -398,12 +397,13 @@ const AiWorkflow = () => {
         setAiJobId(jobId);
         setIsAiJobStarted(true);
         toast.success("Transcription completed successfully!"); // Job will create only when transcription complete
+        setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
+        setCurrentJob({status: "WAITING", task: 'SEGMENTATION'}); 
+
         } catch (error) {
+            setCurrentJob({status: "FAILED", task: 'TRANSCRIPT_GENERATION'})
             toast.error("An error occured. Please try again!");
         } finally {
-            setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
-            setCurrentJob({status: "WAITING", task: 'SEGMENTATION'}); 
-
             setProgress(100);
             setTimeout(() => setIsLoading(false), 500);
         }
@@ -757,17 +757,6 @@ const AiWorkflow = () => {
                     Click to instantly generate engaging learning content. All essential steps are handled in the background.
                     </CardDescription>
                 </div>
-                {/* {!isURLValidated && 
-                <Button
-                variant="outline"
-                    size="sm"
-                    onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-                    disabled={!!aiJobId}
-                    className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm"
-                >
-                    {showAdvancedConfig ? "Hide" : "Show"} Advanced Settings
-                </Button>
-                } */}
                 </div>
             </CardHeader>
             {!isURLValidated ?
