@@ -122,7 +122,7 @@ export const createGenAIJob = async (
     sectionId?: string | null;
     videoItemBaseName?: string;
     quizItemBaseName?: string;
-    questionsPerQuiz?: number;
+    questionsPerQuiz?: number | null;
 
     // optional parameters
     transcriptParameters?: TranscriptParameters;

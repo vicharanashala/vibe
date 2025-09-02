@@ -5,12 +5,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, CheckCircle, Clock, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, RefreshCw, Scissors, Sparkles, Upload, UploadCloud, XCircle, Zap } from 'lucide-react';
+import {  ArrowLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
 import { TranscriberData } from '@/hooks/useTranscriber';
 import { useNavigate } from '@tanstack/react-router';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 interface TaskRun {
@@ -28,22 +31,25 @@ interface TaskRuns {
   upload: TaskRun[];
 }
 
+interface UploadParams {
+  videoItemBaseName: string;
+  quizItemBaseName: string;
+  questionsPerQuiz: number | null;
+  audioProvided: boolean;
+}
+
 const AiWorkflow = () => {
 
-    // Store
+    // <<<<<<<<< Store >>>>>>>>>>
     const { currentCourse } = useCourseStore();
 
-    // State
+    // <<<<<<<<< State >>>>>>>>>>
     const [youtubeUrl, setYoutubeUrl] = useState("");
     const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
-    const [urlError, setUrlError] = useState<string | null>(null);
-    const [aiJobId, setAiJobId] = useState<string | null>(null);
+    const [urlError, setUrlError] = useState<string | null>(null); // yt url error
+    const [aiJobId, setAiJobId] = useState<string | null>(null); 
 
-    // Ref
-    const optimisticFailedTaskRef = useRef<string | null>(null);
-
-    // Upload parameters
-    const [uploadParams, setUploadParams] = useState({
+    const [uploadParams, setUploadParams] = useState<UploadParams>({
     videoItemBaseName: "video_item",
     quizItemBaseName: "quiz_item",
     audioProvided: true,
@@ -73,221 +79,118 @@ const AiWorkflow = () => {
         noiseId: -1,
     });
 
-    // Track AI job status
-    const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
-    const prevJobStatusRef = useRef<any>(null);
-    const didMountRef = useRef(false);
-    const navigate = useNavigate();
-    const [taskRuns, setTaskRuns] = useState<TaskRuns>({
-    transcription: [],
+    const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null); // to track current job status
+    const [taskRuns, setTaskRuns] = useState<TaskRuns>({ // 
+        transcription: [],
     segmentation: [],
     question: [],
     upload: [],
     });
-
-
     const [aiWorkflowStep, setAiWorkflowStep] = useState("");
-    const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined);
-    const errorRef = useRef<HTMLDivElement | null>(null);
-
-
+    const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined); // to store the generated transcription
     const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null>(null)
-    const [isTranscribing, setIsTranscribing] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false); 
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false); //will true once segmentation starts (backend)
     const [isURLValidated, setIsURLValidated] = useState(false); // will true once yt url is validated
-    const [isLoading, setIsLoading] = useState(false); // mock loading for yt url
-    const [progress, setProgress] = useState(0);
+    const [isLoading, setIsLoading] = useState(false); // mock loading for yt url &% for progress % bar
+    const [progress, setProgress] = useState(0); // to store the progress % count
     const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
-    const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); // array of arrays of transcript chunks per segment
-    const [segments, setSegments] = useState<any[]>([]);
-
-    const [isTaskResultLoading, setIsTaskResultLoading] = useState(false);
+    const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); //  arrays of transcript chunks per segment
+    const [segments, setSegments] = useState<any[]>([]); // to store the generated segments
+    const [questions, setQuestions] = useState<any[]>([]); // to store the generated questions
+    const [isCreatingAiJob, setIsCreatingAiJob] = useState(false); // to track ai job creation
+    const [isTaskResultLoading, setIsTaskResultLoading] = useState(false); // to track completed task result loading
     const [error, setError] = useState("");
+    const [editingIdx, setEditingIdx] = useState<number | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editQuestion, setEditQuestion] = useState<any>(null);
 
-    const handleShowHandleResult = async (task: string) => {
-        if (!aiJobId) return;
-        
-        try {
-            if (!task) {
-            toast.error("No task found to show result!");
-            return;
-            }
 
-            const token = localStorage.getItem("firebase-auth-token");
-            const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
-            console.log("Requested url: ", url);
+    // <<<<<<<<<< Ref >>>>>>>>>>
+    const optimisticFailedTaskRef = useRef<string | null>(null);
+    const prevJobStatusRef = useRef<any>(null);
+    const didMountRef = useRef(false);
+    const errorRef = useRef<HTMLDivElement | null>(null);
+    
+    
+    const navigate = useNavigate();
 
-            const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${token}` },
-            });
-            if (!res.ok) throw new Error("Failed to fetch task status");
 
-            const data = await res.json();
-            console.log("Data", data);
-            handleExtractSegmentationResponse(data);
-        } catch (error) {
-            console.error("Error fetching task result:", error);
-            toast.error("Failed to fetch task result");
-        }
-    };
 
-    const handleExtractSegmentationResponse = async (response: any) => {
-    try {
-        const segData = Array.isArray(response) ? response[0] : null;
-
-        if (
-        segData &&
-        segData.segmentationMap &&
-        Array.isArray(segData.segmentationMap) &&
-        segData.transcriptFileUrl
-        ) {
-        setSegmentationMap(segData.segmentationMap);
-
-        const transcriptRes = await fetch(segData.transcriptFileUrl);
-        if (!transcriptRes.ok)
-            throw new Error("Failed to fetch transcript file");
-
-        const transcriptData = await transcriptRes.json();
-        const chunks = Array.isArray(transcriptData.chunks)
-            ? transcriptData.chunks
-            : [];
-        const segMap = segData.segmentationMap;
-        const grouped: any[][] = [];
-
-        let segStart = 0;
-        for (let i = 0; i < segMap.length; ++i) {
-            const segEnd = segMap[i];
-            const segChunks = chunks.filter(
-            (chunk: { timestamp: [number, number]; text: string }) =>
-                chunk.timestamp &&
-                typeof chunk.timestamp[0] === "number" &&
-                chunk.timestamp[0] >= segStart &&
-                chunk.timestamp[0] < segEnd
-            );
-            grouped.push(segChunks);
-            segStart = segEnd;
-        }
-        setSegmentationChunks(grouped);
-        } else if (segData?.transcriptFileUrl) {
-        const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
-        console.log("Extracted segments: ", segs);
-        setSegments(segs);
-        setSegmentationMap(null);
-        setSegmentationChunks(null);
-        } else {
-        setError("Segmentation data not found.");
-        setSegmentationChunks(null);
-        }
-    } catch (error) {
-        console.error("Error extracting segmentation response:", error);
-    } finally {
-        setIsTaskResultLoading(false);
-    }
-    };
-
-    const fetchSegmentationFromUrl = async (url: string) => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Failed to fetch segmentation file");
-    const data = await response.json();
-
-    if (Array.isArray(data.segments)) {
-        return data.segments;
-    }
-    if (Array.isArray(data.chunks)) {
-        return data.chunks;
-    }
-    return data;
-    };
-
-    // Validation
-    const isValidYouTubeUrl = (url: string): boolean => {
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
-        return youtubeRegex.test(url);
-    };
+    // <<<<<<<<<< UseEffects >>>>>>>>>>
   
-  
+    // For live status
     useEffect(() => {
         if (!aiJobId) return;
-
         const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-            console.log("Incoming >>>>", incoming)
+            // 1. Set current job for live status update
+            setCurrentJob({
+                task: incoming.task,
+                status: incoming.status
+            })
+            // 2. If status is completed then need to show result, need to hide the progress bar (%) and set next task status as waiting
+            if(incoming.status == "COMPLETED"){
+                handleShowHandleResult(incoming.task); // to show the result of the tasks
+                setProgress(100);
+                setTimeout(() => setIsLoading(false), 500);
 
-            //  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-
-            //  const taskToStep: Record<string, string> = {
-            //   'AUDIO_EXTRACTION': 'audioExtraction',
-            //   'TRANSCRIPT_GENERATION': 'transcriptGeneration',
-            //   'SEGMENTATION': 'segmentation',
-            //   'QUESTION_GENERATION': 'questionGeneration',
-            //   'UPLOAD_CONTENT': 'uploadContent',
-            // };
-        setCurrentJob({
-            task: incoming.task,
-            status: incoming.status
-        })
-
-        if(incoming.status == "COMPLETED"){
-            handleShowHandleResult(incoming.task); // to show the result of the tasks
-            setProgress(100);
-            setTimeout(() => setIsLoading(false), 500);
-
-            if(incoming.task == "SEGMENTATION"){
-                toast.success("Segmentation completed!")
-                setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
+                if(incoming.task == "SEGMENTATION"){
+                    toast.success("Segmentation completed!")
+                    setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
+                }
+                else if (incoming.task == "QUESTION_GENERATION"){
+                    toast.success("Question generation completed!")
+                    setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
+                }
             }
-            else if (incoming.task == "QUESTION_GENERATION"){
-                toast.success("Question generation completed!")
-                setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
-            }
+            // 3. Set ai job status for live status (currently not using)
+            setAiJobStatus(() => {
+                let next: any =  { ...incoming } ;
+                const failing = optimisticFailedTaskRef.current;
+                if (next && failing) {
+                const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+                const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+                switch (failing) {
+                    case 'AUDIO_EXTRACTION':
+                    setTop('AUDIO_EXTRACTION');
+                    ensureJobStatus();
+                    next.jobStatus.audioExtraction = 'FAILED';
+                    break;
+                    case 'TRANSCRIPT_GENERATION':
+                    setTop('TRANSCRIPT_GENERATION');
+                    ensureJobStatus();
+                    next.jobStatus.transcriptGeneration = 'FAILED';
+                    break;
+                    case 'SEGMENTATION':
+                    setTop('SEGMENTATION');
+                    ensureJobStatus();
+                    next.jobStatus.segmentation = 'FAILED';
+                    break;
+                    case 'QUESTION_GENERATION':
+                    setTop('QUESTION_GENERATION');
+                    ensureJobStatus();
+                    next.jobStatus.questionGeneration = 'FAILED';
+                    break;
+                    case 'UPLOAD_CONTENT':
+                    setTop('UPLOAD_CONTENT');
+                    ensureJobStatus();
+                    next.jobStatus.uploadContent = 'FAILED';
+                    break;
+                }
+                }
+                if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+                optimisticFailedTaskRef.current = null;
+                }
 
-        }
-
-        setAiJobStatus(() => {
-            let next: any =  { ...incoming } ;
-            const failing = optimisticFailedTaskRef.current;
-            if (next && failing) {
-            const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-            const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-            switch (failing) {
-                case 'AUDIO_EXTRACTION':
-                setTop('AUDIO_EXTRACTION');
-                ensureJobStatus();
-                next.jobStatus.audioExtraction = 'FAILED';
-                break;
-                case 'TRANSCRIPT_GENERATION':
-                setTop('TRANSCRIPT_GENERATION');
-                ensureJobStatus();
-                next.jobStatus.transcriptGeneration = 'FAILED';
-                break;
-                case 'SEGMENTATION':
-                setTop('SEGMENTATION');
-                ensureJobStatus();
-                next.jobStatus.segmentation = 'FAILED';
-                break;
-                case 'QUESTION_GENERATION':
-                setTop('QUESTION_GENERATION');
-                ensureJobStatus();
-                next.jobStatus.questionGeneration = 'FAILED';
-                break;
-                case 'UPLOAD_CONTENT':
-                setTop('UPLOAD_CONTENT');
-                ensureJobStatus();
-                next.jobStatus.uploadContent = 'FAILED';
-                break;
-            }
-            }
-            if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-            optimisticFailedTaskRef.current = null;
-            }
-
-            return next;
+                return next;
+            });
         });
-        });
+        // 4. Clean up
         return () => es.close();
-
     }, [aiJobId]);
 
+    // To trach transcription status and start ai job for segementation
     useEffect(()=> {
         if(isAudioExtracting) 
             setCurrentJob({
@@ -308,7 +211,8 @@ const AiWorkflow = () => {
 
     }, [isTranscribing, isAudioExtracting]);
 
-   useEffect(() => {
+    // Mock progress % bar
+    useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (isLoading || isTranscribing) {
@@ -332,82 +236,26 @@ const AiWorkflow = () => {
     return () => clearInterval(interval);
     }, [isLoading, isTranscribing, isTranscribing, currentJob?.task]);
 
-  
-    // Handlers
-    const handleCreateJob = async () => {
 
-        if(!transcribedData?.text){
-            toast.error("No transcript found, Try again!");
-            return;
-        };
-        
-        const chunks: Chunk[] = transcribedData.chunks.map(c => ({
-            text: c.text,
-            timestamp: c.timestamp.map(t => t ?? 0), // convert null to 0
-        }));
+    // <<<<<<<<<< Helpers >>>>>>>>>>
 
-        setUrlError(null);
-        // Get courseId and versionId from store
-        const { currentCourse } = useCourseStore.getState();
-        if (!currentCourse?.courseId || !currentCourse?.versionId) {
-            toast.error("Missing course or version information");
-            return;
+    const fetchSegmentationFromUrl = async (url: string) => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch segmentation file");
+        const data = await response.json();
+
+        if (Array.isArray(data.segments)) {
+            return data.segments;
         }
-
-        try {
-        // Build job parameters
-        const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
-            videoUrl: youtubeUrl,
-            transcript: { chunks },
-            courseId: currentCourse.courseId,
-            versionId: currentCourse.versionId,
-            moduleId: currentCourse.moduleId,
-            sectionId: currentCourse.sectionId,
-            videoItemBaseName: uploadParams.videoItemBaseName,
-            quizItemBaseName: uploadParams.quizItemBaseName,
-            // questionsPerQuiz: uploadParams.questionsPerQuiz,
-        };
-
-
-        // jobParams.segmentationParameters = {
-        //     lam: customSegmentationParams.lam ?? 4.5,
-        //     runs: customSegmentationParams.runs ?? 25,
-        //     noiseId: customSegmentationParams.noiseId ?? -1,
-        // };
-
-    //     jobParams.questionGenerationParameters = {
-    //         model: customQuestionParams.model || "deepseek-r1:70b",
-    //         SOL: customQuestionParams.SOL ?? 1,
-    //         SML: customQuestionParams.SML ?? 0,
-    //         NAT: customQuestionParams.NAT ?? 0,
-    //         DES: customQuestionParams.DES ?? 0,
-    //         prompt:
-    //         customQuestionParams.prompt ||
-    //         `Focus on conceptual understanding
-    // - Test comprehension of key ideas, principles, and relationships discussed in the content
-    // - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
-    // - The answer of questions should be present within the content, but not directly quoted
-    // - Make all the options roughly the same length
-    // - Set isParameterized to false unless the question uses variables
-    // - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
-    //     };
-        // }
-
-        // Create AI Job
-        const { jobId } = await aiSectionAPI.createJob(jobParams);
-        setAiJobId(jobId);
-        setIsAiJobStarted(true);
-        toast.success("Transcription completed successfully!"); // Job will create only when transcription complete
-        setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
-        setCurrentJob({status: "WAITING", task: 'SEGMENTATION'}); 
-
-        } catch (error) {
-            setCurrentJob({status: "FAILED", task: 'TRANSCRIPT_GENERATION'})
-            toast.error("An error occured. Please try again!");
-        } finally {
-            setProgress(100);
-            setTimeout(() => setIsLoading(false), 500);
+        if (Array.isArray(data.chunks)) {
+            return data.chunks;
         }
+        return data;
+    };
+
+    const isValidYouTubeUrl = (url: string): boolean => {
+        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
+        return youtubeRegex.test(url);
     };
 
     const scrollToError = () => {
@@ -416,196 +264,6 @@ const AiWorkflow = () => {
             behavior: "smooth",
             block: "center",
         });
-        }
-    };
-
-    // ----------------------
-    // Manual Handlers
-    // ----------------------
-
-    const handleValidateURL = () => {
-        if (!youtubeUrl.trim()) {
-            setUrlError("YouTube URL is required");
-            scrollToError();
-            return;
-        }
-        if (!isValidYouTubeUrl(youtubeUrl.trim())) {
-            setUrlError("Please enter a valid YouTube URL");
-            scrollToError();
-            return;
-        }
-        setIsLoading(true)
-
-        setTimeout(() => {
-            setIsURLValidated(true);
-            setIsLoading(false); 
-        }, 500); 
-    }
-
-    const handleRefreshStatus = async () => {
-        if (!aiJobId) return;
-        try {
-            const status = await aiSectionAPI.getJobStatus(aiJobId);
-            const currentTaskData = getCurrentTask(status.jobStatus);
-
-            if (!currentTaskData) {
-                toast.error("Current task is missing");
-                return;
-            }
-
-            const currentTask = currentTaskData.task; 
-            const currentStatus = currentTaskData.status;
-            // const current
-            setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
-            updateCurrentJob(currentTask, currentStatus);
-
-            const prevJobStatus = prevJobStatusRef.current;
-
-
-            // --- Transcript Generation ---
-            if (
-            didMountRef.current &&
-            status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
-            prevJobStatus?.transcriptGeneration !== 'COMPLETED'
-            ) {
-            setTaskRuns(prev => {
-                const lastLoadingIdx = [...prev.transcription]
-                .reverse()
-                .findIndex(run => run.status === 'loading');
-
-                if (lastLoadingIdx === -1) return prev;
-
-                const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
-                return {
-                ...prev,
-                transcription: prev.transcription.map((run, idx) =>
-                    idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-                ),
-                };
-            });
-
-            toast.success('Transcription completed!');
-            }
-
-            // --- Segmentation ---
-            if (
-            didMountRef.current &&
-            status.jobStatus?.segmentation === 'COMPLETED' &&
-            prevJobStatus?.segmentation !== 'COMPLETED'
-            ) {
-            setTaskRuns(prev => {
-                const lastLoadingIdx = [...prev.segmentation]
-                .reverse()
-                .findIndex(run => run.status === 'loading');
-
-                if (lastLoadingIdx === -1) return prev;
-
-                const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
-                return {
-                ...prev,
-                segmentation: prev.segmentation.map((run, idx) =>
-                    idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
-                ),
-                };
-            });
-
-            toast.success('Segmentation completed!');
-            }
-
-            // --- Question Generation ---
-            if (
-            didMountRef.current &&
-            status.jobStatus?.questionGeneration === 'COMPLETED' &&
-            prevJobStatus?.questionGeneration !== 'COMPLETED'
-            ) {
-            // Fetch QUESTION_GENERATION task status (for fileUrl)
-            const token = localStorage.getItem('firebase-auth-token');
-            const backendUrl = getApiUrl(
-                `/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`
-            );
-
-            let res = await fetch(backendUrl, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            // Retry once if failed
-            if (!res.ok) {
-                res = await fetch(backendUrl, {
-                headers: { Authorization: `Bearer ${token}` },
-                });
-            }
-
-            if (res.ok) {
-                const arr = await res.json();
-
-                setTaskRuns(prev => {
-                const lastLoadingIdx = [...prev.question]
-                    .reverse()
-                    .findIndex(run => run.status === 'loading');
-
-                const lastDoneIdx = [...prev.question]
-                    .reverse()
-                    .findIndex(run => run.status === 'done');
-
-                const idxToUpdate =
-                    lastLoadingIdx !== -1
-                    ? prev.question.length - 1 - lastLoadingIdx
-                    : lastDoneIdx !== -1
-                    ? prev.question.length - 1 - lastDoneIdx
-                    : -1;
-
-                if (idxToUpdate === -1) return prev;
-
-                return {
-                    ...prev,
-                    question: prev.question.map((run, idx) => {
-                    if (idx === idxToUpdate) {
-                        const { id, timestamp, result, parameters } = run;
-                        return {
-                        id,
-                        timestamp,
-                        status: 'done',
-                        result: { ...result, questionTaskStatus: arr },
-                        parameters,
-                        } as TaskRun;
-                    }
-                    return run;
-                    }),
-                };
-                });
-
-                toast.success('Questions generated!');
-            }
-            }
-
-            // --- Update refs at the end ---
-            prevJobStatusRef.current = status.jobStatus;
-
-            // Mark first mount after initial fetch
-            if (!didMountRef.current) didMountRef.current = true;
-
-            // --- Workflow step management ---
-            if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
-            setAiWorkflowStep('transcription_done');
-            return;
-            }
-
-            if (status.jobStatus?.audioExtraction === 'COMPLETED') {
-            setAiWorkflowStep('audio_extraction_done');
-            return;
-            }
-
-            if (
-            status.jobStatus?.audioExtraction === 'FAILED' ||
-            status.jobStatus?.transcriptGeneration === 'FAILED'
-            ) {
-            setAiWorkflowStep('error');
-            toast.error('A step failed.');
-            return;
-            }
-        } catch (error) {
-            setAiWorkflowStep('error');
-            toast.error('Failed to refresh status.');
         }
     };
 
@@ -658,14 +316,395 @@ const AiWorkflow = () => {
     };
 
 
+    // <<<<<<<<<< Handlers >>>>>>>>>>
+
+    const handleShowHandleResult = async (task: string): Promise <void> => {
+        if (!aiJobId) return;
+        try {
+            if (!task) {
+            toast.error("No task found to show result!");
+            return;
+            }
+            setIsTaskResultLoading(true);
+            const token = localStorage.getItem("firebase-auth-token");
+            const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
+            console.log("Requested url: ", url);
+
+            const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error("Failed to fetch task status");
+
+            const data = await res.json();
+            console.log("Result data: ", data)
+            task == "SEGMENTATION" ? 
+            handleExtractSegmentationResponse(data) :
+            handleExtractQuestionResponse(data);
+        } catch (error) {
+            console.error("Error fetching task result:", error);
+            toast.error("Failed to fetch task result");
+        } finally {
+            setIsTaskResultLoading(false);
+        }
+    };
+
+    const handleExtractSegmentationResponse = async (response: any) => {
+    try {
+        const segData = Array.isArray(response) ? response[0] : null;
+
+        if (
+        segData &&
+        segData.segmentationMap &&
+        Array.isArray(segData.segmentationMap) &&
+        segData.transcriptFileUrl
+        ) {
+        setSegmentationMap(segData.segmentationMap);
+        setIsTaskResultLoading(true);
+        const transcriptRes = await fetch(segData.transcriptFileUrl);
+        if (!transcriptRes.ok)
+            throw new Error("Failed to fetch transcript file");
+
+        const transcriptData = await transcriptRes.json();
+        const chunks = Array.isArray(transcriptData.chunks)
+            ? transcriptData.chunks
+            : [];
+        const segMap = segData.segmentationMap;
+        const grouped: any[][] = [];
+
+        let segStart = 0;
+        for (let i = 0; i < segMap.length; ++i) {
+            const segEnd = segMap[i];
+            const segChunks = chunks.filter(
+            (chunk: { timestamp: [number, number]; text: string }) =>
+                chunk.timestamp &&
+                typeof chunk.timestamp[0] === "number" &&
+                chunk.timestamp[0] >= segStart &&
+                chunk.timestamp[0] < segEnd
+            );
+            grouped.push(segChunks);
+            segStart = segEnd;
+        }
+        setSegmentationChunks(grouped);
+        } else if (segData?.transcriptFileUrl) {
+        const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
+        console.log("Extracted segments: ", segs);
+        setSegments(segs);
+        setSegmentationMap(null);
+        setSegmentationChunks(null);
+        } else {
+        setError("Segmentation data not found.");
+        setSegmentationChunks(null);
+        }
+    } catch (error) {
+        console.error("Error extracting segmentation response:", error);
+    } finally {
+        setIsTaskResultLoading(false);
+    }
+    };
+
+    const handleExtractQuestionResponse = async (response: any ) => {
+        try {
+            const questionData = Array.isArray(response) ? response [0] : null;
+            setIsTaskResultLoading(true);
+            if (questionData?.fileUrl) {
+                const questionsRes = await fetch(questionData.fileUrl);
+                if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
+                const data = await questionsRes.json();
+                let questionsArr = [];
+
+                if (Array.isArray(data)) {
+                questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
+                } else if (data.segments && Array.isArray(data.segments)) {
+                questionsArr = data.segments;
+                } else {
+                setError('Questions format not recognized.');
+                }
+                setQuestions(questionsArr);
+            } else {
+                setError('Questions file URL not found.');
+            }
+
+        } catch (error: any) {
+            setError(error.message || 'Unknown error');
+        } finally {
+            setIsTaskResultLoading(false);
+        }       
+    }
+
+    const handleCreateJob = async () => {
+        // 1. Check transcription text is there
+        if(!transcribedData?.text){
+            toast.error("No transcript found, Try again!");
+            return;
+        };
+        // 2. Track creation for UI
+        setIsCreatingAiJob(true);
+        // 3. Chunks of transcription
+        const chunks: Chunk[] = transcribedData.chunks.map(c => ({
+            text: c.text,
+            timestamp: c.timestamp.map(t => t ?? 0), // convert null to 0
+        }));
+        
+        // 4. Get courseId and versionId from store
+        const { currentCourse } = useCourseStore.getState();
+        if (!currentCourse?.courseId || !currentCourse?.versionId) {
+            toast.error("Missing course or version information");
+            return;
+        }
+
+        try {
+        // 5. Build job parameters
+        const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
+            videoUrl: youtubeUrl,
+            transcript: { chunks },
+            courseId: currentCourse.courseId,
+            versionId: currentCourse.versionId,
+            moduleId: currentCourse.moduleId,
+            sectionId: currentCourse.sectionId,
+            videoItemBaseName: uploadParams.videoItemBaseName,
+            quizItemBaseName: uploadParams.quizItemBaseName,
+            questionsPerQuiz: uploadParams.questionsPerQuiz ,
+        };
+
+
+        jobParams.segmentationParameters = {
+            lam: customSegmentationParams.lam ?? 4.5,
+            runs: customSegmentationParams.runs ?? 25,
+            noiseId: customSegmentationParams.noiseId ?? -1,
+        };
+
+        jobParams.questionGenerationParameters = {
+            model: customQuestionParams.model || "deepseek-r1:70b",
+            SQL: customQuestionParams.SQL ?? 1,
+            SML: customQuestionParams.SML ?? 0,
+            NAT: customQuestionParams.NAT ?? 0,
+            DES: customQuestionParams.DES ?? 0,
+            prompt:
+            customQuestionParams.prompt ||
+            `Focus on conceptual understanding
+    - Test comprehension of key ideas, principles, and relationships discussed in the content
+    - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
+    - The answer of questions should be present within the content, but not directly quoted
+    - Make all the options roughly the same length
+    - Set isParameterized to false unless the question uses variables
+    - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
+        };
+        
+        // 6. Create AI Job
+        const { jobId } = await aiSectionAPI.createJob(jobParams);
+        setAiJobId(jobId);
+        setIsAiJobStarted(true);
+        toast.success("Transcription completed successfully!"); // Job will create only when transcription complete
+        // 7. Set current job status
+        setCurrentJob({status: "COMPLETED", task: 'TRANSCRIPT_GENERATION'}); // setting transcription status as completed once ai job created
+        setCurrentJob({status: "WAITING", task: 'SEGMENTATION'}); 
+
+        } catch (error) {
+            setCurrentJob({status: "FAILED", task: 'TRANSCRIPT_GENERATION'})
+            toast.error("An error occured. Please try again!");
+            setError("Failed to create ai job");
+        } finally {
+            // 8. Stop progress bar and loading
+            setProgress(100);
+            setTimeout(() => setIsLoading(false), 500);
+            setIsCreatingAiJob(false);
+        }
+    };
+
+    const handleValidateURL = () => {
+        if (!youtubeUrl.trim()) {
+            setUrlError("YouTube URL is required");
+            scrollToError();
+            return;
+        }
+        if (!isValidYouTubeUrl(youtubeUrl.trim())) {
+            setUrlError("Please enter a valid YouTube URL");
+            scrollToError();
+            return;
+        }
+        setIsLoading(true)
+
+        setTimeout(() => {
+            setIsURLValidated(true);
+            setIsLoading(false); 
+        }, 500); 
+    }
+
+    const handleRefreshStatus = async () => {
+        if (!aiJobId) return;
+        try {
+            const status = await aiSectionAPI.getJobStatus(aiJobId);
+            const currentTaskData = getCurrentTask(status.jobStatus);
+
+            if (!currentTaskData) {
+                toast.error("Current task is missing");
+                return;
+            }
+
+            const currentTask = currentTaskData.task; 
+            const currentStatus = currentTaskData.status;
+            // const current
+            setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
+            updateCurrentJob(currentTask, currentStatus);
+
+            // const prevJobStatus = prevJobStatusRef.current;
+
+
+            // // --- Transcript Generation ---
+            // if (
+            // didMountRef.current &&
+            // status.jobStatus?.transcriptGeneration === 'COMPLETED' &&
+            // prevJobStatus?.transcriptGeneration !== 'COMPLETED'
+            // ) {
+            // setTaskRuns(prev => {
+            //     const lastLoadingIdx = [...prev.transcription]
+            //     .reverse()
+            //     .findIndex(run => run.status === 'loading');
+
+            //     if (lastLoadingIdx === -1) return prev;
+
+            //     const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+            //     return {
+            //     ...prev,
+            //     transcription: prev.transcription.map((run, idx) =>
+            //         idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+            //     ),
+            //     };
+            // });
+
+            // toast.success('Transcription completed!');
+            // }
+
+            // // --- Segmentation ---
+            // if (
+            // didMountRef.current &&
+            // status.jobStatus?.segmentation === 'COMPLETED' &&
+            // prevJobStatus?.segmentation !== 'COMPLETED'
+            // ) {
+            // setTaskRuns(prev => {
+            //     const lastLoadingIdx = [...prev.segmentation]
+            //     .reverse()
+            //     .findIndex(run => run.status === 'loading');
+
+            //     if (lastLoadingIdx === -1) return prev;
+
+            //     const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
+            //     return {
+            //     ...prev,
+            //     segmentation: prev.segmentation.map((run, idx) =>
+            //         idx === idxToUpdate ? { ...run, status: 'done', result: status } : run
+            //     ),
+            //     };
+            // });
+
+            // toast.success('Segmentation completed!');
+            // }
+
+            // // --- Question Generation ---
+            // if (
+            // didMountRef.current &&
+            // status.jobStatus?.questionGeneration === 'COMPLETED' &&
+            // prevJobStatus?.questionGeneration !== 'COMPLETED'
+            // ) {
+            // // Fetch QUESTION_GENERATION task status (for fileUrl)
+            // const token = localStorage.getItem('firebase-auth-token');
+            // const backendUrl = getApiUrl(
+            //     `/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`
+            // );
+
+            // let res = await fetch(backendUrl, {
+            //     headers: { Authorization: `Bearer ${token}` },
+            // });
+
+            // // Retry once if failed
+            // if (!res.ok) {
+            //     res = await fetch(backendUrl, {
+            //     headers: { Authorization: `Bearer ${token}` },
+            //     });
+            // }
+
+            // if (res.ok) {
+            //     const arr = await res.json();
+
+            //     setTaskRuns(prev => {
+            //     const lastLoadingIdx = [...prev.question]
+            //         .reverse()
+            //         .findIndex(run => run.status === 'loading');
+
+            //     const lastDoneIdx = [...prev.question]
+            //         .reverse()
+            //         .findIndex(run => run.status === 'done');
+
+            //     const idxToUpdate =
+            //         lastLoadingIdx !== -1
+            //         ? prev.question.length - 1 - lastLoadingIdx
+            //         : lastDoneIdx !== -1
+            //         ? prev.question.length - 1 - lastDoneIdx
+            //         : -1;
+
+            //     if (idxToUpdate === -1) return prev;
+
+            //     return {
+            //         ...prev,
+            //         question: prev.question.map((run, idx) => {
+            //         if (idx === idxToUpdate) {
+            //             const { id, timestamp, result, parameters } = run;
+            //             return {
+            //             id,
+            //             timestamp,
+            //             status: 'done',
+            //             result: { ...result, questionTaskStatus: arr },
+            //             parameters,
+            //             } as TaskRun;
+            //         }
+            //         return run;
+            //         }),
+            //     };
+            //     });
+
+            //     toast.success('Questions generated!');
+            // }
+            // }
+
+            // // --- Update refs at the end ---
+            // prevJobStatusRef.current = status.jobStatus;
+
+            // // Mark first mount after initial fetch
+            // if (!didMountRef.current) didMountRef.current = true;
+
+            // // --- Workflow step management ---
+            // if (status.jobStatus?.transcriptGeneration === 'COMPLETED') {
+            // setAiWorkflowStep('transcription_done');
+            // return;
+            // }
+
+            // if (status.jobStatus?.audioExtraction === 'COMPLETED') {
+            // setAiWorkflowStep('audio_extraction_done');
+            // return;
+            // }
+
+            // if (
+            // status.jobStatus?.audioExtraction === 'FAILED' ||
+            // status.jobStatus?.transcriptGeneration === 'FAILED'
+            // ) {
+            // setAiWorkflowStep('error');
+            // toast.error('A step failed.');
+            // return;
+            // }
+        } catch (error) {
+            setAiWorkflowStep('error');
+            toast.error('Failed to refresh status.');
+        }
+    };
+
     const handleApproveTask = async() => {
         try {
-
+            // 1. Check aiJobId
             if (!aiJobId) {
                 toast.error("Job not found");
                 return;
             }
-            
+            // 2. Fetch status to get current job
             const status = await aiSectionAPI.getJobStatus(aiJobId);
             
             if(!status || !status.jobStatus){
@@ -697,7 +736,7 @@ const AiWorkflow = () => {
 
             let params: Record<string, any> | null = null;
             console.log("Segmentation params while approving: ", customSegmentationParams)
-
+            // 3. Set proper request params
             switch (currentTask) {
                 case 'segmentation':
                     params = {parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
@@ -713,18 +752,17 @@ const AiWorkflow = () => {
                     toast.error("Invalida current task");
                     return;
             }
+            // 4. Trigger continue and start task
             await aiSectionAPI.approveContinueTask(aiJobId);
             await aiSectionAPI.approveStartTask(aiJobId, params);
                     
             // updateCurrentJob(currentTask, currentStatus);
             toast.success("Task approved!");
 
-            if(currentTask != "uploadContent"){
-                setIsLoading(true);
-            }
-            else{
-                handleRefreshStatus();
-            }
+            if(currentTask != "uploadContent")
+                setIsLoading(true); // for progress bar (%)
+            else
+                handleRefreshStatus(); // for upload content status refresh
 
         } catch(error) {
             toast.error("Failed to approve task");
@@ -737,409 +775,467 @@ const AiWorkflow = () => {
   return (
     <div className='py-2'>
        <div className="mb-4"> 
-        <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate({ to: "/teacher/courses/view" })}
-            className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-            >
-            <ArrowLeft className="h-4 w-4" />
-        </Button>
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate({ to: "/teacher/courses/view" })}
+                className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                >
+                <ArrowLeft className="h-4 w-4" />
+            </Button>
         </div>
         <Card>
             <CardHeader >
                 <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <CardTitle className="flex items-center gap-3 text-xl">
-                    <Sparkles  className="w-6 h-6" />
-                    Smart Content Builder
-                    </CardTitle>
-                    <CardDescription className="text-base">
-                    Click to instantly generate engaging learning content. All essential steps are handled in the background.
-                    </CardDescription>
-                </div>
+                    <div className="space-y-2">
+                        <CardTitle className="flex items-center gap-3 text-xl">
+                        <Sparkles  className="w-6 h-6" />
+                        Smart Content Builder
+                        </CardTitle>
+                        <CardDescription className="text-base">
+                        Click to instantly generate engaging learning content. All essential steps are handled in the background.
+                        </CardDescription>
+                    </div>
                 </div>
             </CardHeader>
             {!isURLValidated ?
-            <CardContent className="space-y-4">
-                <div className="space-y-6">
-                {/* {showAdvancedConfig && (
-                    <div
-                    className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                        showAdvancedConfig ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                    >
-                        <Accordion type="multiple" className="border rounded-xl overflow-hidden">
-                            <AccordionItem value="segmentation" className="border-b-0">
-                            <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
-                                Segmentation Settings
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6 pt-2">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Lambda</Label>
-                                    <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={customSegmentationParams.lam}
-                                    onChange={(e) =>
-                                        setCustomSegmentationParams((prev) => ({ ...prev, lam: Number.parseFloat(e.target.value) }))
-                                    }
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Runs</Label>
-                                    <Input
-                                    type="number"
-                                    value={customSegmentationParams.runs}
-                                    onChange={(e) =>
-                                        setCustomSegmentationParams((prev) => ({ ...prev, runs: Number.parseInt(e.target.value) }))
-                                    }
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Noise ID</Label>
-                                    <Input
-                                    type="number"
-                                    value={customSegmentationParams.noiseId}
-                                    onChange={(e) =>
-                                        setCustomSegmentationParams((prev) => ({
-                                        ...prev,
-                                        noiseId: Number.parseInt(e.target.value),
-                                        }))
-                                    }
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
-                                </div>
-                                </div>
-                            </AccordionContent>
-                            </AccordionItem>
+                <CardContent className="space-y-4">
+                    <div className="space-y-6">
+                    {/* {showAdvancedConfig && (
+                        <div
+                        className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                            showAdvancedConfig ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}
+                        >
+                            <Accordion type="multiple" className="border rounded-xl overflow-hidden">
+                                <AccordionItem value="segmentation" className="border-b-0">
+                                <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+                                    Segmentation Settings
+                                </AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6 pt-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Lambda</Label>
+                                        <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={customSegmentationParams.lam}
+                                        onChange={(e) =>
+                                            setCustomSegmentationParams((prev) => ({ ...prev, lam: Number.parseFloat(e.target.value) }))
+                                        }
+                                        disabled={!!aiJobId}
+                                        className="h-10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Runs</Label>
+                                        <Input
+                                        type="number"
+                                        value={customSegmentationParams.runs}
+                                        onChange={(e) =>
+                                            setCustomSegmentationParams((prev) => ({ ...prev, runs: Number.parseInt(e.target.value) }))
+                                        }
+                                        disabled={!!aiJobId}
+                                        className="h-10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Noise ID</Label>
+                                        <Input
+                                        type="number"
+                                        value={customSegmentationParams.noiseId}
+                                        onChange={(e) =>
+                                            setCustomSegmentationParams((prev) => ({
+                                            ...prev,
+                                            noiseId: Number.parseInt(e.target.value),
+                                            }))
+                                        }
+                                        disabled={!!aiJobId}
+                                        className="h-10"
+                                        />
+                                    </div>
+                                    </div>
+                                </AccordionContent>
+                                </AccordionItem>
 
-                            <AccordionItem value="questions" className="border-b-0">
-                            <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
-                                Question Generation Settings
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6 pt-2">
-                                <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Model</Label>
-                                    <Select
-                                    value={customQuestionParams.model}
-                                    onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
-                                    disabled={!!aiJobId}
-                                    >
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="Select model" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                                        <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                                        <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                                    </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <AccordionItem value="questions" className="border-b-0">
+                                <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+                                    Question Generation Settings
+                                </AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6 pt-2">
+                                    <div className="space-y-6">
                                     <div className="space-y-2">
-                                    <Label className="text-sm font-medium">SOL Questions</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={customQuestionParams.SOL}
-                                        onChange={(e) =>
-                                        setCustomQuestionParams((prev) => ({ ...prev, SOL: Number.parseInt(e.target.value) }))
-                                        }
+                                        <Label className="text-sm font-medium">Model</Label>
+                                        <Select
+                                        value={customQuestionParams.model}
+                                        onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
                                         disabled={!!aiJobId}
-                                        className="h-10"
-                                    />
+                                        >
+                                        <SelectTrigger className="h-10">
+                                            <SelectValue placeholder="Select model" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
+                                            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                                            <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                                        </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-2">
+                                        <Label className="text-sm font-medium">SOL Questions</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={customQuestionParams.SOL}
+                                            onChange={(e) =>
+                                            setCustomQuestionParams((prev) => ({ ...prev, SOL: Number.parseInt(e.target.value) }))
+                                            }
+                                            disabled={!!aiJobId}
+                                            className="h-10"
+                                        />
+                                        </div>
+                                        <div className="space-y-2">
+                                        <Label className="text-sm font-medium">SML Questions</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={customQuestionParams.SML}
+                                            onChange={(e) =>
+                                            setCustomQuestionParams((prev) => ({ ...prev, SML: Number.parseInt(e.target.value) }))
+                                            }
+                                            disabled={!!aiJobId}
+                                            className="h-10"
+                                        />
+                                        </div>
+                                        <div className="space-y-2">
+                                        <Label className="text-sm font-medium">NAT Questions</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={customQuestionParams.NAT}
+                                            onChange={(e) =>
+                                            setCustomQuestionParams((prev) => ({ ...prev, NAT: Number.parseInt(e.target.value) }))
+                                            }
+                                            disabled={!!aiJobId}
+                                            className="h-10"
+                                        />
+                                        </div>
+                                        <div className="space-y-2">
+                                        <Label className="text-sm font-medium">DES Questions</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={customQuestionParams.DES}
+                                            onChange={(e) =>
+                                            setCustomQuestionParams((prev) => ({ ...prev, DES: Number.parseInt(e.target.value) }))
+                                            }
+                                            disabled={!!aiJobId}
+                                            className="h-10"
+                                        />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                    <Label className="text-sm font-medium">SML Questions</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={customQuestionParams.SML}
-                                        onChange={(e) =>
-                                        setCustomQuestionParams((prev) => ({ ...prev, SML: Number.parseInt(e.target.value) }))
-                                        }
+                                        <Label className="text-sm font-medium">Custom Prompt</Label>
+                                        <Textarea
+                                        value={customQuestionParams.prompt}
+                                        onChange={(e) => setCustomQuestionParams((prev) => ({ ...prev, prompt: e.target.value }))}
+                                        placeholder="Enter custom instructions for question generation..."
+                                        disabled={!!aiJobId}
+                                        className="min-h-[100px] resize-none"
+                                        rows={4}
+                                        />
+                                    </div>
+                                    </div>
+                                </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                            <div className=" rounded-xl border p-6 space-y-4 pb-10 mt-5 ">
+                                <h4 className="font-semibold text-base text-foreground mb-4">Upload Parameters</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="video-base-name" className="text-sm font-medium">
+                                        Video Item Name
+                                        </Label>
+                                        <Input
+                                        id="video-base-name"
+                                        value={uploadParams.videoItemBaseName}
+                                        onChange={(e) => setUploadParams((prev) => ({ ...prev, videoItemBaseName: e.target.value }))}
+                                        placeholder="video_item"
                                         disabled={!!aiJobId}
                                         className="h-10"
-                                    />
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                    <Label className="text-sm font-medium">NAT Questions</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={customQuestionParams.NAT}
-                                        onChange={(e) =>
-                                        setCustomQuestionParams((prev) => ({ ...prev, NAT: Number.parseInt(e.target.value) }))
-                                        }
+                                        <Label htmlFor="quiz-base-name" className="text-sm font-medium">
+                                        Quiz Item Name
+                                        </Label>
+                                        <Input
+                                        id="quiz-base-name"
+                                        value={uploadParams.quizItemBaseName}
+                                        onChange={(e) => setUploadParams((prev) => ({ ...prev, quizItemBaseName: e.target.value }))}
+                                        placeholder="quiz_item"
                                         disabled={!!aiJobId}
                                         className="h-10"
-                                    />
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                    <Label className="text-sm font-medium">DES Questions</Label>
-                                    <Input
+                                        <Label htmlFor="questions-per-quiz" className="text-sm font-medium">
+                                        Questions Per Quiz
+                                        </Label>
+                                        <Input
+                                        id="questions-per-quiz"
                                         type="number"
-                                        min={0}
-                                        value={customQuestionParams.DES}
-                                        onChange={(e) =>
-                                        setCustomQuestionParams((prev) => ({ ...prev, DES: Number.parseInt(e.target.value) }))
-                                        }
+                                        min={1}
+                                        value={uploadParams.questionsPerQuiz}
+                                        onChange={(e) => setUploadParams((prev) => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))}
                                         disabled={!!aiJobId}
                                         className="h-10"
-                                    />
+                                        />
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Custom Prompt</Label>
-                                    <Textarea
-                                    value={customQuestionParams.prompt}
-                                    onChange={(e) => setCustomQuestionParams((prev) => ({ ...prev, prompt: e.target.value }))}
-                                    placeholder="Enter custom instructions for question generation..."
-                                    disabled={!!aiJobId}
-                                    className="min-h-[100px] resize-none"
-                                    rows={4}
-                                    />
-                                </div>
-                                </div>
-                            </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                        <div className=" rounded-xl border p-6 space-y-4 pb-10 mt-5 ">
-                            <h4 className="font-semibold text-base text-foreground mb-4">Upload Parameters</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="video-base-name" className="text-sm font-medium">
-                                    Video Item Name
-                                    </Label>
-                                    <Input
-                                    id="video-base-name"
-                                    value={uploadParams.videoItemBaseName}
-                                    onChange={(e) => setUploadParams((prev) => ({ ...prev, videoItemBaseName: e.target.value }))}
-                                    placeholder="video_item"
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="quiz-base-name" className="text-sm font-medium">
-                                    Quiz Item Name
-                                    </Label>
-                                    <Input
-                                    id="quiz-base-name"
-                                    value={uploadParams.quizItemBaseName}
-                                    onChange={(e) => setUploadParams((prev) => ({ ...prev, quizItemBaseName: e.target.value }))}
-                                    placeholder="quiz_item"
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="questions-per-quiz" className="text-sm font-medium">
-                                    Questions Per Quiz
-                                    </Label>
-                                    <Input
-                                    id="questions-per-quiz"
-                                    type="number"
-                                    min={1}
-                                    value={uploadParams.questionsPerQuiz}
-                                    onChange={(e) => setUploadParams((prev) => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))}
-                                    disabled={!!aiJobId}
-                                    className="h-10"
-                                    />
                                 </div>
                             </div>
+                            <div className="border-t dark:border-gray-800  border-gray-200 mt-6"></div>
                         </div>
-                        <div className="border-t dark:border-gray-800  border-gray-200 mt-6"></div>
+                    )} */}
                     </div>
-                )} */}
-                </div>
-                    <div className="flex-1 w-full mt-5 space-y-3">
-                        
-                        <div className="relative w-full">
-                        <div
-                            className={`absolute left-3 top-1/2 -translate-y-1/2 text-red-500 transition-transform duration-300 ease-in-out ${
-                            youtubeUrl ? "scale-110" : "scale-100"
-                            }`}
-                        >
-                            <YoutubeIcon />
-                        </div>
-
-                        <Input
-                            placeholder="Enter YouTube URL"
-                            value={youtubeUrl}
-                            onChange={(e) => {
-                            setUrlError(null);
-                            setYoutubeUrl(e.target.value);
-                            }}
-                            disabled={!!aiJobId}
-                            onFocus={() => setShowAdvancedConfig(false)}
-                            className={`pl-10 flex-1 w-full border rounded-lg py-2.5 focus:ring-2 focus:ring-primary/50 transition-all duration-300 ease-in-out ${
-                            urlError ? "border-red-500" : "border-gray-300"
-                            }`}
-                        />
-
-                        {urlError && (
-                            <p 
-                            ref={errorRef}
-                            className="absolute left-0 mt-1 text-red-500 text-sm"
-                            style={{ top: '100%' }} 
-                            >
-                            {urlError}
-                            </p>
-                        )}
-                        </div>
-
-                        {/* Confirm Button */}
-                        <Button
-                            onClick={handleValidateURL}
-                            variant="default"
-                            disabled={isLoading}
-                            className="flex items-center gap-2 w-full mx-auto mt-5 sm:w-auto bg-primary text-black hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-transform duration-300 hover:scale-105"
-                            >
-                            {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin" /> 
-                            ) : (
-                                <CheckCircle className="w-5 h-5" />
-                            )}
-                            {isLoading ? "Validating..." : "Confirm URL"}
-                        </Button>
-                    </div>
-            </CardContent>:
-        <div className=" bg-gradient-to-br from-background to-muted/20 ">
-            
-            {isURLValidated && <Stepper currentJobData={currentJob}/> }
-
-            {isLoading && (
-                <div className="space-y-2  bg-card w-full">
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
-                    <div
-                        className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
-                    />
-                    </div>
-
-                    <div className="text-sm text-gray-600 font-medium text-center">
-                    {progress.toFixed(2)}% Completed
-                    </div>
-                </div>
-            )}
-            <div className="mx-auto">
-                <div className="bg-card shadow-lg p-8 space-y-6">
-                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
-                    <div className="flex items-center gap-3 pb-2">
-                        {currentJob?.task === "SEGMENTATION" ? (
-                        <>
-                            <Scissors className="w-6 h-6 dark:text-white" />
-                            <h2 className="text-xl font-bold">Segmenting Content</h2>
-                        </>
-                        ) : currentJob?.task === "QUESTION_GENERATION" ? (
-                        <>
-                            <HelpCircle className="w-6 h-6 dark:text-white" />
-                            <h2 className="text-xl font-bold">Generating Questions</h2>
-                        </>
-                        ) : currentJob?.task === "UPLOAD_CONTENT" ? (
-                        <>
-                            <CheckCircle className="w-6 h-6 text-green-500" />
-                            <h2 className="text-xl font-bold">Course Upload</h2>
-                        </>
-                        ) : (
-                        <>
-                            <Upload className="w-6 h-6 dark:text-white" />
-                            <h2 className="text-xl font-bold">Upload Audio</h2>
-                        </>
-                        )}
-                    </div>
-                    <Button
-                        onClick={handleRefreshStatus}
-                        variant="outline"
-                        className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                    </Button>
-                    </div>
-
-                    {/* Dynamic Content */}
-                    {currentJob?.task === "SEGMENTATION" ? (
-                        <SegmentationView
-                            isLoading={isLoading || isTaskResultLoading}
-                            error={error}
-                            segmentationMap={segmentationMap}
-                            segmentationChunks={segmentationChunks}
-                            segments={segments}
-                            isAiJobStarted={isAiJobStarted}
+                        <YoutubeUrlInput 
+                            handleValidateURL={handleValidateURL}
+                            isLoading={isLoading}
+                            setShowAdvancedConfig={setShowAdvancedConfig}
+                            setUrlError={setUrlError}
+                            setYoutubeUrl={setYoutubeUrl}
+                            urlError={urlError}
+                            youtubeUrl={youtubeUrl}
                             aiJobId={aiJobId}
-                            handleApproveTask={handleApproveTask}
-                            currentJobStatus = {currentJob.status}
-                            setCustomSegmentationParams ={setCustomSegmentationParams}
-                            customSegmentationParams = {customSegmentationParams}
                         />
-                    ) : currentJob?.task === "QUESTION_GENERATION" ? (
-                    <div className="py-12 text-center text-gray-500">
-                        {isLoading || isTaskResultLoading ? "Generating questions..." : "Question generation content goes here"}
-                        {isAiJobStarted && aiJobId && (
-                        <div className="flex justify-center">
-                            <Button
-                                disabled={isLoading}
-                                onClick={handleApproveTask}
-                                className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-                            >
-                                Generate question
-                                <Zap className="w-5 h-5" />
-                            </Button>
-                        </div>)}
-                    </div>
-                    ) : currentJob?.task === "UPLOAD_CONTENT" ? (
-                        <UploadContentView
-                            currentJobStatus = {currentJob.status} 
-                            setUploadParams = {setUploadParams}
-                            uploadParams = {uploadParams} 
-                            handleApproveTask = {handleApproveTask} 
-                            isLoading = {isLoading}
-                        />
-                    ) : (
-                    <>
-                        <p className="text-md text-gray-600 dark:text-gray-200">
-                        Select your preferred method to upload audio — via File, Link, or Recording.
-                        </p>
-                        <AudioTranscripter
-                            setIsAudioExtracting={setIsAudioExtracting}
-                            setIsTranscribing={setIsTranscribing}
-                            transcribedData={transcribedData}
-                            setTranscribedData={setTranscribedData}
-                            isRunningAiJob={!!aiJobId}
-                        />
-                        {isAiJobStarted && aiJobId && (
-                        <div className="flex justify-center">
-                            <Button
-                            onClick={handleApproveTask}
-                            disabled={isLoading}
-                            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                            >
-                            Next
-                            </Button>
-                        </div>
-                        )}
-                    </>
-                    )}
-                </div>
-            </div>
+                </CardContent>:
+                <div className=" bg-gradient-to-br from-background to-muted/20 ">
+                    
+                    { isURLValidated && <Stepper currentJobData={currentJob}/> }
 
-        </div>
-        }
-    </Card>
+                    {isLoading && (
+                        <div className="space-y-2  bg-card w-full">
+                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                                <div
+                                    className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+
+                            <div className="text-sm text-gray-600 font-medium text-center">
+                            {progress.toFixed(2)}% Completed
+                            </div>
+                        </div>
+                    )}
+                    <div className="mx-auto">
+                        <div className="bg-card shadow-lg p-8 space-y-6">
+                            
+                            <JobHeader currentJob={currentJob} handleRefreshStatus={handleRefreshStatus} />
+
+                            {currentJob?.task === "SEGMENTATION" ? (
+                                <SegmentationView
+                                    isLoading={isLoading || isTaskResultLoading}
+                                    error={error}
+                                    segmentationMap={segmentationMap}
+                                    segmentationChunks={segmentationChunks}
+                                    segments={segments}
+                                    isAiJobStarted={isAiJobStarted}
+                                    aiJobId={aiJobId}
+                                    handleApproveTask={handleApproveTask}
+                                    currentJobStatus = {currentJob.status}
+                                    setCustomSegmentationParams ={setCustomSegmentationParams}
+                                    customSegmentationParams = {customSegmentationParams}
+                                />
+                            ) : currentJob?.task === "QUESTION_GENERATION" ? (
+                                <QuestionGenerationView
+                                    isLoading={isLoading}
+                                    isTaskResultLoading={isTaskResultLoading}
+                                    error={error}
+                                    questions={questions}
+                                    isAiJobStarted={isAiJobStarted}
+                                    aiJobId={aiJobId}
+                                    handleApproveTask={handleApproveTask}
+                                    setEditingIdx={setEditingIdx}
+                                    setEditQuestion={setEditQuestion}
+                                    setEditModalOpen={setEditModalOpen}
+                                    editModalOpen={editModalOpen}
+                                    editQuestion={editQuestion}
+                                    editingIdx={editingIdx}
+                                    currentJobStatus={currentJob.status}
+                                    customQuestionParams={customQuestionParams}
+                                    setCustomQuestionParams={setCustomQuestionParams}
+                                />
+                            ) : currentJob?.task === "UPLOAD_CONTENT" ? (
+                                <UploadContentView
+                                    currentJobStatus = {currentJob.status} 
+                                    setUploadParams = {setUploadParams}
+                                    uploadParams = {uploadParams} 
+                                    handleApproveTask = {handleApproveTask} 
+                                    isLoading = {isLoading}
+                                />
+                            ) : (
+                            <>
+                                <p className="text-md text-gray-600 dark:text-gray-200">
+                                Select your preferred method to upload audio — via File, Link, or Recording.
+                                </p>
+                                <AudioTranscripter
+                                    setIsAudioExtracting={setIsAudioExtracting}
+                                    setIsTranscribing={setIsTranscribing}
+                                    transcribedData={transcribedData}
+                                    setTranscribedData={setTranscribedData}
+                                    isRunningAiJob={!!aiJobId}
+                                    jobError={error}
+                                    retryAiJob={handleCreateJob}
+                                    isCreatingAiJob={isCreatingAiJob}
+                                />
+                                {isAiJobStarted && aiJobId && (
+                                <div className="flex justify-center">
+                                    <Button
+                                    onClick={handleApproveTask}
+                                    disabled={isLoading}
+                                    className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    >
+                                    Next
+                                    </Button>
+                                </div>
+                                )}
+                            </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            }
+        </Card>
+    </div>)}
+
+interface JobHeaderProps {
+  currentJob?: {status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null;
+  handleRefreshStatus: () => void;
+}
+const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }) => {
+  const renderJobInfo = () => {
+    switch (currentJob?.task) {
+      case "SEGMENTATION":
+        return (
+          <>
+            <Scissors className="w-6 h-6 dark:text-white" />
+            <h2 className="text-xl font-bold">Segmenting Content</h2>
+          </>
+        );
+      case "QUESTION_GENERATION":
+        return (
+          <>
+            <HelpCircle className="w-6 h-6 dark:text-white" />
+            <h2 className="text-xl font-bold">Generating Questions</h2>
+          </>
+        );
+      case "UPLOAD_CONTENT":
+        return (
+          <>
+            <CheckCircle className="w-6 h-6 text-green-500" />
+            <h2 className="text-xl font-bold">Course Upload</h2>
+          </>
+        );
+      default:
+        return (
+          <>
+            <Upload className="w-6 h-6 dark:text-white" />
+            <h2 className="text-xl font-bold">Upload Audio</h2>
+          </>
+        );
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
+      <div className="flex items-center gap-3 pb-2">{renderJobInfo()}</div>
+      <Button
+        onClick={handleRefreshStatus}
+        variant="outline"
+        className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+      >
+        <RefreshCw className="w-4 h-4" />
+      </Button>
     </div>
-  )
+  );
+};
+interface YoutubeUrlInputProps {
+  youtubeUrl: string;
+  setYoutubeUrl: (url: string) => void;
+  urlError: string | null;
+  setUrlError: (error: string | null) => void;
+  aiJobId: string | null;
+  isLoading: boolean;
+  handleValidateURL: () => void;
+  setShowAdvancedConfig: (show: boolean) => void;
 }
 
+export const YoutubeUrlInput = ({
+  youtubeUrl,
+  setYoutubeUrl,
+  urlError,
+  setUrlError,
+  aiJobId,
+  isLoading,
+  handleValidateURL,
+  setShowAdvancedConfig
+}: YoutubeUrlInputProps) => {
 
+  return (
+    <div className="flex-1 w-full mt-5 space-y-3">
+      <div className="relative w-full">
+        <div
+          className={`absolute left-3 top-1/2 -translate-y-1/2 text-red-500 transition-transform duration-300 ease-in-out ${
+            youtubeUrl ? "scale-110" : "scale-100"
+          }`}
+        >
+          <YoutubeIcon />
+        </div>
+
+        <Input
+          placeholder="Enter YouTube URL"
+          value={youtubeUrl}
+          onChange={(e) => {
+            setUrlError(null);
+            setYoutubeUrl(e.target.value);
+          }}
+          disabled={!!aiJobId}
+          onFocus={() => setShowAdvancedConfig(false)}
+          className={`pl-10 flex-1 w-full border rounded-lg py-2.5 focus:ring-2 focus:ring-primary/50 transition-all duration-300 ease-in-out ${
+            urlError ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+
+        {urlError && (
+          <p
+            className="absolute left-0 mt-1 text-red-500 text-sm"
+            style={{ top: "100%" }}
+          >
+            {urlError}
+          </p>
+        )}
+      </div>
+
+      <Button
+        onClick={handleValidateURL}
+        variant="default"
+        disabled={isLoading}
+        className="flex items-center gap-2 w-full mx-auto mt-5 sm:w-auto bg-primary text-black hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-transform duration-300 hover:scale-105"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" /> Validating...
+          </>
+        ) : (
+          <>
+            <CheckCircle className="w-5 h-5" /> Confirm URL
+          </>
+        )}
+      </Button>
+    </div>
+  );
+};
 
 const YoutubeIcon = () => (
   <svg 
@@ -1353,6 +1449,434 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   );
 });
 
+interface QuestionGenerationResultProps {
+  isLoading: boolean;
+  isTaskResultLoading: boolean;
+  error: string | null;
+  questions: any[];
+  isAiJobStarted: boolean;
+  editModalOpen: boolean;
+  aiJobId: string | null;
+  handleApproveTask: () => void;
+  setEditingIdx: (idx: number) => void;
+  setEditQuestion: (q: any) => void;
+  setEditModalOpen: (open: boolean) => void;
+  editQuestion: any
+  editingIdx: number | null
+  currentJobStatus: string;
+  customQuestionParams: QuestionGenerationParameters,
+  setCustomQuestionParams: React.Dispatch<React.SetStateAction<QuestionGenerationParameters>>
+}
+
+const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
+  isLoading,
+  isTaskResultLoading,
+  error,
+  questions,
+  isAiJobStarted,
+  aiJobId,
+  handleApproveTask,
+  setEditingIdx,
+  setEditQuestion,
+  setEditModalOpen,
+  editModalOpen,
+  editQuestion,
+  editingIdx,
+  currentJobStatus,
+  customQuestionParams,
+  setCustomQuestionParams
+}) => {
+  const [showSOL, setShowSOL] = useState(false);
+  const [showSML, setShowSML] = useState(false);
+  const segmentIds = Array.from(
+    new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
+  ).sort((a, b) => a - b);
+
+
+  return (
+    <div className="py-12 text-center text-gray-500">
+
+     {currentJobStatus === "WAITING" && (
+        <AccordionItem value="questions" className="border-b-0">
+            <AccordionTrigger className="px-6 py-4 text-base font-medium hover:bg-muted/50">
+            Question Generation Settings
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 pt-2">
+            <div className="space-y-6">
+                {/* Model Selection */}
+                <div className="space-y-2">
+                <Label className="text-sm font-medium">Model</Label>
+                <Select
+                    value={customQuestionParams.model}
+                    onValueChange={(value) =>
+                    setCustomQuestionParams((prev) => ({ ...prev, model: value }))
+                    }
+                    disabled={!!aiJobId}
+                >
+                    <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
+                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                    <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                    </SelectContent>
+                </Select>
+                </div>
+
+                {/* Multi-select Simulation */}
+                <div className="space-y-2">
+                <Label className="text-sm font-medium">Question Types</Label>
+                <div className="flex gap-4">
+                    <Button
+                    type="button"
+                    variant={showSOL ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowSOL((prev) => !prev)}
+                    disabled={!!aiJobId}
+                    >
+                    MCQ (SOL)
+                    </Button>
+                    <Button
+                    type="button"
+                    variant={showSML ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowSML((prev) => !prev)}
+                    disabled={!!aiJobId}
+                    >
+                    MSQ (SML)
+                    </Button>
+                </div>
+                </div>
+
+                {/* Dynamic Inputs */}
+                <div className="grid grid-cols-2 gap-4">
+                {showSOL && (
+                    <div className="space-y-2">
+                    <Label className="text-sm font-medium">MCQ Count</Label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={customQuestionParams.SQL}
+                        onChange={(e) =>
+                        setCustomQuestionParams((prev) => ({
+                            ...prev,
+                            SOL: Number.parseInt(e.target.value),
+                        }))
+                        }
+                        disabled={!!aiJobId}
+                        className="h-10"
+                    />
+                    </div>
+                )}
+                {showSML && (
+                    <div className="space-y-2">
+                    <Label className="text-sm font-medium">MSQ Count</Label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={customQuestionParams.SML}
+                        onChange={(e) =>
+                        setCustomQuestionParams((prev) => ({
+                            ...prev,
+                            SML: Number.parseInt(e.target.value),
+                        }))
+                        }
+                        disabled={!!aiJobId}
+                        className="h-10"
+                    />
+                    </div>
+                )}
+                </div>
+            </div>
+            </AccordionContent>
+        </AccordionItem>
+    )}
+
+      {isLoading || isTaskResultLoading ? (
+        "Generating questions..."
+      ) : (
+        <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+          <strong>Questions:</strong>
+          {isLoading && <div className="mt-2">Loading...</div>}
+          {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+          {!isLoading && !error && questions.length > 0 && (
+            <ol className="mt-2 space-y-4">
+              {questions.map((q, idx) => {
+                let segIdx = segmentIds.findIndex((sid) => sid === q.segmentId);
+                let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
+                let segEnd = q.segmentId;
+
+                return (
+                  <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      Segment: {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"} | Type: {q.questionType || q.question?.type || "N/A"}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
+                      <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                        <Edit className="w-4 h-4" /> Edit
+                      </Button>
+                    </div>
+                    {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                    {q.solution && (
+                      <>
+                        <div className="mt-1"><b>Options:</b></div>
+                        <ul className="list-disc ml-6">
+                          {q.solution.incorrectLotItems?.map((opt: any, oIdx: any) => (
+                            <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
+                          ))}
+                          {q.solution.correctLotItems?.map((opt: any, oIdx: any) => (
+                            <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
+                          ))}
+                          {q.solution.correctLotItem && (
+                            <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                          )}
+                        </ul>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {!isLoading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+        </div>
+      )}
+      <EditQuestionDialog
+            editModalOpen={editModalOpen}
+            setEditModalOpen={setEditModalOpen}
+            editQuestion={editQuestion}
+            questions={questions}
+            editingIdx={editingIdx || 0}
+            aiJobId={aiJobId}
+            aiSectionAPI={aiSectionAPI}
+        />
+      {isAiJobStarted && aiJobId && (
+        <div className="flex justify-center">
+          <Button
+            disabled={isLoading}
+            onClick={handleApproveTask}
+            className="w-full sm:w-auto mt-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+          >
+            Generate question
+            <Zap className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface EditQuestionDialogProps {
+  editModalOpen: boolean;
+  setEditModalOpen: (open: boolean) => void;
+  editQuestion: any;
+  questions: any[];
+  editingIdx: number;
+  aiJobId: string | null;
+  aiSectionAPI: any;
+}
+
+const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
+  editModalOpen,
+  setEditModalOpen,
+  editQuestion,
+  questions,
+  editingIdx,
+  aiJobId,
+  aiSectionAPI
+}) => {
+  return (
+    <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit Question</DialogTitle>
+        </DialogHeader>
+        {editQuestion && (
+          <QuestionEditForm
+            question={editQuestion}
+            onSave={async (edited) => {
+              if (!aiJobId || typeof aiSectionAPI.editQuestionData !== 'function') return;
+              try {
+                const updatedQuestions = questions.map((q, idx) =>
+                  idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
+                );
+                await aiSectionAPI.editQuestionData(aiJobId, 0, updatedQuestions);
+                setEditModalOpen(false);
+              } catch (e) {
+                toast.error('Question Updated.');
+                setEditModalOpen(false);
+              }
+            }}
+            onCancel={() => setEditModalOpen(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const QuestionEditForm = ({ question, onSave, onCancel }: {
+    question: any;
+    onSave: (edited: any) => void;
+    onCancel: () => void;
+  }) => {
+
+    // Normalize question object to handle both flat and nested (with .question and .solution)
+    const typeMap: Record<string, string> = {
+      SOL: 'SELECT_ONE_IN_LOT',
+      MUL: 'SELECT_MANY_IN_LOT',
+      // Add more mappings if needed
+    };
+
+    const normalized = React.useMemo(() => {
+      if ('question' in question && typeof question.question === 'object') {
+        const mappedType = typeMap[question.question.type] || question.question.type;
+        return {
+          ...question.question,
+          type: mappedType,
+          solution: question.solution,
+        };
+      }
+      // If already flat, also map type
+      return {
+        ...question,
+        type: typeMap[question.type] || question.type,
+      };
+    }, [question]);
+
+    const initialOptions = React.useMemo(() => {
+      if (normalized.solution) {
+        // Handle both correctLotItem (single correct) and correctLotItems (multiple correct)
+        const correct = normalized.solution.correctLotItems
+          ? normalized.solution.correctLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true }))
+          : normalized.solution.correctLotItem
+            ? [{ text: normalized.solution.correctLotItem.text, explaination: normalized.solution.correctLotItem.explaination, correct: true }]
+            : [];
+        const incorrect = normalized.solution.incorrectLotItems
+          ? normalized.solution.incorrectLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false }))
+          : [];
+        // Combine (correct first, then incorrect)
+        return [...correct, ...incorrect];
+      }
+      // fallback: if options array exists (for generated questions)
+      if (Array.isArray(normalized.options)) {
+        let correctIndices: number[] = [];
+        if (normalized.type === 'SELECT_ONE_IN_LOT' && typeof normalized.correctAnswer === 'number') {
+          correctIndices = [normalized.correctAnswer];
+        } else if (normalized.type === 'SELECT_MANY_IN_LOT' && Array.isArray(normalized.correctAnswer)) {
+          correctIndices = normalized.correctAnswer;
+        }
+        return normalized.options.map((opt: string, idx: number) => ({
+          text: opt,
+          explaination: '',
+          correct: correctIndices.includes(idx),
+        }));
+      }
+      return [];
+    }, [normalized]);
+
+    const [questionText, setQuestionText] = React.useState(normalized.text || normalized.question || '');
+    const [options, setOptions] = React.useState(initialOptions);
+
+    // Sync state with normalized question
+    React.useEffect(() => {
+      setQuestionText(normalized.text || normalized.question || '');
+      setOptions(initialOptions);
+    }, [normalized, initialOptions]);
+
+    const handleOptionText = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, text: value } : o));
+    const handleOptionExplain = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, explaination: value } : o));
+    const handleCorrect = (idx: number, checked: boolean) => {
+      setOptions((opts: any[]) => opts.map((o, i) =>
+        normalized.type === 'SELECT_ONE_IN_LOT'
+          ? { ...o, correct: i === idx }
+          : i === idx ? { ...o, correct: checked } : o
+      ));
+    };
+    const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
+    const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
+
+    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim() && o.explaination.trim()) && options.some((o: any) => o.correct);
+
+    const buildSolution = () => {
+      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      if (normalized.type === 'SELECT_ONE_IN_LOT') {
+        return {
+          correctLotItem: correctOpts[0] || { text: '', explaination: '' },
+          incorrectLotItems: incorrectOpts,
+        };
+      } else if (normalized.type === 'SELECT_MANY_IN_LOT') {
+        return {
+          correctLotItems: correctOpts,
+          incorrectLotItems: incorrectOpts,
+        };
+      }
+      return undefined;
+    };
+
+    return (
+      <div className="space-y-4 max-h-[80vh] overflow-y-auto">
+        <div>
+          <Label htmlFor="question-text">Question Text</Label>
+          <Textarea
+            id="question-text"
+            value={questionText}
+            onChange={e => setQuestionText(e.target.value)}
+            placeholder="Enter question text"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Options</Label>
+          <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto pr-2">
+            {options.map((option: any, idx: number) => (
+              <div key={idx} className="flex flex-col gap-1 border rounded p-2 bg-background">
+                <div className="flex items-center gap-2">
+                  {normalized.type === 'SELECT_ONE_IN_LOT' ? (
+                    <input type="radio" checked={option.correct} onChange={() => handleCorrect(idx, true)} />
+                  ) : (
+                    <input type="checkbox" checked={option.correct} onChange={e => handleCorrect(idx, e.target.checked)} />
+                  )}
+                  <Input
+                    value={option.text}
+                    onChange={e => handleOptionText(idx, e.target.value)}
+                    placeholder={`Option ${idx + 1}`}
+                    className="flex-1"
+                  />
+                  <Button variant="ghost" size="sm" onClick={() => handleRemoveOption(idx)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                </div>
+                <Textarea
+                  value={option.explaination}
+                  onChange={e => handleOptionExplain(idx, e.target.value)}
+                  placeholder="Explanation for this option (why correct/incorrect)"
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={handleAddOption} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Option</Button>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-4">
+          <Button onClick={() => {
+            const solution = buildSolution();
+            onSave({ text: questionText, solution });
+          }} className="flex-1" disabled={!canSave}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+          <Button variant="outline" onClick={onCancel} className="flex-1">
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+};
+
 const SegmentationView = ({
   isLoading,
   error,
@@ -1466,11 +1990,6 @@ const SegmentationView = ({
   );
 };
 
-interface UploadParams {
-  videoItemBaseName: string;
-  quizItemBaseName: string;
-  questionsPerQuiz: number;
-}
 
 interface UploadContentProps {
   currentJobStatus: string;
@@ -1531,7 +2050,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
                 id="questions-per-quiz"
                 type="number"
                 min={1}
-                value={uploadParams.questionsPerQuiz}
+                value={uploadParams.questionsPerQuiz || 1}
                 onChange={(e) =>
                 setUploadParams((prev) => ({ ...prev, questionsPerQuiz: Number(e.target.value) }))
                 }

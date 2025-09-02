@@ -10,6 +10,9 @@ interface IAudioTranscripter {
     setIsTranscribing: (value: boolean) => void;
     setIsAudioExtracting: (value: boolean) => void;
     isRunningAiJob: boolean;
+    isCreatingAiJob: boolean;
+    jobError: string;
+    retryAiJob: () => void
 }
 
 // Validation
@@ -137,10 +140,16 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         </div>
                     </div>
                 )}
-                <AudioManager transcriber={transcriber} isDisableButton={
-                    (transcriber.output?.text && !props.isRunningAiJob) ? false : 
+                <AudioManager 
+                    transcriber={transcriber} 
+                    isDisableButton={
+                    (transcriber.output?.text && !props.isRunningAiJob && !props.isCreatingAiJob) ? false : 
                     (!!transcriber.output?.text || props.isRunningAiJob)
-                } isTranscriptionCompleted = {props.isRunningAiJob} isTranscribing = {transcriber.isBusy}
+                    } 
+                    isTranscriptionCompleted = {props.isRunningAiJob} isTranscribing = {transcriber.isBusy}
+                    jobError = {props.jobError}
+                    retryAiJob = {props.retryAiJob}
+                    isCreatingAiJob = {props.isCreatingAiJob}
                 />
                  
             </div>
