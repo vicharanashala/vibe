@@ -46,13 +46,14 @@ const AiWorkflow = () => {
     const [uploadParams, setUploadParams] = useState({
     videoItemBaseName: "video_item",
     quizItemBaseName: "quiz_item",
-    questionsPerQuiz: 1,
+    audioProvided: true,
+    questionsPerQuiz: null,
     });
 
     const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
         model: "deepseek-r1:70b",
-        SOL: 1,
+        SQL: 1,
         SML: 0,
         NAT: 0,
         DES: 0,
@@ -364,32 +365,32 @@ const AiWorkflow = () => {
             sectionId: currentCourse.sectionId,
             videoItemBaseName: uploadParams.videoItemBaseName,
             quizItemBaseName: uploadParams.quizItemBaseName,
-            questionsPerQuiz: uploadParams.questionsPerQuiz,
+            // questionsPerQuiz: uploadParams.questionsPerQuiz,
         };
 
 
-        jobParams.segmentationParameters = {
-            lam: customSegmentationParams.lam ?? 4.5,
-            runs: customSegmentationParams.runs ?? 25,
-            noiseId: customSegmentationParams.noiseId ?? -1,
-        };
+        // jobParams.segmentationParameters = {
+        //     lam: customSegmentationParams.lam ?? 4.5,
+        //     runs: customSegmentationParams.runs ?? 25,
+        //     noiseId: customSegmentationParams.noiseId ?? -1,
+        // };
 
-        jobParams.questionGenerationParameters = {
-            model: customQuestionParams.model || "deepseek-r1:70b",
-            SOL: customQuestionParams.SOL ?? 1,
-            SML: customQuestionParams.SML ?? 0,
-            NAT: customQuestionParams.NAT ?? 0,
-            DES: customQuestionParams.DES ?? 0,
-            prompt:
-            customQuestionParams.prompt ||
-            `Focus on conceptual understanding
-    - Test comprehension of key ideas, principles, and relationships discussed in the content
-    - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
-    - The answer of questions should be present within the content, but not directly quoted
-    - Make all the options roughly the same length
-    - Set isParameterized to false unless the question uses variables
-    - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
-        };
+    //     jobParams.questionGenerationParameters = {
+    //         model: customQuestionParams.model || "deepseek-r1:70b",
+    //         SOL: customQuestionParams.SOL ?? 1,
+    //         SML: customQuestionParams.SML ?? 0,
+    //         NAT: customQuestionParams.NAT ?? 0,
+    //         DES: customQuestionParams.DES ?? 0,
+    //         prompt:
+    //         customQuestionParams.prompt ||
+    //         `Focus on conceptual understanding
+    // - Test comprehension of key ideas, principles, and relationships discussed in the content
+    // - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
+    // - The answer of questions should be present within the content, but not directly quoted
+    // - Make all the options roughly the same length
+    // - Set isParameterized to false unless the question uses variables
+    // - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
+    //     };
         // }
 
         // Create AI Job
