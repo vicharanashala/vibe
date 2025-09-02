@@ -205,7 +205,6 @@ export default function TeacherCoursePage() {
     ) {
       refetchVersion();
       refetchItems();
-      refetchItem()
 
       if (activeSectionInfo) {
         setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
@@ -341,7 +340,7 @@ export default function TeacherCoursePage() {
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems(); refetchItem()
+      refetchItems();
     });
   };
 
@@ -353,7 +352,7 @@ export default function TeacherCoursePage() {
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems(); refetchItem()
+      refetchItems();
     });
   };
 
@@ -381,7 +380,6 @@ export default function TeacherCoursePage() {
         }
       }).then((res) => {
         refetchVersion();
-        refetchItems(); refetchItem()
       });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
@@ -1119,7 +1117,7 @@ export default function TeacherCoursePage() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                refetchItems();
                               });
                             }
                             if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
@@ -1137,7 +1135,7 @@ export default function TeacherCoursePage() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                refetchItems();
                               });
                             }
                             if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
@@ -1178,7 +1176,7 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems(); refetchItem()
+                                  refetchItems();
                                 });
                                 setSelectedEntity(null);
                                 setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
@@ -1190,7 +1188,7 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems(); refetchItem()
+                                  refetchItems();
                                 });
                                 setSelectedEntity(null);
                                 setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
@@ -1284,7 +1282,7 @@ export default function TeacherCoursePage() {
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
                             refetchVersion();
-                            refetchItems(); refetchItem()
+                            refetchItems();
                           });
                           setSelectedEntity(null);
                         }}
