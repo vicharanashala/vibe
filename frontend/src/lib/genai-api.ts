@@ -95,7 +95,7 @@ export interface SegmentationParameters {
 
 export interface QuestionGenerationParameters {
   model?: string;
-  SOL?: number;
+  SQL?: number;
   SML?: number;
   NAT?: number;
   DES?: number;
@@ -103,7 +103,7 @@ export interface QuestionGenerationParameters {
 }
 
 export interface Chunk {
-  timestamp: number[];  
+  timestamp: number[];
   text: string;
 }
 
@@ -113,7 +113,7 @@ export interface Transcript {
 
 // 1. Create GenAI Job
 export const createGenAIJob = async (
-  params:{
+  params: {
     videoUrl: string;
     transcript?: Transcript;
     courseId: string;
@@ -164,19 +164,19 @@ export const createGenAIJob = async (
   };
 
   // Add transcription chunks
-  if (transcript) 
+  if (transcript)
     body.transcript = transcript
-  
+
   // Add optional task parameters if provided
-  if (transcriptParameters) 
+  if (transcriptParameters)
     body.transcriptParameters = transcriptParameters;
-  
-  if (segmentationParameters) 
+
+  if (segmentationParameters)
     body.segmentationParameters = segmentationParameters;
-  
-  if (questionGenerationParameters) 
+
+  if (questionGenerationParameters)
     body.questionGenerationParameters = questionGenerationParameters;
-  
+
 
   const response = await makeAuthenticatedRequest('/genai/jobs', {
     method: 'POST',
@@ -583,7 +583,7 @@ export const aiSectionAPI: {
   stopJobTask?: typeof stopJobTask;
 
 } = {
-  createJob: createGenAIJob, 
+  createJob: createGenAIJob,
   getJobStatus,
   postJobTask,
   stopJobTask,
