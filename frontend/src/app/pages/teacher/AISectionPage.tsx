@@ -863,7 +863,15 @@ export default function AISectionPage() {
         {/* Show Start Transcription button for transcription task when audio extraction is completed */}
         {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && (
           <div className="mb-4">
-            <TooltipProvider>
+            <Button
+              onClick={handleStartTranscription}
+              variant="default"
+              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+              className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+            >
+              Start Transcription Task
+            </Button>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -893,7 +901,7 @@ export default function AISectionPage() {
                   )}
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
           </div>
         )}
         {/* Always show question generation parameter inputs for 'question' task */}
