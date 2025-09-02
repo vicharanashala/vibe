@@ -19,10 +19,10 @@ const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
   children: [
-    // {
-    //   path: "dashboard",
-    //   element: <Dashboard />,
-    // },
+    {
+      path: "dashboard",
+      element: <Dashboard />,
+    },
     {
       path: "profile",
       element: <TeacherProfile />,

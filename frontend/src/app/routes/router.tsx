@@ -35,7 +35,7 @@ import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
-
+import Page from '../pages/teacher/dashboard'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -155,11 +155,11 @@ const studentLayoutRoute = new Route({
 });
 
 // Teacher dashboard route
-// const teacherDashboardRoute = new Route({
-//   getParentRoute: () => teacherLayoutRoute,
-//   path: '/',
-//   component: Dashboard,
-// });
+const teacherDashboardRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/dashboard',
+  component: Page,
+});
 
 // Teacher profile route
 const teacherProfileRoute = new Route({
@@ -328,7 +328,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   teacherLayoutRoute.addChildren([
-    // teacherDashboardRoute,
+    teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
     teacherViewCourseRoute,teacherCourseFlagsRoute,

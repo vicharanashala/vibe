@@ -288,14 +288,14 @@ export default function Page() {
         <section className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
           <div className="relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-md">
-            <div className="flex flex-wrap justify-between items-center mb-4">
+            {/* <div className="flex flex-wrap justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
               <Button variant="outline" size="sm" className="rounded-lg border-primary/30 bg-background/70 hover:bg-primary/10 transition-all duration-300">
                 <Plus className="h-4 w-4 mr-2" />
                 More Actions
               </Button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            </div> */}
+            <div className="w-full max-w-[900px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
               <AnimatedActionCard icon={<BookOpen className="h-6 w-6" />} label="Add Course" />
               <AnimatedActionCard icon={<FileText className="h-6 w-6" />} label="Create Article" />
               <AnimatedActionCard icon={<ClipboardCheck className="h-6 w-6" />} label="New Assignment" />
@@ -612,19 +612,62 @@ export default function Page() {
 
 // AnimatedActionCard: beautiful animated quick action card
 function AnimatedActionCard({ icon, label }: { icon: React.ReactNode; label: string }) {
+  
+  const getCardStyles = (label: string) => {
+    switch (label.toLowerCase()) {
+      case 'add course':
+        return {
+          bgGradient: 'from-amber-500/10 to-amber-600/10',
+          border: 'border border-amber-500/20',
+          iconBg: 'bg-amber-600',
+          color: 'text-amber-600',
+        };
+      case 'create article':
+        return {
+          bgGradient: 'from-blue-500/10 to-blue-600/10',
+          border: 'border border-blue-500/20',
+          iconBg: 'bg-blue-600',
+          color: 'text-blue-600',
+        };
+      case 'new assignment':
+        return {
+          bgGradient: 'from-emerald-500/10 to-emerald-600/10',
+          border: 'border border-emerald-500/20',
+          iconBg: 'bg-emerald-600',
+          color: 'text-emerald-600',
+        };
+      case 'create quiz':
+        return {
+          bgGradient: 'from-purple-500/10 to-purple-600/10',
+          border: 'border border-purple-500/20',
+          iconBg: 'bg-purple-600',
+          color: 'text-purple-600',
+        };
+      default:
+        return {
+          bgGradient: 'from-primary/10 to-accent/10',
+          border: 'border border-primary/20',
+          iconBg: 'bg-primary',
+          color: 'text-primary',
+        };
+    }
+  };
+
+  const { bgGradient, border, iconBg, color } = getCardStyles(label);
+
   return (
     <button
       type="button"
-      className="group relative flex flex-col items-center justify-center h-24 px-4 py-3 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/40"
+      className={`group relative flex flex-col items-center justify-center h-38 px-4 py-4 rounded-xl ${bgGradient} ${border} shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/40`}
       tabIndex={0}
     >
       <span className="relative flex items-center justify-center mb-2">
         <span className="absolute inset-0 rounded-full bg-primary/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-        <span className="relative text-primary group-hover:scale-110 transition-transform duration-300">
+        <span className={`relative text-white ${iconBg} p-3 rounded-md group-hover:scale-110 transition-transform duration-300`}>
           {icon}
         </span>
       </span>
-      <span className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors duration-300">
+      <span className={`font-semibold ${color} text-sm transition-colors duration-300`}>
         {label}
       </span>
     </button>
