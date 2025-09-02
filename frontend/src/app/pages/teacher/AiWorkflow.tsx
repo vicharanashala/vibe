@@ -5,14 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
+import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
 import { TranscriberData } from '@/hooks/useTranscriber';
 import { useNavigate } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -677,7 +677,7 @@ const AiWorkflow = () => {
 
                     {isLoading && (
                         <div className="space-y-2  bg-card w-full">
-                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
                                 <div
                                     className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
                                     style={{ width: `${progress}%` }}
@@ -699,6 +699,7 @@ const AiWorkflow = () => {
                                     isLoading={isLoading}
                                     isTaskResultLoading={isTaskResultLoading}
                                     error={error}
+                                    aiJobId={aiJobId}
                                     segmentationMap={segmentationMap}
                                     segmentationChunks={segmentationChunks}
                                     segments={segments}
@@ -1149,8 +1150,8 @@ interface QuestionGenerationResultProps {
     }) => {
 
     const isLocked = Boolean(!aiJobId)
-    const [showMCQ, setShowMCQ] = React.useState<boolean>(false)
-    const [showMSQ, setShowMSQ] = React.useState<boolean>(false)
+    const [showMCQ, setShowMCQ] = useState(false)
+    const [showMSQ, setShowMSQ] = useState(false)
 
     const clampInt = (val: string, min = 0, max = 100) => {
         const n = Number.parseInt(val, 10)
@@ -1749,6 +1750,7 @@ const SegmentationView = ({
   isLoading,
   isTaskResultLoading,
   error,
+  aiJobId,
   segmentationMap,
   segmentationChunks,
   segments,
@@ -1758,13 +1760,108 @@ const SegmentationView = ({
   setCustomSegmentationParams,
   updateCurrentJob
 }: any) => {
-  const isAnyLoading = isLoading || isTaskResultLoading;
-  const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
-  const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
 
-  const handleNext = () => {
-    updateCurrentJob ("questionGeneration", "WAITING");
-  }
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editSegMap, setEditSegMap] = useState<number[]>([]);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState("");
+        // Add state for transcriptChunks in the edit modal
+    const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+
+    const isAnyLoading = isLoading || isTaskResultLoading;
+    const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
+    const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
+
+    const handleEditSegChange = (idx: number, value: string) => {
+        const newMap = [...editSegMap];
+        newMap[idx] = parseFloat(value);
+        setEditSegMap(newMap);
+    };
+    const handleAddSeg = () => {
+        const newMap = [...editSegMap];
+        const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
+        newMap.push(prev + 10);
+        setEditSegMap(newMap);
+    };
+    const handleRemoveSeg = (idx: number) => {
+        if (editSegMap.length <= 1) return;
+        const newMap = [...editSegMap];
+        newMap.splice(idx, 1);
+        setEditSegMap(newMap);
+    };
+
+    const handleOpenEditModal = async () => {
+      if (!aiJobId) return;
+      setEditLoading(true);
+      setEditError("");
+      setEditModalOpen(true);
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to fetch segmentation status');
+        const arr = await res.json();
+        if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
+          setEditSegMap([...arr[0].segmentationMap]);
+          // Fetch transcript chunks
+          const transcriptRes = await fetch(arr[0].transcriptFileUrl);
+          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+          const transcriptData = await transcriptRes.json();
+          setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
+        } else {
+          setEditError('Segmentation map or transcript not found.');
+          setEditSegMap([]);
+          setEditTranscriptChunks([]);
+        }
+      } catch (e: any) {
+        setEditError(e.message || 'Unknown error');
+        setEditSegMap([]);
+        setEditTranscriptChunks([]);
+      } finally {
+        setEditLoading(false);
+      }
+    };
+    
+    async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
+      const token = localStorage.getItem('firebase-auth-token');
+      const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+      const body = JSON.stringify({ segmentMap, index });
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body,
+      });
+      if (res.status === 200) return;
+      let errMsg = 'Unknown error';
+      try { errMsg = (await res.json()).message || errMsg; } catch { }
+      if (res.status === 400) throw new Error('Bad request: ' + errMsg);
+      if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
+      if (res.status === 404) throw new Error('Job not found: ' + errMsg);
+      throw new Error(errMsg);
+    }
+
+    const handleSaveEditSeg = async () => {
+        setEditLoading(true);
+        setEditError("");
+        try {
+          // Use index 0 for the backend (fixes 500 error)
+          await editSegmentMap(aiJobId, editSegMap, 0);
+          toast.success('Segment map updated successfully!');
+          setEditModalOpen(false);
+        } catch (e: any) {
+          setEditError(e.message || 'Failed to update segment map');
+        } finally {
+          setEditLoading(false);
+        }
+    };
+  
+
+    const handleNext = () => {
+        updateCurrentJob ("questionGeneration", "WAITING");
+    }
 
   return (
     <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
@@ -1792,7 +1889,87 @@ const SegmentationView = ({
             </svg>
             Loading segmentation...
         </div>
-      ) : hasSegmentationData ? (
+      ) : hasSegmentationData ?(
+        <>
+        <div className="flex justify-end">
+        <Button
+            size="icon"
+            variant="outline"
+            onClick={handleOpenEditModal}
+            className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
+                    hover:scale-105 transition-transform duration-200 shadow-sm"
+        >
+            <Pencil className="h-4 w-4 text-gray-600" />
+        </Button>
+        </div>
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-lg ">
+            <DialogHeader>
+              <DialogTitle className="mb-4">Edit Segments</DialogTitle>
+            </DialogHeader>
+            {editLoading && <div>Loading segmentation map...</div>}
+            {editError && <div className="text-red-500">{editError}</div>}
+            {!editLoading && !editError && (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {editSegMap.map((value, idx) => {
+                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
+                  const end = value;
+                  const segChunks = editTranscriptChunks.filter(chunk =>
+                    chunk.timestamp &&
+                    typeof chunk.timestamp[0] === 'number' &&
+                    chunk.timestamp[0] >= start &&
+                    chunk.timestamp[0] < end
+                  );
+                  const segText = segChunks.map(chunk => chunk.text).join(' ');
+                  return (
+                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={value}
+                          onChange={e => handleEditSegChange(idx, e.target.value)}
+                          className="w-24"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveSeg(idx)}
+                          className="text-destructive hover:text-destructive"
+                          disabled={editSegMap.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                        {segText}
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
+              </div>
+            )}
+            <DialogFooter className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
+                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEditSeg}
+                disabled={editLoading}
+                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <ol className="mt-2 space-y-4">
           {segmentationMap.map((end: any, idx: any) => {
             const start = idx === 0 ? 0 : segmentationMap[idx - 1];
@@ -1811,6 +1988,7 @@ const SegmentationView = ({
             );
           })}
         </ol>
+        </>
       ) : hasFallbackSegments ? (
         <ol className="mt-2 space-y-2">
           {segments.map((seg: any, idx: any) => (
@@ -1890,8 +2068,7 @@ const SegmentationView = ({
                     <Button
                     variant="secondary"
                     onClick={handleNext}
-                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
-                               text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
+                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
                                hover:shadow-xl transition-all duration-300 transform hover:scale-105 
                                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
                                flex items-center justify-center gap-2"

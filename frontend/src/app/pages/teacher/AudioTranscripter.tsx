@@ -2,6 +2,7 @@ import { AudioManager } from "@/components/ai/WhisperManager";
 import { Button } from "@/components/ui/button";
 import { TranscriberData, useTranscriber } from "@/hooks/useTranscriber";
 import { useEffect, useState } from "react";
+import { TranscriptionResult } from "./components/TranscriptionResult";
 
 
 interface IAudioTranscripter {
@@ -50,8 +51,8 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
 
     }, [transcriber.output, transcriber.isBusy, transcriber.isModelLoading]);
 
-    const handleSave = () => {
-        const currentText = transcriptText;
+    const handleSave = (editedText?: string) => {
+        const currentText = editedText || transcriptText;
         const errorMsg = validateTranscript(currentText);
 
         if (errorMsg) {
@@ -92,7 +93,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
 
       return (
         <div className="flex justify-center items-start py-10 ">
-            <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+            <div className={`w-full ${!transcriber.output?.text && "max-w-3xl"} flex flex-col items-center gap-6`}>
                 {transcriber.output?.text && (
                     <div className="w-full bg-white dark:bg-card/50 border border-gray-200 dark:border-border rounded-xl p-6 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
@@ -103,7 +104,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                                 )}
                             </div>
 
-                            { props.isRunningAiJob &&(
+                            { !transcriber.isBusy &&(
                                 <Button
                                     onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
                                     className="
@@ -139,6 +140,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                             )}
                         </div>
                     </div>
+                    // <TranscriptionResult transcription={transcriptText}  onTranscriptionUpdate={handleSave} isProcessing={transcriber.isBusy}/>
                 )}
                 <AudioManager 
                     transcriber={transcriber} 
