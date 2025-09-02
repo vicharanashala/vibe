@@ -173,8 +173,7 @@ export default function CourseEnrollments() {
 
   //Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const pageLimit = 50;
-
+  const [limit, setLimit] = useState(10)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -202,7 +201,7 @@ const {
   courseId,
   versionId,
   currentPage,
-  pageLimit,
+  limit,
   debouncedSearch,
   sortBy,
   sortOrder,
@@ -229,11 +228,13 @@ const {
   }
 
     const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage)
-    }
-  }
+    setCurrentPage(newPage);
+  };
 
+  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setLimit(Number(e.target.value));
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -549,8 +550,23 @@ const {
 
         {/* Students Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20">
+          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between">
             <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Show</span>
+                <select
+                  value={limit}
+                  onChange={handleLimitChange}
+                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-muted-foreground">per page</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {enrollmentsData?.enrollments?.length === 0 ? (
