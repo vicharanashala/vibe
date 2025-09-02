@@ -56,7 +56,7 @@ class ProgressService extends BaseService {
     @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     private userQuizMetricsRepository: UserQuizMetricsRepository,
 
-    @inject(QUIZZES_TYPES.QuestionRepo)
+    @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepo: QuizRepository,
 
     @inject(GLOBAL_TYPES.Database)
@@ -991,7 +991,9 @@ class ProgressService extends BaseService {
     if (!quizItemIds.length) return;
 
     // Fetch all quizzes in one go
-    const quizzes = await this.quizRepo.getByIds(quizItemIds);
+    const quizzes = await this.quizRepo.getByIds(quizItemIds, session);
+
+
     const maxAttemptsMap = quizzes.reduce((acc, quiz) => {
       acc[quiz._id.toString()] = quiz?.details?.maxAttempts || 0;
       return acc;
@@ -1006,21 +1008,14 @@ class ProgressService extends BaseService {
         session,
       );
 
-    // Perform bulk operations per collection
-    await this.progressRepository.executeBulkAttemptDelete(
-      attemptDeletes,
-      session,
-    );
-    await this.userQuizMetricsRepository.executeBulkMetricsReset(
-      metricsUpdates,
-      session,
-    );
-    await this.submissionRepository.executeBulkSubmissionDelete(
-      userId,
-      submissionDeletes,
-      session,
-    );
+    // Run the three bulk operations in parallel
+    await Promise.all([
+      this.progressRepository.executeBulkAttemptDelete(attemptDeletes, session),
+      this.userQuizMetricsRepository.executeBulkMetricsReset(metricsUpdates, session),
+      this.submissionRepository.executeBulkSubmissionDelete(userId, submissionDeletes, session),
+    ]);
   }
+
 
   // Admin Level Endpoint
   async resetCourseProgress(
@@ -1029,11 +1024,15 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      await this.verifyDetails(userId, courseId, courseVersionId);
 
-      // Get Course Version
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
+      // Run verify + courseVersion fetch in parallel
+      const [_, courseVersion] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+        this.courseRepo.readVersion(courseVersionId),
+      ]);
+
+      // Initialize progress (depends on courseVersion)
       const updatedProgress: IProgress = await this.initializeProgress(
         userId,
         courseId,
@@ -1041,15 +1040,9 @@ class ProgressService extends BaseService {
         courseVersion,
       );
 
-      // to store all the quiz item id's, to update attempts and metrics
-      const quizItemIds: string[] = [];
-
-      const courseModules = courseVersion.modules || [];
-
+      // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
-
-      // loop through the all modules in the version
-      for (const module of courseModules) {
+      for (const module of courseVersion.modules || []) {
         for (const section of module.sections || []) {
           if (section.itemsGroupId) {
             itemsGroupIds.push(section.itemsGroupId as string);
@@ -1057,45 +1050,42 @@ class ProgressService extends BaseService {
         }
       }
 
-      for (const itemGroupId of itemsGroupIds) {
-        const itemsGroup = await this.itemRepo.readItemsGroup(
-          itemGroupId,
-          session,
-        );
-        for (const item of itemsGroup.items || []) {
+      // Fetch itemGroups in parallel
+      const itemsGroups = await Promise.all(
+        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      );
+
+      // Collect quizItemIds
+      const quizItemIds: string[] = [];
+      for (const group of itemsGroups) {
+        for (const item of group.items || []) {
           if (item.type === 'QUIZ') {
             quizItemIds.push(item._id as string);
           }
         }
       }
 
-      // Clear all completed items (watch time) for this user/course/version
-      await this.progressRepository.deleteUserWatchTimeByCourseVersion(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
+      await Promise.all([
+        this.progressRepository.deleteUserWatchTimeByCourseVersion(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
+        this.updateEnrollmentProgressPercent(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+          true,
+        ),
+        quizItemIds.length
+          ? this.resetUserQuizData(userId, quizItemIds, session)
+          : Promise.resolve(),
+      ]);
 
-      // for updating enrollment progress percent
-      await this.updateEnrollmentProgressPercent(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-        true,
-      );
-
-      // delete all the attemps document (userId, quizId) and return the deleted _id's
-      // pull the attempts from user quiz metrics and update the remainingAttempts count
-      // delete all the submissions of the user
-
-      if (quizItemIds.length) {
-        // deleting quiz related data
-        await this.resetUserQuizData(userId, quizItemIds, session);
-      }
-
-      // Set progress
+      // Finally, replace progress (sequential, depends on updatedProgress)
       const result = await this.progressRepository.findAndReplaceProgress(
         userId,
         courseId,
@@ -1108,11 +1098,13 @@ class ProgressService extends BaseService {
         },
         session,
       );
+
       if (!result) {
         throw new InternalServerError('Progress could not be reset');
       }
     });
   }
+
 
   async getCompletedItems(
     userId: string,
