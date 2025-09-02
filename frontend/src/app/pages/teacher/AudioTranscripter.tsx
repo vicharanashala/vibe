@@ -12,7 +12,7 @@ interface IAudioTranscripter {
     isRunningAiJob: boolean;
     isCreatingAiJob: boolean;
     jobError: string;
-    retryAiJob: () => void
+    createAiJob: () => void
 }
 
 // Validation
@@ -148,7 +148,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                     } 
                     isTranscriptionCompleted = {props.isRunningAiJob} isTranscribing = {transcriber.isBusy}
                     jobError = {props.jobError}
-                    retryAiJob = {props.retryAiJob}
+                    createAiJob = {props.createAiJob}
                     isCreatingAiJob = {props.isCreatingAiJob}
                 />
                  
