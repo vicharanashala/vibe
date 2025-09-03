@@ -157,6 +157,19 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Enrollment not found');
       }
 
+      // Reset all progress data first
+      try {
+        await this.progressService.resetCourseProgressWithoutTransaction(
+          userId,
+          courseId,
+          courseVersionId,
+          session
+        );
+      } catch (error) {
+        console.error('Error resetting course progress during unenrollment:', error);
+        // Continue with unenrollment even if progress reset fails
+      }
+
       // Remove enrollment
       await this.enrollmentRepo.deleteEnrollment(
         userId,
