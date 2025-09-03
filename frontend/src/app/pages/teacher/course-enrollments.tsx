@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import {  useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Download, Info } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -153,12 +153,20 @@ export default function CourseEnrollments() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
+
+  // Download states
+  const [downloadScope, setDownloadScope] = useState<"course" | "module" | "section" | "item">("course")
+  const [downloadSelectedModule, setDownloadSelectedModule] = useState<string>("")
+  const [downloadSelectedSection, setDownloadSelectedSection] = useState<string>("")
+  const [downloadSelectedItem, setDownloadSelectedItem] = useState<string>("")
+  const [downloadFormat, setDownloadFormat] = useState<"pdf" | "csv" | "excel">("pdf")
 
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
@@ -173,7 +181,8 @@ export default function CourseEnrollments() {
 
   //Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const pageLimit = 50;
+
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -201,7 +210,7 @@ const {
   courseId,
   versionId,
   currentPage,
-  limit,
+  pageLimit,
   debouncedSearch,
   sortBy,
   sortOrder,
@@ -228,13 +237,11 @@ const {
   }
 
     const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-  };
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
 
-  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLimit(Number(e.target.value));
-    setCurrentPage(1);
-  };
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -244,6 +251,16 @@ const {
       setSelectedItem("")
     }
   }, [isResetDialogOpen])
+
+  useEffect(() => {
+    if (isDownloadDialogOpen) {
+      setDownloadScope("course")
+      setDownloadSelectedModule("")
+      setDownloadSelectedSection("")
+      setDownloadSelectedItem("")
+      setDownloadFormat("pdf")
+    }
+  }, [isDownloadDialogOpen])
 
   useEffect(() => {
     if (isViewProgressDialogOpen) {
@@ -258,6 +275,11 @@ const {
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
     setIsResetDialogOpen(true)
+  }
+
+  const handleDownloadProgress = (user: EnrolledUser) => {
+    setSelectedUser(user)
+    setIsDownloadDialogOpen(true)
   }
 
   const handleViewProgress = (user: EnrolledUser) => {
@@ -361,6 +383,52 @@ const {
       default:
         return false
     }
+  }
+
+  const isDownloadFormValid = () => {
+    switch (downloadScope) {
+      case "course":
+        return true
+      case "module":
+        return !!downloadSelectedModule
+      case "section":
+        return !!downloadSelectedModule && !!downloadSelectedSection
+      case "item":
+        return !!downloadSelectedModule && !!downloadSelectedSection && !!downloadSelectedItem
+      default:
+        return false
+    }
+  }
+
+  // Get download available sections 
+  const getDownloadAvailableSections = () => {
+    if (!downloadSelectedModule || !version?.modules) return []
+    const module = version.modules.find((m: any) => m.moduleId === downloadSelectedModule)
+    return module?.sections || []
+  }
+
+  // Get download available items 
+  const getDownloadAvailableItems = () => {
+    if (!downloadSelectedModule || !downloadSelectedSection || !version?.modules) return []
+    const module = version.modules.find((m: any) => m.moduleId === downloadSelectedModule)
+    const section = module?.sections.find((s: any) => s.sectionId === downloadSelectedSection)
+    return section?.items || []
+  }
+
+  const handleConfirmDownload = async () => {
+    if (!selectedUser) return
+
+    console.log("Download would start with:", {
+      user: selectedUser,
+      scope: downloadScope,
+      format: downloadFormat,
+      module: downloadSelectedModule,
+      section: downloadSelectedSection,
+      item: downloadSelectedItem,
+    })
+
+    setIsDownloadDialogOpen(false)
+    setSelectedUser(null)
   }
 
   const getItemIcon = (type: string) => {
@@ -550,23 +618,8 @@ const {
 
         {/* Students Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between">
+          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20">
             <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Show</span>
-                <select
-                  value={limit}
-                  onChange={handleLimitChange}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground">per page</span>
-              </div>
-            </div>
           </CardHeader>
           <CardContent className="p-0">
             {enrollmentsData?.enrollments?.length === 0 ? (
@@ -605,7 +658,7 @@ const {
                           </span>
                         </TableHead>
                       ))}
-                      <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
+                      <TableHead className="font-bold text-foreground pr-6 w-[320px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -666,7 +719,7 @@ const {
                           <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
                         </TableCell>
                         <TableCell className="py-6 pr-6">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -683,8 +736,27 @@ const {
                               disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                             >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Progress
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleDownloadProgress({
+                                  id: enrollment.user?._id,
+                                  name:
+                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                  email: enrollment.userId,
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: Math.round(enrollment.progress || 0),
+                                })
+                              }
+                              disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Download
                             </Button>
                             <Button
                               variant="ghost"
@@ -703,9 +775,9 @@ const {
                               disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
                             >
                               {resetProgressMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                               ) : (
-                                <RotateCcw className="h-4 w-4 mr-2" />
+                                <RotateCcw className="h-4 w-4 mr-1" />
                               )}
                               Reset
                             </Button>
@@ -726,9 +798,9 @@ const {
                                 disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email }
                               >
                                 {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                                 ) : (
-                                  <UserX className="h-4 w-4 mr-2" />
+                                  <UserX className="h-4 w-4 mr-1" />
                                 )}
                                 Remove
                               </Button>
@@ -1144,6 +1216,229 @@ const {
             </div>
           </div>
         )}
+
+        {/*Download Student Progress Modal */}
+        {isDownloadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setIsDownloadDialogOpen(false)}
+            />
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-card-foreground">Download Student Progress</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsDownloadDialogOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {selectedUser && (
+                <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
+                  <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
+                    <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
+                      {selectedUser.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
+                    <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-muted-foreground">
+                Choose the scope of progress download for this student in{" "}
+                <strong>
+                  {course.name} ({version.version})
+                </strong>
+                .
+              </p>
+
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <Label htmlFor="download-scope" className="text-sm font-bold text-foreground">
+                    Download Scope
+                  </Label>
+                  <Select value={downloadScope} onValueChange={(value: any) => setDownloadScope(value)}>
+                    <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                      <SelectValue placeholder="Select download scope" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border cursor-pointer">
+                      <SelectItem value="course" className="cursor-pointer">
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <div className="font-semibold">Entire Course Version</div>
+                            <div className="text-xs text-muted-foreground">Download all progress in this version</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="module" className="cursor-pointer" >
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          <div>
+                            <div className="font-semibold">Specific Module</div>
+                            <div className="text-xs text-muted-foreground">Download module progress</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="section" className="cursor-pointer" >
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                          <div>
+                            <div className="font-semibold">Specific Section</div>
+                            <div className="text-xs text-muted-foreground">Download section progress</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="item" className="cursor-pointer" >
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <Play className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                          <div>
+                            <div className="font-semibold">Specific Item</div>
+                            <div className="text-xs text-muted-foreground">Download single item</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(downloadScope === "module" || downloadScope === "section" || downloadScope === "item") && (
+                  <div className="space-y-3">
+                    <Label htmlFor="download-module" className="text-sm font-bold text-foreground">
+                      Module
+                    </Label>
+                    <Select value={downloadSelectedModule} onValueChange={setDownloadSelectedModule}>
+                      <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                        <SelectValue placeholder="Select module" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border cursor-pointer">
+                        {getAvailableModules().map((module: any) => (
+                          <SelectItem key={module.moduleId} value={module.moduleId} className="cursor-pointer">
+                            <div className="py-2">
+                              <div className="font-semibold">{module.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {module.sections?.length || 0} sections
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(downloadScope === "section" || downloadScope === "item") && downloadSelectedModule && (
+                  <div className="space-y-3">
+                    <Label htmlFor="download-section" className="text-sm font-bold text-foreground">
+                      Section
+                    </Label>
+                    <Select value={downloadSelectedSection} onValueChange={setDownloadSelectedSection}>
+                      <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border cursor-pointer">
+                        {getDownloadAvailableSections().map((section: any) => (
+                          <SelectItem key={section.sectionId} value={section.sectionId} className="cursor-pointer">
+                            <div className="py-2">
+                              <div className="font-semibold">{section.name}</div>
+                              <div className="text-xs text-muted-foreground">Section in selected module</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {downloadScope === "item" && downloadSelectedModule && downloadSelectedSection && (
+                  <DownloadItemSelector
+                    versionId={versionId!}
+                    moduleId={downloadSelectedModule}
+                    sectionId={downloadSelectedSection}
+                    selectedItem={downloadSelectedItem}
+                    onItemChange={setDownloadSelectedItem}
+                  />
+                )}
+
+                <div className="space-y-3">
+                  <Label htmlFor="download-format" className="text-sm font-bold text-foreground">
+                    Report Format
+                  </Label>
+                  <Select value={downloadFormat} onValueChange={(value: any) => setDownloadFormat(value)}>
+                    <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border cursor-pointer">
+                      <SelectItem value="pdf" className="cursor-pointer">
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
+                          <div>
+                            <div className="font-semibold">PDF Report</div>
+                            <div className="text-xs text-muted-foreground">Detailed formatted report</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="csv" className="cursor-pointer">
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          <div>
+                            <div className="font-semibold">CSV Data</div>
+                            <div className="text-xs text-muted-foreground">Raw data export</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="excel" className="cursor-pointer">
+                        <div className="flex items-center gap-3 py-3 px-2">
+                          <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <div className="font-semibold">Excel Spreadsheet</div>
+                            <div className="text-xs text-muted-foreground">Structured data export</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                  <Info className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    This will generate and download a progress report for {selectedUser?.name}. The report will include current progress data and completion status.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDownloadDialogOpen(false)}
+                  className="min-w-[100px] cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmDownload}
+                  disabled={!isDownloadFormValid()}
+                  className="min-w-[120px] shadow-lg cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Progress
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         {totalPages > 1 && (
                   <Pagination
                     currentPage={currentPage}
@@ -1311,6 +1606,103 @@ function SectionItems({
           </Badge>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Component to handle download item selection with API call 
+function DownloadItemSelector({
+  versionId,
+  moduleId,
+  sectionId,
+  selectedItem,
+  onItemChange,
+}: {
+  versionId: string
+  moduleId: string
+  sectionId: string
+  selectedItem: string
+  onItemChange: (itemId: string) => void
+}) {
+  const { data: itemsResponse, isLoading, error } = useItemsBySectionId(versionId, moduleId, sectionId)
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Label className="text-sm font-bold text-foreground">Item</Label>
+        <div className="flex items-center gap-3 p-4 border rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading items...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !itemsResponse || !Array.isArray(itemsResponse) || itemsResponse.length === 0) {
+    return (
+      <div className="space-y-3">
+        <Label className="text-sm font-bold text-foreground">Item</Label>
+        <div className="p-4 border rounded-lg text-sm text-destructive">
+          {error ? `Error loading items: ${error}` : "No items found in this section"}
+        </div>
+      </div>
+    )
+  }
+
+  const getItemIcon = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case "VIDEO":
+        return "🎥"
+      case "QUIZ":
+        return "❓"
+      case "ARTICLE":
+      case "BLOG":
+        return "📖"
+      default:
+        return "📄"
+    }
+  }
+
+  const getItemTypeDisplay = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case "VIDEO":
+        return "Video"
+      case "QUIZ":
+        return "Quiz"
+      case "ARTICLE":
+        return "Article"
+      case "BLOG":
+        return "Blog"
+      default:
+        return type || "Unknown"
+    }
+  }
+
+  const itemsWithDefaultNames = generateDefaultItemNames(itemsResponse)
+
+  return (
+    <div className="space-y-3">
+      <Label htmlFor="download-item" className="text-sm font-bold text-foreground">
+        Item
+      </Label>
+      <Select value={selectedItem} onValueChange={onItemChange}>
+        <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+          <SelectValue placeholder="Select item" />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border cursor-pointer">
+          {itemsWithDefaultNames.map((item: any) => (
+            <SelectItem key={item._id} value={item._id} className="cursor-pointer">
+              <div className="flex items-center gap-3 py-2">
+                <span className="text-lg">{getItemIcon(item.type)}</span>
+                <div>
+                  <div className="font-semibold">{item.displayName}</div>
+                  <div className="text-xs text-muted-foreground">{getItemTypeDisplay(item.type)}</div>
+                </div>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
