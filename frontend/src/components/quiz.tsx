@@ -398,8 +398,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         params: { path: { quizId: processedQuizId } }
       }) as CreateAttemptResponse | { message: string };
 
-      // Check if we got a message about no attempts left
+      // Check if we got a message about no attempts left 
       if ('message' in response) {
+        onPrevVideo?.();
         toast.error(response.message);
         return;
       }
