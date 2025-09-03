@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff } from 'lucide-react';
+import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff, Info } from 'lucide-react';
 
 interface TranscriptionResultProps {
   transcription: string;
@@ -10,6 +11,7 @@ interface TranscriptionResultProps {
   className?: string;
   audioUrl?: string;
   language?: string;
+  tooltipContent?: string;
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
@@ -19,7 +21,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   onTranscriptionUpdate,
   className = '',
   audioUrl,
-  language = 'English'
+  tooltipContent
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(transcription);
@@ -124,6 +126,18 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Transcription Result</h3>
             {/* <p className="text-sm text-gray-500 dark:text-gray-400">{timestamp}</p> */}
           </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+              </TooltipTrigger>
+              {tooltipContent && (
+                <TooltipContent>
+                  <p>{tooltipContent}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           {isProcessing && (
             <div className="flex items-center gap-2 ml-4">
               <div className="relative">

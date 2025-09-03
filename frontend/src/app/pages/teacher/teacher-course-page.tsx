@@ -836,7 +836,7 @@ export default function TeacherCoursePage() {
                                                           navigate({ to: '/teacher/ai-section' });
                                                         }}
                                                       >
-                                                        Normal mode
+                                                        Custom mode
                                                       </DropdownMenuItem>
                                                       <DropdownMenuItem 
                                                         className="text-xs cursor-pointer"

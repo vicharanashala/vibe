@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
+import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -14,6 +14,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface TaskRun {
@@ -791,9 +792,48 @@ const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }
     }
   };
 
+  const getTooltipContent = () => {
+    if (!currentJob) return "Upload audio file for further processing.";
+    
+    if (currentJob.task === 'AUDIO_EXTRACTION' && 
+        (currentJob.status === 'COMPLETED' || currentJob.status === 'RUNNING')) {
+      return "Upload audio file for further processing.";
+    }
+    
+    if (currentJob.task === 'TRANSCRIPT_GENERATION' && 
+        (currentJob.status === 'COMPLETED' || currentJob.status === 'RUNNING')) {
+      return "Converts extracted audio into accurate text transcripts.";
+    }
+    
+    if (currentJob.task === 'SEGMENTATION') {
+      return "Breaks down the transcript into logical sections or chunks.";
+    } else if (currentJob.task === 'QUESTION_GENERATION') {
+      return "Automatically generates relevant questions from the segmented transcript.";
+    } else if (currentJob.task === 'UPLOAD_CONTENT') {
+      return "Saves and uploads the processed content with questions for later use.";
+    }
+    
+    return "Upload audio file for further processing.";
+  };
+  const tooltipContent = getTooltipContent();
+
   return (
     <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/20">
-      <div className="flex items-center gap-3 pb-2">{renderJobInfo()}</div>
+      <div className="flex items-center gap-3 pb-2">
+        {renderJobInfo()}
+        {currentJob?.task !== 'TRANSCRIPT_GENERATION' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{tooltipContent}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
       <Button
         onClick={handleRefreshStatus}
         variant="outline"
