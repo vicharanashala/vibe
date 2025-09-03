@@ -373,8 +373,8 @@ export default function TeacherCoursePage() {
           description: videoData.description,
           videoDetails: {
             URL: videoData.details.URL,
-            startTime: convertToMinSecMs(videoData.details.startTime),
-            endTime: convertToMinSecMs(videoData.details.endTime),
+            startTime: videoData.details.startTime,
+            endTime: videoData.details.endTime,
             points: videoData.details.points,
           }
         }
@@ -1217,8 +1217,8 @@ export default function TeacherCoursePage() {
                             type: "VIDEO",
                             details: {
                               ...video.details,
-                              startTime: formatSecondsToHHMMSS(video.details.startTime),
-                              endTime: formatSecondsToHHMMSS(video.details.endTime),
+                              startTime: video.details.startTime,
+                              endTime: video.details.endTime,
                             }
                           };
                           if (
