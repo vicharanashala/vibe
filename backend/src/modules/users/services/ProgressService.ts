@@ -1105,6 +1105,90 @@ class ProgressService extends BaseService {
     });
   }
 
+  async resetCourseProgressWithoutTransaction(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    // Run verify + courseVersion fetch in parallel
+    const [_, courseVersion] = await Promise.all([
+      this.verifyDetails(userId, courseId, courseVersionId),
+      this.courseRepo.readVersion(courseVersionId, session),
+    ]);
+
+    // Initialize progress (depends on courseVersion)
+    const updatedProgress: IProgress = await this.initializeProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      courseVersion,
+    );
+
+    // Collect itemsGroupIds from courseModules
+    const itemsGroupIds: string[] = [];
+    for (const module of courseVersion.modules || []) {
+      for (const section of module.sections || []) {
+        if (section.itemsGroupId) {
+          itemsGroupIds.push(section.itemsGroupId as string);
+        }
+      }
+    }
+
+    // Fetch itemGroups in parallel
+    const itemsGroups = await Promise.all(
+      itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+    );
+
+    // Collect quizItemIds
+    const quizItemIds: string[] = [];
+    for (const group of itemsGroups) {
+      for (const item of group.items || []) {
+        if (item.type === 'QUIZ') {
+          quizItemIds.push(item._id as string);
+        }
+      }
+    }
+
+    // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
+    await Promise.all([
+      this.progressRepository.deleteUserWatchTimeByCourseVersion(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      ),
+      this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+        true,
+      ),
+      quizItemIds.length
+        ? this.resetUserQuizData(userId, quizItemIds, session)
+        : Promise.resolve(),
+    ]);
+
+    // Finally, replace progress
+    const result = await this.progressRepository.findAndReplaceProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentModule: updatedProgress.currentModule,
+        currentSection: updatedProgress.currentSection,
+        currentItem: updatedProgress.currentItem,
+        completed: false,
+      },
+      session,
+    );
+
+    if (!result) {
+      throw new InternalServerError('Progress could not be reset');
+    }
+  }
+
 
   async getCompletedItems(
     userId: string,
