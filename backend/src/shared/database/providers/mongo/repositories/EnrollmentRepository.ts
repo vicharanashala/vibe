@@ -2,7 +2,10 @@ import {
   EnrollmentRole,
   IEnrollment,
   IProgress,
+  ICourseVersion,
+  IWatchTime,
 } from '#shared/interfaces/models.js';
+import { IAttempt, IUserQuizMetrics, ISubmission } from '#quizzes/interfaces/grading.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
@@ -14,6 +17,11 @@ import { EnrollmentStats } from '#root/modules/users/types.js';
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private progressCollection!: Collection<IProgress>;
+  private courseVersionCollection!: Collection<ICourseVersion>;
+  private watchTimeCollection!: Collection<IWatchTime>;
+  private attemptCollection!: Collection<IAttempt>;
+  private userQuizMetricsCollection!: Collection<IUserQuizMetrics>;
+  private submissionResultCollection!: Collection<ISubmission>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
@@ -23,6 +31,21 @@ export class EnrollmentRepository {
     );
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
+    );
+    this.courseVersionCollection = await this.db.getCollection<ICourseVersion>(
+      'newCourseVersion',
+    );
+    this.watchTimeCollection = await this.db.getCollection<IWatchTime>(
+      'watchTime',
+    );
+    this.attemptCollection = await this.db.getCollection<IAttempt>(
+      'quiz_attempts',
+    );
+    this.userQuizMetricsCollection = await this.db.getCollection<IUserQuizMetrics>(
+      'user_quiz_metrics',
+    );
+    this.submissionResultCollection = await this.db.getCollection<ISubmission>(
+      'quiz_submission_results',
     );
   }
 
@@ -107,38 +130,90 @@ export class EnrollmentRepository {
       );
     }
   }
-  /**
-   * Delete an enrollment record for a user in a specific course version
-   */
+
+  // Remove enrollment and all related data (progress, watch time, quiz attempts, quiz metrics, quiz submissions)
+
   async deleteEnrollment(
     userId: string,
     courseId: string,
     courseVersionId: string,
-    session?: any,
+    session?: ClientSession,
   ): Promise<void> {
     await this.init();
 
+    const userObjectId = new ObjectId(userId);
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
 
-    // temp: Try both userId as string and ObjectId (if valid)
     const userFilter = [
       userId,
-      ObjectId.isValid(userId) ? new ObjectId(userId) : null,
+      ObjectId.isValid(userId) ? userObjectId : null,
     ].filter(Boolean);
 
-    // const userObjectid = new ObjectId(userId)
+    try {
+      // Delete enrollment, Delete progress, watch time, quiz attempts, user quiz metris, quiz submission results
+      const enrollmentResult = await this.enrollmentCollection.deleteOne(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
 
-    const result = await this.enrollmentCollection.deleteOne(
-      {
-        userId: { $in: userFilter },
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
-      },
-      { session },
-    );
-    if (result.deletedCount === 0) {
-      throw new NotFoundError('Enrollment not found to delete');
+      if (enrollmentResult.deletedCount === 0) {
+        throw new NotFoundError('Enrollment not found to delete');
+      }
+
+      await this.progressCollection.deleteMany(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
+
+      await this.watchTimeCollection.deleteMany(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
+
+      await this.attemptCollection.deleteMany(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
+
+      await this.userQuizMetricsCollection.deleteMany(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
+
+      await this.submissionResultCollection.deleteMany(
+        {
+          userId: { $in: userFilter },
+          courseId: courseObjectId,
+          courseVersionId: courseVersionObjectId,
+        },
+        { session },
+      );
+
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to delete enrollment and related data: ${error.message}`,
+      );
     }
   }
 

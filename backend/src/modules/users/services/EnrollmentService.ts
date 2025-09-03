@@ -157,16 +157,8 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Enrollment not found');
       }
 
-      // Remove enrollment
+      // Remove enrollment and all related data (progress, watch time, quiz attempts, quiz metrics, quiz submissions)
       await this.enrollmentRepo.deleteEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
-
-      // Remove progress
-      await this.enrollmentRepo.deleteProgress(
         userId,
         courseId,
         courseVersionId,
