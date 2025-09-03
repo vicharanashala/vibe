@@ -149,10 +149,11 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                     (transcriber.output?.text && !props.isRunningAiJob && !props.isCreatingAiJob) ? false : 
                     (!!transcriber.output?.text || props.isRunningAiJob)
                     } 
-                    isTranscriptionCompleted = {props.isRunningAiJob} isTranscribing = {transcriber.isBusy}
+                    isTranscribing = {transcriber.isBusy}
                     jobError = {props.jobError}
                     createAiJob = {props.createAiJob}
                     isCreatingAiJob = {props.isCreatingAiJob}
+                    isRunningAiJob={props.isRunningAiJob}
                 />
                  
             </div>
