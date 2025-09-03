@@ -2892,12 +2892,10 @@ export default function AISectionPage() {
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
                     <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                         <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                         <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                      </div>
-                      <TooltipProvider>
+                        <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -2955,22 +2953,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 2 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                              <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
                         <TaskAccordion
                           task="segmentation"
                           title="Segmentation"
@@ -3007,22 +3003,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 3 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
+                          <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                            <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
                         <TaskAccordion
                           task="question"
                           title="Question Generation"
@@ -3092,22 +3086,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 4 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                          <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                            <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
 
                         {/* Simplified upload form */}
                         <div className="flex flex-col gap-4 mb-4">
