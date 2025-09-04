@@ -19,6 +19,7 @@ import { BadRequestError, NotFoundError } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
 import { ProgressRepository } from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
+import { ro } from '@faker-js/faker';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -192,43 +193,57 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
-      const versionIds = [
-        ...new Set(enrollments.map((e) => e.courseVersionId.toString())),
-      ].map((id) => new ObjectId(id));
+      // If role is STUDENT, fetch additional details
+      if (role === 'STUDENT') {
+        const versionIds = [
+          ...new Set(enrollments.map((e) => e.courseVersionId.toString())),
+        ].map((id) => new ObjectId(id));
 
-      const watchedKeys = enrollments.map((e) => ({
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(e.courseId),
-        courseVersionId: new ObjectId(e.courseVersionId),
+        const watchedKeys = enrollments.map((e) => ({
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(e.courseId),
+          courseVersionId: new ObjectId(e.courseVersionId),
+        }));
+
+        const [contentCountsMap, watchedItemsMap] = await Promise.all([
+          this.enrollmentRepo.getContentCountsForVersions(versionIds),
+          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        ]);
+
+        return enrollments.map((enr) => {
+          const versionIdStr = enr.courseVersionId.toString();
+          const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+
+          return {
+            _id: enr._id.toString(),
+            courseId: enr.courseId.toString(),
+            courseVersionId: versionIdStr,
+            role: enr.role,
+            status: enr.status,
+            enrollmentDate: new Date(enr.enrollmentDate),
+            course: enr.course,
+            percentCompleted: enr.percentCompleted || 0,
+            contentCounts: contentCountsMap.get(versionIdStr) || {
+              totalItems: 0,
+              videos: 0,
+              quizzes: 0,
+              articles: 0,
+            },
+            completedItems: watchedItemsMap.get(watchedKey) || 0,
+          };
+        });
+      }
+
+      // For non-student roles, return only the basic enrollments
+      return enrollments.map((enr) => ({
+        _id: enr._id.toString(),
+        courseId: enr.courseId.toString(),
+        courseVersionId: enr.courseVersionId.toString(),
+        role: enr.role,
+        status: enr.status,
+        enrollmentDate: new Date(enr.enrollmentDate),
+        course: enr.course,
       }));
-
-      const [contentCountsMap, watchedItemsMap] = await Promise.all([
-        this.enrollmentRepo.getContentCountsForVersions(versionIds),
-        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-      ]);
-
-      return enrollments.map((enr) => {
-        const versionIdStr = enr.courseVersionId.toString();
-        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
-
-        return {
-          _id: enr._id.toString(),
-          courseId: enr.courseId.toString(),
-          courseVersionId: versionIdStr,
-          role: enr.role,
-          status: enr.status,
-          enrollmentDate: new Date(enr.enrollmentDate),
-          course: enr.course,
-          percentCompleted: enr.percentCompleted || 0,
-          contentCounts: contentCountsMap.get(versionIdStr) || {
-            totalItems: 0,
-            videos: 0,
-            quizzes: 0,
-            articles: 0,
-          },
-          completedItems: watchedItemsMap.get(watchedKey) || 0,
-        };
-      });
     });
   }
 
