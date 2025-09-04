@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import React, { useState, useEffect, useRef } from 'react';
 import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface TranscriptionResultProps {
   transcription: string;
