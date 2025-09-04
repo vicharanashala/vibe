@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, Info, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -1953,108 +1953,178 @@ const SegmentationView = ({
   isApprovingTask,
 }: any) => {
 
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editSegMap, setEditSegMap] = useState<number[]>([]);
-    const [editLoading, setEditLoading] = useState(false);
-    const [editError, setEditError] = useState("");
-        // Add state for transcriptChunks in the edit modal
-    const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  // Store segment boundaries as seconds for correct math and comparisons
+  const [editSegMap, setEditSegMap] = useState<number[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  // Add state for transcriptChunks in the edit modal
+  const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
 
-    const isAnyLoading = isLoading || isTaskResultLoading;
-    const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
-    const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
-    const handleEditSegChange = (idx: number, value: string) => {
-        const newMap = [...editSegMap];
-        newMap[idx] = parseFloat(value);
-        setEditSegMap(newMap);
-    };
-    const handleAddSeg = () => {
-        const newMap = [...editSegMap];
-        const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
-        newMap.push(prev + 10);
-        setEditSegMap(newMap);
-    };
-    const handleRemoveSeg = (idx: number) => {
-        if (editSegMap.length <= 1) return;
-        const newMap = [...editSegMap];
-        newMap.splice(idx, 1);
-        setEditSegMap(newMap);
-    };
+  const isAnyLoading = isLoading || isTaskResultLoading;
+  const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
+  const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
 
-    const handleOpenEditModal = async () => {
-      if (!aiJobId) return;
-      setEditLoading(true);
-      setEditError("");
-      setEditModalOpen(true);
-      try {
-        const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Failed to fetch segmentation status');
-        const arr = await res.json();
-        if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
-          setEditSegMap([...arr[0].segmentationMap]);
-          // Fetch transcript chunks
-          const transcriptRes = await fetch(arr[0].transcriptFileUrl);
-          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-          const transcriptData = await transcriptRes.json();
-          setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
-        } else {
-          setEditError('Segmentation map or transcript not found.');
-          setEditSegMap([]);
-          setEditTranscriptChunks([]);
-        }
-      } catch (e: any) {
-        setEditError(e.message || 'Unknown error');
+  // Convert seconds to mm:ss format
+  const formatTime = (seconds: number): string => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  // Convert mm:ss to seconds
+  const parseTimeToSeconds = (time: string): number => {
+    if (!time) return 0;
+    // Normalize brackets and decimal separator
+    const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
+    // Handle mm:ss format
+    if (cleaned.includes(':')) {
+      const [mStr, sStr] = cleaned.split(':');
+      const m = parseInt(mStr || '0', 10);
+      const s = parseInt(sStr || '0', 10);
+      if (isNaN(m)) return 0;
+      if (isNaN(s)) return m * 60;
+      return m * 60 + s;
+    }
+    // Handle mm.ss format
+    if (cleaned.includes('.')) {
+      const [mStr, sStrRaw] = cleaned.split('.');
+      const sStr = (sStrRaw || '').slice(0, 2); // only two digits for seconds
+      const m = parseInt(mStr || '0', 10);
+      const s = parseInt(sStr || '0', 10);
+      if (isNaN(m)) return 0;
+      if (isNaN(s)) return m * 60;
+      return m * 60 + s;
+    }
+    // Fallback: treat as seconds
+    const sOnly = parseInt(cleaned, 10);
+    return isNaN(sOnly) ? 0 : sOnly;
+  };
+  // Format live input to mm:ss mask using up to 4 digits
+  const formatTimeInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (!digits) return '';
+    if (digits.length <= 2) return digits; // seconds only while typing
+    const minutes = digits.slice(0, -2);
+    const seconds = digits.slice(-2);
+    return `${minutes}:${seconds}`;
+  };
+  // Convert seconds to MM.SS string for API
+  const formatTimeDot = (seconds: number): string => {
+    const mins = Math.floor(Math.max(0, seconds) / 60);
+    const secs = Math.floor(Math.max(0, seconds) % 60);
+    const mm = mins.toString().padStart(2, '0');
+    const ss = secs.toString().padStart(2, '0');
+    return `${mm}.${ss}`;
+  };
+
+  const handleEditSegChange = (idx: number, value: string) => {
+    const masked = formatTimeInput(value);
+    let seconds = parseTimeToSeconds(masked);
+    const newMap = [...editSegMap];
+    // Clamp against neighbors to preserve strict ordering
+    const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
+    const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
+    seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
+    newMap[idx] = Math.max(0, seconds);
+    setEditSegMap(newMap);
+  };
+
+
+  const handleAddSeg = () => {
+    const newMap = [...editSegMap];
+    const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
+    newMap.push(prev + 10);
+    setEditSegMap(newMap);
+  };
+  const handleRemoveSeg = (idx: number) => {
+    if (editSegMap.length <= 1) return;
+    const newMap = [...editSegMap];
+    newMap.splice(idx, 1);
+    setEditSegMap(newMap);
+  };
+
+  const handleOpenEditModal = async () => {
+    if (!aiJobId) return;
+    setEditLoading(true);
+    setEditError("");
+    setEditModalOpen(true);
+    try {
+      const token = localStorage.getItem('firebase-auth-token');
+      const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Failed to fetch segmentation status');
+      const arr = await res.json();
+      if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
+        // Normalize to number[] seconds (supports 'mm:ss', 'mm.ss', and numeric like 10.22)
+        const normalized: number[] = (arr[0].segmentationMap as any[]).map((v: any) => {
+          if (typeof v === 'number') return parseTimeToSeconds(String(v));
+          if (typeof v === 'string') return parseTimeToSeconds(v);
+          return 0;
+        });
+        setEditSegMap(normalized);
+        // Fetch transcript chunks
+        const transcriptRes = await fetch(arr[0].transcriptFileUrl);
+        if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+        const transcriptData = await transcriptRes.json();
+        setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
+      } else {
+        setEditError('Segmentation map or transcript not found.');
         setEditSegMap([]);
         setEditTranscriptChunks([]);
-      } finally {
-        setEditLoading(false);
       }
-    };
-    
-    async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
-      const body = JSON.stringify({ segmentMap, index });
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body,
-      });
-      if (res.status === 200) return;
-      let errMsg = 'Unknown error';
-      try { errMsg = (await res.json()).message || errMsg; } catch { }
-      if (res.status === 400) throw new Error('Bad request: ' + errMsg);
-      if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
-      if (res.status === 404) throw new Error('Job not found: ' + errMsg);
-      throw new Error(errMsg);
+    } catch (e: any) {
+      setEditError(e.message || 'Unknown error');
+      setEditSegMap([]);
+      setEditTranscriptChunks([]);
+    } finally {
+      setEditLoading(false);
     }
+  };
 
-    const handleSaveEditSeg = async () => {
-        setEditLoading(true);
-        setEditError("");
-        try {
-          // Use index 0 for the backend (fixes 500 error)
-          await editSegmentMap(aiJobId, editSegMap, 0);
-          handleShowHandleResult("SEGMENTATION");
-          toast.success('Segments updated successfully!');
-          setEditModalOpen(false);
-        } catch (e: any) {
-          setEditError(e.message || 'Failed to update segment map');
-        } finally {
-          setEditLoading(false);
-        }
-    };
-  
+  async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
+    const token = localStorage.getItem('firebase-auth-token');
+    const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+    const body = JSON.stringify({ segmentMap, index });
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body,
+    });
+    if (res.status === 200) return;
+    let errMsg = 'Unknown error';
+    try { errMsg = (await res.json()).message || errMsg; } catch { }
+    if (res.status === 400) throw new Error('Bad request: ' + errMsg);
+    if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
+    if (res.status === 404) throw new Error('Job not found: ' + errMsg);
+    throw new Error(errMsg);
+  }
 
-    const handleNext = () => {
-        updateCurrentJob ("questionGeneration", "WAITING");
+  const handleSaveEditSeg = async () => {
+    setEditLoading(true);
+    setEditError("");
+    try {
+      // Use index 0 for the backend (fixes 500 error)
+      if (!aiJobId) throw new Error('Missing job id');
+      // Send as numbers in MM.SS numeric format (e.g., 11.11)
+      const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
+      await editSegmentMap(aiJobId, payloadNumbers, 0);
+      toast.success('Segment map updated successfully!');
+      setEditModalOpen(false);
+    } catch (e: any) {
+      setEditError(e.message || 'Failed to update segment map');
+    } finally {
+      setEditLoading(false);
     }
-    
+  };
+
+
+  const handleNext = () => {
+    updateCurrentJob("questionGeneration", "WAITING");
+  }
 
   return (
     <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
@@ -2105,103 +2175,113 @@ const SegmentationView = ({
       </div>
       ) : hasSegmentationData ?(
         <>
-        <div className="flex justify-end">
-        <Button
-            size="icon"
-            variant="outline"
-            onClick={handleOpenEditModal}
-            className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
+          <div className="flex justify-end">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleOpenEditModal}
+              className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
                     hover:scale-105 transition-transform duration-200 shadow-sm"
-        >
-            <Pencil className="h-4 w-4 text-gray-600" />
-        </Button>
-        </div>
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg ">
-            <DialogHeader>
-              <DialogTitle className="mb-4">Edit Segments</DialogTitle>
-            </DialogHeader>
-            {editLoading && <div>Loading segmentation map...</div>}
-            {editError && <div className="text-red-500">{editError}</div>}
-            {!editLoading && !editError && (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {editSegMap.map((value, idx) => {
-                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
-                  const end = value;
-                  const segChunks = editTranscriptChunks.filter(chunk =>
-                    chunk.timestamp &&
-                    typeof chunk.timestamp[0] === 'number' &&
-                    chunk.timestamp[0] >= start &&
-                    chunk.timestamp[0] < end
-                  );
-                  const segText = segChunks.map(chunk => chunk.text).join(' ');
-                  return (
-                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={value}
-                          onChange={e => handleEditSegChange(idx, e.target.value)}
-                          className="w-24"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveSeg(idx)}
-                          className="text-destructive hover:text-destructive"
-                          disabled={editSegMap.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+            >
+              <Pencil className="h-4 w-4 text-gray-600" />
+            </Button>
+          </div>
+          <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+            <DialogContent className="max-w-lg ">
+              <DialogHeader>
+                <DialogTitle className="mb-4">Edit Segments</DialogTitle>
+              </DialogHeader>
+              {editLoading && <div>Loading segmentation map...</div>}
+              {editError && <div className="text-red-500">{editError}</div>}
+              {!editLoading && !editError && (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {editSegMap.map((value, idx) => {
+                    const start = idx === 0 ? 0 : editSegMap[idx - 1];
+                    const end = value;
+                    const segChunks = editTranscriptChunks.filter(chunk =>
+                      chunk.timestamp &&
+                      typeof chunk.timestamp[0] === 'number' &&
+                      chunk.timestamp[0] >= start &&
+                      chunk.timestamp[0] < end
+                    );
+                    const segText = segChunks.map(chunk => chunk.text).join(' ');
+                    return (
+                      <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                          <Input
+                            type="text"
+                            placeholder="0:00"
+                            maxLength={5}
+                            value={formatTime(editSegMap[idx] ?? 0)}
+                            onChange={e => handleEditSegChange(idx, e.target.value)}
+                            onBlur={e => {
+                              const seconds = parseTimeToSeconds(e.target.value);
+                              const newMap = [...editSegMap];
+                              // Re-apply neighbor constraints on blur
+                              const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
+                              const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
+                              const clamped = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
+                              newMap[idx] = Math.max(0, clamped);
+                              setEditSegMap(newMap);
+                            }}
+                            className="w-24"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveSeg(idx)}
+                            className="text-destructive hover:text-destructive"
+                            disabled={editSegMap.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                          {segText}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                        {segText}
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-              </div>
-            )}
-            <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setEditModalOpen(false)}
-                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveEditSeg}
-                disabled={editLoading}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <ol className="mt-2 space-y-4">
-          {segmentationMap.map((end: any, idx: any) => {
-            const start = idx === 0 ? 0 : segmentationMap[idx - 1];
-            const segChunks = segmentationChunks[idx] || [];
-            return (
-              <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                <div>
-                  <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
+                    );
+                  })}
+                  <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
                 </div>
-                {segChunks.length > 0 && (
-                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                    {segChunks.map((chunk: { text: string }) => chunk.text).join(' ')}
+              )}
+              <DialogFooter className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditModalOpen(false)}
+                  className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEditSeg}
+                  disabled={editLoading}
+                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                >
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <ol className="mt-2 space-y-4">
+            {segmentationMap.map((end: any, idx: any) => {
+              const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+              const segChunks = segmentationChunks[idx] || [];
+              return (
+                <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                  <div>
+                    <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
                   </div>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+                  {segChunks.length > 0 && (
+                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      {segChunks.map((chunk: { text: string }) => chunk.text).join(' ')}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         </>
       ) : hasFallbackSegments ? (
         <ol className="mt-2 space-y-2">
@@ -2398,6 +2478,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
     </div>
   );
 };
+
 
 export default AiWorkflow
 
