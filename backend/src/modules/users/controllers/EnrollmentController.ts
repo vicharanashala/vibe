@@ -166,6 +166,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      enrollmentData
     );
 
     return new EnrollUserResponse(

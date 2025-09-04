@@ -146,32 +146,23 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    enrollment: Enrollment | null,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      const enrollment = await this.enrollmentRepo.findEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-      );
       if (!enrollment) {
-        throw new NotFoundError('Enrollment not found');
+        throw new NotFoundError("Enrollment not found");
       }
 
-      // Remove enrollment
-      await this.enrollmentRepo.deleteEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
 
-      // Remove progress
-      await this.enrollmentRepo.deleteProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      await this.progressService
+        .unenrollUser(
+          userId,
+          courseId,
+          courseVersionId,
+          session
+        )
+        ;
+
 
       return {
         enrollment: null,
@@ -180,6 +171,7 @@ export class EnrollmentService extends BaseService {
       };
     });
   }
+
 
   async getEnrollments(
     userId: string,
