@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, Info, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
+import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, Power, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -13,12 +13,18 @@ import { TranscriberData } from '@/hooks/useTranscriber';
 import { useNavigate } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ConfirmationModal from './components/confirmation-modal';
 
 interface UploadParams {
   videoItemBaseName: string;
   quizItemBaseName: string;
   questionsPerQuiz: number | null;
   audioProvided: boolean;
+}
+
+interface CurrentJob {
+    status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
+    task: any
 }
 
 const AiWorkflow = () => {
@@ -41,7 +47,7 @@ const AiWorkflow = () => {
     const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
         model: "deepseek-r1:70b",
-        SQL: 2,
+        SQL: 0,
         SML: 0,
         NAT: 0,
         DES: 0,
@@ -62,7 +68,7 @@ const AiWorkflow = () => {
 
     const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null); // to track current job status
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined); // to store the generated transcription
-    const [currentJob, setCurrentJob] = useState<{status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null>(null)
+    const [currentJob, setCurrentJob] = useState<CurrentJob | null>(null)
     const [isTranscribing, setIsTranscribing] = useState(false); 
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false); //will true once segmentation starts (backend)
@@ -82,7 +88,7 @@ const AiWorkflow = () => {
 
     const [isWaitingServer, setIsWaitingServer] = useState(false);// to track live status state
     const [isApprovingTask, setIsApprovingTask] = useState(false); // to track approve task 
-
+    const [isOpenEndJobModal, setIsOpenEndJobModal] = useState(false);
 
     // <<<<<<<<<< Ref >>>>>>>>>>
     const optimisticFailedTaskRef = useRef<string | null>(null);
@@ -291,13 +297,14 @@ const AiWorkflow = () => {
     };
 
     const updateCurrentJob = (
-    task: "segmentation" | "questionGeneration" | "uploadContent",
+    task: "segmentation" | "questionGeneration" | "uploadContent" | "audioExtraction",
     status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
     ) => {
         const taskMap: Record<string, string> = {
             segmentation: "SEGMENTATION",
             questionGeneration: "QUESTION_GENERATION",
             uploadContent: "UPLOAD_CONTENT",
+            audioExtraction: "AUDIO_EXTRACTION"
         };
 
         setCurrentJob({
@@ -550,7 +557,7 @@ const AiWorkflow = () => {
               toast.error("Job not found");
               return;
             }
-            setError("");
+            setError(""); 
             setIsApprovingTask(true);
             setIsWaitingServer(false) // set to false, because now we are going to hit server again!
             setProgress(0);
@@ -572,7 +579,9 @@ const AiWorkflow = () => {
             const currentTask = currentTaskData.task; 
             const currentStatus = currentTaskData.status;
             
-            
+            if(currentTask == "uploadContent") // Manully adding upload status, becuae live status api will not trigger
+              updateCurrentJob("uploadContent", "RUNNING");
+
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
             
             
@@ -610,8 +619,10 @@ const AiWorkflow = () => {
               toast.success("Task approved!");
               setIsWaitingServer(true) // setting true until we get response from live status ap
             
-            if(currentTask == "uploadContent")
+            if(currentTask == "uploadContent") {
                 handleRefreshStatus(); // for upload content status refresh
+                toast.success("Content upload successfully!");
+              }
 
         } catch(error) {
             if(!isWaitingServer) {
@@ -633,6 +644,31 @@ const AiWorkflow = () => {
 
   return (
     <div className='py-2'>
+        <ConfirmationModal
+          isOpen={isOpenEndJobModal}
+          onClose={() => setIsOpenEndJobModal(false)}
+          onConfirm={()=>{
+            setAiJobId("");
+            setIsOpenEndJobModal(false);
+            setProgress(0);
+            setError(""); 
+            setIsLoading(false)
+            setIsAiJobStarted(false);
+            setIsWaitingServer(false);
+            setTranscribedData(undefined);
+            ([])
+            setSegmentationChunks([]) ;
+            setSegmentationMap([])
+            setSegments([]);
+            setQuestions([]);
+            updateCurrentJob("audioExtraction","WAITING")
+            }}
+          title="End Current Job"
+          description="Are you sure you want to end this job? Once confirmed, all generated data and progress will be cleared, and you will need to start again from the beginning."
+          confirmText="End Job"
+          isDestructive={true}
+          isLoading={false}
+        />
        <div className="mb-2"> 
             <Button
                 variant="ghost"
@@ -655,12 +691,13 @@ const AiWorkflow = () => {
                         Click to instantly generate engaging learning content. All essential steps are handled in the background.
                         </CardDescription>
                     </div>
+                    <div className="flex items-center justify-center gap-2">
                     {youtubeUrl && 
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setShowUrl((prev) => !prev)}
-                        className="text-sm font-medium px-3 py-1 rounded border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground transition"
+                        className="text-sm font-medium px-3 py-2 rounded border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground transition"
                       >
                         {showUrl ? "Hide URL" : "Show URL"}
                       </button>
@@ -672,6 +709,22 @@ const AiWorkflow = () => {
                       )}
                     </div>
                    }
+                   {aiJobId && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsOpenEndJobModal((prev) => !prev)}
+                          className={`flex items-center gap-2 text-sm text-red-400 font-medium px-3 py-2.5  rounded border transition
+                            ${isOpenEndJobModal 
+                              ? "bg-red-600 text-white hover:bg-red-700" 
+                              : "bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
+                            }`}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    </div>
                 </div>
             </CardHeader>
             {!isURLValidated ?
@@ -758,6 +811,7 @@ const AiWorkflow = () => {
                                     uploadParams = {uploadParams} 
                                     handleApproveTask = {handleApproveTask} 
                                     isLoading = {isLoading}
+                                    isApprovingTask={isApprovingTask}
                                 />
                             ) : (
                             <>
@@ -1142,7 +1196,7 @@ interface QuestionGenerationResultProps {
   questions: any[];
   editModalOpen: boolean;
   aiJobId: string | null;
-  handleApproveTask: (qnGenParams?: QuestionGenerationParameters) => void;
+  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
   setEditingIdx: (idx: number) => void;
   setEditQuestion: (q: any) => void;
   setEditModalOpen: (open: boolean) => void;
@@ -1179,26 +1233,26 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     }) => {
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
-    const [mcqCount, setMcqCount] = useState(2);
-    const [binaryCount, setBinaryCount] = useState(0);
-    const [showMCQ, setShowMCQ] = useState(false);
-    const [showMSQ, setShowMSQ] = useState(false);
-    const [showBinary, setShowBinary] = useState(false);
-    const binaryPrompt = `Focus on conceptual understanding and clarity  
-- Create a mix of question types as per user requirement (e.g., multiple-choice, Yes/No, or True/False)  
-- Test comprehension of key ideas, principles, and relationships discussed in the content  
-- Avoid questions that require memorizing exact numerical values, dates, or statistics  
-- Ensure that the correct answer is supported by the content, but not directly quoted  
-- Make all answer options (where applicable) roughly the same length and balanced in tone  
-- For Yes/No or True/False, phrase the statement neutrally so the answer is not obvious from wording  
-- Set isParameterized to false unless the question involves variables  
-- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
-
-    const clampInt = (val: string, min = 0, max = 100) => {
-        const n = Number.parseInt(val, 10)
-        if (Number.isNaN(n)) return min
-        return Math.min(max, Math.max(min, n))
-    }
+    // const [mcqCount, setMcqCount] = useState(2);
+    // const [binaryCount, setBinaryCount] = useState(0);
+    const [isMCQ, setIsMCQ] = useState(true);
+    const [isMSQ, setIsMSQ] = useState(false);
+    const [isBinary, setIsBinary] = useState(false);
+    const binaryPrompt = `Generate only Yes/No questions (binary type).
+Each question must contain exactly two options: "Yes" and "No".
+Phrase each question neutrally so the answer is not obvious from wording.
+Test comprehension of key ideas, principles, and relationships discussed in the content.
+Avoid questions that require memorizing exact numerical values, dates, or statistics.
+Ensure the correct answer is supported by the content, but not directly quoted.
+All questions must strictly follow the Yes/No format (no multiple-choice, open-ended, or True/False).
+Set isParameterized to false unless the question involves variables.
+Do not mention the word 'transcript' for giving references, use the word 'video' instead.`
+const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    // const clampInt = (val: string, min = 0, max = 100) => {
+    //     const n = Number.parseInt(val, 10)
+    //     if (Number.isNaN(n)) return min
+    //     return Math.min(max, Math.max(min, n))
+    // }
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
@@ -1208,19 +1262,33 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
         updateCurrentJob ("uploadContent", "WAITING");
     }
 
-    const handleAddParams = () => {
+    const handleAddParams = async() => {
 
-      const totalCount = String(mcqCount + binaryCount);
+      if(!aiJobId){
+        toast.error("Failed to find jobId!")
+        return;      
+      }
 
       const newParams = {
         ...customQuestionParams,
-        SQL: clampInt(totalCount, 0, 100),
-        prompt: binaryCount ? binaryPrompt : customQuestionParams.prompt,
+        SQL: (isMCQ || isBinary) ? 2 : 0,
+        SML: isMSQ  ? 2 : 0,
+        prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
       setCustomQuestionParams(newParams);
 
-      handleApproveTask(newParams);
+      if (currentJobStatus === "COMPLETED") {
+          try {
+            await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
+            toast.error("Re-run success!");
+          } catch (err) {
+            toast.error("Re-run failed, try again!");
+            console.error("Re-run failed:", err);
+          }
+        } else {
+          handleApproveTask(newParams);
+      }
     }
 
     return (
@@ -1276,8 +1344,8 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
               </div>
              )}
              
-          {currentJobStatus !== "COMPLETED" && (
-            <section className="border rounded-xl p-6 bg-card text-gray-800 dark:text-gray-200 shadow-sm"
+          {(currentJobStatus !== "COMPLETED" || isSettingsOpen) && (
+            <section className="border mb-3 rounded-xl p-6 bg-card text-gray-800 dark:text-gray-200 shadow-sm"
               aria-labelledby="question-generation-settings-heading"
               role="region"
               >
@@ -1312,46 +1380,60 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
                       </div>
 
                       <div className="space-y-2">
-                          <Label className="text-sm font-medium">Question Types</Label>
-                          <div className="flex gap-3">
+                        <Label className="text-sm font-medium">Question Types</Label>
+                        <div className="flex gap-3">
                           <Button
-                              type="button"
-                              variant={showMCQ ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setShowMCQ((prev) => !prev)}
-                              aria-pressed={showMCQ}
-                              disabled={isLocked}
+                            type="button"
+                            variant={isMCQ ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setIsMCQ(true);
+                              setIsMSQ(false);
+                              setIsBinary(false);
+                            }}
+                            aria-pressed={isMCQ}
+                            disabled={isLocked}
                           >
-                              MCQ
+                            MCQ
                           </Button>
+
                           <Button
-                              type="button"
-                              variant={showMSQ ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setShowMSQ((prev) => !prev)}
-                              aria-pressed={showMSQ}
-                              disabled={isLocked}
+                            type="button"
+                            variant={isMSQ ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setIsMCQ(false);
+                              setIsMSQ(true);
+                              setIsBinary(false);
+                            }}
+                            aria-pressed={isMSQ}
+                            disabled={isLocked}
                           >
-                              MSQ
+                            MSQ
                           </Button>
+
                           <Button
-                              type="button"
-                              variant={showBinary ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setShowBinary((prev) => !prev)}
-                              aria-pressed={showBinary}
-                              disabled={isLocked}
+                            type="button"
+                            variant={isBinary ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setIsMCQ(false);
+                              setIsMSQ(false);
+                              setIsBinary(true);
+                            }}
+                            aria-pressed={isBinary}
+                            disabled={isLocked}
                           >
-                              Binary
+                            Binary
                           </Button>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                          Toggle which types to include. Only visible types will be generated.
-                          </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Toggle which type to include. Only one type can be selected at a time.
+                        </p>
                       </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {showMCQ && (
                           <div className="space-y-2">
                           <Label className="text-sm font-medium" htmlFor="mcq-count">
@@ -1439,9 +1521,9 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
                           </p>
                           </div>
                       )}
-                      </div>
+                      </div> */}
 
-                      <div className="flex items-center gap-3">
+                      {/* <div className="flex items-center gap-3">
                       <Button
                           type="button"
                           variant="outline"
@@ -1460,59 +1542,160 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
                       >
                           Reset Counts
                       </Button>
-                      </div>
+                      </div> */}
                   </div>
               </section>
           )}
 
           {currentJobStatus == "COMPLETED" && !isLoading &&
-              <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-                  <strong>Questions:</strong>
+            <div className=" bg-card border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Questions</h3>
+                <Button
+                  variant="outline"
+                  className={`px-5 py-2.5 flex items-center gap-2 rounded-xl text-sm font-medium transition-all duration-200 shadow-sm text-gray-800 dark:text-white
+                    ${isSettingsOpen 
+                      ? "bg-primary hover:bg-primary/90 dark:bg-primary/90 hover:dark:bg-primary/80 dark:text-black" 
+                      : "hover:bg-muted"
+                    }`}
+                  onClick={() => setIsSettingsOpen((prev) => !prev)}
+                  aria-pressed={isSettingsOpen}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </Button>
+              </div>
 
-              {isTaskResultLoading && <div className="mt-2">Loading...</div>}
-              {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-              {!isLoading && !error && questions.length > 0 && (
-                  <ol className="mt-2 space-y-4">
-                  {questions.map((q, idx) => {
-                      let segIdx = segmentIds.findIndex((sid) => sid === q.segmentId);
-                      let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
-                      let segEnd = q.segmentId;
+              <div className="p-4">
+                {isTaskResultLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
+                      <span className="text-sm font-medium">Loading questions...</span>
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">!</span>
+                      </div>
+                      <span className="text-red-700 dark:text-red-400 font-medium">{error}</span>
+                    </div>
+                  </div>
+                )}
+
+                {!isLoading && !error && questions.length > 0 && (
+                  <div className="space-y-4">
+                    {questions.map((q: any, idx: number) => {
+                      const segIdx = segmentIds.findIndex((sid) => sid === q.segmentId)
+                      const segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1]
+                      const segEnd = q.segmentId
 
                       return (
-                      <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          Segment: {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"} | Type: {q.questionType || q.question?.type || "N/A"}
+                        <div
+                          key={q.question?.text || idx}
+                          className="bg-card/90 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                        >
+                          {/* Question Metadata */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-4 text-xs">
+                              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
+                                {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"}
+                              </span>
+                              <span className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
+                                {q.questionType || q.question?.type || "N/A"}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-white transition-colors bg-transparent"
+                              onClick={() => {
+                                setEditingIdx(idx)
+                                setEditQuestion(JSON.parse(JSON.stringify(q)))
+                                setEditModalOpen(true)
+                              }}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
                           </div>
-                          <div className="flex items-center gap-2">
-                          <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                          <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
-                              <Edit className="w-4 h-4" /> Edit
-                          </Button>
+
+                          {/* Question Text */}
+                          <div className="mb-3">
+                            <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-relaxed">
+                              Q{idx + 1}: {q.question?.text}
+                            </h4>
+                            {q.question?.hint && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">💡 Hint: {q.question.hint}</p>
+                            )}
                           </div>
-                          {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+
+                          {/* Answer Options */}
                           {q.solution && (
-                          <>
-                              <div className="mt-1"><b>Options:</b></div>
-                              <ul className="list-disc ml-6">
-                              {q.solution.incorrectLotItems?.map((opt: any, oIdx: any) => (
-                                  <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                              ))}
-                              {q.solution.correctLotItems?.map((opt: any, oIdx: any) => (
-                                  <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                              ))}
-                              {q.solution.correctLotItem && (
-                                  <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                              )}
-                              </ul>
-                          </>
+                            <div className="space-y-2">
+                              <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Answer Options:</h5>
+                              <div className="space-y-1">
+                                {/* Incorrect Options */}
+                                {q.solution.incorrectLotItems?.map((opt: any, oIdx: any) => (
+                                  <div
+                                    key={`inc-${oIdx}`}
+                                    className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm"
+                                  >
+                                    <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs">✕</span>
+                                    </div>
+                                    <span className="text-red-700 dark:text-red-300">{opt.text}</span>
+                                  </div>
+                                ))}
+
+                                {/* Correct Options */}
+                                {q.solution.correctLotItems?.map((opt: any, oIdx: any) => (
+                                  <div
+                                    key={`cor-${oIdx}`}
+                                    className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm"
+                                  >
+                                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs">✓</span>
+                                    </div>
+                                    <span className="text-green-700 dark:text-green-300 font-medium">{opt.text}</span>
+                                  </div>
+                                ))}
+
+                                {/* Single Correct Option */}
+                                {q.solution.correctLotItem && (
+                                  <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
+                                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs">✓</span>
+                                    </div>
+                                    <span className="text-green-700 dark:text-green-300 font-medium">
+                                      {q.solution.correctLotItem.text}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           )}
-                      </li>
-                      );
-                  })}
-                  </ol>
-              )}
-              { !isTaskResultLoading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {!isTaskResultLoading && !error && questions.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">❓</span>
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Questions Found</h4>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">There are currently no questions to display.</p>
+                  </div>
+                )}
               </div>
+            </div>
           }
           <EditQuestionDialog
              editModalOpen={editModalOpen}
@@ -1528,19 +1711,25 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
           <div className="flex-1"></div>
 
           <div className="flex-1 flex justify-center">
-            {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" &&
+            {/* {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" && */}
                   <Button
                   onClick={handleAddParams}
-                  disabled = { isLoading || isWaitingServer}
+                  disabled = { isLoading || isWaitingServer || currentJobStatus == "COMPLETED"}
                   className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
                               text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
                               hover:shadow-xl transition-all duration-300 transform hover:scale-105 
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
                               flex items-center justify-center gap-2"
                   >
-                      { error || currentJobStatus === "FAILED" ? (
+                      { error || currentJobStatus === "FAILED" || currentJobStatus == "COMPLETED"? (
                         <>
-                          { isApprovingTask ? "Retry..." : "Retry"}
+                          {isApprovingTask
+                            ? currentJobStatus === "COMPLETED"
+                              ? "Re-running..."
+                              : "Retry..."
+                            : currentJobStatus === "COMPLETED"
+                              ? "Re - run"
+                              : "Retry"}
                           <RefreshCw className="w-5 h-5" />
                         </>
                       ) : (
@@ -1550,7 +1739,11 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
                         </>
                       )}
                   </Button>
-              }
+              {/* } */}
+              
+          </div>
+
+          <div className="flex-1 flex justify-end">
               {currentJobStatus == "COMPLETED"  &&
                   <Button
                   variant="secondary"
@@ -1566,10 +1759,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
                   <ArrowRight className="w-5 h-5" />
                   </Button>
               }
-          </div>
-
-          <div className="flex-1 flex justify-end">
-              
           </div>
           </div>
         </div>
@@ -1600,7 +1789,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
     <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Question</DialogTitle>
+          <DialogTitle className="mb-5">Edit Question</DialogTitle>
         </DialogHeader>
         {editQuestion && (
           <QuestionEditForm
@@ -1910,8 +2099,12 @@ const SegmentationView = ({
     const [editSegMap, setEditSegMap] = useState<number[]>([]);
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState("");
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
         // Add state for transcriptChunks in the edit modal
     const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+
+    const isJobCompleted = currentJobStatus == "COMPLETED"
 
     const isAnyLoading = isLoading || isTaskResultLoading;
     const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
@@ -2003,6 +2196,20 @@ const SegmentationView = ({
         }
     };
   
+    const handleConfirm = async () => {
+        if (currentJobStatus === "COMPLETED") {
+          try {
+            await aiSectionAPI.rerunJobTask(aiJobId, "SEGMENTATION", customSegmentationParams);
+            // handleShowHandleResult("SEGMENTATION");
+            toast.success("Re-run success!");
+          } catch (err) {
+            toast.error("Re-run failed, try again!");
+            console.error("Re-run failed:", err);
+          }
+        } else {
+          handleApproveTask();
+        }
+      };
 
     const handleNext = () => {
         updateCurrentJob ("questionGeneration", "WAITING");
@@ -2011,7 +2218,50 @@ const SegmentationView = ({
 
   return (
     <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
-        {currentJobStatus === "FAILED" && (
+        {(currentJobStatus !== "COMPLETED" || isSettingsOpen) && (
+            <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card mb-5">
+                <div className="flex-1">
+                <Label className="text-sm font-medium dark:text-gray-100 text-gray-800">
+                    Segmentation Frequency
+                </Label>
+                <Select
+                    onValueChange={(value) => {
+                    setCustomSegmentationParams((prev: any) => ({
+                        ...prev,
+                        lam: parseFloat(value),
+                    }));
+                    }}
+                    disabled={isAnyLoading || isWaitingServer || isApprovingTask}
+                    value={customSegmentationParams.lam.toString()}
+                >
+                    <SelectTrigger className="mt-2 h-10 w-full md:w-64">
+                    <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="0.5" >Very Frequent</SelectItem>
+                    <SelectItem value="2">Frequent</SelectItem>
+                    <SelectItem value="4.5">Normal</SelectItem>
+                    <SelectItem value="5.5">Less Frequent</SelectItem>
+                    <SelectItem value="7">Very Less Frequent</SelectItem>
+                    </SelectContent>
+                </Select>
+                </div>
+
+                <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
+                {customSegmentationParams.lam === 0.5 &&
+                    "Segments will be created very frequently, providing high detail and precision."}
+                {customSegmentationParams.lam === 2 &&
+                    "Segments will be created frequently, offering a balance between detail and performance."}
+                {customSegmentationParams.lam === 4.5 &&
+                    "Normal segmentation – balanced detail and efficiency for general use cases."}
+                {customSegmentationParams.lam === 5.5 &&
+                    "Less frequent segmentation – fewer segments, faster processing but lower detail."}
+                {customSegmentationParams.lam === 7 &&
+                    "Very minimal segmentation – ideal for large datasets where performance is critical."}
+                </div>
+            </div>
+        )}
+      {currentJobStatus === "FAILED" && (
               <div className="flex items-center justify-center gap-2 mb-12 text-red-600 dark:text-red-400 font-medium">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -2058,16 +2308,26 @@ const SegmentationView = ({
       </div>
       ) : hasSegmentationData ?(
         <>
-        <div className="flex justify-end">
+        <div className="flex justify-end mb-4">
         <Button
             size="icon"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
-                    hover:scale-105 transition-transform duration-200 shadow-sm"
+            className={`p-2 hover:scale-105 transition-transform duration-200 shadow-sm `}
         >
-            <Pencil className="h-4 w-4 text-gray-600" />
+            <Pencil className="h-4 w-4 dark:text-white text-black" />
         </Button>
+
+        <Button
+        variant="outline"
+        size="icon"
+        className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
+        onClick={() => setIsSettingsOpen((prev) => !prev)}
+        aria-pressed={isSettingsOpen}
+      >
+        <Settings className="w-7 h-7 dark:text-white text-black" />
+      </Button>
+
         </div>
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="max-w-lg ">
@@ -2137,97 +2397,106 @@ const SegmentationView = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <ol className="mt-2 space-y-4">
-          {segmentationMap.map((end: any, idx: any) => {
-            const start = idx === 0 ? 0 : segmentationMap[idx - 1];
-            const segChunks = segmentationChunks[idx] || [];
-            return (
-              <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                <div>
-                  <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
-                </div>
-                {segChunks.length > 0 && (
-                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                    {segChunks.map((chunk: { text: string }) => chunk.text).join(' ')}
+            <div className="space-y-3">
+              {segmentationMap.map((end: number, idx: number) => {
+                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
+                const segChunks = segmentationChunks[idx] || []
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-card border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-card/90 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{idx + 1}</span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
+                        <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                          {start.toFixed(2)}s – {end.toFixed(2)}s
+                        </span>
+                      </div>
+                    </div>
+
+                    {segChunks.length > 0 && (
+                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
+                        <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+                )
+              })}
+            </div>
         </>
       ) : hasFallbackSegments ? (
-        <ol className="mt-2 space-y-2">
-          {segments.map((seg: any, idx: any) => (
-            <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
-              <div>
-                <b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)
+        <div className="space-y-3">
+          {segments.map((seg: any, idx: number) => {
+            const startTime = seg.startTime ?? seg.timestamp?.[0]
+            const endTime = seg.endTime ?? seg.timestamp?.[1]
+
+            return (
+              <div
+                key={idx}
+                className="bg-card border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-card rounded-full flex items-center justify-center">
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{idx + 1}</span>
+                    </div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-card px-3 py-1 rounded-full">
+                    <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {startTime}s - {endTime}s
+                    </span>
+                  </div>
+                </div>
+
+                {seg.text && (
+                  <div className="flex items-start gap-2 bg-card border rounded-md p-3">
+                    <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{seg.text}</p>
+                  </div>
+                )}
               </div>
-              <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
-            </li>
-          ))}
-        </ol>
+            )
+          })}
+        </div>
       ) : null}
-    {currentJobStatus != "WAITING" && !isAnyLoading && !isWaitingServer && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
-
-        {(currentJobStatus !== "COMPLETED") &&  (
-            <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card">
-                <div className="flex-1">
-                <Label className="text-sm font-medium dark:text-gray-100 text-gray-800">
-                    Segmentation Frequency
-                </Label>
-                <Select
-                    onValueChange={(value) => {
-                    setCustomSegmentationParams((prev: any) => ({
-                        ...prev,
-                        lam: parseFloat(value),
-                    }));
-                    }}
-                    disabled={isAnyLoading || isWaitingServer || isApprovingTask}
-                    value={customSegmentationParams.lam.toString()}
-                >
-                    <SelectTrigger className="mt-2 h-10 w-full md:w-64">
-                    <SelectValue/>
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="0.5" >Very Frequent</SelectItem>
-                    <SelectItem value="2">Frequent</SelectItem>
-                    <SelectItem value="4.5">Normal</SelectItem>
-                    <SelectItem value="5.5">Less Frequent</SelectItem>
-                    <SelectItem value="7">Very Less Frequent</SelectItem>
-                    </SelectContent>
-                </Select>
-                </div>
-
-                <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
-                {customSegmentationParams.lam === 0.5 &&
-                    "Segments will be created very frequently, providing high detail and precision."}
-                {customSegmentationParams.lam === 2 &&
-                    "Segments will be created frequently, offering a balance between detail and performance."}
-                {customSegmentationParams.lam === 4.5 &&
-                    "Normal segmentation – balanced detail and efficiency for general use cases."}
-                {customSegmentationParams.lam === 5.5 &&
-                    "Less frequent segmentation – fewer segments, faster processing but lower detail."}
-                {customSegmentationParams.lam === 7 &&
-                    "Very minimal segmentation – ideal for large datasets where performance is critical."}
-                </div>
-            </div>
-        )}
+    {currentJobStatus == "COMPLETED" && !isAnyLoading && !isWaitingServer && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
 
         <div className="flex items-center justify-between mt-8">
             <div className="flex-1"></div>
             <div className="flex-1 flex justify-center">
-              {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" &&
                     <Button
-                    onClick={() => handleApproveTask()}
-                    disabled={isLoading || isWaitingServer}
+                    // onClick={handleConfirm}
+                    onClick={()=> handleApproveTask()}
+                    // disabled={isLoading || isWaitingServer || isApprovingTask}
+                    disabled={isLoading || isWaitingServer || isApprovingTask || currentJobStatus == "COMPLETED"}
                     className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lghover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                   >
-                    { error || currentJobStatus === "FAILED" ? (
-                      <>
-                        { isApprovingTask ? "Retry..." : "Retry"}
-                        <RefreshCw className="w-5 h-5" />
-                      </>
+                    { error || currentJobStatus == "FAILED" || currentJobStatus == "COMPLETED" ? (
+                     <>
+                      {isApprovingTask
+                        ? currentJobStatus === "COMPLETED"
+                          ? "Re-running..."
+                          : "Retry..."
+                        : currentJobStatus === "COMPLETED"
+                          ? "Re - run"
+                          : "Retry"}
+                      <RefreshCw className="w-5 h-5" />
+                    </>
                     ) : (
                       <>
                         {isApprovingTask ? "Confirming...": "Confirm"}
@@ -2235,7 +2504,8 @@ const SegmentationView = ({
                       </>
                     )}
                   </Button>
-                }
+            </div>
+            <div className="flex-1 flex justify-end">
                 {currentJobStatus=="COMPLETED" &&
                     <Button
                         variant="secondary"
@@ -2249,8 +2519,6 @@ const SegmentationView = ({
                     </Button>
                 }
             </div>
-            <div className="flex-1 ">
-            </div>
         </div>
     </div>
   );
@@ -2260,7 +2528,8 @@ interface UploadContentProps {
   uploadParams: UploadParams;
   setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
   isLoading: boolean;
-  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void
+  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void;
+  isApprovingTask: boolean;
 }
 
 const UploadContentView: React.FC<UploadContentProps> = ({
@@ -2268,11 +2537,12 @@ const UploadContentView: React.FC<UploadContentProps> = ({
   uploadParams,
   setUploadParams,
   isLoading, 
-  handleApproveTask
+  handleApproveTask,
+  isApprovingTask
 }) => {
   const navigate = useNavigate();
 
-  if(currentJobStatus == "WAITING") { 
+  if(currentJobStatus !== "COMPLETED") { 
     return(<div className="space-y-6">
         {/* Upload Parameters */}
         <div className="rounded-xl border p-6 space-y-4 pb-10 mt-5">
@@ -2328,10 +2598,10 @@ const UploadContentView: React.FC<UploadContentProps> = ({
         <div className="flex justify-center">
         <Button
             onClick={() => handleApproveTask()}
-            disabled={isLoading}
+            disabled={isLoading || isApprovingTask}
             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
         >
-            Upload Content
+           {isApprovingTask ? "Upload Content ..." : "Upload Content"}
             <UploadCloud className="w-5 h-5" />
         </Button>
         </div>

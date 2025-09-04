@@ -549,6 +549,13 @@ export const rerunJobTask = async (
       parameters: params || {},
     }),
   });
+   if (!res.ok) {
+    let errorMessage = `Request failed with status ${res.status}`;
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorMessage;
+      throw new Error(errorMessage);
+  }
+  
   return res;
 };
 
