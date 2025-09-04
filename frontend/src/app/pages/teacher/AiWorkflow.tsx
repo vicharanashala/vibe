@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info } from 'lucide-react';
+import {  ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, Info, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -40,6 +40,7 @@ const AiWorkflow = () => {
 
     // <<<<<<<<< State >>>>>>>>>>
     const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [showUrl, setShowUrl] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null); // yt url error
     const [aiJobId, setAiJobId] = useState<string | null>(null); 
 
@@ -49,11 +50,10 @@ const AiWorkflow = () => {
     audioProvided: true,
     questionsPerQuiz: null,
     });
-
     const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
         model: "deepseek-r1:70b",
-        SQL: 1,
+        SQL: 2,
         SML: 0,
         NAT: 0,
         DES: 0,
@@ -65,7 +65,6 @@ const AiWorkflow = () => {
     - Set isParameterized to false unless the question uses variables
     - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
     });
-
     const [customSegmentationParams, setCustomSegmentationParams] =
     useState<SegmentationParameters>({
         lam: 4.5,
@@ -92,6 +91,9 @@ const AiWorkflow = () => {
     const [editingIdx, setEditingIdx] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editQuestion, setEditQuestion] = useState<any>(null);
+
+    const [isWaitingServer, setIsWaitingServer] = useState(false);// to track live status state
+    const [isApprovingTask, setIsApprovingTask] = useState(false); // to track approve task 
 
 
     // <<<<<<<<<< Ref >>>>>>>>>>
@@ -128,6 +130,12 @@ const AiWorkflow = () => {
                     toast.success("Question generation completed!")
                     // setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
                 }
+            } else if(incoming.status =="RUNNING") {
+              setIsWaitingServer(false);
+              setIsLoading(true); // for progress bar (%) 
+            } else if(incoming.status == "FAILED") {
+              setProgress(0);
+              setIsLoading(false);
             }
             // 3. Set ai job status for live status (currently not using)
             setAiJobStatus(() => {
@@ -175,13 +183,15 @@ const AiWorkflow = () => {
         return () => es.close();
     }, [aiJobId]);
 
-    // To trach transcription status and start ai job for segementation
+    // To track transcription status and start ai job for segementation
     useEffect(()=> {
-        if(isAudioExtracting) 
-            setCurrentJob({
-                status: "RUNNING",
-                task: 'AUDIO_EXTRACTION'
-            });
+        if(isAudioExtracting) {
+          setCurrentJob({
+            status: "RUNNING",
+            task: 'AUDIO_EXTRACTION'
+          });
+          setProgress(0);
+        }
         if (isTranscribing && transcribedData) {
             setIsLoading(true);
             setCurrentJob({
@@ -201,29 +211,34 @@ const AiWorkflow = () => {
 
     // Mock progress % bar
     useEffect(() => {
-    let interval: NodeJS.Timeout;
+      let interval: NodeJS.Timeout | null = null;
 
-    if (isLoading || isTranscribing) {
+      if (isLoading || isTranscribing) {
         interval = setInterval(() => {
-        setProgress((prev) => {
-            if (prev >= 98) return prev;
+          setProgress((prev) => {
+            if (prev >= 99.99) return 99.99;
 
-            let increment = Math.max(0.2, (98 - prev) / 25);
+            let increment = Math.max(0.2, (99.99 - prev) / 25);
 
-            if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
-            increment = Math.max(0.1, increment / 2);
+            if (prev >= 85) {
+              increment = Math.max(0.05, increment / 3);
             }
 
-            return Math.min(prev + increment, 98);
-        });
-        }, 1600); 
-    } else {
+            // Extra slow for transcription or question generation
+            if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+              increment = Math.max(0.05, increment / 2);
+            }
+
+            return Math.min(prev + increment, 99.99);
+          });
+        }, 1600);
+      } else {
         setProgress(0);
-    }
-
-    return () => clearInterval(interval);
-    }, [isLoading, isTranscribing, isTranscribing, currentJob?.task]);
-
+      }
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }, [isLoading, isTranscribing, currentJob?.task]);
 
     // <<<<<<<<<< Helpers >>>>>>>>>>
 
@@ -316,7 +331,6 @@ const AiWorkflow = () => {
             setIsTaskResultLoading(true);
             const token = localStorage.getItem("firebase-auth-token");
             const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
-            console.log("Requested url: ", url);
 
             const res = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` },
@@ -324,7 +338,6 @@ const AiWorkflow = () => {
             if (!res.ok) throw new Error("Failed to fetch task status");
 
             const data = await res.json();
-            console.log("Result data: ", data)
             task == "SEGMENTATION" ? 
             handleExtractSegmentationResponse(data) :
             handleExtractQuestionResponse(data);
@@ -375,7 +388,6 @@ const AiWorkflow = () => {
         setSegmentationChunks(grouped);
         } else if (segData?.transcriptFileUrl) {
         const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
-        console.log("Extracted segments: ", segs);
         setSegments(segs);
         setSegmentationMap(null);
         setSegmentationChunks(null);
@@ -427,6 +439,7 @@ const AiWorkflow = () => {
         };
         // 2. Track creation for UI
         setIsCreatingAiJob(true);
+        setError("");
         // 3. Chunks of transcription
         const chunks: Chunk[] = transcribedData.chunks.map(c => ({
             text: c.text,
@@ -517,6 +530,7 @@ const AiWorkflow = () => {
     const handleRefreshStatus = async () => {
         if (!aiJobId) return;
         try {
+            setProgress(0);
             const status = await aiSectionAPI.getJobStatus(aiJobId);
             const currentTaskData = getCurrentTask(status.jobStatus);
 
@@ -541,13 +555,17 @@ const AiWorkflow = () => {
         }
     };
 
-    const handleApproveTask = async() => {
+    const handleApproveTask = async(qnGenParams?:QuestionGenerationParameters) => {
         try {
             // 1. Check aiJobId
             if (!aiJobId) {
-                toast.error("Job not found");
-                return;
+              toast.error("Job not found");
+              return;
             }
+            setError("");
+            setIsApprovingTask(true);
+            setIsWaitingServer(false) // set to false, because now we are going to hit server again!
+            setProgress(0);
             // 2. Fetch status to get current job
             const status = await aiSectionAPI.getJobStatus(aiJobId);
             
@@ -557,66 +575,77 @@ const AiWorkflow = () => {
             }
             
             const currentTaskData = getCurrentTask(status.jobStatus);
-
+            
             if (!currentTaskData) {
-                toast.error("Current task is missing");
-                return;
+              toast.error("Current task is missing");
+              return;
             }
-
+            
             const currentTask = currentTaskData.task; 
             const currentStatus = currentTaskData.status;
-
+            
+            
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
- 
-
+            
+            
             const customUploadParams = { 
-                courseId: currentCourse?.courseId, 
-                versionId: currentCourse?.versionId, 
-                moduleId: currentCourse?.moduleId, 
-                sectionId: currentCourse?.sectionId, 
-                videoItemBaseName: uploadParams.videoItemBaseName, 
-                quizItemBaseName: uploadParams.quizItemBaseName, questionsPerQuiz: uploadParams.questionsPerQuiz
+              courseId: currentCourse?.courseId, 
+              versionId: currentCourse?.versionId, 
+              moduleId: currentCourse?.moduleId, 
+              sectionId: currentCourse?.sectionId, 
+              videoItemBaseName: uploadParams.videoItemBaseName, 
+              quizItemBaseName: uploadParams.quizItemBaseName, questionsPerQuiz: uploadParams.questionsPerQuiz
             };
+            const customQuestionGenParams = qnGenParams || customQuestionParams;
 
             let params: Record<string, any> | null = null;
             // 3. Set proper request params
             switch (currentTask) {
-                case 'segmentation':
+              case 'segmentation':
                     params = {parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION"};
                     break;
                 case 'questionGeneration':
-                    params = { parameters: customQuestionParams, type: "QUESTION_GENERATION"};
+                    params = { parameters: customQuestionGenParams, type: "QUESTION_GENERATION"};
                     break;
                 case 'uploadContent': 
                     params = { parameters: customUploadParams , type: "UPLOAD_CONTENT", usePrevious: 0 };
                     break;
                 default: 
-                    console.error("Invalid current task", currentTask);
-                    toast.error("Invalida current task");
-                    return;
-            }
-            // 4. Trigger continue and start task
-            await aiSectionAPI.approveContinueTask(aiJobId);
-            await aiSectionAPI.approveStartTask(aiJobId, params);
-                    
-            // updateCurrentJob(currentTask, currentStatus);
-            toast.success("Task approved!");
-            setIsLoading(true); // for progress bar (%)
+                console.error("Invalid current task", currentTask);
+                toast.error("Invalida current task");
+                return;
+              }
+              // 4. Trigger continue and start task
+              await aiSectionAPI.approveContinueTask(aiJobId);
+              await aiSectionAPI.approveStartTask(aiJobId, params);
 
+              toast.success("Task approved!");
+              setIsWaitingServer(true) // setting true until we get response from live status ap
+            
             if(currentTask == "uploadContent")
                 handleRefreshStatus(); // for upload content status refresh
 
         } catch(error) {
-            toast.error("Failed to approve task");
-            console.log("Failed to approve task", error);
-            setIsLoading(false);
-        } 
+            if(!isWaitingServer) {
+              toast.error("Failed to approve task");
+              console.log("Failed to approve task", error);
+            } else {
+              toast.error("Failed to retry task");
+              console.log("Failed to retry task", error);
+            }
+            setProgress(100);
+            setTimeout(() => setIsLoading(false), 500);
+            setIsWaitingServer(false);
+            setError("Failed to approve task")
+        } finally {
+          setIsApprovingTask (false);
+        }
     }
 
 
   return (
     <div className='py-2'>
-       <div className="mb-4"> 
+       <div className="mb-2"> 
             <Button
                 variant="ghost"
                 size="sm"
@@ -638,6 +667,23 @@ const AiWorkflow = () => {
                         Click to instantly generate engaging learning content. All essential steps are handled in the background.
                         </CardDescription>
                     </div>
+                    {youtubeUrl && 
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowUrl((prev) => !prev)}
+                        className="text-sm font-medium px-3 py-1 rounded border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground transition"
+                      >
+                        {showUrl ? "Hide URL" : "Show URL"}
+                      </button>
+
+                      {showUrl && (
+                        <div className="absolute top-full right-0 mt-2 z-50 bg-card text-card-foreground px-3 py-2 rounded shadow text-sm font-medium break-words">
+                          Uploaded URL: {youtubeUrl}
+                        </div>
+                      )}
+                    </div>
+                   }
                 </div>
             </CardHeader>
             {!isURLValidated ?
@@ -672,10 +718,10 @@ const AiWorkflow = () => {
                             </div>
                         </div>
                     )}
-                    <div className="mx-auto">
-                        <div className="bg-card shadow-lg p-8 space-y-6">
+                    <div className="mx-auto border-t-1 border-gray-200 dark:border-gray-900 ">
+                        <div className="bg-card shadow-lg p-8 space-y-2">
                             
-                            <JobHeader currentJob={currentJob} handleRefreshStatus={handleRefreshStatus} />
+                            <JobHeader currentJob={currentJob} handleRefreshStatus={handleRefreshStatus} aiJobId={!!aiJobId} />
 
                             {currentJob?.task === "SEGMENTATION" ? (
                                 <SegmentationView
@@ -691,6 +737,9 @@ const AiWorkflow = () => {
                                     setCustomSegmentationParams ={setCustomSegmentationParams}
                                     customSegmentationParams = {customSegmentationParams}
                                     updateCurrentJob={updateCurrentJob}
+                                    handleShowHandleResult={handleShowHandleResult}
+                                    isWaitingServer={isWaitingServer}
+                                    isApprovingTask={isApprovingTask}
                                 />
                             ) : currentJob?.task === "QUESTION_GENERATION" ? (
                                 <QuestionGenerationView
@@ -710,6 +759,9 @@ const AiWorkflow = () => {
                                     customQuestionParams={customQuestionParams}
                                     setCustomQuestionParams={setCustomQuestionParams}
                                     updateCurrentJob={updateCurrentJob}
+                                    handleShowHandleResult={handleShowHandleResult}
+                                    isWaitingServer={isWaitingServer}
+                                    isApprovingTask={isApprovingTask}
                                 />
                             ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                                 <UploadContentView
@@ -737,7 +789,7 @@ const AiWorkflow = () => {
                                 {isAiJobStarted && aiJobId && (
                                 <div className="flex justify-center">
                                     <Button
-                                    onClick={handleApproveTask}
+                                    onClick={() => handleApproveTask()}
                                     disabled={isLoading}
                                     className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                                     >
@@ -757,8 +809,9 @@ const AiWorkflow = () => {
 interface JobHeaderProps {
   currentJob?: {status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null;
   handleRefreshStatus: () => void;
+  aiJobId: boolean;
 }
-const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }) => {
+const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus, aiJobId }) => {
   const renderJobInfo = () => {
     switch (currentJob?.task) {
       case "SEGMENTATION":
@@ -838,9 +891,9 @@ const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }
         onClick={handleRefreshStatus}
         variant="outline"
         className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-      >
-        <RefreshCw className="w-4 h-4" />
-      </Button>
+        >
+          <RefreshCw className="w-4 h-4" />
+        </Button>
     </div>
   );
 };
@@ -979,8 +1032,6 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
       return 'pending';
     }
   }  
-
-
 
   const activeStep = React.useMemo(() => {
     if (!currentJobData) return null;
@@ -1133,11 +1184,12 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 interface QuestionGenerationResultProps {
   isLoading: boolean;
   isTaskResultLoading: boolean;
+  isApprovingTask: boolean;
   error: string | null;
   questions: any[];
   editModalOpen: boolean;
   aiJobId: string | null;
-  handleApproveTask: () => void;
+  handleApproveTask: (qnGenParams?: QuestionGenerationParameters) => void;
   setEditingIdx: (idx: number) => void;
   setEditQuestion: (q: any) => void;
   setEditModalOpen: (open: boolean) => void;
@@ -1147,9 +1199,11 @@ interface QuestionGenerationResultProps {
   customQuestionParams: QuestionGenerationParameters,
   setCustomQuestionParams: React.Dispatch<React.SetStateAction<QuestionGenerationParameters>>
   updateCurrentJob: (task: "segmentation" | "questionGeneration" | "uploadContent", status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING") => void
+  handleShowHandleResult: (task: string) => void
+  isWaitingServer: boolean
 }
 
-    const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
+const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isLoading,
     isTaskResultLoading,
     error,
@@ -1165,12 +1219,27 @@ interface QuestionGenerationResultProps {
     currentJobStatus,
     customQuestionParams,
     setCustomQuestionParams,
-    updateCurrentJob
+    updateCurrentJob,
+    handleShowHandleResult,
+    isWaitingServer,
+    isApprovingTask
     }) => {
 
-    const isLocked = Boolean(!aiJobId)
-    const [showMCQ, setShowMCQ] = useState(false)
-    const [showMSQ, setShowMSQ] = useState(false)
+    const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
+    const [mcqCount, setMcqCount] = useState(2);
+    const [binaryCount, setBinaryCount] = useState(0);
+    const [showMCQ, setShowMCQ] = useState(false);
+    const [showMSQ, setShowMSQ] = useState(false);
+    const [showBinary, setShowBinary] = useState(false);
+    const binaryPrompt = `Focus on conceptual understanding and clarity  
+- Create a mix of question types as per user requirement (e.g., multiple-choice, Yes/No, or True/False)  
+- Test comprehension of key ideas, principles, and relationships discussed in the content  
+- Avoid questions that require memorizing exact numerical values, dates, or statistics  
+- Ensure that the correct answer is supported by the content, but not directly quoted  
+- Make all answer options (where applicable) roughly the same length and balanced in tone  
+- For Yes/No or True/False, phrase the statement neutrally so the answer is not obvious from wording  
+- Set isParameterized to false unless the question involves variables  
+- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
 
     const clampInt = (val: string, min = 0, max = 100) => {
         const n = Number.parseInt(val, 10)
@@ -1186,274 +1255,372 @@ interface QuestionGenerationResultProps {
         updateCurrentJob ("uploadContent", "WAITING");
     }
 
+    const handleAddParams = () => {
+
+      const totalCount = String(mcqCount + binaryCount);
+
+      const newParams = {
+        ...customQuestionParams,
+        SQL: clampInt(totalCount, 0, 100),
+        prompt: binaryCount ? binaryPrompt : customQuestionParams.prompt,
+      };
+
+      setCustomQuestionParams(newParams);
+
+      handleApproveTask(newParams);
+    }
+
     return (
         <div className="py-12 text-center text-gray-500">
-
-        {currentJobStatus === "WAITING" && (
-          <section className="border rounded-xl p-6 bg-card text-foreground shadow-sm"
-            aria-labelledby="question-generation-settings-heading"
-            role="region"
-            >
-                <h3 id="question-generation-settings-heading" className="text-base font-medium mb-4 text-pretty">
-                    Question Generation Settings
-                </h3>
-
-                <div className="space-y-6">
-                    <div className="flex flex-wrap items-end justify-between gap-6">
-                    <div className="space-y-2 min-w-[220px]">
-                        <Label className="text-sm font-medium" htmlFor="model-select">
-                        Model
-                        </Label>
-                        <Select
-                        value={customQuestionParams.model}
-                        onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
-                        disabled={isLocked}
-                        >
-                        <SelectTrigger id="model-select" className="h-10">
-                            <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                            <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                        </SelectContent>
-                        </Select>
-                        <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium">Question Types</Label>
-                        <div className="flex gap-3">
-                        <Button
-                            type="button"
-                            variant={showMCQ ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setShowMCQ((prev) => !prev)}
-                            aria-pressed={showMCQ}
-                            disabled={isLocked}
-                        >
-                            MCQ
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={showMSQ ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setShowMSQ((prev) => !prev)}
-                            aria-pressed={showMSQ}
-                            disabled={isLocked}
-                        >
-                            MSQ
-                        </Button>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                        Toggle which types to include. Only visible types will be generated.
-                        </p>
-                    </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {showMCQ && (
-                        <div className="space-y-2">
-                        <Label className="text-sm font-medium" htmlFor="mcq-count">
-                            MCQ Count
-                        </Label>
-                        <Input
-                            id="mcq-count"
-                            type="number"
-                            min={0}
-                            max={100}
-                            inputMode="numeric"
-                            value={Number.isFinite(customQuestionParams.SQL) ? customQuestionParams.SQL : 0}
-                            onChange={(e) =>
-                            setCustomQuestionParams((prev) => ({
-                                ...prev,
-                                SQL: clampInt(e.target.value, 0, 100),
-                            }))
-                            }
-                            disabled={isLocked}
-                            className="h-10"
-                            aria-describedby="mcq-help"
-                        />
-                        <p id="mcq-help" className="text-sm text-muted-foreground">
-                            Number of single-answer multiple choice questions to generate.
-                        </p>
-                        </div>
-                    )}
-
-                    {showMSQ && (
-                        <div className="space-y-2">
-                        <Label className="text-sm font-medium" htmlFor="msq-count">
-                            MSQ Count
-                        </Label>
-                        <Input
-                            id="msq-count"
-                            type="number"
-                            min={0}
-                            max={100}
-                            inputMode="numeric"
-                            value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                            onChange={(e) =>
-                            setCustomQuestionParams((prev) => ({
-                                ...prev,
-                                SML: clampInt(e.target.value, 0, 100),
-                            }))
-                            }
-                            disabled={isLocked}
-                            className="h-10"
-                            aria-describedby="msq-help"
-                        />
-                        <p id="msq-help" className="text-sm text-muted-foreground">
-                            Number of multi-select questions to generate.
-                        </p>
-                        </div>
-                    )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                        setCustomQuestionParams((prev) => ({
-                            ...prev,
-                            SQL: 0,
-                            SML: 0,
-                        }))
-                        }
-                        disabled={isLocked}
-                    >
-                        Reset Counts
-                    </Button>
-                    </div>
-                </div>
-            </section>
-        )}
-
-        {currentJobStatus === "WAITING" ? null :(
-        isLoading || isTaskResultLoading ? (
-            <div className="flex items-center gap-2 text-primary font-medium">
+          {currentJobStatus === "FAILED" && (
+              <div className="flex items-center justify-center gap-2 mb-12 text-red-600 dark:text-red-400 font-medium">
                 <svg
-                className="animate-spin h-5 w-5 text-primary"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5"
                 >
-                <circle
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>Job failed. Please try again.</span>
+              </div>
+            )}
+            {(isLoading || isTaskResultLoading || isWaitingServer) && (
+            <div className="flex items-center gap-2 text-primary font-medium mb-2">
+                <svg
+                  className="animate-spin h-5 w-5 text-primary"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
                     className="opacity-25"
                     cx="12"
                     cy="12"
                     r="10"
                     stroke="currentColor"
                     strokeWidth="4"
-                />
-                <path
+                  />
+                  <path
                     className="opacity-75"
                     fill="currentColor"
                     d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                />
+                  />
                 </svg>
-                Generating questions...
-            </div>
-        ) : (
-            <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-                <strong>Questions:</strong>
+                {isLoading
+                  ? "Generating questions ..."
+                  : isTaskResultLoading
+                  ? "Processing results ..."
+                  : isWaitingServer
+                  ? "Waiting for server response ..."
+                  : "Generating questions ..."}
+              </div>
+             )}
+             
+          {currentJobStatus !== "COMPLETED" && (
+            <section className="border rounded-xl p-6 bg-card text-gray-800 dark:text-gray-200 shadow-sm"
+              aria-labelledby="question-generation-settings-heading"
+              role="region"
+              >
+                     <div className="flex items-center mb-8">
+                      <Settings className="h-5 w-5 text-gray-600 mr-2" />
+                      <h3 id="question-generation-settings-heading" className="text-base font-medium text-pretty ">
+                        Question Generation Settings
+                      </h3>
+                    </div>
 
-            {isLoading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!isLoading && !error && questions.length > 0 && (
-                <ol className="mt-2 space-y-4">
-                {questions.map((q, idx) => {
-                    let segIdx = segmentIds.findIndex((sid) => sid === q.segmentId);
-                    let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
-                    let segEnd = q.segmentId;
+                  <div className="space-y-6">
+                      <div className="flex flex-wrap items-end justify-between gap-6">
+                      <div className="space-y-2 min-w-[220px]">
+                          <Label className="text-sm font-medium" htmlFor="model-select">
+                          Model
+                          </Label>
+                          <Select
+                          value={customQuestionParams.model}
+                          onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
+                          disabled={isLocked}
+                          >
+                          <SelectTrigger id="model-select" className="h-10">
+                              <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
+                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                          </SelectContent>
+                          </Select>
+                          <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                      </div>
 
-                    return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Segment: {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"} | Type: {q.questionType || q.question?.type || "N/A"}
-                        </div>
-                        <div className="flex items-center gap-2">
-                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
-                            <Edit className="w-4 h-4" /> Edit
-                        </Button>
-                        </div>
-                        {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
-                        {q.solution && (
+                      <div className="space-y-2">
+                          <Label className="text-sm font-medium">Question Types</Label>
+                          <div className="flex gap-3">
+                          <Button
+                              type="button"
+                              variant={showMCQ ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setShowMCQ((prev) => !prev)}
+                              aria-pressed={showMCQ}
+                              disabled={isLocked}
+                          >
+                              MCQ
+                          </Button>
+                          <Button
+                              type="button"
+                              variant={showMSQ ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setShowMSQ((prev) => !prev)}
+                              aria-pressed={showMSQ}
+                              disabled={isLocked}
+                          >
+                              MSQ
+                          </Button>
+                          <Button
+                              type="button"
+                              variant={showBinary ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setShowBinary((prev) => !prev)}
+                              aria-pressed={showBinary}
+                              disabled={isLocked}
+                          >
+                              Binary
+                          </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                          Toggle which types to include. Only visible types will be generated.
+                          </p>
+                      </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {showMCQ && (
+                          <div className="space-y-2">
+                          <Label className="text-sm font-medium" htmlFor="mcq-count">
+                              MCQ Count
+                          </Label>
+                          <Input
+                              id="mcq-count"
+                              type="number"
+                              min={0}
+                              max={100}
+                              inputMode="numeric"
+                              value={mcqCount || 0}
+                              // value={Number.isFinite(customQuestionParams.SQL) ? customQuestionParams.SQL : 0}
+                              onChange={(e) =>
+                              // setCustomQuestionParams((prev) => ({
+                              //     ...prev,
+                              //     SQL: clampInt(e.target.value, 0, 100),
+                              // }))
+                              setMcqCount( clampInt(e.target.value, 0, 100) )
+                              }
+                              disabled={isLocked}
+                              className="h-10"
+                              aria-describedby="mcq-help"
+                          />
+                          <p id="mcq-help" className="text-sm text-muted-foreground">
+                              Number of single-answer multiple choice questions to generate.
+                          </p>
+                          </div>
+                      )}
+
+                      {showMSQ && (
+                          <div className="space-y-2">
+                          <Label className="text-sm font-medium" htmlFor="msq-count">
+                              MSQ Count
+                          </Label>
+                          <Input
+                              id="msq-count"
+                              type="number"
+                              min={0}
+                              max={100}
+                              inputMode="numeric"
+                              value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
+                              onChange={(e) =>
+                              setCustomQuestionParams((prev) => ({
+                                  ...prev,
+                                  SML: clampInt(e.target.value, 0, 100),
+                              }))
+                              }
+                              disabled={isLocked}
+                              className="h-10"
+                              aria-describedby="msq-help"
+                          />
+                          <p id="msq-help" className="text-sm text-muted-foreground">
+                              Number of multi-select questions to generate.
+                          </p>
+                          </div>
+                      )}
+
+                      {showBinary && (
+                          <div className="space-y-2">
+                          <Label className="text-sm font-medium" htmlFor="binary-count">
+                              Binary question Count
+                          </Label>
+                          <Input
+                              id="binary-count"
+                              type="number"
+                              min={0}
+                              max={100}
+                              inputMode="numeric"
+                              value={binaryCount || 0}
+                              // value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
+                              onChange={(e) =>
+                              // setCustomQuestionParams((prev) => ({
+                              //     ...prev,
+                              //     SML: clampInt(e.target.value, 0, 100),
+                              // }))
+                              setBinaryCount( clampInt(e.target.value, 0, 100) )
+                              }
+                              disabled={isLocked}
+                              className="h-10"
+                              aria-describedby="binary-help"
+                          />
+                          <p id="binary-help" className="text-sm text-muted-foreground">
+                              Number of binary questions to generate.
+                          </p>
+                          </div>
+                      )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                      <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+
+                            setCustomQuestionParams((prev) => ({
+                              ...prev,
+                              SML: 0,
+                            }))
+                            setMcqCount(2);
+                            setBinaryCount(0)
+                          }
+                        }
+                          disabled={isLocked}
+                      >
+                          Reset Counts
+                      </Button>
+                      </div>
+                  </div>
+              </section>
+          )}
+
+          {currentJobStatus == "COMPLETED" && !isLoading &&
+              <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+                  <strong>Questions:</strong>
+
+              {isTaskResultLoading && <div className="mt-2">Loading...</div>}
+              {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+              {!isLoading && !error && questions.length > 0 && (
+                  <ol className="mt-2 space-y-4">
+                  {questions.map((q, idx) => {
+                      let segIdx = segmentIds.findIndex((sid) => sid === q.segmentId);
+                      let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
+                      let segEnd = q.segmentId;
+
+                      return (
+                      <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          Segment: {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"} | Type: {q.questionType || q.question?.type || "N/A"}
+                          </div>
+                          <div className="flex items-center gap-2">
+                          <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
+                          <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                              <Edit className="w-4 h-4" /> Edit
+                          </Button>
+                          </div>
+                          {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                          {q.solution && (
+                          <>
+                              <div className="mt-1"><b>Options:</b></div>
+                              <ul className="list-disc ml-6">
+                              {q.solution.incorrectLotItems?.map((opt: any, oIdx: any) => (
+                                  <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
+                              ))}
+                              {q.solution.correctLotItems?.map((opt: any, oIdx: any) => (
+                                  <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
+                              ))}
+                              {q.solution.correctLotItem && (
+                                  <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                              )}
+                              </ul>
+                          </>
+                          )}
+                      </li>
+                      );
+                  })}
+                  </ol>
+              )}
+              { !isTaskResultLoading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+              </div>
+          }
+          <EditQuestionDialog
+             editModalOpen={editModalOpen}
+             setEditModalOpen={setEditModalOpen}
+             editQuestion={editQuestion}
+             questions={questions}
+             editingIdx={editingIdx || 0}
+             aiJobId={aiJobId}
+             aiSectionAPI={aiSectionAPI}
+             handleShowHandleResult={handleShowHandleResult}
+          />
+          <div className="flex items-center justify-between mt-5">
+          <div className="flex-1"></div>
+
+          <div className="flex-1 flex justify-center">
+            {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" &&
+                  <Button
+                  onClick={handleAddParams}
+                  disabled = { isLoading || isWaitingServer}
+                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
+                              text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
+                              hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
+                              flex items-center justify-center gap-2"
+                  >
+                      { error || currentJobStatus === "FAILED" ? (
                         <>
-                            <div className="mt-1"><b>Options:</b></div>
-                            <ul className="list-disc ml-6">
-                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: any) => (
-                                <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItems?.map((opt: any, oIdx: any) => (
-                                <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItem && (
-                                <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                            )}
-                            </ul>
+                          { isApprovingTask ? "Retry..." : "Retry"}
+                          <RefreshCw className="w-5 h-5" />
                         </>
-                        )}
-                    </li>
-                    );
-                })}
-                </ol>
-            )}
-            { !isLoading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
-            </div>
-        ))}
-        <EditQuestionDialog
-                editModalOpen={editModalOpen}
-                setEditModalOpen={setEditModalOpen}
-                editQuestion={editQuestion}
-                questions={questions}
-                editingIdx={editingIdx || 0}
-                aiJobId={aiJobId}
-                aiSectionAPI={aiSectionAPI}
-            />
-        <div className="flex items-center justify-between mt-5">
-        <div className="flex-1"></div>
+                      ) : (
+                        <>
+                          {isApprovingTask ? "Generating...": "Generate Question"}
+                          <Zap className="w-5 h-5" />
+                        </>
+                      )}
+                  </Button>
+              }
+              {currentJobStatus == "COMPLETED"  &&
+                  <Button
+                  variant="secondary"
+                  onClick={handleNext}
+                  disabled={isTaskResultLoading || isLoading}
+                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
+                              text-primary-foreground font-semibold px-8 py-5 rounded-xl shadow-lg 
+                              hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
+                              flex items-center justify-center gap-2"
+                  >
+                  Next
+                  <ArrowRight className="w-5 h-5" />
+                  </Button>
+              }
+          </div>
 
-        <div className="flex-1 flex justify-center">
-           
-                <Button
-                onClick={handleApproveTask}
-                disabled = {currentJobStatus !== "WAITING" || isLoading}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
-                            text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
-                            hover:shadow-xl transition-all duration-300 transform hover:scale-105 
-                            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                            flex items-center justify-center gap-2"
-                >
-                Generate Question
-                <Zap className="w-5 h-5" />
-                </Button>
-           
+          <div className="flex-1 flex justify-end">
+              
+          </div>
+          </div>
         </div>
-
-            <div className="flex-1 flex justify-end">
-            {currentJobStatus == "COMPLETED" && !isTaskResultLoading && !isLoading &&
-                <Button
-                variant="secondary"
-                onClick={handleNext}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
-                            text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
-                            hover:shadow-xl transition-all duration-300 transform hover:scale-105 
-                            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                            flex items-center justify-center gap-2"
-                >
-                Next
-                <ArrowRight className="w-5 h-5" />
-                </Button>
-            }
-            </div>
-        </div>
-
-        </div>
-    );
-    };
+)};
 
 interface EditQuestionDialogProps {
   editModalOpen: boolean;
@@ -1463,6 +1630,7 @@ interface EditQuestionDialogProps {
   editingIdx: number;
   aiJobId: string | null;
   aiSectionAPI: any;
+  handleShowHandleResult: (task: string) => void
 }
 
 const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
@@ -1472,7 +1640,8 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   questions,
   editingIdx,
   aiJobId,
-  aiSectionAPI
+  aiSectionAPI,
+  handleShowHandleResult
 }) => {
   return (
     <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
@@ -1490,6 +1659,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
                 await aiSectionAPI.editQuestionData(aiJobId, 0, updatedQuestions);
+                handleShowHandleResult("QUESTION_GENERATION");
                 toast.success('Question Updated.');
               } catch (e) {
                 toast.error("Failed update question!")
@@ -1777,7 +1947,10 @@ const SegmentationView = ({
   currentJobStatus,
   customSegmentationParams,
   setCustomSegmentationParams,
-  updateCurrentJob
+  updateCurrentJob,
+  handleShowHandleResult,
+  isWaitingServer,
+  isApprovingTask,
 }: any) => {
 
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -1790,7 +1963,6 @@ const SegmentationView = ({
     const isAnyLoading = isLoading || isTaskResultLoading;
     const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
     const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
-
     const handleEditSegChange = (idx: number, value: string) => {
         const newMap = [...editSegMap];
         newMap[idx] = parseFloat(value);
@@ -1868,7 +2040,8 @@ const SegmentationView = ({
         try {
           // Use index 0 for the backend (fixes 500 error)
           await editSegmentMap(aiJobId, editSegMap, 0);
-          toast.success('Segment map updated successfully!');
+          handleShowHandleResult("SEGMENTATION");
+          toast.success('Segments updated successfully!');
           setEditModalOpen(false);
         } catch (e: any) {
           setEditError(e.message || 'Failed to update segment map');
@@ -1881,33 +2054,55 @@ const SegmentationView = ({
     const handleNext = () => {
         updateCurrentJob ("questionGeneration", "WAITING");
     }
+    
 
   return (
     <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
-      {isAnyLoading ? (
-        <div className="flex items-center gap-2 text-primary font-medium">
-            <svg
+        {currentJobStatus === "FAILED" && (
+              <div className="flex items-center justify-center gap-2 mb-12 text-red-600 dark:text-red-400 font-medium">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>Job failed. Please try again.</span>
+              </div>
+      )}
+      {(isAnyLoading || isWaitingServer) ? (
+        <div className="flex items-center gap-2 text-primary font-medium mb-2">
+          <svg
             className="animate-spin h-4 w-4 text-primary"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
-            >
+          >
             <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
             />
             <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
             />
-            </svg>
-            Loading segmentation...
-        </div>
+          </svg>
+
+          {isAnyLoading && "Preparing segmentation ..."}
+          {isWaitingServer && !isAnyLoading && "Waiting for server response ..."}
+      </div>
       ) : hasSegmentationData ?(
         <>
         <div className="flex justify-end">
@@ -2020,9 +2215,9 @@ const SegmentationView = ({
           ))}
         </ol>
       ) : null}
-    {currentJobStatus != "WAITING" && !isAnyLoading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
+    {currentJobStatus != "WAITING" && !isAnyLoading && !isWaitingServer && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
 
-        {currentJobStatus === "WAITING" && (
+        {(currentJobStatus !== "COMPLETED") &&  (
             <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card">
                 <div className="flex-1">
                 <Label className="text-sm font-medium dark:text-gray-100 text-gray-800">
@@ -2035,6 +2230,7 @@ const SegmentationView = ({
                         lam: parseFloat(value),
                     }));
                     }}
+                    disabled={isAnyLoading || isWaitingServer || isApprovingTask}
                     value={customSegmentationParams.lam.toString()}
                 >
                     <SelectTrigger className="mt-2 h-10 w-full md:w-64">
@@ -2067,48 +2263,51 @@ const SegmentationView = ({
 
         <div className="flex items-center justify-between mt-8">
             <div className="flex-1"></div>
-
             <div className="flex-1 flex justify-center">
+              {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" &&
                     <Button
-                    onClick={handleApproveTask}
-                    disabled = {currentJobStatus !== "WAITING" || isLoading}
-                    className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
-                                text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
-                                hover:shadow-xl transition-all duration-300 transform hover:scale-105 
-                                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                                flex items-center justify-center gap-2"
-                    >
-                    Confirm
-                    <CheckCircle className="w-5 h-5" />
+                    onClick={() => handleApproveTask()}
+                    disabled={isLoading || isWaitingServer}
+                    className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lghover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    { error || currentJobStatus === "FAILED" ? (
+                      <>
+                        { isApprovingTask ? "Retry..." : "Retry"}
+                        <RefreshCw className="w-5 h-5" />
+                      </>
+                    ) : (
+                      <>
+                        {isApprovingTask ? "Confirming...": "Confirm"}
+                        <CheckCircle className="w-5 h-5" />
+                      </>
+                    )}
+                  </Button>
+                }
+                {currentJobStatus=="COMPLETED" &&
+                    <Button
+                        variant="secondary"
+                        onClick={handleNext}
+                        disabled={isAnyLoading}
+                        className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
+                        flex items-center justify-center gap-2"
+                        >
+                        Next
                     </Button>
+                }
             </div>
-                <div className="flex-1 flex justify-end">
-            {currentJobStatus == "COMPLETED" && !isAnyLoading &&
-                    <Button
-                    variant="secondary"
-                    onClick={handleNext}
-                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
-                               hover:shadow-xl transition-all duration-300 transform hover:scale-105 
-                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                               flex items-center justify-center gap-2"
-                    >
-                    Next
-                    </Button>
-            }
-                </div>
+            <div className="flex-1 ">
+            </div>
         </div>
-
     </div>
   );
 };
-
-
 interface UploadContentProps {
   currentJobStatus: string;
   uploadParams: UploadParams;
   setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
   isLoading: boolean;
-  handleApproveTask: () => void
+  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void
 }
 
 const UploadContentView: React.FC<UploadContentProps> = ({
@@ -2175,7 +2374,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
         {/* Centered Next Button */}
         <div className="flex justify-center">
         <Button
-            onClick={handleApproveTask}
+            onClick={() => handleApproveTask()}
             disabled={isLoading}
             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
         >
@@ -2199,7 +2398,6 @@ const UploadContentView: React.FC<UploadContentProps> = ({
     </div>
   );
 };
-
 
 export default AiWorkflow
 

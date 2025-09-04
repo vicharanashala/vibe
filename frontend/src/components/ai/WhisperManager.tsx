@@ -4,7 +4,7 @@ import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, RefreshCw, PlayCircle } from "lucide-react";
 import { Button } from "../ui/button";
 
 
@@ -12,25 +12,43 @@ interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
     isDisableButton: boolean;
+    isTranscribed: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, isDisableButton, onClick, ...buttonProps } = props;
+    const { isModelLoading, isTranscribing, isDisableButton, isTranscribed, onClick, ...buttonProps } = props;
     const isLoading = isTranscribing || isModelLoading ;
     return (
-        <button
+            <button
             {...buttonProps}
             onClick={(event) => {
                 if (isTranscribing || isModelLoading) return;
-                 if (onClick) {
-                    onClick(event); 
+                if (onClick) {
+                onClick(event);
                 }
             }}
             disabled={isLoading || isDisableButton}
-            className='w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2'
-        >
-            Start AI Job
-        </button>
+            className={`w-full sm:w-auto font-semibold px-8 py-3 rounded-xl shadow-md transition-all duration-300 transform flex items-center justify-center gap-2
+                ${
+                isTranscribed
+                    ? "border border-gray-400 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
+                    : "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground hover:shadow-xl hover:scale-105"
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+            >
+            {isTranscribed ? (
+                <>
+                <RefreshCw className="w-5 h-5" />
+                <span>Regenerate</span>
+                </>
+            ) : (
+                <>
+                <PlayCircle className="w-5 h-5" />
+                <span>Start Job</span>
+                </>
+            )}
+            </button>
+
     );
 }
 
@@ -461,7 +479,7 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscriptionCompleted: boolean, isTranscribing: boolean, jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean }, ) {
+export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscribing: boolean, jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean, isRunningAiJob: boolean }, ) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -653,13 +671,22 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
 
                     {/* {!props.isTranscriptionCompleted &&  */}
                         <div className='relative w-full flex justify-center items-center'>
-                            {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text ?
+                            <TranscribeButton
+                                onClick={() => {
+                                    props.transcriber.start(audioData.buffer);
+                                }}
+                                isModelLoading={props.transcriber.isModelLoading}
+                                isTranscribing={props.transcriber.isBusy}
+                                isDisableButton = {props.isDisableButton}
+                                isTranscribed={!!props.transcriber.output?.text}
+                            />
+                            {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text &&
                                 <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
-                                text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
+                                text-primary-foreground font-semibold px-10 py-5 rounded-xl shadow-lg 
                                 hover:shadow-xl transition-all duration-300 transform hover:scale-105 
                                 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                                flex items-center justify-center gap-2" 
-                                onClick={(event) => {
+                                flex items-center justify-center gap-2 ms-12" 
+                                onClick={() => {
                                     if(props.createAiJob)
                                         props.createAiJob ()
                                 }}
@@ -672,17 +699,11 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                         ) : (
                                         props.jobError ? "Try again!" : "Next"
                                     )}
-                                </Button> : 
+                                    <ArrowRight className="w-5 h-5" />
+                                </Button> 
 
-                                <TranscribeButton
-                                    onClick={() => {
-                                        props.transcriber.start(audioData.buffer);
-                                    }}
-                                    isModelLoading={props.transcriber.isModelLoading}
-                                    isTranscribing={props.transcriber.isBusy}
-                                    isDisableButton = {props.isDisableButton}
-                                />
-                            }
+                                }
+
 
                             <SettingsTile
                                 className='absolute right-4'
