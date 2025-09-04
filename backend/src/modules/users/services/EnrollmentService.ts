@@ -19,6 +19,7 @@ import { BadRequestError, NotFoundError } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
 import { ProgressRepository } from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
+import { QuizScoresExportResponseDto, StudentQuizScoreDto } from '../dtos/QuizScoresExportDto.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -304,6 +305,38 @@ export class EnrollmentService extends BaseService {
         versionId,
         session,
       );
+    });
+  }
+
+  /**
+   * Get quiz scores for all students in a course version
+   * @param courseId Course ID
+   * @param versionId Course version ID
+   * @returns Array of student quiz scores
+   */
+  async getQuizScoresForCourseVersion(
+    courseId: string,
+    versionId: string,
+  ): Promise<QuizScoresExportResponseDto> {
+    return this._withTransaction(async (session: ClientSession) => {
+      // Verify course and version exist
+      const course = await this.courseRepo.read(courseId, session);
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      // Get quiz scores from repository
+      const quizScores = await this.enrollmentRepo.getQuizScoresForCourseVersion(
+        courseId,
+        versionId,
+      );
+
+      return quizScores;
     });
   }
 

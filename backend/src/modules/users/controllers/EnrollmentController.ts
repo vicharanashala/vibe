@@ -17,6 +17,7 @@ import {
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
+import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
@@ -435,4 +436,39 @@ export class EnrollmentController {
   //   const result = await this.enrollmentService.addProgressPercentToAll(); // default 0%
 
   // }
+
+  @Get('/enrollments/courses/:courseId/versions/:versionId/export/quiz-scores')
+  @Authorized()
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Export quiz scores for all students in a course version',
+    description: 'Returns quiz scores for all students in the specified course version',
+    responses: {
+      '200': {
+        description: 'Quiz scores exported successfully',
+      },
+      '403': {
+        description: 'Forbidden - User does not have permission to view quiz scores',
+      },
+      '404': {
+        description: 'Course or version not found',
+      },
+    },
+  })
+  @ResponseSchema(QuizScoresExportResponseDto)
+  async exportQuizScores(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Ability(getEnrollmentAbility) { ability },
+  ): Promise<QuizScoresExportResponseDto> {
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view quiz scores for this course',
+      );
+    }
+
+    return this.enrollmentService.getQuizScoresForCourseVersion(courseId, versionId);
+  }
 }
