@@ -1073,6 +1073,40 @@ export function useCourseEnrollmentsStats(
   };
 }
 
+// GET /enrollments/courses/{courseId}/versions/{versionId}/quiz-scores
+export function useCourseQuizScores(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  enabled: boolean = true
+): {
+  data: any | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    'get',
+    '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
+    {
+      params: {
+        path: { courseId, versionId }
+      }
+    },
+    {
+      enabled: enabled && !!courseId && !!versionId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error?.message || null,
+    refetch: result.refetch,
+  };
+}
+
 // GET /enrollments/courses/{courseId}/versions/{courseVersionId}
 export function useCourseVersionEnrollments(
   courseId: string | undefined,
