@@ -1,9 +1,9 @@
-import {IUserQuizMetrics} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
+import { IUserQuizMetrics } from '#quizzes/interfaces/grading.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
 
 @injectable()
 class UserQuizMetricsRepository {
@@ -12,7 +12,7 @@ class UserQuizMetricsRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.userQuizMetricsCollection =
@@ -34,30 +34,52 @@ class UserQuizMetricsRepository {
   }
   public async get(
     userId: string | ObjectId,
-    quizId: string,
+    quizId: string | ObjectId,
     session?: ClientSession,
   ): Promise<IUserQuizMetrics | null> {
     await this.init();
-    const result = await this.userQuizMetricsCollection.findOne(
-      {userId, quizId},
-      {session},
-    );
-    if (!result) {
-      return null;
-    }
-    return result;
+
+    const userObjectId =
+      typeof userId === 'string' && ObjectId.isValid(userId)
+        ? new ObjectId(userId)
+        : null;
+
+    const quizObjectId =
+      typeof quizId === 'string' && ObjectId.isValid(quizId)
+        ? new ObjectId(quizId)
+        : null;
+
+    const filter: any = {
+      $and: [
+        {
+          $or: [
+            { userId: userId }, // string case
+            ...(userObjectId ? [{ userId: userObjectId }] : []), // ObjectId case
+          ],
+        },
+        {
+          $or: [
+            { quizId: quizId },
+            ...(quizObjectId ? [{ quizId: quizObjectId }] : []),
+          ],
+        },
+      ],
+    };
+
+    const result = await this.userQuizMetricsCollection.findOne(filter, { session });
+    return result ?? null;
   }
 
   async executeBulkMetricsReset(
-    operations: Array<{updateOne: {filter: any; update: any}}>,
+    operations: Array<{ updateOne: { filter: any; update: any } }>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (!operations.length) return;
 
-    await this.userQuizMetricsCollection.bulkWrite(operations, {session});
+    await this.userQuizMetricsCollection.bulkWrite(operations, { session });
   }
-  
+
   public async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
@@ -66,9 +88,9 @@ class UserQuizMetricsRepository {
     await this.init();
 
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      {_id: new ObjectId(metricsId)},
-      {$set: updateData},
-      {returnDocument: 'after', session},
+      { _id: new ObjectId(metricsId) },
+      { $set: updateData },
+      { returnDocument: 'after', session },
     );
 
     return result;
@@ -90,15 +112,15 @@ class UserQuizMetricsRepository {
       }
       // Step 1: Find the doc to get actual remove count
       const metricsDoc = await this.userQuizMetricsCollection.findOne(
-        {quizId, userId},
-        {session},
+        { quizId, userId },
+        { session },
       );
 
       console.log('User metrics: ', metricsDoc);
 
       // Step 2: Reset the quiz metrics fields
       await this.userQuizMetricsCollection.updateOne(
-        {quizId, userId},
+        { quizId, userId },
         {
           $set: {
             attempts: [],
@@ -109,7 +131,7 @@ class UserQuizMetricsRepository {
             remainingAttempts: maxAttempts,
           },
         },
-        {session},
+        { session },
       );
 
       return true;
@@ -125,7 +147,7 @@ class UserQuizMetricsRepository {
   ): Promise<IUserQuizMetrics[]> {
     await this.init();
     const result = await this.userQuizMetricsCollection
-      .find({quizId: new ObjectId(quizId)}, {session})
+      .find({ quizId: new ObjectId(quizId) }, { session })
       .toArray();
     return result;
   }
@@ -133,10 +155,10 @@ class UserQuizMetricsRepository {
   public async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
     await this.init();
     const result = await this.userQuizMetricsCollection
-      .find({}, {session})
+      .find({}, { session })
       .toArray();
     return result;
   }
 }
 
-export {UserQuizMetricsRepository};
+export { UserQuizMetricsRepository };
