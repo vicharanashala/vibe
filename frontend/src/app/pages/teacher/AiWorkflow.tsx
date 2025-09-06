@@ -14,7 +14,17 @@ import { useNavigate } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ConfirmationModal from './components/confirmation-modal';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+
+interface TaskRun {
+  id: string;
+  timestamp: Date;
+  status: "loading" | "done" | "failed";
+  result?: JobStatus;
+  parameters?: Record<string, unknown>;
+}
 
 
 interface UploadParams {
@@ -23,6 +33,7 @@ interface UploadParams {
   questionsPerQuiz: number | null;
   audioProvided: boolean;
 }
+
 interface CurrentJob {
     status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
     task: string
@@ -654,7 +665,7 @@ const AiWorkflow = () => {
         setSegmentationMap([])
         setSegments([]);
         setQuestions([]);
-        setYoutubeUrl("");
+        // setYoutubeUrl("");
         setIsURLValidated(false);
         updateCurrentJob("audioExtraction","WAITING");
         toast.success("You have successfully ended the current session.");
@@ -767,7 +778,7 @@ const AiWorkflow = () => {
                     <div className="mx-auto border-t-1 border-gray-200 dark:border-gray-900 ">
                         <div className="bg-card shadow-lg p-8 space-y-2">
                             
-                            <JobHeader currentJob={currentJob} handleRefreshStatus={handleRefreshStatus} />
+                            <JobHeader currentJob={currentJob} handleRefreshStatus={handleRefreshStatus} aiJobId={!!aiJobId} />
 
                             {currentJob?.task === "SEGMENTATION" ? (
                                 <SegmentationView
@@ -856,8 +867,9 @@ const AiWorkflow = () => {
 interface JobHeaderProps {
   currentJob?: {status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null;
   handleRefreshStatus: () => void;
+  aiJobId: boolean;
 }
-const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }) => {
+const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus, aiJobId }) => {
   const renderJobInfo = () => {
     switch (currentJob?.task) {
       case "SEGMENTATION":
@@ -933,13 +945,13 @@ const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus }
           </TooltipProvider>
         )}
       </div>
-      <Button
+      {/* <Button
         onClick={handleRefreshStatus}
         variant="outline"
         className="bg-background border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 mb-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
         >
           <RefreshCw className="w-4 h-4" />
-        </Button>
+        </Button> */}
     </div>
   );
 };
@@ -2149,6 +2161,24 @@ const SegmentationView = ({
     const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
     const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
 
+    const handleEditSegChange = (idx: number, value: string) => {
+        const newMap = [...editSegMap];
+        newMap[idx] = parseFloat(value);
+        setEditSegMap(newMap);
+    };
+    const handleAddSeg = () => {
+        const newMap = [...editSegMap];
+        const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
+        newMap.push(prev + 10);
+        setEditSegMap(newMap);
+    };
+    const handleRemoveSeg = (idx: number) => {
+        if (editSegMap.length <= 1) return;
+        const newMap = [...editSegMap];
+        newMap.splice(idx, 1);
+        setEditSegMap(newMap);
+    };
+
   // Convert seconds to mm:ss format
   const formatTime = (seconds: number): string => {
     if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -2202,31 +2232,31 @@ const SegmentationView = ({
     return `${mm}.${ss}`;
   };
 
-  const handleEditSegChange = (idx: number, value: string) => {
-    const masked = formatTimeInput(value);
-    let seconds = parseTimeToSeconds(masked);
-    const newMap = [...editSegMap];
-    // Clamp against neighbors to preserve strict ordering
-    const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
-    const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
-    seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
-    newMap[idx] = Math.max(0, seconds);
-    setEditSegMap(newMap);
-  };
+  // const handleEditSegChange = (idx: number, value: string) => {
+  //   const masked = formatTimeInput(value);
+  //   let seconds = parseTimeToSeconds(masked);
+  //   const newMap = [...editSegMap];
+  //   // Clamp against neighbors to preserve strict ordering
+  //   const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
+  //   const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
+  //   seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
+  //   newMap[idx] = Math.max(0, seconds);
+  //   setEditSegMap(newMap);
+  // };
 
 
-  const handleAddSeg = () => {
-    const newMap = [...editSegMap];
-    const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
-    newMap.push(prev + 10);
-    setEditSegMap(newMap);
-  };
-  const handleRemoveSeg = (idx: number) => {
-    if (editSegMap.length <= 1) return;
-    const newMap = [...editSegMap];
-    newMap.splice(idx, 1);
-    setEditSegMap(newMap);
-  };
+  // const handleAddSeg = () => {
+  //   const newMap = [...editSegMap];
+  //   const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
+  //   newMap.push(prev + 10);
+  //   setEditSegMap(newMap);
+  // };
+  // const handleRemoveSeg = (idx: number) => {
+  //   if (editSegMap.length <= 1) return;
+  //   const newMap = [...editSegMap];
+  //   newMap.splice(idx, 1);
+  //   setEditSegMap(newMap);
+  // };
 
   const handleOpenEditModal = async () => {
     if (!aiJobId) return;
@@ -2266,8 +2296,24 @@ const SegmentationView = ({
     }
   };
 
-  const handleConfirm = async () => {
-    if (currentJobStatus === "COMPLETED") {
+    const handleSaveEditSeg = async () => {
+        setEditLoading(true);
+        setEditError("");
+        try {
+          // Use index 0 for the backend (fixes 500 error)
+          await editSegmentMap(aiJobId, editSegMap, 0);
+          handleShowHandleResult("SEGMENTATION");
+          toast.success('Segments updated successfully!');
+          setEditModalOpen(false);
+        } catch (e: any) {
+          setEditError(e.message || 'Failed to update segment map');
+        } finally {
+          setEditLoading(false);
+        }
+    };
+  
+    const handleConfirm = async () => {
+        if (currentJobStatus === "COMPLETED") {
           try {
             await aiSectionAPI.rerunJobTask(aiJobId, "SEGMENTATION", customSegmentationParams);
             // handleShowHandleResult("SEGMENTATION");
@@ -2276,10 +2322,10 @@ const SegmentationView = ({
             toast.error("Re-run failed, try again!");
             console.error("Re-run failed:", err);
           }
-    } else {
-      handleApproveTask();
-    }
-  };
+        } else {
+          handleApproveTask();
+        }
+      };
   async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
     const token = localStorage.getItem('firebase-auth-token');
     const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
@@ -2301,24 +2347,23 @@ const SegmentationView = ({
     throw new Error(errMsg);
   }
 
-  const handleSaveEditSeg = async () => {
-    setEditLoading(true);
-    setEditError("");
-    try {
-      // Use index 0 for the backend (fixes 500 error)
-      if (!aiJobId) throw new Error('Missing job id');
-      // Send as numbers in MM.SS numeric format (e.g., 11.11)
-      const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
-      await editSegmentMap(aiJobId, payloadNumbers, 0);
-      handleShowHandleResult("SEGMENTATION");
-      toast.success('Segment map updated successfully!');
-      setEditModalOpen(false);
-    } catch (e: any) {
-      setEditError(e.message || 'Failed to update segment map');
-    } finally {
-      setEditLoading(false);
-    }
-  };
+  // const handleSaveEditSeg = async () => {
+  //   setEditLoading(true);
+  //   setEditError("");
+  //   try {
+  //     // Use index 0 for the backend (fixes 500 error)
+  //     if (!aiJobId) throw new Error('Missing job id');
+  //     // Send as numbers in MM.SS numeric format (e.g., 11.11)
+  //     const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
+  //     await editSegmentMap(aiJobId, payloadNumbers, 0);
+  //     toast.success('Segment map updated successfully!');
+  //     setEditModalOpen(false);
+  //   } catch (e: any) {
+  //     setEditError(e.message || 'Failed to update segment map');
+  //   } finally {
+  //     setEditLoading(false);
+  //   }
+  // };
 
 
   const handleNext = () => {
@@ -2417,7 +2462,135 @@ const SegmentationView = ({
       </div>
       ) : hasSegmentationData ?(
         <>
-          <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4">
+        <Button
+            size="icon"
+            variant="outline"
+            onClick={handleOpenEditModal}
+            className={`p-2 hover:scale-105 transition-transform duration-200 shadow-sm `}
+        >
+            <Pencil className="h-4 w-4 dark:text-white text-black" />
+        </Button>
+
+        <Button
+        variant="outline"
+        size="icon"
+        className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
+        onClick={() => setIsSettingsOpen((prev) => !prev)}
+        aria-pressed={isSettingsOpen}
+      >
+        <Settings className="w-7 h-7 dark:text-white text-black" />
+      </Button>
+
+        </div>
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-lg ">
+            <DialogHeader>
+              <DialogTitle className="mb-4">Edit Segments</DialogTitle>
+            </DialogHeader>
+            {editLoading && <div>Loading segmentation map...</div>}
+            {editError && <div className="text-red-500">{editError}</div>}
+            {!editLoading && !editError && (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {editSegMap.map((value, idx) => {
+                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
+                  const end = value;
+                  const segChunks = editTranscriptChunks.filter(chunk =>
+                    chunk.timestamp &&
+                    typeof chunk.timestamp[0] === 'number' &&
+                    chunk.timestamp[0] >= start &&
+                    chunk.timestamp[0] < end
+                  );
+                  const segText = segChunks.map(chunk => chunk.text).join(' ');
+                  return (
+                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={value}
+                          onChange={e => handleEditSegChange(idx, e.target.value)}
+                          className="w-24"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveSeg(idx)}
+                          className="text-destructive hover:text-destructive"
+                          disabled={editSegMap.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                        {segText}
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
+              </div>
+            )}
+            <DialogFooter className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
+                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEditSeg}
+                disabled={editLoading}
+                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+            <div className="space-y-3">
+              {segmentationMap.map((end: number, idx: number) => {
+                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
+                const segChunks = segmentationChunks[idx] || []
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-card border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-card/90 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{idx + 1}</span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
+                        <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                          {start.toFixed(2)}s – {end.toFixed(2)}s
+                        </span>
+                      </div>
+                    </div>
+
+                    {segChunks.length > 0 && (
+                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
+                        <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+          {/* <div className="flex justify-end mb-4">
             <Button
               size="icon"
               variant="outline"
@@ -2517,44 +2690,24 @@ const SegmentationView = ({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-            <div className="space-y-3">
-              {segmentationMap.map((end: number, idx: number) => {
-                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
-                const segChunks = segmentationChunks[idx] || []
-
-                return (
-                  <div
-                    key={idx}
-                    className="bg-card border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-card/90 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{idx + 1}</span>
-                        </div>
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
-                      </div>
-
-                      <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
-                        <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          {start.toFixed(2)}s – {end.toFixed(2)}s
-                        </span>
-                      </div>
-                    </div>
-
-                    {segChunks.length > 0 && (
-                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
-                        <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
-                        </p>
-                      </div>
-                    )}
+          <ol className="mt-2 space-y-4">
+            {segmentationMap.map((end: any, idx: any) => {
+              const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+              const segChunks = segmentationChunks[idx] || [];
+              return (
+                <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                  <div>
+                    <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
                   </div>
-                )
-              })}
-            </div>
+                  {segChunks.length > 0 && (
+                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      {segChunks.map((chunk: { text: string }) => chunk.text).join(' ')}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol> */}
         </>
       ) : hasFallbackSegments ? (
         <div className="space-y-3">
