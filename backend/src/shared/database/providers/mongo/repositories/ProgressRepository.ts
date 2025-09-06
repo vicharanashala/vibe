@@ -188,6 +188,7 @@ class ProgressRepository {
       await this.attemptCollection.bulkWrite(operations, { session });
     }
   }
+
   async prepareBulkQuizOperations(
     userId: string,
     quizItemIds: string[],
@@ -289,6 +290,26 @@ class ProgressRepository {
       },
     );
   }
+
+  async deleteProgress(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.progressCollection.deleteOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        session,
+      },
+    );
+  }
+
 
   async findById(
     id: string,
@@ -434,6 +455,7 @@ class ProgressRepository {
         session,
       },
     );
+
     return result;
   }
 

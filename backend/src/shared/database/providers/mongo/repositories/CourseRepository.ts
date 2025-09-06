@@ -551,7 +551,7 @@ export class CourseRepository implements ICourseRepository {
   async getAllCourses(session?: ClientSession): Promise<ICourse[]> {
     try {
       await this.init();
-      const query = this.courseCollection.find({}, { session });
+      const query = this.courseCollection.find({ versions: { $exists: true, $ne: [] } }, { session });
       return await query.toArray();
     } catch (error) {
       throw new InternalServerError(
