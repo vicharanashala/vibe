@@ -18,6 +18,7 @@ import {
   EnrollmentStatisticsResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
+import { AttemptService } from '#root/modules/quizzes/services/AttemptService.js';
 import { USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
 import {
@@ -44,6 +45,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { GLOBAL_TYPES } from '#root/types.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -54,6 +56,8 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(QUIZZES_TYPES.AttemptService)
+    private readonly attemptService: AttemptService,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
   ) { }
@@ -377,7 +381,8 @@ export class EnrollmentController {
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
   ) {
-    // await this.enrollmentService.addIndex();
+    const updatedEnrollment = await this.attemptService.bulkUpdateUserQuizMetrics();
+    return updatedEnrollment;
   }
 
   @OpenAPI({
