@@ -328,61 +328,7 @@ class ProgressService extends BaseService {
     );
   }
 
-  async updateEnrollmentProgressPercentBulk(
-    enrollments: any[], // pass the enrollments array directly
-    courseId: string,
-    versionId: string,
-    totalItems: number,
-    session?: ClientSession,
-  ) {
-    // resolve all async operations first
-    const bulkOps = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const userId = enrollment.userId?.toString();
 
-        const completedItems =
-          await this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            versionId,
-          );
-
-        return {
-          updateOne: {
-            filter: {
-              userId: new ObjectId(userId),
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(versionId),
-            },
-            update: {
-              $set: {
-                progressPercent: this._calculateProgress(
-                  enrollment,
-                  totalItems,
-                  completedItems,
-                ),
-                updatedAt: new Date(),
-              },
-            },
-          },
-        };
-      }),
-    );
-
-    if (bulkOps.length > 0) {
-      return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
-    }
-    return null;
-  }
-
-
-  // Helper to calculate progress based on completed items
-  private _calculateProgress(enrollment: any, totalItems: number, completedItems: number): number {
-
-
-    if (!totalItems || totalItems === 0) return 0;
-    return ((completedItems ?? 0) / totalItems) * 100;
-  }
 
   private async verifyDetails(
     userId: string | ObjectId,
@@ -390,6 +336,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<void> {
     // Check if user exists
+
     const user = await this.userRepo.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
@@ -408,6 +355,7 @@ class ProgressService extends BaseService {
         'Course version not found or does not belong to this course',
       );
     }
+
   }
 
   private async verifyProgress(
@@ -433,6 +381,7 @@ class ProgressService extends BaseService {
       courseId,
       courseVersionId,
     );
+
     if (completedItems.includes(itemId)) {
       return;
     }
@@ -835,7 +784,9 @@ class ProgressService extends BaseService {
     moduleId: string,
     watchItemId: string,
   ): Promise<void> {
+
     return this._withTransaction(async session => {
+
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -928,6 +879,7 @@ class ProgressService extends BaseService {
           attemptId,
           session,
         );
+
 
         // if the quiz is skipped then there is no submission record
         if (!submittedQuiz) {
@@ -1103,6 +1055,70 @@ class ProgressService extends BaseService {
         throw new InternalServerError('Progress could not be reset');
       }
     });
+  }
+
+  async unenrollUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    return this._withTransaction(async session => {
+      // Run verify + courseVersion fetch in parallel
+      const [_, courseVersion] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+        this.courseRepo.readVersion(courseVersionId, session),
+      ]);
+
+
+      // Collect itemsGroupIds from courseModules
+      const itemsGroupIds: string[] = [];
+      for (const module of courseVersion.modules || []) {
+        for (const section of module.sections || []) {
+          if (section.itemsGroupId) {
+            itemsGroupIds.push(section.itemsGroupId as string);
+          }
+        }
+      }
+
+      // Fetch itemGroups in parallel
+      const itemsGroups = await Promise.all(
+        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      );
+
+      // Collect quizItemIds
+      const quizItemIds: string[] = [];
+      for (const group of itemsGroups) {
+        for (const item of group.items || []) {
+          if (item.type === 'QUIZ') {
+            quizItemIds.push(item._id as string);
+          }
+        }
+      }
+
+      // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
+      await Promise.all([
+        this.progressRepository.deleteProgress(userId, courseId, courseVersionId, session),
+        this.progressRepository.deleteUserWatchTimeByCourseVersion(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
+        this.enrollmentRepo.deleteEnrollment(
+          userId,
+          courseId,
+          courseVersionId,
+          session
+        ),
+        quizItemIds.length
+          ? this.resetUserQuizData(userId, quizItemIds, session)
+          : Promise.resolve(),
+      ]);
+
+    });
+
+
   }
 
 
