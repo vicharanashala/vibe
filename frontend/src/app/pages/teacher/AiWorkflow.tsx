@@ -24,7 +24,7 @@ interface UploadParams {
 
 interface CurrentJob {
     status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
-    task: any
+    task: string
 }
 
 const AiWorkflow = () => {
@@ -68,7 +68,7 @@ const AiWorkflow = () => {
 
     const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null); // to track current job status
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined); // to store the generated transcription
-    const [currentJob, setCurrentJob] = useState<CurrentJob | null>(null)
+    const [currentJob, setCurrentJob] = useState<CurrentJob>({task:"AUDIO_EXTRACTION",status:"WAITING"})
     const [isTranscribing, setIsTranscribing] = useState(false); 
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false); //will true once segmentation starts (backend)
@@ -640,6 +640,24 @@ const AiWorkflow = () => {
           setIsApprovingTask (false);
         }
     }
+    const handleResetStates = () => {
+        setAiJobId("");
+        setIsOpenEndJobModal(false);
+        setProgress(0);
+        setError(""); 
+        setIsLoading(false)
+        setIsAiJobStarted(false);
+        setIsWaitingServer(false);
+        setTranscribedData(undefined);
+        setSegmentationChunks([]) ;
+        setSegmentationMap([])
+        setSegments([]);
+        setQuestions([]);
+        setYoutubeUrl("");
+        setIsURLValidated(false);
+        updateCurrentJob("audioExtraction","WAITING");
+        toast.success("You have successfully ended the current session.");
+    }
 
 
   return (
@@ -647,22 +665,7 @@ const AiWorkflow = () => {
         <ConfirmationModal
           isOpen={isOpenEndJobModal}
           onClose={() => setIsOpenEndJobModal(false)}
-          onConfirm={()=>{
-            setAiJobId("");
-            setIsOpenEndJobModal(false);
-            setProgress(0);
-            setError(""); 
-            setIsLoading(false)
-            setIsAiJobStarted(false);
-            setIsWaitingServer(false);
-            setTranscribedData(undefined);
-            ([])
-            setSegmentationChunks([]) ;
-            setSegmentationMap([])
-            setSegments([]);
-            setQuestions([]);
-            updateCurrentJob("audioExtraction","WAITING")
-            }}
+          onConfirm={handleResetStates}
           title="End Current Job"
           description="Are you sure you want to end this job? Once confirmed, all generated data and progress will be cleared, and you will need to start again from the beginning."
           confirmText="End Job"
@@ -709,11 +712,12 @@ const AiWorkflow = () => {
                       )}
                     </div>
                    }
-                   {aiJobId && (
+                   {isURLValidated &&  (
                       <div className="relative">
                         <button
                           type="button"
                           onClick={() => setIsOpenEndJobModal((prev) => !prev)}
+                          // disabled={isLoading || isApprovingTask}
                           className={`flex items-center gap-2 text-sm text-red-400 font-medium px-3 py-2.5  rounded border transition
                             ${isOpenEndJobModal 
                               ? "bg-red-600 text-white hover:bg-red-700" 
