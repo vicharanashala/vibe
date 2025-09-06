@@ -174,7 +174,16 @@ export class EnrollmentService extends BaseService {
   }
 
 
-  async getEnrollments(
+  private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
+    return {
+      ...course,
+      versions: course?.versions?.filter(
+        (versionId: string) => enrolledVersionIds.has(versionId.toString())
+      ) || [],
+    };
+  }
+
+  public async getEnrollments(
     userId: string,
     skip: number,
     limit: number,
@@ -193,13 +202,13 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
-      // If role is STUDENT, fetch additional details
-      if (role === 'STUDENT') {
-        const versionIds = [
-          ...new Set(enrollments.map((e) => e.courseVersionId.toString())),
-        ].map((id) => new ObjectId(id));
+      const enrolledVersionIds = new Set(
+        enrollments.map(e => e.courseVersionId.toString())
+      );
 
-        const watchedKeys = enrollments.map((e) => ({
+      if (role === 'STUDENT') {
+        const versionIds = Array.from(enrolledVersionIds).map(id => new ObjectId(id));
+        const watchedKeys = enrollments.map(e => ({
           userId: new ObjectId(userId),
           courseId: new ObjectId(e.courseId),
           courseVersionId: new ObjectId(e.courseVersionId),
@@ -210,7 +219,7 @@ export class EnrollmentService extends BaseService {
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         ]);
 
-        return enrollments.map((enr) => {
+        return enrollments.map(enr => {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
@@ -221,7 +230,7 @@ export class EnrollmentService extends BaseService {
             role: enr.role,
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
-            course: enr.course,
+            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
             contentCounts: contentCountsMap.get(versionIdStr) || {
               totalItems: 0,
@@ -234,18 +243,19 @@ export class EnrollmentService extends BaseService {
         });
       }
 
-      // For non-student roles, return only the basic enrollments
-      return enrollments.map((enr) => ({
+      // Non-student
+      return enrollments.map(enr => ({
         _id: enr._id.toString(),
         courseId: enr.courseId.toString(),
         courseVersionId: enr.courseVersionId.toString(),
         role: enr.role,
         status: enr.status,
         enrollmentDate: new Date(enr.enrollmentDate),
-        course: enr.course,
+        course: this.filterCourseVersions(enr.course, enrolledVersionIds),
       }));
     });
   }
+
 
 
 
