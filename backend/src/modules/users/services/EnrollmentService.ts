@@ -214,6 +214,17 @@ export class EnrollmentService extends BaseService {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
+          // Filter course versions to only include enrolled versions for this user
+          const filteredCourse = {
+            ...enr.course,
+            versions: enr.course?.versions?.filter((versionId: string) => {
+              // Check if user is enrolled in this version
+              return enrollments.some(enrollment => 
+                enrollment.courseVersionId.toString() === versionId
+              );
+            }) || []
+          };
+
           return {
             _id: enr._id.toString(),
             courseId: enr.courseId.toString(),
@@ -221,7 +232,7 @@ export class EnrollmentService extends BaseService {
             role: enr.role,
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
-            course: enr.course,
+            course: filteredCourse,
             percentCompleted: enr.percentCompleted || 0,
             contentCounts: contentCountsMap.get(versionIdStr) || {
               totalItems: 0,
@@ -235,15 +246,28 @@ export class EnrollmentService extends BaseService {
       }
 
       // For non-student roles, return only the basic enrollments
-      return enrollments.map((enr) => ({
-        _id: enr._id.toString(),
-        courseId: enr.courseId.toString(),
-        courseVersionId: enr.courseVersionId.toString(),
-        role: enr.role,
-        status: enr.status,
-        enrollmentDate: new Date(enr.enrollmentDate),
-        course: enr.course,
-      }));
+      return enrollments.map((enr) => {
+        // Filter course versions to only include enrolled versions for this user
+        const filteredCourse = {
+          ...enr.course,
+          versions: enr.course?.versions?.filter((versionId: string) => {
+            // Check if user is enrolled in this version
+            return enrollments.some(enrollment => 
+              enrollment.courseVersionId.toString() === versionId
+            );
+          }) || []
+        };
+
+        return {
+          _id: enr._id.toString(),
+          courseId: enr.courseId.toString(),
+          courseVersionId: enr.courseVersionId.toString(),
+          role: enr.role,
+          status: enr.status,
+          enrollmentDate: new Date(enr.enrollmentDate),
+          course: filteredCourse,
+        };
+      });
     });
   }
 
