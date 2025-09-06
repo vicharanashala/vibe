@@ -106,33 +106,33 @@ type QuestionGenParams = {
 
 // Stepper icons
 const WORKFLOW_STEPS = [
-  { 
-    key: 'audioExtraction', 
-    label: 'Audio Extraction', 
+  {
+    key: 'audioExtraction',
+    label: 'Audio Extraction',
     icon: <UploadCloud className="w-5 h-5" />,
     explanation: "Extracts audio from uploaded files (video or audio) for further processing."
   },
-  { 
-    key: 'transcriptGeneration', 
-    label: 'Transcription', 
+  {
+    key: 'transcriptGeneration',
+    label: 'Transcription',
     icon: <FileText className="w-5 h-5" />,
     explanation: "Converts extracted audio into accurate text transcripts."
   },
-  { 
-    key: 'segmentation', 
-    label: 'Segmentation', 
+  {
+    key: 'segmentation',
+    label: 'Segmentation',
     icon: <ListChecks className="w-5 h-5" />,
     explanation: "Breaks down the transcript into logical sections or chunks."
   },
-  { 
-    key: 'questionGeneration', 
-    label: 'Question Generation', 
+  {
+    key: 'questionGeneration',
+    label: 'Question Generation',
     icon: <MessageSquareText className="w-5 h-5" />,
     explanation: "Automatically generates relevant questions from the segmented transcript."
   },
-  { 
-    key: 'uploadContent', 
-    label: 'Upload', 
+  {
+    key: 'uploadContent',
+    label: 'Upload',
     icon: <UploadCloud className="w-5 h-5" />,
     explanation: "Saves and uploads the processed content with questions for later use."
   },
@@ -1826,7 +1826,7 @@ export default function AISectionPage() {
 
         if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
           setTimeout(() => {
-            setTaskRuns(prevTaskRuns => {
+            setTaskRuns((prevTaskRuns: any) => {
               const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
               if (lastLoadingIdx === -1) {
                 console.log('Live update: No loading transcription run found');
@@ -1839,7 +1839,7 @@ export default function AISectionPage() {
 
               const updatedTaskRuns = {
                 ...prevTaskRuns,
-                transcription: prevTaskRuns.transcription.map((run, idx) =>
+                transcription: prevTaskRuns.transcription.map((run: any, idx: number) =>
                   idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
                 ),
               };
@@ -2175,6 +2175,51 @@ export default function AISectionPage() {
     // Add state for transcriptChunks in the edit modal
     const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
 
+    const formatTime = (seconds: number): string => {
+      if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    const parseTimeToSeconds = (time: string): number => {
+      if (!time) return 0;
+      const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
+      if (cleaned.includes(':')) {
+        const [mStr, sStr] = cleaned.split(':');
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
+      }
+      if (cleaned.includes('.')) {
+        const [mStr, sStrRaw] = cleaned.split('.');
+        const sStr = (sStrRaw || '').slice(0, 2);
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
+      }
+      const sOnly = parseInt(cleaned, 10);
+      return isNaN(sOnly) ? 0 : sOnly;
+    };
+    const formatTimeInput = (value: string): string => {
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+      if (!digits) return '';
+      if (digits.length <= 2) return digits;
+      const minutes = digits.slice(0, -2);
+      const seconds = digits.slice(-2);
+      return `${minutes}:${seconds}`;
+    };
+    const formatTimeDot = (seconds: number): string => {
+      const mins = Math.floor(Math.max(0, seconds) / 60);
+      const secs = Math.floor(Math.max(0, seconds) % 60);
+      const mm = mins.toString().padStart(2, '0');
+      const ss = secs.toString().padStart(2, '0');
+      return `${mm}.${ss}`;
+    };
+
     const handleShowSegmentation = async () => {
       if (!aiJobId) return;
       if (!showSegmentation) {
@@ -2246,7 +2291,12 @@ export default function AISectionPage() {
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
-          setEditSegMap([...arr[0].segmentationMap]);
+          const normalized: number[] = (arr[0].segmentationMap as any[]).map((v: any) => {
+            if (typeof v === 'number') return parseTimeToSeconds(String(v));
+            if (typeof v === 'string') return parseTimeToSeconds(v);
+            return 0;
+          });
+          setEditSegMap(normalized);
           // Fetch transcript chunks
           const transcriptRes = await fetch(arr[0].transcriptFileUrl);
           if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
@@ -2267,8 +2317,13 @@ export default function AISectionPage() {
     };
 
     const handleEditSegChange = (idx: number, value: string) => {
+      const masked = formatTimeInput(value);
+      let seconds = parseTimeToSeconds(masked);
       const newMap = [...editSegMap];
-      newMap[idx] = parseFloat(value);
+      const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
+      const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
+      seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
+      newMap[idx] = Math.max(0, seconds);
       setEditSegMap(newMap);
     };
     const handleAddSeg = () => {
@@ -2289,7 +2344,8 @@ export default function AISectionPage() {
       setEditError("");
       try {
         // Use index 0 for the backend (fixes 500 error)
-        await editSegmentMap(aiJobId, editSegMap, 0);
+        const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
+        await editSegmentMap(aiJobId, payloadNumbers, 0);
         toast.success('Segment map updated successfully!');
         setEditModalOpen(false);
       } catch (e: any) {
@@ -2347,10 +2403,10 @@ export default function AISectionPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
                         <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={value}
+                          type="text"
+                          placeholder="0:00"
+                          maxLength={5}
+                          value={formatTime(value)}
                           onChange={e => handleEditSegChange(idx, e.target.value)}
                           className="w-24"
                         />
@@ -2892,32 +2948,30 @@ export default function AISectionPage() {
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
                     <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-2 mb-4">
                         <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                         <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                      </div>
-                      <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {(currentUiStep === 1 && aiJobStatus === null)   &&
-                              <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
-                          }
-                          {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION")  &&
-                          (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
-                            <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
-                          )
-                          }
-                          {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
-                          (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
-                            <span>Converts extracted audio into accurate text transcripts.</span>
-                          )}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {(currentUiStep === 1 && aiJobStatus === null) &&
+                                <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                              }
+                              {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION") &&
+                                (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                                  <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                                )
+                              }
+                              {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
+                                (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                                  <span>Converts extracted audio into accurate text transcripts.</span>
+                                )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       <TaskAccordion
                         task="transcription"
@@ -2955,22 +3009,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 2 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
                         <TaskAccordion
                           task="segmentation"
                           title="Segmentation"
@@ -3007,22 +3059,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 3 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
                         <TaskAccordion
                           task="question"
                           title="Question Generation"
@@ -3092,22 +3142,20 @@ export default function AISectionPage() {
                   {
                     currentUiStep === 4 && (
                       <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 mb-4">
                           <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
-                        <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    </div>
 
                         {/* Simplified upload form */}
                         <div className="flex flex-col gap-4 mb-4">
