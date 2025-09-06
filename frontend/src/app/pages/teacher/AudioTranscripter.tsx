@@ -141,7 +141,15 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                     //         )}
                     //     </div>
                     // </div>
-                    <TranscriptionResult transcription={transcriptText}  onTranscriptionUpdate={handleSave} isProcessing={transcriber.isBusy}/>
+                    <div className="w-full">
+                      <TranscriptionResult 
+                        transcription={transcriptText}  
+                        onTranscriptionUpdate={handleSave} 
+                        isProcessing={transcriber.isBusy}
+                        isRunningAiJob={props.isRunningAiJob}
+                        tooltipContent={"Converts extracted audio into accurate text transcripts."}
+                      />
+                    </div>
                 )}
                 <AudioManager 
                     transcriber={transcriber} 

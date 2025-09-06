@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff } from 'lucide-react';
+import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 interface TranscriptionResultProps {
@@ -11,6 +12,7 @@ interface TranscriptionResultProps {
   className?: string;
   audioUrl?: string;
   language?: string;
+  tooltipContent?: string;
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
@@ -20,7 +22,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   onTranscriptionUpdate,
   className = '',
   audioUrl,
-  language = 'English'
+  tooltipContent
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(transcription);
@@ -125,6 +127,18 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Transcription Result</h3>
             {/* <p className="text-sm text-gray-500 dark:text-gray-400">{timestamp}</p> */}
           </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+              </TooltipTrigger>
+              {tooltipContent && (
+                <TooltipContent>
+                  <p>{tooltipContent}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           {isProcessing && (
             <div className="flex items-center gap-2 ml-4">
               <div className="relative">
@@ -291,11 +305,11 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
                   <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                 </div>
               )}
-              <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 bg-card p-2 rounded-lg">
+              {/* <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 bg-card p-2 rounded-lg">
                 <span>Characters: {editedText.length}</span>
                 <span>Words: {getWordCount(editedText)}</span>
                 <span>Reading time: {getReadingTime(editedText)}min</span>
-              </div>
+              </div> */}
             </div>
           ) : (
             <div className={`w-full p-4 text-base leading-relaxed bg-card text-gray-800 dark:text-gray-100 bg-gradient-to-br   border border-gray-200 dark:border-gray-600 rounded-xl overflow-y-auto shadow-inner ${isExpanded ? 'h-[350px]' : 'h-[200px]'}`}>
@@ -329,11 +343,11 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
 
       {transcription && (
         <div className="px-6 py-2 bg-card rounded-b-2xl border-t border-gray-200 dark:border-gray-700">
-          {/* <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-            <span>Language: {language}</span>
+           <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+            {/* <span>Language: {language}</span> */}
             {copySuccess && <span className="text-green-600">✓ Copied to clipboard</span>}
             {downloadSuccess && <span className="text-green-600">✓ Downloaded successfully</span>}
-          </div> */}
+          </div>
         </div>
       )}
     </div>
