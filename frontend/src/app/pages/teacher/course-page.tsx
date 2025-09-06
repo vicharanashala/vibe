@@ -593,12 +593,13 @@ function CourseCard({
             <Separator className="bg-border/50" />
 
             {/* Course Description Section */}
+            { (editingCourse || course?.description)  &&
             <div className="space-y-4">
               <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
                 <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                 Course Description
               </h3>
-              {editingCourse ? (
+              {editingCourse  ? (
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
@@ -676,6 +677,7 @@ function CourseCard({
                 </div>
               )}
             </div>
+            }
 
             {/* All Versions Section */}
             <div className="space-y-4">
