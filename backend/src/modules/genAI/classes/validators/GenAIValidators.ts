@@ -60,7 +60,7 @@ class SegmentationParameters {
   @IsOptional()
   @IsNumber()
   runs?: number;
-  
+
   @JSONSchema({
     title: 'Noise ID',
     description: 'ID of the noise to be used for segmentation',
@@ -199,7 +199,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-	quizItemBaseName?: string;
+  quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -209,7 +209,7 @@ class UploadParameters {
   })
   @IsOptional()
   @IsNumber()
-	questionsPerQuiz?: number;
+  questionsPerQuiz?: number;
 }
 
 @JSONSchema({ title: 'PartialUploadParameters' })
@@ -276,7 +276,7 @@ class PartialUploadParameters {
   })
   @IsOptional()
   @IsString()
-	quizItemBaseName?: string;
+  quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -286,7 +286,7 @@ class PartialUploadParameters {
   })
   @IsOptional()
   @IsNumber()
-	questionsPerQuiz?: number;
+  questionsPerQuiz?: number;
 }
 
 class Chunk {
@@ -320,7 +320,7 @@ class Transcript {
   chunks: Array<Chunk>;
 }
 
-class GenAIResponse{
+class GenAIResponse {
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
     type: 'string',
@@ -603,7 +603,7 @@ class RerunTaskBody {
     }
   })
   parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
-  
+
   @JSONSchema({
     title: 'Use Previous',
     description: 'Which previous task output to use for this task',
@@ -774,10 +774,11 @@ class EditSegmentMapBody {
     type: 'number',
     example: 0,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  index: number;
+  index?: number;
 }
+
 
 class EditQuestionData {
   @JSONSchema({
@@ -790,14 +791,15 @@ class EditQuestionData {
 
   @JSONSchema({
     title: 'Index',
-    description: 'Index of the question to edit',
+    description: 'Index of the question to edit (optional, defaults to last)',
     type: 'number',
     example: 0,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  index: number;
+  index?: number;
 }
+
 
 class EditTranscript {
   @JSONSchema({
