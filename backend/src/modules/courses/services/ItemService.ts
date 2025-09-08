@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ClientSession } from 'mongodb';
+import { ClientSession, ObjectId } from 'mongodb';
 import { NotFoundError, InternalServerError } from 'routing-controllers';
 import { COURSES_TYPES } from '#courses/types.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
@@ -29,6 +29,8 @@ import {
 } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { AttemptRepository, QuizRepository, UserQuizMetricsRepository } from '#root/modules/quizzes/repositories/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -43,6 +45,12 @@ export class ItemService extends BaseService {
     private readonly progressService: ProgressService,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
+    private userQuizMetricsRepository: UserQuizMetricsRepository,
+    @inject(QUIZZES_TYPES.QuizRepo)
+    private quizRepository: QuizRepository,
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -241,23 +249,97 @@ export class ItemService extends BaseService {
         );
       }
 
+      // ✅ Update item first
       const result = await this.itemRepo.updateItem(itemId, body, session);
 
+      // 🔄 Run metrics update (if QUIZ) and version update in parallel
       version.updatedAt = new Date();
-      const updatedVersion = await this.courseRepo.updateVersion(
-        versionId,
-        version,
-      );
+
+      const promises: Promise<any>[] = [
+        this.courseRepo.updateVersion(versionId, version),
+      ];
+
+      if (body.type === "QUIZ") {
+        promises.push(this.bulkUpdateEnrolledUserQuizMetrics(itemId, result));
+      }
+
+      const [updatedVersion] = await Promise.all(promises);
 
       if (!updatedVersion) {
         throw new InternalServerError(
-          'Failed to update version after item update',
+          "Failed to update version after item update",
         );
       }
 
       result._id = result._id.toString();
       return result;
     });
+  }
+
+
+  async bulkUpdateEnrolledUserQuizMetrics(quizId: string, quiz: any): Promise<{ updatedCount: number; totalCount: number }> {
+    const BATCH_SIZE = 5000;
+    const bulkOperations: any[] = [];
+    let batchCount = 0;
+    let updatedCount = 0;
+
+    // Step 1: Get all user_quiz_metrics records
+    const metrics = await this.userQuizMetricsRepository.getByQuizId(quizId);
+
+    const totalCount = metrics.length; // total records
+    console.log(`🔹 Found ${totalCount} user_quiz_metrics records for quiz ${quizId}`);
+    for (const metric of metrics) {
+      try {
+        if (metric.userId && metric.quizId) {
+          // Step 2: Find latest attempt for this (userId, quizId)
+
+
+          const attemptCount = await this.attemptRepository.countUserAttempts(metric.quizId.toString(), metric.userId.toString());
+          console.log('Attempt count: ', attemptCount);
+
+          if (!quiz && !quiz.details && !attemptCount) continue;
+
+          // Step 3: Add to bulk operations
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: new ObjectId(metric._id) },
+              update: {
+                $set: {
+                  // latestAttemptId: latestAttempt?._id.toString(),
+                  // latestAttemptStatus: 'ATTEMPTED',
+                  remainingAttempts: (quiz.details.maxAttempts - attemptCount),
+                },
+              },
+            },
+          });
+
+          // Increment updated count
+          updatedCount++;
+
+          // Step 4: Commit in batches
+          if (bulkOperations.length === BATCH_SIZE) {
+            await this._withTransaction(async session => {
+              await this.userQuizMetricsRepository.executeBulkMetricsReset(bulkOperations, session);
+              console.log(`✅ Batch ${++batchCount}: Updated ${bulkOperations.length} user_quiz_metrics`);
+              bulkOperations.length = 0;
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to update metric ${metric._id}`, err);
+      }
+    }
+
+    // Step 5: Final flush
+    if (bulkOperations.length > 0) {
+      await this._withTransaction(async session => {
+        await this.userQuizMetricsRepository.executeBulkMetricsReset(bulkOperations, session);
+        console.log(`✅ Final batch: Updated ${bulkOperations.length} user_quiz_metrics`);
+      });
+    }
+
+    console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
+    return { updatedCount, totalCount };
   }
 
 
