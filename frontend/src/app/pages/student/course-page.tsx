@@ -109,7 +109,9 @@ export default function CoursePage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        window.location.reload();
+        setTimeout(() => {
+          window.location.reload();
+        },1500)
       }
     };
       // eslint-disable-next-line react-hooks/exhaustive-deps
