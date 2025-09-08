@@ -60,14 +60,15 @@ export class CourseController {
     @Body() body: CourseBody,
     @Ability(getCourseAbility) {ability},
   ): Promise<Course> {
-    // Build subject context first
 
+    const {versionName, versionDescription} = body;
+    // Build subject context first
     if (!ability.can(CourseActions.Create, 'Course')) {
       throw new ForbiddenError('You do not have permission to create courses');
     }
 
     const course = new Course(body);
-    const createdCourse = await this.courseService.createCourse(course);
+    const createdCourse = await this.courseService.createCourse(course, versionName, versionDescription);
     return createdCourse;
   }
 

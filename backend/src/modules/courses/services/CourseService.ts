@@ -22,7 +22,7 @@ class CourseService extends BaseService {
     super(mongoDatabase);
   }
 
-  async createCourse(course: Course): Promise<Course> {
+  async createCourse(course: Course, versionName: string, versionDescription: string): Promise<Course> {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
       if (!createdCourse) {
