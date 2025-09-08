@@ -86,6 +86,7 @@ export default function TeacherCoursesPage() {
     return acc
   }, [])
 
+
   const navigate = useNavigate()
   const createNewCourse = () => {
     navigate({ to: "/teacher/courses/create" })
@@ -345,6 +346,38 @@ function CourseCard({
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
 
+  const getUpdateMessage = (updatedAt?: string) => {
+    if (!updatedAt) return "No updates yet";
+
+    const updatedDate = new Date(updatedAt);
+    const now = new Date();
+    const diffMs = +now - +updatedDate;
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffMinutes < 1) return "Just now";
+    if (diffMinutes < 5) return "A few minutes ago";
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffHours === 1) return "An hour ago";
+    if (diffHours < 6) return `${diffHours} hours ago`;
+    if (diffHours < 24) return "Earlier today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffWeeks === 1) return "Last week";
+    if (diffWeeks < 5) return `${diffWeeks} weeks ago`;
+    if (diffMonths === 1) return "Last month";
+    if (diffMonths < 12) return `${diffMonths} months ago`;
+    if (diffYears === 1) return "Last year";
+
+    return `${diffYears} years ago`;
+  };
+
+
   if (courseLoading) {
     return (
       <div className="relative">
@@ -541,7 +574,8 @@ function CourseCard({
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    <span>Last updated {course.updatedAt? `${formatDateTime(course.updatedAt,true)}` :"recently"}</span>
+                    {/* <span>Last updated {course.updatedAt? `${formatDateTime(course.updatedAt,true)}` :"recently"}</span> */}
+                    <span>Last updated {getUpdateMessage(course.updatedAt)}</span>
                   </div>
                 </div>
               </div>
