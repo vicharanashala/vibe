@@ -336,7 +336,6 @@ const AiWorkflow = () => {
 
             const data = await res.json();
 
-            console.log("DATA: ", data);
             task == "SEGMENTATION" ? 
             handleExtractSegmentationResponse(data) :
             handleExtractQuestionResponse(data);
