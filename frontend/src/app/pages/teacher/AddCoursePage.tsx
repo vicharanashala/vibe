@@ -3,68 +3,62 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Plus } from "lucide-react";
-import { useCreateCourse, useCreateCourseVersion, useInviteUsers } from "@/hooks/hooks";
-import { useAuthStore } from "@/store/auth-store";
+import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info } from "lucide-react";
+import { useCreateCourse} from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 
 export default function CreateCourse() {
-  const [name, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [courseName, setCourseName] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [courseId, setCourseId] = useState<string | null>(null);
-  const [showVersionForm, setShowVersionForm] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
+  const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
-  const [versionSuccess, setVersionSuccess] = useState(false);
-  const [versionError, setVersionError] = useState<string | null>(null);
   const [createErrors, setCreateErrors] = useState({ name: "", description: "" });
-  // Removed unused courseVersionId state
 
   const createCourseMutation = useCreateCourse();
-  const createCourseVersionMutation = useCreateCourseVersion();
-  const inviteUsersMutation = useInviteUsers();
 
-  const teacherEmail = useAuthStore.getState().user?.email || "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
-    if (!name.trim() || !description.trim()) {
+    if (!courseName.trim() || !courseDescription.trim()) {
       setCreateErrors({
-        name: !name.trim() ? "Course title is required" : "",
-        description: !description.trim() ? "Course description is required" : "",
+        name: !courseName.trim() ? "Course title is required" : "",
+        description: !courseDescription.trim() ? "Course description is required" : "",
       });
       return;
     }
     setCreateErrors({ name: "", description: "" });
     setSuccess(false);
     setError(null);
-    setShowVersionForm(false);
-    setCourseId(null);
-    // removed setCourseVersionId(null); (no longer used)
-    setVersionSuccess(false);
-    setVersionError(null);
-
     try {
       const res = await createCourseMutation.mutateAsync({
         body: {
-          name,
-          description
+          name: courseName,
+          description: courseDescription,
+          versionName,
+          versionDescription
         }
       });
       // Assume response contains id
       const id = res?._id;
       if (id) {
-        setCourseId(id);
-        setShowVersionForm(true);
         setSuccess(true);
-        setTitle("");
-        setDescription("");
+        setCourseName("");
+        setCourseDescription("");
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/users/enrollments"],
+          exact: false, // let it match all queries with different params
+        });
+
+        setTimeout(()=> {
+          navigate({ to: "/teacher" });
+        }, 1500);
+
       } else {
         setError("Course created but no ID returned");
       }
@@ -73,52 +67,9 @@ export default function CreateCourse() {
     }
   };
 
-  const handleCreateVersion = async () => {
-    if (!courseId) return;
-    setVersionSuccess(false);
-    setVersionError(null);
-    try {
-      const res = await createCourseVersionMutation.mutateAsync({
-        params: { path: { id: courseId } },
-        body: {
-          version: versionLabel,
-          description: versionDescription
-        }
-      });
-      const versionId = res?._id;
-      if (versionId) {
-        setVersionSuccess(true);
-         queryClient.invalidateQueries({
-          queryKey: ["get", "/users/enrollments"],
-          exact: false, // let it match all queries with different params
-        });
-        // Automatically send invite to teacher
-        // await inviteUsersMutation.mutateAsync({
-        //   params: { path: { courseId, courseVersionId: versionId } },
-        //   body: {
-        //     inviteData: [
-        //       {
-        //         email: teacherEmail,
-        //         role: "INSTRUCTOR"
-        //       }
-        //     ]
-        //   }
-        // });        
-        setTimeout(()=> {
-          navigate({ to: "/teacher" });
-        }, 1500);
-      } else {
-        setVersionError("Version created but no ID returned");
-      }
-    } catch (err) {
-      setVersionError(err instanceof Error ? err.message : "Failed to create course version");
-    }
-  };
-
   return (
     <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header Section */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
           <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
@@ -135,141 +86,235 @@ export default function CreateCourse() {
           </div>
         </div>
 
-        {/* Course Creation Form */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
-          <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
-            <div>
-            <Label htmlFor="courseTitle" className='mb-3'>Course Title *</Label>
-              <Input
-                className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-                placeholder="Course Title"
-                value={name}
-                onChange={(e) => {
-                  setTitle(e.target.value)
-                  if (!e.target.value) {
-                    setCreateErrors((prev) => ({ ...prev, name: "Course title is required" }));
-                  } else {
-                    setCreateErrors((prev) => ({ ...prev, name: "" }));
-                  }
-                }}
-              />
-              {createErrors?.name && (
-                <div className="text-red-500">{createErrors?.name}</div>
-              )}
+<div className="space-y-8">
+  {/* Course Information Card */}
+  <div className="relative">
+    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl blur-sm"></div>
+    <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-8">
+      <div className="space-y-6">
+        <div className="border-l-4 border-primary/30 pl-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-lg blur-sm"></div>
+              <div className="relative bg-gradient-to-r from-primary to-primary/80 p-2 rounded-lg">
+                <BookOpen className="h-5 w-5 text-primary-foreground" />
+              </div>
             </div>
-            <div>
-            <Label htmlFor="courseDescription" className='mb-3'>Course Description *</Label>
-              <Textarea
-                className="mb-2 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-                placeholder="Course Description"
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value)
-                  if (!e.target.value) {
-                    setCreateErrors((prev) => ({ ...prev, description: "Course description is required" }))
-                  } else {
-                    setCreateErrors((prev) => ({ ...prev, description: "" }))
-                  }
-                }}
-              />
-              {createErrors?.description && (
-                <div className="text-red-500">{createErrors?.description}</div>
-              )}
+            <h3 className="text-xl font-bold text-foreground">Course Information</h3>
+          </div>
+          <p className="text-muted-foreground pl-11">
+            Define the core details of your course. This information will be displayed to students 
+            and helps them understand what they'll learn.
+          </p>
+        </div>
+        
+        <div className="grid gap-6 pl-6">
+          <div className="space-y-3">
+            <Label htmlFor="courseTitle" className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Course Title *
+              <span className="text-xs text-muted-foreground font-normal">(This will be the main course name)</span>
+            </Label>
+            <Input
+              id="courseTitle"
+              className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 h-12 text-base"
+              placeholder="e.g., Introduction to Web Development, Advanced React Patterns..."
+              value={courseName}
+              onChange={(e) => {
+                setCourseName(e.target.value)
+                if (!e.target.value) {
+                  setCreateErrors((prev) => ({ ...prev, name: "Course title is required" }));
+                } else {
+                  setCreateErrors((prev) => ({ ...prev, name: "" }));
+                }
+              }}
+            />
+            {createErrors?.name && (
+              <div className="text-red-500 text-sm flex items-center gap-2 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {createErrors?.name}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="courseDescription" className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Course Description *
+              <span className="text-xs text-muted-foreground font-normal">(Detailed overview for students)</span>
+            </Label>
+            <Textarea
+              id="courseDescription"
+              className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[130px] resize-none text-base"
+              placeholder="Provide a comprehensive description of what students will learn, the skills they'll gain, and any prerequisites..."
+              value={courseDescription}
+              onChange={(e) => {
+                setCourseDescription(e.target.value)
+                if (!e.target.value) {
+                  setCreateErrors((prev) => ({ ...prev, description: "Course description is required" }))
+                } else {
+                  setCreateErrors((prev) => ({ ...prev, description: "" }))
+                }
+              }}
+            />
+            {createErrors?.description && (
+              <div className="text-red-500 text-sm flex items-center gap-2 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {createErrors?.description}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+
+  {/* Version Information Card */}
+  <div className="relative">
+    <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-accent/10 rounded-xl blur-sm"></div>
+    <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-8">
+      <div className="space-y-6">
+        <div className="border-l-4 border-accent/30 pl-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-accent to-accent/80 rounded-lg blur-sm"></div>
+              <div className="relative bg-gradient-to-r from-accent to-accent/80 p-2 rounded-lg">
+                <GitBranch className="h-5 w-5 text-accent-foreground" />
+              </div>
             </div>
+            <h3 className="text-xl font-bold text-foreground">Initial Version Setup</h3>
+            
+            {/* Tooltip */}
+            <div className="relative group">
+              <div className="cursor-help">
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+              </div>
+              <div className="absolute left-1/2 transform -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50">
+                <div className="bg-popover border border-border rounded-lg shadow-lg p-4 text-sm text-popover-foreground w-80">
+                  <div className="font-semibold mb-2 flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    About Course Versions
+                  </div>
+                  <p className="text-xs leading-relaxed mb-2">
+                    Versions allow you to manage different iterations of your course content. 
+                    Each version can have unique materials, assignments, and structure while maintaining 
+                    the same core course identity.
+                  </p>
+                  <div className="text-xs text-muted-foreground">
+                    <strong>Examples:</strong> v1.0, Fall 2025, Beta Release, Updated Content
+                  </div>
+                  {/* Tooltip arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-popover border-r border-b border-border rotate-45"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-muted-foreground pl-11">
+            Every course starts with an initial version. Versions help you organize different 
+            iterations of your content, track changes, and maintain course evolution over time.
+          </p>
+        </div>
+
+        <div className="grid gap-6 pl-6">
+          <div className="space-y-3">
+            <Label htmlFor="versionLabel" className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Version Label *
+              <span className="text-xs text-muted-foreground font-normal">(Unique identifier for this version)</span>
+            </Label>
+            <Input
+              id="versionLabel"
+              className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 h-12 text-base"
+              placeholder="e.g., v1.0, Fall 2025, Beta, Initial Release..."
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+            />
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <Lightbulb className="h-3 w-3" />
+              <span>Pro tip: Use semantic versioning (v1.0) or term-based labels (Fall 2025)</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="versionDescription" className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Version Description
+              <span className="text-xs text-muted-foreground font-normal">(Optional: What's special about this version?)</span>
+            </Label>
+            <Textarea
+              id="versionDescription"
+              className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[110px] resize-none text-base"
+              placeholder="Describe what makes this version unique, any major updates, target audience, or special features..."
+              value={versionDescription}
+              onChange={(e) => setVersionDescription(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+
+  {/* Action Section */}
+  <div className="relative">
+    <div className="absolute inset-0 bg-gradient-to-r from-primary/3 to-accent/3 rounded-xl blur-sm"></div>
+    <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
+      <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
+        <div className="space-y-2">
+          <div className="text-base font-medium text-foreground flex items-center gap-2">
+            <Rocket className="h-5 w-5 text-primary" />
+            Ready to Launch Your Course?
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your course will be created with the initial version and you'll be redirected to the dashboard 
+            to start adding content and managing your course.
+          </p>
+        </div>
+        
         <Button 
           onClick={handleCreateCourse} 
-          disabled={createCourseMutation.isPending}
-          className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 px-8 group"
+          disabled={createCourseMutation.isPending || !courseName || !courseDescription || !versionName}
+          className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 px-8 py-4 group min-w-[220px]"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex items-center gap-3">
             <div className="relative">
               <div className="absolute inset-0 bg-white/30 rounded-full blur-sm animate-ping opacity-75"></div>
               {createCourseMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <BookOpen className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
+                <Plus className="h-5 w-5 transition-transform duration-300 group-hover:rotate-90" />
               )}
             </div>
-            <span className="font-semibold">
-              {createCourseMutation.isPending ? "Creating..." : "Create Course"}
+            <span className="font-bold text-lg">
+              {createCourseMutation.isPending ? "Creating Course..." : "Create Course"}
             </span>
           </div>
         </Button>
-        {success && (
-          <div className="text-green-600 mt-2">Course created successfully! Now create the first version for your course.</div>
-        )}
-        {error && (
-          <div className="text-red-500 mt-2">{error}</div>
-        )}
-          </Card>
-        </div>
+      </div>
+    </Card>
+  </div>
 
-        {/* Version Creation Form */}
-        {showVersionForm && (
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-primary/5 rounded-xl blur-sm"></div>
-            <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary rounded-lg blur-sm"></div>
-                  <div className="relative bg-gradient-to-r from-accent to-primary p-2 rounded-lg">
-                    <Plus className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">Create First Version</h2>
-              </div>
-              <Input
-                className="mb-4 bg-background border-border focus:border-primary focus:ring-primary/20"
-                placeholder="Version Label (e.g. v1.0, Fall 2025)"
-                value={versionLabel}
-                onChange={(e) => setVersionLabel(e.target.value)}
-              />
-              <Textarea
-                className="mb-4 bg-background border-border focus:border-primary focus:ring-primary/20"
-                placeholder="Version Description"
-                value={versionDescription}
-                onChange={(e) => setVersionDescription(e.target.value)}
-              />
-              <Button 
-                onClick={handleCreateVersion} 
-                disabled={createCourseVersionMutation.isPending || !versionLabel}
-                className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 px-8 group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <div className="relative flex items-center gap-2">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-white/30 rounded-full blur-sm animate-ping opacity-75"></div>
-                    {createCourseVersionMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-                    )}
-                  </div>
-                  <span className="font-semibold">
-                    {createCourseVersionMutation.isPending ? "Creating Version..." : "Create Version"}
-                  </span>
-                </div>
-              </Button>
-              {versionSuccess && (
-                <div className="text-green-600 mt-2">Version created successfully, Navigating to dashboard...!</div>
-              )}
-              {/* {versionSuccess && (
-                <div className="text-green-600 mt-2">Version created and invite sent to your email!</div>
-              )} */}
-              {versionError && (
-                <div className="text-red-500 mt-2">{versionError}</div>
-              )}
-              {/* {inviteUsersMutation.isPending && (
-                <div className="text-blue-600 mt-2">Sending invite...</div>
-              )} */}
-              {inviteUsersMutation.isError && (
-                <div className="text-red-500 mt-2">{inviteUsersMutation.error}</div>
-              )}
-            </Card>
-          </div>
-        )}
+  {/* Status Messages */}
+  {success && (
+    <div className="flex items-center gap-3 p-5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-green-700 dark:text-green-400 shadow-sm">
+      <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded-full">
+        <CheckCircle className="h-5 w-5" />
+      </div>
+      <div>
+        <span className="font-semibold text-base">Course created successfully!</span>
+        <div className="text-sm opacity-90">Navigating to your dashboard...</div>
+      </div>
+    </div>
+  )}
+  
+  {error && (
+    <div className="flex items-center gap-3 p-5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 shadow-sm">
+      <div className="p-1 bg-red-100 dark:bg-red-900/30 rounded-full">
+        <AlertCircle className="h-5 w-5" />
+      </div>
+      <div>
+        <span className="font-semibold text-base">Error creating course</span>
+        <div className="text-sm opacity-90">{error}</div>
+      </div>
+    </div>
+  )}
+</div>
       </div>
     </div>
   );

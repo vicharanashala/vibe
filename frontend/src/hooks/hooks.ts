@@ -481,7 +481,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: components['schemas']['CreateCourseBody'] }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: {name: string, description: string, versionName: string, versionDescription: string} }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
