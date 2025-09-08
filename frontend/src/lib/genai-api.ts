@@ -27,6 +27,7 @@ const makeAuthenticatedRequest = async (
   if (!token) {
     throw new Error('Authentication token not found');
   }
+  
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -560,7 +561,7 @@ export const rerunJobTask = async (
 };
 
 
-export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
+export const editQuestionData = async (jobId: string, questionData: any, index?: number,) => {
   return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/question`, {
     method: 'PATCH',
     body: JSON.stringify({ index, questionData }),

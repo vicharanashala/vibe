@@ -14,17 +14,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ConfirmationModal from './components/confirmation-modal';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-
-interface TaskRun {
-  id: string;
-  timestamp: Date;
-  status: "loading" | "done" | "failed";
-  result?: JobStatus;
-  parameters?: Record<string, unknown>;
-}
 
 
 interface UploadParams {
@@ -338,13 +329,14 @@ const AiWorkflow = () => {
             setIsTaskResultLoading(true);
             const token = localStorage.getItem("firebase-auth-token");
             const url = getApiUrl(`/genai/${aiJobId}/tasks/${task}/status`);
-
             const res = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` },
             });
             if (!res.ok) throw new Error("Failed to fetch task status");
 
             const data = await res.json();
+
+            console.log("DATA: ", data);
             task == "SEGMENTATION" ? 
             handleExtractSegmentationResponse(data) :
             handleExtractQuestionResponse(data);
@@ -358,7 +350,12 @@ const AiWorkflow = () => {
 
     const handleExtractSegmentationResponse = async (response: any) => {
     try {
-        const segData = Array.isArray(response) ? response[0] : null;
+        let segData = null;
+        if (Array.isArray(response)) {
+          const length = response.length;
+          segData = response[length - 1]
+        }
+        // const segData = Array.isArray(response) ? response[0] : null;
 
         if (
         segData &&
@@ -411,7 +408,12 @@ const AiWorkflow = () => {
 
     const handleExtractQuestionResponse = async (response: any ) => {
         try {
-            const questionData = Array.isArray(response) ? response [0] : null;
+            let questionData = null;
+            if (Array.isArray(response)) {
+              const length = response.length;
+              questionData = response[length - 1]
+            }
+            // const questionData = Array.isArray(response) ? response [0] : null;
             setIsTaskResultLoading(true);
             if (questionData?.fileUrl) {
                 const questionsRes = await fetch(questionData.fileUrl);
@@ -1299,6 +1301,9 @@ All questions must strictly follow the Yes/No format (no multiple-choice, open-e
 Set isParameterized to false unless the question involves variables.
 Do not mention the word 'transcript' for giving references, use the word 'video' instead.`
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+const [isRerunning, setIsRerunning] = useState(false);
+
+
     // const clampInt = (val: string, min = 0, max = 100) => {
     //     const n = Number.parseInt(val, 10)
     //     if (Number.isNaN(n)) return min
@@ -1319,7 +1324,6 @@ const [isSettingsOpen, setIsSettingsOpen] = useState(false);
         toast.error("Failed to find jobId!")
         return;      
       }
-
       const newParams = {
         ...customQuestionParams,
         SQL: (isMCQ || isBinary) ? 2 : 0,
@@ -1327,15 +1331,18 @@ const [isSettingsOpen, setIsSettingsOpen] = useState(false);
         prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
-      setCustomQuestionParams(newParams);
+      // setCustomQuestionParams(newParams);
 
       if (currentJobStatus === "COMPLETED") {
           try {
+            setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
             toast.error("Re-run success!");
           } catch (err) {
             toast.error("Re-run failed, try again!");
             console.error("Re-run failed:", err);
+          } finally {
+            setIsRerunning(false);
           }
         } else {
           handleApproveTask(newParams);
@@ -1765,16 +1772,16 @@ const [isSettingsOpen, setIsSettingsOpen] = useState(false);
             {/* {(currentJobStatus == "WAITING" || isLoading || currentJobStatus === "FAILED") && currentJobStatus != "COMPLETED" && */}
                   <Button
                   onClick={handleAddParams}
-                  disabled = { isLoading || isWaitingServer || currentJobStatus == "COMPLETED"}
+                  disabled = { isLoading || isWaitingServer }
                   className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
                               text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg 
                               hover:shadow-xl transition-all duration-300 transform hover:scale-105 
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
                               flex items-center justify-center gap-2"
                   >
-                      { error || currentJobStatus === "FAILED" || currentJobStatus == "COMPLETED"? (
+                      { ( error || currentJobStatus === "FAILED" || currentJobStatus == "COMPLETED"   ) ? (
                         <>
-                          {isApprovingTask
+                          { ( isApprovingTask || isRerunning )
                             ? currentJobStatus === "COMPLETED"
                               ? "Re-running..."
                               : "Retry..."
@@ -1851,7 +1858,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 const updatedQuestions = questions.map((q, idx) =>
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
-                await aiSectionAPI.editQuestionData(aiJobId, 0, updatedQuestions);
+                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
                 handleShowHandleResult("QUESTION_GENERATION");
                 toast.success('Question Updated.');
               } catch (e) {
@@ -2151,6 +2158,7 @@ const SegmentationView = ({
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState("");
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isRerunning, setIsRerunning] = useState(false);
 
         // Add state for transcriptChunks in the edit modal
     const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
@@ -2258,50 +2266,63 @@ const SegmentationView = ({
   //   setEditSegMap(newMap);
   // };
 
-  const handleOpenEditModal = async () => {
-    if (!aiJobId) return;
-    setEditLoading(true);
-    setEditError("");
-    setEditModalOpen(true);
-    try {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Failed to fetch segmentation status');
-      const arr = await res.json();
-      if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
-        // Normalize to number[] seconds (supports 'mm:ss', 'mm.ss', and numeric like 10.22)
-        const normalized: number[] = (arr[0].segmentationMap as any[]).map((v: any) => {
-          if (typeof v === 'number') return parseTimeToSeconds(String(v));
-          if (typeof v === 'string') return parseTimeToSeconds(v);
-          return 0;
+    const handleOpenEditModal = async () => {
+      if (!aiJobId) return;
+      setEditLoading(true);
+      setEditError("");
+      setEditModalOpen(true);
+
+      try {
+        const token = localStorage.getItem("firebase-auth-token");
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        setEditSegMap(normalized);
-        // Fetch transcript chunks
-        const transcriptRes = await fetch(arr[0].transcriptFileUrl);
-        if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-        const transcriptData = await transcriptRes.json();
-        setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
-      } else {
-        setEditError('Segmentation map or transcript not found.');
+        if (!res.ok) throw new Error("Failed to fetch segmentation status");
+
+        const arr = await res.json();
+
+        if (
+          Array.isArray(arr) &&
+          arr.length > 0 &&
+          arr[arr.length - 1].segmentationMap &&
+          arr[arr.length - 1].transcriptFileUrl
+        ) {
+          const last = arr[arr.length - 1];
+
+          // Normalize to number[] seconds (supports 'mm:ss', 'mm.ss', and numeric like 10.22)
+          const normalized: number[] = (last.segmentationMap as any[]).map((v: any) => {
+            if (typeof v === "number") return parseTimeToSeconds(String(v));
+            if (typeof v === "string") return parseTimeToSeconds(v);
+            return 0;
+          });
+          setEditSegMap(normalized);
+
+          // Fetch transcript chunks
+          const transcriptRes = await fetch(last.transcriptFileUrl);
+          if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
+          const transcriptData = await transcriptRes.json();
+          setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
+        } else {
+          setEditError("Segmentation map or transcript not found.");
+          setEditSegMap([]);
+          setEditTranscriptChunks([]);
+        }
+      } catch (e: any) {
+        setEditError(e.message || "Unknown error");
         setEditSegMap([]);
         setEditTranscriptChunks([]);
+      } finally {
+        setEditLoading(false);
       }
-    } catch (e: any) {
-      setEditError(e.message || 'Unknown error');
-      setEditSegMap([]);
-      setEditTranscriptChunks([]);
-    } finally {
-      setEditLoading(false);
-    }
-  };
+    };
 
     const handleSaveEditSeg = async () => {
         setEditLoading(true);
         setEditError("");
         try {
           // Use index 0 for the backend (fixes 500 error)
-          await editSegmentMap(aiJobId, editSegMap, 0);
+          await editSegmentMap(aiJobId, editSegMap);
           handleShowHandleResult("SEGMENTATION");
           toast.success('Segments updated successfully!');
           setEditModalOpen(false);
@@ -2315,18 +2336,22 @@ const SegmentationView = ({
     const handleConfirm = async () => {
         if (currentJobStatus === "COMPLETED") {
           try {
+            setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "SEGMENTATION", customSegmentationParams);
-            // handleShowHandleResult("SEGMENTATION");
+            handleShowHandleResult("SEGMENTATION");
+            setEditSegMap([]);
             toast.success("Re-run success!");
           } catch (err) {
             toast.error("Re-run failed, try again!");
             console.error("Re-run failed:", err);
+          } finally {
+            setIsRerunning(false);
           }
         } else {
           handleApproveTask();
         }
       };
-  async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
+  async function editSegmentMap(jobId: string, segmentMap: number[], index?: number): Promise<void> {
     const token = localStorage.getItem('firebase-auth-token');
     const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
     const body = JSON.stringify({ segmentMap, index });
@@ -2753,15 +2778,15 @@ const SegmentationView = ({
             <div className="flex-1"></div>
             <div className="flex-1 flex justify-center">
                     <Button
-                    // onClick={handleConfirm}
-                    onClick={()=> handleApproveTask()}
-                    // disabled={isLoading || isWaitingServer || isApprovingTask}
-                    disabled={isLoading || isWaitingServer || isApprovingTask || currentJobStatus == "COMPLETED"}
+                    onClick={handleConfirm}
+                    // onClick={()=> handleApproveTask()}
+                    disabled={isLoading || isWaitingServer || isApprovingTask}
+                    // disabled={isLoading || isWaitingServer || isApprovingTask || currentJobStatus == "COMPLETED"}
                     className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lghover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                   >
-                    { error || currentJobStatus == "FAILED" || currentJobStatus == "COMPLETED" ? (
+                    { (error || currentJobStatus == "FAILED" || currentJobStatus == "COMPLETED" || isRerunning) ? (
                      <>
-                      {isApprovingTask
+                      {(isApprovingTask || isRerunning)
                         ? currentJobStatus === "COMPLETED"
                           ? "Re-running..."
                           : "Retry..."
