@@ -2,6 +2,10 @@
 
 ViBe is an innovative educational platform that enhances learning through continuous assessment and interactive challenges. Designed to ensure that every student fully masters the material before progressing, ViBe uses smart question generation and adaptive reviews to reinforce understanding and foster deeper learning.
 
+[![Watch the video](https://img.youtube.com/vi/Qc0FY260A98/maxresdefault.jpg)](https://youtu.be/Qc0FY260A98)
+
+### [Click here to Watch](https://youtu.be/Qc0FY260A98)
+
 ## Key Features
 
 - **Active Learning Through Adaptive Challenges:**  
@@ -30,6 +34,7 @@ ViBe is licensed under the [MIT License](LICENSE).
 ## Feedback and Contributions
 
 We welcome your feedback, contributions, and suggestions. Please:
+
 - **Report Issues:** Open an issue on the repository.
 - **Contribute:** Fork the repository, create a feature branch, and submit a pull request.
 - **Contact:** Reach out to us at [dled@iitrpr.ac.in](mailto:dled@iitrpr.ac.in).
