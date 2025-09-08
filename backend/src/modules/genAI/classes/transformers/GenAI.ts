@@ -124,7 +124,7 @@ export class GenAI {
 
 export class GenAIBody extends GenAI {
 	_id?: ID;
-	userId: string;
+	userId: ID;
 	audioProvided?: boolean;
 	transcriptProvided?: boolean;
 	createdAt: Date;
@@ -133,7 +133,7 @@ export class GenAIBody extends GenAI {
 
 export class TaskData {
 	_id?: ID;
-	jobId: string;
+	jobId: ID;
 	audioExtraction?: audioData[];
 	transcriptGeneration?: trascriptGenerationData[]
 	segmentation?: segmentationData[];
