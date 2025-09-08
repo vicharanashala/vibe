@@ -7,6 +7,7 @@ import {
   Params,
   Body,
   Get,
+  Put,
   Delete,
   BadRequestError,
   InternalServerError,
@@ -26,6 +27,8 @@ import {
   CourseVersionDataResponse,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
+  UpdateCourseVersionParams,
+  UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
 import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
 import { subject } from '@casl/ability';
@@ -133,6 +136,45 @@ Accessible to:
     const retrievedCourseVersion =
       await this.courseVersionService.readCourseVersion(versionId);
     return retrievedCourseVersion;
+  }
+
+  @OpenAPI({
+    summary: 'Update a course version',
+    description: `Updates course version metadata such as version label or description.<br/>
+Accessible to:
+- Instructor or manager for the course.`,
+  })
+  @Authorized()
+  @Put('/:courseId/versions/:versionId', {transformResponse: true})
+  @ResponseSchema(CourseVersionDataResponse, {
+    description: 'Course version updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course version not found',
+    statusCode: 404,
+  })
+  async update(
+    @Params() params: UpdateCourseVersionParams,
+    @Body() body: UpdateCourseVersionBody,
+    @Ability(getCourseVersionAbility) { ability }
+  ): Promise<CourseVersion> {
+    const { courseId, versionId } = params;
+
+    const courseVersionSubject = subject('CourseVersion', { courseId, versionId });
+
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError('You do not have permission to update this course version');
+    }
+
+    const updatedCourseVersion = await this.courseVersionService.updateCourseVersion(
+      versionId,
+      body,
+    );
+    return updatedCourseVersion;
   }
 
   @OpenAPI({

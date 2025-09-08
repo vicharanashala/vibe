@@ -1,5 +1,5 @@
 import {Expose, Transform, Type} from 'class-transformer';
-import {CreateCourseVersionBody} from '../validators/CourseVersionValidators.js';
+import {CreateCourseVersionBody, UpdateCourseVersionBody} from '../validators/CourseVersionValidators.js';
 import {
   ObjectIdToString,
   StringToObjectId,
@@ -45,7 +45,7 @@ class CourseVersion implements ICourseVersion {
   @Type(() => Date)
   updatedAt: Date;
 
-  constructor(courseVersionBody?: CreateCourseVersionBody) {
+  constructor(courseVersionBody?: CreateCourseVersionBody | UpdateCourseVersionBody) {
     if (courseVersionBody) {
       this.version = courseVersionBody.version;
       this.description = courseVersionBody.description;

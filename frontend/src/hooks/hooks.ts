@@ -661,6 +661,26 @@ export function useDeleteCourseVersion(): {
   };
 }
 
+// PUT /courses/{courseId}/versions/{versionId}
+export function useUpdateCourseVersion(): {
+  mutate: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
+  data: components['schemas']['CourseVersionDataResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("put", "/courses/{courseId}/versions/{versionId}" as any);
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Course version update failed') : null
+  };
+}
+
 // Module hooks
 
 // POST /courses/versions/{versionId}/modules
