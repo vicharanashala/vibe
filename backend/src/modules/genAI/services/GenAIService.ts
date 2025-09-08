@@ -254,42 +254,96 @@ export class GenAIService extends BaseService {
     });
   }
 
-  async editSegmentMap(jobId: string, segmentMap: Array<number>, index: number): Promise<void> {
+  async editSegmentMap(
+    jobId: string,
+    segmentMap: Array<number>,
+    index?: number,
+  ): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
-      task.segmentation[index].segmentationMap = segmentMap;
-      const updatedTask = await this.genAIRepository.updateTaskData(jobId, task, session);
+
+      // ✅ Default to last index if not specified
+      const resolvedIndex =
+        index !== undefined ? index : task.segmentation.length - 1;
+
+      if (resolvedIndex < 0 || resolvedIndex >= task.segmentation.length) {
+        throw new BadRequestError(
+          `Invalid index: ${resolvedIndex}. Segmentation has ${task.segmentation.length} items.`,
+        );
+      }
+
+      task.segmentation[resolvedIndex].segmentationMap = segmentMap;
+
+      const updatedTask = await this.genAIRepository.updateTaskData(
+        jobId,
+        task,
+        session,
+      );
       if (!updatedTask) {
-        throw new InternalServerError(`Failed to update task for job ID ${jobId}`);
+        throw new InternalServerError(
+          `Failed to update task for job ID ${jobId}`,
+        );
       }
     });
   }
-  async editQuestionData(jobId: string, questionData: JSON, index: number): Promise<void> {
+
+  async editQuestionData(
+    jobId: string,
+    questionData: JSON,
+    index?: number,
+  ): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
-      const fileName = task.questionGeneration[index].fileName;
+
+      // ✅ Default to last index if not specified
+      const resolvedIndex =
+        index !== undefined ? index : task.questionGeneration.length - 1;
+
+      if (
+        resolvedIndex < 0 ||
+        resolvedIndex >= task.questionGeneration.length
+      ) {
+        throw new BadRequestError(
+          `Invalid index: ${resolvedIndex}. questionGeneration has ${task.questionGeneration.length} items.`,
+        );
+      }
+
+      const fileName = task.questionGeneration[resolvedIndex].fileName;
       let newFileName: string;
+
       if (/_updated(?:_\d+)?\.json$/.test(fileName)) {
-        newFileName = fileName.replace(/_updated(?:_(\d+))?\.json$/, (match, p1) => {
-          const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
-          return `_updated_${nextNum}.json`;
-        });
+        newFileName = fileName.replace(
+          /_updated(?:_(\d+))?\.json$/,
+          (match, p1) => {
+            const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
+            return `_updated_${nextNum}.json`;
+          },
+        );
       } else {
         newFileName = fileName.replace(/\.json$/, '_updated.json');
       }
+
       const data = JSON.stringify(questionData);
-      await this.storage.bucket(appConfig.firebase.storageBucket).file(newFileName).save(Buffer.from(data), { contentType: 'application/json', });
-      task.questionGeneration[index].fileName = newFileName;
-      task.questionGeneration[index].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+
+      await this.storage
+        .bucket(appConfig.firebase.storageBucket)
+        .file(newFileName)
+        .save(Buffer.from(data), { contentType: 'application/json' });
+
+      task.questionGeneration[resolvedIndex].fileName = newFileName;
+      task.questionGeneration[resolvedIndex].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+
       await this.genAIRepository.updateTaskData(jobId, task, session);
     });
   }
+
+
   async editTranscript(jobId: string, transcript: JSON, index: number): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
