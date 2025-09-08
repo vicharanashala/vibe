@@ -53,9 +53,10 @@ export interface IUserRepository {
   /**
    * Finds a user by their ID.
    * @param id - The ID of the user to find.
+   * @param session - The session for transaction.
    * @returns A promise that resolves to the user if found, or null if not found.
    */
-  findById(id: string | ObjectId): Promise<IUser | null>;
+  findById(id: string | ObjectId, session?: ClientSession): Promise<IUser | null>;
 
   /**
    * Creates a User Anomaly Document to the database.
