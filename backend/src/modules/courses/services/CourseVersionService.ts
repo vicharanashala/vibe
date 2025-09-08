@@ -1,5 +1,5 @@
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
-import {CreateCourseVersionBody} from '#courses/classes/validators/CourseVersionValidators.js';
+import {CreateCourseVersionBody, UpdateCourseVersionBody} from '#courses/classes/validators/CourseVersionValidators.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
@@ -79,6 +79,44 @@ export class CourseVersionService extends BaseService {
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
+      ) as CourseVersion;
+
+      return version;
+    });
+  }
+
+  public async updateCourseVersion(
+    courseVersionId: string,
+    body: UpdateCourseVersionBody,
+  ): Promise<CourseVersion> {
+    return this._withTransaction(async session => {
+      const existingVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!existingVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      const updatedVersionData = {
+        ...existingVersion,
+        version: body.version,
+        description: body.description,
+        updatedAt: new Date(),
+      };
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        courseVersionId,
+        updatedVersionData,
+        session,
+      );
+      
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update course version');
+      }
+
+      const version = instanceToPlain(
+        Object.assign(new CourseVersion(), updatedVersion),
       ) as CourseVersion;
 
       return version;
