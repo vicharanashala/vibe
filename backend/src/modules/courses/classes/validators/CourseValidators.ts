@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateIf,
   IsMongoId,
+  IsEmpty,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -40,11 +41,10 @@ class CourseBody implements Partial<ICourse> {
     example: 'Introduction to Programming V1.0',
     type: 'string',
   })
-  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   @MinLength(3)
-  versionName: string;
+  versionName?: string;
 
   @JSONSchema({
     title: 'Course Version Description',
@@ -52,10 +52,9 @@ class CourseBody implements Partial<ICourse> {
     example: 'This is an intial version.',
     type: 'string',
   })
-  @IsNotEmpty()
   @IsString()
   @MaxLength(1000)
-  versionDescription: string;
+  versionDescription?: string;
 }
 
 class CourseIdParams {

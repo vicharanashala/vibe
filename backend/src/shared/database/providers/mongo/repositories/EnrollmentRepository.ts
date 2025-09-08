@@ -57,6 +57,7 @@ export class EnrollmentRepository {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
 
@@ -65,11 +66,14 @@ export class EnrollmentRepository {
 
     const userObjectid = new ObjectId(userId);
 
-    return await this.enrollmentCollection.findOne({
-      userId: userObjectid,
-      courseId: courseObjectId,
-      courseVersionId: courseVersionObjectId,
-    });
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: userObjectid,
+        courseId: courseObjectId,
+        courseVersionId: courseVersionObjectId,
+      },
+      {session},
+    );
   }
 
   async updateProgressPercentById(
@@ -94,17 +98,25 @@ export class EnrollmentRepository {
   /**
    * Create a new enrollment record
    */
-  async createEnrollment(enrollment: IEnrollment): Promise<IEnrollment> {
+  async createEnrollment(
+    enrollment: IEnrollment,
+    session?: ClientSession,
+  ): Promise<IEnrollment> {
     await this.init();
     try {
-      const result = await this.enrollmentCollection.insertOne(enrollment);
+      const result = await this.enrollmentCollection.insertOne(enrollment, {
+        session,
+      });
       if (!result.acknowledged) {
         throw new InternalServerError('Failed to create enrollment record');
       }
 
-      const newEnrollment = await this.enrollmentCollection.findOne({
-        _id: result.insertedId,
-      });
+      const newEnrollment = await this.enrollmentCollection.findOne(
+        {
+          _id: result.insertedId,
+        },
+        {session},
+      );
 
       if (!newEnrollment) {
         throw new NotFoundError('Newly created enrollment not found');
@@ -155,17 +167,25 @@ export class EnrollmentRepository {
   /**
    * Create a new progress tracking record
    */
-  async createProgress(progress: IProgress): Promise<IProgress> {
+  async createProgress(
+    progress: IProgress,
+    session?: ClientSession,
+  ): Promise<IProgress> {
     await this.init();
     try {
-      const result = await this.progressCollection.insertOne(progress);
+      const result = await this.progressCollection.insertOne(progress, {
+        session,
+      });
       if (!result.acknowledged) {
         throw new InternalServerError('Failed to create progress record');
       }
 
-      const newProgress = await this.progressCollection.findOne({
-        _id: result.insertedId,
-      });
+      const newProgress = await this.progressCollection.findOne(
+        {
+          _id: result.insertedId,
+        },
+        {session},
+      );
 
       if (!newProgress) {
         throw new NotFoundError('Newly created progress not found');

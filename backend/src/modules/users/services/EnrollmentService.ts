@@ -1,25 +1,26 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
+  EnrollmentStatus,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
-import { ProgressRepository } from '#root/shared/index.js';
-import { EnrollmentDataResponse } from '../classes/index.js';
-import { ro } from '@faker-js/faker';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {ProgressService} from './ProgressService.js';
+import {ProgressRepository} from '#root/shared/index.js';
+import {EnrollmentDataResponse} from '../classes/index.js';
+import {ro} from '@faker-js/faker';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -46,12 +47,13 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     role: EnrollmentRole,
     throughInvite: boolean = false,
+    session?: ClientSession,
   ) {
-    return this._withTransaction(async (session: ClientSession) => {
-      const user = await this.userRepo.findById(userId);
+    const execute = async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId, session);
       if (!user) throw new NotFoundError('User not found');
 
-      const course = await this.courseRepo.read(courseId);
+      const course = await this.courseRepo.read(courseId, session);
       if (!course) throw new NotFoundError('Course not found');
 
       const courseVersion = await this.courseRepo.readVersion(
@@ -68,48 +70,55 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
       );
 
-      // If the user is already enrolled and not enrolling through an invite, throw an error
-      // This prevents duplicate enrollments unless it's through an invite
       if (existingEnrollment && !throughInvite) {
         throw new BadRequestError(
           'User is already enrolled in this course version',
         );
       }
-      // If the user is already enrolled through an invite, we will skip the enrollment creation
+
       if (existingEnrollment && throughInvite) {
         let status: InviteStatus = 'ALREADY_ENROLLED';
         return status;
       }
 
-      const enrollment = new Enrollment(userId, courseId, courseVersionId);
-
-      const createdEnrollment = await this.enrollmentRepo.createEnrollment({
+      const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         role: role,
-        status: 'ACTIVE',
+        status: 'ACTIVE' as EnrollmentStatus,
         enrollmentDate: new Date(),
         percentCompleted: 0,
-      });
+      };
 
-      const initialProgress = await this.initializeProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
+      const createdEnrollment = await this.enrollmentRepo.createEnrollment(
+        enrollmentData,
         session,
       );
+      let initialProgress = null;
+      if (createdEnrollment.role == 'STUDENT') {
+        initialProgress = await this.initializeProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          courseVersion,
+          session,
+        );
+      }
 
       return {
         enrollment: createdEnrollment,
         progress: initialProgress,
         role: role,
       };
-    });
+    };
+    // If session provided, use it; otherwise wrap in a new transaction
+    return session ? execute(session) : this._withTransaction(execute);
   }
+
   async findEnrollment(
     userId: string,
     courseId: string,
@@ -151,19 +160,15 @@ export class EnrollmentService extends BaseService {
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       if (!enrollment) {
-        throw new NotFoundError("Enrollment not found");
+        throw new NotFoundError('Enrollment not found');
       }
 
-
-      await this.progressService
-        .unenrollUser(
-          userId,
-          courseId,
-          courseVersionId,
-          session
-        )
-        ;
-
+      await this.progressService.unenrollUser(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
 
       return {
         enrollment: null,
@@ -173,13 +178,13 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
     return {
       ...course,
-      versions: course?.versions?.filter(
-        (versionId: string) => enrolledVersionIds.has(versionId.toString())
-      ) || [],
+      versions:
+        course?.versions?.filter((versionId: string) =>
+          enrolledVersionIds.has(versionId.toString()),
+        ) || [],
     };
   }
 
@@ -203,11 +208,13 @@ export class EnrollmentService extends BaseService {
       if (!enrollments.length) return [];
 
       const enrolledVersionIds = new Set(
-        enrollments.map(e => e.courseVersionId.toString())
+        enrollments.map(e => e.courseVersionId.toString()),
       );
 
       if (role === 'STUDENT') {
-        const versionIds = Array.from(enrolledVersionIds).map(id => new ObjectId(id));
+        const versionIds = Array.from(enrolledVersionIds).map(
+          id => new ObjectId(id),
+        );
         const watchedKeys = enrollments.map(e => ({
           userId: new ObjectId(userId),
           courseId: new ObjectId(e.courseId),
@@ -255,10 +262,6 @@ export class EnrollmentService extends BaseService {
       }));
     });
   }
-
-
-
-
 
   async getAllEnrollments(userId: string) {
     return this._withTransaction(async (session: ClientSession) => {
@@ -374,15 +377,18 @@ export class EnrollmentService extends BaseService {
     )[0];
 
     // Create progress record
-    return await this.enrollmentRepo.createProgress({
-      userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
-      currentModule: firstModule.moduleId,
-      currentSection: firstSection.sectionId,
-      currentItem: firstItem._id,
-      completed: false,
-    });
+    return await this.enrollmentRepo.createProgress(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        currentModule: firstModule.moduleId,
+        currentSection: firstSection.sectionId,
+        currentItem: firstItem._id,
+        completed: false,
+      },
+      session,
+    );
   }
 
   async bulkUpdateAllEnrollments(): Promise<void> {
@@ -430,7 +436,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: { _id: new ObjectId(enrollment._id) },
+                filter: {_id: new ObjectId(enrollment._id)},
                 update: {
                   $set: {
                     percentCompleted,
@@ -447,7 +453,8 @@ export class EnrollmentService extends BaseService {
                   session,
                 );
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${
+                    bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0; // Clear the array
@@ -484,11 +491,7 @@ export class EnrollmentService extends BaseService {
 
   async addIndex(): Promise<void> {
     await this._withTransaction(async session => {
-      await this.enrollmentRepo.addEnrollmentIndexes(
-        session,
-      );
-
+      await this.enrollmentRepo.addEnrollmentIndexes(session);
     });
   }
-
 }
