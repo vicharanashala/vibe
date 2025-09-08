@@ -35,3 +35,21 @@ export function preprocessRemoveFromOptions(content: string): string {
   const optionRegex = /[A-Z]\)\s*/g;
   return content.replace(optionRegex, '');
 }
+
+export const formatDateTime = (dateString: string, asString = false) => {
+  const date = new Date(dateString)
+  const formatted = {
+    date: date.toLocaleDateString("en-GB", {
+      year: "numeric",
+      month: "short", // e.g. Sep
+      day: "2-digit", // 06
+    }),
+    time: date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+  };
+
+  return asString ? `${formatted.date} ${formatted.time}` : formatted;
+}

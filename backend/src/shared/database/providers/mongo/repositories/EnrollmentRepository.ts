@@ -397,7 +397,7 @@ export class EnrollmentRepository {
           localField: 'courseId',
           foreignField: '_id',
           as: 'course',
-          pipeline: [{ $project: { name: 1, versions: 1 } }],
+          pipeline: [{ $project: { name: 1, versions: 1, description: 1, updatedAt: 1 } }],
         },
       },
       { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
