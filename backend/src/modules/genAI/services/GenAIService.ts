@@ -474,7 +474,6 @@ export class GenAIService extends BaseService {
       if (!job) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      console.log(jobId, usePrevious)
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
@@ -509,14 +508,12 @@ export class GenAIService extends BaseService {
         jobState.segmentMap = task.segmentation[usePrevious ? usePrevious : task.segmentation.length - 1]?.segmentationMap;
       }
       if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED && job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED && job.jobStatus.segmentation === TaskStatus.COMPLETED && job.jobStatus.questionGeneration === TaskStatus.COMPLETED && job.jobStatus.uploadContent !== TaskStatus.PENDING) {
-        console.log("All previous tasks completed, setting current task to UPLOAD_CONTENT");
         jobState.currentTask = TaskType.UPLOAD_CONTENT
         jobState.taskStatus = job.jobStatus.uploadContent;
         jobState.parameters = job.uploadParameters;
         jobState.file = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.fileUrl;
         jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.segmentMapUsed;
       }
-      console.log(jobState)
       if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION && jobState.currentTask) {
         if (!(jobState.file || jobState.segmentMap)) {
           throw new BadRequestError(`No file URL found for the current task: ${jobState.currentTask}`);
@@ -665,7 +662,7 @@ export class GenAIService extends BaseService {
                   console.log(`Hint truncated for question in segment ${currentSegmentId}: Original length ${questionData.question.hint.length}, truncated to ${hint.length}`);
                 }
 
-                const questionnew = QuestionFactory.createQuestion({ question: questionData.question, solution: questionData.solution }, jobData.userId);
+                const questionnew = QuestionFactory.createQuestion({ question: questionData.question, solution: questionData.solution }, jobData.userId.toString());
 
                 const questionId = await this.questionService.create(questionnew);
                 createdQuestionIds.push(questionId);
