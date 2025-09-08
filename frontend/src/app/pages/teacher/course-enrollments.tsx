@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3 } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +31,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
+import { generateExcel } from "@/lib/excel-export"
 
 // Types for quiz functionality
 
@@ -71,7 +72,7 @@ function generateDefaultItemNames(items: any[]) {
       ...item,
       displayName: item.name,
     }
-  })
+  });
 }
 
 // Component to display progress for each enrolled user
@@ -183,23 +184,91 @@ export default function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-  const { data: quizScores, isLoading: isLoadingQuizScores, error: quizScoresError, refetch: fetchQuizScores } =
-    useCourseQuizScores(courseId, versionId, false)
-
-  // Handle fetch quiz scores
-  const handleFetchQuizScores = async () => {
-    try {
-      setIsFetchingQuizScores(true)
-      await fetchQuizScores()
-      console.log('Quiz Scores:', quizScores)
-      toast.success('Quiz scores fetched successfully')
-    } catch (error) {
-      console.error('Error fetching quiz scores:', error)
-      toast.error('Failed to fetch quiz scores')
-    } finally {
-      setIsFetchingQuizScores(false)
-    }
+  const { data: quizScores, isLoading: isLoadingQuizScores, error: quizScoresError, refetch: fetchQuizScores } = useCourseQuizScores(courseId, versionId);
+  
+  // Define the quiz score type
+  interface QuizScore {
+    moduleId?: string;
+    sectionId?: string;
+    quizId?: string;
+    quizName?: string;
+    maxScore?: number;
+    attempts?: number;
   }
+  
+  // Define the student data type
+  interface StudentData {
+    studentId: string;
+    name: string;
+    email: string;
+    quizScores?: QuizScore[];
+  }
+
+  // Handle fetch and export quiz scores
+  const handleFetchQuizScores = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+    
+    try {
+      setIsFetchingQuizScores(true);
+      
+      // Fetch the quiz scores and wait for the response
+      await fetchQuizScores();
+      
+      
+      // Format the data for Excel export
+      const formattedData = quizScores?.data?.map((student: StudentData) => {
+        // Get all unique module and section names for this student
+        const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+        
+        student.quizScores?.forEach((quiz) => {
+          const key = `${quiz.moduleId}_${quiz.sectionId}`;
+          if (!moduleSectionMap.has(key)) {
+            moduleSectionMap.set(key, {
+              moduleName: "Module",
+              sectionName: "Section"
+            });
+          }
+        });
+        
+        return {
+        studentId: student.studentId,
+        name: student.name,
+        email: student.email,
+          quizScores: student.quizScores?.map(quiz => {
+            const moduleSection = moduleSectionMap.get(`${quiz.moduleId}_${quiz.sectionId}`);
+            return {
+          moduleId: quiz.moduleId || 'unknown',
+          sectionId: quiz.sectionId || 'unknown',
+          quizId: quiz.quizId || 'unknown',
+          quizName: quiz.quizName || 'Untitled Quiz',
+          maxScore: quiz.maxScore || 0,
+          attempts: quiz.attempts || 0,
+              moduleName: moduleSection?.moduleName,
+              sectionName: moduleSection?.sectionName
+            };
+          }) || []
+        };
+      });
+      
+      // Generate and download the Excel file
+      const formattedTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      generateExcel(formattedData, `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime.replace(/:/g, '_')}.xlsx`);
+      
+      toast.success('Quiz scores exported successfully');
+    } catch (error) {
+      console.error('Error exporting quiz scores:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
+    } finally {
+      setIsFetchingQuizScores(false);
+    }
+  };
 
   useEffect(() => {
     if (searchQuery !== debouncedSearch) {
@@ -582,16 +651,16 @@ export default function CourseEnrollments() {
               <Button
                 variant="outline"
                 size="sm"
-                className="ml-2"
                 onClick={handleFetchQuizScores}
                 disabled={isFetchingQuizScores}
+                className="flex items-center gap-2"
               >
                 {isFetchingQuizScores ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <FileDown className="h-4 w-4" />
                 )}
-                {isFetchingQuizScores ? 'Fetching...' : 'Quiz Scores'}
+                <span>{isFetchingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
               </Button>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">Show</span>
