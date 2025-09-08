@@ -1,4 +1,5 @@
-import { EnrollmentRole,
+import {
+  EnrollmentRole,
   IEnrollment,
   IProgress,
   ICourseVersion,
@@ -30,6 +31,7 @@ export class EnrollmentRepository {
   private watchTimeCollection!: Collection<IWatchTime>;
   private submissionCollection!: any;
   private quizCollection!: any;
+  private itemsGroupCollection!: any;
   private userQuizMetricsCollection!: any;
   private userCollection!: any;
 
@@ -52,17 +54,307 @@ export class EnrollmentRepository {
     this.userQuizMetricsCollection = await this.db.getCollection('user_quiz_metrics');
     this.quizCollection = await this.db.getCollection('quizzes');
     this.userCollection = await this.db.getCollection('users');
+    this.itemsGroupCollection = await this.db.getCollection('itemsGroup');
   }
 
   /**
    * Find an enrollment by ID
    */
+
+  // Add this method to the EnrollmentRepository class
+  async getQuizIdsByModulesAndSections(
+    versionId: string
+  ): Promise<Array<{
+    moduleId: string;
+    moduleName: string;
+    sections: Array<{
+      sectionId: string;
+      sectionName: string;
+      quizIds: string[];
+    }>;
+  }>> {
+    await this.init();
+
+    // 1. Get the course version with modules and sections
+    const courseVersion = await this.courseVersionCollection.findOne(
+      { _id: new ObjectId(versionId) },
+      { projection: { modules: 1 } }
+    );
+
+    if (!courseVersion?.modules?.length) {
+      return [];
+    }
+
+    // 2. Extract all itemsGroupIds for sections
+    const sectionsWithItems = courseVersion.modules.flatMap(module =>
+      module.sections?.map(section => ({
+        moduleId: module.moduleId,
+        moduleName: module.name,
+        sectionId: section.sectionId,
+        sectionName: section.name,
+        itemsGroupId: section.itemsGroupId
+      })) || []
+    ).filter(section => section.itemsGroupId);
+
+    if (sectionsWithItems.length === 0) {
+      return [];
+    }
+
+    // 3. Get all itemsGroups in one query
+    const itemsGroupIds = sectionsWithItems.map(s => new ObjectId(s.itemsGroupId));
+    const itemsGroups = await this.itemsGroupCollection.find(
+      { _id: { $in: itemsGroupIds } }
+    ).toArray();
+
+    // 4. Create a map of itemsGroupId to its quiz items
+    const itemsGroupMap = new Map();
+    itemsGroups.forEach(group => {
+      const quizItems = (group.items || [])
+        .filter(item => item.type === 'QUIZ')
+        .map(item => item._id.toString());
+      itemsGroupMap.set(group._id.toString(), quizItems);
+    });
+
+    // 5. Structure the result by module and section
+    const result = [];
+    const moduleMap = new Map();
+
+    for (const section of sectionsWithItems) {
+      const quizIds = itemsGroupMap.get(section.itemsGroupId) || [];
+      if (quizIds.length === 0) continue;
+
+      let moduleData = moduleMap.get(section.moduleId);
+      if (!moduleData) {
+        moduleData = {
+          moduleId: section.moduleId,
+          moduleName: section.moduleName,
+          sections: []
+        };
+        moduleMap.set(section.moduleId, moduleData);
+        result.push(moduleData);
+      }
+
+      moduleData.sections.push({
+        sectionId: section.sectionId,
+        sectionName: section.sectionName,
+        quizIds
+      });
+    }
+
+    return result;
+  }
+
+
   /**
-   * Get quiz scores for all students in a course version
-   * @param courseId Course ID
-   * @param versionId Course version ID
-   * @returns Array of student quiz scores with their max scores and attempts
+   * Get quiz details by their IDs
+   * @param quizIds Array of quiz IDs
+   * @returns Map of quizId to quiz details
    */
+  private async getQuizDetails(quizIds: ObjectId[]): Promise<Map<string, { name: string }>> {
+    if (!this.quizCollection) {
+      this.quizCollection = this.db.getCollection('quizzes');
+    }
+
+    const quizzes = await this.quizCollection
+      .find({
+        _id: { $in: quizIds }
+      })
+      .project({
+        _id: 1,
+        name: 1
+      })
+      .toArray();
+
+    const quizDetails = new Map<string, { name: string }>();
+    quizzes.forEach(quiz => {
+      quizDetails.set(quiz._id.toString(), {
+        name: quiz.name
+      });
+    });
+
+    return quizDetails;
+  }
+
+  /**
+   * Get maximum scores for a list of quizzes
+   * @param userIds Array of user IDs
+   * @param quizIds Array of quiz IDs
+   * @returns Nested map of userId -> quizId -> maxScore
+   */
+  private async getMaxScoresForQuizzes(userIds: ObjectId[], quizIds: ObjectId[]): Promise<Map<string, Map<string, number>>> {
+    if (!quizIds.length) return new Map<string, Map<string, number>>();
+
+    // Debug: Log input parameters
+    console.log('getMaxScoresForQuizzes called with:', {
+      userIds: userIds.map(id => id.toString()),
+      quizIds: quizIds.map(id => id.toString())
+    });
+
+    const maxScores = new Map<string, Map<string, number>>();
+
+    try {
+      const ObjuserIds = userIds.map(id => id.toString());
+      const ObjquizIds = quizIds.map(id => id.toString());
+
+      const results = await this.submissionCollection.aggregate([
+        {
+          $match: {
+            userId: { $in: ObjuserIds },
+            quizId: { $in: ObjquizIds },
+            'gradingResult.totalMaxScore': { $exists: true }
+          }
+        },
+        {
+          $project: {
+            userId: 1,
+            quizId: 1,
+            score: { $ifNull: ['$gradingResult.totalMaxScore', 0] }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              quizId: '$quizId'
+            },
+            maxScore: { $max: '$score' }
+          }
+        }
+      ]).toArray();
+
+      // Debug: Log the raw query and results
+      console.log('Max scores query:', JSON.stringify({
+        collection: 'submissions',
+        match: {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isSubmitted: true,
+          'gradingResult.totalMaxScore': { $exists: true }
+        }
+      }, null, 2));
+
+      console.log('Max scores aggregation results:', results.length > 0 ? results : 'No results found');
+
+      // Debug: Check sample documents
+      if (results.length === 0) {
+        const sampleDoc = await this.submissionCollection.findOne({
+          quizId: { $in: quizIds },
+          isSubmitted: true
+        });
+        console.log('Sample submission document:', sampleDoc);
+      }
+
+      // Convert to Map<userId, Map<quizId, maxScore>>
+      results.forEach(result => {
+        try {
+          const userId = result._id.userId?.toString();
+          const quizId = result._id.quizId?.toString();
+
+          if (!userId || !quizId) {
+            console.warn('Skipping result with missing userId or quizId:', result);
+            return;
+          }
+
+          if (!maxScores.has(userId)) {
+            maxScores.set(userId, new Map());
+          }
+          maxScores.get(userId)?.set(quizId, result.maxScore || 0);
+        } catch (error) {
+          console.error('Error processing result:', error, 'Result:', result);
+        }
+      });
+    } catch (error) {
+      console.error('Error in getMaxScoresForQuizzes:', error);
+    }
+
+    return maxScores;
+  }
+
+  /**
+   * Get number of attempts per user per quiz
+   * @param userIds Array of user IDs
+   * @param quizIds Array of quiz IDs
+   * @returns Nested object mapping userId -> quizId -> attemptCount
+   */
+  private async getUserQuizAttempts(userIds: ObjectId[], quizIds: ObjectId[]): Promise<Map<string, Map<string, number>>> {
+    if (!userIds.length || !quizIds.length) return new Map<string, Map<string, number>>();
+
+    if (!this.userQuizMetricsCollection) {
+      this.userQuizMetricsCollection = this.db.getCollection('user_quiz_metrics');
+    }
+
+    const totalAttempts = new Map<string, Map<string, number>>();
+
+    try {
+      // Convert ObjectIds to strings for consistent comparison
+      // const userIdStrings = userIds.map(id => id.toString());
+      // const quizIdStrings = quizIds.map(id => id.toString());
+
+      const results = await this.userQuizMetricsCollection.aggregate([
+        {
+          $match: {
+            userId: { $in: userIds.map(id => id.toString()) },
+            quizId: { $in: quizIds.map(id => id.toString()) },
+            attempts: { $exists: true, $type: 'array' }
+          }
+        },
+        {
+          $project: {
+            userId: 1,
+            quizId: 1,
+            attemptsCount: { $size: '$attempts' }
+          }
+        }
+      ]).toArray();
+
+      // Debug: Log the raw query and results
+      console.log('User attempts query:', JSON.stringify({
+        collection: 'user_quiz_metrics',
+        match: {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isSubmitted: true
+        }
+      }, null, 2));
+
+      console.log('User quiz attempts results:', results.length > 0 ? results : 'No results found');
+
+      // Debug: Check sample documents
+      if (results.length === 0) {
+        const sampleDoc = await this.userQuizMetricsCollection.findOne({
+          quizId: {
+            quizId: { $in: quizIds },
+            isSubmitted: true
+          }
+        });
+        console.log('Sample user metrics document:', sampleDoc);
+      }
+
+      // Convert to Map<userId, Map<quizId, attemptsCount>>
+      results.forEach(result => {
+        try {
+          const userId = result.userId?.toString();
+          const quizId = result.quizId?.toString();
+
+          if (!userId || !quizId) {
+            console.warn('Skipping result with missing userId or quizId:', result);
+            return;
+          }
+
+          if (!totalAttempts.has(userId)) {
+            totalAttempts.set(userId, new Map());
+          }
+          totalAttempts.get(userId)?.set(quizId, result.attemptsCount || 0);
+        } catch (error) {
+          console.error('Error processing result:', error, 'Result:', result);
+        }
+      });
+    } catch (error) {
+      console.error('Error in getUserQuizAttempts:', error);
+    }
+
+    return totalAttempts;
+  }
 
   /**
    * Get quiz scores for all students in a course version
@@ -70,12 +362,13 @@ export class EnrollmentRepository {
    * @param versionId Course version ID
    * @returns Array of student quiz scores with their max scores and attempts
    */
+
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
   ): Promise<QuizScoresExportResponseDto> {
     await this.init();
-    
+
     if (!this.enrollmentCollection || !this.submissionCollection || !this.quizCollection) {
       throw new Error('Database collections not properly initialized');
     }
@@ -126,8 +419,8 @@ export class EnrollmentRepository {
       ]).toArray();
 
       if (!enrollments || enrollments.length === 0) {
-        console.log('No student enrollments found for course version:', { 
-          courseId, 
+        console.log('No student enrollments found for course version:', {
+          courseId,
           versionId,
           role: 'STUDENT',
           status: 'ACTIVE'
@@ -137,229 +430,62 @@ export class EnrollmentRepository {
 
       const userIds = enrollments.map(e => e.userId);
 
-      // 2. Get all quiz submissions for these users and course version
-      const submissions = await this.submissionCollection.aggregate([
-        {
-          $match: {
-            userId: { $in: userIds },
-            courseId: new ObjectId(courseId),
-            courseVersionId: new ObjectId(versionId),
-            isSubmitted: true
-          }
-        },
-        {
-          $lookup: {
-            from: 'user_quiz_metrics',
-            let: { 
-              quizId: '$quizId',
-              userId: '$userId'
-            },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ['$quizId', '$$quizId'] },
-                      { $eq: ['$userId', '$$userId'] }
-                    ]
-                  }
-                }
-              },
-              {
-                $project: {
-                  remainingAttempts: 1,
-                  latestAttemptStatus: 1,
-                  totalAttempts: { $size: '$attempts' },
-                  latestSubmissionResultId: 1
-                }
-              }
-            ],
-            as: 'metrics',
-          },
-        },
-        { $unwind: { path: '$metrics', preserveNullAndEmptyArrays: true } },
-        {
-          $sort: { 'gradingResult.gradedAt': -1 }
-        },
-        {
-          $group: {
-            _id: { userId: '$userId', quizId: '$quizId' },
-            userId: { $first: '$userId' },
-            quizId: { $first: '$quizId' },
-            score: { $first: '$gradingResult.totalScore' },
-            maxScore: { $first: '$gradingResult.totalMaxScore' },
-            submittedAt: { $first: '$submittedAt' },
-            gradedAt: { $first: '$gradingResult.gradedAt' },
-            gradingStatus: { $first: '$gradingResult.gradingStatus' },
-            totalAttempts: { $first: { $ifNull: ['$metrics.totalAttempts', 1] } },
-            remainingAttempts: { $first: { $ifNull: ['$metrics.remainingAttempts', 0] } },
-            latestAttemptStatus: { $first: { $ifNull: ['$metrics.latestAttemptStatus', 'UNKNOWN'] } }
-          }
-        },
-        {
-          $project: {
-            _id: 0,
-            userId: 1,
-            quizId: 1,
-            score: { $ifNull: ['$score', 0] },
-            maxScore: { $ifNull: ['$maxScore', 10] },
-            submittedAt: 1,
-            gradedAt: 1,
-            totalAttempts: 1,
-            remainingAttempts: 1,
-            status: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ['$gradingStatus', 'GRADED'] }, then: 'COMPLETED' },
-                  { case: { $eq: ['$gradingStatus', 'FAILED'] }, then: 'FAILED' },
-                  { case: { $eq: ['$latestAttemptStatus', 'ATTEMPTED'] }, then: 'SUBMITTED' },
-                  { case: { $eq: ['$latestAttemptStatus', 'IN_PROGRESS'] }, then: 'IN_PROGRESS' }
-                ],
-                default: 'NOT_ATTEMPTED'
-              }
-            }
-          }
-        }
-      ]).toArray();
+      // 2. Get all quizzes organized by modules and sections
+      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionId);
 
-      if (!submissions || submissions.length === 0) {
-        console.log('No quiz submissions found for students in this course version');
+      //  Get all quiz submissions for these users and course version
+      const allQuizIds = quizzesByModuleSection.flatMap(module =>
+        module.sections.flatMap(section => section.quizIds)
+      );
+
+      if (allQuizIds.length === 0) {
         return { data: [] };
       }
 
-      // 3. Get all quizzes for this course version with module and section info
-      const quizzes = await this.quizCollection.find({
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        isActive: true
-      }).project({
-        _id: 1,
-        title: 1,
-        moduleId: 1,
-        sectionId: 1
-      }).toArray();
+      const quizIdsObjectIds = allQuizIds.map(id => new ObjectId(id));
 
-      if (quizzes.length === 0) {
-        console.log('No quizzes found for this course version');
-        return { data: [] };
-      }
-
-      // 4. Get max scores and attempts in parallel
-      const quizIds = quizzes.map(q => q._id);
-      const [maxScores, userAttempts] = await Promise.all([
-        this.getMaxScoresForQuizzes(quizIds),
-        this.getUserQuizAttempts(userIds, quizIds)
+      // 3. Fetch quiz details, max scores, and attempts in parallel
+      const [quizDetails, maxScores, totalAttempts] = await Promise.all([
+        this.getQuizDetails(quizIdsObjectIds),
+        this.getMaxScoresForQuizzes(userIds, quizIdsObjectIds),
+        this.getUserQuizAttempts(userIds, quizIdsObjectIds)
       ]);
 
-      // 5. Process and format the results
-      const result: StudentQuizScoreDto[] = [];
-      
-      for (const enrollment of enrollments) {
+      // 4. Structure the final result
+      // 5. Build the result according to StudentQuizScoreDto
+      const result: StudentQuizScoreDto[] = enrollments.map(enrollment => {
         const userId = enrollment.userId.toString();
-        const userSubmissions = submissions.filter(s => s.userId.toString() === userId);
-        
-        // Create quiz scores array with all quizzes
-        const quizScores = quizzes.map(quiz => {
-          const submission = userSubmissions.find(s => s.quizId.toString() === quiz._id.toString());
-          const quizId = quiz._id.toString();
-          
-          return {
-            moduleId: quiz.moduleId?.toString() || '',
-            sectionId: quiz.sectionId?.toString() || '',
-            quizId,
-            quizName: quiz.title,
-            maxScore: maxScores[quizId] || 0,
-            attempts: userAttempts[userId]?.[quizId] || 0,
-            score: submission?.score || 0,
-            submittedAt: submission?.submittedAt,
-            gradingStatus: submission?.status || 'NOT_ATTEMPTED'
-          };
-        });
-        
-        // Add student to results
-        result.push({
+        const quizScores = quizzesByModuleSection.flatMap(module =>
+          module.sections.flatMap(section =>
+            section.quizIds.map(quizId => {
+              const detail = quizDetails.get(quizId);
+              return {
+                moduleId: module.moduleId,
+                sectionId: section.sectionId,
+                quizId,
+                quizName: detail?.name || 'Untitled Quiz',
+                maxScore: maxScores.get(userId)?.get(quizId) || 0,
+                attempts: totalAttempts.get(userId)?.get(quizId) || 0
+              };
+            })
+          )
+        );
+
+        return {
           studentId: userId,
           name: `${enrollment.user?.firstName || ''} ${enrollment.user?.lastName || ''}`.trim() || 'Unknown',
           email: enrollment.user?.email || '',
           quizScores
-        });
-      }
+        };
+      });
 
       return { data: result };
+
+
     } catch (error) {
       console.error('Error in getQuizScoresForCourseVersion:', error);
       throw new Error('Failed to fetch quiz scores');
     }
-  }
-
-  /**
-   * Get maximum scores for a list of quizzes
-   * @param quizIds Array of quiz IDs
-   * @returns Object mapping quizId to maximum score
-   */
-  private async getMaxScoresForQuizzes(quizIds: ObjectId[]): Promise<Record<string, number>> {
-    if (!quizIds.length) return {};
-    
-    const result = await this.submissionCollection.aggregate([
-      {
-        $match: {
-          quizId: { $in: quizIds },
-          isSubmitted: true
-        }
-      },
-      {
-        $group: {
-          _id: '$quizId',
-          maxScore: { $max: '$score' }
-        }
-      }
-    ]).toArray();
-    
-    return result.reduce((acc: Record<string, number>, curr: any) => {
-      acc[curr._id.toString()] = curr.maxScore || 0;
-      return acc;
-    }, {});
-  }
-
-  /**
-   * Get number of attempts per user per quiz
-   * @param userIds Array of user IDs
-   * @param quizIds Array of quiz IDs
-   * @returns Nested object mapping userId -> quizId -> attemptCount
-   */
-  private async getUserQuizAttempts(userIds: ObjectId[], quizIds: ObjectId[]): Promise<Record<string, Record<string, number>>> {
-    if (!userIds.length || !quizIds.length) return {};
-    
-    const result = await this.submissionCollection.aggregate([
-      {
-        $match: {
-          userId: { $in: userIds },
-          quizId: { $in: quizIds },
-          isSubmitted: true
-        }
-      },
-      {
-        $group: {
-          _id: {
-            userId: '$userId',
-            quizId: '$quizId'
-          },
-          attempts: { $sum: 1 }
-        }
-      }
-    ]).toArray();
-    
-    return result.reduce((acc: Record<string, Record<string, number>>, curr: any) => {
-      const userId = curr._id.userId.toString();
-      const quizId = curr._id.quizId.toString();
-      
-      if (!acc[userId]) {
-        acc[userId] = {};
-      }
-      
-      acc[userId][quizId] = curr.attempts;
-      return acc;
-    }, {});
   }
 
   async findById(id: string): Promise<IEnrollment | null> {
