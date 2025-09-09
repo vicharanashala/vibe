@@ -1,16 +1,16 @@
-import { IAttempt } from '#quizzes/interfaces/grading.js';
-import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError } from 'routing-controllers';
-import { GLOBAL_TYPES } from '#root/types.js';
+import {IAttempt} from '#quizzes/interfaces/grading.js';
+import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
+import {InternalServerError} from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) { }
+  ) {}
 
   private async init() {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
@@ -18,40 +18,52 @@ class AttemptRepository {
     );
   }
 
-  public async create(attempt: IAttempt, session?: ClientSession) {
+  async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
-    const result = await this.attemptCollection.insertOne(attempt, { session });
+    const result = await this.attemptCollection.insertOne(attempt, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
     throw new InternalServerError('Failed to create quiz attempt');
   }
-  public async getById(
+  async getById(
     attemptId: string,
     quizId: string,
     session: ClientSession,
   ): Promise<IAttempt | null> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: quizId,
+        quizId: {$in: [quizIdStr, quizIdObj]},
       },
-      { session },
+      {session},
     );
     if (!result) {
       return null;
     }
-    return result;
+    return {
+      ...result,
+      userId: result.userId?.toString(),
+      quizId: result.quizId?.toString(),
+    };
   }
-  public async countAttempts(
+  async countAttempts(
     quizId: string,
     session?: ClientSession,
   ): Promise<number | null> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
     const result = await this.attemptCollection.countDocuments(
-      { quizId: new ObjectId(quizId) },
-      { session },
+      {quizId: {$in: [quizIdStr, quizIdObj]}},
+      {session},
     );
     if (!result) {
       return null;
@@ -59,58 +71,44 @@ class AttemptRepository {
     return result;
   }
 
-  public async countUserAttempts(
+  async countUserAttempts(
     quizId: string,
     userId: string,
     session?: ClientSession,
   ): Promise<number | null> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
+    const userIdStr = userId.toString();
+    const userIdObj = new ObjectId(userIdStr);
+
     const result = await this.attemptCollection.countDocuments(
-      { quizId: (quizId), userId: (userId) },
-      { session },
+      {
+        quizId: {$in: [quizIdStr, quizIdObj]},
+        userId: {$in: [userIdStr, userIdObj]},
+      },
+      {session},
     );
+
     if (!result) {
       return null;
     }
     return result;
   }
-  public async update(attemptId: string, updateData: Partial<IAttempt>) {
+
+  async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
-      { _id: new ObjectId(attemptId) },
-      { $set: updateData },
-      { returnDocument: 'after' },
+      {_id: new ObjectId(attemptId)},
+      {$set: updateData},
+      {returnDocument: 'after'},
     );
     return result;
   }
-  public async getByQuizId(
-    quizId: string,
-    session?: ClientSession,
-  ): Promise<IAttempt[]> {
-    await this.init();
-    const result = await this.attemptCollection
-      .find({ quizId: quizId }, { session })
-      .toArray();
-    return result;
-  }
 
-  public async findLatestAttempt(
-    userId: string,
-    quizId: string,
-    session?: ClientSession,
-  ): Promise<IAttempt | null> {
-    await this.init();
-
-    const result = await this.attemptCollection
-      .find({ quizId: quizId, userId: userId }, { session })
-      .sort({ createdAt: -1 }) // latest first
-      .limit(1)
-      .next(); // get single doc instead of array
-
-    return result;
-  }
-
-  public async countByQuestionId(
+  async countByQuestionId(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
@@ -126,9 +124,7 @@ class AttemptRepository {
     return count;
   }
 
-
-
-  public async countDistinctUsersByQuestionId(
+  async countDistinctUsersByQuestionId(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
@@ -141,10 +137,10 @@ class AttemptRepository {
     const distinctUsers = await this.attemptCollection.distinct(
       'userId',
       filter,
-      { session },
+      {session},
     );
     return distinctUsers.length;
   }
 }
 
-export { AttemptRepository };
+export {AttemptRepository};

@@ -56,9 +56,9 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
       }
-       if (!quiz.details.questionBankRefs) {
-          quiz.details.questionBankRefs = [];
-        }
+      if (!quiz.details.questionBankRefs) {
+        quiz.details.questionBankRefs = [];
+      }
       if (
         quiz.details.questionBankRefs.some(
           qb => qb.bankId === questionBankRef.bankId,
@@ -145,7 +145,7 @@ class QuizService extends BaseService {
             description: bank.description,
             tags: bank.tags,
           };
-        })
+        }),
       );
       return banks.filter(Boolean);
     });
@@ -248,7 +248,7 @@ class QuizService extends BaseService {
       questionId: string;
       correctRate: number;
       averageScore: number;
-      message?:string;
+      message?: string;
     }[]
   > {
     return this._withTransaction(async session => {
@@ -258,12 +258,14 @@ class QuizService extends BaseService {
       );
       if (!submissions.data || submissions.data.length === 0) {
         // throw new NotFoundError('No submissions found for quiz performance');
-        return [{
-          questionId: '',
-          correctRate: 0,
-          averageScore: 0,
-          message: 'No submissions found for quiz'
-        }]
+        return [
+          {
+            questionId: '',
+            correctRate: 0,
+            averageScore: 0,
+            message: 'No submissions found for quiz',
+          },
+        ];
       }
       const statsMap = new Map<
         string,
@@ -341,6 +343,10 @@ class QuizService extends BaseService {
         throw new NotFoundError('Submission does not exist.');
       }
       submission.gradingResult.totalScore = newScore;
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+      
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -372,6 +378,11 @@ class QuizService extends BaseService {
         ...submission.gradingResult,
         ...filteredGradingResult,
       };
+
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -408,6 +419,10 @@ class QuizService extends BaseService {
         throw new NotFoundError('Feedback for this question does not exist.');
       }
       submission.gradingResult.overallFeedback = feedbacks;
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -476,7 +491,7 @@ class QuizService extends BaseService {
           totalCount: 0,
           currentPage: query.currentPage || 1,
           totalPages: 0,
-          message: 'No submissions found for quiz'
+          message: 'No submissions found for quiz',
         };
       }
       // Convert _id to string for each submission
@@ -484,7 +499,7 @@ class QuizService extends BaseService {
       //   ...sub,
       //   _id: sub._id.toString(),
       // }));
-      return submissions
+      return submissions;
     });
   }
 
