@@ -1022,9 +1022,9 @@ export default function CoursePage() {
         <div className="flex h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
           <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
-            <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
+            <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60 bg-card/60">
               {/* Vibe Logo and Brand */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 ">
                 <div className="h-8 w-8 rounded-lg overflow-hidden">
                   <img
                     src="https://continuousactivelearning.github.io/vibe/img/logo.png"
@@ -1211,7 +1211,7 @@ export default function CoursePage() {
               />
             </SidebarFooter>
             {/* Navigation Footer */}
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 bg-card/60">
               <SidebarMenu className="space-y-1 pl-2 py-3">
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -1401,9 +1401,9 @@ export default function CoursePage() {
                   isSubmitting={isPending}
                 />
               {currentItem ? (
-                <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
+                <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1 mx-6">
                 {!isFlagSubmitted &&
-                  <div className="flex justify-end mb-1 me-10">
+                  <div className="flex justify-end mb-2 me-10 ">
                     <Button
                       size="sm"
                       variant="destructive"

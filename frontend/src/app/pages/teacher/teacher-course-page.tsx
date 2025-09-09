@@ -547,7 +547,7 @@ export default function TeacherCoursePage() {
           isLoading={false}
         /> */}
         <Sidebar variant="inset" collapsible="icon" className="border-r border-border/40 bg-sidebar/50">
-          <SidebarHeader className="border-b border-border/40">
+          <SidebarHeader className="border-b border-border/40 bg-card/60">
             <div className="flex items-center gap-3 px-3 py-2">
               <BookOpen className="text-primary" />
               <div>
@@ -898,7 +898,7 @@ export default function TeacherCoursePage() {
 
             </ScrollArea>
           </SidebarContent>
-          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 bg-card/60">
             <SidebarMenu className="space-y-1 pl-2 py-3">
               <SidebarMenuItem>
                 <SidebarMenuButton

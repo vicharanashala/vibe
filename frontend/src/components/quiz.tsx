@@ -720,7 +720,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // console.log("QUIZTYPE:", quizType);
     if (quizType === 'DEADLINE'){
       return (
-        <div className="mx-auto space-y-8">
+        <div className="mx-auto space-y-8 ">
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
             <CardHeader className="pb-8">
               <div className="flex items-center justify-between gap-8">
@@ -1076,7 +1076,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }
 
   return (
-    <Card className="mx-auto">
+    <Card className="mx-auto ">
       <CardHeader>
         <div className="flex justify-between items-center">
           <Badge variant="outline">
@@ -1153,10 +1153,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 <Label
                   key={index}
                   htmlFor={`option-${currentQuestion.id}-${index}`}
-                  className="flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
+                  className="flex items-center space-x-3 rounded-lg border-1 border-gray-300 dark:border-gray-800 p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
                 >
                   <RadioGroupItem value={index.toString()} id={`option-${currentQuestion.id}-${index}`} />
-                  <span className="flex-1">
+                  <span className="flex-1 ">
                     <MathRenderer>
                       {preprocessMathContent(preprocessRemoveFromOptions(option))}
                     </MathRenderer>
