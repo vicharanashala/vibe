@@ -282,7 +282,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
               <Input
                 id="courseTitle"
                 className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 h-12 text-base"
-                placeholder="e.g., Introduction to Web Development, Advanced React Patterns..."
+                placeholder="e.g., Foundations of Mathematics, Principles of Economics..."
                 value={courseName}
                 onChange={e => {
                   setCourseName(e.target.value);
