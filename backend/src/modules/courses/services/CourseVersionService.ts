@@ -47,7 +47,8 @@ export class CourseVersionService extends BaseService {
       ) as CourseVersion;
 
       // Step 3: Update course metadata
-      course.versions.push(createdVersion._id);
+      course.versions.push( new ObjectId(createdVersion._id) );
+      // course.versions.push(createdVersion._id);
       course.updatedAt = new Date();
 
       const updatedCourse = await this.courseRepo.update(

@@ -85,7 +85,7 @@ export class ItemService extends BaseService {
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
-
+      console.log("Section: ", section)
     const itemsGroup = await this.itemRepo.readItemsGroup(
       section.itemsGroupId.toString(),
       session,
@@ -125,6 +125,7 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
+      console.log("Hey>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
       // Step 1: Fetch and validate parent entities
       const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
@@ -133,7 +134,7 @@ export class ItemService extends BaseService {
           sectionId,
           session,
         );
-
+        console.log("Item Group: ", itemsGroup);
       // Step 2: Create a new item instance
       const item = new ItemBase(body, itemsGroup.items);
 

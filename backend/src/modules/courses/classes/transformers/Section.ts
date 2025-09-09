@@ -30,6 +30,8 @@ class Section implements ISection {
   order: string;
 
   @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemsGroupId: ID;
 
   @Expose()
