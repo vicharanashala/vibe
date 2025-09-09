@@ -23,7 +23,13 @@ import {appConfig} from '#root/config/app.js';
 import nodemailer from 'nodemailer';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {InviteResult} from '../classes/index.js';
-import {BaseService, MongoDatabase} from '#root/shared/index.js';
+import {
+  BaseService,
+  IItemRepository,
+  MongoDatabase,
+} from '#root/shared/index.js';
+import {ObjectId} from 'mongodb';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
 
 @injectable()
 export class InviteService extends BaseService {
@@ -37,7 +43,8 @@ export class InviteService extends BaseService {
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(NOTIFICATIONS_TYPES.MailService)
     private readonly mailService: MailService,
-
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
     @inject(GLOBAL_TYPES.Database)
@@ -189,6 +196,35 @@ export class InviteService extends BaseService {
       if (!courseVersion) {
         throw new NotFoundError('Course version not found');
       }
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
+        );
+      }
+
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
 
       const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       // Create Invites
@@ -208,13 +244,14 @@ export class InviteService extends BaseService {
 
           const invite = new Invite(
             email,
-            courseId,
-            courseVersionId,
+            new ObjectId(courseId),
+            new ObjectId(courseVersionId),
             role,
             isAlreadyEnrolled,
             isNewUser,
             oneWeekFromNow,
           );
+
           return this.inviteRepo.create(invite, session);
         }),
       );
@@ -236,7 +273,15 @@ export class InviteService extends BaseService {
           } catch (error) {
             // Update Status to EMAIL_FAILED
             invite.inviteStatus = 'EMAIL_FAILED';
-            await this.inviteRepo.updateInvite(invite._id.toString(), invite);
+            const updatePayload = {
+              ...invite,
+              courseId: new ObjectId(invite.courseId),
+              courseVersionId: new ObjectId(invite.courseVersionId),
+            };
+            await this.inviteRepo.updateInvite(
+              invite._id.toString(),
+              updatePayload,
+            );
             return;
           }
         }),
@@ -287,7 +332,14 @@ export class InviteService extends BaseService {
     // Update invite status to ACCEPTED
     invite.inviteStatus = 'ACCEPTED';
     invite.acceptedAt = date;
-    await this.inviteRepo.updateInvite(inviteId, invite);
+
+    const updatedPayload = {
+      ...invite,
+      courseId: new ObjectId(invite.courseId),
+      courseVersionId: new ObjectId(invite.courseVersionId),
+    };
+
+    await this.inviteRepo.updateInvite(inviteId, updatedPayload);
 
     // If existing user, enroll them
     if (!invite.isNewUser && !invite.isAlreadyEnrolled) {
@@ -298,8 +350,8 @@ export class InviteService extends BaseService {
       // Enroll user in course
       const result = await this.enrollmentService.enrollUser(
         user._id.toString(),
-        invite.courseId,
-        invite.courseVersionId,
+        invite.courseId.toString(),
+        invite.courseVersionId.toString(),
         invite.role,
         true,
       );
@@ -330,10 +382,17 @@ export class InviteService extends BaseService {
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
-
+    if (invite.inviteStatus == 'ACCEPTED') {
+      throw new BadRequestError('Student already accpeted this invite!');
+    }
     // Update invite status to CANCELLED
     invite.inviteStatus = 'CANCELLED';
-    await this.inviteRepo.updateInvite(inviteId, invite);
+    const updatePayload = {
+      ...invite,
+      courseId: new ObjectId(invite.courseId),
+      courseVersionId: new ObjectId(invite.courseVersionId),
+    };
+    await this.inviteRepo.updateInvite(inviteId, updatePayload);
 
     return {message: 'Invite has been cancelled successfully.'};
   }
@@ -380,7 +439,11 @@ export class InviteService extends BaseService {
     limit: number,
     search: string,
     sort: string,
-  ): Promise<{invites: InviteResult[]; totalDocuments: number; totalPages: number}> {
+  ): Promise<{
+    invites: InviteResult[];
+    totalDocuments: number;
+    totalPages: number;
+  }> {
     const course = await this.courseRepo.read(courseId);
     if (!course) {
       throw new NotFoundError('Course not found');
@@ -440,7 +503,7 @@ export class InviteService extends BaseService {
 
     const invitesWithCourse = await Promise.all(
       invites.map(async invite => {
-        const course = await this.courseRepo.read(invite.courseId);
+        const course = await this.courseRepo.read(invite.courseId.toString());
 
         return new InviteResult(
           invite._id,

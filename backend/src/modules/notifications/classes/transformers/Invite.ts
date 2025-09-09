@@ -54,7 +54,7 @@ class Invite {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseId: string;
+  courseId: ID;
 
   @JSONSchema({
     title: 'Course Version ID',
@@ -65,7 +65,7 @@ class Invite {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: string; 
+  courseVersionId: ID; 
 
 
   inviteStatus: 'ACCEPTED' | 'PENDING' | 'CANCELLED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED' = 'PENDING';
@@ -103,8 +103,8 @@ class Invite {
 
   constructor(
     email: string,
-    courseId: string,
-    courseVersionId: string,
+    courseId: ID,
+    courseVersionId: ID,
     role: EnrollmentRole = 'STUDENT',
     isAlreadyEnrolled: boolean = false,
     isNewUser: boolean = false,
