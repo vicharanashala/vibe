@@ -7,6 +7,8 @@ import { Loader2, BookOpen, Plus } from "lucide-react";
 import { useCreateCourse, useCreateCourseVersion, useInviteUsers } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 export default function CreateCourse() {
@@ -28,6 +30,8 @@ export default function CreateCourse() {
   const inviteUsersMutation = useInviteUsers();
 
   const teacherEmail = useAuthStore.getState().user?.email || "";
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
     if (!name.trim() || !description.trim()) {
@@ -84,18 +88,25 @@ export default function CreateCourse() {
       const versionId = res?._id;
       if (versionId) {
         setVersionSuccess(true);
-        // Automatically send invite to teacher
-        await inviteUsersMutation.mutateAsync({
-          params: { path: { courseId, courseVersionId: versionId } },
-          body: {
-            inviteData: [
-              {
-                email: teacherEmail,
-                role: "INSTRUCTOR"
-              }
-            ]
-          }
+         queryClient.invalidateQueries({
+          queryKey: ["get", "/users/enrollments"],
+          exact: false, // let it match all queries with different params
         });
+        // Automatically send invite to teacher
+        // await inviteUsersMutation.mutateAsync({
+        //   params: { path: { courseId, courseVersionId: versionId } },
+        //   body: {
+        //     inviteData: [
+        //       {
+        //         email: teacherEmail,
+        //         role: "INSTRUCTOR"
+        //       }
+        //     ]
+        //   }
+        // });        
+        setTimeout(()=> {
+          navigate({ to: "/teacher" });
+        }, 1500);
       } else {
         setVersionError("Version created but no ID returned");
       }
@@ -242,14 +253,17 @@ export default function CreateCourse() {
                 </div>
               </Button>
               {versionSuccess && (
-                <div className="text-green-600 mt-2">Version created and invite sent to your email!</div>
+                <div className="text-green-600 mt-2">Version created successfully, Navigating to dashboard...!</div>
               )}
+              {/* {versionSuccess && (
+                <div className="text-green-600 mt-2">Version created and invite sent to your email!</div>
+              )} */}
               {versionError && (
                 <div className="text-red-500 mt-2">{versionError}</div>
               )}
-              {inviteUsersMutation.isPending && (
+              {/* {inviteUsersMutation.isPending && (
                 <div className="text-blue-600 mt-2">Sending invite...</div>
-              )}
+              )} */}
               {inviteUsersMutation.isError && (
                 <div className="text-red-500 mt-2">{inviteUsersMutation.error}</div>
               )}
