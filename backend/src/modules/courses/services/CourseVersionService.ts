@@ -98,16 +98,13 @@ export class CourseVersionService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      const updatedVersionData = {
-        ...existingVersion,
-        version: body.version,
-        description: body.description,
-        updatedAt: new Date(),
-      };
+      if (body.version) existingVersion.version = body.version;
+      if (body.description) existingVersion.description = body.description;
+      existingVersion.updatedAt = new Date();
 
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
-        updatedVersionData,
+        existingVersion,
         session,
       );
       
