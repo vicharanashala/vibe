@@ -298,6 +298,7 @@ export interface QuizSubmissionResponseUpdated {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId | { firstName: string, lastName: string, email: string };
+  userInfo: string | ObjectId | { firstName: string, lastName: string, email: string };
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;

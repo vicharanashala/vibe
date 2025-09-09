@@ -85,7 +85,6 @@ export class ItemService extends BaseService {
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
-      console.log("Section: ", section)
     const itemsGroup = await this.itemRepo.readItemsGroup(
       section.itemsGroupId.toString(),
       session,

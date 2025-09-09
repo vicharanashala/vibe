@@ -1369,8 +1369,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           {submissions?.map((sub: any) => (
                             <TableRow key={sub._id}>
                               <TableCell className="font-medium max-w-[180px] overflow-hidden        text-ellipsis whitespace-nowrap"
-                                title={`${sub.userId?.firstName ?? ''} ${sub.userId?.lastName ?? ''}`}>
-                                {(sub.userId?.firstName ?? '') + ' ' + (sub.userId?.lastName ?? '')}
+                                title={`${sub.userInfo?.firstName ?? ''} ${sub.userInfo?.lastName ?? ''}`}>
+                                {(sub.userInfo?.firstName ?? '') + ' ' + (sub.userInfo?.lastName ?? '')}
                               </TableCell>
                               <TableCell>{sub.gradingResult?.totalScore.toFixed(2) ?? 'N/A'}</TableCell>
                               <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>

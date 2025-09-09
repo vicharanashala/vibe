@@ -1,9 +1,9 @@
-import { IUserQuizMetrics } from '#quizzes/interfaces/grading.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError } from 'routing-controllers';
+import {IUserQuizMetrics} from '#quizzes/interfaces/grading.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
+import {InternalServerError} from 'routing-controllers';
 
 @injectable()
 class UserQuizMetricsRepository {
@@ -12,14 +12,14 @@ class UserQuizMetricsRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) { }
+  ) {}
 
   private async init() {
     this.userQuizMetricsCollection =
       await this.db.getCollection<IUserQuizMetrics>('user_quiz_metrics');
   }
 
-  public async create(
+  async create(
     metrics: IUserQuizMetrics,
     session?: ClientSession,
   ): Promise<string | null> {
@@ -32,55 +32,56 @@ class UserQuizMetricsRepository {
     }
     throw new InternalServerError('Failed to create user quiz metrics');
   }
-  public async get(
+
+  async get(
     userId: string | ObjectId,
     quizId: string | ObjectId,
     session?: ClientSession,
   ): Promise<IUserQuizMetrics | null> {
     await this.init();
 
-    const userObjectId =
-      typeof userId === 'string' && ObjectId.isValid(userId)
-        ? new ObjectId(userId)
-        : null;
+    // normalize IDs to both string and ObjectId
+    const userIdStr = userId.toString();
+    const userIdObj = ObjectId.isValid(userIdStr)
+      ? new ObjectId(userIdStr)
+      : null;
 
-    const quizObjectId =
-      typeof quizId === 'string' && ObjectId.isValid(quizId)
-        ? new ObjectId(quizId)
-        : null;
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
 
     const filter: any = {
-      $and: [
-        {
-          $or: [
-            { userId: userId }, // string case
-            ...(userObjectId ? [{ userId: userObjectId }] : []), // ObjectId case
-          ],
-        },
-        {
-          $or: [
-            { quizId: quizId },
-            ...(quizObjectId ? [{ quizId: quizObjectId }] : []),
-          ],
-        },
-      ],
+      userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
+      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
     };
 
-    const result = await this.userQuizMetricsCollection.findOne(filter, { session });
-    return result ?? null;
+    const result = await this.userQuizMetricsCollection.findOne(filter, {
+      session,
+    });
+    if (!result) return null;
+
+    return {
+      ...result,
+      userId: result.userId?.toString(),
+      quizId: result.quizId?.toString(),
+      latestAttemptId: result.latestAttemptId?.toString() || null,
+      latestSubmissionResultId:
+        result.latestSubmissionResultId?.toString() || null,
+    };
   }
 
   async executeBulkMetricsReset(
-    operations: Array<{ updateOne: { filter: any; update: any } }>,
+    operations: Array<{updateOne: {filter: any; update: any}}>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (!operations.length) return;
 
-    await this.userQuizMetricsCollection.bulkWrite(operations, { session });
+    await this.userQuizMetricsCollection.bulkWrite(operations, {session});
   }
 
-  public async update(
+  async update(
     metricsId: string,
     updateData: Partial<IUserQuizMetrics>,
     session?: ClientSession,
@@ -88,77 +89,59 @@ class UserQuizMetricsRepository {
     await this.init();
 
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      { _id: new ObjectId(metricsId) },
-      { $set: updateData },
-      { returnDocument: 'after', session },
+      {_id: new ObjectId(metricsId)},
+      {$set: updateData},
+      {returnDocument: 'after', session},
     );
 
     return result;
   }
 
-  async resetUserMetrics(
-    userId: string,
-    quizId: string,
-    maxAttempts: number,
-    session?: ClientSession,
-  ) {
-    try {
-      await this.init();
-
-      if (!quizId) {
-        throw new InternalServerError(
-          'Failed to remove attempts from quiz metrics / More quizId or attemptId is missing',
-        );
-      }
-      // Step 1: Find the doc to get actual remove count
-      const metricsDoc = await this.userQuizMetricsCollection.findOne(
-        { quizId, userId },
-        { session },
-      );
-
-      console.log('User metrics: ', metricsDoc);
-
-      // Step 2: Reset the quiz metrics fields
-      await this.userQuizMetricsCollection.updateOne(
-        { quizId, userId },
-        {
-          $set: {
-            attempts: [],
-            latestAttemptId: null,
-            latestSubmissionResultId: null,
-            latestAttemptStatus: null,
-            skipCount: 0,
-            remainingAttempts: maxAttempts,
-          },
-        },
-        { session },
-      );
-
-      return true;
-    } catch (error) {
-      console.error('Error resetting user metrics:', error);
-      throw new InternalServerError('Failed to reset user metrics');
-    }
-  }
-
-  public async getByQuizId(
+  async getByQuizId(
     quizId: string,
     session?: ClientSession,
   ): Promise<IUserQuizMetrics[]> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
     const result = await this.userQuizMetricsCollection
-      .find({ quizId: new ObjectId(quizId) }, { session })
+      .find(
+        {
+          quizId: {$in: [quizIdStr, quizIdObj]},
+        },
+        {session},
+      )
       .toArray();
-    return result;
+
+    return result.map(doc => ({
+      ...doc,
+      _id: doc._id?.toString(),
+      userId: doc.userId?.toString(),
+      quizId: doc.quizId?.toString(),
+      latestAttemptId: doc.latestAttemptId?.toString() || null,
+      latestSubmissionResultId:
+        doc.latestSubmissionResultId?.toString() || null,
+    }));
   }
 
-  public async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
+  async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
     await this.init();
     const result = await this.userQuizMetricsCollection
-      .find({}, { session })
+      .find({}, {session})
       .toArray();
-    return result;
+
+    return result.map(doc => ({
+      ...doc,
+      _id: doc._id?.toString(),
+      userId: doc.userId?.toString(),
+      quizId: doc.quizId?.toString(),
+      latestAttemptId: doc.latestAttemptId?.toString() || null,
+      latestSubmissionResultId:
+        doc.latestSubmissionResultId?.toString() || null,
+    }));
   }
 }
 
-export { UserQuizMetricsRepository };
+export {UserQuizMetricsRepository};
