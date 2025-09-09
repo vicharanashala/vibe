@@ -1,8 +1,18 @@
-import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { JSONSchema } from "class-validator-jsonschema";
-import { AnomalyType, FileType, IAnomalyData } from "../../index.js";
-import { ObjectId } from "mongodb";
-import { SortOrder, PaginationWithSortQuery } from '#root/shared/interfaces/models.js';
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {AnomalyType, FileType, IAnomalyData} from '../../index.js';
+import {ObjectId} from 'mongodb';
+import {
+  SortOrder,
+  PaginationWithSortQuery,
+} from '#root/shared/interfaces/models.js';
 
 export class NewAnomalyData {
   @JSONSchema({
@@ -20,7 +30,7 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseId: string;
+  courseId: string | ObjectId;
 
   @JSONSchema({
     description: 'Version ID associated with the anomaly',
@@ -29,7 +39,7 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  versionId: string;
+  versionId: string | ObjectId;
 
   @JSONSchema({
     description: 'Item ID associated with the anomaly',
@@ -38,7 +48,7 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  itemId: string;
+  itemId: string | ObjectId;
 }
 
 export class AnomalyData extends NewAnomalyData implements IAnomalyData {
@@ -58,13 +68,13 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   })
   @IsMongoId()
   @IsString()
-  userId: string;
+  userId: string | ObjectId;
 
   @JSONSchema({
     description: 'Full name of the student who triggered the anomaly',
     type: 'string',
     readOnly: true,
-    example: 'John Doe'
+    example: 'John Doe',
   })
   @IsOptional()
   @IsString()
@@ -75,7 +85,7 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
     type: 'string',
     format: 'email',
     readOnly: true,
-    example: 'john.doe@example.com'
+    example: 'john.doe@example.com',
   })
   @IsOptional()
   @IsEmail()
@@ -215,4 +225,4 @@ export class StatsQueryParams {
   userId?: string;
 }
 
-export { SortOrder, PaginationWithSortQuery };
+export {SortOrder, PaginationWithSortQuery};
