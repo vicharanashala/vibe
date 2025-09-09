@@ -217,7 +217,6 @@ export default function CourseEnrollments() {
       // Fetch the quiz scores and wait for the response
       await fetchQuizScores();
       
-      
       // Format the data for Excel export
       const formattedData = quizScores?.data?.map((student: StudentData) => {
         // Get all unique module and section names for this student

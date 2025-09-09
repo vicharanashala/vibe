@@ -186,7 +186,7 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     headerRow3[`col_${currentCol + 1}_score`] = "";
     
     // Score/Attempts (bottom level, individual columns)
-    headerRow4[`col_${currentCol}_score`] = 'Score';
+    headerRow4[`col_${currentCol}_score`] = 'Score (in %)';
     headerRow4[`col_${currentCol + 1}_score`] = 'Total attempts';
     
     // Add merge for quiz header (span 2 columns for score and attempts)
@@ -309,7 +309,7 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
 }
 
 export function generateExcel(data: StudentData[], filename: string = 'quiz_scores.xlsx'): void {
-  console.log('Generating Excel for data:', data);
+
   try {
     const transformedData = transformDataForExcel(data);
     if (!transformedData.length) {
@@ -338,312 +338,86 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
       aoa.push(rowArray);
     });
 
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     
-    // Set column widths
-    const colWidths = [
-      { wch: 5 },  // S.No.
-      { wch: 15 }, // Name
-      { wch: 30 }  // Email
-    ];
-    
-    // Add widths for score and attempts columns
-    const numQuizCols = aoa[0].length - 3;
-    for (let i = 0; i < numQuizCols; i++) {
-      colWidths.push({ wch: 12 });
-    }
-    
-    ws['!cols'] = colWidths;
-    
-    // Create merge ranges for headers
-    const merges: any[] = [];
-    
-    if (aoa.length >= 3) {
-      // Rebuild structure using moduleId and sectionId for proper grouping
-      const quizColumns = new Map<string, QuizColumn>();
-      const moduleOrder = new Map<string, number>();
-      const sectionOrder = new Map<string, number>();
-      let moduleCounter = 0;
-      let sectionCounter = 0;
-      
-      data.forEach(student => {
-        if (!student.quizScores?.length) return;
+    // Set up merge ranges
+    const merges = [];
+    let currentModuleStart = 3; // Start after S.No., Name, Email
+    let currentSectionStart = 3;
+    let currentModuleId = '';
+    let currentSectionId = '';
+
+    // Process quizzes to create merge ranges
+    if (data.length > 0 && data[0].quizScores) {
+      data[0].quizScores.forEach((quiz, index) => {
+        const quizStartCol = 3 + (index * 2); // Each quiz takes 2 columns
         
-        student.quizScores.forEach(quiz => {
-          const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
-          if (!quizColumns.has(key)) {
-            const moduleKey = quiz.moduleId;
-            const sectionKey = quiz.sectionId;
-            
-            if (!moduleOrder.has(moduleKey)) {
-              moduleOrder.set(moduleKey, moduleCounter++);
-            }
-            
-            if (!sectionOrder.has(sectionKey)) {
-              sectionOrder.set(sectionKey, sectionCounter++);
-            }
-            
-            quizColumns.set(key, {
-              moduleName: quiz.moduleName || `Module_${quiz.moduleId?.substring(0, 4) || 'X'}`,
-              sectionName: quiz.sectionName || `Section_${quiz.sectionId?.substring(0, 4) || 'X'}`,
-              quizName: quiz.quizName || `Quiz_${quiz.quizId?.substring(0, 4) || 'X'}`,
-              moduleId: quiz.moduleId || '',
-              sectionId: quiz.sectionId || '',
-              quizId: quiz.quizId || ''
-            });
-          }
-        });
-      });
-      
-      // Group by moduleId and sectionId
-      const moduleStructure: { [moduleId: string]: { [sectionId: string]: QuizColumn[] } } = {};
-      
-      quizColumns.forEach(col => {
-        const moduleKey = col.moduleId;
-        const sectionKey = col.sectionId;
-        
-        if (!moduleStructure[moduleKey]) {
-          moduleStructure[moduleKey] = {};
-        }
-        
-        if (!moduleStructure[moduleKey][sectionKey]) {
-          moduleStructure[moduleKey][sectionKey] = [];
-        }
-        
-        moduleStructure[moduleKey][sectionKey].push(col);
-      });
-      
-      const sortedModuleIds = Object.keys(moduleStructure).sort((a, b) => {
-        return (moduleOrder.get(a) || 0) - (moduleOrder.get(b) || 0);
-      });
-      
-      let currentCol = 3; // Start after S.No, Name, Email
-      
-      // Calculate merges for modules and sections
-      sortedModuleIds.forEach(moduleId => {
-        const sections = moduleStructure[moduleId];
-        const sectionIds = Object.keys(sections).sort((a, b) => {
-          return (sectionOrder.get(a) || 0) - (sectionOrder.get(b) || 0);
-        });
-        
-        let moduleColSpan = 0;
-        const moduleStartCol = currentCol;
-        
-        sectionIds.forEach(sectionId => {
-          const quizzes = sections[sectionId];
-          const sectionColSpan = quizzes.length * 2;
-          const sectionStartCol = currentCol;
-          
-          // Add section merge if it spans multiple columns
-          if (sectionColSpan > 1) {
+        // Module merge
+        if (quiz.moduleId !== currentModuleId) {
+          if (currentModuleId) {
             merges.push({
-              s: { r: 1, c: sectionStartCol },
-              e: { r: 1, c: sectionStartCol + sectionColSpan - 1 }
+              s: { r: 0, c: currentModuleStart },
+              e: { r: 0, c: quizStartCol - 1 }
             });
           }
-          
-          moduleColSpan += sectionColSpan;
-          currentCol += sectionColSpan;
-        });
-        
-        // Add module merge if it spans multiple columns
-        if (moduleColSpan > 1) {
-          merges.push({
-            s: { r: 0, c: moduleStartCol },
-            e: { r: 0, c: moduleStartCol + moduleColSpan - 1 }
-          });
+          currentModuleId = quiz.moduleId;
+          currentModuleStart = quizStartCol;
         }
+        
+        // Section merge
+        if (quiz.sectionId !== currentSectionId) {
+          if (currentSectionId) {
+            merges.push({
+              s: { r: 1, c: currentSectionStart },
+              e: { r: 1, c: quizStartCol - 1 }
+            });
+          }
+          currentSectionId = quiz.sectionId;
+          currentSectionStart = quizStartCol;
+        }
+        
+        // Quiz merge (spans 2 columns)
+        merges.push({
+          s: { r: 2, c: quizStartCol },
+          e: { r: 2, c: quizStartCol + 1 }
+        });
       });
-    }
-    
-    // Get the worksheet range
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    
-    // Apply header styles with different formatting for each row
-    for (let r = 0; r <= 3 && r <= range.e.r; r++) {
-      for (let c = 0; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellRef]) {
-          ws[cellRef] = { v: '', t: 's', s: {} };
-        }
-        
-        // Initialize style object if it doesn't exist
-        ws[cellRef].s = ws[cellRef].s || {};
-        
-        // Apply different styles based on row
-        if (r === 0) {
-          // Module row - Dark blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '2F5597' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else if (r === 1) {
-          // Section row - Medium blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '3B78D8' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else if (r === 2) {
-          // Quiz row - Light grey with black text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: '000000' } },
-            fill: { fgColor: { rgb: 'F2F2F2' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else {
-          // Score/Attempts row - Light blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '4472C4' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        }
+
+      // Add final merges for the last module and section
+      if (currentModuleId) {
+        merges.push({
+          s: { r: 0, c: currentModuleStart },
+          e: { r: 0, c: 3 + (data[0].quizScores.length * 2) - 1 }
+        });
       }
-    }
-    
-    // Apply data cell styling
-    for (let r = 4; r <= range.e.r; r++) {
-      for (let c = 0; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellRef]) {
-          ws[cellRef] = { v: '', t: 's', s: {} };
-        }
-        ws[cellRef].s = ws[cellRef].s || {};
-        Object.assign(ws[cellRef].s, {
-          border: {
-            top: { style: 'thin', color: { rgb: 'D9D9D9' } },
-            bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
-            left: { style: 'thin', color: { rgb: 'D9D9D9' } },
-            right: { style: 'thin', color: { rgb: 'D9D9D9' } }
-          },
-          alignment: { horizontal: 'center', vertical: 'center' }
+      if (currentSectionId) {
+        merges.push({
+          s: { r: 1, c: currentSectionStart },
+          e: { r: 1, c: 3 + (data[0].quizScores.length * 2) - 1 }
         });
       }
     }
-    
-    // Apply the merges after all styles are set
+
+    // Apply merges
     ws['!merges'] = merges;
     
-    // Apply styles to all header rows
-    for (let r = 0; r <= 3 && r <= range.e.r; r++) {
-      for (let c = 0; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellRef]) {
-          ws[cellRef] = { v: '', t: 's', s: {} };
-        }
-        
-        // Initialize style object if it doesn't exist
-        ws[cellRef].s = ws[cellRef].s || {};
-        
-        // Apply different styles based on row
-        if (r === 0) {
-          // Module row - Dark blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '2F5597' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else if (r === 1) {
-          // Section row - Medium blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '3B78D8' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else if (r === 2) {
-          // Quiz row - Light grey with black text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: '000000' } },
-            fill: { fgColor: { rgb: 'F2F2F2' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        } else {
-          // Score/Attempts row - Light blue with white text
-          Object.assign(ws[cellRef].s, {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: '4472C4' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          });
-        }
-      }
-    }
-    
-    // Add data styling
-    const dataStyle = {
-      alignment: { horizontal: 'center', vertical: 'center' },
-      border: {
-        top: { style: 'thin', color: { rgb: '000000' } },
-        bottom: { style: 'thin', color: { rgb: '000000' } },
-        left: { style: 'thin', color: { rgb: '000000' } },
-        right: { style: 'thin', color: { rgb: '000000' } }
-      }
-    };
-    
-    for (let r = 3; r <= range.e.r; r++) {
-      for (let c = 0; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellRef]) {
-          ws[cellRef] = { v: '', t: 's' };
-        }
-        ws[cellRef].s = dataStyle;
-      }
-    }
-    
-    const wb = XLSX.utils.book_new();
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },  // S.No.
+      { wch: 18 }, // Name
+      { wch: 30 }, // Email
+      ...Array((data[0]?.quizScores?.length || 0) * 2).fill({ wch: 12 }) // Quiz columns
+    ];
+
+    // Apply merges
+    ws['!merges'] = merges;
+
+    // Add worksheet to workbook and save
     XLSX.utils.book_append_sheet(wb, ws, 'Quiz Scores');
     XLSX.writeFile(wb, filename);
     
-    console.log(`Excel file "${filename}" generated successfully`);
   } catch (error) {
     console.error('Error generating Excel file:', error);
     throw error;

@@ -1073,7 +1073,7 @@ export function useCourseEnrollmentsStats(
   };
 }
 
-// GET /enrollments/courses/{courseId}/versions/{versionId}/quiz-scores
+// GET /users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores
 export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
