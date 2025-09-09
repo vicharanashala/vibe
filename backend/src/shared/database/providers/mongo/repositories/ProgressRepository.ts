@@ -146,9 +146,10 @@ class ProgressRepository {
     );
 
     if (result?.deletedCount === 0) {
-      throw new Error(
+      console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
       );
+      return;
     }
   }
 

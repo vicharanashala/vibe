@@ -1,4 +1,9 @@
-import {SignUpBody, User, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
+import {
+  SignUpBody,
+  User,
+  ChangePasswordBody,
+  GoogleSignUpBody,
+} from '#auth/classes/index.js';
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
@@ -7,14 +12,14 @@ import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import { InviteRepository } from '#root/shared/index.js';
+import {InviteRepository} from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { InviteResult, MailService } from '#root/modules/notifications/index.js';
-import { appConfig } from '#root/config/app.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
-import { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import {InviteResult, MailService} from '#root/modules/notifications/index.js';
+import {appConfig} from '#root/config/app.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+import {InviteService} from '#root/modules/notifications/services/InviteService.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -54,13 +59,11 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     if (!admin.apps.length) {
       if (appConfig.isDevelopment) {
         admin.initializeApp({
-          credential: admin.credential.cert(
-            {
-              clientEmail: appConfig.firebase.clientEmail,
-              privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
-              projectId: appConfig.firebase.projectId,
-            }
-          ),
+          credential: admin.credential.cert({
+            clientEmail: appConfig.firebase.clientEmail,
+            privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+            projectId: appConfig.firebase.projectId,
+          }),
         });
       } else {
         admin.initializeApp({
@@ -96,7 +99,9 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           throw new InternalServerError('Failed to create the user');
         }
       } catch (error) {
-        throw new InternalServerError(`Failed to retrieve user from Firebase: ${error.message}`);
+        throw new InternalServerError(
+          `Failed to retrieve user from Firebase: ${error.message}`,
+        );
       }
     }
     user._id = user._id.toString();
@@ -166,39 +171,46 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError('Failed to create the user');
       }
     });
-    
+
     let enrolledInvites: InviteResult[] = [];
 
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
     for (const invite of invites) {
-      if(invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
-        if(result && (result as any).enrollment) {
-          enrolledInvites.push(new InviteResult(
-            invite._id,
-            invite.email,
-            invite.inviteStatus,
-            invite.role,
-            invite.acceptedAt,
-            invite.courseId,
-            invite.courseVersionId,
-          ));
+      if (invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(
+          createdUserId.toString(),
+          invite.courseId.toString(),
+          invite.courseVersionId.toString(),
+          invite.role,
+          true,
+        );
+        if (result && (result as any).enrollment) {
+          enrolledInvites.push(
+            new InviteResult(
+              invite._id,
+              invite.email,
+              invite.inviteStatus,
+              invite.role,
+              invite.acceptedAt,
+              invite.courseId,
+              invite.courseVersionId,
+            ),
+          );
         }
       }
     }
 
-    return enrolledInvites.length > 0 ? {
-      userId: createdUserId,
-      invites: enrolledInvites,
-    }: {
-      userId: createdUserId,
-    };
+    return enrolledInvites.length > 0
+      ? {
+          userId: createdUserId,
+          invites: enrolledInvites,
+        }
+      : {
+          userId: createdUserId,
+        };
   }
 
-  async googleSignup(
-    body: GoogleSignUpBody,
-    token: string,
-  ): Promise<any> {
+  async googleSignup(body: GoogleSignUpBody, token: string): Promise<any> {
     await this.verifyToken(token);
     // Decode the token to get the Firebase UID
     const decodedToken = await this.auth.verifyIdToken(token);
@@ -227,28 +239,38 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
     for (const invite of invites) {
-      if(invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
-        if(result && (result as any).enrollment) {
-          enrolledInvites.push(new InviteResult(
-            invite._id,
-            invite.email,
-            invite.inviteStatus,
-            invite.role,
-            invite.acceptedAt,
-            invite.courseId,
-            invite.courseVersionId,
-          ));
+      if (invite.inviteStatus === 'ACCEPTED') {
+        const result = await this.enrollmentService.enrollUser(
+          createdUserId.toString(),
+          invite.courseId.toString(),
+          invite.courseVersionId.toString(),
+          invite.role,
+          true,
+        );
+        if (result && (result as any).enrollment) {
+          enrolledInvites.push(
+            new InviteResult(
+              invite._id,
+              invite.email,
+              invite.inviteStatus,
+              invite.role,
+              invite.acceptedAt,
+              invite.courseId,
+              invite.courseVersionId,
+            ),
+          );
         }
       }
     }
 
-    return enrolledInvites.length > 0 ? {
-      userId: createdUserId,
-      invites: enrolledInvites,
-    }: {
-      userId: createdUserId,
-    };
+    return enrolledInvites.length > 0
+      ? {
+          userId: createdUserId,
+          invites: enrolledInvites,
+        }
+      : {
+          userId: createdUserId,
+        };
   }
 
   async changePassword(
@@ -274,7 +296,10 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     return {success: true, message: 'Password updated successfully'};
   }
 
-  async updateFirebaseUser(firebaseUID: string, body: Partial<IUser>): Promise<void> {
+  async updateFirebaseUser(
+    firebaseUID: string,
+    body: Partial<IUser>,
+  ): Promise<void> {
     // Update user in Firebase Auth
     await this.auth.updateUser(firebaseUID, {
       displayName: `${body.firstName} ${body.lastName}`,
