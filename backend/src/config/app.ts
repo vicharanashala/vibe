@@ -6,7 +6,7 @@ export enum AppModule {
   All = 'all',
   Auth = 'auth',
   Users = 'users',
-  Courses = 'courses',
+  Courses = 'courses', 
   Quizzes = 'quizzes',
 }
 
