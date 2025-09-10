@@ -20,7 +20,7 @@ import { BadRequestError, NotFoundError } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
 import { ProgressRepository } from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
-import { ro } from '@faker-js/faker';
+import { QuizScoresExportResponseDto, StudentQuizScoreDto } from '../dtos/QuizScoresExportDto.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -325,6 +325,51 @@ export class EnrollmentService extends BaseService {
         session,
       );
     });
+  }
+
+  /**
+   * Get quiz scores for all students in a course version with optimized batching
+   * @param courseId Course ID
+   * @param versionId Course version ID
+   * @returns Promise with quiz scores data and metadata
+   * @throws {NotFoundError} When course or version is not found
+   * @throws {Error} When there's an error fetching quiz scores
+   */
+  async getQuizScoresForCourseVersion(
+    courseId: string,
+    versionId: string,
+  ): Promise<QuizScoresExportResponseDto> {
+    try {
+      // Verify course and version exist in a single transaction
+      const [course, version] = await Promise.all([
+        this.courseRepo.read(courseId),
+        this.courseRepo.readVersion(versionId)
+      ]);
+
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      if (!version) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      console.log(`Starting quiz scores export for course ${courseId}, version ${versionId}`);
+
+      // Get quiz scores from repository with batching
+      return await this.enrollmentRepo.getQuizScoresForCourseVersion(
+        courseId,
+        versionId,
+      );
+    } catch (error) {
+      console.error(`Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`, error);
+
+      // Rethrow with more context if it's not already a known error
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      throw new Error(`Failed to fetch quiz scores: ${error.message}`);
+    }
   }
 
   async countEnrollments(userId: string, role: EnrollmentRole) {
