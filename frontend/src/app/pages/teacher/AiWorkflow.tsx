@@ -2188,7 +2188,7 @@ const SegmentationView = ({
   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
   const ss = totalSecs.toString().padStart(2, '0');
   const mmm = ms.toString().padStart(3, '0');
-  return `${ss}:${mmm}`;
+  return `${ss}.${mmm}`;
 };
   const formatTimeInput = (value: string): string => {
     const raw = value.replace(/\D/g, '');
