@@ -1486,7 +1486,7 @@ const [isRerunning, setIsRerunning] = useState(false);
 
                   <div className="space-y-6">
                       <div className="flex flex-wrap items-end justify-between gap-6">
-                      <div className="space-y-2 min-w-[220px]">
+                      {/* <div className="space-y-2 min-w-[220px]">
                           <Label className="text-sm font-medium" htmlFor="model-select">
                           Model
                           </Label>
@@ -1495,17 +1495,28 @@ const [isRerunning, setIsRerunning] = useState(false);
                           onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
                           disabled={isLocked}
                           >
-                          <SelectTrigger id="model-select" className="h-10">
+                          <SelectTrigger id="model-select" className="h-10 mb-2">
                               <SelectValue placeholder="Select model" />
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                          </SelectContent>
-                          </Select>
-                          <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                              {/* <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem> */}
+                          {/* </SelectContent>
+                          </Select> */}
+                          {/* <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                      // </div> */} 
+
+                      <div className="space-y-2 min-w-[220px]">
+                        <Label className="text-sm font-medium">Model</Label>
+                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-card text-sm">
+                          DeepSeek R1 70B
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {/* Choose the model used to generate questions. */}
+                        </p>
                       </div>
+
 
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Question Types</Label>
