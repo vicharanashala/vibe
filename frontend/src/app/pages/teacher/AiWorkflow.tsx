@@ -827,6 +827,7 @@ const AiWorkflow = () => {
                                     isTaskResultLoading={isTaskResultLoading}
                                     error={error}
                                     questions={questions}
+                                    setQuestions={setQuestions}
                                     aiJobId={aiJobId}
                                     handleApproveTask={handleApproveTask}
                                     setEditingIdx={setEditingIdx}
@@ -1186,7 +1187,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   }, [currentJobData]);
 
   return (
-    <div className=" bg-card pb-3">
+    <div className=" bg-card pb-3 ">
         <div className="flex items-center justify-between  px-8 relative animate-fade-in ">
         {WORKFLOW_STEPS.map((step, idx) => {
             const status = getStepStatus(currentJobData, step.key);
@@ -1201,7 +1202,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 
             return (
             <React.Fragment key={step.key}>
-                <div className="flex flex-col items-center relative z-10 animate-step-appear">
+                <div className="flex flex-col items-center relative animate-step-appear">
                 {/* Step Circle */}
                 <div className={`
                     stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
@@ -1317,6 +1318,7 @@ interface QuestionGenerationResultProps {
   isApprovingTask: boolean;
   error: string | null;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
   handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
@@ -1338,6 +1340,7 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isTaskResultLoading,
     error,
     questions,
+    setQuestions,
     aiJobId,
     handleApproveTask,
     setEditingIdx,
@@ -1356,8 +1359,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     }) => {
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
-    // const [mcqCount, setMcqCount] = useState(2);
-    // const [binaryCount, setBinaryCount] = useState(0);
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
@@ -1373,12 +1374,6 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const [isRerunning, setIsRerunning] = useState(false);
 
-
-    // const clampInt = (val: string, min = 0, max = 100) => {
-    //     const n = Number.parseInt(val, 10)
-    //     if (Number.isNaN(n)) return min
-    //     return Math.min(max, Math.max(min, n))
-    // }
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
@@ -1401,8 +1396,6 @@ const [isRerunning, setIsRerunning] = useState(false);
         BIN:isBinary ?2:0,
         // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
-
-      // setCustomQuestionParams(newParams);
 
       if (currentJobStatus === "COMPLETED") {
           try {
@@ -1561,117 +1554,6 @@ const [isRerunning, setIsRerunning] = useState(false);
                         </p>
                       </div>
                       </div>
-
-                      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {showMCQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="mcq-count">
-                              MCQ Count
-                          </Label>
-                          <Input
-                              id="mcq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={mcqCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SQL) ? customQuestionParams.SQL : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SQL: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setMcqCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="mcq-help"
-                          />
-                          <p id="mcq-help" className="text-sm text-muted-foreground">
-                              Number of single-answer multiple choice questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showMSQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="msq-count">
-                              MSQ Count
-                          </Label>
-                          <Input
-                              id="msq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              setCustomQuestionParams((prev) => ({
-                                  ...prev,
-                                  SML: clampInt(e.target.value, 0, 100),
-                              }))
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="msq-help"
-                          />
-                          <p id="msq-help" className="text-sm text-muted-foreground">
-                              Number of multi-select questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showBinary && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="binary-count">
-                              Binary question Count
-                          </Label>
-                          <Input
-                              id="binary-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={binaryCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SML: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setBinaryCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="binary-help"
-                          />
-                          <p id="binary-help" className="text-sm text-muted-foreground">
-                              Number of binary questions to generate.
-                          </p>
-                          </div>
-                      )}
-                      </div> */}
-
-                      {/* <div className="flex items-center gap-3">
-                      <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-
-                            setCustomQuestionParams((prev) => ({
-                              ...prev,
-                              SML: 0,
-                            }))
-                            setMcqCount(2);
-                            setBinaryCount(0)
-                          }
-                        }
-                          disabled={isLocked}
-                      >
-                          Reset Counts
-                      </Button>
-                      </div> */}
                   </div>
               </section>
           )}
@@ -1831,6 +1713,7 @@ const [isRerunning, setIsRerunning] = useState(false);
              setEditModalOpen={setEditModalOpen}
              editQuestion={editQuestion}
              questions={questions}
+             setQuestions={setQuestions}
              editingIdx={editingIdx || 0}
              aiJobId={aiJobId}
              aiSectionAPI={aiSectionAPI}
@@ -1898,6 +1781,7 @@ interface EditQuestionDialogProps {
   setEditModalOpen: (open: boolean) => void;
   editQuestion: any;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>
   editingIdx: number;
   aiJobId: string | null;
   aiSectionAPI: any;
@@ -1909,6 +1793,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   setEditModalOpen,
   editQuestion,
   questions,
+  setQuestions,
   editingIdx,
   aiJobId,
   aiSectionAPI,
@@ -1930,7 +1815,18 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
                 await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
-                handleShowHandleResult("QUESTION_GENERATION");
+                  setQuestions(prev =>
+                    prev.map((q, idx) =>
+                      idx !== editingIdx
+                        ? q
+                        : {
+                            ...q,
+                            question: { ...q.question, text: edited.text },
+                            solution: edited.solution,
+                          }
+                    )
+                  );
+                // handleShowHandleResult("QUESTION_GENERATION");
                 toast.success('Question Updated.');
               } catch (e) {
                 toast.error("Failed update question!")
