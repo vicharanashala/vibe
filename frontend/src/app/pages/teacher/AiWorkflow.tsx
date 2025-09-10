@@ -820,6 +820,8 @@ const AiWorkflow = () => {
                                     handleShowHandleResult={handleShowHandleResult}
                                     isWaitingServer={isWaitingServer}
                                     isApprovingTask={isApprovingTask}
+                                    setSegmentationMap={setSegmentationMap}
+                                    setSegmentationChunks={setSegmentationChunks}
                                 />
                             ) : currentJob?.task === "QUESTION_GENERATION" ? (
                                 <QuestionGenerationView
@@ -904,12 +906,20 @@ const parseTimeToSeconds = (time: string): number => {
         if (isNaN(ms)) return m * 60 + s;
         return m * 60 + s + ms / 1000;
       } else if (parts.length === 2) {
-        const [mStr, sStr] = parts;
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
+        const [first, second] = parts;
+        const isMs = (second || '').length <= 3 && /^(\d{1,3})$/.test(second || '');
+        if (isMs && (first || '').length <= 3) {
+          const sec = parseInt(first || '0', 10);
+          const msRaw = (second || '').slice(0, 3);
+          const msNum = parseInt(msRaw || '0', 10) || 0;
+          if (isNaN(sec)) return 0;
+          return sec + msNum / 1000;
+        }
+        const m = parseInt(first || '0', 10);
+        const s = parseInt(second || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
       }
     }
     if (cleaned.includes('.')) {
@@ -918,19 +928,15 @@ const parseTimeToSeconds = (time: string): number => {
         const [mStr, sStr, msStr] = parts;
         const m = parseInt(mStr || '0', 10);
         const s = parseInt(sStr || '0', 10);
-        const ms = parseInt(msStr || '0', 10);
+        const ms = parseInt((msStr || '').slice(0, 3) || '0', 10) || 0;
         if (isNaN(m)) return 0;
         if (isNaN(s)) return m * 60;
-        if (isNaN(ms)) return m * 60 + s;
         return m * 60 + s + ms / 1000;
       } else if (parts.length === 2) {
-        const [mStr, sStrRaw] = parts;
-      const sStr = (sStrRaw || '').slice(0, 2);
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
+        const [secStr, msStrRaw] = parts;
+        const sec = parseInt(secStr || '0', 10) || 0;
+        const msNum = parseInt((msStrRaw || '').slice(0, 3) || '0', 10) || 0;
+        return sec + msNum / 1000;
       }
     }
     const sOnly = parseInt(cleaned, 10);
@@ -2118,6 +2124,8 @@ const SegmentationView = ({
   handleShowHandleResult,
   isWaitingServer,
   isApprovingTask,
+  setSegmentationMap,
+  setSegmentationChunks
 }: any) => {
 
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -2179,8 +2187,8 @@ const SegmentationView = ({
   const totalSecs = Math.floor(Math.max(0, seconds));
   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
   const ss = totalSecs.toString().padStart(2, '0');
-  const mmm = ms.toString().padStart(2, '0');
-  return `${ss}.${mmm}`;
+  const mmm = ms.toString().padStart(3, '0');
+  return `${ss}:${mmm}`;
 };
   const formatTimeInput = (value: string): string => {
     const raw = value.replace(/\D/g, '');
@@ -2362,6 +2370,28 @@ const SegmentationView = ({
           // Use index 0 for the backend (fixes 500 error)
           const payload = editSegMap.map((s) => formatTimePadded(s));
           await editSegmentMap(aiJobId, payload);
+          
+          const sortedSegments = [...editSegMap].sort((a, b) => a - b);
+          
+          const updatedChunks = sortedSegments.map((end, idx) => {
+              const start = idx === 0 ? 0 : sortedSegments[idx - 1];
+              
+              return editTranscriptChunks.filter(chunk => {
+                  if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                      return false;
+                  }
+                  
+                  const chunkStart = chunk.timestamp[0];
+                  const chunkEnd = chunk.timestamp[1];
+                  const chunkMid = (chunkStart + chunkEnd) / 2;
+                  
+                  return chunkMid > start && chunkMid <= end;
+              });
+          });
+  
+          setSegmentationMap(sortedSegments);
+          setSegmentationChunks(updatedChunks);
+          
           handleShowHandleResult("SEGMENTATION");
           toast.success('Segments updated successfully!');
           setEditModalOpen(false);
@@ -2784,9 +2814,10 @@ const SegmentationView = ({
           </DialogContent>
         </Dialog> */}
             <div className="space-y-3">
-              {segmentationMap.map((end: number, idx: number) => {
-                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
-                const segChunks = segmentationChunks[idx] || []
+            {segmentationMap && segmentationMap.map((end: number, idx: number) => {
+    const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+    const segChunks: { text: string }[] = segmentationChunks?.[idx] || [];
+    const segmentText = segChunks.map((chunk: { text: string }) => chunk.text).join(" ");
 
                 return (
                   <div
@@ -2800,25 +2831,35 @@ const SegmentationView = ({
                         </div>
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
                       </div>
-
                       <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
                         <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                           {formatTime(start)} – {formatTime(end)}
                         </span>
                       </div>
-                    </div>
+                  </div>
 
-                    {segChunks.length > 0 && (
-                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
+                  {(() => {
+                      const fallbackChunks = (editTranscriptChunks || []).filter((chunk: { timestamp: [number, number]; text: string }) => {
+                          if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) return false;
+                          const [chunkStart, chunkEnd] = chunk.timestamp;
+                          const chunkMid = (chunkStart + chunkEnd) / 2;
+                          return chunkMid > (idx === 0 ? 0 : segmentationMap[idx - 1]) && chunkMid <= end;
+                      });
+                      const displayChunks: { text: string }[] = (segChunks && segChunks.length > 0) ? segChunks : fallbackChunks as any;
+                      if (!displayChunks || displayChunks.length === 0) return null;
+                      return (
+                    <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900 mt-3">
                         <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
+                          {displayChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
                         </p>
                       </div>
-                    )}
+                    );
+                })()}
+
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -2938,13 +2979,19 @@ const SegmentationView = ({
                   {editSegMap.map((value, idx) => {
                     const start = idx === 0 ? 0 : editSegMap[idx - 1];
                     const end = value;
-                    const segChunks = editTranscriptChunks.filter(chunk =>
-                        chunk.timestamp &&
-                        typeof chunk.timestamp[0] === 'number' &&
-                        chunk.timestamp[0] >= start &&
-                        chunk.timestamp[0] < end
-                    );
-                    const segText = segChunks.map(chunk => chunk.text).join(' ');                
+                    const segChunks = editTranscriptChunks.filter(chunk => {
+                      if (!chunk.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                        return false;
+                      }
+                      
+                      const chunkStart = chunk.timestamp[0];
+                      const chunkEnd = chunk.timestamp[1];
+                      
+                      return chunkStart < end && chunkEnd > start;
+                    });
+                    const segText = segChunks.length > 0 
+                      ? segChunks.map(chunk => chunk.text).join(' ')
+                      : 'No transcript content for this segment';                
                     return (
                       <div key={idx} className="flex flex-col gap-1 border-b pb-2">
                           <div className="flex items-center gap-2">
