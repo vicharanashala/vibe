@@ -2269,16 +2269,23 @@ const SegmentationView = ({
         setEditSecInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
         setEditMsInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
     };
-  // Convert seconds to MM:ss:mmm (zero-padded minutes) for API payload
+  // // Convert seconds to MM:ss:mmm (zero-padded minutes) for API payload
+  // const formatTimePadded = (seconds: number): string => {
+  //   const mins = Math.floor(Math.max(0, seconds) / 60);
+  //   const secs = Math.floor(Math.max(0, seconds) % 60);
+  //   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  //   const mm = mins.toString().padStart(2, '0');
+  //   const ss = secs.toString().padStart(2, '0');
+  //   const mmm = ms.toString().padStart(3, '0');
+  //   return `${mm}:${ss}:${mmm}`;
+  // };
   const formatTimePadded = (seconds: number): string => {
-    const mins = Math.floor(Math.max(0, seconds) / 60);
-    const secs = Math.floor(Math.max(0, seconds) % 60);
-    const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
-    const mm = mins.toString().padStart(2, '0');
-    const ss = secs.toString().padStart(2, '0');
-    const mmm = ms.toString().padStart(3, '0');
-    return `${mm}:${ss}:${mmm}`;
-  };
+  const totalSecs = Math.floor(Math.max(0, seconds));
+  const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  const ss = totalSecs.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(3, '0');
+  return `${ss}:${mmm}`;
+};
   const formatTimeInput = (value: string): string => {
     const raw = value.replace(/\D/g, '');
     if (!raw) return '';
