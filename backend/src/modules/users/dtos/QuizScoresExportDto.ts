@@ -26,9 +26,35 @@ export class StudentQuizScoreDto {
   }>;
 }
 
+export class QuizScoresMetadataDto {
+  @Expose()
+  @IsString()
+  courseId: string;
+
+  @Expose()
+  @IsString()
+  versionId: string;
+
+  @Expose()
+  @IsNumber()
+  totalStudents: number;
+
+  @Expose()
+  @IsNumber()
+  durationMs: number;
+
+  @Expose()
+  @IsString()
+  generatedAt: string;
+}
+
 export class QuizScoresExportResponseDto {
   @Expose()
   @Type(() => StudentQuizScoreDto)
   @IsArray()
   data: StudentQuizScoreDto[];
+
+  @Expose()
+  @Type(() => QuizScoresMetadataDto)
+  metadata: QuizScoresMetadataDto;
 }
