@@ -4,8 +4,8 @@ import {ObjectId} from 'mongodb';
 
 class QuestionBank implements IQuestionBank {
   _id?: string | ObjectId;
-  courseId?: string;
-  courseVersionId?: string;
+  courseId?: ID;
+  courseVersionId?: ID;
   questions: ID[];
   tags?: string[];
   title: string;
@@ -15,8 +15,8 @@ class QuestionBank implements IQuestionBank {
 
   constructor(questionBank: Partial<IQuestionBank>) {
     this._id = questionBank._id ?? new ObjectId();
-    this.courseId = questionBank.courseId ?? undefined;
-    this.courseVersionId = questionBank.courseVersionId ?? undefined;
+    this.courseId = new ObjectId(questionBank.courseId) ?? undefined;
+    this.courseVersionId = new ObjectId(questionBank.courseVersionId) ?? undefined;
     this.questions = questionBank.questions || [];
     this.tags = questionBank.tags || [];
     this.title = questionBank.title;
