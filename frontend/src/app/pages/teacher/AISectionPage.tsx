@@ -97,10 +97,11 @@ interface VideoData {
 
 type QuestionGenParams = {
   model: string;
-  SQL: number;
+  SOL: number;
   SML: number;
   NAT: number;
   DES: number;
+  BIN:number;
   prompt: string;
 };
 
@@ -376,10 +377,11 @@ export default function AISectionPage() {
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
     model: 'deepseek-r1:70b',
-    SQL: 1,
+    SOL: 1,
     SML: 0,
     NAT: 0,
     DES: 0,
+    BIN:0,
     prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
   });
 
@@ -801,8 +803,8 @@ export default function AISectionPage() {
 
     const [localSegParams, setLocalSegParams] = useState(segParams);
 
-    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() =>
-      ["SQL", "SML", "NAT", "DES"],
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SOL" | "SML" | "NAT" | "DES">)[]>(() =>
+      ["SOL", "SML", "NAT", "DES"],
       [],);
 
     const segFields: { key: "lam" | "runs" | "noiseId", type: 'float' | "int" }[] = [
@@ -1239,7 +1241,7 @@ export default function AISectionPage() {
               let readableParams: React.ReactNode = null;
               if (task === "question" && run.parameters && typeof run.parameters === 'object') {
                 const paramKeys = Object.keys(run.parameters);
-                const mainKeys = ["model", "SQL", "SML", "NAT", "DES"];
+                const mainKeys = ["model", "SOL", "SML", "NAT", "DES"];
                 const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
                 readableParams = (
                   <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
@@ -2532,7 +2534,7 @@ export default function AISectionPage() {
       const hasQuestionRun = taskRuns.question && taskRuns.question.length > 0;
       const params = {
         model: questionGenParams.model,
-        SQL: Number(questionGenParams.SQL),
+        SOL: Number(questionGenParams.SOL),
         SML: Number(questionGenParams.SML),
         NAT: Number(questionGenParams.NAT),
         DES: Number(questionGenParams.DES),
