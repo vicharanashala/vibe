@@ -1,4 +1,5 @@
 import {
+  BulkEnrollmentsQuery,
   EnrollmentFilterQuery,
   EnrollmentRole,
   EnrollmentsQuery,
@@ -369,8 +370,8 @@ export class EnrollmentController {
     };
   }
   @OpenAPI({
-    summary: 'Update Enrollment Progress for All Courses',
-    description: 'Recomputes and updates progress for all enrollments across all courses.',
+    summary: 'Update Enrollment Progress',
+    description: 'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
@@ -378,12 +379,17 @@ export class EnrollmentController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
+
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
+    @QueryParams() query: BulkEnrollmentsQuery,
+
   ) {
-    const updatedEnrollment = await this.attemptService.bulkUpdateUserQuizMetrics();
+    const { courseId } = query;
+    const updatedEnrollment = await this.enrollmentService.bulkUpdateAllEnrollments(courseId);
     return updatedEnrollment;
   }
+
 
   @OpenAPI({
     summary: 'Get enrollment statistics for a course version',
