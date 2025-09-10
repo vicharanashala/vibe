@@ -27,7 +27,7 @@ const makeAuthenticatedRequest = async (
   if (!token) {
     throw new Error('Authentication token not found');
   }
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -96,7 +96,7 @@ export interface SegmentationParameters {
 
 export interface QuestionGenerationParameters {
   model?: string;
-  SQL?: number;
+  SOL?: number;
   SML?: number;
   NAT?: number;
   DES?: number;
@@ -550,13 +550,13 @@ export const rerunJobTask = async (
       parameters: params || {},
     }),
   });
-   if (!res.ok) {
+  if (!res.ok) {
     let errorMessage = `Request failed with status ${res.status}`;
-      const errorData = await res.json();
-      errorMessage = errorData.message || errorMessage;
-      throw new Error(errorMessage);
+    const errorData = await res.json();
+    errorMessage = errorData.message || errorMessage;
+    throw new Error(errorMessage);
   }
-  
+
   return res;
 };
 
