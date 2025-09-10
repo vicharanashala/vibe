@@ -2283,7 +2283,7 @@ const SegmentationView = ({
   const totalSecs = Math.floor(Math.max(0, seconds));
   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
   const ss = totalSecs.toString().padStart(2, '0');
-  const mmm = ms.toString().padStart(3, '0');
+  const mmm = ms.toString().padStart(2, '0');
   return `${ss}:${mmm}`;
 };
   const formatTimeInput = (value: string): string => {
