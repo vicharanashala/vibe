@@ -1152,10 +1152,13 @@ export class EnrollmentRepository {
    * @returns Array of student quiz scores with their max scores and attempts
    */
 
+  private readonly BATCH_SIZE = 100; // Number of students to process in each batch
+
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
   ): Promise<QuizScoresExportResponseDto> {
+    const startTime = Date.now();
     await this.init();
 
     if (!this.enrollmentCollection || !this.submissionCollection || !this.quizCollection) {
@@ -1163,105 +1166,140 @@ export class EnrollmentRepository {
     }
 
     try {
-      // 1. Get all student enrollments for this course version with user details
-      const enrollments = await this.enrollmentCollection.aggregate([
-        {
-          $match: {
-            courseId: new ObjectId(courseId),
-            courseVersionId: new ObjectId(versionId),
-            role: 'STUDENT',
-            status: 'ACTIVE'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            let: { userId: '$userId' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ['$_id', '$$userId'] }
-                }
-              },
-              {
-                $project: {
-                  _id: 1,
-                  email: 1,
-                  firstName: 1,
-                  lastName: 1
-                }
-              }
-            ],
-            as: 'user',
-          },
-        },
-        { $unwind: '$user' },
-        {
-          $project: {
-            _id: 1,
-            userId: 1,
-            'user.firstName': 1,
-            'user.lastName': 1,
-            'user.email': 1
-          }
-        }
-      ]).toArray();
+      // 1. First get total count for batching
+      const totalStudents = await this.enrollmentCollection.countDocuments({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+        role: 'STUDENT',
+        status: 'ACTIVE'
+      });
 
-      if (!enrollments || enrollments.length === 0) {
-        return { data: [] };
+      if (totalStudents === 0) {
+        return { 
+          data: [],
+          metadata: {
+            courseId,
+            versionId,
+            totalStudents: 0,
+            durationMs: 0,
+            generatedAt: new Date().toISOString()
+          }
+        };
       }
 
-      const userIds = enrollments.map(e => e.userId);
-
-      // 2. Get all quizzes organized by modules and sections
+      // 2. Get all quizzes organized by modules and sections once
       const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionId);
-
-      //  Get all quiz submissions for these users and course version
-      const allQuizIds = quizzesByModuleSection.flatMap(module =>
+      const allQuizIds = [...new Set(quizzesByModuleSection.flatMap(module =>
         module.sections.flatMap(section => section.quizIds)
-      );
+      ))];
 
       if (allQuizIds.length === 0) {
-        return { data: [] };
+        return { 
+          data: [],
+          metadata: {
+            courseId,
+            versionId,
+            totalStudents: 0,
+            durationMs: 0,
+            generatedAt: new Date().toISOString()
+          }
+        };
       }
 
       const quizIdsObjectIds = allQuizIds.map(id => new ObjectId(id));
+      const quizDetails = await this.getQuizDetails(quizIdsObjectIds);
 
-      // 3. Fetch quiz details, max scores, and attempts in parallel
-      const [quizDetails, maxScores, totalAttempts] = await Promise.all([
-        this.getQuizDetails(quizIdsObjectIds),
-        this.getMaxScoresForQuizzes(userIds, quizIdsObjectIds),
-        this.getUserQuizAttempts(userIds, quizIdsObjectIds)
-      ]);
+      // 3. Process students in batches
+      const result: StudentQuizScoreDto[] = [];
+      const totalBatches = Math.ceil(totalStudents / this.BATCH_SIZE);
 
-      // 4. Build the result according to StudentQuizScoreDto
-      const result: StudentQuizScoreDto[] = enrollments.map(enrollment => {
-        const userId = enrollment.userId.toString();
-        const quizScores = quizzesByModuleSection.flatMap(module =>
-          module.sections.flatMap(section =>
-            section.quizIds.map(quizId => {
-              const detail = quizDetails.get(quizId);
-              return {
-                moduleId: module.moduleId,
-                sectionId: section.sectionId,
-                quizId,
-                quizName: detail?.name || 'Untitled Quiz',
-                maxScore: maxScores.get(userId)?.get(quizId) || 0,
-                attempts: totalAttempts.get(userId)?.get(quizId) || 0
-              };
-            })
-          )
-        );
+      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+        const skip = batchNum * this.BATCH_SIZE;
+        
+        // 4. Get batch of enrollments with user details
+        const enrollments = await this.enrollmentCollection.aggregate([
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(versionId),
+              role: 'STUDENT',
+              status: 'ACTIVE'
+            }
+          },
+          { $skip: skip },
+          { $limit: this.BATCH_SIZE },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'user',
+            }
+          },
+          { $unwind: '$user' },
+          {
+            $project: {
+              _id: 1,
+              userId: 1,
+              'user.firstName': 1,
+              'user.lastName': 1,
+              'user.email': 1
+            }
+          }
+        ]).toArray();
 
-        return {
-          studentId: userId,
-          name: `${enrollment.user?.firstName || ''} ${enrollment.user?.lastName || ''}`.trim() || 'Unknown',
-          email: enrollment.user?.email || '',
-          quizScores
-        };
-      });
+        if (enrollments.length === 0) continue;
 
-      return { data: result };
+        const batchUserIds = enrollments.map(e => e.userId);
+        
+        // 5. Fetch max scores and attempts for this batch
+        const [maxScores, totalAttempts] = await Promise.all([
+          this.getMaxScoresForQuizzes(batchUserIds, quizIdsObjectIds),
+          this.getUserQuizAttempts(batchUserIds, quizIdsObjectIds)
+        ]);
+
+        // 6. Process this batch
+        const batchResults = enrollments.map(enrollment => {
+          const userId = enrollment.userId.toString();
+          
+          const quizScores = quizzesByModuleSection.flatMap(module =>
+            module.sections.flatMap(section =>
+              section.quizIds.map(quizId => {
+                const detail = quizDetails.get(quizId);
+                return {
+                  moduleId: module.moduleId,
+                  sectionId: section.sectionId,
+                  quizId,
+                  quizName: detail?.name || 'Untitled Quiz',
+                  maxScore: maxScores.get(userId)?.get(quizId) || 0,
+                  attempts: totalAttempts.get(userId)?.get(quizId) || 0
+                };
+              })
+            )
+          );
+
+          return {
+            studentId: userId,
+            name: `${enrollment.user?.firstName || ''} ${enrollment.user?.lastName || ''}`.trim() || 'Unknown',
+            email: enrollment.user?.email || '',
+            quizScores
+          };
+        });
+
+        result.push(...batchResults);
+      }
+
+      const duration = Date.now() - startTime;
+      return { 
+        data: result,
+        metadata: {
+          courseId,
+          versionId,
+          totalStudents: result.length,
+          durationMs: duration,
+          generatedAt: new Date().toISOString()
+        }
+      };
 
     } catch (error) {
       console.error('Error in getQuizScoresForCourseVersion:', error);
