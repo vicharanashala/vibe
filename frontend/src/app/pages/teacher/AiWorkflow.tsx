@@ -30,6 +30,24 @@ interface CurrentJob {
     task: string
 }
 
+
+const formatTime = (time: number | string): string => {
+  if (typeof time === 'string' && /^\d{2}:\d{2}:\d{3}$/.test(time)) {
+    return time;
+  }
+  
+  const seconds = typeof time === 'number' ? time : parseFloat(time);
+  if (!Number.isFinite(seconds) || seconds < 0) return "00:00:000";
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  const mm = mins.toString().padStart(2, '0');
+  const ss = secs.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(3, '0');
+  return `${mm}:${ss}:${mmm}`;
+};
+
 const AiWorkflow = () => {
 
     // <<<<<<<<< Store >>>>>>>>>>
@@ -874,21 +892,45 @@ const parseTimeToSeconds = (time: string): number => {
     const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
 
     if (cleaned.includes(':')) {
-      const [mStr, sStr] = cleaned.split(':');
+      const parts = cleaned.split(':');
+      if (parts.length === 3) {
+        const [mStr, sStr, msStr] = parts;
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const ms = parseInt(msStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        if (isNaN(ms)) return m * 60 + s;
+        return m * 60 + s + ms / 1000;
+      } else if (parts.length === 2) {
+        const [mStr, sStr] = parts;
       const m = parseInt(mStr || '0', 10);
       const s = parseInt(sStr || '0', 10);
       if (isNaN(m)) return 0;
       if (isNaN(s)) return m * 60;
       return m * 60 + s;
+      }
     }
     if (cleaned.includes('.')) {
-      const [mStr, sStrRaw] = cleaned.split('.');
+      const parts = cleaned.split('.');
+      if (parts.length === 3) {
+        const [mStr, sStr, msStr] = parts;
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const ms = parseInt(msStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        if (isNaN(ms)) return m * 60 + s;
+        return m * 60 + s + ms / 1000;
+      } else if (parts.length === 2) {
+        const [mStr, sStrRaw] = parts;
       const sStr = (sStrRaw || '').slice(0, 2);
       const m = parseInt(mStr || '0', 10);
       const s = parseInt(sStr || '0', 10);
       if (isNaN(m)) return 0;
       if (isNaN(s)) return m * 60;
       return m * 60 + s;
+      }
     }
     const sOnly = parseInt(cleaned, 10);
     return isNaN(sOnly) ? 0 : sOnly;
@@ -1690,7 +1732,7 @@ const [isRerunning, setIsRerunning] = useState(false);
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-4 text-xs">
                               <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
-                                {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"}
+                                {typeof segStart === "number" && typeof segEnd === "number" ? `${formatTime(segStart)}–${formatTime(segEnd)}` : "N/A"}
                               </span>
                               <span className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
                                 {q.questionType || q.question?.type || "N/A"}
@@ -2194,6 +2236,7 @@ const SegmentationView = ({
     const [editSegInputValues, setEditSegInputValues] = useState<string[]>([]);
     const [editMinInputs, setEditMinInputs] = useState<string[]>([]);
     const [editSecInputs, setEditSecInputs] = useState<string[]>([]);
+    const [editMsInputs, setEditMsInputs] = useState<string[]>([]);
 
     const isJobCompleted = currentJobStatus == "COMPLETED"
 
@@ -2212,6 +2255,9 @@ const SegmentationView = ({
         newMap.push(prev + 10);
         setEditSegMap(newMap);
         setEditSegInputValues((prevVals) => [...prevVals, formatTime(prev + 10)]);
+        setEditMinInputs((prevVals) => [...prevVals, Math.floor((prev + 10) / 60).toString().padStart(2, '0')]);
+        setEditSecInputs((prevVals) => [...prevVals, Math.floor((prev + 10) % 60).toString().padStart(2, '0')]);
+        setEditMsInputs((prevVals) => [...prevVals, Math.floor(((prev + 10) % 1) * 1000).toString().padStart(3, '0')]);
     };
     const handleRemoveSeg = (idx: number) => {
         if (editSegMap.length <= 1) return;
@@ -2219,46 +2265,58 @@ const SegmentationView = ({
         newMap.splice(idx, 1);
         setEditSegMap(newMap);
         setEditSegInputValues((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditMinInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditSecInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditMsInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
     };
-
-  // Convert seconds to mm:ss format
-  const formatTime = (seconds: number): string => {
-    if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const mm = mins.toString().padStart(2, '0');
-    const ss = secs.toString().padStart(2, '0');
-    return `${mm}:${ss}`;
-  };
-  // Convert seconds to MM:ss (zero-padded minutes) for API payload
+  // // Convert seconds to MM:ss:mmm (zero-padded minutes) for API payload
+  // const formatTimePadded = (seconds: number): string => {
+  //   const mins = Math.floor(Math.max(0, seconds) / 60);
+  //   const secs = Math.floor(Math.max(0, seconds) % 60);
+  //   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  //   const mm = mins.toString().padStart(2, '0');
+  //   const ss = secs.toString().padStart(2, '0');
+  //   const mmm = ms.toString().padStart(3, '0');
+  //   return `${mm}:${ss}:${mmm}`;
+  // };
   const formatTimePadded = (seconds: number): string => {
-    const mins = Math.floor(Math.max(0, seconds) / 60);
-    const secs = Math.floor(Math.max(0, seconds) % 60);
-    const mm = mins.toString().padStart(2, '0');
-    const ss = secs.toString().padStart(2, '0');
-    return `${mm}:${ss}`;
-  };
+  const totalSecs = Math.floor(Math.max(0, seconds));
+  const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  const ss = totalSecs.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(2, '0');
+  return `${ss}.${mmm}`;
+};
   const formatTimeInput = (value: string): string => {
     const raw = value.replace(/\D/g, '');
     if (!raw) return '';
-    const digits = raw.slice(0, 4);
+    const digits = raw.slice(0, 7);
     if (digits.length <= 2) {
       const ss = digits.padStart(2, '0');
-      return `00:${ss}`;
-    }
+      return `00:${ss}:000`;
+    } else if (digits.length <= 4) {
     const minutes = digits.slice(0, -2);
     const seconds = digits.slice(-2);
     const mm = minutes.padStart(2, '0');
     const ss = seconds.padStart(2, '0');
-    return `${mm}:${ss}`;
+      return `${mm}:${ss}:000`;
+    } else {
+      const minutes = digits.slice(0, -5);
+      const seconds = digits.slice(-5, -3);
+      const milliseconds = digits.slice(-3);
+      const mm = minutes.padStart(2, '0');
+      const ss = seconds.padStart(2, '0');
+      const mmm = milliseconds.padStart(3, '0');
+      return `${mm}:${ss}:${mmm}`;
+    }
   };
-  // Convert seconds to MM.SS string for API
   const formatTimeDot = (seconds: number): string => {
     const mins = Math.floor(Math.max(0, seconds) / 60);
     const secs = Math.floor(Math.max(0, seconds) % 60);
+    const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
     const mm = mins.toString().padStart(2, '0');
     const ss = secs.toString().padStart(2, '0');
-    return `${mm}.${ss}`;
+    const mmm = ms.toString().padStart(3, '0');
+    return `${mm}.${ss}.${mmm}`;
   };
 
   const handleEditSegChange = (idx: number, value: string) => {
@@ -2356,18 +2414,24 @@ const SegmentationView = ({
           arr[arr.length - 1].transcriptFileUrl
         ) {
           const last = arr[arr.length - 1];
-
-          // Normalize to number[] seconds (supports 'mm:ss', 'mm.ss', and numeric like 10.22)
+          // Normalize to number[] seconds
           const normalized: number[] = (last.segmentationMap as any[]).map((v: any) => {
-            if (typeof v === "number") return parseTimeToSeconds(String(v));
+            if (typeof v === "number") return v;
             if (typeof v === "string") return parseTimeToSeconds(v);
             return 0;
           });
+          
           setEditSegMap(normalized);
-          setEditSegInputValues(normalized.map((s) => formatTime(s)));
-          setEditMinInputs(normalized.map((s) => Math.floor(Math.max(0, s) / 60).toString().padStart(2, '0')));
-          setEditSecInputs(normalized.map((s) => Math.floor(Math.max(0, s) % 60).toString().padStart(2, '0')));
-
+          
+          const minInputs = normalized.map(s => Math.floor(s / 60).toString().padStart(2, '0'));
+          const secInputs = normalized.map(s => Math.floor(s % 60).toString().padStart(2, '0'));
+          const msInputs = normalized.map(s => Math.floor((s % 1) * 1000).toString().padStart(3, '0'));
+        
+        setEditMinInputs(minInputs);
+        setEditSecInputs(secInputs);
+        setEditMsInputs(msInputs);
+        setEditSegInputValues(normalized.map(s => formatTime(s)));
+  
           // Fetch transcript chunks
           const transcriptRes = await fetch(last.transcriptFileUrl);
           if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
@@ -2376,17 +2440,19 @@ const SegmentationView = ({
         } else {
           setEditError("Segmentation map or transcript not found.");
           setEditSegMap([]);
-          setEditSegInputValues([]);
           setEditMinInputs([]);
           setEditSecInputs([]);
+          setEditMsInputs([]);
+          setEditSegInputValues([]);
           setEditTranscriptChunks([]);
         }
       } catch (e: any) {
         setEditError(e.message || "Unknown error");
         setEditSegMap([]);
-        setEditSegInputValues([]);
         setEditMinInputs([]);
         setEditSecInputs([]);
+        setEditMsInputs([]);
+        setEditSegInputValues([]);
         setEditTranscriptChunks([]);
       } finally {
         setEditLoading(false);
@@ -2409,6 +2475,157 @@ const SegmentationView = ({
           setEditLoading(false);
         }
     };
+
+          const handleMinChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 2);
+            setEditMinInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+            });
+            
+            if (limitedValue.length === 2 || limitedValue === '') {
+              updateTotalSeconds(idx);
+            }
+          };
+
+          const handleSecChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 2);
+            
+            setEditSecInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+          });
+        
+          if (limitedValue.length === 2) {
+            const secs = parseInt(limitedValue, 10);
+            if (secs >= 60) {
+              const minsToAdd = Math.floor(secs / 60);
+              const remainingSecs = secs % 60;
+              
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                const currentMins = parseInt(next[idx] || '0', 10) || 0;
+                next[idx] = (currentMins + minsToAdd).toString().padStart(2, '0');
+                return next;
+              });
+              
+              setEditSecInputs(prev => {
+                const next = [...prev];
+                next[idx] = remainingSecs.toString().padStart(2, '0');
+                return next;
+              });
+            }
+            
+            updateTotalSeconds(idx);
+          } else if (limitedValue === '') {
+            updateTotalSeconds(idx);
+          }
+            };
+            
+          const handleMsChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 3);
+            
+            setEditMsInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+            });
+            
+            if (limitedValue.length === 3 || limitedValue === '') {
+              updateTotalSeconds(idx);
+            }
+          };
+
+          const updateTotalSeconds = (idx: number) => {
+            const mins = parseInt(editMinInputs[idx] || '0', 10) || 0;
+            const secs = parseInt(editSecInputs[idx] || '0', 10) || 0;
+            const ms = parseInt(editMsInputs[idx] || '0', 10) || 0;
+            const totalSeconds = mins * 60 + secs + ms / 1000;
+            const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
+            const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
+            const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
+            
+            const newMap = [...editSegMap];
+            newMap[idx] = clampedSeconds;
+            setEditSegMap(newMap);
+            
+            setEditSegInputValues(prev => {
+              const next = [...prev];
+              next[idx] = formatTime(clampedSeconds);
+              return next;
+            });
+          };
+
+          const handleMinBlur = (idx: number) => {
+            const currentValue = editMinInputs[idx] || '';
+            if (currentValue) {
+              const mins = Math.min(59, parseInt(currentValue, 10) || 0);
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                next[idx] = mins.toString().padStart(2, '0');
+                return next;
+              });
+              updateTotalSeconds(idx);
+            }
+          };
+
+        const handleSecBlur = (idx: number) => {
+          const currentValue = editSecInputs[idx] || '';
+          if (currentValue) {
+            let secs = parseInt(currentValue, 10);
+            if (isNaN(secs)) {
+              secs = 0;
+            }
+            
+            if (secs >= 60) {
+              const minsToAdd = Math.floor(secs / 60);
+              secs = secs % 60;
+              
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                const currentMins = parseInt(next[idx] || '0', 10) || 0;
+                next[idx] = (currentMins + minsToAdd).toString().padStart(2, '0');
+                return next;
+              });
+            }
+          
+            setEditSecInputs(prev => {
+              const next = [...prev];
+              next[idx] = secs.toString().padStart(2, '0');
+              return next;
+            });
+            
+            if (secs >= 0) {
+              updateTotalSeconds(idx);
+            }
+          }
+        };
+
+      const handleMsBlur = (idx: number) => {
+        const currentValue = editMsInputs[idx] || '';
+        if (currentValue) {
+          let ms = parseInt(currentValue, 10);
+          if (isNaN(ms)) {
+            ms = 0;
+          }
+          
+          setEditMsInputs(prev => {
+            const next = [...prev];
+            next[idx] = ms.toString().padStart(3, '0');
+            return next;
+          });
+          
+          if (ms >= 0) {
+            updateTotalSeconds(idx);
+          }
+        }
+      };
+    
   
     const handleConfirm = async () => {
         if (currentJobStatus === "COMPLETED") {
@@ -2691,7 +2908,7 @@ const SegmentationView = ({
                       <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
                         <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          {(Number.isFinite(start) ? start.toFixed(2) : String(start))}s – {(Number.isFinite(Number(end)) ? Number(end).toFixed(2) : String(end))}s
+                          {formatTime(start)} – {formatTime(end)}
                         </span>
                       </div>
                     </div>
@@ -2825,206 +3042,66 @@ const SegmentationView = ({
                   {editSegMap.map((value, idx) => {
                     const start = idx === 0 ? 0 : editSegMap[idx - 1];
                     const end = value;
-                    const segChunks = editTranscriptChunks.filter(
-                      (chunk) =>
+                    const segChunks = editTranscriptChunks.filter(chunk =>
                         chunk.timestamp &&
-                        typeof chunk.timestamp[0] === "number" &&
+                        typeof chunk.timestamp[0] === 'number' &&
                         chunk.timestamp[0] >= start &&
                         chunk.timestamp[0] < end
                     );
-                    const segText = segChunks.map((chunk) => chunk.text).join(" ");
-
+                    const segText = segChunks.map(chunk => chunk.text).join(' ');                
                     return (
                       <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                        <div className="flex flex-col gap-2">
-                          <div className='flex items-center gap-2'>    
-                          <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
                           <div className="flex items-center gap-2">
-                            <div>
-                              <span className="text-xs text-muted-foreground mr-1">mm</span>
-                              <Input
-                              type="text"
-                              placeholder="00"
-                              maxLength={2}
-                              value={editMinInputs[idx] ?? Math.floor(Math.max(0, value) / 60).toString().padStart(2, "0")}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "").slice(0, 3);
-                                setEditMinInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = raw;
-                                  return next;
-                                });
-                                if (raw.length >= 2) {
-                                  const mins = parseInt(raw, 10) || 0;
-                                  const secs = parseInt((editSecInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                  const totalSeconds = mins * 60 + secs;
-                                  
-                                  const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
-                                  const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
-                                  const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
-                                  
-                                  const newMap = [...editSegMap];
-                                  newMap[idx] = clampedSeconds;
-                                  setEditSegMap(newMap);
-                                  
-                                  const finalMins = Math.floor(clampedSeconds / 60);
-                                  const finalSecs = clampedSeconds % 60;
-                                  
-                                  setEditMinInputs((prev) => {
-                                    const next = [...prev];
-                                    next[idx] = finalMins.toString().padStart(2, "0");
-                                    return next;
-                                  });
-                                  
-                                  setEditSecInputs((prev) => {
-                                    const next = [...prev];
-                                    next[idx] = finalSecs.toString().padStart(2, "0");
-                                    return next;
-                                  });
-                                  
-                                  setEditSegInputValues((prev) => {
-                                    const next = [...prev];
-                                    next[idx] = formatTime(clampedSeconds);
-                                    return next;
-                                  });
-                                }
-                              }}
-                              onBlur={() => {
-                                const mins = parseInt((editMinInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                const secs = parseInt((editSecInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                const totalSeconds = mins * 60 + secs;
-                                
-                                const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
-                                const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
-                                const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
-                                
-                                const newMap = [...editSegMap];
-                                newMap[idx] = clampedSeconds;
-                                setEditSegMap(newMap);
-                                
-                                const finalMins = Math.floor(clampedSeconds / 60);
-                                const finalSecs = clampedSeconds % 60;
-                                
-                                setEditMinInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = finalMins.toString().padStart(2, "0");
-                                  return next;
-                                });
-                                
-                                setEditSecInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = finalSecs.toString().padStart(2, "0");
-                                  return next;
-                                });
-                                
-                                setEditSegInputValues((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = formatTime(clampedSeconds);
-                                  return next;
-                                });
-                              }}
-                              className="w-16"
-                              aria-label={`Minutes for segment ${idx + 1} end`}
-                            />
+                            <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                            <div className="flex items-center gap-1">
+                              <div className="flex flex-col">
+                                <span className="text-xs text-muted-foreground">mm</span>
+                                <Input
+                          type="text"
+                          value={editMinInputs[idx] || ''}
+                          onChange={(e) => handleMinChange(idx, e.target.value)}
+                          onBlur={() => handleMinBlur(idx)}
+                          className="w-12"
+                          maxLength={2}
+                          placeholder="00"
+    />
+          </div>
+          <span className="px-1">:</span>
+          
+          {/* Seconds */}
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">ss</span>
+            <Input
+              type="text"
+              value={editSecInputs[idx] || ''}
+              onChange={(e) => handleSecChange(idx, e.target.value)}
+              onBlur={() => handleSecBlur(idx)}
+              className="w-12"
+              maxLength={2}
+              placeholder="00"
+            />
+          </div>
+          <span className="px-1">:</span>
+          
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">ms</span>
+             <Input
+              type="text"
+              value={editMsInputs[idx] || ''}
+              onChange={(e) => handleMsChange(idx, e.target.value)}
+              onBlur={() => handleMsBlur(idx)}
+              className="w-16"
+              maxLength={3}
+              placeholder="000"
+                      />
                             </div>
-                            <span className="px-1">:</span>
-                           <div>
-                            <span className="text-xs text-muted-foreground mr-1">ss</span>
-                             <Input
-                              type="text"
-                              placeholder="00"
-                              maxLength={2}
-                              value={editSecInputs[idx] ?? Math.floor(Math.max(0, value) % 60).toString().padStart(2, "0")}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
-                                setEditSecInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = raw;
-                                  return next;
-                                });
-                                
-                                if (raw.length === 2) {
-                                  const secs = parseInt(raw, 10);
-                                  if (secs >= 60) {
-                                    const mins = parseInt((editMinInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                    const totalSeconds = mins * 60 + secs;
-                                    
-                                    const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
-                                    const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
-                                    const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
-                                    
-                                    const newMap = [...editSegMap];
-                                    newMap[idx] = clampedSeconds;
-                                    setEditSegMap(newMap);
-                                    
-                                    const finalMins = Math.floor(clampedSeconds / 60);
-                                    const finalSecs = clampedSeconds % 60;
-                                    
-                                    setEditMinInputs((prev) => {
-                                      const next = [...prev];
-                                      next[idx] = finalMins.toString().padStart(2, "0");
-                                      return next;
-                                    });
-                                    
-                                    setEditSecInputs((prev) => {
-                                      const next = [...prev];
-                                      next[idx] = finalSecs.toString().padStart(2, "0");
-                                      return next;
-                                    });
-                                    
-                                    setEditSegInputValues((prev) => {
-                                      const next = [...prev];
-                                      next[idx] = formatTime(clampedSeconds);
-                                      return next;
-                                    });
-                                  }
-                                }
-                              }}
-                              onBlur={() => {
-                                const mins = parseInt((editMinInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                const secs = parseInt((editSecInputs[idx] ?? "0").replace(/\D/g, "") || "0", 10) || 0;
-                                const totalSeconds = mins * 60 + secs;
-                                
-                                const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
-                                const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
-                                const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
-                                
-                                const newMap = [...editSegMap];
-                                newMap[idx] = clampedSeconds;
-                                setEditSegMap(newMap);
-                                
-                                const finalMins = Math.floor(clampedSeconds / 60);
-                                const finalSecs = clampedSeconds % 60;
-                                
-                                setEditMinInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = finalMins.toString().padStart(2, "0");
-                                  return next;
-                                });
-                                
-                                setEditSecInputs((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = finalSecs.toString().padStart(2, "0");
-                                  return next;
-                                });
-                                
-                                setEditSegInputValues((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = formatTime(clampedSeconds);
-                                  return next;
-                                });
-                              }}
-                              className="w-12"
-                              aria-label={`Seconds for segment ${idx + 1} end`}
-                            />
-                           </div>
+                            
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemoveSeg(idx)}
                               className="text-destructive hover:text-destructive"
                               disabled={editSegMap.length <= 1}
-                              aria-label={`Remove segment ${idx + 1}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -3034,8 +3111,7 @@ const SegmentationView = ({
                             {segText}
                           </div>
                         </div>
-                      </div>
-                      )
+                    );
                   })}
                     <Button
                       variant="outline"
@@ -3110,7 +3186,7 @@ const SegmentationView = ({
                   <div className="flex items-center gap-1 bg-card px-3 py-1 rounded-full">
                     <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                     <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      {startTime}s - {endTime}s
+                      {formatTime(startTime)} - {formatTime(endTime)}
                     </span>
                   </div>
                 </div>
