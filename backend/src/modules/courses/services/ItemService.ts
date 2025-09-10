@@ -128,7 +128,6 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
-      console.log('Hey>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
       // Step 1: Fetch and validate parent entities
       const {version, module, section, itemsGroup} =
         await this._getVersionModuleSectionAndItemsGroup(
@@ -306,7 +305,6 @@ export class ItemService extends BaseService {
             metric.quizId.toString(),
             metric.userId.toString(),
           );
-          console.log('Attempt count: ', attemptCount);
 
           if (!quiz && !quiz.details && !attemptCount) continue;
 
