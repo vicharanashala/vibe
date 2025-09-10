@@ -3,7 +3,8 @@ import {
   IEnrollment,
   IProgress,
   ICourseVersion,
-  IWatchTime
+  IWatchTime,
+  IUser
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
@@ -12,16 +13,9 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
 import { StudentQuizScoreDto, QuizScoresExportResponseDto } from '#root/modules/users/dtos/QuizScoresExportDto.js';
+import { ISubmission, IUserQuizMetrics } from '#root/modules/quizzes/interfaces/grading.js';
+import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
 
-interface QuizMaxScores {
-  [quizId: string]: number;
-}
-
-interface UserQuizAttempts {
-  [userId: string]: {
-    [quizId: string]: number;
-  };
-}
 
 @injectable()
 export class EnrollmentRepository {
@@ -50,11 +44,20 @@ export class EnrollmentRepository {
     this.watchTimeCollection = await this.db.getCollection<IWatchTime>(
       'watchTime',
     );
-    this.submissionCollection = await this.db.getCollection('quiz_submission_results');
-    this.userQuizMetricsCollection = await this.db.getCollection('user_quiz_metrics');
-    this.quizCollection = await this.db.getCollection('quizzes');
-    this.userCollection = await this.db.getCollection('users');
-    this.itemsGroupCollection = await this.db.getCollection('itemsGroup');
+    this.submissionCollection = await this.db.getCollection<ISubmission>(
+      'quiz_submission_results',
+    );
+    this.userQuizMetricsCollection = await this.db.getCollection<IUserQuizMetrics>(
+      'user_quiz_metrics',
+    );
+    this.quizCollection = await this.db.getCollection<QuizItem>(
+      'quizzes'
+    );
+    this.userCollection = await this.db.getCollection<IUser>(
+      'users');
+    this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
+      'itemsGroup'
+    );
   }
 
   /**
@@ -953,9 +956,6 @@ export class EnrollmentRepository {
    * @returns Map of quizId to quiz details
    */
   private async getQuizDetails(quizIds: ObjectId[]): Promise<Map<string, { name: string }>> {
-    if (!this.quizCollection) {
-      this.quizCollection = this.db.getCollection('quizzes');
-    }
 
     const quizzes = await this.quizCollection
       .find({
@@ -979,16 +979,28 @@ export class EnrollmentRepository {
 
   /**
    * Get maximum scores for a list of quizzes
-   * @param userIds Array of user IDs
-   * @param quizIds Array of quiz IDs
+   * @param userIds Array of user IDs (can be string or ObjectId)
+   * @param quizIds Array of quiz IDs (can be string or ObjectId)
    * @returns Nested map of userId -> quizId -> maxScore
    */
-  private async getMaxScoresForQuizzes(userIds: ObjectId[], quizIds: ObjectId[]): Promise<Map<string, Map<string, number>>> {
+  private async getMaxScoresForQuizzes(
+    userIds: (string | ObjectId)[],
+    quizIds: (string | ObjectId)[]
+  ): Promise<Map<string, Map<string, number>>> {
     if (!quizIds.length) return new Map<string, Map<string, number>>();
 
     try {
-      const ObjuserIds = userIds.map(id => id.toString());
-      const ObjquizIds = quizIds.map(id => id.toString());
+      // Handle both string and ObjectId inputs
+      const processIds = (ids: (string | ObjectId)[]) => {
+        return ids.map(id =>
+          typeof id === 'string' && ObjectId.isValid(id)
+            ? new ObjectId(id).toString()
+            : id.toString()
+        );
+      };
+
+      const ObjuserIds = processIds(userIds);
+      const ObjquizIds = processIds(quizIds);
 
       const results = await this.submissionCollection.aggregate([
         {
@@ -1057,7 +1069,7 @@ export class EnrollmentRepository {
       const maxScores = new Map<string, Map<string, number>>();
 
       results.forEach(result => {
-       
+
         const userId = result.userId?.toString();
         const quizId = result.quizId?.toString();
 
@@ -1077,25 +1089,36 @@ export class EnrollmentRepository {
 
   /**
    * Get number of attempts per user per quiz
-   * @param userIds Array of user IDs
-   * @param quizIds Array of quiz IDs
+   * @param userIds Array of user IDs (can be string or ObjectId)
+   * @param quizIds Array of quiz IDs (can be string or ObjectId)
    * @returns Nested object mapping userId -> quizId -> attemptCount
    */
-  private async getUserQuizAttempts(userIds: ObjectId[], quizIds: ObjectId[]): Promise<Map<string, Map<string, number>>> {
+  private async getUserQuizAttempts(
+    userIds: (string | ObjectId)[],
+    quizIds: (string | ObjectId)[]
+  ): Promise<Map<string, Map<string, number>>> {
     if (!userIds.length || !quizIds.length) return new Map<string, Map<string, number>>();
-
-    if (!this.userQuizMetricsCollection) {
-      this.userQuizMetricsCollection = this.db.getCollection('user_quiz_metrics');
-    }
 
     const totalAttempts = new Map<string, Map<string, number>>();
 
     try {
+      // Handle both string and ObjectId inputs
+      const processIds = (ids: (string | ObjectId)[]) => {
+        return ids.map(id =>
+          typeof id === 'string' && ObjectId.isValid(id)
+            ? new ObjectId(id).toString()
+            : id.toString()
+        );
+      };
+
+      const ObjuserIds = processIds(userIds);
+      const ObjquizIds = processIds(quizIds);
+
       const results = await this.userQuizMetricsCollection.aggregate([
         {
           $match: {
-            userId: { $in: userIds.map(id => id.toString()) },
-            quizId: { $in: quizIds.map(id => id.toString()) },
+            userId: { $in: ObjuserIds },
+            quizId: { $in: ObjquizIds },
             attempts: { $exists: true, $type: 'array' }
           }
         },
@@ -1175,7 +1198,7 @@ export class EnrollmentRepository {
       });
 
       if (totalStudents === 0) {
-        return { 
+        return {
           data: [],
           metadata: {
             courseId,
@@ -1194,7 +1217,7 @@ export class EnrollmentRepository {
       ))];
 
       if (allQuizIds.length === 0) {
-        return { 
+        return {
           data: [],
           metadata: {
             courseId,
@@ -1215,7 +1238,7 @@ export class EnrollmentRepository {
 
       for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
         const skip = batchNum * this.BATCH_SIZE;
-        
+
         // 4. Get batch of enrollments with user details
         const enrollments = await this.enrollmentCollection.aggregate([
           {
@@ -1251,7 +1274,7 @@ export class EnrollmentRepository {
         if (enrollments.length === 0) continue;
 
         const batchUserIds = enrollments.map(e => e.userId);
-        
+
         // 5. Fetch max scores and attempts for this batch
         const [maxScores, totalAttempts] = await Promise.all([
           this.getMaxScoresForQuizzes(batchUserIds, quizIdsObjectIds),
@@ -1261,7 +1284,7 @@ export class EnrollmentRepository {
         // 6. Process this batch
         const batchResults = enrollments.map(enrollment => {
           const userId = enrollment.userId.toString();
-          
+
           const quizScores = quizzesByModuleSection.flatMap(module =>
             module.sections.flatMap(section =>
               section.quizIds.map(quizId => {
@@ -1290,7 +1313,7 @@ export class EnrollmentRepository {
       }
 
       const duration = Date.now() - startTime;
-      return { 
+      return {
         data: result,
         metadata: {
           courseId,
