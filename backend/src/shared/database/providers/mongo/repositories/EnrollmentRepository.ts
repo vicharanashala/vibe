@@ -977,6 +977,14 @@ export class EnrollmentRepository {
     return quizDetails;
   }
 
+  private processIds = (ids: (string | ObjectId)[]) => {
+    return ids.map(id =>
+      typeof id === 'string' && ObjectId.isValid(id)
+        ? new ObjectId(id)
+        : id
+    );
+  };
+
   /**
    * Get maximum scores for a list of quizzes
    * @param userIds Array of user IDs (can be string or ObjectId)
@@ -991,16 +999,10 @@ export class EnrollmentRepository {
 
     try {
       // Handle both string and ObjectId inputs
-      const processIds = (ids: (string | ObjectId)[]) => {
-        return ids.map(id =>
-          typeof id === 'string' && ObjectId.isValid(id)
-            ? new ObjectId(id).toString()
-            : id.toString()
-        );
-      };
 
-      const ObjuserIds = processIds(userIds);
-      const ObjquizIds = processIds(quizIds);
+
+      const ObjuserIds = this.processIds(userIds);
+      const ObjquizIds = this.processIds(quizIds);
 
       const results = await this.submissionCollection.aggregate([
         {
@@ -1102,17 +1104,9 @@ export class EnrollmentRepository {
     const totalAttempts = new Map<string, Map<string, number>>();
 
     try {
-      // Handle both string and ObjectId inputs
-      const processIds = (ids: (string | ObjectId)[]) => {
-        return ids.map(id =>
-          typeof id === 'string' && ObjectId.isValid(id)
-            ? new ObjectId(id).toString()
-            : id.toString()
-        );
-      };
 
-      const ObjuserIds = processIds(userIds);
-      const ObjquizIds = processIds(quizIds);
+      const ObjuserIds = this.processIds(userIds);
+      const ObjquizIds = this.processIds(quizIds);
 
       const results = await this.userQuizMetricsCollection.aggregate([
         {
@@ -1130,6 +1124,7 @@ export class EnrollmentRepository {
           }
         }
       ]).toArray();
+
 
       // Debug: Check sample documents
       if (results.length === 0) {
