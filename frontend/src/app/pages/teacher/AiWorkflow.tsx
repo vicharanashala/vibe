@@ -50,7 +50,7 @@ const AiWorkflow = () => {
     const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
         model: "deepseek-r1:70b",
-        SQL: 0,
+        SOL: 0,
         SML: 0,
         NAT: 0,
         DES: 0,
@@ -488,7 +488,7 @@ const AiWorkflow = () => {
 
         jobParams.questionGenerationParameters = {
             model: customQuestionParams.model || "deepseek-r1:70b",
-            SQL: customQuestionParams.SQL ?? 1,
+            SOL: customQuestionParams.SOL ?? 1,
             SML: customQuestionParams.SML ?? 0,
             NAT: customQuestionParams.NAT ?? 0,
             DES: customQuestionParams.DES ?? 0,
@@ -1354,9 +1354,10 @@ const [isRerunning, setIsRerunning] = useState(false);
       }
       const newParams = {
         ...customQuestionParams,
-        SQL: (isMCQ || isBinary) ? 2 : 0,
+        SOL: (isMCQ) ? 2 : 0,
         SML: isMSQ  ? 2 : 0,
-        prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
+        BIN:isBinary ?2:0,
+        // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
       // setCustomQuestionParams(newParams);
