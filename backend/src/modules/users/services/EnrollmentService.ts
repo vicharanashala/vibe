@@ -38,7 +38,9 @@ import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {
   QuestionBankRepository,
+  QuizRepository,
   SubmissionRepository,
+  UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
 
 @injectable()
@@ -65,6 +67,10 @@ export class EnrollmentService extends BaseService {
     private questionBankRepository: QuestionBankRepository,
     @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
+    @inject(QUIZZES_TYPES.QuizRepo)
+    public readonly quizRepo: QuizRepository,
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
+    private userQuizMetricsRepository: UserQuizMetricsRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -593,32 +599,42 @@ export class EnrollmentService extends BaseService {
       | 'newCourse'
       | 'newCourseVersion'
       | 'questionBanks'
-      | 'quiz_submission_results',
-  ) {
+      | 'quiz_submission_results'
+      | 'quizzes'
+      | 'user_quiz_metrics',
+  ): Promise<void> {
     try {
-      if (collection == 'anomaly_records') {
-        await this.anomalyRepository.bulkConvertIds();
-      } else if (collection == 'genAI_jobs') {
-        await this.genAIRepository.bulkConvertIds();
-      } else if (collection == 'invites') {
-        await this.inviteRepo.bulkConvertIds();
-      } else if (collection == 'itemsGroup') {
-        await this.itemRepo.bulkConvertIds();
-      } else if (collection == 'job_task_status') {
-        await this.genAIRepository.bulkConvertTaskIds();
-      } else if (collection == 'newCourse') {
-        await this.courseRepo.bulkConvertIds();
-      } else if (collection == 'newCourseVersion') {
-        await this.courseRepo.bulkConvertVersionIds();
-      } else if (collection == 'questionBanks') {
-        await this.questionBankRepository.bulkConvertIds();
-      } else if (collection == 'quiz_submission_results') {
-        await this.submissionRepo.bulkConvertIds();
-      } else if (collection == 'quizzes') {
+      const handlers: Record<
+        typeof collection,
+        () => Promise<{updated: number}>
+      > = {
+        anomaly_records: () => this.anomalyRepository.bulkConvertIds(),
+        genAI_jobs: () => this.genAIRepository.bulkConvertIds(),
+        invites: () => this.inviteRepo.bulkConvertIds(),
+        itemsGroup: () => this.itemRepo.bulkConvertIds(),
+        job_task_status: () => this.genAIRepository.bulkConvertTaskIds(),
+        newCourse: () => this.courseRepo.bulkConvertIds(),
+        newCourseVersion: () => this.courseRepo.bulkConvertVersionIds(),
+        questionBanks: () => this.questionBankRepository.bulkConvertIds(),
+        quiz_submission_results: () => this.submissionRepo.bulkConvertIds(),
+        quizzes: () => this.quizRepo.bulkConvertIds(),
+        user_quiz_metrics: () =>
+          this.userQuizMetricsRepository.bulkConvertIds(),
+      };
 
+      const handler = handlers[collection];
+
+      if (!handler) {
+        throw new InternalServerError(
+          `No bulk conversion handler for ${collection}`,
+        );
       }
+
+      await handler();
     } catch (error) {
-      throw new InternalServerError(`Failed to bulk update ${collection}`);
+      throw new InternalServerError(
+        `Failed to bulk update ${collection}. Error: ${error}`,
+      );
     }
   }
 
