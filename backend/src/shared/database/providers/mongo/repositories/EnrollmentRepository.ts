@@ -1143,31 +1143,32 @@ export class EnrollmentRepository {
 
     try {
       const result = new Map<string, Map<string, number>>();
-  
+
       // Process users in batches to avoid too many database queries
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = 1000;
       for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
         const batch = userIds.slice(i, i + BATCH_SIZE);
-        
+
         for (const userId of batch) {
           const userMap = new Map<string, number>();
           const userIdStr = userId.toString();
-          
+
           for (const quizId of quizIds) {
             const quizIdStr = quizId.toString();
+
             const count = await this.attemptRepository.countUserAttempts(
               quizIdStr,
               userIdStr
             ) || 0;
-            
+
             userMap.set(quizIdStr, count);
           }
-          
+
           result.set(userIdStr, userMap);
         }
       }
-    console.log("results from total attempmts from enrollment repository", result);
-    
+      console.log("results from total attempmts from enrollment repository", result);
+
       return result;
     } catch (error) {
       console.error('Error in getUserQuizAttempts:', error);
@@ -1182,7 +1183,7 @@ export class EnrollmentRepository {
    * @returns Array of student quiz scores with their max scores and attempts
    */
 
-  private readonly BATCH_SIZE = 100; // Number of students to process in each batch
+  private readonly BATCH_SIZE = 1000; // Number of students to process in each batch
 
   async getQuizScoresForCourseVersion(
     courseId: string,
@@ -1201,8 +1202,9 @@ export class EnrollmentRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
         role: 'STUDENT',
-        status: 'ACTIVE'
+        status: { $regex: /^active$/i } // strict, case-insensitive
       });
+
 
       if (totalStudents === 0) {
         return {
@@ -1253,7 +1255,7 @@ export class EnrollmentRepository {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(versionId),
               role: 'STUDENT',
-              status: 'ACTIVE'
+              status: { $regex: /^active$/i }
             }
           },
           { $skip: skip },
