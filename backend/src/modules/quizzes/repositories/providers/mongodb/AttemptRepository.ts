@@ -1,16 +1,16 @@
-import {IAttempt} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { IAttempt } from '#quizzes/interfaces/grading.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
@@ -20,7 +20,7 @@ class AttemptRepository {
 
   async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
-    const result = await this.attemptCollection.insertOne(attempt, {session});
+    const result = await this.attemptCollection.insertOne(attempt, { session });
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -39,9 +39,9 @@ class AttemptRepository {
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: {$in: [quizIdStr, quizIdObj]},
+        quizId: { $in: [quizIdStr, quizIdObj] },
       },
-      {session},
+      { session },
     );
     if (!result) {
       return null;
@@ -62,8 +62,8 @@ class AttemptRepository {
     const quizIdObj = new ObjectId(quizIdStr);
 
     const result = await this.attemptCollection.countDocuments(
-      {quizId: {$in: [quizIdStr, quizIdObj]}},
-      {session},
+      { quizId: { $in: [quizIdStr, quizIdObj] } },
+      { session },
     );
     if (!result) {
       return null;
@@ -86,12 +86,12 @@ class AttemptRepository {
 
     const result = await this.attemptCollection.countDocuments(
       {
-        quizId: {$in: [quizIdStr, quizIdObj]},
-        userId: {$in: [userIdStr, userIdObj]},
+        quizId: { $in: [quizIdStr, quizIdObj] },
+        userId: { $in: [userIdStr, userIdObj] },
       },
-      {session},
+      { session },
     );
-
+    console.log(result);
     if (!result) {
       return null;
     }
@@ -101,9 +101,9 @@ class AttemptRepository {
   async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
-      {_id: new ObjectId(attemptId)},
-      {$set: updateData},
-      {returnDocument: 'after'},
+      { _id: new ObjectId(attemptId) },
+      { $set: updateData },
+      { returnDocument: 'after' },
     );
     return result;
   }
@@ -137,10 +137,10 @@ class AttemptRepository {
     const distinctUsers = await this.attemptCollection.distinct(
       'userId',
       filter,
-      {session},
+      { session },
     );
     return distinctUsers.length;
   }
 }
 
-export {AttemptRepository};
+export { AttemptRepository };
