@@ -820,6 +820,8 @@ const AiWorkflow = () => {
                                     handleShowHandleResult={handleShowHandleResult}
                                     isWaitingServer={isWaitingServer}
                                     isApprovingTask={isApprovingTask}
+                                    setSegmentationMap={setSegmentationMap}
+                                    setSegmentationChunks={setSegmentationChunks}
                                 />
                             ) : currentJob?.task === "QUESTION_GENERATION" ? (
                                 <QuestionGenerationView
@@ -827,6 +829,7 @@ const AiWorkflow = () => {
                                     isTaskResultLoading={isTaskResultLoading}
                                     error={error}
                                     questions={questions}
+                                    setQuestions={setQuestions}
                                     aiJobId={aiJobId}
                                     handleApproveTask={handleApproveTask}
                                     setEditingIdx={setEditingIdx}
@@ -903,12 +906,20 @@ const parseTimeToSeconds = (time: string): number => {
         if (isNaN(ms)) return m * 60 + s;
         return m * 60 + s + ms / 1000;
       } else if (parts.length === 2) {
-        const [mStr, sStr] = parts;
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
+        const [first, second] = parts;
+        const isMs = (second || '').length <= 3 && /^(\d{1,3})$/.test(second || '');
+        if (isMs && (first || '').length <= 3) {
+          const sec = parseInt(first || '0', 10);
+          const msRaw = (second || '').slice(0, 3);
+          const msNum = parseInt(msRaw || '0', 10) || 0;
+          if (isNaN(sec)) return 0;
+          return sec + msNum / 1000;
+        }
+        const m = parseInt(first || '0', 10);
+        const s = parseInt(second || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
       }
     }
     if (cleaned.includes('.')) {
@@ -917,19 +928,15 @@ const parseTimeToSeconds = (time: string): number => {
         const [mStr, sStr, msStr] = parts;
         const m = parseInt(mStr || '0', 10);
         const s = parseInt(sStr || '0', 10);
-        const ms = parseInt(msStr || '0', 10);
+        const ms = parseInt((msStr || '').slice(0, 3) || '0', 10) || 0;
         if (isNaN(m)) return 0;
         if (isNaN(s)) return m * 60;
-        if (isNaN(ms)) return m * 60 + s;
         return m * 60 + s + ms / 1000;
       } else if (parts.length === 2) {
-        const [mStr, sStrRaw] = parts;
-      const sStr = (sStrRaw || '').slice(0, 2);
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
+        const [secStr, msStrRaw] = parts;
+        const sec = parseInt(secStr || '0', 10) || 0;
+        const msNum = parseInt((msStrRaw || '').slice(0, 3) || '0', 10) || 0;
+        return sec + msNum / 1000;
       }
     }
     const sOnly = parseInt(cleaned, 10);
@@ -1186,7 +1193,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   }, [currentJobData]);
 
   return (
-    <div className=" bg-card pb-3">
+    <div className=" bg-card pb-3 ">
         <div className="flex items-center justify-between  px-8 relative animate-fade-in ">
         {WORKFLOW_STEPS.map((step, idx) => {
             const status = getStepStatus(currentJobData, step.key);
@@ -1201,7 +1208,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 
             return (
             <React.Fragment key={step.key}>
-                <div className="flex flex-col items-center relative z-10 animate-step-appear">
+                <div className="flex flex-col items-center relative animate-step-appear">
                 {/* Step Circle */}
                 <div className={`
                     stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
@@ -1317,6 +1324,7 @@ interface QuestionGenerationResultProps {
   isApprovingTask: boolean;
   error: string | null;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
   handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
@@ -1338,6 +1346,7 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isTaskResultLoading,
     error,
     questions,
+    setQuestions,
     aiJobId,
     handleApproveTask,
     setEditingIdx,
@@ -1356,8 +1365,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     }) => {
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
-    // const [mcqCount, setMcqCount] = useState(2);
-    // const [binaryCount, setBinaryCount] = useState(0);
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
@@ -1373,12 +1380,6 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const [isRerunning, setIsRerunning] = useState(false);
 
-
-    // const clampInt = (val: string, min = 0, max = 100) => {
-    //     const n = Number.parseInt(val, 10)
-    //     if (Number.isNaN(n)) return min
-    //     return Math.min(max, Math.max(min, n))
-    // }
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
@@ -1401,8 +1402,6 @@ const [isRerunning, setIsRerunning] = useState(false);
         BIN:isBinary ?2:0,
         // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
-
-      // setCustomQuestionParams(newParams);
 
       if (currentJobStatus === "COMPLETED") {
           try {
@@ -1487,7 +1486,7 @@ const [isRerunning, setIsRerunning] = useState(false);
 
                   <div className="space-y-6">
                       <div className="flex flex-wrap items-end justify-between gap-6">
-                      <div className="space-y-2 min-w-[220px]">
+                      {/* <div className="space-y-2 min-w-[220px]">
                           <Label className="text-sm font-medium" htmlFor="model-select">
                           Model
                           </Label>
@@ -1496,17 +1495,28 @@ const [isRerunning, setIsRerunning] = useState(false);
                           onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
                           disabled={isLocked}
                           >
-                          <SelectTrigger id="model-select" className="h-10">
+                          <SelectTrigger id="model-select" className="h-10 mb-2">
                               <SelectValue placeholder="Select model" />
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                          </SelectContent>
-                          </Select>
-                          <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                              {/* <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem> */}
+                          {/* </SelectContent>
+                          </Select> */}
+                          {/* <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                      // </div> */} 
+
+                      <div className="space-y-2 min-w-[220px]">
+                        <Label className="text-sm font-medium">Model</Label>
+                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-card text-sm">
+                          DeepSeek R1 70B
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {/* Choose the model used to generate questions. */}
+                        </p>
                       </div>
+
 
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Question Types</Label>
@@ -1561,117 +1571,6 @@ const [isRerunning, setIsRerunning] = useState(false);
                         </p>
                       </div>
                       </div>
-
-                      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {showMCQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="mcq-count">
-                              MCQ Count
-                          </Label>
-                          <Input
-                              id="mcq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={mcqCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SQL) ? customQuestionParams.SQL : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SQL: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setMcqCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="mcq-help"
-                          />
-                          <p id="mcq-help" className="text-sm text-muted-foreground">
-                              Number of single-answer multiple choice questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showMSQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="msq-count">
-                              MSQ Count
-                          </Label>
-                          <Input
-                              id="msq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              setCustomQuestionParams((prev) => ({
-                                  ...prev,
-                                  SML: clampInt(e.target.value, 0, 100),
-                              }))
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="msq-help"
-                          />
-                          <p id="msq-help" className="text-sm text-muted-foreground">
-                              Number of multi-select questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showBinary && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="binary-count">
-                              Binary question Count
-                          </Label>
-                          <Input
-                              id="binary-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={binaryCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SML: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setBinaryCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="binary-help"
-                          />
-                          <p id="binary-help" className="text-sm text-muted-foreground">
-                              Number of binary questions to generate.
-                          </p>
-                          </div>
-                      )}
-                      </div> */}
-
-                      {/* <div className="flex items-center gap-3">
-                      <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-
-                            setCustomQuestionParams((prev) => ({
-                              ...prev,
-                              SML: 0,
-                            }))
-                            setMcqCount(2);
-                            setBinaryCount(0)
-                          }
-                        }
-                          disabled={isLocked}
-                      >
-                          Reset Counts
-                      </Button>
-                      </div> */}
                   </div>
               </section>
           )}
@@ -1831,6 +1730,7 @@ const [isRerunning, setIsRerunning] = useState(false);
              setEditModalOpen={setEditModalOpen}
              editQuestion={editQuestion}
              questions={questions}
+             setQuestions={setQuestions}
              editingIdx={editingIdx || 0}
              aiJobId={aiJobId}
              aiSectionAPI={aiSectionAPI}
@@ -1898,6 +1798,7 @@ interface EditQuestionDialogProps {
   setEditModalOpen: (open: boolean) => void;
   editQuestion: any;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>
   editingIdx: number;
   aiJobId: string | null;
   aiSectionAPI: any;
@@ -1909,6 +1810,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   setEditModalOpen,
   editQuestion,
   questions,
+  setQuestions,
   editingIdx,
   aiJobId,
   aiSectionAPI,
@@ -1930,7 +1832,18 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
                 await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
-                handleShowHandleResult("QUESTION_GENERATION");
+                  setQuestions(prev =>
+                    prev.map((q, idx) =>
+                      idx !== editingIdx
+                        ? q
+                        : {
+                            ...q,
+                            question: { ...q.question, text: edited.text },
+                            solution: edited.solution,
+                          }
+                    )
+                  );
+                // handleShowHandleResult("QUESTION_GENERATION");
                 toast.success('Question Updated.');
               } catch (e) {
                 toast.error("Failed update question!")
@@ -2222,6 +2135,8 @@ const SegmentationView = ({
   handleShowHandleResult,
   isWaitingServer,
   isApprovingTask,
+  setSegmentationMap,
+  setSegmentationChunks
 }: any) => {
 
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -2283,7 +2198,7 @@ const SegmentationView = ({
   const totalSecs = Math.floor(Math.max(0, seconds));
   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
   const ss = totalSecs.toString().padStart(2, '0');
-  const mmm = ms.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(3, '0');
   return `${ss}.${mmm}`;
 };
   const formatTimeInput = (value: string): string => {
@@ -2466,6 +2381,28 @@ const SegmentationView = ({
           // Use index 0 for the backend (fixes 500 error)
           const payload = editSegMap.map((s) => formatTimePadded(s));
           await editSegmentMap(aiJobId, payload);
+          
+          const sortedSegments = [...editSegMap].sort((a, b) => a - b);
+          
+          const updatedChunks = sortedSegments.map((end, idx) => {
+              const start = idx === 0 ? 0 : sortedSegments[idx - 1];
+              
+              return editTranscriptChunks.filter(chunk => {
+                  if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                      return false;
+                  }
+                  
+                  const chunkStart = chunk.timestamp[0];
+                  const chunkEnd = chunk.timestamp[1];
+                  const chunkMid = (chunkStart + chunkEnd) / 2;
+                  
+                  return chunkMid > start && chunkMid <= end;
+              });
+          });
+  
+          setSegmentationMap(sortedSegments);
+          setSegmentationChunks(updatedChunks);
+          
           handleShowHandleResult("SEGMENTATION");
           toast.success('Segments updated successfully!');
           setEditModalOpen(false);
@@ -2888,9 +2825,10 @@ const SegmentationView = ({
           </DialogContent>
         </Dialog> */}
             <div className="space-y-3">
-              {segmentationMap.map((end: number, idx: number) => {
-                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
-                const segChunks = segmentationChunks[idx] || []
+            {segmentationMap && segmentationMap.map((end: number, idx: number) => {
+    const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+    const segChunks: { text: string }[] = segmentationChunks?.[idx] || [];
+    const segmentText = segChunks.map((chunk: { text: string }) => chunk.text).join(" ");
 
                 return (
                   <div
@@ -2904,25 +2842,35 @@ const SegmentationView = ({
                         </div>
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
                       </div>
-
                       <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
                         <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                           {formatTime(start)} – {formatTime(end)}
                         </span>
                       </div>
-                    </div>
+                  </div>
 
-                    {segChunks.length > 0 && (
-                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
+                  {(() => {
+                      const fallbackChunks = (editTranscriptChunks || []).filter((chunk: { timestamp: [number, number]; text: string }) => {
+                          if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) return false;
+                          const [chunkStart, chunkEnd] = chunk.timestamp;
+                          const chunkMid = (chunkStart + chunkEnd) / 2;
+                          return chunkMid > (idx === 0 ? 0 : segmentationMap[idx - 1]) && chunkMid <= end;
+                      });
+                      const displayChunks: { text: string }[] = (segChunks && segChunks.length > 0) ? segChunks : fallbackChunks as any;
+                      if (!displayChunks || displayChunks.length === 0) return null;
+                      return (
+                    <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900 mt-3">
                         <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
+                          {displayChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
                         </p>
                       </div>
-                    )}
+                    );
+                })()}
+
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -3042,13 +2990,19 @@ const SegmentationView = ({
                   {editSegMap.map((value, idx) => {
                     const start = idx === 0 ? 0 : editSegMap[idx - 1];
                     const end = value;
-                    const segChunks = editTranscriptChunks.filter(chunk =>
-                        chunk.timestamp &&
-                        typeof chunk.timestamp[0] === 'number' &&
-                        chunk.timestamp[0] >= start &&
-                        chunk.timestamp[0] < end
-                    );
-                    const segText = segChunks.map(chunk => chunk.text).join(' ');                
+                    const segChunks = editTranscriptChunks.filter(chunk => {
+                      if (!chunk.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                        return false;
+                      }
+                      
+                      const chunkStart = chunk.timestamp[0];
+                      const chunkEnd = chunk.timestamp[1];
+                      
+                      return chunkStart < end && chunkEnd > start;
+                    });
+                    const segText = segChunks.length > 0 
+                      ? segChunks.map(chunk => chunk.text).join(' ')
+                      : 'No transcript content for this segment';                
                     return (
                       <div key={idx} className="flex flex-col gap-1 border-b pb-2">
                           <div className="flex items-center gap-2">
