@@ -9,6 +9,7 @@ import {MongoDatabase} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
 import {ClientSession, Collection, ObjectId} from 'mongodb';
+import {InternalServerError} from 'routing-controllers';
 
 @injectable()
 export class GenAIRepository {
@@ -249,5 +250,84 @@ export class GenAIRepository {
     //   .find({userId: new ObjectId(userId)}, {session})
     //   .toArray();
     return results;
+  }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+      const jobs = await this.genAICollection
+        .find()
+        .project({_id: 1, userId: 1})
+        .toArray();
+      if (!jobs.length) return {updated: 0};
+
+      const bulkOperation = jobs
+        .map(job => {
+          const updateFields: Record<string, any> = {};
+
+          if (job.userId && typeof job.userId === 'string') {
+            updateFields.userId = new ObjectId(job.userId);
+          }
+
+          if (Object.keys(updateFields).length > 0) {
+            return {
+              updateOne: {
+                filter: {_id: job._id},
+                update: {$set: updateFields},
+              },
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperation.length) return {updated: 0};
+
+      const result = await this.genAICollection.bulkWrite(bulkOperation);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(`Failed update. More/ ${error}`);
+    }
+  }
+  async bulkConvertTaskIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+
+      const tasks = await this.taskDataCollection
+        .find()
+        .project({_id: 1, jobId: 1})
+        .toArray();
+
+      if (!tasks.length) return {updated: 0};
+
+      const bulkOperations = tasks
+        .map(status => {
+          const updateFields: Record<string, any> = {};
+
+          if (status.jobId && typeof status.jobId === 'string') {
+            updateFields.jobId = new ObjectId(status.jobId);
+          }
+
+          if (Object.keys(updateFields).length > 0) {
+            return {
+              updateOne: {
+                filter: {_id: status._id},
+                update: {$set: updateFields},
+              },
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperations.length) return {updated: 0};
+
+      const result = await this.taskDataCollection.bulkWrite(bulkOperations);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed job_task_status ID conversion. More/ ${error}`,
+      );
+    }
   }
 }

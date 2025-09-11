@@ -3,6 +3,7 @@ import {IQuestionBank} from '#shared/interfaces/quiz.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
 
 @injectable()
 class QuestionBankRepository {
@@ -101,6 +102,70 @@ class QuestionBankRepository {
       {session},
     ).toArray();
     return result;
+  }
+
+  async bulkConvertIds(): Promise<{ updated: number }> {
+    try {
+      await this.init();
+
+      const banks = await this.questionBankCollection
+        .find()
+        .project({ _id: 1, courseId: 1, courseVersionId: 1, questions: 1 })
+        .toArray();
+
+      if (!banks.length) return { updated: 0 };
+
+      const bulkOps = banks.map((bank) => {
+        let needsUpdate = false;
+
+        // convert courseId
+        let updatedCourseId = bank.courseId;
+        if (bank.courseId && typeof bank.courseId === "string") {
+          updatedCourseId = new ObjectId(bank.courseId);
+          needsUpdate = true;
+        }
+
+        // convert courseVersionId
+        let updatedCourseVersionId = bank.courseVersionId;
+        if (bank.courseVersionId && typeof bank.courseVersionId === "string") {
+          updatedCourseVersionId = new ObjectId(bank.courseVersionId);
+          needsUpdate = true;
+        }
+
+        // convert questions array
+        const updatedQuestions = (bank.questions || []).map((q) => {
+          if (q && typeof q === "string") {
+            needsUpdate = true;
+            return new ObjectId(q);
+          }
+          return q;
+        });
+
+        if (needsUpdate) {
+          return {
+            updateOne: {
+              filter: { _id: bank._id },
+              update: {
+                $set: {
+                  courseId: updatedCourseId,
+                  courseVersionId: updatedCourseVersionId,
+                  questions: updatedQuestions,
+                },
+              },
+            },
+          };
+        }
+
+        return null;
+      }).filter(Boolean);
+
+      if (!bulkOps.length) return { updated: 0 };
+
+      const result = await this.questionBankCollection.bulkWrite(bulkOps);
+      return { updated: result.modifiedCount };
+    } catch (error) {
+      throw new InternalServerError(`Failed questionBanks ID conversion. More/ ${error}`);
+    }
   }
 }
 

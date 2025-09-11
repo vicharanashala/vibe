@@ -4,17 +4,17 @@ const TYPES = {
   //Database
   Database: Symbol.for('Database'),
 
+  //Services
+  MailService: Symbol.for('MailService'),
+
   //Repositories
   UserRepo: Symbol.for('UserRepo'),
   CourseRepo: Symbol.for('CourseRepo'),
   InviteRepo: Symbol.for('InviteRepo'),
   EnrollmentRepo: Symbol.for('EnrollmentRepo'),
-
-  //Services
-  MailService: Symbol.for('MailService'),
   CourseVersionService: Symbol.for('CourseVersionService'),
-  
   SettingRepo: Symbol.for('SettingRepo'),
+  
 
   //Constants
   uri: Symbol.for('dbURI'),

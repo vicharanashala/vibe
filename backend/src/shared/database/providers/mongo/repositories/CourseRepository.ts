@@ -22,6 +22,7 @@ import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import { Module, Section } from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -544,7 +545,7 @@ export class CourseRepository implements ICourseRepository {
     const idAsObjectId = ObjectId.isValid(itemGroupId) // temp
       ? new ObjectId(itemGroupId)
       : null;
-      
+
     const courseVersion = await this.courseVersionCollection.findOne(
       {
         $or: [
@@ -603,6 +604,113 @@ export class CourseRepository implements ICourseRepository {
       throw new InternalServerError(
         'Failed to bulk update course versions.\n More Details: ' + error,
       );
+    }
+  }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+
+      const courses = await this.courseCollection
+        .find()
+        .project({_id: 1, versions: 1})
+        .toArray();
+
+      if (!courses.length) return {updated: 0};
+
+      const bulkOperations = courses
+        .map(course => {
+          if (!Array.isArray(course.versions)) return null;
+
+          let updatedVersions = false;
+          const convertedVersions = course.versions.map(v => {
+            if (v?._id && typeof v._id === 'string') {
+              updatedVersions = true;
+              return {...v, _id: new ObjectId(v._id)};
+            }
+            return v;
+          });
+
+          if (updatedVersions) {
+            return {
+              updateOne: {
+                filter: {_id: course._id},
+                update: {$set: {versions: convertedVersions}},
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperations.length) return {updated: 0};
+
+      const result = await this.courseCollection.bulkWrite(bulkOperations);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed newCourse versions ID conversion. More/ ${error}`,
+      );
+    }
+  }
+
+  async bulkConvertVersionIds(): Promise<{ updated: number }> {
+    try {
+      await this.init();
+
+      const versions = await this.courseVersionCollection
+        .find()
+        .project({ _id: 1, courseId: 1, modules: 1 })
+        .toArray();
+
+      if (!versions.length) return { updated: 0 };
+
+      const bulkOperation = versions.map((version) => {
+        let needsUpdate = false;
+
+        // convert courseId
+        let updatedCourseId = version.courseId;
+        if (version.courseId && typeof version.courseId === "string") {
+          updatedCourseId = new ObjectId(version.courseId);
+          needsUpdate = true;
+        }
+
+        // convert nested modules → sections → itemsGroupId
+        const updatedModules = (version.modules || []).map((mod: Module) => {
+          const updatedSections = (mod.sections || []).map((sec: Section) => {
+            let updatedSection = { ...sec };
+            if (sec.itemsGroupId && typeof sec.itemsGroupId === "string") {
+              updatedSection.itemsGroupId = new ObjectId(sec.itemsGroupId);
+              needsUpdate = true;
+            }
+            return updatedSection;
+          });
+          return { ...mod, sections: updatedSections };
+        });
+
+        if (needsUpdate) {
+          return {
+            updateOne: {
+              filter: { _id: version._id },
+              update: {
+                $set: {
+                  courseId: updatedCourseId,
+                  modules: updatedModules,
+                },
+              },
+            },
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (!bulkOperation.length) return { updated: 0 };
+
+      const result = await this.courseVersionCollection.bulkWrite(bulkOperation);
+      return { updated: result.modifiedCount };
+    } catch (error) {
+      throw new InternalServerError(`Failed newCourseVersion ID conversion. More/ ${error}`);
     }
   }
 }

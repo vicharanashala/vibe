@@ -385,4 +385,42 @@ export class ItemRepository implements IItemRepository {
       return updatedVersion.totalItems;
     }
   }
+
+  async bulkConvertIds(): Promise<{ updated: number }> {
+    try {
+      await this.init();
+
+      const itemsGroups = await this.itemsGroupCollection
+        .find()
+        .project({ _id: 1, sectionId: 1 })
+        .toArray();
+
+      if (!itemsGroups.length) return { updated: 0 };
+
+      const bulkOperations = itemsGroups.map((group) => {
+        const updateFields: Record<string, any> = {};
+
+        if (group.sectionId && typeof group.sectionId === "string") {
+          updateFields.sectionId = new ObjectId(group.sectionId);
+        }
+
+        if (Object.keys(updateFields).length > 0) {
+          return {
+            updateOne: {
+              filter: { _id: group._id },
+              update: { $set: updateFields },
+            },
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (!bulkOperations.length) return { updated: 0 };
+
+      const result = await this.itemsGroupCollection.bulkWrite(bulkOperations);
+      return { updated: result.modifiedCount };
+    } catch (error) {
+      throw new InternalServerError(`Failed itemsGroup ID conversion. More/ ${error}`);
+    }
+  }
 }

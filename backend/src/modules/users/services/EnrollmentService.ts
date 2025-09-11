@@ -1,40 +1,71 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
-import { ProgressRepository } from '#root/shared/index.js';
-import { EnrollmentDataResponse } from '../classes/index.js';
-import { QuizScoresExportResponseDto, StudentQuizScoreDto } from '../dtos/QuizScoresExportDto.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {
+  BadRequestError,
+  InternalServerError,
+  NotFoundError,
+} from 'routing-controllers';
+import {ProgressService} from './ProgressService.js';
+import {InviteRepository, ProgressRepository} from '#root/shared/index.js';
+import {EnrollmentDataResponse} from '../classes/index.js';
+import {
+  QuizScoresExportResponseDto,
+  StudentQuizScoreDto,
+} from '../dtos/QuizScoresExportDto.js';
+import {
+  ANOMALIES_TYPES,
+  AnomalyRepository,
+} from '#root/modules/anomalies/index.js';
+import {GENAI_TYPES} from '#root/modules/genAI/types.js';
+import {GenAIRepository} from '#root/modules/genAI/repositories/providers/mongodb/GenAIRepository.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {
+  QuestionBankRepository,
+  SubmissionRepository,
+} from '#root/modules/quizzes/repositories/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
   constructor(
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
+
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
-    @inject(USERS_TYPES.ProgressService)
-    private readonly progressService: ProgressService,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
+    @inject(ANOMALIES_TYPES.AnomalyRepository)
+    private anomalyRepository: AnomalyRepository,
+    @inject(GENAI_TYPES.GenAIRepository)
+    private readonly genAIRepository: GenAIRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteRepo)
+    private readonly inviteRepo: InviteRepository,
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
+    private questionBankRepository: QuestionBankRepository,
+    @inject(QUIZZES_TYPES.SubmissionRepo)
+    public readonly submissionRepo: SubmissionRepository,
+
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -343,7 +374,7 @@ export class EnrollmentService extends BaseService {
       // Verify course and version exist in a single transaction
       const [course, version] = await Promise.all([
         this.courseRepo.read(courseId),
-        this.courseRepo.readVersion(versionId)
+        this.courseRepo.readVersion(versionId),
       ]);
 
       if (!course) {
@@ -353,7 +384,9 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      console.log(`Starting quiz scores export for course ${courseId}, version ${versionId}`);
+      console.log(
+        `Starting quiz scores export for course ${courseId}, version ${versionId}`,
+      );
 
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
@@ -361,7 +394,10 @@ export class EnrollmentService extends BaseService {
         versionId,
       );
     } catch (error) {
-      console.error(`Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`, error);
+      console.error(
+        `Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`,
+        error,
+      );
 
       // Rethrow with more context if it's not already a known error
       if (error instanceof NotFoundError) {
@@ -438,7 +474,7 @@ export class EnrollmentService extends BaseService {
 
   async bulkUpdateAllEnrollments(
     courseId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -463,7 +499,9 @@ export class EnrollmentService extends BaseService {
 
     for (const courseVersionId of courseVersionIds) {
       try {
-        const courseVersion = await this.courseRepo.readVersion(courseVersionId as string);
+        const courseVersion = await this.courseRepo.readVersion(
+          courseVersionId as string,
+        );
         if (!courseVersion) continue;
 
         const totalItems = await this.itemRepo.CalculateTotalItemsCount(
@@ -480,11 +518,12 @@ export class EnrollmentService extends BaseService {
 
         for (const enrollment of enrollments) {
           try {
-            const completedItems = await this.progressService.getUserProgressPercentageWithoutTotal(
-              enrollment.userId.toString(),
-              courseVersion.courseId.toString(),
-              courseVersion._id.toString(),
-            );
+            const completedItems =
+              await this.progressService.getUserProgressPercentageWithoutTotal(
+                enrollment.userId.toString(),
+                courseVersion.courseId.toString(),
+                courseVersion._id.toString(),
+              );
 
             const percentCompleted = Math.round(
               (totalItems > 0 ? completedItems / totalItems : 0) * 100,
@@ -492,41 +531,96 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: { _id: new ObjectId(enrollment._id) },
-                update: { $set: { percentCompleted } },
+                filter: {_id: new ObjectId(enrollment._id)},
+                update: {$set: {percentCompleted}},
               },
             });
 
             if (bulkOperations.length === BATCH_SIZE) {
               await this._withTransaction(async session => {
-                await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+                await this.enrollmentRepo.bulkUpdateEnrollments(
+                  bulkOperations,
+                  session,
+                );
                 updatedCount += bulkOperations.length;
-                console.log(`✅ Batch ${++batchCount}: Updated ${bulkOperations.length} enrollments`);
+                console.log(
+                  `✅ Batch ${++batchCount}: Updated ${
+                    bulkOperations.length
+                  } enrollments`,
+                );
                 bulkOperations.length = 0;
               });
             }
           } catch (err) {
-            console.error(`Failed to process enrollment ${enrollment._id}`, err);
+            console.error(
+              `Failed to process enrollment ${enrollment._id}`,
+              err,
+            );
           }
         }
       } catch (err) {
-        console.error(`Failed to process course version ${courseVersionId}`, err);
+        console.error(
+          `Failed to process course version ${courseVersionId}`,
+          err,
+        );
       }
     }
 
     // Process any remaining operations
     if (bulkOperations.length > 0) {
       await this._withTransaction(async session => {
-        await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+        await this.enrollmentRepo.bulkUpdateEnrollments(
+          bulkOperations,
+          session,
+        );
         updatedCount += bulkOperations.length;
-        console.log(`✅ Final batch: Updated ${bulkOperations.length} enrollments`);
+        console.log(
+          `✅ Final batch: Updated ${bulkOperations.length} enrollments`,
+        );
       });
     }
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 
+  async bulkUpdateIdConversion(
+    collection:
+      | 'anomaly_records'
+      | 'genAI_jobs'
+      | 'invites'
+      | 'itemsGroup'
+      | 'job_task_status'
+      | 'newCourse'
+      | 'newCourseVersion'
+      | 'questionBanks'
+      | 'quiz_submission_results',
+  ) {
+    try {
+      if (collection == 'anomaly_records') {
+        await this.anomalyRepository.bulkConvertIds();
+      } else if (collection == 'genAI_jobs') {
+        await this.genAIRepository.bulkConvertIds();
+      } else if (collection == 'invites') {
+        await this.inviteRepo.bulkConvertIds();
+      } else if (collection == 'itemsGroup') {
+        await this.itemRepo.bulkConvertIds();
+      } else if (collection == 'job_task_status') {
+        await this.genAIRepository.bulkConvertTaskIds();
+      } else if (collection == 'newCourse') {
+        await this.courseRepo.bulkConvertIds();
+      } else if (collection == 'newCourseVersion') {
+        await this.courseRepo.bulkConvertVersionIds();
+      } else if (collection == 'questionBanks') {
+        await this.questionBankRepository.bulkConvertIds();
+      } else if (collection == 'quiz_submission_results') {
+        await this.submissionRepo.bulkConvertIds();
+      } else if (collection == 'quizzes') {
 
+      }
+    } catch (error) {
+      throw new InternalServerError(`Failed to bulk update ${collection}`);
+    }
+  }
 
   async addIndex(): Promise<void> {
     await this._withTransaction(async session => {

@@ -182,4 +182,52 @@ export class InviteRepository {
 
     return {invites: normalizedInvites, totalDocuments, totalPages};
   }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+
+      const invites = await this.inviteCollection
+        .find()
+        .project({_id: 1, courseId: 1, courseVersionId: 1})
+        .toArray();
+
+      if (!invites.length) return {updated: 0};
+
+      const bulkOperations = invites
+        .map(invite => {
+          const updateFields: Record<string, any> = {};
+
+          if (invite.courseId && typeof invite.courseId === 'string') {
+            updateFields.courseId = new ObjectId(invite.courseId);
+          }
+          if (
+            invite.courseVersionId &&
+            typeof invite.courseVersionId === 'string'
+          ) {
+            updateFields.courseVersionId = new ObjectId(invite.courseVersionId);
+          }
+
+          if (Object.keys(updateFields).length > 0) {
+            return {
+              updateOne: {
+                filter: {_id: invite._id},
+                update: {$set: updateFields},
+              },
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperations.length) return {updated: 0};
+
+      const result = await this.inviteCollection.bulkWrite(bulkOperations);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed invites ID conversion. More/ ${error}`,
+      );
+    }
+  }
 }

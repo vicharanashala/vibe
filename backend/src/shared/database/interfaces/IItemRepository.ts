@@ -1,5 +1,5 @@
 import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
+import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
@@ -34,8 +34,8 @@ export interface IItemRepository {
   updateItem(
     itemId: string,
     item: UpdateItemBody,
-    session?: ClientSession
-  ): Promise<Item>
+    session?: ClientSession,
+  ): Promise<Item>;
 
   findItemsGroupByItemId(
     itemId: string,
@@ -52,7 +52,11 @@ export interface IItemRepository {
   }>;
 
   createItem(item: Item, session?: ClientSession): Promise<Item | null>;
-  CalculateTotalItemsCount(courseId: string, versionId: string, session?: ClientSession): Promise<number>;
+  CalculateTotalItemsCount(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<number>;
   getTotalItemsCount(
     courseId: string,
     versionId: string,
@@ -65,4 +69,5 @@ export interface IItemRepository {
   // readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
   // readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
   // readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
+  bulkConvertIds(): Promise<{updated: number}>;
 }

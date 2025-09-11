@@ -409,4 +409,54 @@ export class AnomalyRepository {
     // );
     return result.deletedCount > 0;
   }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    await this.init();
+    const anomalies = await this.anomalyCollection
+      .find({})
+      .project({
+        _id: 1,
+        userId: 1,
+        courseId: 1,
+        versionId: 1,
+        itemId: 1,
+      })
+      .toArray();
+    if (!anomalies.length) return {updated: 0};
+
+    const bulkOperations = anomalies
+      .map((anomoly: IAnomalyData) => {
+        const updateFields: Record<string, any> = {};
+
+        if (anomoly.userId && typeof anomoly.userId === 'string') {
+          updateFields.userId = new ObjectId(anomoly.userId);
+        }
+        if (anomoly.courseId && typeof anomoly.courseId === 'string') {
+          updateFields.courseId = new ObjectId(anomoly.courseId);
+        }
+        if (anomoly.versionId && typeof anomoly.versionId === 'string') {
+          updateFields.versionId = new ObjectId(anomoly.versionId);
+        }
+        if (anomoly.itemId && typeof anomoly.itemId === 'string') {
+          updateFields.itemId = new ObjectId(anomoly.itemId);
+        }
+
+        if (Object.keys(updateFields).length > 0) {
+          return {
+            updateOne: {
+              filter: {_id: anomoly._id},
+              update: {$set: updateFields},
+            },
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    if (bulkOperations.length) {
+      const result = await this.anomalyCollection.bulkWrite(bulkOperations);
+      return {updated: result.modifiedCount};
+    }
+  }
 }

@@ -383,6 +383,75 @@ class SubmissionRepository {
     }
     return 0;
   }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+
+      const submissions = await this.submissionResultCollection
+        .find()
+        .project({_id: 1, quizId: 1, userId: 1, attemptId: 1})
+        .toArray();
+
+      if (!submissions.length) return {updated: 0};
+
+      const bulkOperation = submissions
+        .map(submission => {
+          let needsUpdate = false;
+
+          // convert quizId
+          let updatedQuizId = submission.quizId;
+          if (submission.quizId && typeof submission.quizId === 'string') {
+            updatedQuizId = new ObjectId(submission.quizId);
+            needsUpdate = true;
+          }
+
+          // convert userId
+          let updatedUserId = submission.userId;
+          if (submission.userId && typeof submission.userId === 'string') {
+            updatedUserId = new ObjectId(submission.userId);
+            needsUpdate = true;
+          }
+
+          // convert attemptId
+          let updatedAttemptId = submission.attemptId;
+          if (
+            submission.attemptId &&
+            typeof submission.attemptId === 'string'
+          ) {
+            updatedAttemptId = new ObjectId(submission.attemptId);
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            return {
+              updateOne: {
+                filter: {_id: submission._id},
+                update: {
+                  $set: {
+                    quizId: updatedQuizId,
+                    userId: updatedUserId,
+                    attemptId: updatedAttemptId,
+                  },
+                },
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperation.length) return {updated: 0};
+
+      const result = await this.submissionResultCollection.bulkWrite(bulkOperation);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed quiz_submission_results ID conversion. More/ ${error}`,
+      );
+    }
+  }
 }
 
 export {SubmissionRepository};
