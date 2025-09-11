@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ConfirmationModal from './components/confirmation-modal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from '@/components/ui/progress';
 
 
 
@@ -225,35 +226,85 @@ const AiWorkflow = () => {
     }, [isTranscribing, isAudioExtracting, transcribedData]);
 
     // Mock progress % bar
-    useEffect(() => {
+    // useEffect(() => {
+    //   let interval: NodeJS.Timeout | null = null;
+
+    //   if (isLoading || isTranscribing) {
+    //     interval = setInterval(() => {
+    //       setProgress((prev) => {
+    //         if (prev >= 99.99) return 99.99;
+
+    //         let increment = Math.max(0.2, (99.99 - prev) / 25);
+
+    //         if (prev >= 85) {
+    //           increment = Math.max(0.05, increment / 3);
+    //         }
+
+    //         // Extra slow for transcription or question generation
+    //         if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+    //           increment = Math.max(0.05, increment / 2);
+    //         }
+
+    //         return Math.min(prev + increment, 99.99);
+    //       });
+    //     }, 1600);
+    //   } else {
+    //     setProgress(0);
+    //   }
+    //   return () => {
+    //     if (interval) clearInterval(interval);
+    //   };
+    // }, [isLoading, isTranscribing, currentJob?.task]);
+
+       useEffect(() => {
       let interval: NodeJS.Timeout | null = null;
+      let slowInterval: NodeJS.Timeout | null = null;
 
       if (isLoading || isTranscribing) {
         interval = setInterval(() => {
-          setProgress((prev) => {
-            if (prev >= 99.99) return 99.99;
-
-            let increment = Math.max(0.2, (99.99 - prev) / 25);
-
-            if (prev >= 85) {
-              increment = Math.max(0.05, increment / 3);
+          setProgress((prev: number) => {
+            if (prev >= 99.99) {
+              if (interval) clearInterval(interval);
+              return 99.99;
             }
 
-            // Extra slow for transcription or question generation
-            if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
-              increment = Math.max(0.05, increment / 2);
-            }
+            let increment: number;
+            if (prev >= 90) {
+              if (interval) clearInterval(interval);
+              
+              slowInterval = setInterval(() => {
+                setProgress((p: number) => {
+                  if (p >= 99.99) {
+                    if (slowInterval) clearInterval(slowInterval);
+                    return 99.99;
+                  }
+                  return p + 0.1;
+                });
+              }, 30000); 
 
-            return Math.min(prev + increment, 99.99);
+              return 90;
+            } else {
+              increment = Math.max(0.2, (99.99 - prev) / 25);
+              if (prev >= 85) {
+                increment = Math.max(0.05, increment / 3);
+              }
+              if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+                increment = Math.max(0.05, increment / 2);
+              }
+              return Math.min(prev + increment, 90); 
+            }
           });
-        }, 1600);
+        }, 1600); 
       } else {
         setProgress(0);
       }
+
       return () => {
         if (interval) clearInterval(interval);
+        if (slowInterval) clearInterval(slowInterval);
       };
     }, [isLoading, isTranscribing, currentJob?.task]);
+
 
     // <<<<<<<<<< Helpers >>>>>>>>>>
 
@@ -785,17 +836,20 @@ const AiWorkflow = () => {
                     { isURLValidated && <Stepper currentJobData={currentJob}/> }
 
                     {isLoading && (
-                        <div className="space-y-2  bg-card w-full">
-                            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
-                                <div
-                                    className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
-                                    style={{ width: `${progress}%` }}
-                                />
-                            </div>
+                        // <div className="space-y-2  bg-card w-full">
+                        //     <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+                        //         <div
+                        //             className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
+                        //             style={{ width: `${progress}%` }}
+                        //         />
+                        //     </div>
 
-                            <div className="text-sm text-gray-600 font-medium text-center">
-                            {progress.toFixed(2)}% Completed
-                            </div>
+                        //     <div className="text-sm text-gray-600 font-medium text-center">
+                        //     {progress.toFixed(2)}% Completed
+                        //     </div>
+                        // </div>
+                        <div className='w-full px-10 pt-6 pb-2 bg-card'>
+                        <ProgressiveProgressBar value={progress} showTooltip={isLoading}/>
                         </div>
                     )}
                     <div className="mx-auto border-t-1 border-gray-200 dark:border-gray-900 ">
@@ -858,7 +912,7 @@ const AiWorkflow = () => {
                             ) : (
                             <>
                                 <p className="text-md text-gray-600 dark:text-gray-200">
-                                Select your preferred method to upload audio — via File, Link, or Recording.
+                                  Upload your audio file to generate a high-quality transcription of the spoken content.  
                                 </p>
                                 <AudioTranscripter
                                     setIsAudioExtracting={setIsAudioExtracting}
@@ -1339,6 +1393,130 @@ interface QuestionGenerationResultProps {
   updateCurrentJob: (task: "segmentation" | "questionGeneration" | "uploadContent", status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING") => void
   handleShowHandleResult: (task: string) => void
   isWaitingServer: boolean
+}
+
+interface ProgressiveProgressBarProps {
+  value: number
+  className?: string
+  showTooltip?: boolean
+  animated?: boolean
+  steps?: number
+  stepLabels?: string[]
+}
+
+const ProgressiveProgressBar = ({
+  value = 0,
+  className = "",
+  showTooltip = true,
+  animated = true,
+  steps = 5,
+  stepLabels = [],
+}: ProgressiveProgressBarProps) => {
+  const [displayValue, setDisplayValue] = useState(0)
+  const [isCompleted, setIsCompleted] = useState(false)
+
+  useEffect(() => {
+    if (animated) {
+      const timer = setTimeout(() => {
+        setDisplayValue(value)
+        setIsCompleted(value >= 100)
+      }, 100)
+      return () => clearTimeout(timer)
+    } else {
+      setDisplayValue(value)
+      setIsCompleted(value >= 100)
+    }
+  }, [value, animated])
+
+  const stepPositions = Array.from({ length: steps }, (_, i) => (i / (steps - 1)) * 100)
+  const currentStep = Math.floor((displayValue / 100) * (steps - 1))
+
+  return (
+    <div className={`relative w-full ${className} mb-5`}>
+      <div className="relative">
+        <Progress value={displayValue} className="h-3 bg-muted/50 rounded-full overflow-hidden" />
+
+        <div
+          className={`
+            absolute top-0 left-0 h-full rounded-full transition-all duration-700 ease-out
+            "bg-primary
+          `}
+          style={{
+            width: `${displayValue}%`,
+            boxShadow:
+              displayValue > 0
+                ? `0 0 10px ${isCompleted ? "rgb(34 197 94 / 0.3)" : "hsl(var(--primary) / 0.3)"}`
+                : "none",
+          }}
+        />
+
+        {steps > 1 && (
+          <div className="absolute top-0 left-0 w-full h-full flex items-center">
+            {stepPositions.map((position, index) => {
+              const isStepCompleted = displayValue >= position
+              const isCurrentStep = index === currentStep && displayValue < 100
+
+              return (
+                <div
+                  key={index}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${position}%`, transform: "translateX(-50%)" }}
+                >
+                  <div
+                    className={`
+                      w-4 h-4 rounded-full border-2 transition-all duration-500 ease-out z-10
+                      bg-card border-muted-foreground/30
+                      ${isCurrentStep ? "animate-pulse scale-125" : ""}
+                      ${isStepCompleted && "bg-primary"}
+                    `}
+                  />
+
+                  {stepLabels[index] && (
+                    <span
+                      className={`
+                      text-xs mt-2 transition-colors duration-300 font-medium
+                      ${isStepCompleted ? "text-foreground" : "text-muted-foreground"}
+                    `}
+                    >
+                      {stepLabels[index]}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showTooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={`
+                    absolute -top-8 bg-primary text-primary-foreground text-xs font-semibold 
+                    px-3 py-1.5 rounded-md shadow-lg transition-all duration-700 ease-out
+                    transform -translate-x-1/2 z-20
+                    ${animated ? "animate-in fade-in-0 zoom-in-95" : ""}
+                  `}
+                  style={{
+                    left: `${displayValue}%`,
+                    opacity: displayValue > 0 ? 1 : 0,
+                  }}
+                >
+                  {displayValue.toFixed(2)}%{/* Tooltip Arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-popover text-popover-foreground">
+                {/* <p>Progress: {displayValue.toFixed(1)}%</p> */}
+                {/* {isCompleted && <p className="text-green-500 font-semibold">✓ Completed!</p>} */}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    </div>
+  )
 }
 
 const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
@@ -2603,25 +2781,6 @@ const SegmentationView = ({
     throw new Error(errMsg);
   }
 
-  // const handleSaveEditSeg = async () => {
-  //   setEditLoading(true);
-  //   setEditError("");
-  //   try {
-  //     // Use index 0 for the backend (fixes 500 error)
-  //     if (!aiJobId) throw new Error('Missing job id');
-  //     // Send as numbers in MM.SS numeric format (e.g., 11.11)
-  //     const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
-  //     await editSegmentMap(aiJobId, payloadNumbers, 0);
-  //     toast.success('Segment map updated successfully!');
-  //     setEditModalOpen(false);
-  //   } catch (e: any) {
-  //     setEditError(e.message || 'Failed to update segment map');
-  //   } finally {
-  //     setEditLoading(false);
-  //   }
-  // };
-
-
   const handleNext = () => {
     updateCurrentJob("questionGeneration", "WAITING");
   }
@@ -2739,97 +2898,11 @@ const SegmentationView = ({
       </Button>
 
         </div>
-        {/* <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg ">
-            <DialogHeader>
-              <DialogTitle className="mb-4">Edit Segments</DialogTitle>
-            </DialogHeader>
-            {editLoading && <div>Loading segmentation map...</div>}
-            {editError && <div className="text-red-500">{editError}</div>}
-            {!editLoading && !editError && (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {editSegMap.map((value, idx) => {
-                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
-                  const end = value;
-                  const segChunks = editTranscriptChunks.filter(chunk =>
-                    chunk.timestamp &&
-                    typeof chunk.timestamp[0] === 'number' &&
-                    chunk.timestamp[0] >= start &&
-                    chunk.timestamp[0] < end
-                  );
-                  const segText = segChunks.map(chunk => chunk.text).join(' ');
-                  return (
-                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="text"
-                            placeholder="00"
-                            value={editSegInputValues[idx]?.split(':')[0] ?? Math.floor(Math.max(0, editSegMap[idx] || 0) / 60).toString().padStart(2, '0')}
-                            onChange={(e) => handleEditSegChange(idx, `${e.target.value}:${(editSegInputValues[idx]?.split(':')[1] ?? '00')}`)}
-                            onKeyDown={(e) => handleCombinedTimeKeyDown(idx, e)}
-                            onBlur={() => {
-                              setEditSegInputValues((prev) => { const next = [...prev]; next[idx] = formatTime(editSegMap[idx] ?? 0); return next; });
-                            }}
-                            className="w-16"
-                          />
-                          <span className="px-1">:</span>
-                          <Input
-                            type="text"
-                            placeholder="00"
-                            value={editSegInputValues[idx]?.split(':')[1] ?? Math.floor(Math.max(0, editSegMap[idx] || 0) % 60).toString().padStart(2, '0')}
-                            onChange={(e) => handleEditSegChange(idx, `${(editSegInputValues[idx]?.split(':')[0] ?? '00')}:${e.target.value}`)}
-                            onKeyDown={(e) => handleCombinedTimeKeyDown(idx, e)}
-                            onBlur={() => {
-                              setEditSegInputValues((prev) => { const next = [...prev]; next[idx] = formatTime(editSegMap[idx] ?? 0); return next; });
-                            }}
-                            className="w-12"
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveSeg(idx)}
-                          className="text-destructive hover:text-destructive"
-                          disabled={editSegMap.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                        {segText}
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-              </div>
-            )}
-            <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setEditModalOpen(false)}
-                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveEditSeg}
-                disabled={editLoading}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog> */}
             <div className="space-y-3">
             {segmentationMap && segmentationMap.map((end: number, idx: number) => {
     const start = idx === 0 ? 0 : segmentationMap[idx - 1];
     const segChunks: { text: string }[] = segmentationChunks?.[idx] || [];
     const segmentText = segChunks.map((chunk: { text: string }) => chunk.text).join(" ");
-
                 return (
                   <div
                     key={idx}
@@ -2873,111 +2946,6 @@ const SegmentationView = ({
                 );
               })}
             </div>
-
-          {/* <div className="flex justify-end mb-4">
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={handleOpenEditModal}
-              className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
-                    hover:scale-105 transition-transform duration-200 shadow-sm"
-            >
-              <Pencil className="h-4 w-4 text-gray-600" />
-            </Button>
-
-            
-              <Button
-              variant="outline"
-              size="icon"
-              className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
-              onClick={() => setIsSettingsOpen((prev) => !prev)}
-              aria-pressed={isSettingsOpen}
-            >
-              <Settings className="w-7 h-7 dark:text-white text-black" />
-            </Button>
-          </div> */}
-          {/* <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-            <DialogContent className="max-w-lg ">
-              <DialogHeader>
-                <DialogTitle className="mb-4">Edit Segments</DialogTitle>
-              </DialogHeader>
-              {editLoading && <div>Loading segmentation map...</div>}
-              {editError && <div className="text-red-500">{editError}</div>}
-              {!editLoading && !editError && (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {editSegMap.map((value, idx) => {
-                    const start = idx === 0 ? 0 : editSegMap[idx - 1];
-                    const end = value;
-                    const segChunks = editTranscriptChunks.filter(chunk =>
-                      chunk.timestamp &&
-                      typeof chunk.timestamp[0] === 'number' &&
-                      chunk.timestamp[0] >= start &&
-                      chunk.timestamp[0] < end
-                    );
-                    const segText = segChunks.map(chunk => chunk.text).join(' ');
-                    return (
-                      <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                          <Input
-                            type="text"
-                            placeholder="00:00"
-                            value={editSegInputValues[idx] ?? formatTime(editSegMap[idx] ?? 0)}
-                            onChange={e => handleEditSegChange(idx, e.target.value)}
-                            onBlur={e => {
-                              const seconds = parseTimeToSeconds(e.target.value);
-                              const newMap = [...editSegMap];
-                              // Re-apply neighbor constraints on blur
-                              const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
-                              const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
-                              const clamped = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
-                              newMap[idx] = Math.max(0, clamped);
-                              setEditSegMap(newMap);
-                              setEditSegInputValues((prev) => {
-                                const next = [...prev];
-                                next[idx] = formatTime(newMap[idx]);
-                                return next;
-                              });
-                            }}
-                            className="w-24"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveSeg(idx)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={editSegMap.length <= 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                          {segText}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-                </div>
-              )}
-              <DialogFooter className="flex justify-end gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setEditModalOpen(false)}
-                  className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveEditSeg}
-                  disabled={editLoading}
-                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-                >
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog> */}
           <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
