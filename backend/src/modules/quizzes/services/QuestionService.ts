@@ -69,7 +69,7 @@ class QuestionService extends BaseService {
         const quiz = await this.quizRepository.getById(metric.quizId.toString(), session);
         if (quiz && quiz.details.allowSkip) {
           const hasQuestion = quiz.details.questionBankRefs.some(ref =>
-            questionBankIds.includes(ref.bankId)
+            questionBankIds.includes(ref.bankId.toString())
           );
           if (hasQuestion) {
             totalSkipCount += metric.skipCount || 0;
@@ -78,6 +78,7 @@ class QuestionService extends BaseService {
       }
 
       return totalSkipCount;
+
     } catch (error) {
       console.error('Error calculating question skip count:', error);
       return 0;
@@ -107,7 +108,7 @@ class QuestionService extends BaseService {
         this.attemptRepository.countDistinctUsersByQuestionId(questionId, session),
       ]);
 
-      if (raw) {
+      if (raw) { 
         const skipCount = await this._getQuestionSkipCount(questionId, session);
 
         return {
