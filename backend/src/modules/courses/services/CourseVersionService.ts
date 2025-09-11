@@ -25,12 +25,12 @@ export class CourseVersionService extends BaseService {
     body: CreateCourseVersionBody,
     session?: ClientSession,
   ): Promise<CourseVersion> {
-    const run = async (session: ClientSession) => {
+    const run = async (txnSession: ClientSession) => {
       if (!courseId) {
         throw new NotFoundError('Course id not found');
       }
 
-      const course = await this.courseRepo.read(courseId, session);
+      const course = await this.courseRepo.read(courseId, txnSession);
       if (!course) {
         throw new NotFoundError('Course not found');
       }
@@ -38,7 +38,10 @@ export class CourseVersionService extends BaseService {
       let newVersion = new CourseVersion(body);
       newVersion.courseId = new ObjectId(courseId);
 
-      const createdVersion = await this.courseRepo.createVersion(newVersion, session);
+      const createdVersion = await this.courseRepo.createVersion(
+        newVersion,
+        txnSession,
+      );
       if (!createdVersion) {
         throw new InternalServerError('Failed to create course version.');
       }
@@ -51,7 +54,11 @@ export class CourseVersionService extends BaseService {
       course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
 
-      const updatedCourse = await this.courseRepo.update(courseId, course, session);
+      const updatedCourse = await this.courseRepo.update(
+        courseId,
+        course,
+        txnSession,
+      );
       if (!updatedCourse) {
         throw new InternalServerError(
           'Failed to update course with new version.',

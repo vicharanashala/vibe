@@ -1,12 +1,12 @@
-﻿import { GLOBAL_TYPES } from '#root/types.js';
-import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
-import { ItemType } from '#shared/interfaces/models.js';
-import { instanceToPlain } from 'class-transformer';
-import { injectable, inject } from 'inversify';
-import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { MongoDatabase } from '../MongoDatabase.js';
+﻿import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#shared/database/interfaces/IItemRepository.js';
+import {ItemType} from '#shared/interfaces/models.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId} from 'mongodb';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
 import {
   ItemsGroup,
   VideoItem,
@@ -14,7 +14,7 @@ import {
   BlogItem,
   Item,
 } from '#courses/classes/transformers/Item.js';
-import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
+import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -28,11 +28,12 @@ export class ItemRepository implements IItemRepository {
     private db: MongoDatabase,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) { }
+  ) {}
 
   private async init() {
-    this.itemsGroupCollection =
-      await this.db.getCollection<ItemsGroup>('itemsGroup');
+    this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
+      'itemsGroup',
+    );
 
     this.videoCollection = await this.db.getCollection<VideoItem>('videos');
     this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
@@ -52,8 +53,8 @@ export class ItemRepository implements IItemRepository {
       throw new InternalServerError('Failed to create items group.');
     }
     const newItemsGroup = await this.itemsGroupCollection.findOne(
-      { _id: result.insertedId },
-      { session },
+      {_id: result.insertedId},
+      {session},
     );
     if (!newItemsGroup) {
       throw new InternalServerError(
@@ -71,8 +72,8 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup> {
     await this.init();
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      { _id: new ObjectId(itemsGroupId) },
-      { session },
+      {_id: new ObjectId(itemsGroupId)},
+      {session},
     );
     if (!itemsGroup) {
       throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
@@ -87,11 +88,11 @@ export class ItemRepository implements IItemRepository {
     session: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    const { _id, ...fields } = itemsGroup;
+    const {_id, ...fields} = itemsGroup;
     const result = await this.itemsGroupCollection.updateOne(
-      { _id: new ObjectId(itemsGroupId) },
-      { $set: fields },
-      { session },
+      {_id: new ObjectId(itemsGroupId)},
+      {$set: fields},
+      {session},
     );
     if (result.modifiedCount !== 1) {
       throw new InternalServerError(
@@ -99,8 +100,8 @@ export class ItemRepository implements IItemRepository {
       );
     }
     const updated = await this.itemsGroupCollection.findOne(
-      { _id: new ObjectId(itemsGroupId) },
-      { session },
+      {_id: new ObjectId(itemsGroupId)},
+      {session},
     );
     if (!updated) {
       throw new InternalServerError(
@@ -117,10 +118,19 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null> {
     await this.init();
+    
+    const itemFilter =
+      typeof itemId === 'string' && ObjectId.isValid(itemId)
+        ? {$in: [itemId, new ObjectId(itemId)]}
+        : itemId;
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      { 'items._id': itemId },
-      { session }
+      {'items._id': itemFilter},
+      {session},
     );
+    // const itemsGroup = await this.itemsGroupCollection.findOne(
+    //   { 'items._id': itemId },
+    //   { session }
+    // );
 
     if (!itemsGroup) {
       return null;
@@ -149,14 +159,14 @@ export class ItemRepository implements IItemRepository {
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
-    const result = await collection.insertOne(item, { session });
+    const result = await collection.insertOne(item, {session});
     if (!result.insertedId) {
       throw new Error(`Failed to insert item of type ${item.type}.`);
     }
 
     const createdItem = await collection.findOne(
-      { _id: result.insertedId },
-      { session },
+      {_id: result.insertedId},
+      {session},
     );
 
     return createdItem as Item;
@@ -212,7 +222,11 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
-  async updateItem(itemId: string, item: UpdateItemBody, session?: ClientSession): Promise<Item> {
+  async updateItem(
+    itemId: string,
+    item: UpdateItemBody,
+    session?: ClientSession,
+  ): Promise<Item> {
     await this.init();
     const type = item.type;
     let collection: Collection<any>;
@@ -233,7 +247,7 @@ export class ItemRepository implements IItemRepository {
     }
 
     const result = await collection.findOneAndUpdate(
-      { _id: new ObjectId(itemId) },
+      {_id: new ObjectId(itemId)},
       {
         $set: {
           name: item.name,
@@ -241,7 +255,7 @@ export class ItemRepository implements IItemRepository {
           details: item.details,
         },
       },
-      { returnDocument: 'after', session },
+      {returnDocument: 'after', session},
     );
 
     if (!result) {
@@ -251,39 +265,58 @@ export class ItemRepository implements IItemRepository {
     return result;
   }
 
-  async deleteItem(itemGroupsId: string, itemId: string, session?: ClientSession): Promise<ItemsGroup> {
+  async deleteItem(
+    itemGroupsId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup> {
     await this.init();
     const itemsGroup = await this.readItemsGroup(itemGroupsId, session);
     if (!itemsGroup) {
       throw new NotFoundError('ItemsGroup not found.');
     }
     // Find the item to delete
-    const itemIndex = itemsGroup.items.findIndex(item => item._id.toString() === itemId);
+    const itemIndex = itemsGroup.items.findIndex(
+      item => item._id.toString() === itemId,
+    );
     if (itemIndex === -1) {
-      throw new NotFoundError(`Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`);
+      throw new NotFoundError(
+        `Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`,
+      );
     }
     // If the item is a video, delete it from the video collection
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
-      await this.videoCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
+      await this.videoCollection.deleteOne(
+        {_id: new ObjectId(itemId)},
+        {session},
+      );
     } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
-      await this.quizCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
+      await this.quizCollection.deleteOne(
+        {_id: new ObjectId(itemId)},
+        {session},
+      );
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
-      await this.blogCollection.deleteOne({ _id: new ObjectId(itemId) }, { session });
+      await this.blogCollection.deleteOne(
+        {_id: new ObjectId(itemId)},
+        {session},
+      );
     } else {
-      throw new InternalServerError(`Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`);
+      throw new InternalServerError(
+        `Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`,
+      );
     }
     itemsGroup.items.splice(itemIndex, 1);
     await this.itemsGroupCollection.updateOne(
-      { _id: new ObjectId(itemGroupsId) },
-      { $set: { items: itemsGroup.items } },
-      { session },
+      {_id: new ObjectId(itemGroupsId)},
+      {$set: {items: itemsGroup.items}},
+      {session},
     );
     return itemsGroup;
   }
 
   async getFirstOrderItems(
     courseVersionId: string,
-  ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId }> {
+  ): Promise<{moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId}> {
     const version = await this.courseRepo.readVersion(courseVersionId);
     if (!version || version.modules.length === 0) {
       throw new InternalServerError('Course version has no modules');
@@ -317,7 +350,11 @@ export class ItemRepository implements IItemRepository {
     };
   }
 
-  async CalculateTotalItemsCount(courseId: string, versionId: string, session?: ClientSession): Promise<number> {
+  async CalculateTotalItemsCount(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
     const version = await this.courseRepo.readVersion(versionId, session);
     if (!version) {
       throw new NotFoundError(`Course version ${versionId} not found.`);
@@ -326,7 +363,9 @@ export class ItemRepository implements IItemRepository {
     // console.log("Version from calculate totalCount: ", version, versionId)
     // Verify that the version belongs to the specified course
     if (version.courseId.toString() !== courseId) {
-      throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);
+      throw new NotFoundError(
+        `Version ${versionId} does not belong to course ${courseId}.`,
+      );
     }
 
     let totalCount = 0;
@@ -365,13 +404,19 @@ export class ItemRepository implements IItemRepository {
     }
     // Verify that the version belongs to the specified course
     if (version.courseId.toString() !== courseId) {
-      throw new NotFoundError(`Version ${versionId} does not belong to course ${courseId}.`);
+      throw new NotFoundError(
+        `Version ${versionId} does not belong to course ${courseId}.`,
+      );
     }
     if (version.totalItems) {
       return version.totalItems;
     } else {
       // If totalItems is not set, calculate it
-      version.totalItems = await this.CalculateTotalItemsCount(courseId, versionId, session);
+      version.totalItems = await this.CalculateTotalItemsCount(
+        courseId,
+        versionId,
+        session,
+      );
 
       // Update the version with the calculated totalItems
       const updatedVersion = await this.courseRepo.updateVersion(
@@ -380,7 +425,9 @@ export class ItemRepository implements IItemRepository {
         session,
       );
       if (!updatedVersion) {
-        throw new InternalServerError(`Failed to update version ${versionId} with total items count.`);
+        throw new InternalServerError(
+          `Failed to update version ${versionId} with total items count.`,
+        );
       }
       return updatedVersion.totalItems;
     }

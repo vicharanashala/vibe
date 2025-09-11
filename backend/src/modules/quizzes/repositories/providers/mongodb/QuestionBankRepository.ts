@@ -14,11 +14,12 @@ class QuestionBankRepository {
   ) {}
 
   private async init() {
-    this.questionBankCollection =
-      await this.db.getCollection<IQuestionBank>('questionBanks');
+    this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
+      'questionBanks',
+    );
   }
 
-  public async create(
+  async create(
     questionBank: IQuestionBank,
     session?: ClientSession,
   ): Promise<string> {
@@ -32,7 +33,7 @@ class QuestionBankRepository {
     throw new Error('Failed to create question bank');
   }
 
-  public async getById(
+  async getById(
     questionBankId: string,
     session?: ClientSession,
   ): Promise<IQuestionBank | null> {
@@ -44,10 +45,15 @@ class QuestionBankRepository {
     if (!result) {
       return null;
     }
-    return result;
+    return {
+      ...result,
+      questions: result.questions.map(question => question.toString()),
+      courseId: result.courseId?.toString(),
+      courseVersionId: result.courseVersionId?.toString(),
+    };
   }
 
-  public async removeQuestionFromAllBanks(
+  async removeQuestionFromAllBanks(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
@@ -62,7 +68,7 @@ class QuestionBankRepository {
     return result.modifiedCount; // number of banks updated
   }
 
-  public async update(
+  async update(
     questionBankId: string,
     updateData: Partial<IQuestionBank>,
     session?: ClientSession,
@@ -80,7 +86,7 @@ class QuestionBankRepository {
     return result;
   }
 
-  public async delete(
+  async delete(
     questionBankId: string,
     session?: ClientSession,
   ): Promise<boolean> {
@@ -92,16 +98,32 @@ class QuestionBankRepository {
     return result.deletedCount === 0;
   }
 
-  public async getQuestionBanksByQuestionId(
+  async getQuestionBanksByQuestionId(
     questionId: string,
     session?: ClientSession,
   ): Promise<IQuestionBank[]> {
     await this.init();
-    const result = await this.questionBankCollection.find(
-      {questions: new ObjectId(questionId)},
-      {session},
-    ).toArray();
-    return result;
+    const query = {
+      $or: [{questions: new ObjectId(questionId)}, {questions: questionId}],
+    };
+    // const result = await this.questionBankCollection
+    //   .find({questions: new ObjectId(questionId)}, {session})
+    //   .toArray();
+    const results = await this.questionBankCollection
+      .find(query, {session})
+      .toArray();
+
+    if (!results.length) {
+      return null;
+    }
+
+    // Normalize courseId and courseVersionId
+    return results.map(bank => ({
+      ...bank,
+      questions: bank.questions.map(qn => qn.toString()),
+      courseId: bank.courseId?.toString(),
+      courseVersionId: bank.courseVersionId?.toString(),
+    }));
   }
 
   async bulkConvertIds(): Promise<{ updated: number }> {

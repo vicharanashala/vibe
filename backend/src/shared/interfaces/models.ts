@@ -288,7 +288,7 @@ export interface IVideoDetails {
 }
 
 export interface IQuestionBankRef {
-  bankId: string; // ObjectId as string
+  bankId: ID; // ObjectId as string
   count: number; // How many questions to pick
   difficulty?: string[]; // Optional filter
   tags?: string[]; // Optional filter

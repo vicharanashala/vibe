@@ -68,8 +68,8 @@ type ID = string | ObjectId;
 
 interface IQuestionBank {
   _id?: string | ObjectId;
-  courseId?: string;
-  courseVersionId?: string;
+  courseId?: ID;
+  courseVersionId?: ID;
   questions: ID[];
   tags?: string[];
   title: string;
