@@ -13,6 +13,8 @@ interface TranscriptionResultProps {
   audioUrl?: string;
   language?: string;
   tooltipContent?: string;
+  isEditing: boolean;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
@@ -22,9 +24,11 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   onTranscriptionUpdate,
   className = '',
   audioUrl,
-  tooltipContent
+  tooltipContent,
+  isEditing,
+  setIsEditing
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  // const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(transcription);
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);

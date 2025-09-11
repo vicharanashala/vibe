@@ -4,20 +4,22 @@ import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
-import { ArrowRight, Loader2, RefreshCw, PlayCircle } from "lucide-react";
+import { ArrowRight, Loader2, RefreshCw, PlayCircle, Upload } from "lucide-react";
 import { Button } from "../ui/button";
+import { toast } from "sonner";
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isModelLoading: boolean;
     isTranscribing: boolean;
-    isDisableButton: boolean;
+    // isDisableButton: boolean;
+    isCreatingAiJob: boolean;
     isTranscribed: boolean;
 }
 
 function TranscribeButton(props: Props) {
-    const { isModelLoading, isTranscribing, isDisableButton, isTranscribed, onClick, ...buttonProps } = props;
-    const isLoading = isTranscribing || isModelLoading ;
+    const { isModelLoading, isTranscribing, isTranscribed, isCreatingAiJob, onClick, ...buttonProps } = props;
+    const isLoading = isTranscribing || isModelLoading || isCreatingAiJob;
     return (
             <button
             {...buttonProps}
@@ -27,14 +29,16 @@ function TranscribeButton(props: Props) {
                 onClick(event);
                 }
             }}
-            disabled={isLoading || isDisableButton}
-            className={`w-full sm:w-auto font-semibold px-8 py-3 rounded-xl shadow-md transition-all duration-300 transform flex items-center justify-center gap-2
-                ${
-                isTranscribed
-                    ? "border border-gray-400 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
-                    : "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground hover:shadow-xl hover:scale-105"
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+            disabled={isLoading}
+           className={`w-full sm:w-auto font-semibold px-8 py-3 rounded-xl shadow-md transition-all duration-300 transform flex items-center justify-center gap-2
+            ${
+                isTranscribing
+                ? "bg-primary text-primary-foreground cursor-wait"
+                : isTranscribed
+                ? "border border-gray-400 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
+                : "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground hover:shadow-xl hover:scale-105"
+            }
+            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
             >
             {isTranscribed ? (
                 <>
@@ -43,8 +47,8 @@ function TranscribeButton(props: Props) {
                 </>
             ) : (
                 <>
-                <PlayCircle className="w-5 h-5" />
-                <span>Start Job</span>
+                <Upload className="w-5 h-5" />
+                <span>Upload Audio</span>
                 </>
             )}
             </button>
@@ -479,7 +483,166 @@ export enum AudioSource {
     RECORDING = "RECORDING",
 }
 
-export function AudioManager(props: { transcriber: Transcriber, isDisableButton: boolean, isTranscribing: boolean, jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean, isRunningAiJob: boolean }, ) {
+
+
+
+interface FileTileProps {
+  onFileUpdate: (decoded: AudioBuffer, blobUrl: string, mimeType: string) => void;
+  icon?: React.ReactNode;
+  text?: string;
+  isDisabled?: boolean;
+}
+const FileTile: React.FC<FileTileProps> = ({
+  onFileUpdate,
+  icon,
+  text = "Upload File",
+  isDisabled = false,
+}) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+
+
+  const processFile = async (file: File) => {
+    try{
+        if (!file.type.startsWith("audio/")) {
+        toast.error("Please select a valid audio file");
+        return;
+        }
+        setLoading(true);
+        const urlObj = URL.createObjectURL(file);
+        const mimeType = file.type;
+
+        const arrayBuffer = await file.arrayBuffer();
+        const audioCTX = new AudioContext({
+        sampleRate: Constants.SAMPLING_RATE,
+        });
+        const decoded = await audioCTX.decodeAudioData(arrayBuffer);
+
+        onFileUpdate(decoded, urlObj, mimeType);
+    } catch (err) {
+      toast.error("Failed to process audio file");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isDisabled || loading || loading) return;
+
+    const audioFile = Array.from(e.dataTransfer.files).find((f) =>
+      f.type.startsWith("audio/")
+    );
+    if (audioFile) processFile(audioFile);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    if (e.target) e.target.value = ""; // reset so same file can be re-selected
+  };
+
+  const handleClick = () => {
+    if (!isDisabled || loading && !loading) fileInputRef.current?.click();
+  };
+
+  return (
+    <div
+        className={`
+        w-full h-36 border-2 border-dashed rounded-xl cursor-pointer
+        flex flex-col items-center justify-center text-center px-8 py-24
+        transition-transform duration-300 ease-out border-gray-400 dark:border-gray-600
+        ${
+            isDragOver
+            ? "border-primary bg-primary/5 scale-[1.02] shadow-lg shadow-primary/10"
+            : "border-border hover:border-primary/60 hover:scale-[1.02] hover:shadow-md"
+        }
+        ${isDisabled || loading ? "opacity-50 cursor-not-allowed hover:scale-100" : ""}
+        `}
+      onDrop={handleDrop}
+      onDragOver={(e) => {
+        e.preventDefault()
+        if (!isDisabled || loading || !loading) setIsDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault()
+        setIsDragOver(false)
+      }}
+      onClick={handleClick}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={isDisabled || loading}
+      />
+
+      {loading ? (
+        <div className="flex flex-col items-center gap-3 animate-pulse">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-muted-foreground">Processing audio file...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className={`
+              w-12 h-12 rounded-full flex items-center justify-center
+              transition-all duration-300
+              ${isDragOver ? "bg-primary/10 scale-110" : "bg-muted hover:bg-primary/5"}
+            `}
+          >
+            {icon || (
+              <svg
+                className={`w-7 h-7 transition-colors duration-300 ${
+                  isDragOver
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-primary"
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                />
+              </svg>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p
+              className={`text-sm font-semibold transition-colors duration-300 ${
+                isDragOver ? "text-primary" : "text-foreground"
+              }`}
+            >
+              {text}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isDragOver
+                ? "Drop your audio file here"
+                : "Drag & drop or click to browse"}
+            </p>
+            <p className="text-xs text-muted-foreground/80">
+              Supports MP3, WAV, M4A formats
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+
+export function AudioManager(props: { transcriber: Transcriber, isEditingTranscription: boolean,  jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean, isRunningAiJob: boolean }, ) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -617,15 +780,15 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
 
     return (
         <>
-            <div className='flex flex-col justify-center items-center shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800'>
+            {/* <div className='flex flex-col justify-center items-center shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800'>
                 <div
                     className='flex flex-row space-x-2 py-2 w-full px-2'
                     style={{
                         pointerEvents: props.isTranscribing ? 'none' : 'auto',
                         opacity: props.isTranscribing ? 0.5 : 1,
                     }}
-                    >
-                    <UrlTile
+                    > */}
+                    {/* <UrlTile
                         icon={<AnchorIcon />}
                         text={"From URL"}
                         onUrlUpdate={(e) => {
@@ -633,7 +796,7 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                         setAudioDownloadUrl(e);
                         }}
                     />
-                    <VerticalBar />
+                    <VerticalBar /> */}
                     <FileTile
                         icon={<FolderIcon />}
                         text={"From file"}
@@ -646,8 +809,9 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                             mimeType: mimeType,
                         });
                         }}
+                        isDisabled={props.transcriber.isBusy || props.transcriber.isModelLoading}
                     />
-                    {navigator.mediaDevices && (
+                    {/* {navigator.mediaDevices && (
                         <>
                         <VerticalBar />
                         <RecordTile
@@ -659,9 +823,9 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                             }}
                         />
                         </>
-                    )}
-                </div>
-            </div>
+                    )} */}
+                {/* </div> */}
+            {/* </div> */}
             {audioData && (
                 <>
                     <AudioPlayer
@@ -677,7 +841,8 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                 }}
                                 isModelLoading={props.transcriber.isModelLoading}
                                 isTranscribing={props.transcriber.isBusy}
-                                isDisableButton = {props.isDisableButton}
+                                // isDisableButton = {props.isDisableButton}
+                                isCreatingAiJob={props.isCreatingAiJob}
                                 isTranscribed={!!props.transcriber.output?.text}
                             />
                             {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text &&
@@ -687,8 +852,13 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
                                 flex items-center justify-center gap-2 ms-12" 
                                 onClick={() => {
-                                    if(props.createAiJob)
+                                    if (props.isEditingTranscription) {
+                                        toast.error("You have unsaved changes in the transcription. Please save before continuing.");
+                                        return;
+                                    }
+                                    if (props.createAiJob) {
                                         props.createAiJob ()
+                                    }
                                 }}
                                 disabled={props.isCreatingAiJob}>
                                     {props.isCreatingAiJob ? (
@@ -705,11 +875,11 @@ export function AudioManager(props: { transcriber: Transcriber, isDisableButton:
                                 }
 
 
-                            <SettingsTile
+                            {/* <SettingsTile
                                 className='absolute right-4'
                                 transcriber={props.transcriber}
                                 icon={<SettingsIcon />}
-                                />
+                                /> */}
                         </div>
                     {/* } */}
                 </>
@@ -945,59 +1115,59 @@ function UrlModal(props: {
     );
 }
 
-function FileTile(props: {
-    icon: JSX.Element;
-    text: string;
-    onFileUpdate: (
-        decoded: AudioBuffer,
-        blobUrl: string,
-        mimeType: string,
-    ) => void;
-}) {
-    // const audioPlayer = useRef<HTMLAudioElement>(null);
+// function FileTile(props: {
+//     icon: JSX.Element;
+//     text: string;
+//     onFileUpdate: (
+//         decoded: AudioBuffer,
+//         blobUrl: string,
+//         mimeType: string,
+//     ) => void;
+// }) {
+//     // const audioPlayer = useRef<HTMLAudioElement>(null);
 
-    // Create hidden input element
-    const elem = document.createElement("input");
-    elem.type = "file";
-    elem.oninput = (event) => {
-        // Make sure we have files to use
-        const files = (event.target as HTMLInputElement).files;
-        if (!files) return;
+//     // Create hidden input element
+//     const elem = document.createElement("input");
+//     elem.type = "file";
+//     elem.oninput = (event) => {
+//         // Make sure we have files to use
+//         const files = (event.target as HTMLInputElement).files;
+//         if (!files) return;
 
-        const file = files[0];
-        // Create a blob that we can use as an src for our audio element
-        const urlObj = URL.createObjectURL(file);
-        const mimeType = file.type;
+//         const file = files[0];
+//         // Create a blob that we can use as an src for our audio element
+//         const urlObj = URL.createObjectURL(file);
+//         const mimeType = file.type;
 
-        const reader = new FileReader();
-        reader.addEventListener("load", async (e) => {
-            const arrayBuffer = e.target?.result as ArrayBuffer; // Get the ArrayBuffer
-            if (!arrayBuffer) return;
+//         const reader = new FileReader();
+//         reader.addEventListener("load", async (e) => {
+//             const arrayBuffer = e.target?.result as ArrayBuffer; // Get the ArrayBuffer
+//             if (!arrayBuffer) return;
 
-            const audioCTX = new AudioContext({
-                sampleRate: Constants.SAMPLING_RATE,
-            });
+//             const audioCTX = new AudioContext({
+//                 sampleRate: Constants.SAMPLING_RATE,
+//             });
 
-            const decoded = await audioCTX.decodeAudioData(arrayBuffer);
+//             const decoded = await audioCTX.decodeAudioData(arrayBuffer);
 
-            props.onFileUpdate(decoded, urlObj, mimeType);
-        });
-        reader.readAsArrayBuffer(files[0]);
+//             props.onFileUpdate(decoded, urlObj, mimeType);
+//         });
+//         reader.readAsArrayBuffer(files[0]);
 
-        // Reset files
-        elem.value = "";
-    };
+//         // Reset files
+//         elem.value = "";
+//     };
 
-    return (
-        <>
-            <Tile
-                icon={props.icon}
-                text={props.text}
-                onClick={() => elem.click()}
-            />
-        </>
-    );
-}
+//     return (
+//         <>
+//             <Tile
+//                 icon={props.icon}
+//                 text={props.text}
+//                 onClick={() => elem.click()}
+//             />
+//         </>
+//     );
+// }
 
 function RecordTile(props: {
     icon: JSX.Element;
@@ -1116,28 +1286,28 @@ function FolderIcon() {
   )
 }
 
-function SettingsIcon() {
-    return (
-        <svg
-            xmlns='http://www.w3.org/2000/svg'
-            fill='none'
-            viewBox='0 0 24 24'
-            strokeWidth='1.25'
-            stroke='currentColor'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z'
-            />
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-            />
-        </svg>
-    );
-}
+// function SettingsIcon() {
+//     return (
+//         <svg
+//             xmlns='http://www.w3.org/2000/svg'
+//             fill='none'
+//             viewBox='0 0 24 24'
+//             strokeWidth='1.25'
+//             stroke='currentColor'
+//         >
+//             <path
+//                 strokeLinecap='round'
+//                 strokeLinejoin='round'
+//                 d='M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z'
+//             />
+//             <path
+//                 strokeLinecap='round'
+//                 strokeLinejoin='round'
+//                 d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+//             />
+//         </svg>
+//     );
+// }
 
 function MicrophoneIcon() {
   return (
