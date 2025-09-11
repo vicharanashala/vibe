@@ -31,6 +31,16 @@ import {
   CircleChevronLeft,
   Info,
   Brain,
+  Eye,
+  EyeOff,
+  Pencil,
+  Sparkles,
+  Check,
+  MessageSquare,
+  CircleCheckBig,
+  Layers,
+  Clock,
+  Zap,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -229,22 +239,22 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
              {/* Step Circle */}
            <div className={`
       relative flex items-center justify-center
-      w-12 h-12 rounded-[14px] transition-all duration-300
+      w-11 h-11 rounded-[14px] transition-all duration-300
       ${isCompleted 
-        ? 'bg-green-500 text-white shadow-lg' 
+        ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
         : isActive 
-          ? 'bg-blue-500 text-white shadow-lg ring-4 ring-blue-200' 
+          ? 'bg-[linear-gradient(135deg,_#51A2FF_0%,_#9810FA_100%)] text-white shadow-lg ring-4 ring-blue-200' 
           : isFailed 
-            ? 'bg-red-500 text-white shadow-lg' 
+            ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
             : isStopped 
-              ? 'bg-orange-500 text-white shadow-lg' 
+              ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
               : 'bg-gray-200 text-gray-600'}
     `}
   >
                       {isCompleted ? (
                         <CheckCircle className="w-6 h-6" />
                       ) : isActive ? (
-                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <span>{step.icon}</span>
                       ) : isFailed ? (
                         <XCircle className="w-6 h-6" />
                       ) : isStopped ? (
@@ -252,6 +262,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                       ) : (
                         <span className="font-medium">{step.icon}</span>
     )}
+    {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white" /></div>}
+    
   </div>
 
   {/* Step Label */}
@@ -260,14 +272,14 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
       className={`
         text-sm font-medium
         ${isCompleted 
-          ? 'text-green-600' 
+          ? 'text-[#009966]' 
           : isActive 
-            ? 'text-blue-600 font-semibold' 
+            ? 'text-[#155DFC]' 
             : isFailed 
               ? 'text-red-600' 
               : isStopped 
-                ? 'text-orange-600' 
-                : 'text-gray-500'}
+                ? 'text-[#F54900]' 
+                : 'text-[#6A7282]'}
       `}
     >
       {step.label}
@@ -275,9 +287,9 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
     {/* Status Text */}
     <div className="mt-1 h-4 text-xs">
-      {isActive && <span className="text-blue-500">Processing</span>}
-      {isCompleted && <span className="text-green-500">Complete</span>}
-      {isFailed && <span className="text-red-500">Failed</span>}
+      {isActive && <span className="text-[#2B7FFF] bg-[#EEF2FF] py-1 px-1.5 rounded-[10px] flex gap-1"><Zap size={14} color="#FAAF2E"/> Processing</span>}
+      {isCompleted && <span className="text-[#00BC7D] bg-[#ECFDF5] py-1 px-1.5 rounded-[10px] flex gap-1"><Check size={14} />Complete</span>}
+      {isFailed && <span className="text-red-500 bg-[#ffe9ea] py-1 px-1.5 rounded-[10px] flex gap-1"><X size={14} />Failed</span>}
       {isStopped && <span className="text-orange-500">Stopped</span>}
     </div>
   </div>
@@ -363,7 +375,8 @@ export default function AISectionPage() {
   const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
 
   const [audioExtractionProgress, setAudioExtractionProgress] = useState(0);
-  const [audioExtractionStatus, setAudioExtractionStatus] = useState<'ready' | 'processing' | 'completed' | 'failed'>('ready');
+  type AudioExtractionStatus = 'ready' | 'processing' | 'completed' | 'failed';
+  const [audioExtractionStatus, setAudioExtractionStatus] = useState<AudioExtractionStatus>('ready');
   const [audioExtractionStartTime, setAudioExtractionStartTime] = useState<Date | null>(null);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('');
 
@@ -1131,11 +1144,36 @@ export default function AISectionPage() {
             )}
           </>
         )}
+        {task === 'transcription' && (
+          (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
+            (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
+          ) ? (
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div>AI Transcription</div>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+          ):(
         <div className={`flex items-center gap-3 justify-center`}>
           {task === 'transcription' && audioExtractionStatus === 'completed' ? (
             <Button
               onClick={handleStartTranscription}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+              disabled={aiJobStatus?.task === 'TRANSCRIPT_GENERATION' && aiJobStatus?.status === 'RUNNING'}
+              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Start Transcription Task
             </Button>
@@ -1380,9 +1418,7 @@ export default function AISectionPage() {
             </Button>
           )}
         </div>
-        <div className="flex items-center justify-center text-[#6A7282] text-[11px]">
-          Extracts audio from uploaded files (video or audio) for further processing.
-        </div>
+        )}     
 
         {runs.length > 0 && (
           <Accordion
@@ -1479,6 +1515,9 @@ export default function AISectionPage() {
             })}
           </Accordion>
         )}
+        <div className="flex items-center justify-center text-[#6A7282] text-[11px]">
+          {WORKFLOW_STEPS.find(s => s.key === task)?.explanation || WORKFLOW_STEPS[0].explanation}
+        </div>
       </div>
     );
   });
@@ -2290,12 +2329,39 @@ export default function AISectionPage() {
     };
 
     return (
-      <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+      <>
+       {showTranscript && (
+        <>
+        <div className="flex items-center justify-between mt-4">
+          <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm">Generated Transcript</span></p>
+          <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+        </div>
+          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && (
+              <div className="flex items-start justify-between gap-1.5">
+                <div className="mt-2 whitespace-pre-line text-[#1E2939] leading-[22.75px] text-[13px]">
+                  {transcriptChunks
+                    ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
+                    : transcript}
+                </div>
+                  <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max">
+                  AI Generated
+                </div>
+              </div>
+            )}
+          </div>
+          </>
+        )}
+      <div className="space-y-2 flex gap-2.5 items-center justify-center mt-4">
+        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showTranscript ? <EyeOff /> : <Eye />}
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
         </Button>
         {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent border border-[#DAB2FF] text-[#9810FA] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          <Pencil />
           Edit
         </Button>
         {/* Edit Modal */}
@@ -2332,30 +2398,19 @@ export default function AISectionPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {showTranscript && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-48 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700">
-            <strong>Transcript:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && (
-              <div className="mt-2 whitespace-pre-line">
-                {transcriptChunks
-                  ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
-                  : transcript}
-              </div>
-            )}
-          </div>
-        )}
         {acceptedRunId !== run.id && (
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
-            Accept This Run
+            <Check />
+            Accept & Continue
+            <Sparkles />
           </Button>
         )}
       </div>
+      </>
     );
   }
 
@@ -2556,19 +2611,72 @@ export default function AISectionPage() {
     };
 
     return (
-      <div className="space-y-2">
-        <div className="flex gap-2">
+      <>
+      {showSegmentation && (
+          <div className="mt-4 space-y-4">
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {/* Enhanced display: segmentationMap + transcript chunks */}
+            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
+              <>
+              <div className="flex items-center justify-between mt-4">
+                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold">Generated Segments</span></p>
+                <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+              </div>
+              <div className="space-y-2">
+                {segmentationMap.map((end, idx) => {
+                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+                  const segChunks = segmentationChunks[idx] || [];
+                  return (
+                    <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md border border-[#E5E7EB] p-3 rounded-[12px]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
+                        <p className="flex gap-2.5 items-center">
+                          <span className="flex items-center gap-1 text-[#6A7282]"><Clock size={12}/>{start.toFixed(2)}s </span>
+                          <span className="text-[#6A7282]">Duration: {end.toFixed(2)}s</span>
+                        </p>
+                      </div>
+                      {segChunks.length > 0 ? (
+                        <div className="text-xs text-[#4A5565] dark:text-gray-300 mt-1">
+                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              </>
+            )}
+            {/* Fallback: old display if no segmentationMap+chunks */}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {segments.map((seg, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-start justify-between mb-2">
+                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
+          </div>
+        )}
+      <div className="flex gap-2.5 justify-center mt-4">
+        <div>
           <Button
             size="sm"
             variant="secondary"
             onClick={handleShowSegmentation}
-            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
+            {showSegmentation ? <EyeOff /> : <Eye />}
             {showSegmentation ? 'Hide Segmentation' : 'Show Segmentation'}
           </Button>
           {/* Edit button for segmentation run */}
-          <Button
+          {/* <Button
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
@@ -2576,7 +2684,7 @@ export default function AISectionPage() {
             disabled={run.status !== 'done'}
           >
             Edit
-          </Button>
+          </Button> */}
         </div>
         {/* Edit Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
@@ -2647,51 +2755,14 @@ export default function AISectionPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {showSegmentation && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-            <strong>Segments:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {/* Enhanced display: segmentationMap + transcript chunks */}
-            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
-              <ol className="mt-2 space-y-4">
-                {segmentationMap.map((end, idx) => {
-                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
-                  const segChunks = segmentationChunks[idx] || [];
-                  return (
-                    <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div><b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}s</div>
-                      {segChunks.length > 0 ? (
-                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {/* Fallback: old display if no segmentationMap+chunks */}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
-              <ol className="mt-2 space-y-2">
-                {segments.map((seg, idx) => (
-                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
-                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
-          </div>
-        )}
         {run.status === 'done' && (
           <Button
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#7BF1A8] text-[#00A63E] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
+            <Pencil />
             Edit Segments
           </Button>
         )}
@@ -2699,12 +2770,15 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
+            <Check />
             Accept This Run
+            <Sparkles />
           </Button>
         )}
       </div>
+      </>
     );
   }
 
@@ -3138,7 +3212,7 @@ export default function AISectionPage() {
             <Button
                 onClick={handleCreateJob}
                 disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
-                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
               >
                 {isCreatingJob ? (
                   <>
@@ -3267,8 +3341,8 @@ export default function AISectionPage() {
                         setExpandedAccordionItems={setExpandedAccordionItems}
                       />
                       {acceptedRuns.transcription && (
-                        <div className="flex justify-end mt-4">
-                          <Button onClick={() => setCurrentUiStep(2)}>Next Step</Button>
+                        <div className="flex justify-center mt-4">
+                          <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(2)}>Next Step</Button>
                         </div>
                       )}
                     </div>
@@ -3277,20 +3351,15 @@ export default function AISectionPage() {
                   {/* Segmentation Section */}
                   {
                     currentUiStep === 2 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center gap-2 mb-4">
-                          <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                      <div className="shadow-xl backdrop-blur bg-white/80 border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-border">
+                      <div className="flex items-center gap-3.5 mb-7">
+                        <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-card-foreground">AI Segmentation</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-card-foreground">Break content into meaningful sections</span>
+                        </div>
                         </div>
                         <TaskAccordion
                           task="segmentation"
