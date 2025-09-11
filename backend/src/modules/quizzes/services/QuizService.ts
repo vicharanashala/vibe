@@ -18,7 +18,8 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import {GetQuizSubmissionsQuery} from '../classes/index.js';
+import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
+import {QuestionBankService} from './QuestionBankService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -30,6 +31,9 @@ class QuizService extends BaseService {
 
     @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
+
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    public readonly questionBankService: QuestionBankService,
 
     @inject(QUIZZES_TYPES.QuizRepo)
     public readonly quizRepo: QuizRepository,
@@ -46,7 +50,7 @@ class QuizService extends BaseService {
   addQuestionBank(quizId: string, questionBankRef: IQuestionBankRef) {
     return this._withTransaction(async session => {
       const questionBank = await this.questionBankRepo.getById(
-        questionBankRef.bankId,
+        questionBankRef.bankId.toString(),
         session,
       );
       if (!questionBank) {
@@ -61,11 +65,12 @@ class QuizService extends BaseService {
       }
       if (
         quiz.details.questionBankRefs.some(
-          qb => qb.bankId === questionBankRef.bankId,
+          qb => qb.bankId.toString() === questionBankRef.bankId.toString(),
         )
       ) {
         throw new Error('Question bank is already added to the quiz.');
       }
+      questionBankRef.bankId = new ObjectId(questionBankRef.bankId);
       quiz.details.questionBankRefs.push(questionBankRef);
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
@@ -81,18 +86,29 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
-        qb => qb.bankId === questionBankId,
+        qb => qb.bankId.toString() === questionBankId.toString(),
       );
       if (questionBankIndex === -1) {
         throw new NotFoundError('Question bank not found in quiz.');
       }
       quiz.details.questionBankRefs.splice(questionBankIndex, 1);
+
+      quiz.details.questionBankRefs.map((ref: QuestionBankRef) => {
+        return {
+          ...ref,
+          bankId: new ObjectId(ref.bankId),
+        };
+      });
+
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
         throw new InternalServerError(
           'Failed to remove question bank from quiz.',
         );
       }
+
+      await this.questionBankService.delete(questionBankId, session);
+
       return result;
     });
   }
@@ -106,16 +122,25 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
-        qb => qb.bankId === updatedQuestionBankRef.bankId,
+        qb => qb.bankId.toString() === updatedQuestionBankRef.bankId.toString(),
+      );
+      updatedQuestionBankRef.bankId = new ObjectId(
+        updatedQuestionBankRef.bankId,
       );
       if (questionBankIndex === -1) {
         throw new NotFoundError('Question bank not found in quiz.');
       }
       const existingQuestionBank =
         quiz.details.questionBankRefs[questionBankIndex];
+      // to confirm bankid always objectId
+      existingQuestionBank.bankId = new ObjectId(existingQuestionBank.bankId);
       quiz.details.questionBankRefs[questionBankIndex] = {
         ...existingQuestionBank,
-        ...updatedQuestionBankRef,
+        ...{
+          count: updatedQuestionBankRef.count,
+          difficulty: updatedQuestionBankRef.difficulty,
+          tags: updatedQuestionBankRef.tags,
+        },
       };
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
@@ -135,12 +160,16 @@ class QuizService extends BaseService {
       const refs = quiz.details.questionBankRefs || [];
       const banks = await Promise.all(
         refs.map(async ref => {
-          const bank = await this.questionBankRepo.getById(ref.bankId, session);
+          const bank = await this.questionBankRepo.getById(
+            ref.bankId.toString(),
+            session,
+          );
           if (!bank) {
             return null;
           }
           return {
             ...ref,
+            bankId: ref.bankId.toString(),
             title: bank.title,
             description: bank.description,
             tags: bank.tags,
@@ -346,7 +375,7 @@ class QuizService extends BaseService {
       submission.attemptId = new ObjectId(submission.attemptId);
       submission.quizId = new ObjectId(submission.quizId);
       submission.userId = new ObjectId(submission.userId);
-      
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -449,13 +478,13 @@ class QuizService extends BaseService {
 
       for (const questionBankId of quesBankIds) {
         const questionBank = await this.questionBankRepo.getById(
-          questionBankId,
+          questionBankId.toString(),
           session,
         );
         if (!questionBank) {
           throw new NotFoundError('Question bank not found');
         }
-        const courseId = questionBank.courseId;
+        const courseId = questionBank.courseId.toString();
         const courseVersionId = questionBank.courseVersionId;
         if (!courseId && !courseVersionId) {
           throw new Error(
@@ -467,7 +496,7 @@ class QuizService extends BaseService {
             courseMap[courseId] = new Set();
           }
           if (courseVersionId) {
-            courseMap[courseId].add(courseVersionId);
+            courseMap[courseId].add(courseVersionId.toString());
           }
         }
       }
