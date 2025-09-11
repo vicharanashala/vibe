@@ -1,36 +1,36 @@
-import { Item } from '#courses/classes/transformers/Item.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Item} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import { Progress } from '#users/classes/transformers/Progress.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {Progress} from '#users/classes/transformers/Progress.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import { QUIZZES_TYPES } from '#quizzes/types.js';
-import { WatchTime } from '../classes/transformers/WatchTime.js';
-import { CompletedProgressResponse } from '../classes/index.js';
+import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {WatchTime} from '../classes/transformers/WatchTime.js';
+import {CompletedProgressResponse} from '../classes/index.js';
 import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { EnrollmentRepository } from '#root/shared/index.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -337,15 +337,14 @@ class ProgressService extends BaseService {
   ) {
     // resolve all async operations first
     const bulkOps = await Promise.all(
-      enrollments.map(async (enrollment) => {
+      enrollments.map(async enrollment => {
         const userId = enrollment.userId?.toString();
 
-        const completedItems =
-          await this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            versionId,
-          );
+        const completedItems = await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          versionId,
+        );
 
         return {
           updateOne: {
@@ -375,16 +374,15 @@ class ProgressService extends BaseService {
     return null;
   }
 
-
   // Helper to calculate progress based on completed items
-  private _calculateProgress(enrollment: any, totalItems: number, completedItems: number): number {
-
-
+  private _calculateProgress(
+    enrollment: any,
+    totalItems: number,
+    completedItems: number,
+  ): number {
     if (!totalItems || totalItems === 0) return 0;
     return ((completedItems ?? 0) / totalItems) * 100;
   }
-
-
 
   private async verifyDetails(
     userId: string | ObjectId,
@@ -411,7 +409,6 @@ class ProgressService extends BaseService {
         'Course version not found or does not belong to this course',
       );
     }
-
   }
 
   private async verifyProgress(
@@ -758,12 +755,14 @@ class ProgressService extends BaseService {
           session,
         );
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(userId, courseId, courseVersionId);
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
       // Use Set to ensure unique completed items and for efficient size comparison
       const completedItemsSet = new Set(completedItemsArray);
-
-
 
       return {
         completed: progress.completed,
@@ -840,9 +839,7 @@ class ProgressService extends BaseService {
     moduleId: string,
     watchItemId: string,
   ): Promise<void> {
-
     return this._withTransaction(async session => {
-
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -936,7 +933,6 @@ class ProgressService extends BaseService {
           session,
         );
 
-
         // if the quiz is skipped then there is no submission record
         if (!submittedQuiz) {
           throw new BadRequestError(
@@ -955,6 +951,14 @@ class ProgressService extends BaseService {
         session,
       );
 
+      //  for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+      
       // Get the new progress
       const newProgress = await this.getNewProgress(
         courseVersion,
@@ -979,14 +983,6 @@ class ProgressService extends BaseService {
       if (!updatedProgress) {
         throw new InternalServerError('Progress could not be updated');
       }
-
-      //  for updating enrollment progress percent
-      await this.updateEnrollmentProgressPercent(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
     });
   }
 
@@ -1001,14 +997,13 @@ class ProgressService extends BaseService {
     // Fetch all quizzes in one go
     const quizzes = await this.quizRepo.getByIds(quizItemIds, session);
 
-
     const maxAttemptsMap = quizzes.reduce((acc, quiz) => {
       acc[quiz._id.toString()] = quiz?.details?.maxAttempts || 0;
       return acc;
     }, {} as Record<string, number>);
 
     // Collect attemptIds to delete and bulk ops for all collections
-    const { attemptDeletes, metricsUpdates, submissionDeletes } =
+    const {attemptDeletes, metricsUpdates, submissionDeletes} =
       await this.progressRepository.prepareBulkQuizOperations(
         userId,
         quizItemIds,
@@ -1019,11 +1014,17 @@ class ProgressService extends BaseService {
     // Run the three bulk operations in parallel
     await Promise.all([
       this.progressRepository.executeBulkAttemptDelete(attemptDeletes, session),
-      this.userQuizMetricsRepository.executeBulkMetricsReset(metricsUpdates, session),
-      this.submissionRepository.executeBulkSubmissionDelete(userId, submissionDeletes, session),
+      this.userQuizMetricsRepository.executeBulkMetricsReset(
+        metricsUpdates,
+        session,
+      ),
+      this.submissionRepository.executeBulkSubmissionDelete(
+        userId,
+        submissionDeletes,
+        session,
+      ),
     ]);
   }
-
 
   // Admin Level Endpoint
   async resetCourseProgress(
@@ -1032,8 +1033,6 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-
-
       // Run verify + courseVersion fetch in parallel
       const [_, courseVersion] = await Promise.all([
         this.verifyDetails(userId, courseId, courseVersionId),
@@ -1126,7 +1125,6 @@ class ProgressService extends BaseService {
         this.courseRepo.readVersion(courseVersionId, session),
       ]);
 
-
       // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
       for (const module of courseVersion.modules || []) {
@@ -1154,7 +1152,12 @@ class ProgressService extends BaseService {
 
       // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
       await Promise.all([
-        this.progressRepository.deleteProgress(userId, courseId, courseVersionId, session),
+        this.progressRepository.deleteProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
         this.progressRepository.deleteUserWatchTimeByCourseVersion(
           userId,
           courseId,
@@ -1165,18 +1168,14 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          session
+          session,
         ),
         quizItemIds.length
           ? this.resetUserQuizData(userId, quizItemIds, session)
           : Promise.resolve(),
       ]);
-
     });
-
-
   }
-
 
   async getCompletedItems(
     userId: string,
@@ -1278,7 +1277,7 @@ class ProgressService extends BaseService {
       let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        const { deletedCount } =
+        const {deletedCount} =
           await this.progressRepository.deleteUserWatchTimeByItemId(
             userId,
             itemId,
@@ -1397,7 +1396,7 @@ class ProgressService extends BaseService {
       let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        const { deletedCount } =
+        const {deletedCount} =
           await this.progressRepository.deleteUserWatchTimeByItemId(
             userId,
             itemId,
@@ -1516,7 +1515,7 @@ class ProgressService extends BaseService {
           courseVersionId,
         );
       // Clear all items (watch time) for this user/course/version
-      const { deletedCount } =
+      const {deletedCount} =
         await this.progressRepository.deleteUserWatchTimeByItemId(
           userId,
           itemId,
@@ -1577,4 +1576,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export { ProgressService };
+export {ProgressService};
