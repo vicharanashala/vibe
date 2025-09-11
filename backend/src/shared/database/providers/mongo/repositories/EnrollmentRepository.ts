@@ -13,8 +13,10 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
 import { StudentQuizScoreDto, QuizScoresExportResponseDto } from '#root/modules/users/dtos/QuizScoresExportDto.js';
-import { ISubmission, IUserQuizMetrics } from '#root/modules/quizzes/interfaces/grading.js';
+import { ISubmission } from '#root/modules/quizzes/interfaces/grading.js';
 import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
+import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 
 
 @injectable()
@@ -23,13 +25,14 @@ export class EnrollmentRepository {
   private progressCollection!: Collection<IProgress>;
   private courseVersionCollection!: Collection<ICourseVersion>;
   private watchTimeCollection!: Collection<IWatchTime>;
-  private submissionCollection!: any;
-  private quizCollection!: any;
-  private itemsGroupCollection!: any;
-  private userQuizMetricsCollection!: any;
-  private userCollection!: any;
+  private submissionCollection!: Collection<ISubmission>;
+  private quizCollection!: Collection<QuizItem>;
+  private itemsGroupCollection!: Collection<ItemsGroup>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
+    @inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -47,14 +50,9 @@ export class EnrollmentRepository {
     this.submissionCollection = await this.db.getCollection<ISubmission>(
       'quiz_submission_results',
     );
-    this.userQuizMetricsCollection = await this.db.getCollection<IUserQuizMetrics>(
-      'user_quiz_metrics',
-    );
     this.quizCollection = await this.db.getCollection<QuizItem>(
       'quizzes'
     );
-    this.userCollection = await this.db.getCollection<IUser>(
-      'users');
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup'
     );
@@ -1143,66 +1141,38 @@ export class EnrollmentRepository {
   ): Promise<Map<string, Map<string, number>>> {
     if (!userIds.length || !quizIds.length) return new Map<string, Map<string, number>>();
 
-    const totalAttempts = new Map<string, Map<string, number>>();
-
     try {
-
-      const ObjuserIds = this.processIds(userIds);
-      const ObjquizIds = this.processIds(quizIds);
-
-      const results = await this.userQuizMetricsCollection.aggregate([
-        {
-          $match: {
-            userId: { $in: ObjuserIds },
-            quizId: { $in: ObjquizIds },
-            attempts: { $exists: true, $type: 'array' }
+      const result = new Map<string, Map<string, number>>();
+  
+      // Process users in batches to avoid too many database queries
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+        const batch = userIds.slice(i, i + BATCH_SIZE);
+        
+        for (const userId of batch) {
+          const userMap = new Map<string, number>();
+          const userIdStr = userId.toString();
+          
+          for (const quizId of quizIds) {
+            const quizIdStr = quizId.toString();
+            const count = await this.attemptRepository.countUserAttempts(
+              quizIdStr,
+              userIdStr
+            ) || 0;
+            
+            userMap.set(quizIdStr, count);
           }
-        },
-        {
-          $project: {
-            userId: 1,
-            quizId: 1,
-            attemptsCount: { $size: '$attempts' }
-          }
+          
+          result.set(userIdStr, userMap);
         }
-      ]).toArray();
-
-
-      // Debug: Check sample documents
-      if (results.length === 0) {
-        const sampleDoc = await this.userQuizMetricsCollection.findOne({
-          quizId: {
-            quizId: { $in: quizIds },
-            isSubmitted: true
-          }
-        });
-        console.log('Sample user metrics document:', sampleDoc);
       }
-
-      // Convert to Map<userId, Map<quizId, attemptsCount>>
-      results.forEach(result => {
-        try {
-          const userId = result.userId?.toString();
-          const quizId = result.quizId?.toString();
-
-          if (!userId || !quizId) {
-            console.warn('Skipping result with missing userId or quizId:', result);
-            return;
-          }
-
-          if (!totalAttempts.has(userId)) {
-            totalAttempts.set(userId, new Map());
-          }
-          totalAttempts.get(userId)?.set(quizId, result.attemptsCount || 0);
-        } catch (error) {
-          console.error('Error processing result:', error, 'Result:', result);
-        }
-      });
+    console.log("results from total attempmts from enrollment repository", result);
+    
+      return result;
     } catch (error) {
       console.error('Error in getUserQuizAttempts:', error);
+      throw error;
     }
-
-    return totalAttempts;
   }
 
   /**
