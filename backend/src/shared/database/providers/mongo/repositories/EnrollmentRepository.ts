@@ -5,7 +5,7 @@ import {
   IProgress,
   ICourseVersion,
   IWatchTime,
-  IUser
+  IUser,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
@@ -14,7 +14,7 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
 import { StudentQuizScoreDto, QuizScoresExportResponseDto } from '#root/modules/users/dtos/QuizScoresExportDto.js';
-import { ISubmission } from '#root/modules/quizzes/interfaces/grading.js';
+import { IAttempt, ISubmission } from '#root/modules/quizzes/interfaces/grading.js';
 import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
 import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
@@ -27,6 +27,7 @@ export class EnrollmentRepository {
   private courseVersionCollection!: Collection<ICourseVersion>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private submissionCollection!: Collection<ISubmission>;
+  private attemptCollection!: Collection<IAttempt>;
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
 
@@ -57,6 +58,7 @@ export class EnrollmentRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup'
     );
+    this.attemptCollection = await this.db.getCollection<IAttempt>('quiz_attempts');
   }
 
   /**
@@ -741,6 +743,8 @@ export class EnrollmentRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
+              role: 'STUDENT',
+              status: { $regex: /^active$/i }
             },
           },
           {
@@ -908,13 +912,6 @@ export class EnrollmentRepository {
     return quizDetails;
   }
 
-  private processIds = (ids: (string | ObjectId)[]) => {
-    return ids.map(id =>
-      typeof id === 'string' && ObjectId.isValid(id)
-        ? new ObjectId(id)
-        : id
-    );
-  };
 
   /**
    * Get maximum scores for a list of quizzes
@@ -1052,42 +1049,50 @@ export class EnrollmentRepository {
     userIds: (string | ObjectId)[],
     quizIds: (string | ObjectId)[]
   ): Promise<Map<string, Map<string, number>>> {
-    if (!userIds.length || !quizIds.length) return new Map<string, Map<string, number>>();
+    if (!userIds.length || !quizIds.length) return new Map();
 
     try {
-      const result = new Map<string, Map<string, number>>();
+      const ObjUserIds = userIds.map(id => new ObjectId(id.toString()));
+      const ObjQuizIds = quizIds.map(id => new ObjectId(id.toString()));
 
-      // Process users in batches to avoid too many database queries
-      const BATCH_SIZE = 1000;
-      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-        const batch = userIds.slice(i, i + BATCH_SIZE);
-
-        for (const userId of batch) {
-          const userMap = new Map<string, number>();
-          const userIdStr = userId.toString();
-
-          for (const quizId of quizIds) {
-            const quizIdStr = quizId.toString();
-
-            const count = await this.attemptRepository.countUserAttempts(
-              quizIdStr,
-              userIdStr
-            ) || 0;
-
-            userMap.set(quizIdStr, count);
+      const results = await this.attemptCollection.aggregate([
+        {
+          $match: {
+            userId: { $in: ObjUserIds },
+            quizId: { $in: ObjQuizIds }
           }
-
-          result.set(userIdStr, userMap);
+        },
+        {
+          $group: {
+            _id: { userId: "$userId", quizId: "$quizId" },
+            attemptCount: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: "$_id.userId" },
+            quizId: { $toString: "$_id.quizId" },
+            attemptCount: 1
+          }
         }
-      }
-      console.log("results from total attempmts from enrollment repository", result);
+      ]).toArray();
 
-      return result;
+      const attemptMap = new Map<string, Map<string, number>>();
+      for (const { userId, quizId, attemptCount } of results) {
+        if (!attemptMap.has(userId)) {
+          attemptMap.set(userId, new Map());
+        }
+        attemptMap.get(userId)!.set(quizId, attemptCount);
+      }
+
+      return attemptMap;
     } catch (error) {
-      console.error('Error in getUserQuizAttempts:', error);
+      console.error("Error in getUserQuizAttempts:", error);
       throw error;
     }
   }
+
 
   /**
    * Get quiz scores for all students in a course version
@@ -1117,7 +1122,7 @@ export class EnrollmentRepository {
     type ModuleSection = { sectionId: string; name: string; itemsGroupId: string };
     type Module = { moduleId: string; name: string; sections: ModuleSection[] };
     await this.init();
-    
+
     if (!ObjectId.isValid(versionId)) {
       throw new Error('Invalid version ID format');
     }
@@ -1147,9 +1152,9 @@ export class EnrollmentRepository {
           return section.itemsGroupId;
         });
       }).filter(Boolean);
-      
-      
-      
+
+
+
       if (sectionItemsGroupIds.length === 0) {
         console.warn(`[WARN] No valid item group IDs found in course version ${versionId}`);
         return [];
@@ -1163,7 +1168,7 @@ export class EnrollmentRepository {
       // Get all quiz items from these groups
       const quizItems = itemsGroups.flatMap(group => {
         const groupId = group._id?.toString();
-        
+
         const filteredItems = group.items
           ?.filter(item => {
             const isQuiz = item.type === 'QUIZ';
@@ -1173,13 +1178,13 @@ export class EnrollmentRepository {
             _id: item._id?.toString(),
             itemsGroupId: groupId
           })) || [];
-          
+
         return filteredItems;
       });
-      
+
       // 4. Organize quiz items by itemsGroupId for quick lookup
       const quizzesByItemsGroup = new Map<string, string[]>();
-      
+
       quizItems.forEach((quiz, index) => {
         if (!quiz.itemsGroupId) {
           console.warn(`[WARN] Quiz item at index ${index} has no itemsGroupId:`, quiz);
@@ -1189,31 +1194,31 @@ export class EnrollmentRepository {
           console.warn(`[WARN] Quiz item in group ${quiz.itemsGroupId} has no _id`);
           return;
         }
-        
+
         if (!quizzesByItemsGroup.has(quiz.itemsGroupId)) {
           quizzesByItemsGroup.set(quiz.itemsGroupId, []);
         }
         quizzesByItemsGroup.get(quiz.itemsGroupId)?.push(quiz._id);
       });
-      
+
       // 5. Build the result structure
-      const result = (courseVersion.modules || [] as Array<{moduleId: string; name?: string; sections?: ModuleSection[]}>)
+      const result = (courseVersion.modules || [] as Array<{ moduleId: string; name?: string; sections?: ModuleSection[] }>)
         .map(module => {
           const moduleSections = (module.sections || [])
             .filter((section): section is ModuleSection & { itemsGroupId: string } => {
               if (!section || !section.itemsGroupId) {
                 return false;
               }
-              
+
               const sectionGroupId = section.itemsGroupId.toString();
               const hasQuizzes = quizzesByItemsGroup.has(sectionGroupId);
-              
+
               return hasQuizzes;
             })
             .map(section => {
               const sectionGroupId = section.itemsGroupId.toString();
               const quizIds = quizzesByItemsGroup.get(sectionGroupId) || [];
-              
+
               return {
                 sectionId: section.sectionId.toString(),
                 sectionName: section.name || 'Unnamed Section',
@@ -1227,11 +1232,11 @@ export class EnrollmentRepository {
             moduleName: module.name || 'Unnamed Module',
             sections: moduleSections
           };
-          
+
           return moduleResult;
         })
         .filter(module => module.sections.length > 0);
-        
+
       return result;
     } catch (error) {
       console.error(`[ERROR] Error in getQuizIdsByModulesAndSections:`, error);
@@ -1249,17 +1254,17 @@ export class EnrollmentRepository {
     if (!this.enrollmentCollection || !this.submissionCollection || !this.quizCollection) {
       throw new Error('Database collections not properly initialized');
     }
-    
+
     // Convert IDs to both string and ObjectId formats for flexible querying
     const courseIdStr = courseId;
     const versionIdStr = versionId;
-    
+
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
       const errorMsg = `Invalid course or version ID format. CourseID valid: ${ObjectId.isValid(courseId)}, VersionID valid: ${ObjectId.isValid(versionId)}`;
       console.error(`[ERROR] ${errorMsg}`);
       throw new Error(errorMsg);
     }
-    
+
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
 
@@ -1288,13 +1293,13 @@ export class EnrollmentRepository {
 
       // 2. Get all quizzes organized by modules and sections once
       const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionIdObj.toString());
-      
+
       const allQuizIds = [...new Set(quizzesByModuleSection.flatMap(module =>
         module.sections.flatMap(section => section.quizIds)
       ))];
 
       if (allQuizIds.length === 0) {
-        console.warn(`[WARN] No quiz IDs found for course version ${versionId}. Module sections:`, 
+        console.warn(`[WARN] No quiz IDs found for course version ${versionId}. Module sections:`,
           quizzesByModuleSection.map(m => ({
             module: m.moduleName,
             sectionCount: m.sections.length,
@@ -1322,7 +1327,7 @@ export class EnrollmentRepository {
           return isValid;
         })
         .map(id => new ObjectId(id));
-      
+
       const quizDetails = await this.getQuizDetails(quizIdsObjectIds);
 
       // 3. Process students in batches
