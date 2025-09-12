@@ -30,7 +30,8 @@ import {
   Target,
   Send,
   Clock4,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
@@ -873,7 +874,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   return (
     <>
-      {isLoading || submissionsLoading ? <Loader /> :
+      {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
           <div className="border-b">
             <div className="p-6">
@@ -1292,6 +1293,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         onChange={(e) => { setSearchQuery(e.target.value) }}
                         className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                       />
+                      <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSearchQuery("");
+                        }} />
                     </div>
                   </div>
 
@@ -1366,7 +1373,24 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {submissions?.map((sub: any) => (
+                          {submissionsLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-16">
+                                <div className="flex items-center justify-center">
+                                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                  <span className="ml-2 text-muted-foreground">
+                                    Loading submissions...
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : submissions?.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                                No submissions found
+                              </TableCell>
+                            </TableRow>
+                          ) : (submissions?.map((sub: any) => (
                             <TableRow key={sub._id}>
                               <TableCell className="font-medium max-w-[180px] overflow-hidden        text-ellipsis whitespace-nowrap"
                                 title={`${sub.userInfo?.firstName ?? ''} ${sub.userInfo?.lastName ?? ''}`}>
@@ -1409,13 +1433,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                 </div>
                               </TableCell>
                             </TableRow>
-                          )) || (
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                  No submissions yet
-                                </TableCell>
-                              </TableRow>
-                            )}
+                          )))}
                         </TableBody>
 
                       </Table>
