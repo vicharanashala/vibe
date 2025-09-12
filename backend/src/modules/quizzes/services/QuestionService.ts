@@ -38,7 +38,6 @@ class QuestionService extends BaseService {
     super(database);
   }
 
-  private async _getQuestionBanksByQuestionId() { }
 
   private async _getQuestionSkipCount(
     questionId: string,
