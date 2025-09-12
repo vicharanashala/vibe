@@ -184,9 +184,13 @@ export default function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-  const { data: quizScores, isLoading: isLoadingQuizScores, error: quizScoresError, refetch: fetchQuizScores } = useCourseQuizScores(courseId, versionId);
-  
-  // Define the quiz score type
+const {
+  data: quizScores,
+  isLoading: isLoadingQuizScores,
+  error: quizScoresError,
+  refetch: fetchQuizScores,
+} = useCourseQuizScores(courseId, versionId, false);
+ 
   interface QuizScore {
     moduleId?: string;
     sectionId?: string;
@@ -662,7 +666,7 @@ export default function CourseEnrollments() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleFetchQuizScores}
+                onClick={()=>handleFetchQuizScores()}
                 disabled={isFetchingQuizScores}
                 className="flex items-center gap-2"
               >
