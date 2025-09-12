@@ -218,49 +218,61 @@ export default function CourseEnrollments() {
       await fetchQuizScores();
       
       // Format the data for Excel export
-      const formattedData = quizScores?.data?.map((student: StudentData) => {
+      const formattedData = quizScores?.data?.map((student: any, index: number) => {
         // Get all unique module and section names for this student
         const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
         
-        student.quizScores?.forEach((quiz) => {
+        // First pass: collect all module and section names
+        student.quizScores?.forEach((quiz: any) => {
           const key = `${quiz.moduleId}_${quiz.sectionId}`;
           if (!moduleSectionMap.has(key)) {
             moduleSectionMap.set(key, {
-              moduleName: "Module",
-              sectionName: "Section"
+              moduleName: quiz.moduleName || 'Module',
+              sectionName: quiz.sectionName || 'Section'
             });
           }
         });
         
         return {
-        studentId: student.studentId,
-        name: student.name,
-        email: student.email,
-          quizScores: student.quizScores?.map(quiz => {
-            const moduleSection = moduleSectionMap.get(`${quiz.moduleId}_${quiz.sectionId}`);
-            return {
+          studentId: student.studentId || `student-${index}`,
+          name: student.name || 'Unknown Student',
+          email: student.email || '',
+          quizScores: student.quizScores?.map((quiz: any) => ({
           moduleId: quiz.moduleId || 'unknown',
           sectionId: quiz.sectionId || 'unknown',
           quizId: quiz.quizId || 'unknown',
           quizName: quiz.quizName || 'Untitled Quiz',
           maxScore: quiz.maxScore || 0,
           attempts: quiz.attempts || 0,
-              moduleName: moduleSection?.moduleName,
-              sectionName: moduleSection?.sectionName
+            moduleName: quiz.moduleName || 'Module',
+            sectionName: quiz.sectionName || 'Section'
+          })) || []
             };
-          }) || []
-        };
-      });
+      }) || [];
+      
+      if (formattedData.length === 0) {
+        toast.warning('No quiz scores found to export');
+        return;
+      }
+      
+      console.log('Formatted data for Excel:', formattedData);
       
       // Generate and download the Excel file
       const formattedTime = new Date().toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
-      });
-      generateExcel(formattedData, `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime.replace(/:/g, '_')}.xlsx`);
+      }).replace(/:/g, '_');
       
+      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
+      
+      try {
+      await  generateExcel(formattedData, filename);
       toast.success('Quiz scores exported successfully');
+      } catch (excelError) {
+        console.error('Error generating Excel file:', excelError);
+        toast.error('Failed to generate Excel file. Please try again.');
+      }
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
