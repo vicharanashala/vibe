@@ -633,15 +633,22 @@ export class EnrollmentRepository {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
+    filter: string,
     session?: ClientSession,
   ) {
     await this.init();
-
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      role:"STUDENT",
     };
+    if (filter) {
+      if (filter === 'STUDENT') {
+        matchStage.role = 'STUDENT';
+      } else if (filter === 'OTHER') {
+        matchStage.role = { $ne: 'STUDENT' };
+      }
+    }
+
 
     // decide sort field
     let sortField: any = {};
@@ -741,7 +748,7 @@ export class EnrollmentRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
-              role:"STUDENT",
+              role: "STUDENT",
             },
           },
           {
