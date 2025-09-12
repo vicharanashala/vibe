@@ -643,6 +643,7 @@ export class EnrollmentRepository {
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
+      status: { $regex: /^active$/i }
     };
     if (filter) {
       if (filter === 'STUDENT') {
