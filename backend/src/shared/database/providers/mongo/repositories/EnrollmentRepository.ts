@@ -640,6 +640,7 @@ export class EnrollmentRepository {
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
+      role:"STUDENT",
     };
 
     // decide sort field
@@ -740,6 +741,7 @@ export class EnrollmentRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
+              role:"STUDENT",
             },
           },
           {
