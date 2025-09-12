@@ -520,6 +520,10 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder: 'asc' | 'desc' = 'desc';
+  
+  @IsOptional()
+  @IsIn(['STUDENT', 'INSTRUCTOR']) 
+  filter?: 'STUDENT' | 'INSTRUCTOR';
 }
 
 export class BulkEnrollmentsQuery {

@@ -616,15 +616,17 @@ export class EnrollmentRepository {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
+    filter:string,
     session?: ClientSession,
   ) {
     await this.init();
-
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      role:"STUDENT",
     };
+    if(filter){
+      matchStage.role=filter
+    }
 
     // decide sort field
     let sortField: any = {};

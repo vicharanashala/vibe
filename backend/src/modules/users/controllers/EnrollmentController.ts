@@ -327,8 +327,9 @@ export class EnrollmentController {
       search = '',
       sortBy = 'enrollmentDate',
       sortOrder = 'desc',
+      filter
     } = query;
-
+    console.log("query",query)
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
@@ -344,6 +345,7 @@ export class EnrollmentController {
         search,
         sortBy,
         sortOrder,
+        filter
       );
 
     if (
