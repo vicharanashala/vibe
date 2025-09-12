@@ -1058,7 +1058,7 @@ export class EnrollmentRepository {
       const result = new Map<string, Map<string, number>>();
 
       // Process users in batches to avoid too many database queries
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = 1000;
       for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
         const batch = userIds.slice(i, i + BATCH_SIZE);
 
@@ -1068,6 +1068,7 @@ export class EnrollmentRepository {
 
           for (const quizId of quizIds) {
             const quizIdStr = quizId.toString();
+
             const count = await this.attemptRepository.countUserAttempts(
               quizIdStr,
               userIdStr
@@ -1264,17 +1265,13 @@ export class EnrollmentRepository {
 
     try {
       // 1. First get total count for batching
-      const studentQuery = {
-        courseId: courseIdObj,
-        courseVersionId: versionIdObj,
-        role: 'STUDENT' as EnrollmentRole,
-        $or: [
-          { status: 'ACTIVE' as EnrollmentStatus },
-          { status: 'active' as EnrollmentStatus }
-        ]
-      };
-      
-      const totalStudents = await this.enrollmentCollection.countDocuments(studentQuery);
+      const totalStudents = await this.enrollmentCollection.countDocuments({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+        role: 'STUDENT',
+        status: { $regex: /^active$/i } // strict, case-insensitive
+      });
+
 
       if (totalStudents === 0) {
         return {
@@ -1342,10 +1339,7 @@ export class EnrollmentRepository {
               courseId: courseIdObj,
               courseVersionId: versionIdObj,
               role: 'STUDENT',
-              $or: [
-                { status: 'ACTIVE' as EnrollmentStatus },
-                { status: 'active' as EnrollmentStatus }
-              ]
+              status: { $regex: /^active$/i }
             }
           },
           { $skip: skip },
