@@ -189,7 +189,7 @@ const {
   isLoading: isLoadingQuizScores,
   error: quizScoresError,
   refetch: fetchQuizScores,
-} = useCourseQuizScores(courseId, versionId, false);
+} = useCourseQuizScores(courseId, versionId);
  
   interface QuizScore {
     moduleId?: string;
@@ -217,9 +217,6 @@ const {
     
     try {
       setIsFetchingQuizScores(true);
-      
-      // Fetch the quiz scores and wait for the response
-      await fetchQuizScores();
       
       // Format the data for Excel export
       const formattedData = quizScores?.data?.map((student: any, index: number) => {
