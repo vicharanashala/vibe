@@ -174,14 +174,14 @@ export default function CourseEnrollments() {
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  // Quiz scores state
-  const [isFetchingQuizScores, setIsFetchingQuizScores] = useState(false)
+
 
   //Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
 const {
@@ -189,7 +189,7 @@ const {
   isLoading: isLoadingQuizScores,
   error: quizScoresError,
   refetch: fetchQuizScores,
-} = useCourseQuizScores(courseId, versionId, false);
+} = useCourseQuizScores(courseId, versionId,isExporting);
  
   interface QuizScore {
     moduleId?: string;
@@ -216,11 +216,7 @@ const {
     }
     
     try {
-      setIsFetchingQuizScores(true);
-      
-      // Fetch the quiz scores and wait for the response
-      await fetchQuizScores();
-      
+            if(quizScores&&!isLoadingQuizScores){
       // Format the data for Excel export
       const formattedData = quizScores?.data?.map((student: any, index: number) => {
         // Get all unique module and section names for this student
@@ -271,18 +267,18 @@ const {
       const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
       
       try {
-      await  generateExcel(formattedData, filename);
+      generateExcel(formattedData, filename);
       toast.success('Quiz scores exported successfully');
+    
       } catch (excelError) {
         console.error('Error generating Excel file:', excelError);
         toast.error('Failed to generate Excel file. Please try again.');
-      }
+      }}
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    } finally {
-      setIsFetchingQuizScores(false);
-    }
+    } 
+    
   };
 
   useEffect(() => {
@@ -362,6 +358,13 @@ const {
       setSelectedViewItemName("")
     }
   }, [isViewProgressDialogOpen])
+
+ useEffect(() => {
+  if (isExporting&&!isLoadingQuizScores) {
+  
+    handleFetchQuizScores().finally(() => setIsExporting(false));
+  }
+}, [isExporting,isLoadingQuizScores]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -666,16 +669,16 @@ const {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={()=>handleFetchQuizScores()}
-                disabled={isFetchingQuizScores}
+                onClick={()=> setIsExporting(true)}
+                disabled={isLoadingQuizScores}
                 className="flex items-center gap-2"
               >
-                {isFetchingQuizScores ? (
+                {isLoadingQuizScores ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <FileDown className="h-4 w-4" />
                 )}
-                <span>{isFetchingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
+                <span>{isLoadingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
               </Button>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">Show</span>
