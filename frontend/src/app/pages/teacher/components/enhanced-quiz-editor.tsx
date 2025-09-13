@@ -955,9 +955,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <p className="text-sm font-medium text-center text-[#CA3500]">Pass Rate</p>
                   </CardTitle>
                 </CardHeader>
+
                 <CardContent className='flex flex-col items-center justify-center'>
                   <div className="text-2xl font-bold text-[#7E2A0C]">
-                    {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
+                    {/* {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'} */}
+                    {analytics?.passRate.toFixed(2) || 0}
                   </div>
                   {/* <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" /> */}
                 </CardContent>
@@ -966,29 +968,30 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <CardHeader className="pb-3">
                   <CardTitle className="flex flex-col items-center justify-center gap-3">
                     <ChartColumn height={20} width={20} color='#00A63E' />
-                    <p className="text-sm font-medium text-center text-[#00A63E]">Average Score %</p>
+                    <p className="text-sm font-medium text-center text-[#00A63E]">Average Score </p>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className='flex flex-col items-center justify-center'>
                   <div className="text-2xl font-bold text-[#0D542B]">
-                    {submissions && submissions.length > 0
+                    {/* {submissions && submissions.length > 0
                       ? `${(submissions.reduce((acc: number, sub: any) => {
                         if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
                           return acc + sub.gradingResult.totalScore;
                         }
                         return acc;
                       }, 0) / submissions.length).toFixed(1)} `
-                      : 'Loading...'}
+                      : 'Loading...'} */}
+                      {analytics?.averageScore || "Loading..."}
                   </div>
                   <p className='font-medium text-[#008236]'>
-                    {submissions && submissions.length > 0
+                    {/* {submissions && submissions.length > 0
                       ? `${(submissions.reduce((acc: number, sub: any) => {
                         if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
                           return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
                         }
                         return acc;
                       }, 0) / submissions.length).toFixed(1)}%`
-                      : '0%'}
+                      : '0%'} */}
                   </p>
                   {/* <Progress value={submissions && submissions.length > 0
                     ? parseFloat((submissions.reduce((acc: number, sub: any) => {

@@ -263,7 +263,6 @@ class QuizService extends BaseService {
 
       const passRate =
         totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0;
-
       return {
         totalAttempts,
         submissions,
