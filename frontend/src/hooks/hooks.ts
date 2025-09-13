@@ -2394,7 +2394,7 @@ export function useQuizAnalytics(quizId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/analytics", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {  enabled: !!quizId});
 
   return {
     data: result.data,
