@@ -251,11 +251,13 @@ class QuizService extends BaseService {
         submissions,
         passedSubmissions,
         averageScore,
+        averagePercentage
       ] = await Promise.all([
         this.attemptRepo.countAttempts(quizId, session),
         this.submissionRepo.countByQuizId(quizId, session),
         this.submissionRepo.countPassedByQuizId(quizId, session),
         this.submissionRepo.getAverageScoreByQuizId(quizId, session),
+        this.submissionRepo.getAveragePercentageByQuizId(quizId,session)
       ]);
 
       return {
