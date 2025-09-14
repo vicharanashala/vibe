@@ -265,6 +265,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   performance,
   onDelete,
 }) => {
+  console.log("ANALYTCS ",analytics)
   const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
@@ -959,7 +960,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <CardContent className='flex flex-col items-center justify-center'>
                   <div className="text-2xl font-bold text-[#7E2A0C]">
                     {/* {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'} */}
-                    {analytics?.passRate.toFixed(2) || 0}
+                    {analytics?.passRate.toFixed(2) || 0}%
                   </div>
                   {/* <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" /> */}
                 </CardContent>
@@ -981,7 +982,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         return acc;
                       }, 0) / submissions.length).toFixed(1)} `
                       : 'Loading...'} */}
-                      {analytics?.averageScore || "Loading..."}
+                      {analytics?.averageScore.toFixed(2) || 0}
                   </div>
                   <p className='font-medium text-[#008236]'>
                     {/* {submissions && submissions.length > 0
@@ -992,6 +993,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         return acc;
                       }, 0) / submissions.length).toFixed(1)}%`
                       : '0%'} */}
+                      {analytics?.averagePercentage|| "0"}%
                   </p>
                   {/* <Progress value={submissions && submissions.length > 0
                     ? parseFloat((submissions.reduce((acc: number, sub: any) => {

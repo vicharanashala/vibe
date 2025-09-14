@@ -2387,6 +2387,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   } | undefined,
   isLoading: boolean,
   error: string | null,

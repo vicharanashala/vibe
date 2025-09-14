@@ -237,6 +237,7 @@ class QuizService extends BaseService {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   }> {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -260,14 +261,19 @@ class QuizService extends BaseService {
         quizId,
         session,
       );
+      const averagePercentage = await this.submissionRepo.getAveragePercentageByQuizId(
+        quizId,
+        session
+      )
 
       const passRate =
-        totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0;
+        totalAttempts > 0 ? Math.round((passedSubmissions / totalAttempts) * 1000) / 10 : 0;
       return {
         totalAttempts,
         submissions,
         passRate,
         averageScore,
+        averagePercentage,
       };
     });
   }
