@@ -931,6 +931,21 @@ function VersionCard({
     })
   }
 
+  const viewInstructors = () => {
+    // Set course info in store and navigate to instructors page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/instructors",
+    })
+  }
+
   const viewFlags = () => {
     // Set course info in store and navigate to enrollments page
     setCurrentCourseFlag({
@@ -1046,6 +1061,15 @@ function VersionCard({
                 <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                   <FlagTriangleRight className="h-3 w-3 mr-1" />
                   View Flags
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewInstructors}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  View Instructors
                 </Button>
                 <Button
                   variant="outline"
