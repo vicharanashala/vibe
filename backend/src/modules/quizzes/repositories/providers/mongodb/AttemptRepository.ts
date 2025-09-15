@@ -68,6 +68,7 @@ class AttemptRepository {
     if (!result) {
       return null;
     }
+    console.log("total attempts: ",result)
     return result;
   }
 

@@ -1,16 +1,16 @@
-import {injectable, inject} from 'inversify';
-import {ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {QUIZZES_TYPES} from '../types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
-import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
-import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { ObjectId } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { QUIZZES_TYPES } from '../types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
 import {
   IGradingResult,
   IQuestionAnswerFeedback,
@@ -18,8 +18,8 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
-import {QuestionBankService} from './QuestionBankService.js';
+import { GetQuizSubmissionsQuery, QuestionBankRef } from '../classes/index.js';
+import { QuestionBankService } from './QuestionBankService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -232,11 +232,12 @@ class QuizService extends BaseService {
       return quiz;
     });
   }
-  getQuizAnalytics(quizId: string): Promise<{
+  async getQuizAnalytics(quizId: string): Promise<{
     totalAttempts: number;
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   }> {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -244,35 +245,32 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
 
-      const totalAttempts = await this.attemptRepo.countAttempts(
-        quizId,
-        session,
-      );
-      const submissions = await this.submissionRepo.countByQuizId(
-        quizId,
-        session,
-      );
-      const passedSubmissions = await this.submissionRepo.countPassedByQuizId(
-        quizId,
-        session,
-      );
-      const averageScore = await this.submissionRepo.getAverageScoreByQuizId(
-        quizId,
-        session,
-      );
-
-      const passRate =
-        totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0;
+      // Run all analytics queries in parallel
+      const [
+        totalAttempts,
+        submissions,
+        passedSubmissions,
+        averageScore,
+        averagePercentage
+      ] = await Promise.all([
+        this.attemptRepo.countAttempts(quizId, session),
+        this.submissionRepo.countByQuizId(quizId, session),
+        this.submissionRepo.countPassedByQuizId(quizId, session),
+        this.submissionRepo.getAverageScoreByQuizId(quizId, session),
+        this.submissionRepo.getAveragePercentageByQuizId(quizId,session)
+      ]);
 
       return {
         totalAttempts,
         submissions,
-        passRate,
+        passRate: totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0,
         averageScore,
+        averagePercentage,
       };
     });
   }
-  getQuestionPerformanceStats(quizId: string): Promise<
+
+  async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
       correctRate: number;
@@ -281,12 +279,8 @@ class QuizService extends BaseService {
     }[]
   > {
     return this._withTransaction(async session => {
-      const submissions = await this.submissionRepo.getByQuizId(
-        quizId,
-        session,
-      );
-      if (!submissions.data || submissions.data.length === 0) {
-        // throw new NotFoundError('No submissions found for quiz performance');
+      const submissions = await this.submissionRepo.getByQuizId(quizId, session);
+      if (!submissions.data?.length) {
         return [
           {
             questionId: '',
@@ -296,40 +290,28 @@ class QuizService extends BaseService {
           },
         ];
       }
-      const statsMap = new Map<
-        string,
-        {correct: number; total: number; score: number}
-      >();
+
+      const stats: Record<string, { correct: number; total: number; score: number }> = Object.create(null);
 
       for (const submission of submissions.data) {
-        const feedbacks: IQuestionAnswerFeedback[] =
-          submission.gradingResult?.overallFeedback ?? [];
+        for (const feedback of submission.gradingResult?.overallFeedback ?? []) {
+          const qid = feedback.questionId.toString();
+          if (!stats[qid]) stats[qid] = { correct: 0, total: 0, score: 0 };
 
-        for (const feedback of feedbacks) {
-          const questionId = feedback.questionId.toString(); // normalize ObjectId to string
-          const stat = statsMap.get(questionId) || {
-            correct: 0,
-            total: 0,
-            score: 0,
-          };
-
-          stat.total += 1;
-          if (feedback.status === 'CORRECT') stat.correct += 1;
-          // You could also do partial credit for PARTIAL here if you want
-
-          stat.score += feedback.score ?? 0;
-
-          statsMap.set(questionId, stat);
+          stats[qid].total += 1;
+          if (feedback.status === 'CORRECT') stats[qid].correct += 1;
+          stats[qid].score += feedback.score ?? 0;
         }
       }
 
-      return Array.from(statsMap.entries()).map(([questionId, stat]) => ({
+      return Object.entries(stats).map(([questionId, { correct, total, score }]) => ({
         questionId,
-        correctRate: stat.total === 0 ? 0 : stat.correct / stat.total,
-        averageScore: stat.total === 0 ? 0 : stat.score / stat.total,
+        correctRate: total ? correct / total : 0,
+        averageScore: total ? score / total : 0,
       }));
     });
   }
+
   getQuizResults(quizId: string): Promise<
     Array<{
       studentId: string | ObjectId;
@@ -552,4 +534,4 @@ class QuizService extends BaseService {
   }
 }
 
-export {QuizService};
+export { QuizService };
