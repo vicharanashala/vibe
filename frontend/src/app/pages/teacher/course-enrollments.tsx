@@ -309,14 +309,18 @@ const {
     debouncedSearch,
     sortBy,
     sortOrder,
-    !!(courseId && versionId)
+    !!(courseId && versionId),
+    'STUDENT'
   );
+
+  const studentEnrollments = enrollmentsData?.enrollments || [];
+
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
 
   // Pagination state
-  const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const totalDocuments = studentEnrollments?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
 
 
@@ -747,8 +751,8 @@ const {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : enrollmentsData?.enrollments?.length > 0 ? (
-                      enrollmentsData?.enrollments?.map((enrollment: any) => (
+                    ) : studentEnrollments?.length > 0 ? (
+                      studentEnrollments?.map((enrollment: any) => (
                         <TableRow
                           key={enrollment._id}
                           className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
