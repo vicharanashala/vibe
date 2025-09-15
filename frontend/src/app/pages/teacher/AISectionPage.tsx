@@ -41,6 +41,8 @@ import {
   Layers,
   Clock,
   Zap,
+  FileMusic,
+  Upload,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -231,7 +233,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
               <div
                 className={`
                   absolute left-0 top-5 w-full h-[3px] -z-10
-                  ${isCompleted || isActive ? 'bg-blue-500' : 'bg-gray-300'}
+                  ${isCompleted || isActive ? 'bg-gradient-to-r from-[#00D492] to-[#2B7FFF]' : 'bg-gray-300'}
                 `}
               />
 
@@ -263,6 +265,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                         <span className="font-medium">{step.icon}</span>
     )}
     {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white" /></div>}
+    {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>}
     
   </div>
 
@@ -1177,7 +1180,7 @@ export default function AISectionPage() {
             >
               Start Transcription Task
             </Button>
-          ) : (
+          ) : !(task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED') && (
           <Button
             onClick={async () => {
               setQuestionGenParams(localParams);
@@ -1294,6 +1297,27 @@ export default function AISectionPage() {
             )} */}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
+            aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' ? (
+              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div>AI Segmentation</div>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+            ) : (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               {segFields.map(({ key, type }) => (
                 <div key={key} className="flex flex-col items-start min-w-[80px]">
@@ -1316,6 +1340,7 @@ export default function AISectionPage() {
                 </div>
               ))}
             </div>
+          )
           )}
           {/* Add Re-run Transcription button */}
           {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
@@ -1516,7 +1541,31 @@ export default function AISectionPage() {
           </Accordion>
         )}
         <div className="flex items-center justify-center text-[#6A7282] text-[11px]">
-          {WORKFLOW_STEPS.find(s => s.key === task)?.explanation || WORKFLOW_STEPS[0].explanation}
+        {/* {currentUiStep <= 2 && ( */}
+          <>
+          {(currentUiStep === 1 && aiJobStatus === null) &&
+            <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+          }
+          {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION") &&
+            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+              <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+            )
+          }
+          {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
+            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+              <span>Converts extracted audio into accurate text transcripts.</span>
+            )}
+            {aiJobStatus?.task === "SEGMENTATION" &&
+            (<span>Breaks down the transcript into logical sections or chunks.</span>)}
+            {aiJobStatus?.task === "QUESTION_GENERATION" &&
+            (<span>Automatically generates relevant questions from the segmented transcript.</span>)}
+            {aiJobStatus?.task === "UPLOAD_CONTENT" &&
+            (<span>Saves and uploads the processed content with questions for later use.</span> )}
+            </>
+           {/* )} */}
+           {/* {currentUiStep >= 2 && aiJobStatus?.task == "SEGMENTATION" && (
+              WORKFLOW_STEPS.find(s => s.key === task)?.explanation || WORKFLOW_STEPS[0].explanation
+            )} */}
         </div>
       </div>
     );
@@ -2355,12 +2404,12 @@ export default function AISectionPage() {
           </>
         )}
       <div className="space-y-2 flex gap-2.5 items-center justify-center mt-4">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
           {showTranscript ? <EyeOff /> : <Eye />}
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
         </Button>
         {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent border border-[#DAB2FF] text-[#9810FA] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
           <Pencil />
           Edit
         </Button>
@@ -2669,7 +2718,7 @@ export default function AISectionPage() {
             size="sm"
             variant="secondary"
             onClick={handleShowSegmentation}
-            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
             {showSegmentation ? <EyeOff /> : <Eye />}
@@ -2760,7 +2809,7 @@ export default function AISectionPage() {
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="bg-transparent border border-[#7BF1A8] text-[#00A63E] hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:text-[#00A63E] hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
             <Pencil />
             Edit Segments
@@ -3156,6 +3205,142 @@ export default function AISectionPage() {
     </svg>
   );
 
+  const getDynamicHeading = () => {
+    if (!aiJobId) {
+      return {
+        text: "Generate Learning Content with AI",
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+      };
+    }
+
+    if (!aiJobStatus) {
+      return {
+        text: "Generate Learning Content with AI",
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+      };
+    }
+
+    switch (aiJobStatus?.task) {
+      case 'AUDIO_EXTRACTION':
+        if (aiJobStatus.status === 'RUNNING') {
+          return {
+            text: "Extracting Audio from Video",
+            gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+          };
+        } else if (aiJobStatus.status === 'COMPLETED') {
+          return {
+            text: "Audio Successfully Extracted",
+            gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+          };
+        }
+        return {
+          text: "Extract Audio from Video",
+          gradient: "from-blue-600 via-indigo-600 to-purple-600"
+        };
+      
+      case 'TRANSCRIPT_GENERATION':
+        return {
+          text: "Convert Speech to Text",
+          gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+        };
+      
+      case 'SEGMENTATION':
+        return {
+          text: "Organize Content into Sections",
+          gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+        };
+      
+      case 'QUESTION_GENERATION':
+        return {
+          text: "Generate Learning Questions",
+          gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+        };
+      
+      case 'UPLOAD_CONTENT':
+        return {
+          text: "Publish Your Learning Module",
+          gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+        };
+      
+      default:
+        return {
+          text: "Generate Learning Content with AI",
+          gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+        };
+    }
+  };
+
+  const getBadgeConfig = () => {
+    if (!aiJobId || !aiJobStatus) {
+      return {
+        text: "AI-Powered Processing",
+        icon: <Brain size={16} />,
+        bgGradient: "bg-[#F3E8FF]",
+        textColor: "text-[#8200DB]",
+        subtitle: "Transform your YouTube content into interactive learning materials using advanced artificial intelligence"
+      };
+    }
+  
+    switch (aiJobStatus.task) {
+      case 'AUDIO_EXTRACTION':
+        return {
+          text: aiJobStatus.status === 'RUNNING' ? "Step 1: Processing Audio" : "Step 1: Audio Extraction Complete",
+          icon: aiJobStatus.status === 'RUNNING' ? <FileMusic size={16} /> : <CheckCircle size={16} />,
+          bgGradient: aiJobStatus.status === 'RUNNING' ? "bg-[#DBEAFE]" : "bg-[#D0FAE5]",
+          textColor: aiJobStatus.status === 'RUNNING' ? "text-[#1447E6]" : "text-[#007A55]",
+          subtitle: aiJobStatus.status === 'RUNNING' ? "Processing your YouTube video with advanced algorithms to extract high-quality audio" : "High-quality audio has been extracted from your video and is ready for transcription",
+        };
+      
+      case 'TRANSCRIPT_GENERATION':
+        return {
+          text: "Step 2: AI Transcription",
+          icon: <MessageSquare size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "Advanced AI-powered transcription that converts your audio into accurate, readable text"
+        };
+      
+      case 'SEGMENTATION':
+        return {
+          text: "Step 3: Content Segmentation",
+          icon: <Layers size={16} />,
+          bgGradient: "bg-[#DBEAFE]",
+          textColor: "text-[#008236]",
+          subtitle: "Intelligently break down your transcript into meaningful sections for better learning structure"
+        };
+      
+      case 'QUESTION_GENERATION':
+        return {
+          text: "Step 4: Question Generation",
+          icon: <Brain size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "AI-powered question generation to create engaging assessments from your content"
+        };
+      
+      case 'UPLOAD_CONTENT':
+        return {
+          text: "Step 5: Upload & Share",
+          icon: <Upload size={16} />,
+          bgGradient: "bg-[#D0FAE5]",
+          textColor: "text-[#007A55]",
+          subtitle: "Complete your AI-generated learning module and share it with the world"
+        };
+      
+      default:
+        return {
+          text: "AI-Powered Processing",
+          icon: <Brain size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "Transform your YouTube content into interactive learning materials using advanced artificial intelligence"
+        };
+    }
+  };
+  
+  const heading = getDynamicHeading();
+  const badge = getBadgeConfig();
+
   // Render the AI workflow UI and the quiz question editor
   return ( 
     <>
@@ -3166,17 +3351,17 @@ export default function AISectionPage() {
         {/* AI Section Workflow Inline */}
         <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center">
-            <div className="bg-gradient-to-r from-[#F3E8FF] to-[#F3E8FF] rounded-3xl flex items-center justify-center gap-2 text-[#8200DB] text-[11px] px-3.5 py-2 w-fit">
-              <Brain size={16}/>
-              AI-Powered Processing
+            <div className="flex items-center justify-center mb-3">
+              <div className={`rounded-3xl flex items-center justify-center gap-2 ${badge.bgGradient} ${badge.textColor} text-[11px] px-3.5 py-2 w-fit`}>
+                {badge.icon}
+                {badge.text}
+              </div>
             </div>
-            </div>
-          <h1 className="text-3xl font-bold mb-3 bg-gradient-to-r from-[#101828] via-[#6E11B0] to-[#A3004C] bg-clip-text text-transparent">
-              Generate Section using AI
+            <h1 className={`text-3xl font-bold mb-3 bg-gradient-to-r ${heading.gradient} bg-clip-text text-transparent`}>
+              {heading.text}
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Transform your YouTube content into interactive learning materials
+            <p className="text-[#4A5565] text-base">
+              {badge.subtitle}
             </p>
           </div>
           {/* Stepper */}
@@ -3387,7 +3572,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.segmentation && currentUiStep === 2 && (
                           <div className="flex justify-end mt-4">
-                            <Button onClick={() => setCurrentUiStep(3)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(3)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3400,7 +3585,7 @@ export default function AISectionPage() {
                         <div className="flex items-center gap-2 mb-4">
                           <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
-                          <TooltipProvider>
+                          {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -3409,7 +3594,7 @@ export default function AISectionPage() {
                                 <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
+                          </TooltipProvider> */}
                         </div>
                         <TaskAccordion
                           task="question"
@@ -3437,7 +3622,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.question && (
                           <div className="flex justify-end mt-4">
-                            <Button onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(4)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3483,7 +3668,7 @@ export default function AISectionPage() {
                         <div className="flex items-center gap-2 mb-4">
                           <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
                           <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
-                          <TooltipProvider>
+                          {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -3492,7 +3677,7 @@ export default function AISectionPage() {
                                 <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
+                          </TooltipProvider> */}
                         </div>
 
                         {/* Simplified upload form */}
