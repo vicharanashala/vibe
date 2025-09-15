@@ -482,7 +482,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: {name: string, description: string, versionName: string, versionDescription: string} }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string } }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1019,7 +1019,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments( page?: number, limit?: number, enabled: boolean = true, search?:string, role = "STUDENT" ): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT"): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1094,7 +1094,7 @@ export function useCourseQuizScores(
       }
     },
     {
-      enabled: enabled && !!courseId && !!versionId,
+      enabled: enabled ? !!courseId && !!versionId : false,
       staleTime: 5 * 60 * 1000, // 5 minutes
       cacheTime: 10 * 60 * 1000, // 10 minutes
     }
@@ -1402,14 +1402,14 @@ export function useInviteUsers(): {
   };
 }
 
-export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search:string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus} },
+    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus } },
     enabled: enabled
   });
 
