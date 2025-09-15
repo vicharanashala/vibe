@@ -383,6 +383,59 @@ class SubmissionRepository {
     }
     return 0;
   }
+
+  async getAveragePercentageByQuizId(
+    quizId: string,
+    session?: ClientSession,
+): Promise<number> {
+    await this.init();
+
+    // Fetch quiz to get maxScore
+    // const quiz = await this.submissionResultCollection.getById(quizId, session);
+    // if (!quiz || !quiz.maxScore) {
+    //     return 0; // Return 0 if quiz doesn't exist or maxScore is unavailable
+    // }
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+        ? new ObjectId(quizIdStr)
+        : null;
+
+    const result = await this.submissionResultCollection
+        .aggregate(
+            [
+                {
+                    $match: {
+                        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
+                    },
+                },
+                {
+                    $project: {
+                        percentage: {
+                            $multiply: [
+                                { $divide: ['$gradingResult.totalScore', "$gradingResult.totalMaxScore"] },
+                                100,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $group: {
+                        _id: null,
+                        averagePercentage: { $avg: '$percentage' },
+                    },
+                },
+            ],
+            { session },
+        )
+        .toArray();
+
+    if (result.length > 0 && result[0].averagePercentage !== null) {
+        return Math.round(result[0].averagePercentage * 10) / 10; 
+    }
+    console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
+    return 0;
+}
 }
 
 export {SubmissionRepository};

@@ -2387,6 +2387,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   } | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2394,7 +2395,7 @@ export function useQuizAnalytics(quizId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/analytics", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {  enabled: !!quizId});
 
   return {
     data: result.data,
