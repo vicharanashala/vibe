@@ -1117,7 +1117,8 @@ export function useCourseVersionEnrollments(
   search: string = "",
   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
-  enabled: boolean = true
+  enabled: boolean = true,
+  filter: 'STUDENT' | 'OTHER'
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1130,7 +1131,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder },
+        query: { page, limit, search, sortBy, sortOrder, filter },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -2387,6 +2388,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   } | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2394,7 +2396,7 @@ export function useQuizAnalytics(quizId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/analytics", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {  enabled: !!quizId});
 
   return {
     data: result.data,
