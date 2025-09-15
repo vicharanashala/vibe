@@ -118,8 +118,11 @@ export default function CourseInstructors() {
     debouncedSearch,
     sortBy,
     sortOrder,
-    !!(courseId && versionId)
+    !!(courseId && versionId),
+    'OTHER'
   );
+
+  const instructorEnrollments = enrollmentsData?.enrollments || [];
 
   // Handle errors
   useEffect(() => {
@@ -133,7 +136,7 @@ export default function CourseInstructors() {
   const { data: course, error: courseError } = useCourseById(courseId || "")
   const { data: version, error: versionError } = useCourseVersionById(versionId || "")
 
-  const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const totalDocuments = instructorEnrollments?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -253,8 +256,8 @@ export default function CourseInstructors() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : enrollmentsData?.enrollments?.length > 0 ? (
-                    enrollmentsData.enrollments.map((instructor: any) => (
+                  ) : instructorEnrollments?.length > 0 ? (
+                    instructorEnrollments.map((instructor: any) => (
                       <TableRow
                         key={instructor._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
