@@ -1,10 +1,11 @@
 import {
   EnrollmentRole,
+  EnrollmentStatus,
   IEnrollment,
   IProgress,
   ICourseVersion,
   IWatchTime,
-  IUser
+  IUser,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
@@ -13,8 +14,10 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
 import { StudentQuizScoreDto, QuizScoresExportResponseDto } from '#root/modules/users/dtos/QuizScoresExportDto.js';
-import { ISubmission, IUserQuizMetrics } from '#root/modules/quizzes/interfaces/grading.js';
+import { IAttempt, ISubmission } from '#root/modules/quizzes/interfaces/grading.js';
 import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
+import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 
 
 @injectable()
@@ -23,13 +26,15 @@ export class EnrollmentRepository {
   private progressCollection!: Collection<IProgress>;
   private courseVersionCollection!: Collection<ICourseVersion>;
   private watchTimeCollection!: Collection<IWatchTime>;
-  private submissionCollection!: any;
-  private quizCollection!: any;
-  private itemsGroupCollection!: any;
-  private userQuizMetricsCollection!: any;
-  private userCollection!: any;
+  private submissionCollection!: Collection<ISubmission>;
+  private attemptCollection!: Collection<IAttempt>;
+  private quizCollection!: Collection<QuizItem>;
+  private itemsGroupCollection!: Collection<ItemsGroup>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
+    @inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -47,17 +52,13 @@ export class EnrollmentRepository {
     this.submissionCollection = await this.db.getCollection<ISubmission>(
       'quiz_submission_results',
     );
-    this.userQuizMetricsCollection = await this.db.getCollection<IUserQuizMetrics>(
-      'user_quiz_metrics',
-    );
     this.quizCollection = await this.db.getCollection<QuizItem>(
       'quizzes'
     );
-    this.userCollection = await this.db.getCollection<IUser>(
-      'users');
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup'
     );
+    this.attemptCollection = await this.db.getCollection<IAttempt>('quiz_attempts');
   }
 
   /**
@@ -635,14 +636,23 @@ export class EnrollmentRepository {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
+    filter: string,
     session?: ClientSession,
   ) {
     await this.init();
-
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
+      status: { $regex: /^active$/i }
     };
+    if (filter) {
+      if (filter === 'STUDENT') {
+        matchStage.role = 'STUDENT';
+      } else if (filter === 'OTHER') {
+        matchStage.role = { $ne: 'STUDENT' };
+      }
+    }
+
 
     // decide sort field
     let sortField: any = {};
@@ -742,6 +752,8 @@ export class EnrollmentRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
+              role: 'STUDENT',
+              status: { $regex: /^active$/i }
             },
           },
           {
@@ -881,116 +893,6 @@ export class EnrollmentRepository {
 
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
-   * @param versionId - The ID of the course version
-   * @returns Array of modules with their sections and associated quiz IDs
-   * @throws {NotFoundError} If course version is not found
-   * @throws {InternalServerError} For database operation failures
-   */
-  async getQuizIdsByModulesAndSections(
-    versionId: string
-  ): Promise<Array<{
-    moduleId: string;
-    moduleName: string;
-    sections: Array<{
-      sectionId: string;
-      sectionName: string;
-      quizIds: string[];
-    }>;
-  }>> {
-    if (!ObjectId.isValid(versionId)) {
-      throw new Error('Invalid version ID format');
-    }
-
-    await this.init();
-
-    try {
-      // 1. Get the course version with modules and sections
-      const courseVersion = await this.courseVersionCollection.findOne(
-        { _id: new ObjectId(versionId) },
-        {
-          projection: {
-            'modules.moduleId': 1,
-            'modules.name': 1,
-            'modules.sections.sectionId': 1,
-            'modules.sections.name': 1,
-            'modules.sections.itemsGroupId': 1
-          }
-        }
-      );
-
-      if (!courseVersion) {
-        throw new NotFoundError(`Course version ${versionId} not found`);
-      }
-
-      if (!courseVersion?.modules?.length) {
-        return [];
-      }
-
-      // 2. Extract all itemsGroupIds for sections
-      const sectionsWithItems = courseVersion.modules.flatMap(module =>
-        module.sections?.map(section => ({
-          moduleId: module.moduleId,
-          moduleName: module.name || 'Unnamed Module',
-          sectionId: section.sectionId,
-          sectionName: section.name || 'Unnamed Section',
-          itemsGroupId: section.itemsGroupId
-        })) || []
-      ).filter(section => section.itemsGroupId);
-
-      if (sectionsWithItems.length === 0) {
-        return [];
-      }
-
-      // 3. Get all itemsGroups in one query
-      const itemsGroupIds = sectionsWithItems.map(s => new ObjectId(s.itemsGroupId));
-      const itemsGroups = await this.itemsGroupCollection.find(
-        { _id: { $in: itemsGroupIds } }
-      ).toArray();
-
-      // 4. Create a map of itemsGroupId to its quiz items
-      const itemsGroupMap = new Map();
-      itemsGroups.forEach(group => {
-        const quizItems = (group.items || [])
-          .filter(item => item.type === 'QUIZ')
-          .map(item => item._id.toString());
-        itemsGroupMap.set(group._id.toString(), quizItems);
-      });
-
-      // 5. Structure the result by module and section
-      const result = [];
-      const moduleMap = new Map();
-
-      for (const section of sectionsWithItems) {
-        const quizIds = itemsGroupMap.get(section.itemsGroupId) || [];
-        if (quizIds.length === 0) continue;
-
-        let moduleData = moduleMap.get(section.moduleId);
-        if (!moduleData) {
-          moduleData = {
-            moduleId: section.moduleId,
-            moduleName: section.moduleName,
-            sections: []
-          };
-          moduleMap.set(section.moduleId, moduleData);
-          result.push(moduleData);
-        }
-
-        moduleData.sections.push({
-          sectionId: section.sectionId,
-          sectionName: section.sectionName,
-          quizIds
-        });
-      }
-
-      return result;
-    }
-    catch (error) {
-      console.error('Error in getQuizIdsByModulesAndSections:', error);
-      throw error;
-    }
-  }
-
-
 
   /**
    * Get quiz details by their IDs
@@ -1019,13 +921,6 @@ export class EnrollmentRepository {
     return quizDetails;
   }
 
-  private processIds = (ids: (string | ObjectId)[]) => {
-    return ids.map(id =>
-      typeof id === 'string' && ObjectId.isValid(id)
-        ? new ObjectId(id)
-        : id
-    );
-  };
 
   /**
    * Get maximum scores for a list of quizzes
@@ -1041,55 +936,75 @@ export class EnrollmentRepository {
 
     try {
       // Handle both string and ObjectId inputs
+      // Process incoming IDs into both string and ObjectId versions
+      // 🔄 Convert IDs into both ObjectId[] and string[] for mixed-type matching
+      const ObjuserIds = userIds
+        .filter(id => typeof id === "string" && ObjectId.isValid(id) || id instanceof ObjectId)
+        .map(id => (typeof id === "string" ? new ObjectId(id) : id));
 
+      const ObjquizIds = quizIds
+        .filter(id => typeof id === "string" && ObjectId.isValid(id) || id instanceof ObjectId)
+        .map(id => (typeof id === "string" ? new ObjectId(id) : id));
 
-      const ObjuserIds = this.processIds(userIds);
-      const ObjquizIds = this.processIds(quizIds);
+      const stringUserIds = userIds.map(id => id.toString());
+      const stringQuizIds = quizIds.map(id => id.toString());
 
       const results = await this.submissionCollection.aggregate([
         {
           $match: {
-            userId: { $in: ObjuserIds },
-            quizId: { $in: ObjquizIds },
-            'gradingResult.totalMaxScore': { $exists: true },
-            'gradingResult.totalScore': { $exists: true }
+            $and: [
+              {
+                $or: [
+                  { userId: { $in: ObjuserIds } },
+                  { userId: { $in: stringUserIds } }
+                ]
+              },
+              {
+                $or: [
+                  { quizId: { $in: ObjquizIds } },
+                  { quizId: { $in: stringQuizIds } }
+                ]
+              },
+              { "gradingResult.totalMaxScore": { $exists: true } },
+              { "gradingResult.totalScore": { $exists: true } }
+            ]
           }
         },
         {
           $project: {
             userId: 1,
             quizId: 1,
-            score: { $ifNull: ['$gradingResult.totalScore', 0] },
-            maxPossibleScore: { $ifNull: ['$gradingResult.totalMaxScore', 0] }
+            score: { $ifNull: ["$gradingResult.totalScore", 0] },
+            maxPossibleScore: { $ifNull: ["$gradingResult.totalMaxScore", 0] }
           }
         },
         {
           $group: {
             _id: {
-              userId: '$userId',
-              quizId: '$quizId'
+              userId: "$userId",
+              quizId: "$quizId"
             },
-            bestScore: { $max: '$score' },
-            maxPossibleScore: { $first: '$maxPossibleScore' } // Assuming maxPossibleScore is same for all attempts
+            bestScore: { $max: "$score" },
+            maxPossibleScore: { $first: "$maxPossibleScore" }
           }
         },
         {
           $project: {
             _id: 0,
-            userId: '$_id.userId',
-            quizId: '$_id.quizId',
-            bestScore: 1,  // Keep the best score
-            maxPossibleScore: 1,  // Keep the max possible score
+            userId: { $toString: "$_id.userId" },
+            quizId: { $toString: "$_id.quizId" },
+            bestScore: 1,
+            maxPossibleScore: 1,
             scorePercentage: {
               $let: {
                 vars: {
                   percentage: {
                     $cond: [
-                      { $eq: ['$maxPossibleScore', 0] },
+                      { $eq: ["$maxPossibleScore", 0] },
                       0,
                       {
                         $multiply: [
-                          { $divide: ['$bestScore', '$maxPossibleScore'] },
+                          { $divide: ["$bestScore", "$maxPossibleScore"] },
                           100
                         ]
                       }
@@ -1098,9 +1013,9 @@ export class EnrollmentRepository {
                 },
                 in: {
                   $cond: [
-                    { $eq: [{ $mod: ['$$percentage', 1] }, 0] },
-                    '$$percentage',
-                    { $round: ['$$percentage', 2] }
+                    { $eq: [{ $mod: ["$$percentage", 1] }, 0] },
+                    "$$percentage",
+                    { $round: ["$$percentage", 2] }
                   ]
                 }
               }
@@ -1113,9 +1028,8 @@ export class EnrollmentRepository {
       const maxScores = new Map<string, Map<string, number>>();
 
       results.forEach(result => {
-
-        const userId = result.userId?.toString();
-        const quizId = result.quizId?.toString();
+        const userId = result.userId;
+        const quizId = result.quizId;
 
         if (userId && quizId) {
           if (!maxScores.has(userId)) {
@@ -1124,6 +1038,9 @@ export class EnrollmentRepository {
           maxScores.get(userId)?.set(quizId, result.scorePercentage);
         }
       });
+
+      console.log("maxScores", maxScores);
+
       return maxScores;
     }
     catch (error) {
@@ -1141,69 +1058,50 @@ export class EnrollmentRepository {
     userIds: (string | ObjectId)[],
     quizIds: (string | ObjectId)[]
   ): Promise<Map<string, Map<string, number>>> {
-    if (!userIds.length || !quizIds.length) return new Map<string, Map<string, number>>();
-
-    const totalAttempts = new Map<string, Map<string, number>>();
+    if (!userIds.length || !quizIds.length) return new Map();
 
     try {
+      const ObjUserIds = userIds.map(id => new ObjectId(id.toString()));
+      const ObjQuizIds = quizIds.map(id => new ObjectId(id.toString()));
 
-      const ObjuserIds = this.processIds(userIds);
-      const ObjquizIds = this.processIds(quizIds);
-
-      const results = await this.userQuizMetricsCollection.aggregate([
+      const results = await this.attemptCollection.aggregate([
         {
           $match: {
-            userId: { $in: ObjuserIds },
-            quizId: { $in: ObjquizIds },
-            attempts: { $exists: true, $type: 'array' }
+            userId: { $in: ObjUserIds },
+            quizId: { $in: ObjQuizIds }
+          }
+        },
+        {
+          $group: {
+            _id: { userId: "$userId", quizId: "$quizId" },
+            attemptCount: { $sum: 1 }
           }
         },
         {
           $project: {
-            userId: 1,
-            quizId: 1,
-            attemptsCount: { $size: '$attempts' }
+            _id: 0,
+            userId: { $toString: "$_id.userId" },
+            quizId: { $toString: "$_id.quizId" },
+            attemptCount: 1
           }
         }
       ]).toArray();
 
-
-      // Debug: Check sample documents
-      if (results.length === 0) {
-        const sampleDoc = await this.userQuizMetricsCollection.findOne({
-          quizId: {
-            quizId: { $in: quizIds },
-            isSubmitted: true
-          }
-        });
-        console.log('Sample user metrics document:', sampleDoc);
+      const attemptMap = new Map<string, Map<string, number>>();
+      for (const { userId, quizId, attemptCount } of results) {
+        if (!attemptMap.has(userId)) {
+          attemptMap.set(userId, new Map());
+        }
+        attemptMap.get(userId)!.set(quizId, attemptCount);
       }
 
-      // Convert to Map<userId, Map<quizId, attemptsCount>>
-      results.forEach(result => {
-        try {
-          const userId = result.userId?.toString();
-          const quizId = result.quizId?.toString();
-
-          if (!userId || !quizId) {
-            console.warn('Skipping result with missing userId or quizId:', result);
-            return;
-          }
-
-          if (!totalAttempts.has(userId)) {
-            totalAttempts.set(userId, new Map());
-          }
-          totalAttempts.get(userId)?.set(quizId, result.attemptsCount || 0);
-        } catch (error) {
-          console.error('Error processing result:', error, 'Result:', result);
-        }
-      });
+      return attemptMap;
     } catch (error) {
-      console.error('Error in getUserQuizAttempts:', error);
+      console.error("Error in getUserQuizAttempts:", error);
+      throw error;
     }
-
-    return totalAttempts;
   }
+
 
   /**
    * Get quiz scores for all students in a course version
@@ -1213,6 +1111,147 @@ export class EnrollmentRepository {
    */
 
   private readonly BATCH_SIZE = 100; // Number of students to process in each batch
+
+  /**
+   * Retrieves quiz IDs organized by modules and sections for a given course version
+   * @param versionId The ID of the course version
+   * @returns Array of modules with their sections and associated quiz IDs
+   */
+  private async getQuizIdsByModulesAndSections(versionId: string): Promise<Array<{
+    moduleId: string;
+    moduleName: string;
+    sections: Array<{
+      sectionId: string;
+      sectionName: string;
+      quizIds: string[];
+    }>;
+  }>> {
+    // Define types for the data we're working with
+    type QuizDocument = { _id: ObjectId; itemsGroupId: string };
+    type ModuleSection = { sectionId: string; name: string; itemsGroupId: string };
+    type Module = { moduleId: string; name: string; sections: ModuleSection[] };
+    await this.init();
+
+    if (!ObjectId.isValid(versionId)) {
+      throw new Error('Invalid version ID format');
+    }
+
+    try {
+      // 1. Get the course version with modules and sections
+      const courseVersion = await this.courseVersionCollection.findOne(
+        { _id: new ObjectId(versionId) },
+        {
+          projection: {
+            'modules.moduleId': 1,
+            'modules.name': 1,
+            'modules.sections.sectionId': 1,
+            'modules.sections.name': 1,
+            'modules.sections.itemsGroupId': 1
+          }
+        }
+      );
+
+      if (!courseVersion || !courseVersion.modules) {
+        return [];
+      }
+
+      // 2. Get all items groups for the sections
+      const sectionItemsGroupIds = courseVersion.modules.flatMap(module => {
+        return (module.sections || []).map(section => {
+          return section.itemsGroupId;
+        });
+      }).filter(Boolean);
+
+
+
+      if (sectionItemsGroupIds.length === 0) {
+        console.warn(`[WARN] No valid item group IDs found in course version ${versionId}`);
+        return [];
+      }
+
+      // 3. Get all items groups that contain quizzes
+      const itemsGroups = await this.itemsGroupCollection.find({
+        _id: { $in: sectionItemsGroupIds.map(id => new ObjectId(id)) }
+      }).toArray();
+
+      // Get all quiz items from these groups
+      const quizItems = itemsGroups.flatMap(group => {
+        const groupId = group._id?.toString();
+
+        const filteredItems = group.items
+          ?.filter(item => {
+            const isQuiz = item.type === 'QUIZ';
+            return isQuiz;
+          })
+          .map(item => ({
+            _id: item._id?.toString(),
+            itemsGroupId: groupId
+          })) || [];
+
+        return filteredItems;
+      });
+
+      // 4. Organize quiz items by itemsGroupId for quick lookup
+      const quizzesByItemsGroup = new Map<string, string[]>();
+
+      quizItems.forEach((quiz, index) => {
+        if (!quiz.itemsGroupId) {
+          console.warn(`[WARN] Quiz item at index ${index} has no itemsGroupId:`, quiz);
+          return;
+        }
+        if (!quiz._id) {
+          console.warn(`[WARN] Quiz item in group ${quiz.itemsGroupId} has no _id`);
+          return;
+        }
+
+        if (!quizzesByItemsGroup.has(quiz.itemsGroupId)) {
+          quizzesByItemsGroup.set(quiz.itemsGroupId, []);
+        }
+        quizzesByItemsGroup.get(quiz.itemsGroupId)?.push(quiz._id);
+      });
+
+      // 5. Build the result structure
+      const result = (courseVersion.modules || [] as Array<{ moduleId: string; name?: string; sections?: ModuleSection[] }>)
+        .map(module => {
+          const moduleSections = (module.sections || [])
+            .filter((section): section is ModuleSection & { itemsGroupId: string } => {
+              if (!section || !section.itemsGroupId) {
+                return false;
+              }
+
+              const sectionGroupId = section.itemsGroupId.toString();
+              const hasQuizzes = quizzesByItemsGroup.has(sectionGroupId);
+
+              return hasQuizzes;
+            })
+            .map(section => {
+              const sectionGroupId = section.itemsGroupId.toString();
+              const quizIds = quizzesByItemsGroup.get(sectionGroupId) || [];
+
+              return {
+                sectionId: section.sectionId.toString(),
+                sectionName: section.name || 'Unnamed Section',
+                quizIds: quizIds
+              };
+            })
+            .filter(section => section.quizIds.length > 0);
+
+          const moduleResult = {
+            moduleId: module.moduleId,
+            moduleName: module.name || 'Unnamed Module',
+            sections: moduleSections
+          };
+
+          return moduleResult;
+        })
+        .filter(module => module.sections.length > 0);
+
+      return result;
+    } catch (error) {
+      console.error(`[ERROR] Error in getQuizIdsByModulesAndSections:`, error);
+      throw error;
+    }
+  }
 
   async getQuizScoresForCourseVersion(
     courseId: string,
@@ -1225,14 +1264,28 @@ export class EnrollmentRepository {
       throw new Error('Database collections not properly initialized');
     }
 
+    // Convert IDs to both string and ObjectId formats for flexible querying
+    const courseIdStr = courseId;
+    const versionIdStr = versionId;
+
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
+      const errorMsg = `Invalid course or version ID format. CourseID valid: ${ObjectId.isValid(courseId)}, VersionID valid: ${ObjectId.isValid(versionId)}`;
+      console.error(`[ERROR] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
+    const courseIdObj = new ObjectId(courseId);
+    const versionIdObj = new ObjectId(versionId);
+
     try {
       // 1. First get total count for batching
       const totalStudents = await this.enrollmentCollection.countDocuments({
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
         role: 'STUDENT',
-        status: 'ACTIVE'
+        status: { $regex: /^active$/i } // strict, case-insensitive
       });
+
 
       if (totalStudents === 0) {
         return {
@@ -1248,12 +1301,20 @@ export class EnrollmentRepository {
       }
 
       // 2. Get all quizzes organized by modules and sections once
-      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionId);
+      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionIdObj.toString());
+
       const allQuizIds = [...new Set(quizzesByModuleSection.flatMap(module =>
         module.sections.flatMap(section => section.quizIds)
       ))];
 
       if (allQuizIds.length === 0) {
+        console.warn(`[WARN] No quiz IDs found for course version ${versionId}. Module sections:`,
+          quizzesByModuleSection.map(m => ({
+            module: m.moduleName,
+            sectionCount: m.sections.length,
+            quizCount: m.sections.reduce((acc, s) => acc + s.quizIds.length, 0)
+          }))
+        );
         return {
           data: [],
           metadata: {
@@ -1266,7 +1327,16 @@ export class EnrollmentRepository {
         };
       }
 
-      const quizIdsObjectIds = allQuizIds.map(id => new ObjectId(id));
+      const quizIdsObjectIds = allQuizIds
+        .filter((id): id is string => {
+          const isValid = typeof id === 'string' && ObjectId.isValid(id);
+          if (!isValid) {
+            console.error(`[ERROR] Invalid quiz ID format: ${id}`);
+          }
+          return isValid;
+        })
+        .map(id => new ObjectId(id));
+
       const quizDetails = await this.getQuizDetails(quizIdsObjectIds);
 
       // 3. Process students in batches
@@ -1280,10 +1350,10 @@ export class EnrollmentRepository {
         const enrollments = await this.enrollmentCollection.aggregate([
           {
             $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(versionId),
+              courseId: courseIdObj,
+              courseVersionId: versionIdObj,
               role: 'STUDENT',
-              status: 'ACTIVE'
+              status: { $regex: /^active$/i }
             }
           },
           { $skip: skip },
@@ -1353,8 +1423,8 @@ export class EnrollmentRepository {
       return {
         data: result,
         metadata: {
-          courseId,
-          versionId,
+          courseId: courseIdStr,
+          versionId: versionIdStr,
           totalStudents: result.length,
           durationMs: duration,
           generatedAt: new Date().toISOString()
