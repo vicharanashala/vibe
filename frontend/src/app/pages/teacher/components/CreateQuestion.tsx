@@ -191,9 +191,11 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                         priority: questionData.priority
                     },
                     solution: {
-                        correctLotItems: questionData.correctLotItems,
                         incorrectLotItems: questionData.incorrectLotItems,
-                        correctLotItem: questionData.correctLotItem
+                        ...(questionForm.type === 'SELECT_ONE_IN_LOT'
+                            ? { correctLotItem: questionData.correctLotItem }
+                            : { correctLotItems: questionData.correctLotItems }
+                        )
                     }
                 }
             });
@@ -302,7 +304,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             <Label htmlFor="priority" className='mb-3'>Priority *</Label>
                                             <Select
                                                 value={questionForm.priority}
-                                                onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value }))}
+                                                onValueChange={(value: 'LOW' | 'MEDIUM' | 'HIGH') => setQuestionForm(prev => ({ ...prev, priority: value }))}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select priority" />

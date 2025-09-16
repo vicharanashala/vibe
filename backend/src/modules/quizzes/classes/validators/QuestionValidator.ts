@@ -77,14 +77,14 @@ class LotItem implements ILotItem {
   })
   text: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @JSONSchema({
     description: 'Explanation for the lot item',
     type: 'string',
     example: 'This is the correct answer because...',
   })
-  explaination: string;
+  explaination?: string;
 }
 
 class LotOrder implements ILotOrder {
