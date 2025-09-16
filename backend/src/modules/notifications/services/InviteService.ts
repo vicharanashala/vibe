@@ -4,32 +4,32 @@ import {
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {injectable, inject} from 'inversify';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
-import {UserRepository} from '#shared/database/providers/mongo/repositories/UserRepository.js';
-import {InviteRepository} from '#shared/database/providers/mongo/repositories/InviteRepository.js';
-import {MailService} from './MailService.js';
-import {Invite} from '../classes/transformers/Invite.js';
+import { injectable, inject } from 'inversify';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { CourseRepository } from '#shared/database/providers/mongo/repositories/CourseRepository.js';
+import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
+import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
+import { MailService } from './MailService.js';
+import { Invite } from '../classes/transformers/Invite.js';
 import {
   EnrollmentRole,
   ICourseVersion,
   ICourse,
 } from '#shared/interfaces/models.js';
-import {NOTIFICATIONS_TYPES} from '../types.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {appConfig} from '#root/config/app.js';
+import { NOTIFICATIONS_TYPES } from '../types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { appConfig } from '#root/config/app.js';
 import nodemailer from 'nodemailer';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {InviteResult} from '../classes/index.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { InviteResult } from '../classes/index.js';
 import {
   BaseService,
   IItemRepository,
   MongoDatabase,
 } from '#root/shared/index.js';
-import {ObjectId} from 'mongodb';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import { ObjectId } from 'mongodb';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
 
 @injectable()
 export class InviteService extends BaseService {
@@ -71,10 +71,8 @@ export class InviteService extends BaseService {
         `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
         `- Allow microphone access. The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
         `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
-        `To confirm your participation, please click the link below:\n${
-          appConfig.url
-        }${
-          appConfig.routePrefix
+        `To confirm your participation, please click the link below:\n${appConfig.url
+        }${appConfig.routePrefix
         }/notifications/invite/${invite._id.toString()}\n\n` +
         `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`,
       html: `<!DOCTYPE html>
@@ -147,9 +145,8 @@ export class InviteService extends BaseService {
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td bgcolor="#ff9800" style="border-radius:6px; padding:16px 40px; text-align:center;">
-                          <a href="${appConfig.url}${
-        appConfig.routePrefix
-      }/notifications/invite/${invite._id.toString()}"
+                          <a href="${appConfig.url}${appConfig.routePrefix
+        }/notifications/invite/${invite._id.toString()}"
                              style="font-family:Arial, sans-serif; font-size:20px; font-weight:bold; color:#ffffff; text-decoration:none; display:inline-block;">
                             Accept Invite
                           </a>
@@ -178,8 +175,130 @@ export class InviteService extends BaseService {
     };
   }
 
+  // async inviteUserToCourse(
+  //   inviteData: { email: string; role: EnrollmentRole }[],
+  //   courseId: string,
+  //   courseVersionId: string,
+  // ): Promise<InviteResult[]> {
+  //   return this._withTransaction(async session => {
+  //     // Get Course Details
+  //     const course = await this.courseRepo.read(courseId.toString());
+  //     if (!course) {
+  //       throw new NotFoundError('Course not found');
+  //     }
+  //     // Get Course Version Details
+  //     const courseVersion = await this.courseRepo.readVersion(
+  //       courseVersionId.toString(),
+  //     );
+  //     if (!courseVersion) {
+  //       throw new NotFoundError('Course version not found');
+  //     }
+  //     if (!courseVersion.modules || courseVersion.modules.length === 0) {
+  //       throw new BadRequestError(
+  //         'Course version has no modules. Please add modules before proceeding.',
+  //       );
+  //     }
+
+  //     const firstModule = [...courseVersion.modules].sort((a, b) =>
+  //       a.order.localeCompare(b.order),
+  //     )[0];
+
+  //     if ((!firstModule.sections || firstModule.sections.length === 0)) {
+  //       throw new BadRequestError(
+  //         `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+  //       );
+  //     }
+
+  //     const firstSection = [...firstModule.sections].sort((a, b) =>
+  //       a.order.localeCompare(b.order),
+  //     )[0];
+
+  //     const itemsGroup = await this.itemRepo.readItemsGroup(
+  //       firstSection.itemsGroupId.toString(),
+  //     );
+
+  //     if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+  //       throw new BadRequestError(
+  //         `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+  //       );
+  //     }
+
+  //     const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  //     // Create Invites
+  //     const inviteIds = await Promise.all(
+  //       inviteData.map(async ({ email, role }) => {
+  //         // Check if already invited
+  //         const user = await this.userRepo.findByEmail(email);
+  //         const isNewUser = !user;
+
+  //         const isAlreadyEnrolled = user
+  //           ? !!(await this.enrollmentRepo.findEnrollment(
+  //             user._id.toString(),
+  //             courseId,
+  //             courseVersionId,
+  //           ))
+  //           : false;
+
+  //         const invite = new Invite(
+  //           email,
+  //           new ObjectId(courseId),
+  //           new ObjectId(courseVersionId),
+  //           role,
+  //           isAlreadyEnrolled,
+  //           isNewUser,
+  //           oneWeekFromNow,
+  //         );
+
+  //         return this.inviteRepo.create(invite, session);
+  //       }),
+  //     );
+  //     // Get Invite Details
+  //     const invites = await this.inviteRepo.findInvitesByIds(
+  //       inviteIds,
+  //       session,
+  //     );
+  //     // Prepare and send emails
+  //     await Promise.all(
+  //       invites.map(async invite => {
+  //         const emailMessage = await this.createInviteEmailMessage(
+  //           invite,
+  //           course,
+  //           courseVersion,
+  //         );
+  //         try {
+  //           await this.mailService.sendMail(emailMessage);
+  //         } catch (error) {
+  //           // Update Status to EMAIL_FAILED
+  //           invite.inviteStatus = 'EMAIL_FAILED';
+  //           const updatePayload = {
+  //             ...invite,
+  //             courseId: new ObjectId(invite.courseId),
+  //             courseVersionId: new ObjectId(invite.courseVersionId),
+  //           };
+  //           await this.inviteRepo.updateInvite(
+  //             invite._id.toString(),
+  //             updatePayload,
+  //           );
+  //           return;
+  //         }
+  //       }),
+  //     );
+
+  //     // Return invite details
+  //     const inviteDetails = invites.map(invite => {
+  //       return new InviteResult(
+  //         invite._id,
+  //         invite.email,
+  //         invite.inviteStatus,
+  //         invite.role,
+  //       );
+  //     });
+  //     return inviteDetails;
+  //   });
+  // }
+
   async inviteUserToCourse(
-    inviteData: {email: string; role: EnrollmentRole}[],
+    inviteData: { email: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
   ): Promise<InviteResult[]> {
@@ -189,78 +308,81 @@ export class InviteService extends BaseService {
       if (!course) {
         throw new NotFoundError('Course not found');
       }
+
       // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(
-        courseVersionId.toString(),
-      );
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
       if (!courseVersion) {
         throw new NotFoundError('Course version not found');
       }
-      if (!courseVersion.modules || courseVersion.modules.length === 0) {
-        throw new BadRequestError(
-          'Course version has no modules. Please add modules before proceeding.',
+
+      // ✅ Validate course content only if any user is a STUDENT
+      const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
+      if (hasStudent) {
+        if (!courseVersion.modules || courseVersion.modules.length === 0) {
+          throw new BadRequestError(
+            'Course version has no modules. Please add modules before proceeding.',
+          );
+        }
+
+        const firstModule = [...courseVersion.modules].sort((a, b) =>
+          a.order.localeCompare(b.order),
+        )[0];
+
+        if (!firstModule.sections || firstModule.sections.length === 0) {
+          throw new BadRequestError(
+            `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+          );
+        }
+
+        const firstSection = [...firstModule.sections].sort((a, b) =>
+          a.order.localeCompare(b.order),
+        )[0];
+
+        const itemsGroup = await this.itemRepo.readItemsGroup(
+          firstSection.itemsGroupId.toString(),
         );
-      }
 
-      const firstModule = [...courseVersion.modules].sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-
-      if (!firstModule.sections || firstModule.sections.length === 0) {
-        throw new BadRequestError(
-          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
-        );
-      }
-
-      const firstSection = [...firstModule.sections].sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        firstSection.itemsGroupId.toString(),
-      );
-
-      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-        throw new BadRequestError(
-          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
-        );
+        if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+          throw new BadRequestError(
+            `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+          );
+        }
       }
 
       const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      // Create Invites
-      const inviteIds = await Promise.all(
-        inviteData.map(async ({email, role}) => {
-          // Check if already invited
-          const user = await this.userRepo.findByEmail(email);
-          const isNewUser = !user;
 
-          const isAlreadyEnrolled = user
-            ? !!(await this.enrollmentRepo.findEnrollment(
-                user._id.toString(),
-                courseId,
-                courseVersionId,
-              ))
-            : false;
+      // ✅ Parallel invite creation
+      const invitePromises = inviteData.map(async ({ email, role }) => {
+        const user = await this.userRepo.findByEmail(email);
+        const isNewUser = !user;
 
-          const invite = new Invite(
-            email,
-            new ObjectId(courseId),
-            new ObjectId(courseVersionId),
-            role,
-            isAlreadyEnrolled,
-            isNewUser,
-            oneWeekFromNow,
-          );
+        const isAlreadyEnrolled = user
+          ? !!(await this.enrollmentRepo.findEnrollment(
+            user._id.toString(),
+            courseId,
+            courseVersionId,
+          ))
+          : false;
 
-          return this.inviteRepo.create(invite, session);
-        }),
-      );
-      // Get Invite Details
-      const invites = await this.inviteRepo.findInvitesByIds(
-        inviteIds,
-        session,
-      );
-      // Prepare and send emails
+        const invite = new Invite(
+          email,
+          new ObjectId(courseId),
+          new ObjectId(courseVersionId),
+          role,
+          isAlreadyEnrolled,
+          isNewUser,
+          oneWeekFromNow,
+        );
+
+        return this.inviteRepo.create(invite, session);
+      });
+
+      const inviteIds = await Promise.all(invitePromises);
+
+      // Fetch created invites
+      const invites = await this.inviteRepo.findInvitesByIds(inviteIds, session);
+
+      // ✅ Parallel email sending
       await Promise.all(
         invites.map(async invite => {
           const emailMessage = await this.createInviteEmailMessage(
@@ -278,29 +400,21 @@ export class InviteService extends BaseService {
               courseId: new ObjectId(invite.courseId),
               courseVersionId: new ObjectId(invite.courseVersionId),
             };
-            await this.inviteRepo.updateInvite(
-              invite._id.toString(),
-              updatePayload,
-            );
-            return;
+            await this.inviteRepo.updateInvite(invite._id.toString(), updatePayload);
           }
         }),
       );
 
-      // Return invite details
-      const inviteDetails = invites.map(invite => {
-        return new InviteResult(
-          invite._id,
-          invite.email,
-          invite.inviteStatus,
-          invite.role,
-        );
-      });
-      return inviteDetails;
+      // Return results
+      return invites.map(
+        invite =>
+          new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+      );
     });
   }
 
-  async processInvite(inviteId: string): Promise<{message: string}> {
+
+  async processInvite(inviteId: string): Promise<{ message: string }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
@@ -377,7 +491,7 @@ export class InviteService extends BaseService {
     }
   }
 
-  async cancelInvite(inviteId: string): Promise<{message: string}> {
+  async cancelInvite(inviteId: string): Promise<{ message: string }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
@@ -394,10 +508,10 @@ export class InviteService extends BaseService {
     };
     await this.inviteRepo.updateInvite(inviteId, updatePayload);
 
-    return {message: 'Invite has been cancelled successfully.'};
+    return { message: 'Invite has been cancelled successfully.' };
   }
 
-  async resendInvite(inviteId: string): Promise<{message: string}> {
+  async resendInvite(inviteId: string): Promise<{ message: string }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
@@ -425,7 +539,7 @@ export class InviteService extends BaseService {
 
     try {
       await this.mailService.sendMail(emailMessage);
-      return {message: 'Invite resent successfully.'};
+      return { message: 'Invite resent successfully.' };
     } catch (error) {
       throw new InternalServerError('Failed to resend invite email');
     }
@@ -454,7 +568,7 @@ export class InviteService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
-    const {invites, totalDocuments, totalPages} =
+    const { invites, totalDocuments, totalPages } =
       await this.inviteRepo.findInvitesByCourse(
         courseId,
         courseVersionId,
