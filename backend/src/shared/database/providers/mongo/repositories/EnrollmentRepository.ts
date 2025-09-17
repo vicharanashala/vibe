@@ -1068,7 +1068,7 @@ export class EnrollmentRepository {
       allAttempts.forEach(attempt => {
         const userId = attempt.userId?.toString();
         const quizId = attempt.quizId?.toString();
-        
+
         if (!userId || !quizId || !attempt.gradingResult?.overallFeedback) return;
 
         // Initialize user and quiz in the questionScores map
@@ -1078,17 +1078,17 @@ export class EnrollmentRepository {
         if (!questionScores.get(userId)?.has(quizId)) {
           questionScores.get(userId)?.set(quizId, new Map<string, number>());
         }
-        
+
         // Get the user's quiz map for question scores
         const userQuizQuestions = questionScores.get(userId)?.get(quizId);
-        
+
         // Process each question in the attempt
         attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
           if (!feedback.questionId || typeof feedback.score !== 'number') return;
-          
+
           const questionId = feedback.questionId.toString();
           const currentMax = userQuizQuestions?.get(questionId) || 0;
-          
+
           // Store the maximum score for each question
           if (feedback.score > currentMax) {
             userQuizQuestions?.set(questionId, feedback.score);
@@ -1187,7 +1187,7 @@ export class EnrollmentRepository {
    */
   private async getQuizQuestionIds(quizId: string): Promise<string[]> {
     await this.init();
-    
+
     const quiz = await this.quizCollection.findOne({ _id: new ObjectId(quizId) });
     if (!quiz || !quiz.details?.questionBankRefs?.length) {
       return [];
@@ -1197,7 +1197,7 @@ export class EnrollmentRepository {
     const bankIds = quiz.details.questionBankRefs
       .filter((ref: any) => ref.bankId && ObjectId.isValid(ref.bankId))
       .map((ref: any) => new ObjectId(ref.bankId));
-    
+
     if (bankIds.length === 0) {
       return [];
     }
@@ -1374,10 +1374,6 @@ export class EnrollmentRepository {
       throw new Error('Database collections not properly initialized');
     }
 
-    // Convert IDs to both string and ObjectId formats for flexible querying
-    const courseIdStr = courseId;
-    const versionIdStr = versionId;
-
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
       const errorMsg = `Invalid course or version ID format. CourseID valid: ${ObjectId.isValid(courseId)}, VersionID valid: ${ObjectId.isValid(versionId)}`;
       console.error(`[ERROR] ${errorMsg}`);
@@ -1386,17 +1382,15 @@ export class EnrollmentRepository {
 
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
+    const studentFilter = {
+      courseId: courseIdObj,
+      courseVersionId: versionIdObj,
+      role: 'STUDENT' as EnrollmentRole,
+      status: { $regex: /^active$/i },
+    };
 
     try {
-      // 1. First get total count for batching
-      const totalStudents = await this.enrollmentCollection.countDocuments({
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        role: 'STUDENT',
-        status: { $regex: /^active$/i } // strict, case-insensitive
-      });
-
-
+      const totalStudents = await this.enrollmentCollection.countDocuments(studentFilter);
       if (totalStudents === 0) {
         return {
           data: [],
@@ -1405,26 +1399,20 @@ export class EnrollmentRepository {
             versionId,
             totalStudents: 0,
             durationMs: 0,
-            generatedAt: new Date().toISOString()
-          }
+            generatedAt: new Date().toISOString(),
+          },
         };
       }
 
-      // 2. Get all quizzes organized by modules and sections once
-      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionIdObj.toString());
-
-      const allQuizIds = [...new Set(quizzesByModuleSection.flatMap(module =>
-        module.sections.flatMap(section => section.quizIds)
-      ))];
+      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(versionId);
+      const allQuizIds = [
+        ...new Set(quizzesByModuleSection.flatMap(m =>
+          m.sections.flatMap(s => s.quizIds)
+        )),
+      ];
 
       if (allQuizIds.length === 0) {
-        console.warn(`[WARN] No quiz IDs found for course version ${versionId}. Module sections:`,
-          quizzesByModuleSection.map(m => ({
-            module: m.moduleName,
-            sectionCount: m.sections.length,
-            quizCount: m.sections.reduce((acc, s) => acc + s.quizIds.length, 0)
-          }))
-        );
+        console.warn(`[WARN] No quiz IDs found for course version ${versionId}`);
         return {
           data: [],
           metadata: {
@@ -1432,50 +1420,35 @@ export class EnrollmentRepository {
             versionId,
             totalStudents: 0,
             durationMs: 0,
-            generatedAt: new Date().toISOString()
-          }
+            generatedAt: new Date().toISOString(),
+          },
         };
       }
 
-      const quizIdsObjectIds = allQuizIds
-        .filter((id): id is string => {
-          const isValid = typeof id === 'string' && ObjectId.isValid(id);
-          if (!isValid) {
-            console.error(`[ERROR] Invalid quiz ID format: ${id}`);
-          }
-          return isValid;
-        })
-        .map(id => new ObjectId(id));
+      const validQuizIds = allQuizIds.filter((id): id is string => {
+        const valid = typeof id === 'string' && ObjectId.isValid(id);
+        if (!valid) console.error(`[ERROR] Invalid quiz ID format: ${id}`);
+        return valid;
+      });
 
-      // Get quiz details and pre-fetch all questions for each quiz
-      const quizDetails = await this.getQuizDetails(quizIdsObjectIds);
-      const quizQuestions = new Map<string, string[]>();
-      
-      // Pre-fetch all questions for each quiz
-      for (const quizId of allQuizIds) {
-        if (ObjectId.isValid(quizId)) {
-          const questions = await this.getQuizQuestionIds(quizId);
-          quizQuestions.set(quizId, questions);
-        }
-      }
+      const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
+      const quizDetails = await this.getQuizDetails(quizIdsObj);
 
-      // 3. Process students in batches
+      // Pre-fetch all questions for each quiz only once
+      const quizQuestionsMap = new Map<string, string[]>();
+      await Promise.all(validQuizIds.map(async quizId => {
+        const questions = await this.getQuizQuestionIds(quizId);
+        quizQuestionsMap.set(quizId, questions);
+      }));
+
       const result: StudentQuizScoreDto[] = [];
       const totalBatches = Math.ceil(totalStudents / this.BATCH_SIZE);
 
       for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
         const skip = batchNum * this.BATCH_SIZE;
 
-        // 4. Get batch of enrollments with user details
         const enrollments = await this.enrollmentCollection.aggregate([
-          {
-            $match: {
-              courseId: courseIdObj,
-              courseVersionId: versionIdObj,
-              role: 'STUDENT',
-              status: { $regex: /^active$/i }
-            }
-          },
+          { $match: studentFilter },
           { $skip: skip },
           { $limit: this.BATCH_SIZE },
           {
@@ -1484,7 +1457,7 @@ export class EnrollmentRepository {
               localField: 'userId',
               foreignField: '_id',
               as: 'user',
-            }
+            },
           },
           { $unwind: '$user' },
           {
@@ -1493,71 +1466,47 @@ export class EnrollmentRepository {
               userId: 1,
               'user.firstName': 1,
               'user.lastName': 1,
-              'user.email': 1
-            }
-          }
+              'user.email': 1,
+            },
+          },
         ]).toArray();
 
         if (enrollments.length === 0) continue;
 
         const batchUserIds = enrollments.map(e => e.userId);
-
-        // 5. Fetch max scores, question scores, and attempts for this batch
         const [scoresData, totalAttempts] = await Promise.all([
-          this.getMaxScoresForQuizzes(batchUserIds, quizIdsObjectIds),
-          this.getUserQuizAttempts(batchUserIds, quizIdsObjectIds)
+          this.getMaxScoresForQuizzes(batchUserIds, quizIdsObj),
+          this.getUserQuizAttempts(batchUserIds, quizIdsObj),
         ]);
+
         const { maxScores, questionScores } = scoresData;
 
-        // 6. Process this batch
-        const batchResults = await Promise.all(enrollments.map(async enrollment => {
+        const batchResults = enrollments.map(enrollment => {
           const userId = enrollment.userId.toString();
+          const studentQuizScores: StudentQuizScoreDto['quizScores'] = [];
 
-          const quizScores: Array<{
-            moduleId: string;
-            sectionId: string;
-            quizId: string;
-            quizName: string;
-            maxScore: number;
-            questionScores: Array<{ questionId: string; score: number }>;
-            attempts: number;
-          }> = [];
-          
-          // Process each module and section
           for (const module of quizzesByModuleSection) {
             for (const section of module.sections) {
               for (const quizId of section.quizIds) {
-                const detail = quizDetails.get(quizId);
-                const allQuestionIds = await this.getQuizQuestionIds(quizId);
-                const studentScores = questionScores.get(userId)?.get(quizId) || new Map();
-                
-                // Create a map of all questions with default score 0
-                const allQuestionsMap = new Map<string, { questionId: string; score: number }>();
-                allQuestionIds.forEach(qId => {
-                  allQuestionsMap.set(qId, {
-                    questionId: qId,
-                    score: 0 // Default score for unanswered questions
-                  });
-                });
+                if (!validQuizIds.includes(quizId)) continue;
 
-                // Update with actual scores for answered questions
-                studentScores.forEach((score, qId) => {
-                  if (allQuestionsMap.has(qId)) {
-                    allQuestionsMap.set(qId, {
-                      questionId: qId,
-                      score: score
-                    });
-                  }
-                });
+                const quizName = quizDetails.get(quizId)?.name || 'Untitled Quiz';
+                const allQuestionIds = quizQuestionsMap.get(quizId) || [];
+                const studentQuestionScores = questionScores.get(userId)?.get(quizId) || new Map();
 
-                quizScores.push({
+                const questionScoresArr = allQuestionIds.map(questionId => ({
+                  questionId,
+                  score: studentQuestionScores.get(questionId) || 0,
+                }));
+
+                studentQuizScores.push({
                   moduleId: module.moduleId,
                   sectionId: section.sectionId,
                   quizId,
-                  quizName: detail?.name || 'Untitled Quiz',
+                  quizName,
                   maxScore: maxScores.get(userId)?.get(quizId) || 0,
-                  questionScores: Array.from(allQuestionsMap.values()),
-                  attempts: totalAttempts.get(userId)?.get(quizId) || 0
+                  questionScores: questionScoresArr,
+                  attempts: totalAttempts.get(userId)?.get(quizId) || 0,
                 });
               }
             }
@@ -1565,11 +1514,11 @@ export class EnrollmentRepository {
 
           return {
             studentId: userId,
-            name: `${enrollment.user?.firstName || ''} ${enrollment.user?.lastName || ''}`.trim() || 'Unknown',
-            email: enrollment.user?.email || '',
-            quizScores
+            name: `${enrollment.user.firstName || ''} ${enrollment.user.lastName || ''}`.trim() || 'Unknown',
+            email: enrollment.user.email || '',
+            quizScores: studentQuizScores,
           };
-        }));
+        });
 
         result.push(...batchResults);
       }
@@ -1578,12 +1527,12 @@ export class EnrollmentRepository {
       return {
         data: result,
         metadata: {
-          courseId: courseIdStr,
-          versionId: versionIdStr,
+          courseId,
+          versionId,
           totalStudents: result.length,
           durationMs: duration,
-          generatedAt: new Date().toISOString()
-        }
+          generatedAt: new Date().toISOString(),
+        },
       };
 
     } catch (error) {
@@ -1591,4 +1540,5 @@ export class EnrollmentRepository {
       throw new Error('Failed to fetch quiz scores');
     }
   }
+
 }
