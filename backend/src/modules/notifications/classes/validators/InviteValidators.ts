@@ -50,6 +50,28 @@ class CourseAndVersionId {
   versionId: string;
 }
 
+class InviteEligibilityResponse {
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'Whether invites can be sent for this course version',
+    type: 'boolean',
+  })
+  canSendInvites: boolean;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Reason why invites cannot be sent (if canSendInvites is false)',
+    type: 'string',
+  })
+  reason?: string;
+
+  constructor(canSendInvites: boolean, reason?: string) {
+    this.canSendInvites = canSendInvites;
+    this.reason = reason;
+  }
+}
+
 class InviteQueryParams {
   @IsOptional()
   @IsString()
@@ -283,4 +305,5 @@ export {
   InviteResult,
   InviteIdParams,
   InviteQueryParams,
+  InviteEligibilityResponse,
 };

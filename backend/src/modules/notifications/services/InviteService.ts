@@ -650,4 +650,63 @@ export class InviteService extends BaseService {
       invite.courseVersionId,
     );
   }
+
+  async checkInviteEligibility(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{canSendInvites: boolean; reason?: string}> {
+    const course = await this.courseRepo.read(courseId.toString());
+    if (!course) {
+      return {
+        canSendInvites: false,
+        reason: 'Course not found',
+      };
+    }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
+    if (!courseVersion) {
+      return {
+        canSendInvites: false,
+        reason: 'Course version not found',
+      };
+    }
+
+    // Check if course version has modules
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      return {
+        canSendInvites: false,
+        reason: 'Course version has no modules. Please add modules before proceeding.',
+      };
+    }
+
+    const firstModule = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      return {
+        canSendInvites: false,
+        reason: `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+      };
+    }
+
+    const firstSection = [...firstModule.sections].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      firstSection.itemsGroupId.toString(),
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      return {
+        canSendInvites: false,
+        reason: `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+      };
+    }
+
+    return {
+      canSendInvites: true, // All checks passed
+    };
+  }
 }

@@ -23,6 +23,7 @@ import {
   InviteQueryParams,
   InviteResponse,
   InviteResult,
+  InviteEligibilityResponse,
 } from '../classes/validators/InviteValidators.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {NOTIFICATIONS_TYPES} from '../types.js';
@@ -241,5 +242,39 @@ export class InviteController {
     }
 
     return this.inviteService.cancelInvite(inviteId);
+  }
+
+  @Authorized()
+  @Get('/eligibility/courses/:courseId/versions/:versionId')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Check Invite Eligibility',
+    description: 'Check if invites can be sent for a specific course version.',
+  })
+  @ResponseSchema(InviteEligibilityResponse, {
+    description: 'Invite eligibility status',
+    statusCode: 200,
+  })
+  async checkInviteEligibility(
+    @Params() params: CourseAndVersionId,
+    @Ability(getInviteAbility) {ability},
+  ): Promise<InviteEligibilityResponse> {
+    const {courseId, versionId} = params;
+
+    const inviteContext = {courseId, versionId};
+    const inviteSubject = subject('Invite', inviteContext);
+
+    if (!ability.can(InviteActions.View, inviteSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to check invite eligibility for this course',
+      );
+    }
+
+    const {canSendInvites, reason} = await this.inviteService.checkInviteEligibility(
+      courseId,
+      versionId,
+    );
+
+    return new InviteEligibilityResponse(canSendInvites, reason);
   }
 }
