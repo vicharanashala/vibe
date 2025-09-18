@@ -261,6 +261,7 @@ export class InviteController {
   ): Promise<InviteEligibilityResponse> {
     const {courseId, versionId} = params;
 
+    // Build subject context first
     const inviteContext = {courseId, versionId};
     const inviteSubject = subject('Invite', inviteContext);
 

@@ -655,6 +655,7 @@ export class InviteService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<{canSendInvites: boolean; reason?: string}> {
+    // Get Course Details
     const course = await this.courseRepo.read(courseId.toString());
     if (!course) {
       return {
@@ -663,6 +664,7 @@ export class InviteService extends BaseService {
       };
     }
 
+    // Get Course Version Details
     const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
     if (!courseVersion) {
       return {
@@ -679,6 +681,7 @@ export class InviteService extends BaseService {
       };
     }
 
+    // Check first module for sections
     const firstModule = [...courseVersion.modules].sort((a, b) =>
       a.order.localeCompare(b.order),
     )[0];
@@ -690,6 +693,7 @@ export class InviteService extends BaseService {
       };
     }
 
+    // Check first section for items
     const firstSection = [...firstModule.sections].sort((a, b) =>
       a.order.localeCompare(b.order),
     )[0];
