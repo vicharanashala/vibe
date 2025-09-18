@@ -530,6 +530,8 @@ function CourseCard({
   }
 
 
+  const MAX_DESCRIPTION_LENGTH = 1000;
+
   return (
     <div className="relative group">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -629,91 +631,111 @@ function CourseCard({
             <Separator className="bg-border/50" />
 
             {/* Course Description Section */}
-            { (editingCourse || course?.description)  &&
-            <div className="space-y-4">
-              <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
-                <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                Course Description
-              </h3>
-              {editingCourse  ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
-                    <Input
-                      value={editingValues.name}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          name: value,
-                        }))
-                        if (!value.trim()) {
-                          setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
-                        } else {
-                          setEditingErrors(errors => ({ ...errors, name: '' }));
-                        }
-                      }}
-                      className="border-primary/30 focus:border-primary bg-background"
-                      placeholder="Course name"
-                    />
-                    {editingErrors.name && (
-                      <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
-                    <Textarea
-                      value={editingValues.description}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          description: value,
-                        }))
-                        // Validation
-                        if (!value.trim()) {
-                          setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
-                        } else {
-                          setEditingErrors(errors => ({ ...errors, description: '' }));
-                        }
-                      }}
-                      className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                      placeholder="Course description"
-                    />
-                    {editingErrors.description && (
-                      <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={saveEditing}
-                      size="sm"
-                      disabled={updateCourseMutation.isPending}
-                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                    >
-                      {updateCourseMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Save className="h-3 w-3 mr-1" />
+            {(editingCourse || course?.description) && (
+              <div className="space-y-4">
+                <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+                  <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Course Description
+                </h3>
+                {editingCourse ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
+                      <Input
+                        value={editingValues.name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditingValues((prev: { name: string; description: string }) => ({
+                            ...prev,
+                            name: value,
+                          }));
+                          if (!value.trim()) {
+                            setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
+                          } else {
+                            setEditingErrors(errors => ({ ...errors, name: '' }));
+                          }
+                        }}
+                        className="border-primary/30 focus:border-primary bg-background"
+                        placeholder="Course name"
+                      />
+                      {editingErrors.name && (
+                        <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
                       )}
-                      Save Changes
-                    </Button>
-                    <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
+                    </div>
+                    <div>
+                      <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
+                      <Textarea
+                        value={editingValues.description}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                            setEditingValues((prev: { name: string; description: string }) => ({
+                              ...prev,
+                              description: value,
+                            }));
+                          }
+                          // Validation
+                          if (!value.trim()) {
+                            setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
+                          } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                            setEditingErrors(errors => ({ ...errors, description: `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters` }));
+                          } else {
+                            setEditingErrors(errors => ({ ...errors, description: '' }));
+                          }
+                        }}
+                        className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                        placeholder="Course description"
+                      />
+                      <div className="flex justify-between items-center mt-1">
+                        <div className="text-xs text-muted-foreground">
+                          {editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 && (
+                            <span className="text-destructive">
+                              Description must be less than {MAX_DESCRIPTION_LENGTH} characters
+                            </span>
+                          )}
+                          {editingErrors.description && (
+                            <span className="text-destructive">{editingErrors.description}</span>
+                          )}
+                        </div>
+                        <div className={`text-xs ${
+                          editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 
+                            ? 'text-destructive' 
+                            : 'text-muted-foreground'
+                        }`}>
+                          {editingValues.description.length}/{MAX_DESCRIPTION_LENGTH}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={saveEditing}
+                        size="sm"
+                        disabled={updateCourseMutation.isPending}
+                        className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                      >
+                        {updateCourseMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save Changes
+                      </Button>
+                      <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
-                  <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                    <p className="text-muted-foreground leading-relaxed">{course.description}</p>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
+                    <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
+                      <p className="text-muted-foreground leading-relaxed">{course.description}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-            }
+                )}
+              </div>
+            )}
 
             {/* All Versions Section */}
             <div className="space-y-4">
