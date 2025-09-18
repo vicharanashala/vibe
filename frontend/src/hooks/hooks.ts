@@ -1422,6 +1422,25 @@ export function useCourseInvites(courseId: string, courseVersionId: string, enab
   };
 }
 
+export function useInviteEligibility(courseId: string, courseVersionId: string, enabled: boolean = true): {
+  data: { canSendInvites: boolean; reason?: string } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/notifications/invite/eligibility/courses/{courseId}/versions/{versionId}", {
+    params: { path: { courseId, versionId: courseVersionId } },
+    enabled: enabled && !!courseId && !!courseVersionId
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to check invite eligibility') : null,
+    refetch: result.refetch
+  };
+}
+
 export function useResendInvite(): {
   mutate: (variables: { params: { path: { inviteId: string } } }) => void,
   mutateAsync: (variables: { params: { path: { inviteId: string } } }) => Promise<MessageResponse>,

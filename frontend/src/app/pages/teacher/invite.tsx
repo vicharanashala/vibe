@@ -30,12 +30,11 @@ import {
   useCourseInvites,
   useResendInvite,
   useCancelInvite,
-  useCourseById,
-  useCourseVersionById,
+  useInviteEligibility,
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
-import { useNavigate, redirect } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
 
 export default function InvitePage() {
@@ -67,7 +66,6 @@ export default function InvitePage() {
     { label: "Earliest Accepted", value: "accept_date_asc" },
   ];
   // Hooks
-  const { data: course, isLoading: courseLoading } = useCourseById(courseId || "")
   const {
     data: invitesData,
     isLoading: invitesLoading,
@@ -76,66 +74,24 @@ export default function InvitePage() {
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), searchQuery, 
       currentPage, 15, inviteStatus, sort);
 
-  // Add course version data hook to check structure
-  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
+  // Check invite eligibility using the new consolidated API
+  const { 
+    data: eligibilityData, 
+    isLoading: eligibilityLoading
+  } = useInviteEligibility(courseId || "", versionId || "", !!(courseId && versionId))
 
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
-
-  // Function to check if course has required structure for progress initialization
-  const hasRequiredStructure = () => {
-    if (!courseVersion || !courseVersion.modules || courseVersion.modules.length === 0) {
-      return false
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) => 
-      a.order.localeCompare(b.order)
-    )[0]
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return false
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) => 
-      a.order.localeCompare(b.order)
-    )[0]
-
-    // Note: We can't check if items exist in the itemsGroup without making additional API calls
-    // The backend will handle this check when trying to initialize progress
-    // For now, we'll assume that if a section exists, it should have an itemsGroup
-    return true
-  }
   
   const handlePageChange = (newPage: number) => {
     if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
       setCurrentPage(newPage)
     }
   }
-
-  // Function to get the reason why invites can't be sent
-  const getInviteBlockReason = () => {
-    if (!courseVersion) {
-      return "Course version data is not available"
-    }
-
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return "Course must have at least one module to send invites to students"
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) => 
-      a.order.localeCompare(b.order)
-    )[0]
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return "Course must have at least one section in the first module to send invites to students"
-    }
-
-    return "Course must have at least one item in the first section to send invites to students"
-  }
-
-  // Check if course has required structure
-  const canSendInvites = hasRequiredStructure()
+  // Use eligibility data from the backend
+  const canSendInvites = eligibilityData?.canSendInvites ?? false
+  const inviteBlockReason = eligibilityData?.reason || "Checking invite eligibility..."
 
     // Default role based on course structure
 const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
@@ -344,7 +300,7 @@ const addInviteRow = () => {
     )
   }
 
-  if (courseLoading || versionLoading) {
+  if (eligibilityLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -358,11 +314,6 @@ const addInviteRow = () => {
       <div className="flex items-center space-x-2">
         <UserPlus className="w-6 h-6" />
         <h1 className="text-xl md:text-2xl font-bold">Invite Users</h1>
-        {course && (
-          <Badge variant="outline" className="ml-2">
-            {course.name}
-          </Badge>
-        )}
       </div>
 
       {/* Course Structure Warning */}
@@ -374,7 +325,7 @@ const addInviteRow = () => {
               <span className="font-medium">Course Structure Required</span>
             </div>
             <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
-              {getInviteBlockReason()}. Please add the required content before sending invites.
+              {inviteBlockReason}. Please add the required content before sending invites.
             </p>
           </CardContent>
         </Card>
