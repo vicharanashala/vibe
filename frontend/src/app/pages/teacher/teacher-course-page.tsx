@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+
+const MAX_DESCRIPTION_LENGTH = 1000;
+
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -1082,41 +1085,63 @@ export default function TeacherCoursePage() {
 
                     {(selectedEntity.type !== "item") && (
                       <>
-                        <Label className="text-sm font-bold text-foreground">Description *</Label>
-                        <textarea
-                          value={
-                            selectedEntity.type === "item"
-                              ? selectedItemData?.item?.description ?? ""
-                              : selectedEntity.data?.description ?? ""
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            setSelectedEntity({
-                              ...selectedEntity,
-                              data: { ...selectedEntity.data, description: value }
-                            })
-                            if (selectedEntity.type === "module") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Module description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-foreground">Description *</Label>
+                          <div className="relative">
+                            <textarea
+                              value={
+                                selectedEntity.type === "item"
+                                  ? selectedItemData?.item?.description ?? ""
+                                  : selectedEntity.data?.description ?? ""
                               }
-                            }
-                            if (selectedEntity.type === "section") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Section description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
-                              }
-                            }
-                          }}
-                          placeholder="Description"
-                          rows={5}
-                          className="w-full rounded border px-3 py-2 text-sm"
-                        />
-                        {errors.description && (
-                          <div className="text-xs text-red-500">{errors.description}</div>
-                        )}
+                              onChange={e => {
+                                const value = e.target.value;
+                                
+                                // Only update if within limit or deleting characters
+                                if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                                  setSelectedEntity({
+                                    ...selectedEntity,
+                                    data: { ...selectedEntity.data, description: value }
+                                  });
+                                }
+
+                                // Validation
+                                if (selectedEntity.type === "module") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                                if (selectedEntity.type === "section") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                              }}
+                              placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
+                              rows={5}
+                              maxLength={MAX_DESCRIPTION_LENGTH}
+                              className="w-full rounded border px-3 py-2 pr-16 text-sm"
+                            />
+                            <div className={`absolute bottom-2 right-2 text-xs ${
+                              (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
+                                ? 'text-destructive' 
+                                : 'text-muted-foreground'
+                            }`}>
+                              {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
+                            </div>
+                          </div>
+                          {errors.description && (
+                            <div className="text-xs text-red-500">{errors.description}</div>
+                          )}
+                        </div>
                       </>
                     )}
                     <div className="flex items-center gap-2">
@@ -1132,7 +1157,11 @@ export default function TeacherCoursePage() {
                               if (!moduleName || !moduleDescription) {
                                 setErrors({
                                   title: !moduleName ? "Module name is required." : "",
-                                  description: !moduleDescription ? "Module description is required." : ""
+                                  description: !moduleDescription 
+                                    ? "Module description is required."
+                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
@@ -1142,7 +1171,11 @@ export default function TeacherCoursePage() {
                               if (!sectionName || !sectionDescription) {
                                 setErrors({
                                   title: !sectionName ? "Section name is required." : "",
-                                  description: !sectionDescription ? "Section description is required." : ""
+                                  description: !sectionDescription 
+                                    ? "Section description is required." 
+                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
