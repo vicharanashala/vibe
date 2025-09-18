@@ -225,7 +225,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 playerRef.current = null;
             }
         };
-    },[]);
+    },[videoId]);
 
     // Poll current time
     useEffect(() => {
