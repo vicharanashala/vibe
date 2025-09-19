@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum
 } from 'class-validator';
-import {Priority} from './quiz.js';
+import { Priority } from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -288,7 +288,7 @@ export interface IVideoDetails {
 }
 
 export interface IQuestionBankRef {
-  bankId: string; // ObjectId as string
+  bankId: ID; // ObjectId as string
   count: number; // How many questions to pick
   difficulty?: string[]; // Optional filter
   tags?: string[]; // Optional filter
@@ -520,6 +520,16 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder: 'asc' | 'desc' = 'desc';
+
+  @IsOptional()
+  @IsIn(['STUDENT', 'OTHER'])
+  filter?: 'STUDENT' | 'OTHER';
+}
+
+export class BulkEnrollmentsQuery {
+  @IsOptional()
+  @IsString()
+  courseId?: string;
 }
 
 export interface IUserAnomaly {

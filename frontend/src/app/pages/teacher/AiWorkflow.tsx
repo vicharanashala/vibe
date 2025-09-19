@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ConfirmationModal from './components/confirmation-modal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from '@/components/ui/progress';
 
 
 
@@ -29,6 +30,24 @@ interface CurrentJob {
     status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
     task: string
 }
+
+
+const formatTime = (time: number | string): string => {
+  if (typeof time === 'string' && /^\d{2}:\d{2}:\d{3}$/.test(time)) {
+    return time;
+  }
+  
+  const seconds = typeof time === 'number' ? time : parseFloat(time);
+  if (!Number.isFinite(seconds) || seconds < 0) return "00:00:000";
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  const mm = mins.toString().padStart(2, '0');
+  const ss = secs.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(3, '0');
+  return `${mm}:${ss}:${mmm}`;
+};
 
 const AiWorkflow = () => {
 
@@ -50,7 +69,7 @@ const AiWorkflow = () => {
     const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
         model: "deepseek-r1:70b",
-        SQL: 0,
+        SOL: 0,
         SML: 0,
         NAT: 0,
         DES: 0,
@@ -207,35 +226,85 @@ const AiWorkflow = () => {
     }, [isTranscribing, isAudioExtracting, transcribedData]);
 
     // Mock progress % bar
-    useEffect(() => {
+    // useEffect(() => {
+    //   let interval: NodeJS.Timeout | null = null;
+
+    //   if (isLoading || isTranscribing) {
+    //     interval = setInterval(() => {
+    //       setProgress((prev) => {
+    //         if (prev >= 99.99) return 99.99;
+
+    //         let increment = Math.max(0.2, (99.99 - prev) / 25);
+
+    //         if (prev >= 85) {
+    //           increment = Math.max(0.05, increment / 3);
+    //         }
+
+    //         // Extra slow for transcription or question generation
+    //         if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+    //           increment = Math.max(0.05, increment / 2);
+    //         }
+
+    //         return Math.min(prev + increment, 99.99);
+    //       });
+    //     }, 1600);
+    //   } else {
+    //     setProgress(0);
+    //   }
+    //   return () => {
+    //     if (interval) clearInterval(interval);
+    //   };
+    // }, [isLoading, isTranscribing, currentJob?.task]);
+
+       useEffect(() => {
       let interval: NodeJS.Timeout | null = null;
+      let slowInterval: NodeJS.Timeout | null = null;
 
       if (isLoading || isTranscribing) {
         interval = setInterval(() => {
-          setProgress((prev) => {
-            if (prev >= 99.99) return 99.99;
-
-            let increment = Math.max(0.2, (99.99 - prev) / 25);
-
-            if (prev >= 85) {
-              increment = Math.max(0.05, increment / 3);
+          setProgress((prev: number) => {
+            if (prev >= 99.99) {
+              if (interval) clearInterval(interval);
+              return 99.99;
             }
 
-            // Extra slow for transcription or question generation
-            if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
-              increment = Math.max(0.05, increment / 2);
-            }
+            let increment: number;
+            if (prev >= 90) {
+              if (interval) clearInterval(interval);
+              
+              slowInterval = setInterval(() => {
+                setProgress((p: number) => {
+                  if (p >= 99.99) {
+                    if (slowInterval) clearInterval(slowInterval);
+                    return 99.99;
+                  }
+                  return p + 0.1;
+                });
+              }, 30000); 
 
-            return Math.min(prev + increment, 99.99);
+              return 90;
+            } else {
+              increment = Math.max(0.2, (99.99 - prev) / 25);
+              if (prev >= 85) {
+                increment = Math.max(0.05, increment / 3);
+              }
+              if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+                increment = Math.max(0.05, increment / 2);
+              }
+              return Math.min(prev + increment, 90); 
+            }
           });
-        }, 1600);
+        }, 1600); 
       } else {
         setProgress(0);
       }
+
       return () => {
         if (interval) clearInterval(interval);
+        if (slowInterval) clearInterval(slowInterval);
       };
     }, [isLoading, isTranscribing, currentJob?.task]);
+
 
     // <<<<<<<<<< Helpers >>>>>>>>>>
 
@@ -372,7 +441,11 @@ const AiWorkflow = () => {
         const chunks = Array.isArray(transcriptData.chunks)
             ? transcriptData.chunks
             : [];
-        const segMap = segData.segmentationMap;
+        const segMap = (segData.segmentationMap || []).map((v: any) => {
+            if (typeof v === 'number') return v;
+            if (typeof v === 'string') return parseTimeToSeconds(v);
+            return 0;
+        });
         const grouped: any[][] = [];
 
         let segStart = 0;
@@ -484,7 +557,7 @@ const AiWorkflow = () => {
 
         jobParams.questionGenerationParameters = {
             model: customQuestionParams.model || "deepseek-r1:70b",
-            SQL: customQuestionParams.SQL ?? 1,
+            SOL: customQuestionParams.SOL ?? 1,
             SML: customQuestionParams.SML ?? 0,
             NAT: customQuestionParams.NAT ?? 0,
             DES: customQuestionParams.DES ?? 0,
@@ -763,17 +836,20 @@ const AiWorkflow = () => {
                     { isURLValidated && <Stepper currentJobData={currentJob}/> }
 
                     {isLoading && (
-                        <div className="space-y-2  bg-card w-full">
-                            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
-                                <div
-                                    className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
-                                    style={{ width: `${progress}%` }}
-                                />
-                            </div>
+                        // <div className="space-y-2  bg-card w-full">
+                        //     <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+                        //         <div
+                        //             className="bg-yellow-500 h-3 rounded-full transition-all duration-300 ease-out"
+                        //             style={{ width: `${progress}%` }}
+                        //         />
+                        //     </div>
 
-                            <div className="text-sm text-gray-600 font-medium text-center">
-                            {progress.toFixed(2)}% Completed
-                            </div>
+                        //     <div className="text-sm text-gray-600 font-medium text-center">
+                        //     {progress.toFixed(2)}% Completed
+                        //     </div>
+                        // </div>
+                        <div className='w-full px-10 pt-6 pb-2 bg-card'>
+                        <ProgressiveProgressBar value={progress} showTooltip={isLoading}/>
                         </div>
                     )}
                     <div className="mx-auto border-t-1 border-gray-200 dark:border-gray-900 ">
@@ -798,6 +874,8 @@ const AiWorkflow = () => {
                                     handleShowHandleResult={handleShowHandleResult}
                                     isWaitingServer={isWaitingServer}
                                     isApprovingTask={isApprovingTask}
+                                    setSegmentationMap={setSegmentationMap}
+                                    setSegmentationChunks={setSegmentationChunks}
                                 />
                             ) : currentJob?.task === "QUESTION_GENERATION" ? (
                                 <QuestionGenerationView
@@ -805,6 +883,7 @@ const AiWorkflow = () => {
                                     isTaskResultLoading={isTaskResultLoading}
                                     error={error}
                                     questions={questions}
+                                    setQuestions={setQuestions}
                                     aiJobId={aiJobId}
                                     handleApproveTask={handleApproveTask}
                                     setEditingIdx={setEditingIdx}
@@ -833,7 +912,7 @@ const AiWorkflow = () => {
                             ) : (
                             <>
                                 <p className="text-md text-gray-600 dark:text-gray-200">
-                                Select your preferred method to upload audio — via File, Link, or Recording.
+                                  Upload your audio file to generate a high-quality transcription of the spoken content.  
                                 </p>
                                 <AudioTranscripter
                                     setIsAudioExtracting={setIsAudioExtracting}
@@ -864,6 +943,59 @@ const AiWorkflow = () => {
             }
         </Card>
     </div>)}
+
+const parseTimeToSeconds = (time: string): number => {
+    if (!time) return 0;
+    const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
+
+    if (cleaned.includes(':')) {
+      const parts = cleaned.split(':');
+      if (parts.length === 3) {
+        const [mStr, sStr, msStr] = parts;
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const ms = parseInt(msStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        if (isNaN(ms)) return m * 60 + s;
+        return m * 60 + s + ms / 1000;
+      } else if (parts.length === 2) {
+        const [first, second] = parts;
+        const isMs = (second || '').length <= 3 && /^(\d{1,3})$/.test(second || '');
+        if (isMs && (first || '').length <= 3) {
+          const sec = parseInt(first || '0', 10);
+          const msRaw = (second || '').slice(0, 3);
+          const msNum = parseInt(msRaw || '0', 10) || 0;
+          if (isNaN(sec)) return 0;
+          return sec + msNum / 1000;
+        }
+        const m = parseInt(first || '0', 10);
+        const s = parseInt(second || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
+      }
+    }
+    if (cleaned.includes('.')) {
+      const parts = cleaned.split('.');
+      if (parts.length === 3) {
+        const [mStr, sStr, msStr] = parts;
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const ms = parseInt((msStr || '').slice(0, 3) || '0', 10) || 0;
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s + ms / 1000;
+      } else if (parts.length === 2) {
+        const [secStr, msStrRaw] = parts;
+        const sec = parseInt(secStr || '0', 10) || 0;
+        const msNum = parseInt((msStrRaw || '').slice(0, 3) || '0', 10) || 0;
+        return sec + msNum / 1000;
+      }
+    }
+    const sOnly = parseInt(cleaned, 10);
+    return isNaN(sOnly) ? 0 : sOnly;
+};
 
 interface JobHeaderProps {
   currentJob?: {status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING", task: any} | null;
@@ -1115,7 +1247,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   }, [currentJobData]);
 
   return (
-    <div className=" bg-card pb-3">
+    <div className=" bg-card pb-3 ">
         <div className="flex items-center justify-between  px-8 relative animate-fade-in ">
         {WORKFLOW_STEPS.map((step, idx) => {
             const status = getStepStatus(currentJobData, step.key);
@@ -1130,7 +1262,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 
             return (
             <React.Fragment key={step.key}>
-                <div className="flex flex-col items-center relative z-10 animate-step-appear">
+                <div className="flex flex-col items-center relative animate-step-appear">
                 {/* Step Circle */}
                 <div className={`
                     stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
@@ -1246,6 +1378,7 @@ interface QuestionGenerationResultProps {
   isApprovingTask: boolean;
   error: string | null;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
   handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
@@ -1262,11 +1395,136 @@ interface QuestionGenerationResultProps {
   isWaitingServer: boolean
 }
 
+interface ProgressiveProgressBarProps {
+  value: number
+  className?: string
+  showTooltip?: boolean
+  animated?: boolean
+  steps?: number
+  stepLabels?: string[]
+}
+
+const ProgressiveProgressBar = ({
+  value = 0,
+  className = "",
+  showTooltip = true,
+  animated = true,
+  steps = 5,
+  stepLabels = [],
+}: ProgressiveProgressBarProps) => {
+  const [displayValue, setDisplayValue] = useState(0)
+  const [isCompleted, setIsCompleted] = useState(false)
+
+  useEffect(() => {
+    if (animated) {
+      const timer = setTimeout(() => {
+        setDisplayValue(value)
+        setIsCompleted(value >= 100)
+      }, 100)
+      return () => clearTimeout(timer)
+    } else {
+      setDisplayValue(value)
+      setIsCompleted(value >= 100)
+    }
+  }, [value, animated])
+
+  const stepPositions = Array.from({ length: steps }, (_, i) => (i / (steps - 1)) * 100)
+  const currentStep = Math.floor((displayValue / 100) * (steps - 1))
+
+  return (
+    <div className={`relative w-full ${className} mb-5`}>
+      <div className="relative">
+        <Progress value={displayValue} className="h-3 bg-muted/50 rounded-full overflow-hidden" />
+
+        <div
+          className={`
+            absolute top-0 left-0 h-full rounded-full transition-all duration-700 ease-out
+            "bg-primary
+          `}
+          style={{
+            width: `${displayValue}%`,
+            boxShadow:
+              displayValue > 0
+                ? `0 0 10px ${isCompleted ? "rgb(34 197 94 / 0.3)" : "hsl(var(--primary) / 0.3)"}`
+                : "none",
+          }}
+        />
+
+        {steps > 1 && (
+          <div className="absolute top-0 left-0 w-full h-full flex items-center">
+            {stepPositions.map((position, index) => {
+              const isStepCompleted = displayValue >= position
+              const isCurrentStep = index === currentStep && displayValue < 100
+
+              return (
+                <div
+                  key={index}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${position}%`, transform: "translateX(-50%)" }}
+                >
+                  <div
+                    className={`
+                      w-4 h-4 rounded-full border-2 transition-all duration-500 ease-out z-10
+                      bg-card border-muted-foreground/30
+                      ${isCurrentStep ? "animate-pulse scale-125" : ""}
+                      ${isStepCompleted && "bg-primary"}
+                    `}
+                  />
+
+                  {stepLabels[index] && (
+                    <span
+                      className={`
+                      text-xs mt-2 transition-colors duration-300 font-medium
+                      ${isStepCompleted ? "text-foreground" : "text-muted-foreground"}
+                    `}
+                    >
+                      {stepLabels[index]}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showTooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={`
+                    absolute -top-8 bg-primary text-primary-foreground text-xs font-semibold 
+                    px-3 py-1.5 rounded-md shadow-lg transition-all duration-700 ease-out
+                    transform -translate-x-1/2 z-20
+                    ${animated ? "animate-in fade-in-0 zoom-in-95" : ""}
+                  `}
+                  style={{
+                    left: `${displayValue}%`,
+                    opacity: displayValue > 0 ? 1 : 0,
+                  }}
+                >
+                  {displayValue.toFixed(2)}%{/* Tooltip Arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-popover text-popover-foreground">
+                {/* <p>Progress: {displayValue.toFixed(1)}%</p> */}
+                {/* {isCompleted && <p className="text-green-500 font-semibold">✓ Completed!</p>} */}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isLoading,
     isTaskResultLoading,
     error,
     questions,
+    setQuestions,
     aiJobId,
     handleApproveTask,
     setEditingIdx,
@@ -1285,8 +1543,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     }) => {
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
-    // const [mcqCount, setMcqCount] = useState(2);
-    // const [binaryCount, setBinaryCount] = useState(0);
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
@@ -1302,12 +1558,6 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const [isRerunning, setIsRerunning] = useState(false);
 
-
-    // const clampInt = (val: string, min = 0, max = 100) => {
-    //     const n = Number.parseInt(val, 10)
-    //     if (Number.isNaN(n)) return min
-    //     return Math.min(max, Math.max(min, n))
-    // }
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
@@ -1325,12 +1575,11 @@ const [isRerunning, setIsRerunning] = useState(false);
       }
       const newParams = {
         ...customQuestionParams,
-        SQL: (isMCQ || isBinary) ? 2 : 0,
+        SOL: (isMCQ) ? 2 : 0,
         SML: isMSQ  ? 2 : 0,
-        prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
+        BIN:isBinary ?2:0,
+        // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
-
-      // setCustomQuestionParams(newParams);
 
       if (currentJobStatus === "COMPLETED") {
           try {
@@ -1415,7 +1664,7 @@ const [isRerunning, setIsRerunning] = useState(false);
 
                   <div className="space-y-6">
                       <div className="flex flex-wrap items-end justify-between gap-6">
-                      <div className="space-y-2 min-w-[220px]">
+                      {/* <div className="space-y-2 min-w-[220px]">
                           <Label className="text-sm font-medium" htmlFor="model-select">
                           Model
                           </Label>
@@ -1424,17 +1673,28 @@ const [isRerunning, setIsRerunning] = useState(false);
                           onValueChange={(value) => setCustomQuestionParams((prev) => ({ ...prev, model: value }))}
                           disabled={isLocked}
                           >
-                          <SelectTrigger id="model-select" className="h-10">
+                          <SelectTrigger id="model-select" className="h-10 mb-2">
                               <SelectValue placeholder="Select model" />
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="deepseek-r1:70b">DeepSeek R1 70B</SelectItem>
-                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                          </SelectContent>
-                          </Select>
-                          <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                              {/* <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem> */}
+                          {/* </SelectContent>
+                          </Select> */}
+                          {/* <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
+                      // </div> */} 
+
+                      <div className="space-y-2 min-w-[220px]">
+                        <Label className="text-sm font-medium">Model</Label>
+                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-card text-sm">
+                          DeepSeek R1 70B
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {/* Choose the model used to generate questions. */}
+                        </p>
                       </div>
+
 
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Question Types</Label>
@@ -1489,117 +1749,6 @@ const [isRerunning, setIsRerunning] = useState(false);
                         </p>
                       </div>
                       </div>
-
-                      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {showMCQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="mcq-count">
-                              MCQ Count
-                          </Label>
-                          <Input
-                              id="mcq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={mcqCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SQL) ? customQuestionParams.SQL : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SQL: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setMcqCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="mcq-help"
-                          />
-                          <p id="mcq-help" className="text-sm text-muted-foreground">
-                              Number of single-answer multiple choice questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showMSQ && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="msq-count">
-                              MSQ Count
-                          </Label>
-                          <Input
-                              id="msq-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              setCustomQuestionParams((prev) => ({
-                                  ...prev,
-                                  SML: clampInt(e.target.value, 0, 100),
-                              }))
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="msq-help"
-                          />
-                          <p id="msq-help" className="text-sm text-muted-foreground">
-                              Number of multi-select questions to generate.
-                          </p>
-                          </div>
-                      )}
-
-                      {showBinary && (
-                          <div className="space-y-2">
-                          <Label className="text-sm font-medium" htmlFor="binary-count">
-                              Binary question Count
-                          </Label>
-                          <Input
-                              id="binary-count"
-                              type="number"
-                              min={0}
-                              max={100}
-                              inputMode="numeric"
-                              value={binaryCount || 0}
-                              // value={Number.isFinite(customQuestionParams.SML) ? customQuestionParams.SML : 0}
-                              onChange={(e) =>
-                              // setCustomQuestionParams((prev) => ({
-                              //     ...prev,
-                              //     SML: clampInt(e.target.value, 0, 100),
-                              // }))
-                              setBinaryCount( clampInt(e.target.value, 0, 100) )
-                              }
-                              disabled={isLocked}
-                              className="h-10"
-                              aria-describedby="binary-help"
-                          />
-                          <p id="binary-help" className="text-sm text-muted-foreground">
-                              Number of binary questions to generate.
-                          </p>
-                          </div>
-                      )}
-                      </div> */}
-
-                      {/* <div className="flex items-center gap-3">
-                      <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-
-                            setCustomQuestionParams((prev) => ({
-                              ...prev,
-                              SML: 0,
-                            }))
-                            setMcqCount(2);
-                            setBinaryCount(0)
-                          }
-                        }
-                          disabled={isLocked}
-                      >
-                          Reset Counts
-                      </Button>
-                      </div> */}
                   </div>
               </section>
           )}
@@ -1660,7 +1809,7 @@ const [isRerunning, setIsRerunning] = useState(false);
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-4 text-xs">
                               <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
-                                {typeof segStart === "number" && typeof segEnd === "number" ? `${segStart}–${segEnd}s` : "N/A"}
+                                {typeof segStart === "number" && typeof segEnd === "number" ? `${formatTime(segStart)}–${formatTime(segEnd)}` : "N/A"}
                               </span>
                               <span className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
                                 {q.questionType || q.question?.type || "N/A"}
@@ -1759,6 +1908,7 @@ const [isRerunning, setIsRerunning] = useState(false);
              setEditModalOpen={setEditModalOpen}
              editQuestion={editQuestion}
              questions={questions}
+             setQuestions={setQuestions}
              editingIdx={editingIdx || 0}
              aiJobId={aiJobId}
              aiSectionAPI={aiSectionAPI}
@@ -1826,6 +1976,7 @@ interface EditQuestionDialogProps {
   setEditModalOpen: (open: boolean) => void;
   editQuestion: any;
   questions: any[];
+  setQuestions: React.Dispatch<React.SetStateAction<any[]>>
   editingIdx: number;
   aiJobId: string | null;
   aiSectionAPI: any;
@@ -1837,6 +1988,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   setEditModalOpen,
   editQuestion,
   questions,
+  setQuestions,
   editingIdx,
   aiJobId,
   aiSectionAPI,
@@ -1858,7 +2010,18 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
                 await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
-                handleShowHandleResult("QUESTION_GENERATION");
+                  setQuestions(prev =>
+                    prev.map((q, idx) =>
+                      idx !== editingIdx
+                        ? q
+                        : {
+                            ...q,
+                            question: { ...q.question, text: edited.text },
+                            solution: edited.solution,
+                          }
+                    )
+                  );
+                // handleShowHandleResult("QUESTION_GENERATION");
                 toast.success('Question Updated.');
               } catch (e) {
                 toast.error("Failed update question!")
@@ -2150,6 +2313,8 @@ const SegmentationView = ({
   handleShowHandleResult,
   isWaitingServer,
   isApprovingTask,
+  setSegmentationMap,
+  setSegmentationChunks
 }: any) => {
 
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -2161,6 +2326,10 @@ const SegmentationView = ({
 
         // Add state for transcriptChunks in the edit modal
     const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+    const [editSegInputValues, setEditSegInputValues] = useState<string[]>([]);
+    const [editMinInputs, setEditMinInputs] = useState<string[]>([]);
+    const [editSecInputs, setEditSecInputs] = useState<string[]>([]);
+    const [editMsInputs, setEditMsInputs] = useState<string[]>([]);
 
     const isJobCompleted = currentJobStatus == "COMPLETED"
 
@@ -2168,88 +2337,138 @@ const SegmentationView = ({
     const hasSegmentationData = segmentationMap?.length > 0 && segmentationChunks;
     const hasFallbackSegments = segments.length > 0 && (!segmentationMap?.length || !segmentationChunks);
 
-    const handleEditSegChange = (idx: number, value: string) => {
-        const newMap = [...editSegMap];
-        newMap[idx] = parseFloat(value);
-        setEditSegMap(newMap);
-    };
+    // const handleEditSegChange = (idx: number, value: string) => {
+    //     const newMap = [...editSegMap];
+    //     newMap[idx] = parseFloat(value);
+    //     setEditSegMap(newMap);
+    // };
     const handleAddSeg = () => {
         const newMap = [...editSegMap];
         const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
         newMap.push(prev + 10);
         setEditSegMap(newMap);
+        setEditSegInputValues((prevVals) => [...prevVals, formatTime(prev + 10)]);
+        setEditMinInputs((prevVals) => [...prevVals, Math.floor((prev + 10) / 60).toString().padStart(2, '0')]);
+        setEditSecInputs((prevVals) => [...prevVals, Math.floor((prev + 10) % 60).toString().padStart(2, '0')]);
+        setEditMsInputs((prevVals) => [...prevVals, Math.floor(((prev + 10) % 1) * 1000).toString().padStart(3, '0')]);
     };
     const handleRemoveSeg = (idx: number) => {
         if (editSegMap.length <= 1) return;
         const newMap = [...editSegMap];
         newMap.splice(idx, 1);
         setEditSegMap(newMap);
+        setEditSegInputValues((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditMinInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditSecInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
+        setEditMsInputs((prevVals) => prevVals.filter((_, i) => i !== idx));
     };
-
-  // Convert seconds to mm:ss format
-  const formatTime = (seconds: number): string => {
-    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-  // Convert mm:ss to seconds
-  const parseTimeToSeconds = (time: string): number => {
-    if (!time) return 0;
-    // Normalize brackets and decimal separator
-    const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
-    // Handle mm:ss format
-    if (cleaned.includes(':')) {
-      const [mStr, sStr] = cleaned.split(':');
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
-    }
-    // Handle mm.ss format
-    if (cleaned.includes('.')) {
-      const [mStr, sStrRaw] = cleaned.split('.');
-      const sStr = (sStrRaw || '').slice(0, 2); // only two digits for seconds
-      const m = parseInt(mStr || '0', 10);
-      const s = parseInt(sStr || '0', 10);
-      if (isNaN(m)) return 0;
-      if (isNaN(s)) return m * 60;
-      return m * 60 + s;
-    }
-    // Fallback: treat as seconds
-    const sOnly = parseInt(cleaned, 10);
-    return isNaN(sOnly) ? 0 : sOnly;
-  };
-  // Format live input to mm:ss mask using up to 4 digits
+  // // Convert seconds to MM:ss:mmm (zero-padded minutes) for API payload
+  // const formatTimePadded = (seconds: number): string => {
+  //   const mins = Math.floor(Math.max(0, seconds) / 60);
+  //   const secs = Math.floor(Math.max(0, seconds) % 60);
+  //   const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  //   const mm = mins.toString().padStart(2, '0');
+  //   const ss = secs.toString().padStart(2, '0');
+  //   const mmm = ms.toString().padStart(3, '0');
+  //   return `${mm}:${ss}:${mmm}`;
+  // };
+  const formatTimePadded = (seconds: number): string => {
+  const totalSecs = Math.floor(Math.max(0, seconds));
+  const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
+  const ss = totalSecs.toString().padStart(2, '0');
+  const mmm = ms.toString().padStart(3, '0');
+  return `${ss}.${mmm}`;
+};
   const formatTimeInput = (value: string): string => {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    if (!digits) return '';
-    if (digits.length <= 2) return digits; // seconds only while typing
+    const raw = value.replace(/\D/g, '');
+    if (!raw) return '';
+    const digits = raw.slice(0, 7);
+    if (digits.length <= 2) {
+      const ss = digits.padStart(2, '0');
+      return `00:${ss}:000`;
+    } else if (digits.length <= 4) {
     const minutes = digits.slice(0, -2);
     const seconds = digits.slice(-2);
-    return `${minutes}:${seconds}`;
+    const mm = minutes.padStart(2, '0');
+    const ss = seconds.padStart(2, '0');
+      return `${mm}:${ss}:000`;
+    } else {
+      const minutes = digits.slice(0, -5);
+      const seconds = digits.slice(-5, -3);
+      const milliseconds = digits.slice(-3);
+      const mm = minutes.padStart(2, '0');
+      const ss = seconds.padStart(2, '0');
+      const mmm = milliseconds.padStart(3, '0');
+      return `${mm}:${ss}:${mmm}`;
+    }
   };
-  // Convert seconds to MM.SS string for API
   const formatTimeDot = (seconds: number): string => {
     const mins = Math.floor(Math.max(0, seconds) / 60);
     const secs = Math.floor(Math.max(0, seconds) % 60);
+    const ms = Math.floor((Math.max(0, seconds) % 1) * 1000);
     const mm = mins.toString().padStart(2, '0');
     const ss = secs.toString().padStart(2, '0');
-    return `${mm}.${ss}`;
+    const mmm = ms.toString().padStart(3, '0');
+    return `${mm}.${ss}.${mmm}`;
   };
 
-  // const handleEditSegChange = (idx: number, value: string) => {
-  //   const masked = formatTimeInput(value);
-  //   let seconds = parseTimeToSeconds(masked);
-  //   const newMap = [...editSegMap];
-  //   // Clamp against neighbors to preserve strict ordering
-  //   const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
-  //   const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
-  //   seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
-  //   newMap[idx] = Math.max(0, seconds);
-  //   setEditSegMap(newMap);
-  // };
+  const handleEditSegChange = (idx: number, value: string) => {
+    if (value.trim() === '') {
+      setEditSegInputValues((prev) => {
+        const next = [...prev];
+        next[idx] = '';
+        return next;
+      });
+      const newMapEmpty = [...editSegMap];
+      newMapEmpty[idx] = 0;
+      setEditSegMap(newMapEmpty);
+      return;
+    }
+    const prevMasked = editSegInputValues[idx] ?? '';
+    const prevDigitsRaw = prevMasked.replace(/\D/g, '');
+    const incomingRaw = value.replace(/\D/g, '');
+
+    const prevMeaningful = prevDigitsRaw.replace(/^0+/, '');
+    const incomingMeaningful = incomingRaw.replace(/^0+/, '');
+
+    let digits = incomingMeaningful;
+    if (incomingMeaningful.length > prevMeaningful.length) {
+
+      if (prevMeaningful.length >= 4) {
+
+        digits = prevMeaningful.slice(0, 4);
+      } else {
+        const appended = incomingMeaningful.slice(-1);
+        digits = (prevMeaningful + appended).slice(0, 4);
+      }
+    } else if (incomingMeaningful.length < prevMeaningful.length) {
+
+      digits = incomingMeaningful;
+    } else {
+      digits = incomingMeaningful.slice(0, 4);
+    }
+
+    let masked = '00:00';
+    if (digits.length === 0) {
+      masked = '00:00';
+    }
+
+     else {
+      const mm = digits.slice(0, digits.length - 2).padStart(2, '0');
+      const ss = digits.slice(-2);
+      masked = `${mm}:${ss}`;
+    }
+
+    setEditSegInputValues((prev) => {
+      const next = [...prev];
+      next[idx] = masked;
+      return next;
+    });
+    const seconds = parseTimeToSeconds(masked);
+    const newMap = [...editSegMap];
+    newMap[idx] = Math.max(0, seconds);
+    setEditSegMap(newMap);
+  };
 
 
   // const handleAddSeg = () => {
@@ -2288,15 +2507,24 @@ const SegmentationView = ({
           arr[arr.length - 1].transcriptFileUrl
         ) {
           const last = arr[arr.length - 1];
-
-          // Normalize to number[] seconds (supports 'mm:ss', 'mm.ss', and numeric like 10.22)
+          // Normalize to number[] seconds
           const normalized: number[] = (last.segmentationMap as any[]).map((v: any) => {
-            if (typeof v === "number") return parseTimeToSeconds(String(v));
+            if (typeof v === "number") return v;
             if (typeof v === "string") return parseTimeToSeconds(v);
             return 0;
           });
+          
           setEditSegMap(normalized);
-
+          
+          const minInputs = normalized.map(s => Math.floor(s / 60).toString().padStart(2, '0'));
+          const secInputs = normalized.map(s => Math.floor(s % 60).toString().padStart(2, '0'));
+          const msInputs = normalized.map(s => Math.floor((s % 1) * 1000).toString().padStart(3, '0'));
+        
+        setEditMinInputs(minInputs);
+        setEditSecInputs(secInputs);
+        setEditMsInputs(msInputs);
+        setEditSegInputValues(normalized.map(s => formatTime(s)));
+  
           // Fetch transcript chunks
           const transcriptRes = await fetch(last.transcriptFileUrl);
           if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
@@ -2305,11 +2533,19 @@ const SegmentationView = ({
         } else {
           setEditError("Segmentation map or transcript not found.");
           setEditSegMap([]);
+          setEditMinInputs([]);
+          setEditSecInputs([]);
+          setEditMsInputs([]);
+          setEditSegInputValues([]);
           setEditTranscriptChunks([]);
         }
       } catch (e: any) {
         setEditError(e.message || "Unknown error");
         setEditSegMap([]);
+        setEditMinInputs([]);
+        setEditSecInputs([]);
+        setEditMsInputs([]);
+        setEditSegInputValues([]);
         setEditTranscriptChunks([]);
       } finally {
         setEditLoading(false);
@@ -2321,7 +2557,30 @@ const SegmentationView = ({
         setEditError("");
         try {
           // Use index 0 for the backend (fixes 500 error)
-          await editSegmentMap(aiJobId, editSegMap);
+          const payload = editSegMap.map((s) => formatTimePadded(s));
+          await editSegmentMap(aiJobId, payload);
+          
+          const sortedSegments = [...editSegMap].sort((a, b) => a - b);
+          
+          const updatedChunks = sortedSegments.map((end, idx) => {
+              const start = idx === 0 ? 0 : sortedSegments[idx - 1];
+              
+              return editTranscriptChunks.filter(chunk => {
+                  if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                      return false;
+                  }
+                  
+                  const chunkStart = chunk.timestamp[0];
+                  const chunkEnd = chunk.timestamp[1];
+                  const chunkMid = (chunkStart + chunkEnd) / 2;
+                  
+                  return chunkMid > start && chunkMid <= end;
+              });
+          });
+  
+          setSegmentationMap(sortedSegments);
+          setSegmentationChunks(updatedChunks);
+          
           handleShowHandleResult("SEGMENTATION");
           toast.success('Segments updated successfully!');
           setEditModalOpen(false);
@@ -2331,6 +2590,157 @@ const SegmentationView = ({
           setEditLoading(false);
         }
     };
+
+          const handleMinChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 2);
+            setEditMinInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+            });
+            
+            if (limitedValue.length === 2 || limitedValue === '') {
+              updateTotalSeconds(idx);
+            }
+          };
+
+          const handleSecChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 2);
+            
+            setEditSecInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+          });
+        
+          if (limitedValue.length === 2) {
+            const secs = parseInt(limitedValue, 10);
+            if (secs >= 60) {
+              const minsToAdd = Math.floor(secs / 60);
+              const remainingSecs = secs % 60;
+              
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                const currentMins = parseInt(next[idx] || '0', 10) || 0;
+                next[idx] = (currentMins + minsToAdd).toString().padStart(2, '0');
+                return next;
+              });
+              
+              setEditSecInputs(prev => {
+                const next = [...prev];
+                next[idx] = remainingSecs.toString().padStart(2, '0');
+                return next;
+              });
+            }
+            
+            updateTotalSeconds(idx);
+          } else if (limitedValue === '') {
+            updateTotalSeconds(idx);
+          }
+            };
+            
+          const handleMsChange = (idx: number, value: string) => {
+            const numericValue = value.replace(/\D/g, '');
+            const limitedValue = numericValue.slice(0, 3);
+            
+            setEditMsInputs(prev => {
+              const next = [...prev];
+              next[idx] = limitedValue;
+              return next;
+            });
+            
+            if (limitedValue.length === 3 || limitedValue === '') {
+              updateTotalSeconds(idx);
+            }
+          };
+
+          const updateTotalSeconds = (idx: number) => {
+            const mins = parseInt(editMinInputs[idx] || '0', 10) || 0;
+            const secs = parseInt(editSecInputs[idx] || '0', 10) || 0;
+            const ms = parseInt(editMsInputs[idx] || '0', 10) || 0;
+            const totalSeconds = mins * 60 + secs + ms / 1000;
+            const prevEnd = idx > 0 ? editSegMap[idx - 1] : 0;
+            const nextEnd = idx < editSegMap.length - 1 ? editSegMap[idx + 1] : Number.POSITIVE_INFINITY;
+            const clampedSeconds = Math.max(prevEnd + 1, Math.min(totalSeconds, nextEnd - 1));
+            
+            const newMap = [...editSegMap];
+            newMap[idx] = clampedSeconds;
+            setEditSegMap(newMap);
+            
+            setEditSegInputValues(prev => {
+              const next = [...prev];
+              next[idx] = formatTime(clampedSeconds);
+              return next;
+            });
+          };
+
+          const handleMinBlur = (idx: number) => {
+            const currentValue = editMinInputs[idx] || '';
+            if (currentValue) {
+              const mins = Math.min(59, parseInt(currentValue, 10) || 0);
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                next[idx] = mins.toString().padStart(2, '0');
+                return next;
+              });
+              updateTotalSeconds(idx);
+            }
+          };
+
+        const handleSecBlur = (idx: number) => {
+          const currentValue = editSecInputs[idx] || '';
+          if (currentValue) {
+            let secs = parseInt(currentValue, 10);
+            if (isNaN(secs)) {
+              secs = 0;
+            }
+            
+            if (secs >= 60) {
+              const minsToAdd = Math.floor(secs / 60);
+              secs = secs % 60;
+              
+              setEditMinInputs(prev => {
+                const next = [...prev];
+                const currentMins = parseInt(next[idx] || '0', 10) || 0;
+                next[idx] = (currentMins + minsToAdd).toString().padStart(2, '0');
+                return next;
+              });
+            }
+          
+            setEditSecInputs(prev => {
+              const next = [...prev];
+              next[idx] = secs.toString().padStart(2, '0');
+              return next;
+            });
+            
+            if (secs >= 0) {
+              updateTotalSeconds(idx);
+            }
+          }
+        };
+
+      const handleMsBlur = (idx: number) => {
+        const currentValue = editMsInputs[idx] || '';
+        if (currentValue) {
+          let ms = parseInt(currentValue, 10);
+          if (isNaN(ms)) {
+            ms = 0;
+          }
+          
+          setEditMsInputs(prev => {
+            const next = [...prev];
+            next[idx] = ms.toString().padStart(3, '0');
+            return next;
+          });
+          
+          if (ms >= 0) {
+            updateTotalSeconds(idx);
+          }
+        }
+      };
+    
   
     const handleConfirm = async () => {
         if (currentJobStatus === "COMPLETED") {
@@ -2350,7 +2760,7 @@ const SegmentationView = ({
           handleApproveTask();
         }
       };
-  async function editSegmentMap(jobId: string, segmentMap: number[], index?: number): Promise<void> {
+  async function editSegmentMap(jobId: string, segmentMap: (number | string)[], index?: number): Promise<void> {
     const token = localStorage.getItem('firebase-auth-token');
     const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
     const body = JSON.stringify({ segmentMap, index });
@@ -2370,25 +2780,6 @@ const SegmentationView = ({
     if (res.status === 404) throw new Error('Job not found: ' + errMsg);
     throw new Error(errMsg);
   }
-
-  // const handleSaveEditSeg = async () => {
-  //   setEditLoading(true);
-  //   setEditError("");
-  //   try {
-  //     // Use index 0 for the backend (fixes 500 error)
-  //     if (!aiJobId) throw new Error('Missing job id');
-  //     // Send as numbers in MM.SS numeric format (e.g., 11.11)
-  //     const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
-  //     await editSegmentMap(aiJobId, payloadNumbers, 0);
-  //     toast.success('Segment map updated successfully!');
-  //     setEditModalOpen(false);
-  //   } catch (e: any) {
-  //     setEditError(e.message || 'Failed to update segment map');
-  //   } finally {
-  //     setEditLoading(false);
-  //   }
-  // };
-
 
   const handleNext = () => {
     updateCurrentJob("questionGeneration", "WAITING");
@@ -2507,79 +2898,11 @@ const SegmentationView = ({
       </Button>
 
         </div>
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg ">
-            <DialogHeader>
-              <DialogTitle className="mb-4">Edit Segments</DialogTitle>
-            </DialogHeader>
-            {editLoading && <div>Loading segmentation map...</div>}
-            {editError && <div className="text-red-500">{editError}</div>}
-            {!editLoading && !editError && (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {editSegMap.map((value, idx) => {
-                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
-                  const end = value;
-                  const segChunks = editTranscriptChunks.filter(chunk =>
-                    chunk.timestamp &&
-                    typeof chunk.timestamp[0] === 'number' &&
-                    chunk.timestamp[0] >= start &&
-                    chunk.timestamp[0] < end
-                  );
-                  const segText = segChunks.map(chunk => chunk.text).join(' ');
-                  return (
-                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={value}
-                          onChange={e => handleEditSegChange(idx, e.target.value)}
-                          className="w-24"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveSeg(idx)}
-                          className="text-destructive hover:text-destructive"
-                          disabled={editSegMap.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                        {segText}
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-              </div>
-            )}
-            <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setEditModalOpen(false)}
-                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveEditSeg}
-                disabled={editLoading}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
             <div className="space-y-3">
-              {segmentationMap.map((end: number, idx: number) => {
-                const start = idx === 0 ? 0 : segmentationMap[idx - 1]
-                const segChunks = segmentationChunks[idx] || []
-
+            {segmentationMap && segmentationMap.map((end: number, idx: number) => {
+    const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+    const segChunks: { text: string }[] = segmentationChunks?.[idx] || [];
+    const segmentText = segChunks.map((chunk: { text: string }) => chunk.text).join(" ");
                 return (
                   <div
                     key={idx}
@@ -2592,52 +2915,39 @@ const SegmentationView = ({
                         </div>
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Segment {idx + 1}</h3>
                       </div>
-
                       <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
                         <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          {start.toFixed(2)}s – {end.toFixed(2)}s
+                          {formatTime(start)} – {formatTime(end)}
                         </span>
                       </div>
-                    </div>
+                  </div>
 
-                    {segChunks.length > 0 && (
-                      <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900">
+                  {(() => {
+                      const fallbackChunks = (editTranscriptChunks || []).filter((chunk: { timestamp: [number, number]; text: string }) => {
+                          if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) return false;
+                          const [chunkStart, chunkEnd] = chunk.timestamp;
+                          const chunkMid = (chunkStart + chunkEnd) / 2;
+                          return chunkMid > (idx === 0 ? 0 : segmentationMap[idx - 1]) && chunkMid <= end;
+                      });
+                      const displayChunks: { text: string }[] = (segChunks && segChunks.length > 0) ? segChunks : fallbackChunks as any;
+                      if (!displayChunks || displayChunks.length === 0) return null;
+                      return (
+                    <div className="flex items-start gap-2 bg-card/90 border rounded-md p-3 shadow-md shadow-gray-300 dark:shadow-gray-900 mt-3">
                         <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {segChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
+                          {displayChunks.map((chunk: { text: string }) => chunk.text).join(" ")}
                         </p>
                       </div>
-                    )}
+                    );
+                })()}
+
                   </div>
-                )
+                );
               })}
             </div>
-
-          {/* <div className="flex justify-end mb-4">
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={handleOpenEditModal}
-              className="border border-gray-300 rounded-full p-2 hover:bg-gray-100 
-                    hover:scale-105 transition-transform duration-200 shadow-sm"
-            >
-              <Pencil className="h-4 w-4 text-gray-600" />
-            </Button>
-
-            
-              <Button
-              variant="outline"
-              size="icon"
-              className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
-              onClick={() => setIsSettingsOpen((prev) => !prev)}
-              aria-pressed={isSettingsOpen}
-            >
-              <Settings className="w-7 h-7 dark:text-white text-black" />
-            </Button>
-          </div>
           <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-            <DialogContent className="max-w-lg ">
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle className="mb-4">Edit Segments</DialogTitle>
               </DialogHeader>
@@ -2648,80 +2958,123 @@ const SegmentationView = ({
                   {editSegMap.map((value, idx) => {
                     const start = idx === 0 ? 0 : editSegMap[idx - 1];
                     const end = value;
-                    const segChunks = editTranscriptChunks.filter(chunk =>
-                      chunk.timestamp &&
-                      typeof chunk.timestamp[0] === 'number' &&
-                      chunk.timestamp[0] >= start &&
-                      chunk.timestamp[0] < end
-                    );
-                    const segText = segChunks.map(chunk => chunk.text).join(' ');
+                    const segChunks = editTranscriptChunks.filter(chunk => {
+                      if (!chunk.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+                        return false;
+                      }
+                      
+                      const chunkStart = chunk.timestamp[0];
+                      const chunkEnd = chunk.timestamp[1];
+                      
+                      return chunkStart < end && chunkEnd > start;
+                    });
+                    const segText = segChunks.length > 0 
+                      ? segChunks.map(chunk => chunk.text).join(' ')
+                      : 'No transcript content for this segment';                
                     return (
                       <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                          <Input
-                            type="text"
-                            placeholder="0:00"
-                            maxLength={5}
-                            value={formatTime(editSegMap[idx] ?? 0)}
-                            onChange={e => handleEditSegChange(idx, e.target.value)}
-                            onBlur={e => {
-                              const seconds = parseTimeToSeconds(e.target.value);
-                              const newMap = [...editSegMap];
-                              // Re-apply neighbor constraints on blur
-                              const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
-                              const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
-                              const clamped = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
-                              newMap[idx] = Math.max(0, clamped);
-                              setEditSegMap(newMap);
-                            }}
-                            className="w-24"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveSeg(idx)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={editSegMap.length <= 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                            <div className="flex items-center gap-1">
+                              <div className="flex flex-col">
+                                <span className="text-xs text-muted-foreground">mm</span>
+                                <Input
+                          type="text"
+                          value={editMinInputs[idx] || ''}
+                          onChange={(e) => handleMinChange(idx, e.target.value)}
+                          onBlur={() => handleMinBlur(idx)}
+                          className="w-12"
+                          maxLength={2}
+                          placeholder="00"
+    />
+          </div>
+          <span className="px-1">:</span>
+          
+          {/* Seconds */}
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">ss</span>
+            <Input
+              type="text"
+              value={editSecInputs[idx] || ''}
+              onChange={(e) => handleSecChange(idx, e.target.value)}
+              onBlur={() => handleSecBlur(idx)}
+              className="w-12"
+              maxLength={2}
+              placeholder="00"
+            />
+          </div>
+          <span className="px-1">:</span>
+          
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">ms</span>
+             <Input
+              type="text"
+              value={editMsInputs[idx] || ''}
+              onChange={(e) => handleMsChange(idx, e.target.value)}
+              onBlur={() => handleMsBlur(idx)}
+              className="w-16"
+              maxLength={3}
+              placeholder="000"
+                      />
+                            </div>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveSeg(idx)}
+                              className="text-destructive hover:text-destructive"
+                              disabled={editSegMap.length <= 1}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                            {segText}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                          {segText}
-                        </div>
-                      </div>
                     );
                   })}
-                  <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-                </div>
-              )}
-              <DialogFooter className="flex justify-end gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setEditModalOpen(false)}
-                  className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveEditSeg}
-                  disabled={editLoading}
-                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-                >
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <ol className="mt-2 space-y-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddSeg}
+                      className="w-full"
+                      aria-label="Add new segment"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Segment
+                    </Button>
+                  </div>
+                )}
+              
+                <DialogFooter className="flex justify-end gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditModalOpen(false)}
+                    className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    aria-label="Cancel segment editing"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveEditSeg}
+                    disabled={editLoading}
+                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    aria-label="Save segment changes"
+                  >
+                    Save
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          {/* <ol className="mt-2 space-y-4">
             {segmentationMap.map((end: any, idx: any) => {
               const start = idx === 0 ? 0 : segmentationMap[idx - 1];
               const segChunks = segmentationChunks[idx] || [];
               return (
                 <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
                   <div>
-                    <b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}
+                    <b>Segment {idx + 1}:</b> {(Number.isFinite(start) ? start.toFixed(2) : String(start))}s – {(Number.isFinite(Number(end)) ? Number(end).toFixed(2) : String(end))}
                   </div>
                   {segChunks.length > 0 && (
                     <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
@@ -2755,7 +3108,7 @@ const SegmentationView = ({
                   <div className="flex items-center gap-1 bg-card px-3 py-1 rounded-full">
                     <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                     <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      {startTime}s - {endTime}s
+                      {formatTime(startTime)} - {formatTime(endTime)}
                     </span>
                   </div>
                 </div>

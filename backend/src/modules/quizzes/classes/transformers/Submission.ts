@@ -13,13 +13,13 @@ import {ObjectId} from 'mongodb';
 
 class Submission implements ISubmission {
   _id?: string | ObjectId;
-  quizId: string;
+  quizId: string | ObjectId;
   userId: string | ObjectId;
-  attemptId: string;
+  attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;
 
-  constructor(quizId: string, userId: string | ObjectId, attemptId: string) {
+  constructor(quizId: string | ObjectId, userId: string | ObjectId, attemptId: string | ObjectId) {
     this.quizId = quizId;
     this.userId = userId;
     this.attemptId = attemptId;

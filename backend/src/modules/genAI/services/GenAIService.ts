@@ -24,6 +24,7 @@ import { appConfig } from '#root/config/app.js';
 import { ANOMALIES_TYPES } from '#root/modules/anomalies/types.js';
 import { CloudStorageService } from '#root/modules/anomalies/index.js';
 import { storageConfig } from '#root/config/storage.js';
+import { ObjectId } from 'mongodb';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -640,8 +641,8 @@ export class GenAIService extends BaseService {
             const questionBank = new QuestionBank({
               title: questionBankName,
               description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}."`,
-              courseId: (jobState.parameters as UploadParameters).courseId,
-              courseVersionId: (jobState.parameters as UploadParameters).versionId,
+              courseId: new ObjectId((jobState.parameters as UploadParameters).courseId),
+              courseVersionId: new ObjectId((jobState.parameters as UploadParameters).versionId),
               questions: [], // Will be populated after creating questions
               tags: [`segment_${currentSegmentId}`, 'ai_generated'],
             });

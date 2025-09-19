@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+
+const MAX_DESCRIPTION_LENGTH = 1000;
+
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -222,58 +225,99 @@ export default function TeacherCoursePage() {
     isDeleteItemSuccess,
   ]);
 
-  // Success toasts
-  useEffect(() => {
-    if (isCreateModuleSuccess) toast.success("Module created successfully!");
-    if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
-    if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
+ useStatusToasts({
+  successFlags: {
+    isCreateModuleSuccess: {
+      flag: isCreateModuleSuccess,
+      message: "Module created successfully!",
+    },
+    isUpdateModuleSuccess: {
+      flag: isUpdateModuleSuccess,
+      message: "Module updated successfully!",
+    },
+    isDeleteModuleSuccess: {
+      flag: isDeleteModuleSuccess,
+      message: "Module deleted successfully!",
+    },
+    isCreateSectionSuccess: {
+      flag: isCreateSectionSuccess,
+      message: "Section created successfully!",
+    },
+    isUpdateSectionSuccess: {
+      flag: isUpdateSectionSuccess,
+      message: "Section updated successfully!",
+    },
+    isDeleteSectionSuccess: {
+      flag: isDeleteSectionSuccess,
+      message: "Section deleted successfully!",
+    },
+    isCreateItemSuccess: {
+      flag: isCreateItemSuccess,
+      message: "Item created successfully!",
+    },
+    isUpdateItemSuccess: {
+      flag: isUpdateItemSuccess,
+      message: "Item updated successfully!",
+    },
+    isDeleteItemSuccess: {
+      flag: isDeleteItemSuccess,
+      message: "Item deleted successfully!",
+    },
+  },
+  errorFlags: {
+    isCreateModuleError: {
+      flag: isCreateModuleError,
+      message: createModuleError?.message,
+      fallback: "Failed to create module",
+    },
+    isUpdateModuleError: {
+      flag: isUpdateModuleError,
+      message: updateModuleError?.message,
+      fallback: "Failed to update module",
+    },
+    isDeleteModuleError: {
+      flag: isDeleteModuleError,
+      message: deleteModuleError?.message,
+      fallback: "Failed to delete module",
+    },
+    isCreateSectionError: {
+      flag: isCreateSectionError,
+      message: createSectionError?.message,
+      fallback: "Failed to create section",
+    },
+    isUpdateSectionError: {
+      flag: isUpdateSectionError,
+      message: updateSectionError?.message,
+      fallback: "Failed to update section",
+    },
+    isDeleteSectionError: {
+      flag: isDeleteSectionError,
+      message: deleteSectionError?.message,
+      fallback: "Failed to delete section",
+    },
+    isCreateItemError: {
+      flag: isCreateItemError,
+      message: createItemError?.message,
+      fallback: "Failed to create item",
+    },
+    isUpdateItemError: {
+      flag: isUpdateItemError,
+      message: updateItemError?.message,
+      fallback: "Failed to update item",
+    },
+    isDeleteItemError: {
+      flag: isDeleteItemError,
+      message: deleteItemError?.message,
+      fallback: "Failed to delete item",
+    },
+    isMoveItemError: {
+      flag: isMoveItemError,
+      message: moveItemError?.message,
+      fallback: "Failed to move item",
+    },
+  },
+});
 
-    if (isCreateSectionSuccess) toast.success("Section created successfully!");
-    if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
-    if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
-
-    if (isCreateItemSuccess) toast.success("Item created successfully!");
-    if (isUpdateItemSuccess) toast.success("Item updated successfully!");
-    if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
-  }, [
-    isCreateModuleSuccess,
-    isUpdateModuleSuccess,
-    isDeleteModuleSuccess,
-    isCreateSectionSuccess,
-    isUpdateSectionSuccess,
-    isDeleteSectionSuccess,
-    isCreateItemSuccess,
-    isUpdateItemSuccess,
-    isDeleteItemSuccess,
-  ]);
-
-  // Error toasts
-  useEffect(() => {
-    if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
-    if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
-    if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
-
-    if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
-    if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
-    if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
-
-    if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
-    if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
-    if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
-
-    if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
-  }, [
-    isCreateModuleError,
-    isUpdateModuleError,
-    isDeleteModuleError,
-    isCreateSectionError,
-    isUpdateSectionError,
-    isDeleteSectionError,
-    isCreateItemError,
-    isUpdateItemError,
-    isDeleteItemError,
-    isMoveItemError,
-  ]);
 
 
   // Reload items when quiz wizard closes
@@ -1050,41 +1094,63 @@ export default function TeacherCoursePage() {
 
                     {(selectedEntity.type !== "item") && (
                       <>
-                        <Label className="text-sm font-bold text-foreground">Description *</Label>
-                        <textarea
-                          value={
-                            selectedEntity.type === "item"
-                              ? selectedItemData?.item?.description ?? ""
-                              : selectedEntity.data?.description ?? ""
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            setSelectedEntity({
-                              ...selectedEntity,
-                              data: { ...selectedEntity.data, description: value }
-                            })
-                            if (selectedEntity.type === "module") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Module description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-foreground">Description *</Label>
+                          <div className="relative">
+                            <textarea
+                              value={
+                                selectedEntity.type === "item"
+                                  ? selectedItemData?.item?.description ?? ""
+                                  : selectedEntity.data?.description ?? ""
                               }
-                            }
-                            if (selectedEntity.type === "section") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Section description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
-                              }
-                            }
-                          }}
-                          placeholder="Description"
-                          rows={5}
-                          className="w-full rounded border px-3 py-2 text-sm"
-                        />
-                        {errors.description && (
-                          <div className="text-xs text-red-500">{errors.description}</div>
-                        )}
+                              onChange={e => {
+                                const value = e.target.value;
+                                
+                                // Only update if within limit or deleting characters
+                                if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                                  setSelectedEntity({
+                                    ...selectedEntity,
+                                    data: { ...selectedEntity.data, description: value }
+                                  });
+                                }
+
+                                // Validation
+                                if (selectedEntity.type === "module") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                                if (selectedEntity.type === "section") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                              }}
+                              placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
+                              rows={5}
+                              maxLength={MAX_DESCRIPTION_LENGTH}
+                              className="w-full rounded border px-3 py-2 pr-16 text-sm"
+                            />
+                            <div className={`absolute bottom-2 right-2 text-xs ${
+                              (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
+                                ? 'text-destructive' 
+                                : 'text-muted-foreground'
+                            }`}>
+                              {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
+                            </div>
+                          </div>
+                          {errors.description && (
+                            <div className="text-xs text-red-500">{errors.description}</div>
+                          )}
+                        </div>
                       </>
                     )}
                     <div className="flex items-center gap-2">
@@ -1100,7 +1166,11 @@ export default function TeacherCoursePage() {
                               if (!moduleName || !moduleDescription) {
                                 setErrors({
                                   title: !moduleName ? "Module name is required." : "",
-                                  description: !moduleDescription ? "Module description is required." : ""
+                                  description: !moduleDescription 
+                                    ? "Module description is required."
+                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
@@ -1110,7 +1180,11 @@ export default function TeacherCoursePage() {
                               if (!sectionName || !sectionDescription) {
                                 setErrors({
                                   title: !sectionName ? "Section name is required." : "",
-                                  description: !sectionDescription ? "Section description is required." : ""
+                                  description: !sectionDescription 
+                                    ? "Section description is required." 
+                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
@@ -1415,4 +1489,49 @@ export default function TeacherCoursePage() {
       </div>
     </SidebarProvider>
   );
+}
+
+
+type SuccessFlagEntry = {
+  flag: boolean;
+  message: string;
+};
+
+type ErrorFlagEntry = {
+  flag: boolean;
+  message?: string;
+  fallback: string;
+};
+
+export function useStatusToasts({
+  successFlags,
+  errorFlags,
+}: {
+  successFlags: Record<string, SuccessFlagEntry>;
+  errorFlags: Record<string, ErrorFlagEntry>;
+}) {
+  const prevSuccess = useRef<Record<string, boolean>>({});
+  const prevError = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Success toasts
+    Object.entries(successFlags).forEach(([key, { flag, message }]) => {
+      const wasPrev = prevSuccess.current[key];
+      if (!wasPrev && flag) {
+        toast.success(message);
+      }
+      prevSuccess.current[key] = flag;
+    });
+
+    // Error toasts
+    Object.entries(errorFlags).forEach(([key, { flag, message, fallback }]) => {
+      const wasPrev = prevError.current[key];
+      if (!wasPrev && flag) {
+        toast.error(fallback, {
+          description: message ?? "An unknown error occurred.",
+        });
+      }
+      prevError.current[key] = flag;
+    });
+  }, [successFlags, errorFlags]);
 }

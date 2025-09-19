@@ -44,7 +44,13 @@ export class InviteRepository {
       {_id: new ObjectId(id)},
       {session},
     );
-    return invite;
+    if (!invite) return null;
+
+    return {
+      ...invite,
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    };
   }
 
   async findInvitesByIds(
@@ -61,7 +67,12 @@ export class InviteRepository {
     const invites = await this.inviteCollection
       .find({_id: {$in: objectIds}}, {session})
       .toArray();
-    return invites;
+
+    return invites.map(invite => ({
+      ...invite,
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    }));
   }
 
   async updateInvite(
@@ -91,7 +102,13 @@ export class InviteRepository {
     const invites = await this.inviteCollection
       .find({email}, {session})
       .toArray();
-    return invites;
+
+    return invites.map(invite => ({
+      ...invite,
+      _id: invite._id.toString(),
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    }));
   }
 
   async findInvitesByCourse(
@@ -106,7 +123,23 @@ export class InviteRepository {
   ): Promise<{invites: Invite[]; totalDocuments: number; totalPages: number}> {
     await this.init();
 
-    const filter: any = {courseId, courseVersionId};
+    const courseIdObj = ObjectId.isValid(courseId)
+      ? new ObjectId(courseId)
+      : null;
+    const courseVersionIdObj = ObjectId.isValid(courseVersionId)
+      ? new ObjectId(courseVersionId)
+      : null;
+
+    const filter: any = {
+      courseId: {$in: [courseId, ...(courseIdObj ? [courseIdObj] : [])]},
+      courseVersionId: {
+        $in: [
+          courseVersionId,
+          ...(courseVersionIdObj ? [courseVersionIdObj] : []),
+        ],
+      },
+    };
+    // const filter: any = {courseId, courseVersionId};
 
     if (inviteStatus) {
       filter.inviteStatus = inviteStatus;
@@ -141,6 +174,12 @@ export class InviteRepository {
 
     const totalPages = Math.ceil(totalDocuments / limit);
 
-    return {invites, totalDocuments, totalPages};
+    const normalizedInvites = invites.map(invite => ({
+      ...invite,
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    }));
+
+    return {invites: normalizedInvites, totalDocuments, totalPages};
   }
 }

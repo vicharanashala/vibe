@@ -337,15 +337,14 @@ class ProgressService extends BaseService {
   ) {
     // resolve all async operations first
     const bulkOps = await Promise.all(
-      enrollments.map(async (enrollment) => {
+      enrollments.map(async enrollment => {
         const userId = enrollment.userId?.toString();
 
-        const completedItems =
-          await this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            versionId,
-          );
+        const completedItems = await this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          versionId,
+        );
 
         return {
           updateOne: {
@@ -356,7 +355,7 @@ class ProgressService extends BaseService {
             },
             update: {
               $set: {
-                progressPercent: this._calculateProgress(
+                percentCompleted: this._calculateProgress(
                   enrollment,
                   totalItems,
                   completedItems,
@@ -375,16 +374,15 @@ class ProgressService extends BaseService {
     return null;
   }
 
-
   // Helper to calculate progress based on completed items
-  private _calculateProgress(enrollment: any, totalItems: number, completedItems: number): number {
-
-
+  private _calculateProgress(
+    enrollment: any,
+    totalItems: number,
+    completedItems: number,
+  ): number {
     if (!totalItems || totalItems === 0) return 0;
     return ((completedItems ?? 0) / totalItems) * 100;
   }
-
-
 
   private async verifyDetails(
     userId: string | ObjectId,
@@ -411,7 +409,6 @@ class ProgressService extends BaseService {
         'Course version not found or does not belong to this course',
       );
     }
-
   }
 
   private async verifyProgress(
@@ -758,12 +755,14 @@ class ProgressService extends BaseService {
           session,
         );
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(userId, courseId, courseVersionId);
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
 
       // Use Set to ensure unique completed items and for efficient size comparison
       const completedItemsSet = new Set(completedItemsArray);
-
-
 
       return {
         completed: progress.completed,
@@ -840,9 +839,7 @@ class ProgressService extends BaseService {
     moduleId: string,
     watchItemId: string,
   ): Promise<void> {
-
     return this._withTransaction(async session => {
-
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -936,7 +933,6 @@ class ProgressService extends BaseService {
           session,
         );
 
-
         // if the quiz is skipped then there is no submission record
         if (!submittedQuiz) {
           throw new BadRequestError(
@@ -951,6 +947,14 @@ class ProgressService extends BaseService {
       }
       // Get the course version
       const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+
+      //  for updating enrollment progress percent
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
         courseVersionId,
         session,
       );
@@ -979,14 +983,6 @@ class ProgressService extends BaseService {
       if (!updatedProgress) {
         throw new InternalServerError('Progress could not be updated');
       }
-
-      //  for updating enrollment progress percent
-      await this.updateEnrollmentProgressPercent(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
     });
   }
 
@@ -1000,7 +996,6 @@ class ProgressService extends BaseService {
 
     // Fetch all quizzes in one go
     const quizzes = await this.quizRepo.getByIds(quizItemIds, session);
-
 
     const maxAttemptsMap = quizzes.reduce((acc, quiz) => {
       acc[quiz._id.toString()] = quiz?.details?.maxAttempts || 0;
@@ -1019,11 +1014,17 @@ class ProgressService extends BaseService {
     // Run the three bulk operations in parallel
     await Promise.all([
       this.progressRepository.executeBulkAttemptDelete(attemptDeletes, session),
-      this.userQuizMetricsRepository.executeBulkMetricsReset(metricsUpdates, session),
-      this.submissionRepository.executeBulkSubmissionDelete(userId, submissionDeletes, session),
+      this.userQuizMetricsRepository.executeBulkMetricsReset(
+        metricsUpdates,
+        session,
+      ),
+      this.submissionRepository.executeBulkSubmissionDelete(
+        userId,
+        submissionDeletes,
+        session,
+      ),
     ]);
   }
-
 
   // Admin Level Endpoint
   async resetCourseProgress(
@@ -1032,8 +1033,6 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-
-
       // Run verify + courseVersion fetch in parallel
       const [_, courseVersion] = await Promise.all([
         this.verifyDetails(userId, courseId, courseVersionId),
@@ -1126,7 +1125,6 @@ class ProgressService extends BaseService {
         this.courseRepo.readVersion(courseVersionId, session),
       ]);
 
-
       // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
       for (const module of courseVersion.modules || []) {
@@ -1154,7 +1152,12 @@ class ProgressService extends BaseService {
 
       // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
       await Promise.all([
-        this.progressRepository.deleteProgress(userId, courseId, courseVersionId, session),
+        this.progressRepository.deleteProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
         this.progressRepository.deleteUserWatchTimeByCourseVersion(
           userId,
           courseId,
@@ -1165,18 +1168,14 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          session
+          session,
         ),
         quizItemIds.length
           ? this.resetUserQuizData(userId, quizItemIds, session)
           : Promise.resolve(),
       ]);
-
     });
-
-
   }
-
 
   async getCompletedItems(
     userId: string,

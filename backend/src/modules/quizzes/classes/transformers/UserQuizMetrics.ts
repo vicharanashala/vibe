@@ -13,7 +13,7 @@ class UserQuizMetrics implements IUserQuizMetrics {
   attempts: IAttemptDetails[];
   skipCount: number;
 
-  constructor(userId: string | ObjectId, quizId: string, maxAttempts: number) {
+  constructor(userId: string | ObjectId, quizId: string | ObjectId, maxAttempts: number) {
     this.userId = userId;
     this.quizId = quizId;
     this.remainingAttempts = maxAttempts;

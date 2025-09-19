@@ -29,6 +29,8 @@ import {
 import {CourseActions, getCourseAbility} from '../abilities/courseAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -40,6 +42,8 @@ export class CourseController {
   constructor(
     @inject(COURSES_TYPES.CourseService)
     private readonly courseService: CourseService,
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
   ) {}
 
   @OpenAPI({
@@ -58,16 +62,34 @@ export class CourseController {
   })
   async create(
     @Body() body: CourseBody,
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) {ability, user},
   ): Promise<Course> {
-    // Build subject context first
+    const {versionName, versionDescription} = body;
+    const userId = user._id.toString();
 
+    //1. Build subject context for permissions
     if (!ability.can(CourseActions.Create, 'Course')) {
       throw new ForbiddenError('You do not have permission to create courses');
     }
 
+    //2. Create course and version
     const course = new Course(body);
-    const createdCourse = await this.courseService.createCourse(course);
+    const createdCourse = await this.courseService.createCourse(
+      course,
+      versionName,
+      versionDescription,
+      userId
+    );
+
+    // //3. Create enrollment for the user
+    // await this.enrollmentService.enrollUser(
+    //   userId,
+    //   createdCourse._id.toString(),
+    //   String(createdCourse.versions[0].toString()),
+    //   'INSTRUCTOR',
+    // );
+
+    //3. Return the course details
     return createdCourse;
   }
 
