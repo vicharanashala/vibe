@@ -269,6 +269,7 @@ export enum ItemType {
   VIDEO = 'VIDEO',
   QUIZ = 'QUIZ',
   BLOG = 'BLOG',
+  PROJECT = 'PROJECT',
 }
 
 export interface IBaseItem {

@@ -1,7 +1,7 @@
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
 
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
+import { Expose, Transform, Type } from 'class-transformer';
+import { ObjectId } from 'mongodb';
 
 import {
   ObjectIdToString,
@@ -15,12 +15,12 @@ import {
   IBlogDetails,
 } from '#root/shared/interfaces/models.js';
 
-export type Item = QuizItem | VideoItem | BlogItem;
+export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
 
 class QuizItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -51,8 +51,8 @@ class QuizItem {
 
 class VideoItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -83,8 +83,8 @@ class VideoItem {
 
 class BlogItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -98,6 +98,7 @@ class BlogItem {
 
   @Expose()
   details?: IBlogDetails;
+
   constructor(
     name: string,
     description: string,
@@ -112,10 +113,29 @@ class BlogItem {
   }
 }
 
+class ProjectItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  _id?: ID;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  type: ItemType = ItemType.PROJECT;
+
+  constructor(name: string, _id: ID) {
+    this._id = _id;
+    this.type = ItemType.PROJECT;
+    this.name = name;
+  }
+}
+
 class ItemBase {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   itemId?: ID;
 
   @Expose()
@@ -158,12 +178,14 @@ class ItemBase {
             this.itemId,
           );
           break;
+        case ItemType.PROJECT:
+          this.itemDetails = new ProjectItem(itemBody.name, this.itemId);
+          break;
         default:
           break;
       }
     }
 
-    // to faciliate plain and instance conversion.
     if (existingItems) {
       const sortedItems = existingItems.sort((a, b) =>
         a.order.localeCompare(b.order),
@@ -180,8 +202,8 @@ class ItemBase {
 
 class ItemRef {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -197,15 +219,10 @@ class ItemRef {
   }
 }
 
-/**
- * Items Group data transformation.
- *
- * @category Courses/Transformers
- */
 class ItemsGroup {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -213,8 +230,8 @@ class ItemsGroup {
   items: ItemRef[];
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   sectionId: ID;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
@@ -223,4 +240,4 @@ class ItemsGroup {
   }
 }
 
-export {ItemBase, ItemsGroup, ItemRef, QuizItem, VideoItem, BlogItem};
+export { ItemBase, ItemsGroup, ItemRef, QuizItem, VideoItem, BlogItem, ProjectItem };
