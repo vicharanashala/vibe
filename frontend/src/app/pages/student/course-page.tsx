@@ -191,8 +191,8 @@ export default function CoursePage() {
     isLoading: itemsLoading
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
-    shouldFetchItems ? sectionModuleId : '6831b98e1f79c52d445c5db5',
-    shouldFetchItems ? sectionId : '6831b98e1f79c52d445c5db6'
+    shouldFetchItems ? sectionModuleId : '',
+    shouldFetchItems ? sectionId : ''
   )
 
   // Fetch individual item details when an item is selected
