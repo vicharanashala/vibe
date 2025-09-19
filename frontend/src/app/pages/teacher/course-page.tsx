@@ -19,12 +19,17 @@ import {
   Trash2,
   Loader2,
   Users,
+  UserCog2 ,
   Sparkles,
   GraduationCap,
+  BookOpenIcon,
+  Settings2,
+  MailPlus ,
   Clock,
   BarChart3,
   RotateCcw,
   FlagTriangleRight,
+  User,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -569,7 +574,7 @@ function CourseCard({
                   </CardTitle>
                   <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary">
                     <FileText className="h-3 w-3 mr-1" />
-                    {course.versions?.length || 0} versions
+                    {`${course.versions?.length || 0 } version${course.versions?.length>1?'s':''}`}
                   </Badge>
                 </div>
 
@@ -757,7 +762,7 @@ function CourseCard({
                     ) : (
                       <Plus className="h-3 w-3 mr-1" />
                     )}
-                    New Version
+                    Add Version
                   </Button>
                 </div>
               </div>
@@ -1090,7 +1095,7 @@ function VersionCard({
                   onClick={viewInstructors}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
-                  <Users className="h-3 w-3 mr-1" />
+                  <UserCog2  className="h-3 w-3 mr-1" />
                   View Instructors
                 </Button>
                 <Button
@@ -1100,16 +1105,7 @@ function VersionCard({
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
                   <Users className="h-3 w-3 mr-1" />
-                  View Enrollments
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={sendInvites}
-                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                >
-                  <Users className="h-3 w-3 mr-1" />
-                  Send Invites
+                  View Students
                 </Button>
                 <Button
                   variant="outline"
@@ -1117,10 +1113,33 @@ function VersionCard({
                   onClick={viewCourse}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
-                  <Eye className="h-3 w-3 mr-1" />
-                  View
+                  <BookOpenIcon className="h-3 w-3 mr-1" />
+                  Manage
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={sendInvites}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <MailPlus  className="h-3 w-3 mr-1" />
+                  Send Invites
+                </Button>
+                
+               
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowProctoringModal(true)
+                  }}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                >
+                  <Settings2 className="h-3 w-3 mr-1" />
+                  Settings
+                </Button>
+                 <Button
                   variant="outline"
                   size="sm"
                   onClick={deleteVersion}
@@ -1133,18 +1152,6 @@ function VersionCard({
                     <Trash2 className="h-3 w-3 mr-1" />
                   )}
                   Delete
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowProctoringModal(true)
-                  }}
-                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  Settings
                 </Button>
               </div>
             </div>
