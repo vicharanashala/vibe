@@ -1,10 +1,10 @@
-import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
-import { IAttempt } from '#quizzes/interfaces/grading.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ObjectId, ClientSession } from 'mongodb';
-import { MongoDatabase } from '../MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { InternalServerError } from 'routing-controllers';
+import {IProgress, IWatchTime} from '#shared/interfaces/models.js';
+import {IAttempt} from '#quizzes/interfaces/grading.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ObjectId, ClientSession} from 'mongodb';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {InternalServerError} from 'routing-controllers';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -17,7 +17,7 @@ class ProgressRepository {
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
     this.progressCollection = await this.db.getCollection<IProgress>(
@@ -46,7 +46,7 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
 
     return distinctItemIds.map(id => id.toString());
@@ -58,7 +58,7 @@ class ProgressRepository {
   ): Promise<IWatchTime[]> {
     await this.init();
     const result = await this.watchTimeCollection
-      .find({ userId: new ObjectId(userId) }, { session })
+      .find({userId: new ObjectId(userId)}, {session})
       .toArray();
     return result.map(item => ({
       ...item,
@@ -76,8 +76,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     await this.watchTimeCollection.deleteMany(
-      { itemId: new ObjectId(itemId) },
-      { session },
+      {itemId: new ObjectId(itemId)},
+      {session},
     );
   }
 
@@ -87,8 +87,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { courseId: new ObjectId(courseId) },
-      { session },
+      {courseId: new ObjectId(courseId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       throw new Error(`No watch time records found for course ID: ${courseId}`);
@@ -101,8 +101,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { courseVersionId: new ObjectId(courseVersionId) },
-      { session },
+      {courseVersionId: new ObjectId(courseVersionId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       console.log(
@@ -119,8 +119,8 @@ class ProgressRepository {
   ): Promise<void> {
     await this.init();
     const result = await this.watchTimeCollection.deleteMany(
-      { userId: new ObjectId(userId), courseId: new ObjectId(courseId) },
-      { session },
+      {userId: new ObjectId(userId), courseId: new ObjectId(courseId)},
+      {session},
     );
     if (result.deletedCount === 0) {
       throw new Error(
@@ -142,13 +142,14 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
 
     if (result?.deletedCount === 0) {
-      throw new Error(
+      console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
       );
+      return;
     }
   }
 
@@ -156,7 +157,7 @@ class ProgressRepository {
     userId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<{ deletedCount: number; remainingCount: number }> {
+  ): Promise<{deletedCount: number; remainingCount: number}> {
     await this.init();
 
     const deleteResult = await this.watchTimeCollection.deleteMany(
@@ -164,13 +165,13 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
-      { session },
+      {session},
     );
 
     const distinctItems = await this.watchTimeCollection.distinct(
       'itemId',
-      { userId: new ObjectId(userId) },
-      { session },
+      {userId: new ObjectId(userId)},
+      {session},
     );
 
     return {
@@ -180,12 +181,12 @@ class ProgressRepository {
   }
 
   async executeBulkAttemptDelete(
-    operations: Array<{ deleteOne: { filter: any } }>,
+    operations: Array<{deleteOne: {filter: any}}>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (operations.length) {
-      await this.attemptCollection.bulkWrite(operations, { session });
+      await this.attemptCollection.bulkWrite(operations, {session});
     }
   }
 
@@ -195,20 +196,31 @@ class ProgressRepository {
     maxAttemptsMap: Record<string, number>,
     session?: ClientSession,
   ): Promise<{
-    attemptDeletes: Array<{ deleteOne: { filter: any } }>;
-    metricsUpdates: Array<{ updateOne: { filter: any; update: any } }>;
+    attemptDeletes: Array<{deleteOne: {filter: any}}>;
+    metricsUpdates: Array<{updateOne: {filter: any; update: any}}>;
     submissionDeletes: string[];
   }> {
     await this.init();
-    const attemptDeletes: Array<{ deleteOne: { filter: any } }> = [];
-    const metricsUpdates: Array<{ updateOne: { filter: any; update: any } }> = [];
+    const attemptDeletes: Array<{deleteOne: {filter: any}}> = [];
+    const metricsUpdates: Array<{updateOne: {filter: any; update: any}}> = [];
     let submissionDeletes: string[] = [];
 
-    for (const quizId of quizItemIds) {
+    for (const quizIdRaw of quizItemIds) {
+      const quizIdStr = quizIdRaw.toString();
+      const quizIdObj = new ObjectId(quizIdStr);
+
+      const userIdStr = userId.toString();
+      const userIdObj = new ObjectId(userIdStr);
       // 1. Fetch attempt having userId and quizId
       const docsToDelete = await this.attemptCollection
-        .find({ userId, quizId }, { session })
-        .project({ _id: 1 })
+        .find(
+          {
+            userId: {$in: [userIdStr, userIdObj]},
+            quizId: {$in: [quizIdStr, quizIdObj]},
+          },
+          {session},
+        )
+        .project({_id: 1})
         .toArray();
 
       // 2. If no docs then no need to include in bulk operation
@@ -216,13 +228,21 @@ class ProgressRepository {
 
       // 3. push to attempts which we want to delete
       attemptDeletes.push({
-        deleteOne: { filter: { userId, quizId } },
+        deleteOne: {
+          filter: {
+            userId: {$in: [userIdStr, userIdObj]},
+            quizId: {$in: [quizIdStr, quizIdObj]},
+          },
+        },
       });
 
       // 4. push metrics reset options
       metricsUpdates.push({
         updateOne: {
-          filter: { quizId, userId },
+          filter: {
+            quizId: {$in: [quizIdStr, quizIdObj]},
+            userId: {$in: [userIdStr, userIdObj]},
+          },
           update: {
             $set: {
               attempts: [],
@@ -230,7 +250,7 @@ class ProgressRepository {
               latestSubmissionResultId: null,
               latestAttemptStatus: null,
               skipCount: 0,
-              remainingAttempts: maxAttemptsMap[quizId] || 0,
+              remainingAttempts: maxAttemptsMap[quizIdStr] || 0,
             },
           },
         },
@@ -241,7 +261,7 @@ class ProgressRepository {
       );
     }
 
-    return { attemptDeletes, metricsUpdates, submissionDeletes };
+    return {attemptDeletes, metricsUpdates, submissionDeletes};
   }
 
   async deleteUserQuizAttemptsByCourseVersion(
@@ -252,8 +272,8 @@ class ProgressRepository {
     try {
       await this.init();
       const docsToDelete = await this.attemptCollection
-        .find({ userId, quizId }, { session })
-        .project({ _id: 1 })
+        .find({userId, quizId}, {session})
+        .project({_id: 1})
         .toArray();
 
       // if (!docsToDelete?.length) {
@@ -262,7 +282,7 @@ class ProgressRepository {
       //   );
       // }
 
-      await this.attemptCollection.deleteMany({ userId, quizId }, { session });
+      await this.attemptCollection.deleteMany({userId, quizId}, {session});
 
       return docsToDelete.map(doc => doc._id.toString());
     } catch (error) {
@@ -310,14 +330,13 @@ class ProgressRepository {
     );
   }
 
-
   async findById(
     id: string,
     session: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
-      { _id: new ObjectId(id) },
+      {_id: new ObjectId(id)},
       {
         session,
       },
@@ -338,8 +357,8 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { $set: progress },
-      { returnDocument: 'after', session },
+      {$set: progress},
+      {returnDocument: 'after', session},
     );
     return result;
   }
@@ -349,7 +368,7 @@ class ProgressRepository {
     session: ClientSession,
   ): Promise<IProgress> {
     await this.init();
-    const result = await this.progressCollection.insertOne(progress, { session });
+    const result = await this.progressCollection.insertOne(progress, {session});
     const newProgress = await this.progressCollection.findOne(
       {
         _id: result.insertedId,
@@ -401,8 +420,8 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
       },
-      { $set: { endTime: new Date() } },
-      { returnDocument: 'after', session },
+      {$set: {endTime: new Date()}},
+      {returnDocument: 'after', session},
     );
     return result;
   }
@@ -430,7 +449,7 @@ class ProgressRepository {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
     const result = await this.watchTimeCollection
-      .find(query, { session })
+      .find(query, {session})
       .toArray();
     return result.map(item => ({
       ...item,
@@ -473,8 +492,8 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { $set: progress },
-      { returnDocument: 'after', session },
+      {$set: progress},
+      {returnDocument: 'after', session},
     );
     return result;
   }
@@ -493,7 +512,7 @@ class ProgressRepository {
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
         },
-        { session },
+        {session},
       )
       .toArray();
 
@@ -501,4 +520,4 @@ class ProgressRepository {
   }
 }
 
-export { ProgressRepository };
+export {ProgressRepository};

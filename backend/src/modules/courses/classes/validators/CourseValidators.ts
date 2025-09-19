@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateIf,
   IsMongoId,
+  IsEmpty,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -33,6 +34,27 @@ class CourseBody implements Partial<ICourse> {
   @IsString()
   @MaxLength(1000)
   description: string;
+
+  @JSONSchema({
+    title: 'Course Version Name',
+    description: 'Name of the course Version',
+    example: 'Introduction to Programming V1.0',
+    type: 'string',
+  })
+  @IsString()
+  @MaxLength(255)
+  @MinLength(3)
+  versionName?: string;
+
+  @JSONSchema({
+    title: 'Course Version Description',
+    description: 'Description of the course version',
+    example: 'This is an intial version.',
+    type: 'string',
+  })
+  @IsString()
+  @MaxLength(1000)
+  versionDescription?: string;
 }
 
 class CourseIdParams {
@@ -44,7 +66,6 @@ class CourseIdParams {
   @IsString()
   courseId: string;
 }
-
 
 export class CourseVersionParams {
   @IsMongoId()
@@ -149,4 +170,4 @@ export const COURSE_VALIDATORS = [
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
-]
+];

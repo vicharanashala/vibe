@@ -298,6 +298,7 @@ export interface QuizSubmissionResponseUpdated {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId | { firstName: string, lastName: string, email: string };
+  userInfo: string | ObjectId | { firstName: string, lastName: string, email: string };
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;
@@ -481,7 +482,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: components['schemas']['CreateCourseBody'] }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string } }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1038,7 +1039,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments( page?: number, limit?: number, enabled: boolean = true, search?:string, role = "STUDENT" ): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT"): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1093,6 +1094,40 @@ export function useCourseEnrollmentsStats(
   };
 }
 
+// GET /users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores
+export function useCourseQuizScores(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  enabled: boolean = true
+): {
+  data: any | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    'get',
+    '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
+    {
+      params: {
+        path: { courseId, versionId }
+      }
+    },
+    {
+      enabled: enabled ? !!courseId && !!versionId : false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error?.message || null,
+    refetch: result.refetch,
+  };
+}
+
 // GET /enrollments/courses/{courseId}/versions/{courseVersionId}
 export function useCourseVersionEnrollments(
   courseId: string | undefined,
@@ -1102,7 +1137,8 @@ export function useCourseVersionEnrollments(
   search: string = "",
   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
-  enabled: boolean = true
+  enabled: boolean = true,
+  filter: 'STUDENT' | 'OTHER'
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1115,7 +1151,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder },
+        query: { page, limit, search, sortBy, sortOrder, filter },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -1387,14 +1423,14 @@ export function useInviteUsers(): {
   };
 }
 
-export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search:string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus} },
+    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus } },
     enabled: enabled
   });
 
@@ -2372,6 +2408,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage:number;
   } | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2379,7 +2416,7 @@ export function useQuizAnalytics(quizId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/analytics", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {  enabled: !!quizId});
 
   return {
     data: result.data,

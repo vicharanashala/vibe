@@ -7,7 +7,7 @@ import {ObjectId} from 'mongodb';
 
 class Attempt implements IAttempt {
   _id?: string | ObjectId;
-  quizId: string;
+  quizId: string | ObjectId;
   userId: string | ObjectId;
   questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
@@ -15,7 +15,7 @@ class Attempt implements IAttempt {
   updatedAt: Date;
 
   constructor(
-    quizId: string,
+    quizId: string | ObjectId,
     userId: string | ObjectId,
     questionDetails: IQuestionDetails[],
   ) {

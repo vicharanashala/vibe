@@ -18,7 +18,7 @@ class AttemptRepository {
     );
   }
 
-  public async create(attempt: IAttempt, session?: ClientSession) {
+  async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
     const result = await this.attemptCollection.insertOne(attempt, { session });
     if (result.acknowledged && result.insertedId) {
@@ -26,55 +26,80 @@ class AttemptRepository {
     }
     throw new InternalServerError('Failed to create quiz attempt');
   }
-  public async getById(
+  async getById(
     attemptId: string,
     quizId: string,
     session: ClientSession,
   ): Promise<IAttempt | null> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: quizId,
+        quizId: { $in: [quizIdStr, quizIdObj] },
       },
       { session },
     );
     if (!result) {
       return null;
     }
-    return result;
+    return {
+      ...result,
+      userId: result.userId?.toString(),
+      quizId: result.quizId?.toString(),
+    };
   }
-  public async countAttempts(
+  async countAttempts(
     quizId: string,
     session?: ClientSession,
   ): Promise<number | null> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
     const result = await this.attemptCollection.countDocuments(
-      { quizId: new ObjectId(quizId) },
+      { quizId: { $in: [quizIdStr, quizIdObj] } },
       { session },
     );
+    if (!result) {
+      return null;
+    }
+    console.log("total attempts: ",result)
+    return result;
+  }
+
+  async countUserAttempts(
+    quizId: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<number | null> {
+    await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = new ObjectId(quizIdStr);
+
+    const userIdStr = userId.toString();
+    const userIdObj = new ObjectId(userIdStr);
+
+    const result = await this.attemptCollection.countDocuments(
+      {
+        quizId: { $in: [quizIdStr, quizIdObj] },
+        userId: { $in: [userIdStr, userIdObj] },
+      },
+      { session },
+    );
+    console.log(result);
     if (!result) {
       return null;
     }
     return result;
   }
 
-  public async countUserAttempts(
-    quizId: string,
-    userId: string,
-    session?: ClientSession,
-  ): Promise<number | null> {
-    await this.init();
-    const result = await this.attemptCollection.countDocuments(
-      { quizId: (quizId), userId: (userId) },
-      { session },
-    );
-    if (!result) {
-      return null;
-    }
-    return result;
-  }
-  public async update(attemptId: string, updateData: Partial<IAttempt>) {
+  async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
       { _id: new ObjectId(attemptId) },
@@ -83,34 +108,8 @@ class AttemptRepository {
     );
     return result;
   }
-  public async getByQuizId(
-    quizId: string,
-    session?: ClientSession,
-  ): Promise<IAttempt[]> {
-    await this.init();
-    const result = await this.attemptCollection
-      .find({ quizId: quizId }, { session })
-      .toArray();
-    return result;
-  }
 
-  public async findLatestAttempt(
-    userId: string,
-    quizId: string,
-    session?: ClientSession,
-  ): Promise<IAttempt | null> {
-    await this.init();
-
-    const result = await this.attemptCollection
-      .find({ quizId: quizId, userId: userId }, { session })
-      .sort({ createdAt: -1 }) // latest first
-      .limit(1)
-      .next(); // get single doc instead of array
-
-    return result;
-  }
-
-  public async countByQuestionId(
+  async countByQuestionId(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
@@ -126,9 +125,7 @@ class AttemptRepository {
     return count;
   }
 
-
-
-  public async countDistinctUsersByQuestionId(
+  async countDistinctUsersByQuestionId(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {

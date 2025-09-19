@@ -25,7 +25,7 @@ class SubmissionRepository {
     );
   }
 
-  public async create(
+  async create(
     submission: ISubmission,
     session?: ClientSession,
   ): Promise<string> {
@@ -38,45 +38,95 @@ class SubmissionRepository {
     }
     throw new InternalServerError('Failed to create submission result');
   }
-  public async get(
+
+  async get(
     quizId: string,
     userId: string | ObjectId,
     attemptId: string,
     session?: ClientSession,
   ): Promise<ISubmission> {
     await this.init();
-    const result = await this.submissionResultCollection.findOne(
-      {
-        quizId,
-        userId,
-        attemptId,
-      },
-      {session},
-    );
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+
+    const userIdStr = userId.toString();
+    const userIdObj = ObjectId.isValid(userIdStr)
+      ? new ObjectId(userIdStr)
+      : null;
+
+    const attemptIdStr = attemptId.toString();
+    const attemptIdObj = ObjectId.isValid(attemptIdStr)
+      ? new ObjectId(attemptIdStr)
+      : null;
+
+    const filter: any = {
+      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
+      attemptId: {$in: [attemptIdStr, ...(attemptIdObj ? [attemptIdObj] : [])]},
+    };
+
+    const result = await this.submissionResultCollection.findOne(filter, {
+      session,
+    });
+
+    // const result = await this.submissionResultCollection.findOne(
+    //   {
+    //     quizId,
+    //     userId,
+    //     attemptId,
+    //   },
+    //   {session},
+    // );
     if (!result) {
       return null;
     }
-    return result;
+    return {
+      ...result,
+      quizId: result.quizId?.toString(),
+      userId: result.userId?.toString(),
+      attemptId: result.attemptId?.toString(),
+    };
   }
-  public async getById(
+
+  async getById(
     submissionId: string,
     quizId: string,
     session?: ClientSession,
   ): Promise<ISubmission> {
     await this.init();
-    const result = await this.submissionResultCollection.findOne(
-      {
-        _id: new ObjectId(submissionId),
-        quizId: quizId,
-      },
-      {session},
-    );
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+    const filter: any = {
+      _id: new ObjectId(submissionId),
+      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+    };
+
+    const result = await this.submissionResultCollection.findOne(filter, {
+      session,
+    });
+    // const result = await this.submissionResultCollection.findOne(
+    //   {
+    //     _id: new ObjectId(submissionId),
+    //     quizId: quizId,
+    //   },
+    //   {session},
+    // );
     if (!result) {
       return null;
     }
-    return result;
+    return {
+      ...result,
+      quizId: result.quizId?.toString(),
+      userId: result.userId?.toString(),
+      attemptId: result.attemptId?.toString(),
+    };
   }
-  public async update(
+
+  async update(
     submissionId: string,
     updateData: Partial<ISubmission>,
     session?: ClientSession,
@@ -89,19 +139,31 @@ class SubmissionRepository {
     );
     return result;
   }
-  public async countByQuizId(
+  async countByQuizId(
     quizId: string,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+
     const count = await this.submissionResultCollection.countDocuments(
-      {quizId},
+      {
+        quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      },
       {session},
     );
+    // const count = await this.submissionResultCollection.countDocuments(
+    //   {quizId},
+    //   {session},
+    // );
     return count;
   }
 
-  public async getByQuizId(
+  async getByQuizId(
     quizId: string,
     session?: ClientSession,
     query: GetQuizSubmissionsQuery = {},
@@ -109,9 +171,12 @@ class SubmissionRepository {
     await this.init();
 
     const {search, gradeStatus, sort = 'DATE_DESC', currentPage, limit} = query;
-
-    const matchStage = {
-      quizId,
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+    const matchStage: any = {
+      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
     };
 
     if (gradeStatus && gradeStatus !== 'All') {
@@ -199,39 +264,44 @@ class SubmissionRepository {
         ? Math.ceil(totalCount / limit)
         : 1;
 
-    // aggregationPipeline.push(
-    //   {$sort: sortStage},
-    //   {$skip: skip},
-    //   {$limit: limit},
-    // );
-
-    // const [data, totalCount] = await Promise.all([
-    //   this.submissionResultCollection
-    //     .aggregate(aggregationPipeline, {session})
-    //     .toArray(),
-
-    //   this.submissionResultCollection.countDocuments(matchStage),
-    // ]);
-
-    // const totalPages = Math.ceil(totalCount / limit)
+    const normalizedData = data.map(doc => {
+      return {
+        ...doc,
+        quizId: doc.quizId?.toString(),
+        userId: doc.userId?._id?.toString() || null,
+        attemptId: doc.attemptId?.toString(),
+      };
+    });
 
     return {
-      data: data as ISubmissionWithUser[],
+      data: normalizedData as ISubmissionWithUser[],
       totalCount,
       currentPage,
       totalPages,
     };
   }
 
-  public async countPassedByQuizId(
+  async countPassedByQuizId(
     quizId: string,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+
     const count = await this.submissionResultCollection.countDocuments(
-      {quizId, 'gradingResult.gradingStatus': 'PASSED'},
+      {
+        quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+        'gradingResult.gradingStatus': 'PASSED',
+      },
       {session},
     );
+    // const count = await this.submissionResultCollection.countDocuments(
+    //   {quizId, 'gradingResult.gradingStatus': 'PASSED'},
+    //   {session},
+    // );
     return count;
   }
 
@@ -243,28 +313,70 @@ class SubmissionRepository {
     await this.init();
     if (!attemptIds.length) return;
 
+    const userIdStr = userId.toString();
+    const userIdObj = ObjectId.isValid(userIdStr)
+      ? new ObjectId(userIdStr)
+      : null;
+
+    const attemptIdsStr = attemptIds.map(id => id.toString());
+    const attemptIdsObj = attemptIds
+      .filter(id => ObjectId.isValid(id.toString()))
+      .map(id => new ObjectId(id.toString()));
+
     await this.submissionResultCollection.deleteMany(
-      {userId, attemptId: {$in: attemptIds}},
+      {
+        userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
+        attemptId: {$in: [...attemptIdsStr, ...attemptIdsObj]},
+      },
       {session},
     );
+
+    // await this.submissionResultCollection.deleteMany(
+    //   {userId, attemptId: {$in: attemptIds}},
+    //   {session},
+    // );
   }
 
-  public async getAverageScoreByQuizId(
+  async getAverageScoreByQuizId(
     quizId: string,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+      ? new ObjectId(quizIdStr)
+      : null;
+
     const result = await this.submissionResultCollection
-      .aggregate([
-        {$match: {quizId}},
-        {
-          $group: {
-            _id: null,
-            averageScore: {$avg: '$gradingResult.totalScore'},
+      .aggregate(
+        [
+          {
+            $match: {
+              quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+            },
           },
-        },
-      ])
+          {
+            $group: {
+              _id: null,
+              averageScore: {$avg: '$gradingResult.totalScore'},
+            },
+          },
+        ],
+        {session},
+      )
       .toArray();
+    // const result = await this.submissionResultCollection
+    //   .aggregate([
+    //     {$match: {quizId}},
+    //     {
+    //       $group: {
+    //         _id: null,
+    //         averageScore: {$avg: '$gradingResult.totalScore'},
+    //       },
+    //     },
+    //   ])
+    //   .toArray();
 
     if (result.length > 0 && result[0].averageScore !== null) {
       return result[0].averageScore;
@@ -272,23 +384,58 @@ class SubmissionRepository {
     return 0;
   }
 
-  async removeByAttemptIds(
-    userId: string,
-    attemptIds: string[],
+  async getAveragePercentageByQuizId(
+    quizId: string,
     session?: ClientSession,
-  ): Promise<void> {
-    try {
-      await this.init();
-      const result = await this.submissionResultCollection.deleteMany(
-        {userId, attemptId: {$in: attemptIds}},
-        {session},
-      );
-    } catch (error) {
-      throw new InternalServerError(
-        `Failed to remove quiz submission /More ${error}`,
-      );
+): Promise<number> {
+    await this.init();
+
+    // Fetch quiz to get maxScore
+    // const quiz = await this.submissionResultCollection.getById(quizId, session);
+    // if (!quiz || !quiz.maxScore) {
+    //     return 0; // Return 0 if quiz doesn't exist or maxScore is unavailable
+    // }
+
+    const quizIdStr = quizId.toString();
+    const quizIdObj = ObjectId.isValid(quizIdStr)
+        ? new ObjectId(quizIdStr)
+        : null;
+
+    const result = await this.submissionResultCollection
+        .aggregate(
+            [
+                {
+                    $match: {
+                        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
+                    },
+                },
+                {
+                    $project: {
+                        percentage: {
+                            $multiply: [
+                                { $divide: ['$gradingResult.totalScore', "$gradingResult.totalMaxScore"] },
+                                100,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $group: {
+                        _id: null,
+                        averagePercentage: { $avg: '$percentage' },
+                    },
+                },
+            ],
+            { session },
+        )
+        .toArray();
+
+    if (result.length > 0 && result[0].averagePercentage !== null) {
+        return Math.round(result[0].averagePercentage * 10) / 10; 
     }
-  }
+    console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
+    return 0;
+}
 }
 
 export {SubmissionRepository};

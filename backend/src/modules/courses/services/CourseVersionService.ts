@@ -6,7 +6,7 @@ import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase
 import {GLOBAL_TYPES} from '#root/types.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
-import {ObjectId} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 @injectable()
 export class CourseVersionService extends BaseService {
@@ -23,20 +23,24 @@ export class CourseVersionService extends BaseService {
   async createCourseVersion(
     courseId: string,
     body: CreateCourseVersionBody,
+    session?: ClientSession,
   ): Promise<CourseVersion> {
-    return this._withTransaction(async session => {
-      const course = await this.courseRepo.read(courseId);
+    const run = async (txnSession: ClientSession) => {
+      if (!courseId) {
+        throw new NotFoundError('Course id not found');
+      }
+
+      const course = await this.courseRepo.read(courseId, txnSession);
       if (!course) {
         throw new NotFoundError('Course not found');
       }
-      let newVersion: CourseVersion;
-      // Step 2: Create new version
-      newVersion = new CourseVersion(body);
+
+      let newVersion = new CourseVersion(body);
       newVersion.courseId = new ObjectId(courseId);
 
       const createdVersion = await this.courseRepo.createVersion(
         newVersion,
-        session,
+        txnSession,
       );
       if (!createdVersion) {
         throw new InternalServerError('Failed to create course version.');
@@ -46,23 +50,26 @@ export class CourseVersionService extends BaseService {
         Object.assign(new CourseVersion(), createdVersion),
       ) as CourseVersion;
 
-      // Step 3: Update course metadata
-      course.versions.push( new ObjectId(createdVersion._id) );
-      // course.versions.push(createdVersion._id);
+      // Update course metadata
+      course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
 
       const updatedCourse = await this.courseRepo.update(
         courseId,
         course,
-        session,
+        txnSession,
       );
       if (!updatedCourse) {
         throw new InternalServerError(
           'Failed to update course with new version.',
         );
       }
+
       return newVersion;
-    });
+    };
+
+    // If session provided, use it; otherwise wrap in a new transaction
+    return session ? run(session) : this._withTransaction(run);
   }
 
   public async readCourseVersion(

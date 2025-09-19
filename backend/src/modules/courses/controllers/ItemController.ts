@@ -29,9 +29,9 @@ import {
 import {ItemService} from '#courses/services/ItemService.js';
 import {injectable, inject} from 'inversify';
 import {VersionModuleSectionParams} from '../classes/index.js';
-import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
+import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -66,16 +66,18 @@ export class ItemController {
   async create(
     @Params() params: VersionModuleSectionParams,
     @Body() body: CreateItemBody,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {versionId, moduleId, sectionId} = params;
-    
+
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
-    
+    const itemResource = subject('Item', {versionId});
+
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Create, itemResource)) {
-      throw new ForbiddenError('You do not have permission to create items in this section');
+      throw new ForbiddenError(
+        'You do not have permission to create items in this section',
+      );
     }
     return await this.itemService.createItem(
       versionId,
@@ -106,18 +108,20 @@ export class ItemController {
   })
   async readAll(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {versionId, moduleId, sectionId} = params;
-    
+
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
-    
+    const itemResource = subject('Item', {versionId});
+
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.ViewAll, itemResource)) {
-      throw new ForbiddenError('You do not have permission to view items in this section');
+      throw new ForbiddenError(
+        'You do not have permission to view items in this section',
+      );
     }
-    
+
     return await this.itemService.readAllItems(versionId, moduleId, sectionId);
   }
 
@@ -128,9 +132,7 @@ export class ItemController {
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put(
-    '/versions/:versionId/items/:itemId',
-  )
+  @Put('/versions/:versionId/items/:itemId')
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
   })
@@ -145,23 +147,21 @@ export class ItemController {
   async update(
     @Params() params: VersionItemParams,
     @Body() body: UpdateItemBody,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {versionId, itemId} = params;
-    
+
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
-    
+    const itemResource = subject('Item', {versionId});
+
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
-      throw new ForbiddenError('You do not have permission to modify this item');
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
     }
-    
-    return await this.itemService.updateItem(
-      versionId,
-      itemId,
-      body,
-    );
+
+    return await this.itemService.updateItem(versionId, itemId, body);
   }
 
   @OpenAPI({
@@ -185,17 +185,19 @@ export class ItemController {
   })
   async delete(
     @Params() params: DeleteItemParams,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {itemsGroupId, itemId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId: version._id.toString() });
-    
+    const itemResource = subject('Item', {versionId: version._id.toString()});
+
     if (!ability.can(ItemActions.Delete, itemResource)) {
-      throw new ForbiddenError('You do not have permission to delete this item');
+      throw new ForbiddenError(
+        'You do not have permission to delete this item',
+      );
     }
-    
+
     return await this.itemService.deleteItem(itemsGroupId, itemId);
   }
 
@@ -223,18 +225,18 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: MoveItemBody,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {versionId, moduleId, sectionId, itemId} = params;
-    
+
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
-    
+    const itemResource = subject('Item', {versionId});
+
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
       throw new ForbiddenError('You do not have permission to move this item');
     }
-    
+
     return await this.itemService.moveItem(
       versionId,
       moduleId,
@@ -267,20 +269,20 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) {ability}
+    @Ability(getItemAbility) {ability},
   ) {
     const {versionId, itemId, courseId} = params;
-    
+
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { courseId, versionId, itemId });
-    
+    const itemResource = subject('Item', {courseId, versionId, itemId});
+
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.View, itemResource)) {
       throw new ForbiddenError('You do not have permission to view this item');
     }
-    
+
     return {
       item: await this.itemService.readItem(versionId, itemId),
     };
   }
-}
+} 

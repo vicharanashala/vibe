@@ -71,9 +71,9 @@ export class UserRepository implements IUserRepository {
   /**
    * Finds a user by ID.
    */
-  async findById(id: string | ObjectId): Promise<IUser | null> {
+  async findById(id: string | ObjectId, session?: ClientSession): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne({ _id: new ObjectId(id) });
+    const user = await this.usersCollection.findOne({ _id: new ObjectId(id) }, {session});
     return instanceToPlain(new User(user)) as IUser;
   }
 

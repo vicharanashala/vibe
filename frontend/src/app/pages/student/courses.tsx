@@ -36,7 +36,7 @@ export default function StudentCourses() {
   const { isAuthenticated, token } = useAuthStore();
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
-    currentPage, 10, !!token, debouncedSearch
+    currentPage, 2, !!token, debouncedSearch
   );
 
   const enrollments = enrollmentsData?.enrollments || [];

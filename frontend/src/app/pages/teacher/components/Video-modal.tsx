@@ -23,29 +23,67 @@ interface VideoModalProps {
 }
 
 function formatTime(seconds: number): string {
-    if (isNaN(seconds) || seconds < 0) return "0:00";
-    
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (isNaN(seconds) || seconds < 0) {
+        return "00:00.000";
+    }
+
+    const totalMilliseconds = Math.floor(seconds * 1000);
+    const hours = Math.floor(totalMilliseconds / 3600000);
+    const mins = Math.floor((totalMilliseconds % 3600000) / 60000);
+    const secs = Math.floor((totalMilliseconds % 60000) / 1000);
+    const millis = totalMilliseconds % 1000;
+
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMins = mins.toString().padStart(2, "0");
+    const formattedSecs = secs.toString().padStart(2, "0");
+    const formattedMillis = millis.toString().padStart(3, "0");
+
+    return `${formattedHours}:${formattedMins}:${formattedSecs}.${formattedMillis}`;
 }
 
 function parseTimeToSeconds(time: string | undefined): number {
-    if (!time) return 0;
-    
-    const normalizedTime = time.replace(',', '.');
-    
-    if (!normalizedTime.includes(':')) {
-        const seconds = parseInt(normalizedTime);
-        return isNaN(seconds) ? 0 : seconds;
+    if (!time || time.trim() === '') {
+        return 0;
     }
     
-    const [minutes, seconds] = normalizedTime.split(':').map(Number);
+    // Normalize decimal separator and trim whitespace
+    const normalizedTime = time.trim().replace(',', '.');
     
-    if (isNaN(minutes)) return 0;
-    if (isNaN(seconds)) return minutes * 60;
+    // Handle HH:MM:SS.mmm format
+    const timeParts = normalizedTime.split(':');
     
-    return minutes * 60 + seconds;
+    if (timeParts.length === 3) {
+        // Format: HH:MM:SS.mmm or HH:MM:SS
+        const [hours, minutes, secondsPart] = timeParts;
+        const [seconds, milliseconds] = secondsPart.split('.');
+        
+        const h = Math.max(0, parseInt(hours, 10) || 0);
+        const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
+        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
+        const ms = milliseconds ? parseFloat(`0.${milliseconds}`) : 0;
+        
+        return (h * 3600) + (m * 60) + s + ms;
+    } 
+    
+    if (timeParts.length === 2) {
+        // Format: MM:SS or MM:SS.mmm
+        const [minutes, secondsPart] = timeParts;
+        const [seconds, milliseconds] = secondsPart.split('.');
+        
+        const m = Math.max(0, parseInt(minutes, 10) || 0);
+        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
+        const ms = milliseconds ? parseFloat(`0.${milliseconds}`) : 0;
+        
+        return (m * 60) + s + ms;
+    }
+    
+    // Handle plain number (seconds)
+    if (!normalizedTime.includes(':')) {
+        const seconds = parseFloat(normalizedTime);
+        return isNaN(seconds) ? 0 : Math.max(0, seconds);
+    }
+    
+    return 0;
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
@@ -153,15 +191,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
                     const currentEnd = parseTimeToSeconds(timeInputs.end);
                     const newEnd = currentEnd > 0 ? Math.min(currentEnd, dur) : dur;
                     
-                    setRange([
-                        parseTimeToSeconds(timeInputs.start),
-                        newEnd
-                    ]);
+                    const startSeconds = parseTimeToSeconds(timeInputs.start);
                     
-                    setTimeInputs(prev => ({
-                        ...prev,
-                        end: formatTime(newEnd)
-                    }));
+                    setRange([startSeconds, newEnd]);
+                    
+                    const formattedEnd = formatTime(newEnd);
+                    
+                    setTimeInputs(prev => {
+                        const updated = {
+                            ...prev,
+                            end: formattedEnd
+                        };
+                        return updated;
+                    });
                     
                     validateTimeAgainstDuration(timeInputs.start, 'startTime', dur);
                     validateTimeAgainstDuration(timeInputs.end, 'endTime', dur);
@@ -186,7 +228,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 playerRef.current = null;
             }
         };
-    }, [videoId]);
+    },[videoId]);
 
     // Poll current time
     useEffect(() => {
