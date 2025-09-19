@@ -24,18 +24,21 @@ interface VideoModalProps {
 
 function formatTime(seconds: number): string {
     if (isNaN(seconds) || seconds < 0) {
-        return "00:00";
+        return "00:00.000";
     }
-    
-    const totalSeconds = Math.floor(seconds);
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    
-    // Ensure two digits for both minutes and seconds
-    const formattedMins = mins.toString().padStart(2, '0');
-    const formattedSecs = secs.toString().padStart(2, '0');
-    
-    return `${formattedMins}:${formattedSecs}`;
+
+    const totalMilliseconds = Math.floor(seconds * 1000);
+    const hours = Math.floor(totalMilliseconds / 3600000);
+    const mins = Math.floor((totalMilliseconds % 3600000) / 60000);
+    const secs = Math.floor((totalMilliseconds % 60000) / 1000);
+    const millis = totalMilliseconds % 1000;
+
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMins = mins.toString().padStart(2, "0");
+    const formattedSecs = secs.toString().padStart(2, "0");
+    const formattedMillis = millis.toString().padStart(3, "0");
+
+    return `${formattedHours}:${formattedMins}:${formattedSecs}.${formattedMillis}`;
 }
 
 function parseTimeToSeconds(time: string | undefined): number {
