@@ -285,4 +285,8 @@ Access control logic:
       item: await this.itemService.readItem(versionId, itemId),
     };
   }
+
+  async submitProject(): Promise<void> {
+    
+  }
 } 

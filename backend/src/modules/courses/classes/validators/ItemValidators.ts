@@ -283,7 +283,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
