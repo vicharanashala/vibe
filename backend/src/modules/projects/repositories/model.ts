@@ -10,6 +10,8 @@ export interface IProjectSubmission {
   comment?: string;
   createdAt: Date;
 }
-export interface IProjectSubmissionWithUser extends IProjectSubmission {
-  userInfo?: Partial<IUser>; 
+export interface IProjectSubmissionWithUser {
+  course: {name: string};
+  courseVersion: {name: string};
+  userInfo: Array<Partial<IUser> & {submissionURL: string; comment?: string}>;
 }
