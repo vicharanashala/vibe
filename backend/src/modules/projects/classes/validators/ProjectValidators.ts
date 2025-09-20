@@ -40,7 +40,17 @@ export class SubmitProjectBody {
   @IsString()
   projectId!: string;
 }
+export class SuccessResponse {
+  @IsString()
+  message!: string;
+}
+export class CourseVersionParams {
+  @IsString()
+  courseId!: string;
 
+  @IsString()
+  versionId!: string;
+}
 export class SubmissionResponse {
   @IsString()
   course!: {name: string};
@@ -58,4 +68,9 @@ export class SubmissionResponse {
   }>;
 }
 
-export const PROJECT_VALIDATORS = [SubmitProjectBody, SubmissionResponse];
+export const PROJECT_VALIDATORS = [
+  SubmitProjectBody,
+  SubmissionResponse,
+  SuccessResponse,
+  CourseVersionParams,
+];

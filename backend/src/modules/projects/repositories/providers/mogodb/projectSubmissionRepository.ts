@@ -1,5 +1,5 @@
 import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {ClientSession, Collection} from 'mongodb';
+import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {IProjectSubmission, IProjectSubmissionWithUser} from '../../model.js';
 import {inject} from 'inversify';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -18,6 +18,20 @@ export class ProjectSubmissionRepository
       await this.db.getCollection<IProjectSubmission>('project_submissions');
   }
 
+  async getByUser(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null> {
+    await this.init();
+    return await this._projectSubmissionCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {session},
+    );
+  }
   async getAllSubmissions(
     courseId: string,
     courseVersionId: string,
@@ -28,7 +42,12 @@ export class ProjectSubmissionRepository
     const submissions = await this._projectSubmissionCollection
       .aggregate(
         [
-          {$match: {courseId, courseVersionId}},
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+            },
+          },
 
           {
             $lookup: {
@@ -81,7 +100,9 @@ export class ProjectSubmissionRepository
             $project: {
               _id: 0,
               course: {name: {$arrayElemAt: ['$course.name', 0]}},
-              courseVersion: {name: {$arrayElemAt: ['$courseVersion.name', 0]}},
+              courseVersion: {
+                name: {$arrayElemAt: ['$courseVersion.version', 0]},
+              },
               userInfo: 1,
             },
           },
@@ -104,10 +125,10 @@ export class ProjectSubmissionRepository
   ): Promise<ID> {
     await this.init();
     const data: IProjectSubmission = {
-      projectId,
-      userId,
-      courseId,
-      courseVersionId,
+      projectId: new ObjectId(projectId),
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
       submissionURL,
       comment,
       createdAt: new Date(),

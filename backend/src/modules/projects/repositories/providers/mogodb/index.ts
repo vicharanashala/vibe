@@ -1,1 +1,1 @@
-export * from './projectSubmissionRepository.js';
+export * from './ProjectSubmissionRepository.js';

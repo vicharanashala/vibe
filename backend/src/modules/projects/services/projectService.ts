@@ -7,9 +7,7 @@ import {
 import {inject, injectable} from 'inversify';
 import {PROJECTS_TYPES} from '../types.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {
-  SubmissionResponse,
-} from '../classes/validators/ProjectValidators.js';
+import {SubmissionResponse} from '../classes/validators/ProjectValidators.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {IProjectSubmissionRepository} from '../interfaces/index.js';
 
@@ -45,7 +43,14 @@ export class ProjectService extends BaseService {
         );
         if (!isVersionExist)
           throw new NotFoundError(`Failed to find course version`);
-
+        const isAlreadySumbitted =
+          await this._projectSubmissionRepository.getByUser(
+            userId,
+            versionId,
+            session,
+          );
+        if (isAlreadySumbitted)
+          throw new NotFoundError(`You have already submitted this project`);
         const insertedId = await this._projectSubmissionRepository.create(
           projectId,
           courseId,
