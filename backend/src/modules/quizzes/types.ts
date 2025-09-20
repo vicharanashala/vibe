@@ -8,7 +8,7 @@ const TYPES = {
   QuestionBankService: Symbol.for('QuestionBankService'),
   QuizService: Symbol.for('QuizService'),
 
-  //Repositories
+  //Repositories 
   QuestionRepo: Symbol.for('QuestionRepo'),
   QuestionBankRepo: Symbol.for('QuestionBankRepo'),
   QuizRepo: Symbol.for('QuizRepo'),
