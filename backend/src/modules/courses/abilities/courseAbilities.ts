@@ -27,7 +27,7 @@ export function setupCourseAbilities(
     user: AuthenticatedUser
 ) {
     const { can, cannot } = builder;
-    
+
     if (user.globalRole === 'admin') {
         can('manage', 'Course');
         return;
@@ -42,6 +42,7 @@ export function setupCourseAbilities(
                 break;
             case 'INSTRUCTOR':
                 can(CourseActions.View, 'Course', courseBounded);
+                can(CourseActions.Modify, 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
                 break;
             case 'MANAGER':

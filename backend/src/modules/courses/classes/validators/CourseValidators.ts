@@ -1,4 +1,4 @@
-import {ICourse, ID} from '#root/shared/interfaces/models.js';
+import { ICourse, ID } from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,
@@ -9,8 +9,34 @@ import {
   IsMongoId,
   IsEmpty,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { JSONSchema } from 'class-validator-jsonschema';
 
+class EditCourseBody implements Partial<ICourse> {
+  @JSONSchema({
+    title: 'Course Name',
+    description: 'Name of the course',
+    example: 'Introduction to Programming',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  @MinLength(3)
+  name: string;
+
+  @JSONSchema({
+    title: 'Course Description',
+    description: 'Description of the course',
+    example: 'This course covers the basics of programming.',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(1000)
+  description: string;
+
+
+}
 class CourseBody implements Partial<ICourse> {
   @JSONSchema({
     title: 'Course Name',
@@ -159,7 +185,7 @@ class CourseNotFoundErrorResponse {
 }
 
 export {
-  CourseBody,
+  CourseBody, EditCourseBody,
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
