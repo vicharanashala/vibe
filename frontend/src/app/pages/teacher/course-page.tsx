@@ -736,7 +736,7 @@ function CourseCard({
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
                     <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                      <p className="text-muted-foreground leading-relaxed">{course.description}</p>
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
                     </div>
                   </div>
                 )}
@@ -1221,7 +1221,7 @@ function VersionCard({
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
                           <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                            <p className="text-muted-foreground leading-relaxed">{version.description}</p>
+                            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{version.description}</p>
                           </div>
                         </div>
                       )
