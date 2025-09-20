@@ -20,8 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles,
+import { 
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
   X
 } from "lucide-react";
 
@@ -39,7 +39,9 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
-
+import InstructorProjectItem from "./components/instructor/InstructorProjectItem";
+import ProjectItemModal from "./components/ProjectItemModal";
+import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -53,7 +55,7 @@ const getItemIcon = (type: string) => {
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -72,7 +74,7 @@ export default function TeacherCoursePage() {
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
 
-  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
+  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);  
   // Animated text for empty state
   const aiMessages = [
     "ViBe allows you to add sections in your course module using AI",
@@ -84,7 +86,14 @@ export default function TeacherCoursePage() {
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
   const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
-
+  
+  // State for project modal
+  const [showAddProjectModal, setShowAddProjectModal] = useState<{
+    moduleId: string;
+    sectionId: string;
+  } | null>(null);
+  
+  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
   const [errors, setErrors] = useState({
     title: "",
     description: "",
@@ -359,6 +368,8 @@ export default function TeacherCoursePage() {
         return `Quiz ${index}`;
       case "BLOG":
         return `Article ${index}`;
+      case "PROJECT":
+        return `Project ${index}`;
       default:
         return "Unknown";
     }
@@ -400,14 +411,19 @@ export default function TeacherCoursePage() {
     });
   };
 
-  // Add Item (now only for article/quiz, video handled via modal)
+  // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
-    const typeMap: Record<string, "VIDEO" | "QUIZ" | "BLOG"> = {
+    
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+    const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
-      article: "BLOG"
+      article: "BLOG",
+      project: "PROJECT"
     };
+
+    // Handle video items
     if (type === "VIDEO" && videoData) {
       createItemAsync({
         params: { path: { versionId, moduleId, sectionId } },
@@ -456,6 +472,25 @@ export default function TeacherCoursePage() {
         }
       });
     }
+    if (type === "project") {
+      createItem.mutate({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {
+          type: typeMap[type], name: `New ${typeMap[type]}`,
+          description: "Project description"
+        }
+      })
+      .then(() => {
+        refetchVersion();
+        refetchItems();
+        toast.success("Project created successfully");
+      })
+      .catch((error) => {
+        console.error("Error creating project:", error);
+        toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
+      });
+      return;
+    }
   };
 
   const navigate = useNavigate();
@@ -468,7 +503,7 @@ export default function TeacherCoursePage() {
 
   // Move module
   const handleMoveModule = (moduleId: string, versionId?: string) => {
-
+    
     const newList = pendingOrder.current;
     const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
 
@@ -477,22 +512,22 @@ export default function TeacherCoursePage() {
 
 
     if (versionId && moduleId) {
-      moveModuleAsync({
-        params: {
-          path: {
-            versionId,
-            moduleId,
-          },
+    moveModuleAsync({
+      params: {
+        path: {
+          versionId,
+          moduleId,
         },
-        body: {
-          ...(before
+      },
+      body: {
+        ...(before
             ? { beforeModuleId: before?.moduleId || "" }
             : { afterModuleId: after?.moduleId || "" }),
 
 
-        },
+      },
       }).then((res) => {
-        refetchVersion();
+      refetchVersion();
       })
     }
   }
@@ -828,7 +863,19 @@ export default function TeacherCoursePage() {
 
                                                     setQuizWizardOpen(true);
 
-                                                  } else {
+
+                                                  } 
+                                                  else if(type === "project"){
+                                                    setShowAddProjectModal({
+                                                      moduleId: module.moduleId,
+                                                      sectionId: section.sectionId,
+                                                      initialValues: {
+                                                        name: `Project 1`,
+                                                        description: `Project description`
+                                                      }
+                                                    });
+                                                  }
+                                                  else {
 
                                                     handleAddItem(module.moduleId, section.sectionId, type);
 
@@ -849,6 +896,8 @@ export default function TeacherCoursePage() {
                                               <option value="VIDEO">Video</option>
 
                                               <option value="quiz">Quiz</option>
+
+                                              <option value="project">Project</option>
 
                                             </select>
                                             <TooltipProvider>
@@ -1371,6 +1420,70 @@ export default function TeacherCoursePage() {
                         }}
                       />
                     )}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
+                      <InstructorProjectItem
+                        item={{
+                          ...selectedEntity.data,
+                          projectDetails: (selectedEntity.data as any).projectDetails || {}
+                        }}
+                        onSave={(data) => {
+                          if (
+                            selectedEntity.parentIds?.moduleId &&
+                            selectedEntity.parentIds?.sectionId &&
+                            selectedEntity.data?._id &&
+                            versionId
+                          ) {
+                            updateItemAsync({
+                              params: {
+                                path: {
+                                  versionId,
+                                  moduleId: selectedEntity.parentIds.moduleId,
+                                  sectionId: selectedEntity.parentIds.sectionId,
+                                  itemId: selectedEntity.data._id
+                                }
+                              },
+                              body: {
+                                name: data.name,
+                                description: data.description || "",
+                                type: 'PROJECT'
+                              }
+                            })
+                            .then(() => {
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              toast.success("Project updated successfully");
+                            })
+                            .catch(error => {
+                              console.error("Error updating project:", error);
+                              toast.error("Failed to update project: " + (error.message || 'Unknown error'));
+                            });
+                          }
+                        }}
+                        onDelete={async () => {
+                          if (
+                            selectedEntity.parentIds?.sectionId &&
+                            selectedEntity.data?._id
+                          ) {
+                            if (window.confirm("Are you sure you want to delete this item?")) {
+                              await deleteItemAsync({
+                                params: { path: { itemsGroupId: selectedEntity.parentIds.sectionId, itemId: selectedEntity.data._id } }
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              setSelectedEntity(null);
+                              toast.success("Project deleted successfully");
+                            }
+                          }
+                        }}
+                        onCancel={() => {
+                          // Reset to original data
+                          refetchItem();
+                        }}
+                        isInstructor={true}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1479,6 +1592,42 @@ export default function TeacherCoursePage() {
               }}
             />
           </div>
+        )}
+
+        {/* Add Project Modal */}
+        {showAddProjectModal && (
+          <ProjectItemModal
+            open={!!showAddProjectModal}
+            mode="add"
+            initialValues={showAddProjectModal.initialValues || { name: 'Project 1', description: 'Project description' }}
+            onClose={() => setShowAddProjectModal(null)}
+            onSave={({ name, description }) => {
+              if (!showAddProjectModal) return;
+              createItemAsync({
+                params: {
+                  path: {
+                    versionId: versionId!,
+                    moduleId: showAddProjectModal.moduleId,
+                    sectionId: showAddProjectModal.sectionId,
+                  },
+                },
+                body: {
+                  type: "PROJECT",
+                  name,
+                  description,
+                },
+              })
+                .then(() => {
+                  setShowAddProjectModal(null);
+                  refetchVersion();
+                  refetchItems();
+                  toast.success("Project created successfully");
+                })
+                .catch((error) => {
+                  toast.error("Failed to create project: " + (error.message || "Unknown error"));
+                });
+            }}
+          />
         )}
 
         {/* Add Quiz Modal */}

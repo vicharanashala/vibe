@@ -123,12 +123,16 @@ class ProjectItem {
   name: string;
 
   @Expose()
+  description: string;
+
+  @Expose()
   type: ItemType = ItemType.PROJECT;
 
-  constructor(name: string, _id: ID) {
+  constructor(name: string, description: string, _id: ID) {
     this._id = _id;
     this.type = ItemType.PROJECT;
     this.name = name;
+    this.description = description;
   }
 }
 
@@ -179,7 +183,7 @@ class ItemBase {
           );
           break;
         case ItemType.PROJECT:
-          this.itemDetails = new ProjectItem(itemBody.name, this.itemId);
+          this.itemDetails = new ProjectItem(itemBody.name, itemBody.description, this.itemId);
           break;
         default:
           break;

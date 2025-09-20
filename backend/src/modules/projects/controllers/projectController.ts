@@ -28,7 +28,7 @@ import {
 } from '../classes/validators/ProjectValidators.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {ProjectService} from '../services/ProjectService.js';
+import {ProjectService} from '../services/projectService.js';
 
 @OpenAPI({
   tags: ['Project'],
