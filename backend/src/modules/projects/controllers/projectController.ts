@@ -11,7 +11,6 @@ import {
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {PROJECTS_TYPES} from '../types.js';
-import {ProjectService} from '../services/projectService.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {AttemptNotFoundErrorResponse} from '#root/modules/quizzes/classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -21,17 +20,25 @@ import {
   ProjectActions,
   ProjectSubject,
 } from '../abilities/projectAbilites.js';
-import {SubmitProjectBody} from '../classes/validators/ProjectValidators.js';
+import {
+  SubmissionResponse,
+  SubmitProjectBody,
+} from '../classes/validators/ProjectValidators.js';
+import {ProjectService} from '../services/projectService.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 
 @OpenAPI({
   tags: ['Project'],
 })
 @injectable()
-@JsonController('/projects')
+@JsonController('/project')
 export class ProjectController {
   constructor(
     @inject(PROJECTS_TYPES.ProjectService)
     private readonly _projectService: ProjectService,
+    @inject(USERS_TYPES.ProgressService)
+    private readonly _progressService: ProgressService,
   ) {}
 
   @OpenAPI({
@@ -39,7 +46,7 @@ export class ProjectController {
     description: 'Submit a new project for the course for user',
   })
   @Authorized()
-  @Post('/course/:courseId/version/:versionId/project/:projectId')
+  @Post('/')
   @HttpCode(200)
   @ResponseSchema(undefined, {
     description: 'Attempt created successfully',
@@ -54,11 +61,19 @@ export class ProjectController {
     statusCode: 404,
   })
   async submitProject(
-    @Params() params: {courseId: string; versionId: string; projectId: string},
     @Ability(projectAbility) {ability, user},
     @Body() body: SubmitProjectBody,
   ): Promise<any> {
-    const {projectId, courseId, versionId} = params;
+    const {
+      projectId,
+      courseId,
+      versionId,
+      moduleId,
+      sectionId,
+      watchItemId,
+      submissionURL,
+      comment,
+    } = body;
     const userId = user._id.toString();
     const projectSubject = subject(ProjectSubject, {
       courseId,
@@ -72,17 +87,38 @@ export class ProjectController {
       );
     }
 
-    const result = await this._projectService.submitProject(
+    const insertedId = await this._projectService.submitProject(
       projectId,
       userId,
       courseId,
       versionId,
-      body,
+      submissionURL,
+      comment,
+    );
+
+    await this._progressService.stopItem(
+      userId,
+      courseId,
+      versionId,
+      projectId,
+      sectionId,
+      moduleId,
+      watchItemId,
+    );
+
+    await this._progressService.updateProgress(
+      userId,
+      courseId,
+      versionId,
+      moduleId,
+      sectionId,
+      projectId,
+      watchItemId,
     );
 
     return {
       message: 'Project submitted successfully',
-      data: result,
+      insertedId,
     };
   }
 
@@ -93,7 +129,7 @@ export class ProjectController {
   @Authorized()
   @Get('/course/:courseId/version/:versionId/submissions')
   @HttpCode(200)
-  @ResponseSchema(undefined, {
+  @ResponseSchema(SubmissionResponse, {
     description: 'Submissions fetched successfully',
     statusCode: 200,
   })
@@ -108,7 +144,7 @@ export class ProjectController {
   async getSubmissions(
     @Params() params: {courseId: string; versionId: string},
     @Ability(projectAbility) {ability, user},
-  ): Promise<any> {
+  ): Promise<SubmissionResponse> {
     const {courseId, versionId} = params;
     const userId = user._id.toString();
 
@@ -125,14 +161,10 @@ export class ProjectController {
     }
 
     const submissions = await this._projectService.getSubmissions(
-      userId,
       courseId,
       versionId,
     );
 
-    return {
-      message: 'Submissions fetched successfully',
-      data: submissions,
-    };
+    return submissions;
   }
 }

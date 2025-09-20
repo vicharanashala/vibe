@@ -8,14 +8,15 @@ export interface IProjectSubmissionRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<IProjectSubmissionWithUser[]>;
+  ): Promise<IProjectSubmissionWithUser>;
 
   create(
     projectId: string,
     courseId: string,
     courseVersionId: string,
     userId: string,
-    body: SubmitProjectBody,
+    submissionURL: string,
+    comment: string,
     session?: ClientSession,
   ): Promise<ID>;
 }

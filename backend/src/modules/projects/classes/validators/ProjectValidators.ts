@@ -1,5 +1,12 @@
 import {ID, IUser} from '#root/shared/index.js';
-import {IsString, IsUrl, IsOptional, IsDate, IsNotEmpty} from 'class-validator';
+import {
+  IsString,
+  IsUrl,
+  IsOptional,
+  IsDate,
+  IsNotEmpty,
+  IsArray,
+} from 'class-validator';
 
 export class SubmitProjectBody {
   @IsNotEmpty({message: 'Submission URL is required'})
@@ -8,25 +15,47 @@ export class SubmitProjectBody {
 
   @IsOptional()
   comment?: string;
+
+  @IsNotEmpty({message: 'sectionId is required'})
+  @IsString()
+  sectionId!: string;
+
+  @IsNotEmpty({message: 'moduleId is required'})
+  @IsString()
+  moduleId!: string;
+
+  @IsNotEmpty({message: 'watchItemId is required'})
+  @IsString()
+  watchItemId!: string;
+
+  @IsNotEmpty({message: 'courseId is required'})
+  @IsString()
+  courseId!: string;
+
+  @IsNotEmpty({message: 'versionId is required'})
+  @IsString()
+  versionId!: string;
+
+  @IsNotEmpty({message: 'projectId is required'})
+  @IsString()
+  projectId!: string;
 }
 
 export class SubmissionResponse {
   @IsString()
-  courseId!: ID;
+  course!: {name: string};
 
   @IsString()
-  courseVersionId!: ID;
+  courseVersion!: {name: string};
 
-  @IsUrl()
-  submissionURL!: ID;
-
-  @IsOptional()
-  @IsString()
-  comment?: ID;
-
-  @IsDate()
-  createdAt!: Date;
-
-  @IsOptional()
-  userInfo?: Partial<IUser>;
+  @IsArray()
+  userInfo!: Array<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    submissionURL: string;
+    comment?: string;
+  }>;
 }
+
+export const PROJECT_VALIDATORS = [SubmitProjectBody, SubmissionResponse];

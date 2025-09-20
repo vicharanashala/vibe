@@ -1,19 +1,17 @@
 import {
   BaseService,
   ICourseRepository,
+  ID,
   MongoDatabase,
 } from '#root/shared/index.js';
 import {inject, injectable} from 'inversify';
 import {PROJECTS_TYPES} from '../types.js';
-import {database} from 'firebase-admin';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   SubmissionResponse,
-  SubmitProjectBody,
 } from '../classes/validators/ProjectValidators.js';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IProjectSubmission} from '../repositories/model.js';
-import {IProjectSubmissionRepository} from '../interfaces/IProjectSubmissionRepository.js';
+import {IProjectSubmissionRepository} from '../interfaces/index.js';
 
 @injectable()
 export class ProjectService extends BaseService {
@@ -36,8 +34,9 @@ export class ProjectService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string,
-    body: SubmitProjectBody,
-  ): Promise<void> {
+    submissionURL: string,
+    comment: string,
+  ): Promise<ID> {
     try {
       return this._withTransaction(async session => {
         const isVersionExist = await this.courseRepo.readVersion(
@@ -52,13 +51,15 @@ export class ProjectService extends BaseService {
           courseId,
           versionId,
           userId,
-          body,
+          submissionURL,
+          comment,
           session,
         );
         if (!insertedId)
           throw new InternalServerError(
             `Failed to create submission, try again!`,
           );
+        return insertedId;
       });
     } catch (error) {
       throw new InternalServerError(`Failed to submit project /More: ${error}`);
@@ -66,10 +67,9 @@ export class ProjectService extends BaseService {
   }
 
   getSubmissions(
-    userId: string,
     courseId: string,
     versionId: string,
-  ): Promise<SubmissionResponse[]> {
+  ): Promise<SubmissionResponse> {
     try {
       return this._withTransaction(async session => {
         const isVersionExist = await this.courseRepo.readVersion(
