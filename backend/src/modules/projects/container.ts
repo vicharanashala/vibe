@@ -1,8 +1,8 @@
 import {ContainerModule} from 'inversify';
 import {PROJECTS_TYPES} from './types.js';
 import {ProjectSubmissionRepository} from './repositories/index.js';
-import { ProjectController } from './controllers/ProjectController.js';
-import { ProjectService } from './services/ProjectService.js';
+import { ProjectController } from './controllers/projectController.js';
+import { ProjectService } from './services/projectService.js';
 
 export const projectsContainerModule = new ContainerModule(options => {
   // Repository

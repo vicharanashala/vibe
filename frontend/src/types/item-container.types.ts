@@ -35,6 +35,10 @@ export interface Item {
     showExplanationAfterSubmission?: boolean;
     showScoreAfterSubmission?: boolean;
     quizId?: string;
+
+    // For Project
+    title?: string;
+    description?: string;
   };
 }
 

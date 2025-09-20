@@ -16,7 +16,7 @@ import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
-import ItemContainer from "@/components/Item-container";
+import StudentProjectItem from "./components/StudentProjectItem";
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuroraText } from "@/components/magicui/aurora-text";
@@ -33,7 +33,8 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle,
-  FlagTriangleRightIcon
+  FlagTriangleRightIcon,
+  FileEdit
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -53,6 +54,8 @@ const getItemIcon = (type: string) => {
       return <FileText className="h-3 w-3" />;
     case 'quiz':
       return <HelpCircle className="h-3 w-3" />;
+    case 'form':
+      return <FileEdit className="h-3 w-3" />;
     default:
       return <FileText className="h-3 w-3" />;
   }
@@ -1416,24 +1419,32 @@ export default function CoursePage() {
                     </Button>
                     </div>
                    }
-                  <ItemContainer
-                    ref={itemContainerRef}
-                    item={currentItem}
-                    doGesture={doGesture}
-                    onNext={handleNext}
-                    onPrevVideo={handlePrevVideo}
-                    isProgressUpdating={isNavigatingToNext}
-                    attemptId={attemptId || undefined}
-                    setAttemptId={setAttemptId}
-                    rewindVid={rewindVid}
-                    pauseVid={pauseVid}
-                    displayNextLesson={false}
-                    setQuizPassed={setQuizPassed}
-                    anomalies={anomalies}
-                    keyboardLockEnabled={!isFlagModalOpen}
-                    linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
-                    setIsQuizSkipped= {setIsQuizSkipped}
-                  />
+                  {currentItem?.type === 'PROJECT' ? (
+                    <StudentProjectItem
+                      item={currentItem}
+                      onNext={handleNext}
+                      isProgressUpdating={isNavigatingToNext}
+                    />
+                  ) : (
+                    <ItemContainer
+                      ref={itemContainerRef}
+                      item={currentItem}
+                      doGesture={doGesture}
+                      onNext={handleNext}
+                      onPrevVideo={handlePrevVideo}
+                      isProgressUpdating={isNavigatingToNext}
+                      attemptId={attemptId || undefined}
+                      setAttemptId={setAttemptId}
+                      rewindVid={rewindVid}
+                      pauseVid={pauseVid}
+                      displayNextLesson={false}
+                      setQuizPassed={setQuizPassed}
+                      anomalies={anomalies}
+                      keyboardLockEnabled={!isFlagModalOpen}
+                      linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
+                      setIsQuizSkipped= {setIsQuizSkipped}
+                    />
+                  )}
 
                 </div>
               ) : (
