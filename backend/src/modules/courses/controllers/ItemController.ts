@@ -286,7 +286,5 @@ Access control logic:
     };
   }
 
-  async submitProject(): Promise<void> {
-    
-  }
-} 
+  async submitProject(): Promise<void> {}
+}

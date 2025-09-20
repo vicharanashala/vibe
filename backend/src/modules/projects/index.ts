@@ -1,6 +1,6 @@
 import {Container, ContainerModule} from 'inversify';
 import {projectsContainerModule} from './container.js';
-import {ProjectController} from './controllers/projectController.js';
+import {ProjectController} from './controllers/ProjectController.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {useContainer} from 'class-validator';
 import {RoutingControllersOptions} from 'routing-controllers';

@@ -21,12 +21,14 @@ import {
   ProjectSubject,
 } from '../abilities/projectAbilites.js';
 import {
+  CourseVersionParams,
   SubmissionResponse,
   SubmitProjectBody,
+  SuccessResponse,
 } from '../classes/validators/ProjectValidators.js';
-import {ProjectService} from '../services/projectService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import {ProjectService} from '../services/ProjectService.js';
 
 @OpenAPI({
   tags: ['Project'],
@@ -37,33 +39,29 @@ export class ProjectController {
   constructor(
     @inject(PROJECTS_TYPES.ProjectService)
     private readonly _projectService: ProjectService,
+
     @inject(USERS_TYPES.ProgressService)
     private readonly _progressService: ProgressService,
   ) {}
 
   @OpenAPI({
-    summary: 'Submit project',
-    description: 'Submit a new project for the course for user',
+    summary: 'Submit a project',
+    description:
+      'Allows a student to submit a project for a specific course version.',
   })
   @Authorized()
   @Post('/')
   @HttpCode(200)
-  @ResponseSchema(undefined, {
-    description: 'Attempt created successfully',
+  @ResponseSchema(SuccessResponse, {
+    description: 'Project submitted successfully',
     statusCode: 200,
   })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request',
-    statusCode: 400,
-  })
-  @ResponseSchema(AttemptNotFoundErrorResponse, {
-    description: 'Quiz not found',
-    statusCode: 404,
-  })
+  @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
+  @ResponseSchema(AttemptNotFoundErrorResponse, {statusCode: 404})
   async submitProject(
     @Ability(projectAbility) {ability, user},
     @Body() body: SubmitProjectBody,
-  ): Promise<any> {
+  ): Promise<SuccessResponse> {
     const {
       projectId,
       courseId,
@@ -74,6 +72,7 @@ export class ProjectController {
       submissionURL,
       comment,
     } = body;
+
     const userId = user._id.toString();
     const projectSubject = subject(ProjectSubject, {
       courseId,
@@ -83,11 +82,11 @@ export class ProjectController {
 
     if (!ability.can(ProjectActions.Submit, projectSubject)) {
       throw new ForbiddenError(
-        'You do not have permission for this project submission',
+        'You do not have permission to submit this project.',
       );
     }
 
-    const insertedId = await this._projectService.submitProject(
+    await this._projectService.submitProject(
       projectId,
       userId,
       courseId,
@@ -96,15 +95,15 @@ export class ProjectController {
       comment,
     );
 
-    await this._progressService.stopItem(
-      userId,
-      courseId,
-      versionId,
-      projectId,
-      sectionId,
-      moduleId,
-      watchItemId,
-    );
+    // await this._progressService.stopItem(
+    //   userId,
+    //   courseId,
+    //   versionId,
+    //   projectId,
+    //   sectionId,
+    //   moduleId,
+    //   watchItemId,
+    // );
 
     await this._progressService.updateProgress(
       userId,
@@ -118,36 +117,30 @@ export class ProjectController {
 
     return {
       message: 'Project submitted successfully',
-      insertedId,
     };
   }
 
   @OpenAPI({
     summary: 'Get project submissions',
-    description: 'Return the list of submissions for the given course version',
+    description:
+      'Returns all submissions for a given course and version, including user information.',
   })
   @Authorized()
   @Get('/course/:courseId/version/:versionId/submissions')
   @HttpCode(200)
   @ResponseSchema(SubmissionResponse, {
-    description: 'Submissions fetched successfully',
+    description: 'List of submissions fetched successfully',
     statusCode: 200,
+    isArray: true,
   })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request',
-    statusCode: 400,
-  })
-  @ResponseSchema(AttemptNotFoundErrorResponse, {
-    description: 'No submissions found',
-    statusCode: 404,
-  })
+  @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
+  @ResponseSchema(AttemptNotFoundErrorResponse, {statusCode: 404})
   async getSubmissions(
-    @Params() params: {courseId: string; versionId: string},
+    @Params() params: CourseVersionParams,
     @Ability(projectAbility) {ability, user},
   ): Promise<SubmissionResponse> {
     const {courseId, versionId} = params;
     const userId = user._id.toString();
-
     const projectSubject = subject(ProjectSubject, {
       courseId,
       versionId,
@@ -156,7 +149,7 @@ export class ProjectController {
 
     if (!ability.can(ProjectActions.View, projectSubject)) {
       throw new ForbiddenError(
-        'You do not have permission to view project submissions',
+        'You do not have permission to view project submissions.',
       );
     }
 
@@ -164,7 +157,6 @@ export class ProjectController {
       courseId,
       versionId,
     );
-
     return submissions;
   }
 }

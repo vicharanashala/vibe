@@ -641,62 +641,62 @@ class ProgressService extends BaseService {
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     return true;
-    switch (item.type) {
-      case 'VIDEO':
-        return true;
-        if (watchTime.startTime && watchTime.endTime && item.details) {
-          const videoDetails = item.details as IVideoDetails;
-          const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-          const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+    // switch (item.type) {
+    //   case 'VIDEO':
+    //     return true;
+    //     if (watchTime.startTime && watchTime.endTime && item.details) {
+    //       const videoDetails = item.details as IVideoDetails;
+    //       const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
+    //       const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
+    //       const watchStartTime = new Date(watchTime.startTime);
+    //       const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    //       // Get Time difference in seconds
+    //       const timeDiff =
+    //         Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Get Video duration in seconds
-          // Convert HH:MM:SS to seconds
-          const videoEndTimeInSeconds =
-            parseInt(videoEndTime.split(':')[0]) * 3600 +
-            parseInt(videoEndTime.split(':')[1]) * 60 +
-            parseInt(videoEndTime.split(':')[2]);
-          const videoStartTimeInSeconds =
-            parseInt(videoStartTime.split(':')[0]) * 3600 +
-            parseInt(videoStartTime.split(':')[1]) * 60 +
-            parseInt(videoStartTime.split(':')[2]);
+    //       // Get Video duration in seconds
+    //       // Convert HH:MM:SS to seconds
+    //       const videoEndTimeInSeconds =
+    //         parseInt(videoEndTime.split(':')[0]) * 3600 +
+    //         parseInt(videoEndTime.split(':')[1]) * 60 +
+    //         parseInt(videoEndTime.split(':')[2]);
+    //       const videoStartTimeInSeconds =
+    //         parseInt(videoStartTime.split(':')[0]) * 3600 +
+    //         parseInt(videoStartTime.split(':')[1]) * 60 +
+    //         parseInt(videoStartTime.split(':')[2]);
 
-          const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+    //       const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-          // Check if the watch time is >= 0.2 * video duration
-          if (timeDiff >= 0.2 * videoDuration) {
-            return true;
-          }
-          // return false;
-          return true; // For now, we assume the watch time is valid
-        }
+    //       // Check if the watch time is >= 0.2 * video duration
+    //       if (timeDiff >= 0.2 * videoDuration) {
+    //         return true;
+    //       }
+    //       // return false;
+    //       return true; // For now, we assume the watch time is valid
+    //     }
 
-        break;
+    //     break;
 
-      case 'BLOG':
-        return true;
-        // if (watchTime.startTime && watchTime.endTime && item.details) {
-        //   const blogDetails = item.details as IBlogDetails;
-        //   const watchStartTime = new Date(watchTime.startTime);
-        //   const watchEndTime = new Date(watchTime.endTime);
+    //   case 'BLOG':
+    //     return true;
+    //     // if (watchTime.startTime && watchTime.endTime && item.details) {
+    //     //   const blogDetails = item.details as IBlogDetails;
+    //     //   const watchStartTime = new Date(watchTime.startTime);
+    //     //   const watchEndTime = new Date(watchTime.endTime);
 
-        //   // Get Time difference in seconds
-        //   const timeDiff =
-        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    //     //   // Get Time difference in seconds
+    //     //   const timeDiff =
+    //     //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-        //   // Check if the watch time is >= 0.5 * estimated read time
-        //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-        //     return true;
-        //   }
-        //   return false;
-        // }
-        break;
-    }
+    //     //   // Check if the watch time is >= 0.5 * estimated read time
+    //     //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
+    //     //     return true;
+    //     //   }
+    //     //   return false;
+    //     // }
+    //     break;
+    // }
   }
 
   async getUserProgress(
