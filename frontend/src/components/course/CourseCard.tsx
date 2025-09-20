@@ -18,7 +18,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
 
-  const progress = enrollment.percentCompleted as number || 0
+  const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
