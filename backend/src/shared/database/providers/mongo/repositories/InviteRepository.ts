@@ -1,16 +1,16 @@
 import 'reflect-metadata';
-import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, MongoClient, ObjectId} from 'mongodb';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {InternalServerError} from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Invite} from '#root/modules/notifications/index.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, Collection, MongoClient, ObjectId } from 'mongodb';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { InternalServerError } from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Invite } from '#root/modules/notifications/index.js';
 
 @injectable()
 export class InviteRepository {
   private inviteCollection: Collection<Invite>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
     this.inviteCollection = await this.db.getCollection<Invite>('invites');
@@ -28,7 +28,7 @@ export class InviteRepository {
     await this.init();
 
     try {
-      const result = await this.inviteCollection.insertOne(invite, {session});
+      const result = await this.inviteCollection.insertOne(invite, { session });
       return result.insertedId.toString();
     } catch {
       throw new InternalServerError('Failed to create invite');
@@ -41,8 +41,8 @@ export class InviteRepository {
   ): Promise<Invite | null> {
     await this.init(); // Ensure collection is initialized
     const invite = await this.inviteCollection.findOne(
-      {_id: new ObjectId(id)},
-      {session},
+      { _id: new ObjectId(id) },
+      { session },
     );
     if (!invite) return null;
 
@@ -65,7 +65,7 @@ export class InviteRepository {
 
     const objectIds = ids.map(id => new ObjectId(id));
     const invites = await this.inviteCollection
-      .find({_id: {$in: objectIds}}, {session})
+      .find({ _id: { $in: objectIds } }, { session })
       .toArray();
 
     return invites.map(invite => ({
@@ -83,9 +83,9 @@ export class InviteRepository {
     await this.init();
 
     const result = await this.inviteCollection.updateOne(
-      {_id: new ObjectId(inviteId)},
-      {$set: inviteData},
-      {session},
+      { _id: new ObjectId(inviteId) },
+      { $set: inviteData },
+      { session },
     );
 
     if (result.modifiedCount === 0) {
@@ -100,7 +100,25 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({email}, {session})
+      .find({ email }, { session })
+      .toArray();
+
+    return invites.map(invite => ({
+      ...invite,
+      _id: invite._id.toString(),
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    }));
+  }
+
+  async findPendingInvitesByEmail(
+    email: string,
+    session?: ClientSession,
+  ): Promise<Invite[]> {
+    await this.init(); // Ensure collection is initialized
+
+    const invites = await this.inviteCollection
+      .find({ email, inviteStatus: "PENDING" }, { session })
       .toArray();
 
     return invites.map(invite => ({
@@ -120,7 +138,7 @@ export class InviteRepository {
     search: string,
     sort: string,
     session?: ClientSession,
-  ): Promise<{invites: Invite[]; totalDocuments: number; totalPages: number}> {
+  ): Promise<{ invites: Invite[]; totalDocuments: number; totalPages: number }> {
     await this.init();
 
     const courseIdObj = ObjectId.isValid(courseId)
@@ -131,7 +149,7 @@ export class InviteRepository {
       : null;
 
     const filter: any = {
-      courseId: {$in: [courseId, ...(courseIdObj ? [courseIdObj] : [])]},
+      courseId: { $in: [courseId, ...(courseIdObj ? [courseIdObj] : [])] },
       courseVersionId: {
         $in: [
           courseVersionId,
@@ -146,17 +164,17 @@ export class InviteRepository {
     }
 
     if (search) {
-      filter.email = {$regex: search, $options: 'i'};
+      filter.email = { $regex: search, $options: 'i' };
     }
 
     const sortStage: Record<string, 1 | -1> = (() => {
       switch (sort) {
         case 'accept_date_desc':
-          return {acceptedAt: -1};
+          return { acceptedAt: -1 };
         case 'accept_date_asc':
-          return {acceptedAt: 1};
+          return { acceptedAt: 1 };
         default:
-          return {createdAt: -1};
+          return { createdAt: -1 };
       }
     })();
 
@@ -164,7 +182,7 @@ export class InviteRepository {
 
     const [invites, totalDocuments] = await Promise.all([
       this.inviteCollection
-        .find(filter, {session})
+        .find(filter, { session })
         .sort(sortStage)
         .skip(skip)
         .limit(limit)
@@ -180,6 +198,6 @@ export class InviteRepository {
       courseVersionId: invite.courseVersionId?.toString(),
     }));
 
-    return {invites: normalizedInvites, totalDocuments, totalPages};
+    return { invites: normalizedInvites, totalDocuments, totalPages };
   }
 }

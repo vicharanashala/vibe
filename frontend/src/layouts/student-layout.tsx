@@ -4,6 +4,7 @@ import { Outlet, Link } from "@tanstack/react-router"
 import { useAuthStore } from "@/store/auth-store"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
@@ -11,12 +12,18 @@ import { LogOut, ArrowLeft, UserRoundCheck } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
+import { useInvites } from "@/hooks/hooks"
+import { useRef ,useEffect} from "react"
+// import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 // import FloatingVideo from "@/components/floating-video";
 
 export default function StudentLayout() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+   const { getInvites, loading, error } = useInvites(); // run after login
+  const hasShownToast = useRef(false);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
   const [confirmLogout,setConfirmLogout] = useState(false);
 
@@ -28,6 +35,26 @@ export default function StudentLayout() {
   const handleGoBack = () => {
     window.history.back()
   }
+
+     useEffect(() => {
+    const toastShown = sessionStorage.getItem("inviteToastShown");
+    
+          const getUserInvites = async () => {
+              getInvites().then(result => {
+                if(result.invites.length > 0 ) { console.log(result);
+setPendingInvites(result.invites)
+              
+                      if (!toastShown) {
+        toast.info("You have a new invite! Check the invites dropdown.");
+        sessionStorage.setItem("inviteToastShown", "true");
+      }    }})
+
+             
+          }
+          if(user)
+          getUserInvites();
+        
+      }, [user])
 
   // console.log('Current user role:', user?.role);
 
@@ -115,9 +142,10 @@ export default function StudentLayout() {
               >
                 <UserRoundCheck className="h-4 w-4" />
                 <span className="hidden sm:block ml-2">Invites</span>
+              {pendingInvites.length>0&&<span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
               </Button>
 
-              {showInvites && <InviteDropdown />}
+              {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
             </div>
 
             <Button
