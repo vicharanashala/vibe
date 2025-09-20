@@ -45,9 +45,13 @@ export default function StudentLayout() {
 setPendingInvites(result.invites)
               
                       if (!toastShown) {
-        toast.info("You have a new invite! Check the invites dropdown.");
+       toast.info("You have a new invite! Check the invites dropdown.", {
+  richColors: true,
+    position:"top-right"
+});
         sessionStorage.setItem("inviteToastShown", "true");
-      }    }})
+      }   
+     }})
 
              
           }
@@ -60,6 +64,7 @@ setPendingInvites(result.invites)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95 bg-gray-50/50 dark:bg-orange-950/70">
+     
       {/* <FloatingVideo isVisible={user?.role === 'student'}></FloatingVideo> */}
       <ConfirmationModal isOpen={confirmLogout} 
           onClose={()=>setConfirmLogout(false)} 
@@ -186,6 +191,7 @@ setPendingInvites(result.invites)
           <Outlet />
         </div>
       </main>
+       
     </div>
   )
 }
