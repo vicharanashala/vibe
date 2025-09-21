@@ -47,6 +47,7 @@ export interface QuestionGenerationParameters {
 	SML?: number;
 	NAT?: number;
 	DES?: number;
+	BIN?: number;
 	prompt?: string;
 }
 
