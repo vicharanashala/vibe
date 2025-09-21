@@ -30,6 +30,8 @@ function FloatingVideo({
   pauseVid,
   setPauseVid,
   setAnomalies,
+  readyToDetect,
+                setReadyToDetect,
   anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +51,7 @@ function FloatingVideo({
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
 
+
   // Original aspect ratio (maintain the initial component ratio)
   const ORIGINAL_ASPECT_RATIO = 320 / 280; // width / height from initial size
 
@@ -59,7 +62,7 @@ function FloatingVideo({
   const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
-  const [penaltyPoints, setPenaltyPoints] = useState(-90);
+  const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
 
@@ -134,6 +137,20 @@ function FloatingVideo({
     setFaceDetectorsKey(prev => prev + 1);
     flag++;
   }
+
+  useEffect(() => {
+  if (modelReady) {
+    // wait 5 seconds after models are ready before enabling anomaly detection
+    const timer = setTimeout(() => {
+      console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
+      setReadyToDetect(true);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }
+}, [modelReady]);
+
+
   // Effect to handle isPoppedOut changes - reset everything
   useEffect(() => {
     console.log('[FloatingVideo] isPoppedOut changed to:', isPoppedOut);
@@ -370,7 +387,8 @@ const lastCalledRef = useRef<number>(0);
   // Update penalty score every second when anomalies are detected
   useEffect(() => {
     const interval = setInterval(() => {
-      let newPenaltyPoints = 0;
+       if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
+   setAnomalies(null)   }let newPenaltyPoints = 0;
       let newPenaltyType = "";
       setAnomalies(['']);
 
@@ -420,7 +438,7 @@ const lastCalledRef = useRef<number>(0);
           const newContiguous = prev + newPenaltyPoints;
           // Check if we've reached 20 contiguous points
           if (newContiguous >= 20) {
-            console.log(`[FloatingVideo] Rewind triggered: 20 contiguous anomaly points reached`);
+            console.log(`[FloatingVideo] Rewind triggered: 20 continuous anomaly points reached`);
             setRewindVid(true);
             setPauseVid(true);  // Pause video after rewind
             return 0; // Reset counter after triggering
@@ -440,10 +458,10 @@ const lastCalledRef = useRef<number>(0);
         // Reset contiguous anomaly points when no anomalies are detected
         if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
-    }, 100); // Update every second
+    }, 1000); // Update every second
 
     return () => clearInterval(interval);
-  }, [
+  }, [readyToDetect,
     isSpeaking, 
     facesCount, 
     isBlur, 
@@ -840,7 +858,11 @@ const lastCalledRef = useRef<number>(0);
             opacity: 1,
           }}
         />
-
+{!modelReady && (
+  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 text-white text-sm font-medium">
+    Preparing environment...
+  </div>
+)}
         {/* Enhanced Face Recognition Debug Overlay */}
         {/* {!isCollapsed && (
           <div className="absolute top-0 left-0 z-20 bg-black bg-opacity-75 text-white p-3 text-xs font-mono border-r border-b border-gray-600">

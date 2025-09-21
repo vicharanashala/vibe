@@ -154,6 +154,8 @@ export default function CoursePage() {
   const [quizPassed, setQuizPassed] = useState(2);
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
+  const [readyToDetect, setReadyToDetect] = useState(false);
+  
 
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
@@ -1203,6 +1205,8 @@ export default function CoursePage() {
                   }
                 }}
                 anomalies={anomalies}
+                readyTodetect={readyToDetect}
+                setReadyToDetect={setReadyToDetect}
                 setAnomalies={setAnomalies}
                 rewindVid={rewindVid}
                 setRewindVid={setRewindVid}
@@ -1429,6 +1433,7 @@ export default function CoursePage() {
                     pauseVid={pauseVid}
                     displayNextLesson={false}
                     setQuizPassed={setQuizPassed}
+                    readyToDetect={readyToDetect}
                     anomalies={anomalies}
                     keyboardLockEnabled={!isFlagModalOpen}
                     linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
