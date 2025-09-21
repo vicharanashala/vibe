@@ -424,36 +424,41 @@ export default function TeacherCoursePage() {
         }
       }).then((res) => {
         refetchVersion();
-      });;
+      });
 
-      // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
-      function convertToMinSecMs(time: number) {
-        // If time is in ms, convert to seconds
-        const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
-        const minutes = Math.floor(totalMs / 60000);
-        const seconds = Math.floor((totalMs % 60000) / 1000);
-        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-      }
       return;
     }
     if (type === "QUIZ") {
-      createItem.mutate({
-        params: { path: { versionId, moduleId, sectionId } },
-        body: {
-          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content"
-        }
+    createItemAsync({
+  params: {
+    path: { versionId, moduleId, sectionId },
+  },
+  body: {
+    type: typeMap[type],
+    name: `New ${typeMap[type]}`,
+    description: "Sample content",
+  },
+}).then((res) => {
+        refetchVersion();
       });
     }
     if (type === "article") {
-      createItem.mutate({
-        params: { path: { versionId, moduleId, sectionId } },
-        body: {
-          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content", blogDetails: {
-            content: "Sample content",
-            points: '2.0',
-            estimatedReadTimeInMinutes: 1,
-          }
-        }
+     createItemAsync({
+  params: {
+    path: { versionId, moduleId, sectionId },
+  },
+  body: {
+    type: typeMap[type],
+    name: `New ${typeMap[type]}`,
+    description: "Sample content",
+    blogDetails: {
+      content: "Sample content",
+      points: "2.0",
+      estimatedReadTimeInMinutes: 1,
+    },
+  },
+}).then((res) => {
+        refetchVersion();
       });
     }
   };
