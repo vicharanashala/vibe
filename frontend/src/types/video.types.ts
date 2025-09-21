@@ -7,11 +7,13 @@ export interface VideoProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  anomalies?: string[];
+  readyToDetect: boolean;
   rewindVid: boolean;
   pauseVid: boolean;
   onDurationChange?: (duration: number) => void;
-  keyboardLockEnabled?:boolean;
-  linearProgressionEnabled:boolean;
+  keyboardLockEnabled?: boolean;
+  linearProgressionEnabled: boolean;
 }
 
 
@@ -69,7 +71,7 @@ export interface StudentProctoringSettings {
     proctors: {
       detectors: IDetectorSettings[];
     };
-  linearProgressionEnabled: boolean;
+    linearProgressionEnabled: boolean;
   };
 }
 
@@ -84,6 +86,8 @@ export interface FloatingVideoProps {
   pauseVid: boolean;
   setPauseVid: (value: boolean) => void;
   setAnomalies: (anomalies: string[]) => void;
+  readyToDetect: boolean;
+  setReadyToDetect: (value: boolean) => void;
   anomalies?: string[];
 }
 
@@ -101,10 +105,10 @@ export interface ProctoringSettings {
         }
       }[]
     }
-}
+  }
 }
 
-export interface Video{
+export interface Video {
   _id: string;
   name: string;
   description: string;
