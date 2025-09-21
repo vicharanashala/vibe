@@ -30,7 +30,8 @@ import {
   Target,
   Send,
   Clock4,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
 import {
   useGetAllQuestionBanksForQuiz,
@@ -264,6 +265,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   performance,
   onDelete,
 }) => {
+  console.log("ANALYTCS ",analytics)
   const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
@@ -672,8 +674,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       refetchSelectedBank();
       setShowDeleteQuestionModal(false);
       setQuestionToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete question:', error);
+      
+      if (error?.name === 'ForbiddenError') {
+        toast.error("You don't have permission to delete this question. Only admins or the question creator can delete it.");
+      } else {
+        toast.error("Failed to delete question. Please try again.");
+      }
     }
   };
 
@@ -873,7 +881,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   return (
     <>
-      {isLoading || submissionsLoading ? <Loader /> :
+      {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
           <div className="border-b">
             <div className="p-6">
@@ -954,9 +962,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     <p className="text-sm font-medium text-center text-[#CA3500]">Pass Rate</p>
                   </CardTitle>
                 </CardHeader>
+
                 <CardContent className='flex flex-col items-center justify-center'>
                   <div className="text-2xl font-bold text-[#7E2A0C]">
-                    {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'}
+                    {/* {submissions && submissions?.length > 0 ? `${((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100).toFixed(1)}%` : '0%'} */}
+                    {analytics?.passRate.toFixed(2) || 0}%
                   </div>
                   {/* <Progress value={submissions && submissions?.length > 0 ? ((submissions.filter((r: any) => r.gradingResult?.gradingStatus === 'PASSED')?.length / submissions?.length) * 100) : 0} className="mt-2" /> */}
                 </CardContent>
@@ -965,29 +975,31 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <CardHeader className="pb-3">
                   <CardTitle className="flex flex-col items-center justify-center gap-3">
                     <ChartColumn height={20} width={20} color='#00A63E' />
-                    <p className="text-sm font-medium text-center text-[#00A63E]">Average Score %</p>
+                    <p className="text-sm font-medium text-center text-[#00A63E]">Average Score </p>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className='flex flex-col items-center justify-center'>
                   <div className="text-2xl font-bold text-[#0D542B]">
-                    {submissions && submissions.length > 0
+                    {/* {submissions && submissions.length > 0
                       ? `${(submissions.reduce((acc: number, sub: any) => {
                         if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
                           return acc + sub.gradingResult.totalScore;
                         }
                         return acc;
                       }, 0) / submissions.length).toFixed(1)} `
-                      : 'Loading...'}
+                      : 'Loading...'} */}
+                      {analytics?.averageScore.toFixed(2) || 0}
                   </div>
                   <p className='font-medium text-[#008236]'>
-                    {submissions && submissions.length > 0
+                    {/* {submissions && submissions.length > 0
                       ? `${(submissions.reduce((acc: number, sub: any) => {
                         if (sub.gradingResult?.totalScore && sub.gradingResult?.totalMaxScore) {
                           return acc + (sub.gradingResult.totalScore / sub.gradingResult.totalMaxScore * 100);
                         }
                         return acc;
                       }, 0) / submissions.length).toFixed(1)}%`
-                      : '0%'}
+                      : '0%'} */}
+                      {analytics?.averagePercentage|| "0"}%
                   </p>
                   {/* <Progress value={submissions && submissions.length > 0
                     ? parseFloat((submissions.reduce((acc: number, sub: any) => {
@@ -1041,7 +1053,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                  <span className=" text-md font-semibold ">Bank {bank.bankId.slice(-8)}</span>
+                                  <div>
+                                    <p className=" text-md font-semibold ">{bank.title}</p>
+                                    <p className="text-[12px] font-normal">{bank.description}</p>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Button
@@ -1289,6 +1304,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         onChange={(e) => { setSearchQuery(e.target.value) }}
                         className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                       />
+                      <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSearchQuery("");
+                        }} />
                     </div>
                   </div>
 
@@ -1363,11 +1384,28 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {submissions?.map((sub: any) => (
+                          {submissionsLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-16">
+                                <div className="flex items-center justify-center">
+                                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                  <span className="ml-2 text-muted-foreground">
+                                    Loading submissions...
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : submissions?.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                                No submissions found
+                              </TableCell>
+                            </TableRow>
+                          ) : (submissions?.map((sub: any) => (
                             <TableRow key={sub._id}>
                               <TableCell className="font-medium max-w-[180px] overflow-hidden        text-ellipsis whitespace-nowrap"
-                                title={`${sub.userId?.firstName ?? ''} ${sub.userId?.lastName ?? ''}`}>
-                                {(sub.userId?.firstName ?? '') + ' ' + (sub.userId?.lastName ?? '')}
+                                title={`${sub.userInfo?.firstName ?? ''} ${sub.userInfo?.lastName ?? ''}`}>
+                                {(sub.userInfo?.firstName ?? '') + ' ' + (sub.userInfo?.lastName ?? '')}
                               </TableCell>
                               <TableCell>{sub.gradingResult?.totalScore.toFixed(2) ?? 'N/A'}</TableCell>
                               <TableCell>{sub.gradingResult?.totalMaxScore ?? 'N/A'}</TableCell>
@@ -1406,13 +1444,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                 </div>
                               </TableCell>
                             </TableRow>
-                          )) || (
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                  No submissions yet
-                                </TableCell>
-                              </TableRow>
-                            )}
+                          )))}
                         </TableBody>
 
                       </Table>

@@ -1,4 +1,5 @@
 import {
+  BulkEnrollmentsQuery,
   EnrollmentFilterQuery,
   EnrollmentRole,
   EnrollmentsQuery,
@@ -17,7 +18,9 @@ import {
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
+import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
+import { AttemptService } from '#root/modules/quizzes/services/AttemptService.js';
 import { USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
 import {
@@ -42,6 +45,9 @@ import {
 } from '../abilities/enrollmentAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -52,7 +58,19 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(QUIZZES_TYPES.AttemptService)
+    private readonly attemptService: AttemptService,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
   ) { }
+
+  private async getContentCounts(courseVersionId: string): Promise<{ videos: number; quizzes: number; articles: number }> {
+    return {
+      videos: 24,
+      quizzes: 12,
+      articles: 9,
+    };
+  }
 
   @OpenAPI({
     summary: 'Enroll a user in a course version',
@@ -154,6 +172,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      enrollmentData
     );
 
     return new EnrollUserResponse(
@@ -309,8 +328,9 @@ export class EnrollmentController {
       search = '',
       sortBy = 'enrollmentDate',
       sortOrder = 'desc',
+      filter
     } = query;
-
+    console.log("query",query)
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
@@ -326,6 +346,7 @@ export class EnrollmentController {
         search,
         sortBy,
         sortOrder,
+        filter
       );
 
     if (
@@ -352,8 +373,8 @@ export class EnrollmentController {
     };
   }
   @OpenAPI({
-    summary: 'Update Enrollment Progress for All Courses',
-    description: 'Recomputes and updates progress for all enrollments across all courses.',
+    summary: 'Update Enrollment Progress',
+    description: 'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
@@ -361,11 +382,17 @@ export class EnrollmentController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
+
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
+    @QueryParams() query: BulkEnrollmentsQuery,
+
   ) {
-    // await this.enrollmentService.bulkUpdateAllEnrollments();
+    const { courseId } = query;
+    const updatedEnrollment = await this.enrollmentService.bulkUpdateAllEnrollments(courseId);
+    return updatedEnrollment;
   }
+
 
   @OpenAPI({
     summary: 'Get enrollment statistics for a course version',
@@ -423,4 +450,39 @@ export class EnrollmentController {
   //   const result = await this.enrollmentService.addProgressPercentToAll(); // default 0%
 
   // }
+
+  @Get('/enrollments/courses/:courseId/versions/:versionId/export/quiz-scores')
+  @Authorized()
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Export quiz scores for all students in a course version',
+    description: 'Returns quiz scores for all students in the specified course version',
+    responses: {
+      '200': {
+        description: 'Quiz scores exported successfully',
+      },
+      '403': {
+        description: 'Forbidden - User does not have permission to view quiz scores',
+      },
+      '404': {
+        description: 'Course or version not found',
+      },
+    },
+  })
+  @ResponseSchema(QuizScoresExportResponseDto)
+  async exportQuizScores(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Ability(getEnrollmentAbility) { ability },
+  ): Promise<QuizScoresExportResponseDto> {
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view quiz scores for this course',
+      );
+    }
+
+    return this.enrollmentService.getQuizScoresForCourseVersion(courseId, versionId);
+  }
 }

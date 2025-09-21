@@ -191,7 +191,7 @@ class ItemRef {
   order: string;
 
   constructor(item: ItemBase) {
-    this._id = item.itemId;
+    this._id = new ObjectId(item.itemId);
     this.type = item.type;
     this.order = item.order;
   }

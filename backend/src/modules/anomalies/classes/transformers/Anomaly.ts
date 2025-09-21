@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import {ObjectId} from 'mongodb';
 
 export enum AnomalyType {
   VOICE_DETECTION = 'VOICE_DETECTION',
@@ -28,7 +28,6 @@ export interface IEncryptionResult {
   algorithm: string;
 }
 
-
 export interface IDecryptionResult {
   success: boolean;
   message?: string;
@@ -45,31 +44,28 @@ export interface IDecryptionResult {
 }
 
 export class IAnomalyData {
-    _id?: string | ObjectId;
-    userId: string;
-    type: AnomalyType;
-    courseId: string;
-    versionId: string;
-    itemId: string;
-    fileName?: string;
-    fileType?: FileType;
-    createdAt: Date;
+  _id?: string | ObjectId;
+  userId: string | ObjectId;
+  type: AnomalyType;
+  courseId: string | ObjectId;
+  versionId: string | ObjectId;
+  itemId: string | ObjectId;
+  fileName?: string;
+  fileType?: FileType;
+  createdAt: Date;
 
-    constructor(
-      data: Partial<IAnomalyData>, 
-      userId: string,
-    ) {
-        this.userId = userId;
-        this.type = data.type;
-        this.courseId = data.courseId;
-        this.versionId = data.versionId;
-        this.itemId = data.itemId;
-        this.createdAt = new Date();
-    }
+  constructor(data: Partial<IAnomalyData>, userId: string) {
+    this.userId = new ObjectId(userId);
+    this.type = data.type;
+    this.courseId = new ObjectId(data.courseId);
+    this.versionId = new ObjectId(data.versionId);
+    this.itemId = new ObjectId(data.itemId);
+    this.createdAt = new Date();
+  }
 }
 
 export class AnomalyDataResponse extends IAnomalyData {
-  fileUrl: string
+  fileUrl: string;
 }
 
 export class AnomalyStats {
@@ -99,7 +95,12 @@ export class PaginatedResponse<T> {
   totalPages: number;
   limit: number;
 
-  constructor(data: T[], currentPage: number, totalDocuments: number, limit: number) {
+  constructor(
+    data: T[],
+    currentPage: number,
+    totalDocuments: number,
+    limit: number,
+  ) {
     this.data = data;
     this.currentPage = currentPage;
     this.totalDocuments = totalDocuments;

@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {  useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { useNavigate } from "@tanstack/react-router"
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,12 +23,15 @@ import {
   useCourseVersionEnrollments,
   useResetProgress,
   useUnenrollUser,
-  useCourseEnrollmentsStats
+  useCourseEnrollmentsStats,
+  useCourseQuizScores
 } from "@/hooks/hooks"
+import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
+import { generateExcel } from "@/lib/excel-export"
 
 // Types for quiz functionality
 
@@ -69,7 +72,7 @@ function generateDefaultItemNames(items: any[]) {
       ...item,
       displayName: item.name,
     }
-  })
+  });
 }
 
 // Component to display progress for each enrolled user
@@ -107,21 +110,21 @@ const getProgressBg = (progress: number) => {
   return "bg-red-50 dark:bg-red-950/30"
 }
 
-  const getRoleBadge = (role: EnrollmentRole) => {
-    const variants: Record<EnrollmentRole, string> = {
-      INSTRUCTOR: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-      STUDENT: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-      MANAGER: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-      TA: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-      STAFF: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-    }
-
-    return (
-      <Badge variant="outline" className={variants[role]}>
-        {role}
-      </Badge>
-    )
+const getRoleBadge = (role: EnrollmentRole) => {
+  const variants: Record<EnrollmentRole, string> = {
+    INSTRUCTOR: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+    STUDENT: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    MANAGER: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    TA: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    STAFF: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
   }
+
+  return (
+    <Badge variant="outline" className={variants[role]}>
+      {role}
+    </Badge>
+  )
+}
 
 
 export default function CourseEnrollments() {
@@ -141,7 +144,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-  
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -171,12 +174,124 @@ export default function CourseEnrollments() {
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
+
+
   //Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const pageLimit = 50;
-
+  const [limit, setLimit] = useState(10)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
+const {
+  data: quizScores,
+  isLoading: isLoadingQuizScores,
+  error: quizScoresError,
+  refetch: fetchQuizScores,
+} = useCourseQuizScores(courseId, versionId,isExporting);
+
+  interface QuizScore {
+    moduleId?: string;
+    sectionId?: string;
+    quizId?: string;
+    quizName?: string;
+    maxScore?: number;
+    attempts?: number;
+    questionScores?: Array<{
+      questionId: string;
+      score: number;
+    }>;
+  }
+  
+  // Define the student data type
+  interface StudentData {
+    studentId: string;
+    name: string;
+    email: string;
+    quizScores?: QuizScore[];
+  }
+
+  // Handle fetch and export quiz scores
+  const handleFetchQuizScores = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+    
+    try {
+      if (quizScores && !isLoadingQuizScores) {
+        
+        // Format the data for Excel export
+        const formattedData = quizScores?.data?.map((student: any, index: number) => {
+          
+          // Get all unique module and section names for this student
+          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+          
+          // First pass: collect all module and section names
+          student.quizScores?.forEach((quiz: any) => {
+            const key = `${quiz.moduleId}_${quiz.sectionId}`;
+            if (!moduleSectionMap.has(key)) {
+              moduleSectionMap.set(key, {
+                moduleName: quiz.moduleName || 'Module',
+                sectionName: quiz.sectionName || 'Section'
+              });
+            }
+          });
+          
+          return {
+            studentId: student.studentId || `student-${index}`,
+            name: student.name || 'Unknown Student',
+            email: student.email || '',
+            quizScores: student.quizScores?.map((quiz: any) => ({
+              moduleId: quiz.moduleId || 'unknown',
+              sectionId: quiz.sectionId || 'unknown',
+              quizId: quiz.quizId || 'unknown',
+              quizName: quiz.quizName || 'Untitled Quiz',
+              maxScore: quiz.maxScore || 0,
+              attempts: quiz.attempts || 0,
+              moduleName: quiz.moduleName || 'Module',
+              sectionName: quiz.sectionName || 'Section',
+              questionScores: Array.isArray(quiz.questionScores) 
+                ? quiz.questionScores.map((q: any) => ({
+                    questionId: q.questionId?.toString() || '',
+                    score: typeof q.score === 'number' ? q.score : 0
+                  }))
+                : []
+            })) || []
+          };
+        }) || [];
+        
+        if (formattedData.length === 0) {
+          toast.warning('No quiz scores found to export');
+          return;
+        }
+        
+        console.log('Formatted data for Excel:', formattedData);
+      
+      // Generate and download the Excel file
+      const formattedTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).replace(/:/g, '_');
+      
+      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
+      
+      try {
+      generateExcel(formattedData, filename);
+      toast.success('Quiz scores exported successfully');
+    
+      } catch (excelError) {
+        console.error('Error generating Excel file:', excelError);
+        toast.error('Failed to generate Excel file. Please try again.');
+      }}
+    } catch (error) {
+      console.error('Error exporting quiz scores:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
+    } 
+    
+  };
 
   useEffect(() => {
     if (searchQuery !== debouncedSearch) {
@@ -185,35 +300,39 @@ export default function CourseEnrollments() {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setIsSearching(false);
-    }, 300); 
+    }, 300);
 
     return () => {
       clearTimeout(handler);
     };
   }, [searchQuery, debouncedSearch]);
 
-    // Fetch enrollments data
-const {
-  data: enrollmentsData,
-  isLoading: enrollmentsLoading,
-  error: enrollmentsError,
-  refetch: refetchEnrollments,
-} = useCourseVersionEnrollments(
-  courseId,
-  versionId,
-  currentPage,
-  pageLimit,
-  debouncedSearch,
-  sortBy,
-  sortOrder,
-  !!(courseId && versionId)
-);
+  // Fetch enrollments data
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useCourseVersionEnrollments(
+    courseId,
+    versionId,
+    currentPage,
+    limit,
+    debouncedSearch,
+    sortBy,
+    sortOrder,
+    !!(courseId && versionId),
+    'STUDENT'
+  );
+
+  const studentEnrollments = enrollmentsData?.enrollments || [];
+
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
 
   // Pagination state
-    const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const totalDocuments = studentEnrollments?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
 
 
@@ -228,12 +347,14 @@ const {
     }
   }
 
-    const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage)
-    }
-  }
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
+  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setLimit(Number(e.target.value));
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (isResetDialogOpen) {
@@ -253,6 +374,13 @@ const {
       setSelectedViewItemName("")
     }
   }, [isViewProgressDialogOpen])
+
+ useEffect(() => {
+  if (isExporting&&!isLoadingQuizScores) {
+  
+    handleFetchQuizScores().finally(() => setIsExporting(false));
+  }
+}, [isExporting,isLoadingQuizScores]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -547,10 +675,41 @@ const {
           </div>
         </div>
 
+
+
         {/* Students Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20">
+          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between">
             <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={()=> setIsExporting(true)}
+                disabled={isLoadingQuizScores}
+                className="flex items-center gap-2"
+              >
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
+              </Button>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Show</span>
+                <select
+                  value={limit}
+                  onChange={handleLimitChange}
+                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-muted-foreground">per page</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {enrollmentsData?.enrollments?.length === 0 ? (
@@ -604,95 +763,95 @@ const {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : enrollmentsData?.enrollments?.length > 0 ? (
-                      enrollmentsData?.enrollments?.map((enrollment: any) => (
-                      <TableRow
-                        key={enrollment._id}
-                        className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
-                      >
-                        <TableCell className="pl-6 py-6">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                              <AvatarImage src="/placeholder.svg" alt={enrollment.email || enrollment.user?.email || ""} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
-                                  .filter(Boolean)
-                                  .map((ch) => ch.toUpperCase())
-                                  .join("") ||
-                                  enrollment?.user?.firstName?.[0]?.toUpperCase() ||
-                                  enrollment?.user?.lastName?.[0]?.toUpperCase() ||
-                                  "?"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                  {enrollment?.user?.firstName && enrollment?.user?.lastName
-                                    ? `${enrollment.user.firstName} ${enrollment.user.lastName}`
-                                    : "Unknown User"}
-                                </p>
-                                <span>{getRoleBadge(enrollment?.role)}</span>
+                    ) : studentEnrollments?.length > 0 ? (
+                      studentEnrollments?.map((enrollment: any) => (
+                        <TableRow
+                          key={enrollment._id}
+                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
+                        >
+                          <TableCell className="pl-6 py-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                                <AvatarImage src="/placeholder.svg" alt={enrollment.email || enrollment.user?.email || ""} />
+                                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                  {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
+                                    .filter(Boolean)
+                                    .map((ch) => ch.toUpperCase())
+                                    .join("") ||
+                                    enrollment?.user?.firstName?.[0]?.toUpperCase() ||
+                                    enrollment?.user?.lastName?.[0]?.toUpperCase() ||
+                                    "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                    {enrollment?.user?.firstName && enrollment?.user?.lastName
+                                      ? `${enrollment.user.firstName} ${enrollment.user.lastName}`
+                                      : "Unknown User"}
+                                  </p>
+                                  <span>{getRoleBadge(enrollment?.role)}</span>
+                                </div>
+                                <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
                               </div>
-                              <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-6">
-                          <div className="text-muted-foreground font-medium">
-                            {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-6">
-                          <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
-                        </TableCell>
-                        <TableCell className="py-6 pr-6">
-                          <div className="flex items-center gap-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleViewProgress({
-                                  id: enrollment.user?._id,
-                                  name:
-                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                  email: enrollment.userId,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress: Math.round(enrollment.progress || 0),
-                                })
-                              }
-                              disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Progress
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleResetProgress({
-                                  id: enrollment.user?._id,
-                                  name:
-                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                  email: enrollment.userId,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress: 0,
-                                })
-                              }
-                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
-                            >
-                              {resetProgressMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-4 w-4 mr-2" />
-                              )}
-                              Reset
-                            </Button>
+                          </TableCell>
+                          <TableCell className="py-6">
+                            <div className="text-muted-foreground font-medium">
+                              {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-6">
+                            <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                          </TableCell>
+                          <TableCell className="py-6 pr-6">
+                            <div className="flex items-center gap-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleViewProgress({
+                                    id: enrollment.user?._id,
+                                    name:
+                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                    email: enrollment.userId,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: Math.round(enrollment.progress || 0),
+                                  })
+                                }
+                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Progress
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleResetProgress({
+                                    id: enrollment.user?._id,
+                                    name:
+                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                    email: enrollment.userId,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: 0,
+                                  })
+                                }
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                                disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
+                              >
+                                {resetProgressMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4 mr-2" />
+                                )}
+                                Reset
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -707,7 +866,7 @@ const {
                                   })
                                 }
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email }
+                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email}
                               >
                                 {unenrollMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -716,9 +875,9 @@ const {
                                 )}
                                 Remove
                               </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       ))
                     ) : (
                       <TableRow>
@@ -1129,13 +1288,13 @@ const {
           </div>
         )}
         {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalDocuments={totalDocuments}
-                    onPageChange={handlePageChange}
-                  />
-                )}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
     </div>
   )

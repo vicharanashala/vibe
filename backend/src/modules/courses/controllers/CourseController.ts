@@ -1,6 +1,6 @@
-import {CourseService} from '#courses/services/CourseService.js';
-import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
-import {injectable, inject} from 'inversify';
+import { CourseService } from '#courses/services/CourseService.js';
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
@@ -15,20 +15,23 @@ import {
   Authorized,
   Patch,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
-import {Course} from '#courses/classes/transformers/Course.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { Course } from '#courses/classes/transformers/Course.js';
 import {
   CourseDataResponse,
   CourseBody,
   CourseNotFoundErrorResponse,
   CourseIdParams,
-  CourseVersionParams,
+  CourseVersionParams, EditCourseBody
 } from '#courses/classes/validators/CourseValidators.js';
-import {CourseActions, getCourseAbility} from '../abilities/courseAbilities.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {subject} from '@casl/ability';
+import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { E } from 'vitest/dist/chunks/environment.d.cL3nLXbE.js';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -40,14 +43,16 @@ export class CourseController {
   constructor(
     @inject(COURSES_TYPES.CourseService)
     private readonly courseService: CourseService,
-  ) {}
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
+  ) { }
 
   @OpenAPI({
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
   @Authorized()
-  @Post('/', {transformResponse: true})
+  @Post('/', { transformResponse: true })
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
@@ -58,16 +63,34 @@ export class CourseController {
   })
   async create(
     @Body() body: CourseBody,
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) { ability, user },
   ): Promise<Course> {
-    // Build subject context first
+    const { versionName, versionDescription } = body;
+    const userId = user._id.toString();
 
+    //1. Build subject context for permissions
     if (!ability.can(CourseActions.Create, 'Course')) {
       throw new ForbiddenError('You do not have permission to create courses');
     }
 
+    //2. Create course and version
     const course = new Course(body);
-    const createdCourse = await this.courseService.createCourse(course);
+    const createdCourse = await this.courseService.createCourse(
+      course,
+      versionName,
+      versionDescription,
+      userId
+    );
+
+    // //3. Create enrollment for the user
+    // await this.enrollmentService.enrollUser(
+    //   userId,
+    //   createdCourse._id.toString(),
+    //   String(createdCourse.versions[0].toString()),
+    //   'INSTRUCTOR',
+    // );
+
+    //3. Return the course details
     return createdCourse;
   }
 
@@ -79,7 +102,7 @@ Accessible to:
 `,
   })
   @Authorized()
-  @Get('/:courseId', {transformResponse: true})
+  @Get('/:courseId', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -93,12 +116,12 @@ Accessible to:
   })
   async read(
     @Params() params: CourseIdParams,
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) { ability },
   ) {
-    const {courseId} = params;
+    const { courseId } = params;
 
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', {courseId});
+    const courseResource = subject('Course', { courseId });
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.View, courseResource)) {
@@ -118,7 +141,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized()
-  @Put('/:courseId', {transformResponse: true})
+  @Patch('/:courseId', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
   })
@@ -132,13 +155,13 @@ Accessible to:
   })
   async update(
     @Params() params: CourseIdParams,
-    @Body() body: CourseBody,
-    @Ability(getCourseAbility) {ability},
+    @Body() body: EditCourseBody,
+    @Ability(getCourseAbility) { ability },
   ) {
-    const {courseId} = params;
+    const { courseId } = params;
 
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', {courseId});
+    const courseResource = subject('Course', { courseId });
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Modify, courseResource)) {
@@ -156,7 +179,7 @@ Accessible to:
     description: 'Deletes a course by ID.',
   })
   @Authorized()
-  @Delete('/:courseId', {transformResponse: true})
+  @Delete('/:courseId', { transformResponse: true })
   @OnUndefined(204)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -168,12 +191,12 @@ Accessible to:
   })
   async delete(
     @Params() params: CourseIdParams,
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) { ability },
   ) {
-    const {courseId} = params;
+    const { courseId } = params;
 
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', {courseId});
+    const courseResource = subject('Course', { courseId });
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Delete, courseResource)) {
@@ -191,7 +214,7 @@ Accessible to:
       'Updates the total item count for a specific course version by ID.',
   })
   @Authorized()
-  @Patch('/version/total-item-count', {transformResponse: true})
+  @Patch('/version/total-item-count', { transformResponse: true })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -201,7 +224,7 @@ Accessible to:
     statusCode: 404,
   })
   async updateCourseVersionTotalItemCount(
-    @Ability(getCourseAbility) {ability},
+    @Ability(getCourseAbility) { ability },
   ) {
     // Update total item count in service
     await this.courseService.updateCourseVersionTotalItemCount();

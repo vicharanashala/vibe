@@ -27,6 +27,7 @@ const makeAuthenticatedRequest = async (
   if (!token) {
     throw new Error('Authentication token not found');
   }
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -55,6 +56,9 @@ const makeAuthenticatedRequest = async (
 };
 
 // Job status types
+
+type JobStatusValue = "COMPLETED" | "FAILED" | "PENDING" | "WAITING" | "RUNNING";
+
 export interface JobStatus {
   _id: string;
   type: 'VIDEO';
@@ -70,11 +74,11 @@ export interface JobStatus {
   updatedAt: string;
   result?: any; // Final result when job is completed
   jobStatus?: {
-    audioExtraction: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    transcriptGeneration?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    segmentation?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    questionGeneration?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
-    uploadContent?: 'COMPLETED' | 'FAILED' | 'PENDING' | 'WAITING' | 'RUNNING';
+    audioExtraction: JobStatusValue;
+    transcriptGeneration?: JobStatusValue;
+    segmentation?: JobStatusValue;
+    questionGeneration?: JobStatusValue;
+    uploadContent?: JobStatusValue;
   };
 }
 
@@ -100,7 +104,7 @@ export interface QuestionGenerationParameters {
 }
 
 export interface Chunk {
-  timestamp: number[];  
+  timestamp: number[];
   text: string;
 }
 
@@ -110,7 +114,7 @@ export interface Transcript {
 
 // 1. Create GenAI Job
 export const createGenAIJob = async (
-  params:{
+  params: {
     videoUrl: string;
     transcript?: Transcript;
     courseId: string;
@@ -119,7 +123,7 @@ export const createGenAIJob = async (
     sectionId?: string | null;
     videoItemBaseName?: string;
     quizItemBaseName?: string;
-    questionsPerQuiz?: number;
+    questionsPerQuiz?: number | null;
 
     // optional parameters
     transcriptParameters?: TranscriptParameters;
@@ -161,19 +165,19 @@ export const createGenAIJob = async (
   };
 
   // Add transcription chunks
-  if (transcript) 
+  if (transcript)
     body.transcript = transcript
-  
+
   // Add optional task parameters if provided
-  if (transcriptParameters) 
+  if (transcriptParameters)
     body.transcriptParameters = transcriptParameters;
-  
-  if (segmentationParameters) 
+
+  if (segmentationParameters)
     body.segmentationParameters = segmentationParameters;
-  
-  if (questionGenerationParameters) 
+
+  if (questionGenerationParameters)
     body.questionGenerationParameters = questionGenerationParameters;
-  
+
 
   const response = await makeAuthenticatedRequest('/genai/jobs', {
     method: 'POST',
@@ -233,7 +237,6 @@ export const connectToLiveStatusUpdates = (
   };
 
   eventSource.addEventListener('jobStatus', (event) => {
-    console.log('Named event "jobStatus":', event.data);
     let data: JobStatus = JSON.parse(event.data);
     setAiJobStatus(data);
   });
@@ -547,11 +550,18 @@ export const rerunJobTask = async (
       parameters: params || {},
     }),
   });
+  if (!res.ok) {
+    let errorMessage = `Request failed with status ${res.status}`;
+    const errorData = await res.json();
+    errorMessage = errorData.message || errorMessage;
+    throw new Error(errorMessage);
+  }
+
   return res;
 };
 
 
-export const editQuestionData = async (jobId: string, index: number, questionData: any) => {
+export const editQuestionData = async (jobId: string, questionData: any, index?: number,) => {
   return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/question`, {
     method: 'PATCH',
     body: JSON.stringify({ index, questionData }),
@@ -581,7 +591,7 @@ export const aiSectionAPI: {
   stopJobTask?: typeof stopJobTask;
 
 } = {
-  createJob: createGenAIJob, 
+  createJob: createGenAIJob,
   getJobStatus,
   postJobTask,
   stopJobTask,

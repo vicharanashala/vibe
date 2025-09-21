@@ -19,12 +19,17 @@ import {
   Trash2,
   Loader2,
   Users,
+  UserCog2 ,
   Sparkles,
   GraduationCap,
+  BookOpenIcon,
+  Settings2,
+  MailPlus ,
   Clock,
   BarChart3,
   RotateCcw,
   FlagTriangleRight,
+  User,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -38,6 +43,7 @@ import {
   useDeleteCourse,
   useCreateCourseVersion,
   useDeleteCourseVersion,
+  useUpdateCourseVersion,
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
@@ -52,6 +58,7 @@ import { bufferToHex } from "@/utils/helpers"
 import type { RawEnrollment } from "@/types/course.types"
 import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
+import { formatDateTime } from "@/utils/utils"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -66,7 +73,7 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments( currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
 
 
   const enrollments = enrollmentsResponse?.enrollments || []
@@ -84,6 +91,7 @@ export default function TeacherCoursesPage() {
     }
     return acc
   }, [])
+
 
   const navigate = useNavigate()
   const createNewCourse = () => {
@@ -256,30 +264,30 @@ export default function TeacherCoursesPage() {
         {/* Courses List with Beautiful Cards */}
         <div className="space-y-6">
           {
-            enrollmentsLoading ? 
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">
-                Loading courses...
-              </span>
-            </div> : 
-             searchQuery && uniqueCourses.length === 0 ? (
-              <div className="flex items-center justify-center text-muted-foreground">
-                No courses found.
-              </div>
-            ) : 
-           filteredCourses.map((enrollment: any, index: number) => (
-            <div
-              key={enrollment._id}
-              className="animate-in slide-in-from-bottom-4 duration-500"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <CourseCard
-                enrollment={enrollment}
-                onInvalidate={invalidateAllQueries}
-              />
-            </div>
-          ))}
+            enrollmentsLoading ?
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">
+                  Loading courses...
+                </span>
+              </div> :
+              searchQuery && uniqueCourses.length === 0 ? (
+                <div className="flex items-center justify-center text-muted-foreground">
+                  No courses found.
+                </div>
+              ) :
+                filteredCourses.map((enrollment: any, index: number) => (
+                  <div
+                    key={enrollment._id}
+                    className="animate-in slide-in-from-bottom-4 duration-500"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <CourseCard
+                      enrollment={enrollment}
+                      onInvalidate={invalidateAllQueries}
+                    />
+                  </div>
+                ))}
         </div>
 
         {/* Pagination with Enhanced Design */}
@@ -335,7 +343,7 @@ function CourseCard({
 
   // 1. Use course from enrollment if available
   const localCourse = enrollment?.course;
-  const localCourseVersionDetails = enrollment?.course?.versionDetails
+  const localCourseVersionDetails = enrollment?.course?.versionDetails;
   // 2. Fetch from API only if not present in enrollment
   const { data: fetchedCourse, isLoading: courseLoading, error: courseError } = useCourseById(courseIdHex,
     !localCourse ? true : false
@@ -343,6 +351,38 @@ function CourseCard({
 
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
+
+  const getUpdateMessage = (updatedAt?: string) => {
+    if (!updatedAt) return "No updates yet";
+
+    const updatedDate = new Date(updatedAt);
+    const now = new Date();
+    const diffMs = +now - +updatedDate;
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffMinutes < 1) return "Just now";
+    if (diffMinutes < 5) return "A few minutes ago";
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffHours === 1) return "An hour ago";
+    if (diffHours < 6) return `${diffHours} hours ago`;
+    if (diffHours < 24) return "Earlier today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffWeeks === 1) return "Last week";
+    if (diffWeeks < 5) return `${diffWeeks} weeks ago`;
+    if (diffMonths === 1) return "Last month";
+    if (diffMonths < 12) return `${diffMonths} months ago`;
+    if (diffYears === 1) return "Last year";
+
+    return `${diffYears} years ago`;
+  };
+
 
   if (courseLoading) {
     return (
@@ -495,6 +535,9 @@ function CourseCard({
     }
   }
 
+
+  const MAX_DESCRIPTION_LENGTH = 1000;
+
   return (
     <div className="relative group">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -532,14 +575,15 @@ function CourseCard({
                   </CardTitle>
                   <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary">
                     <FileText className="h-3 w-3 mr-1" />
-                    {course.versions?.length || 0} versions
+                    {`${course.versions?.length || 0 } version${course.versions?.length>1?'s':''}`}
                   </Badge>
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    <span>Last updated recently</span>
+                    {/* <span>Last updated {course.updatedAt? `${formatDateTime(course.updatedAt,true)}` :"recently"}</span> */}
+                    <span>Last updated {getUpdateMessage(course.updatedAt)}</span>
                   </div>
                 </div>
               </div>
@@ -593,89 +637,111 @@ function CourseCard({
             <Separator className="bg-border/50" />
 
             {/* Course Description Section */}
-            <div className="space-y-4">
-              <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
-                <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                Course Description
-              </h3>
-              {editingCourse ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Course Name</label>
-                    <Input
-                      value={editingValues.name}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          name: value,
-                        }))
-                        if (!value.trim()) {
-                          setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
-                        } else {
-                          setEditingErrors(errors => ({ ...errors, name: '' }));
-                        }
-                      }}
-                      className="border-primary/30 focus:border-primary bg-background"
-                      placeholder="Course name"
-                    />
-                    {editingErrors.name && (
-                      <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-light text-foreground mb-2 block">Description</label>
-                    <Textarea
-                      value={editingValues.description}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setEditingValues((prev: { name: string; description: string }) => ({
-                          ...prev,
-                          description: value,
-                        }))
-                        // Validation
-                        if (!value.trim()) {
-                          setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
-                        } else {
-                          setEditingErrors(errors => ({ ...errors, description: '' }));
-                        }
-                      }}
-                      className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                      placeholder="Course description"
-                    />
-                    {editingErrors.description && (
-                      <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={saveEditing}
-                      size="sm"
-                      disabled={updateCourseMutation.isPending}
-                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                    >
-                      {updateCourseMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Save className="h-3 w-3 mr-1" />
+            {(editingCourse || course?.description) && (
+              <div className="space-y-4">
+                <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+                  <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Course Description
+                </h3>
+                {editingCourse ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
+                      <Input
+                        value={editingValues.name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditingValues((prev: { name: string; description: string }) => ({
+                            ...prev,
+                            name: value,
+                          }));
+                          if (!value.trim()) {
+                            setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
+                          } else {
+                            setEditingErrors(errors => ({ ...errors, name: '' }));
+                          }
+                        }}
+                        className="border-primary/30 focus:border-primary bg-background"
+                        placeholder="Course name"
+                      />
+                      {editingErrors.name && (
+                        <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
                       )}
-                      Save Changes
-                    </Button>
-                    <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
+                    </div>
+                    <div>
+                      <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
+                      <Textarea
+                        value={editingValues.description}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                            setEditingValues((prev: { name: string; description: string }) => ({
+                              ...prev,
+                              description: value,
+                            }));
+                          }
+                          // Validation
+                          if (!value.trim()) {
+                            setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
+                          } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                            setEditingErrors(errors => ({ ...errors, description: `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters` }));
+                          } else {
+                            setEditingErrors(errors => ({ ...errors, description: '' }));
+                          }
+                        }}
+                        className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                        placeholder="Course description"
+                      />
+                      <div className="flex justify-between items-center mt-1">
+                        <div className="text-xs text-muted-foreground">
+                          {editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 && (
+                            <span className="text-destructive">
+                              Description must be less than {MAX_DESCRIPTION_LENGTH} characters
+                            </span>
+                          )}
+                          {editingErrors.description && (
+                            <span className="text-destructive">{editingErrors.description}</span>
+                          )}
+                        </div>
+                        <div className={`text-xs ${
+                          editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 
+                            ? 'text-destructive' 
+                            : 'text-muted-foreground'
+                        }`}>
+                          {editingValues.description.length}/{MAX_DESCRIPTION_LENGTH}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={saveEditing}
+                        size="sm"
+                        disabled={updateCourseMutation.isPending}
+                        className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                      >
+                        {updateCourseMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save Changes
+                      </Button>
+                      <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
-                  <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                    <p className="text-muted-foreground leading-relaxed">{course.description}</p>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
+                    <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* All Versions Section */}
             <div className="space-y-4">
@@ -697,7 +763,7 @@ function CourseCard({
                     ) : (
                       <Plus className="h-3 w-3 mr-1" />
                     )}
-                    New Version
+                    Add Version
                   </Button>
                 </div>
               </div>
@@ -765,7 +831,7 @@ function CourseCard({
               )}
 
               {/* Display All Versions */}
-             <div className="space-y-3">
+              <div className="space-y-3">
                 {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
                   localCourseVersionDetails.map((versionData, index: number) => (
                     <div
@@ -831,7 +897,7 @@ function VersionCard({
   onInvalidate,
   deleteVersionMutation,
 }: {
-  versionData?:  components['schemas']['CourseVersionDataResponse'];
+  versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
   courseId: string
   onInvalidate: () => void
@@ -844,12 +910,70 @@ function VersionCard({
   const { setCurrentCourseFlag } = useFlagStore()
   const { setCurrentAnomaly } = useAnomalyStore();
 
+  // Edit state variables 
+  const [editingVersion, setEditingVersion] = useState(false)
+  const [editingValues, setEditingValues] = useState<{ version: string; description: string }>({
+    version: "",
+    description: "",
+  })
+  const [editingErrors, setEditingErrors] = useState<{ version?: string; description?: string }>({})
+
+  // Add update version hook
+  const updateVersionMutation = useUpdateCourseVersion()
+
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
   const version = versionData || fetchedVersion;
 
-  const selectedVersionId = version?.id;
+
+  const selectedVersionId = version?.id || versionId;
+
+  // Edit functions
+  const startEditingVersion = () => {
+    setEditingVersion(true)
+    setEditingValues({
+      version: version?.version || "",
+      description: version?.description || "",
+    })
+  }
+
+  const cancelEditingVersion = () => {
+    setEditingVersion(false)
+    setEditingValues({ version: "", description: "" })
+    setEditingErrors({ version: "", description: "" })
+  }
+
+  const saveEditingVersion = async () => {
+    if (!editingValues.version.trim() || !editingValues.description.trim()) {
+      setEditingErrors({ version: " Version name is required", description: " Version description is required" })
+      return
+    }
+    else {
+      setEditingErrors({ version: "", description: "" })
+    }
+    try {
+      await updateVersionMutation.mutateAsync({
+        params: { path: { courseId: courseId, versionId: selectedVersionId } },
+        body: {
+          version: editingValues.version,
+          description: editingValues.description,
+        },
+      })
+
+      // Invalidate specific version query
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: selectedVersionId } } }],
+      })
+
+      setEditingVersion(false)
+      setEditingValues({ version: "", description: "" })
+      setEditingErrors({ version: "", description: "" })
+      onInvalidate() 
+    } catch (error) {
+      console.error("Failed to update version:", error)
+    }
+  }
 
   const deleteVersion = async () => {
     if (!confirm("Are you sure you want to delete this version? This action cannot be undone.")) {
@@ -889,6 +1013,21 @@ function VersionCard({
     })
     navigate({
       to: "/teacher/courses/enrollments",
+    })
+  }
+
+  const viewInstructors = () => {
+    // Set course info in store and navigate to instructors page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/instructors",
     })
   }
 
@@ -978,82 +1117,212 @@ function VersionCard({
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
         <CardContent className="p-4">
-          <div className="lg:flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-3">
-                <h4 className="font-semibold text-foreground">{version.version}</h4>
-                <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
-                  Version
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{version.description}</p>
-            </div>
+          <div className="flex flex-col gap-4">
+            {/* Version Header - Always Visible */}
+            <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-semibold text-foreground">{version.version}</h4>
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
+                    Version
+                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                      <BookOpen className="h-3 w-3" />
+                      <span>{(version as any).modules?.length || 0} Modules</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                      <FileText className="h-3 w-3" />
+                      <span>
+                        {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex items-center flex-wrap gap-2 shrink-0 mt-2 lg:mt-0">
-              <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
-                <Eye className="h-3 w-3 mr-1" />
-                View Anomalies
-              </Button>
-              <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
-                <FlagTriangleRight className="h-3 w-3 mr-1" />
-                View Flags
-              </Button>
-              <Button
+                {/* Version Description Section - Show in edit mode or if description exists */}
+                {(editingVersion || version?.description) && (
+                  <div className="space-y-4">
+                    <h4 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <div className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                      Version Details
+                    </h4>
+                    {editingVersion ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-light text-foreground mb-2 block">Version Name *</label>
+                          <Input
+                            value={editingValues.version}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setEditingValues((prev: { version: string; description: string }) => ({
+                                ...prev,
+                                version: value,
+                              }))
+                              if (!value.trim()) {
+                                setEditingErrors(errors => ({ ...errors, version: "Version name is required." }));
+                              } else {
+                                setEditingErrors(errors => ({ ...errors, version: '' }));
+                              }
+                            }}
+                            className="border-primary/30 focus:border-primary bg-background"
+                            placeholder="Version name"
+                          />
+                          {editingErrors.version && (
+                            <div className="text-xs text-red-500 mt-2">{editingErrors.version}</div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
+                          <Textarea
+                            value={editingValues.description}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setEditingValues((prev: { version: string; description: string }) => ({
+                                ...prev,
+                                description: value,
+                              }))
+                              // Validation
+                              if (!value.trim()) {
+                                setEditingErrors(errors => ({ ...errors, description: "Version description is required." }));
+                              } else {
+                                setEditingErrors(errors => ({ ...errors, description: '' }));
+                              }
+                            }}
+                            className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                            placeholder="Version description"
+                          />
+                          {editingErrors.description && (
+                            <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={saveEditingVersion}
+                            size="sm"
+                            disabled={updateVersionMutation.isPending}
+                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                          >
+                            {updateVersionMutation.isPending ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Save className="h-3 w-3 mr-1" />
+                            )}
+                            Save Changes
+                          </Button>
+                          <Button onClick={cancelEditingVersion} variant="outline" size="sm" className="border-border bg-background">
+                            <X className="h-3 w-3 mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      version?.description && (
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
+                          <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
+                            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{version.description}</p>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
+                <Button
                 variant="outline"
                 size="sm"
-                onClick={viewEnrollments}
+                onClick={startEditingVersion}
                 className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                disabled={updateVersionMutation.isPending}
               >
-                <Users className="h-3 w-3 mr-1" />
-                View Enrollments
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={sendInvites}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-              >
-                <Users className="h-3 w-3 mr-1" />
-                Send Invites
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={viewCourse}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                View
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={deleteVersion}
-                className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                disabled={deleteVersionMutation.isPending}
-              >
-                {deleteVersionMutation.isPending ? (
+                {updateVersionMutation.isPending ? (
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 ) : (
-                  <Trash2 className="h-3 w-3 mr-1" />
+                  <Edit3 className="h-3 w-3 mr-1" />
                 )}
-                Delete
+                Edit
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowProctoringModal(true)
-                }}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                Settings
-              </Button>
-            </div>
-          </div>
 
+                <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                  <Eye className="h-3 w-3 mr-1" />
+                  View Anomalies
+                </Button>
+                <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
+                  <FlagTriangleRight className="h-3 w-3 mr-1" />
+                  View Flags
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewInstructors}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <UserCog2  className="h-3 w-3 mr-1" />
+                  View Instructors
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewEnrollments}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  View Students
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewCourse}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <BookOpenIcon className="h-3 w-3 mr-1" />
+                  Manage
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={sendInvites}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <MailPlus  className="h-3 w-3 mr-1" />
+                  Send Invites
+                </Button>
+                
+               
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowProctoringModal(true)
+                  }}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                >
+                  <Settings2 className="h-3 w-3 mr-1" />
+                  Settings
+                </Button>
+                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deleteVersion}
+                  className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
+                  disabled={deleteVersionMutation.isPending}
+                >
+                  {deleteVersionMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3 mr-1" />
+                  )}
+                  Delete
+                </Button>
+              </div>
+            </div>
+
+      
+          
+          </div>
+</div>
           <ProctoringModal
             open={showProctoringModal}
             onClose={() => setShowProctoringModal(false)}
@@ -1061,9 +1330,11 @@ function VersionCard({
             courseVersionId={versionId}
             isNew={false}
           />
-
+          
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+     
+    
   )
 }

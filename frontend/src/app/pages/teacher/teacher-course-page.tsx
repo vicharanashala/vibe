@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+
+const MAX_DESCRIPTION_LENGTH = 1000;
+
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Reorder } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -12,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles,
+  X
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -73,7 +83,7 @@ export default function TeacherCoursePage() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
-  const [selectedItem, setSelectedItem] = useState({ id:"", name:"" });
+  const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
 
   const [errors, setErrors] = useState({
     title: "",
@@ -118,7 +128,7 @@ export default function TeacherCoursePage() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
-  
+
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -137,7 +147,7 @@ export default function TeacherCoursePage() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData,refetch: refetchItem
+    data: selectedItemData, refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -162,112 +172,152 @@ export default function TeacherCoursePage() {
 
   // CRUD hooks
 
-// --- MODULES ---
-const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
-const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
-const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
-const { mutateAsync: moveModuleAsync } = useMoveModule();
+  // --- MODULES ---
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
+  const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
+  const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
+  const { mutateAsync: moveModuleAsync } = useMoveModule();
 
-// --- SECTIONS ---
-const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
-const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
-const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
-const { mutateAsync: moveSectionAsync } = useMoveSection();
+  // --- SECTIONS ---
+  const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
+  const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
+  const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
+  const { mutateAsync: moveSectionAsync } = useMoveSection();
 
-// --- ITEMS ---
-const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
-const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
-const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
-const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
-const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  // --- ITEMS ---
+  const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
+  const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+  const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
+  const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
+  const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
 
 
 
-// Refetch after any success
-useEffect(() => {
-  if (
-    isCreateModuleSuccess ||
-    isUpdateModuleSuccess ||
-    isDeleteModuleSuccess ||
-    isCreateSectionSuccess ||
-    isUpdateSectionSuccess ||
-    isDeleteSectionSuccess ||
-    isCreateItemSuccess ||
-    isUpdateItemSuccess ||
-    isDeleteItemSuccess
-  ) {
-    refetchVersion();
-    refetchItems();
-    refetchItem()
+  // Refetch after any success
+  useEffect(() => {
+    if (
+      isCreateModuleSuccess ||
+      isUpdateModuleSuccess ||
+      isDeleteModuleSuccess ||
+      isCreateSectionSuccess ||
+      isUpdateSectionSuccess ||
+      isDeleteSectionSuccess ||
+      isCreateItemSuccess ||
+      isUpdateItemSuccess ||
+      isDeleteItemSuccess
+    ) {
+      refetchVersion();
+      refetchItems();
 
-    if (activeSectionInfo) {
-      setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
+      if (activeSectionInfo) {
+        setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
+      }
     }
-  }
-}, [
-  isCreateModuleSuccess,
-  isUpdateModuleSuccess,
-  isDeleteModuleSuccess,
-  isCreateSectionSuccess,
-  isUpdateSectionSuccess,
-  isDeleteSectionSuccess,
-  isCreateItemSuccess,
-  isUpdateItemSuccess,
-  isDeleteItemSuccess,
-]);
+  }, [
+    isCreateModuleSuccess,
+    isUpdateModuleSuccess,
+    isDeleteModuleSuccess,
+    isCreateSectionSuccess,
+    isUpdateSectionSuccess,
+    isDeleteSectionSuccess,
+    isCreateItemSuccess,
+    isUpdateItemSuccess,
+    isDeleteItemSuccess,
+  ]);
 
-// Success toasts
-useEffect(() => {
-  if (isCreateModuleSuccess) toast.success("Module created successfully!");
-  if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
-  if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
+ useStatusToasts({
+  successFlags: {
+    isCreateModuleSuccess: {
+      flag: isCreateModuleSuccess,
+      message: "Module created successfully!",
+    },
+    isUpdateModuleSuccess: {
+      flag: isUpdateModuleSuccess,
+      message: "Module updated successfully!",
+    },
+    isDeleteModuleSuccess: {
+      flag: isDeleteModuleSuccess,
+      message: "Module deleted successfully!",
+    },
+    isCreateSectionSuccess: {
+      flag: isCreateSectionSuccess,
+      message: "Section created successfully!",
+    },
+    isUpdateSectionSuccess: {
+      flag: isUpdateSectionSuccess,
+      message: "Section updated successfully!",
+    },
+    isDeleteSectionSuccess: {
+      flag: isDeleteSectionSuccess,
+      message: "Section deleted successfully!",
+    },
+    isCreateItemSuccess: {
+      flag: isCreateItemSuccess,
+      message: "Item created successfully!",
+    },
+    isUpdateItemSuccess: {
+      flag: isUpdateItemSuccess,
+      message: "Item updated successfully!",
+    },
+    isDeleteItemSuccess: {
+      flag: isDeleteItemSuccess,
+      message: "Item deleted successfully!",
+    },
+  },
+  errorFlags: {
+    isCreateModuleError: {
+      flag: isCreateModuleError,
+      message: createModuleError?.message,
+      fallback: "Failed to create module",
+    },
+    isUpdateModuleError: {
+      flag: isUpdateModuleError,
+      message: updateModuleError?.message,
+      fallback: "Failed to update module",
+    },
+    isDeleteModuleError: {
+      flag: isDeleteModuleError,
+      message: deleteModuleError?.message,
+      fallback: "Failed to delete module",
+    },
+    isCreateSectionError: {
+      flag: isCreateSectionError,
+      message: createSectionError?.message,
+      fallback: "Failed to create section",
+    },
+    isUpdateSectionError: {
+      flag: isUpdateSectionError,
+      message: updateSectionError?.message,
+      fallback: "Failed to update section",
+    },
+    isDeleteSectionError: {
+      flag: isDeleteSectionError,
+      message: deleteSectionError?.message,
+      fallback: "Failed to delete section",
+    },
+    isCreateItemError: {
+      flag: isCreateItemError,
+      message: createItemError?.message,
+      fallback: "Failed to create item",
+    },
+    isUpdateItemError: {
+      flag: isUpdateItemError,
+      message: updateItemError?.message,
+      fallback: "Failed to update item",
+    },
+    isDeleteItemError: {
+      flag: isDeleteItemError,
+      message: deleteItemError?.message,
+      fallback: "Failed to delete item",
+    },
+    isMoveItemError: {
+      flag: isMoveItemError,
+      message: moveItemError?.message,
+      fallback: "Failed to move item",
+    },
+  },
+});
 
-  if (isCreateSectionSuccess) toast.success("Section created successfully!");
-  if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
-  if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
-
-  if (isCreateItemSuccess) toast.success("Item created successfully!");
-  if (isUpdateItemSuccess) toast.success("Item updated successfully!");
-  if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
-}, [
-  isCreateModuleSuccess,
-  isUpdateModuleSuccess,
-  isDeleteModuleSuccess,
-  isCreateSectionSuccess,
-  isUpdateSectionSuccess,
-  isDeleteSectionSuccess,
-  isCreateItemSuccess,
-  isUpdateItemSuccess,
-  isDeleteItemSuccess,
-]);
-
-// Error toasts
-useEffect(() => {
-  if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
-  if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
-  if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
-
-  if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
-  if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
-  if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
-
-  if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
-  if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
-  if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
-
-  if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
-}, [
-  isCreateModuleError,
-  isUpdateModuleError,
-  isDeleteModuleError,
-  isCreateSectionError,
-  isUpdateSectionError,
-  isDeleteSectionError,
-  isCreateItemError,
-  isUpdateItemError,
-  isDeleteItemError,
-  isMoveItemError,
-]);
 
 
   // Reload items when quiz wizard closes
@@ -288,7 +338,7 @@ useEffect(() => {
       currentSectionItems &&
       !itemsLoading
     ) {
-      
+
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
       setSectionItems(prev => ({
         ...prev,
@@ -333,9 +383,9 @@ useEffect(() => {
       params: { path: { versionId } },
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+      refetchVersion();
+      refetchItems();
+    });
   };
 
   // Add Section
@@ -345,9 +395,9 @@ useEffect(() => {
       params: { path: { versionId, moduleId } },
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+      refetchVersion();
+      refetchItems();
+    });
   };
 
   // Add Item (now only for article/quiz, video handled via modal)
@@ -367,14 +417,13 @@ useEffect(() => {
           description: videoData.description,
           videoDetails: {
             URL: videoData.details.URL,
-            startTime: convertToMinSecMs(videoData.details.startTime),
-            endTime: convertToMinSecMs(videoData.details.endTime),
+            startTime: videoData.details.startTime,
+            endTime: videoData.details.endTime,
             points: videoData.details.points,
           }
         }
       }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
+        refetchVersion();
       });;
 
       // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
@@ -684,7 +733,7 @@ useEffect(() => {
                                                       itemType: item.type,
                                                       sectionItems,
                                                       sectionId: section.sectionId
-                                                      }) && selectedItem.id == item._id
+                                                    }) && selectedItem.id == item._id
                                                       ? "bg-zinc-600 text-gray-200"
                                                       : "bg-transparent transition-none"
                                                       }`}
@@ -696,7 +745,7 @@ useEffect(() => {
                                                         sectionId: section.sectionId
                                                       });
 
-                                                      setSelectedItem({id:item._id, name:label});
+                                                      setSelectedItem({ id: item._id, name: label });
 
                                                       setSelectedEntity({
                                                         type: "item",
@@ -805,25 +854,52 @@ useEffect(() => {
                                             <TooltipProvider>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                  <Button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setCurrentCourse({
-                                                        courseId,
-                                                        versionId,
-                                                        moduleId: module.moduleId,
-                                                        sectionId: section.sectionId,
-                                                        itemId: null,
-                                                        watchItemId: null,
-                                                      });
-                                                      navigate({ to: '/teacher/ai-section' });
-                                                    }}
-                                                    className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                    style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                  >
-                                                    <Sparkles className="h-2 w-2" />
-                                                    <span>AI</span>
-                                                  </Button>
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                      <Button
+                                                        type="button"
+                                                        className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                        style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                      >
+                                                        <Sparkles className="h-2 w-2" />
+                                                        <span>AI</span>
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="start" className="w-40">
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-section' });
+                                                        }}
+                                                      >
+                                                        Custom mode
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem 
+                                                        className="text-xs cursor-pointer"
+                                                        onClick={() => {
+                                                          setCurrentCourse({
+                                                            courseId,
+                                                            versionId,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemId: null,
+                                                            watchItemId: null,
+                                                          });
+                                                          navigate({ to: '/teacher/ai-workflow' });
+                                                        }}
+                                                      >
+                                                        Wizard mode
+                                                      </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right" align="center">
                                                   Generate Section with AI
@@ -924,11 +1000,20 @@ useEffect(() => {
         {/* Course Editor Area */}
         <SidebarInset className="flex-1 bg-background overflow-y-auto">
           <div className="w-full p-6">
-            <div className="flex items-center gap-2  mb-4">
-              <div className="md:hidden">
-                <SidebarTrigger />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="md:hidden">
+                  <SidebarTrigger />
+                </div>
+                <h2 className="text-lg font-semibold">Course Editor</h2>
               </div>
-              <h2 className="text-lg font-semibold">Course Editor</h2>
+              {versionData && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 text-base font-semibold">
+                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
+                  </Badge>
+                </div>
+              )}
             </div>
 
             {selectedEntity ? (
@@ -1009,168 +1094,200 @@ useEffect(() => {
 
                     {(selectedEntity.type !== "item") && (
                       <>
-                        <Label className="text-sm font-bold text-foreground">Description *</Label>
-                        <textarea
-                          value={
-                            selectedEntity.type === "item"
-                              ? selectedItemData?.item?.description ?? ""
-                              : selectedEntity.data?.description ?? ""
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            setSelectedEntity({
-                              ...selectedEntity,
-                              data: { ...selectedEntity.data, description: value }
-                            })
-                            if (selectedEntity.type === "module") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Module description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-foreground">Description *</Label>
+                          <div className="relative">
+                            <textarea
+                              value={
+                                selectedEntity.type === "item"
+                                  ? selectedItemData?.item?.description ?? ""
+                                  : selectedEntity.data?.description ?? ""
                               }
-                            }
-                            if (selectedEntity.type === "section") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Section description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
-                              }
-                            }
-                          }}
-                          placeholder="Description"
-                          rows={5}
-                          className="w-full rounded border px-3 py-2 text-sm"
-                        />
-                        {errors.description && (
-                          <div className="text-xs text-red-500">{errors.description}</div>
-                        )}
+                              onChange={e => {
+                                const value = e.target.value;
+                                
+                                // Only update if within limit or deleting characters
+                                if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                                  setSelectedEntity({
+                                    ...selectedEntity,
+                                    data: { ...selectedEntity.data, description: value }
+                                  });
+                                }
+
+                                // Validation
+                                if (selectedEntity.type === "module") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                                if (selectedEntity.type === "section") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                              }}
+                              placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
+                              rows={5}
+                              maxLength={MAX_DESCRIPTION_LENGTH}
+                              className="w-full rounded border px-3 py-2 pr-16 text-sm"
+                            />
+                            <div className={`absolute bottom-2 right-2 text-xs ${
+                              (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
+                                ? 'text-destructive' 
+                                : 'text-muted-foreground'
+                            }`}>
+                              {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
+                            </div>
+                          </div>
+                          {errors.description && (
+                            <div className="text-xs text-red-500">{errors.description}</div>
+                          )}
+                        </div>
                       </>
                     )}
+                    <div className="flex items-center gap-2">
+                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        <Button
+                          onClick={() => {
+                            const moduleName = selectedEntity.data.name?.trim();
+                            const moduleDescription = selectedEntity.data.description?.trim() ?? "";
+                            const sectionName = selectedEntity.data.name?.trim();
+                            const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                            if (selectedEntity.type === "module") {
 
-                    {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          const moduleName = selectedEntity.data.name?.trim();
-                          const moduleDescription = selectedEntity.data.description?.trim() ?? "";
-                          const sectionName = selectedEntity.data.name?.trim();
-                          const sectionDescription = selectedEntity.data.description?.trim() ?? "";
-                          if (selectedEntity.type === "module") {
+                              if (!moduleName || !moduleDescription) {
+                                setErrors({
+                                  title: !moduleName ? "Module name is required." : "",
+                                  description: !moduleDescription 
+                                    ? "Module description is required."
+                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
+                                });
+                                return;
+                              }
 
-                            if (!moduleName || !moduleDescription) {
-                              setErrors({
-                                title: !moduleName ? "Module name is required." : "",
-                                description: !moduleDescription ? "Module description is required." : ""
-                              });
-                              return;
                             }
-                            
-                          }
-                          if (selectedEntity.type === "section") {
-                            if (!sectionName || !sectionDescription) {
-                              setErrors({
-                                title: !sectionName ? "Section name is required." : "",
-                                description: !sectionDescription ? "Section description is required." : ""
-                              });
-                              return;
-                            }
-            
-                          }
-                          setErrors({ title: "", description: "" });
-                          if (selectedEntity.type === "module" && versionId) {
-                           updateModuleAsync({
-                              params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
+                            if (selectedEntity.type === "section") {
+                              if (!sectionName || !sectionDescription) {
+                                setErrors({
+                                  title: !sectionName ? "Section name is required." : "",
+                                  description: !sectionDescription 
+                                    ? "Section description is required." 
+                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
+                                });
+                                return;
                               }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                          if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
-                            updateSectionAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.data.sectionId
+
+                            }
+                            setErrors({ title: "", description: "" });
+                            if (selectedEntity.type === "module" && versionId) {
+                              updateModuleAsync({
+                                params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
                                 }
-                              },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
-                              }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                          if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
-                           updateItemAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.parentIds.sectionId,
-                                  itemId: selectedEntity.data._id
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems();
+                              });
+                            }
+                            if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
+                              updateSectionAsync({
+                                params: {
+                                  path: {
+                                    versionId,
+                                    moduleId: selectedEntity.parentIds.moduleId,
+                                    sectionId: selectedEntity.data.sectionId
+                                  }
+                                },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
                                 }
-                              },
-                              body: {
-                                name: selectedEntity.data.name,
-                                description: selectedEntity.data.description || ""
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems();
+                              });
+                            }
+                            if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
+                              updateItemAsync({
+                                params: {
+                                  path: {
+                                    versionId,
+                                    moduleId: selectedEntity.parentIds.moduleId,
+                                    sectionId: selectedEntity.parentIds.sectionId,
+                                    itemId: selectedEntity.data._id
+                                  }
+                                },
+                                body: {
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
+                                }
+                              }).then((res) => {
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
+                            }
+                          }}
+                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                        >
+                          Update {selectedEntity.type}
+                        </Button>
+                      )}
+
+                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        <Button
+                          variant="outline"
+                          className="border-border bg-background"
+                          onClick={() => {
+                            const { type, parentIds } = selectedEntity;
+                            if (type === "module" && versionId) {
+                              if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
+                                deleteModuleAsync({
+                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems();
+                                });
+                                setSelectedEntity(null);
+                                setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                               }
-                            }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                          }
-                        }}
-                        className="mr-2"
-                      >
-                        Update {selectedEntity.type}
-                      </Button>
-                    )}
-                         
-                    {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          const { type, parentIds } = selectedEntity;
-                          if (type === "module" && versionId) {
-                            if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                              deleteModuleAsync({
-                                params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                              }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                              setSelectedEntity(null);
-                              setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
                             }
-                          }
-                          if (type === "section" && versionId && parentIds?.moduleId) {
-                            if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                              deleteSectionAsync({
-                                params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                              }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
-                              setSelectedEntity(null);
-                              setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                            if (type === "section" && versionId && parentIds?.moduleId) {
+                              if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                                deleteSectionAsync({
+                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems();
+                                });
+                                setSelectedEntity(null);
+                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                              }
                             }
-                          }
-                          setErrors({ title: "", description: "" });
-                        }}
-                      >
-                        Delete {selectedEntity.type}
-                      </Button>
-                    )}
+                            setErrors({ title: "", description: "" });
+                          }}
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Delete {selectedEntity.type}
+                        </Button>
+                      )}
+                    </div>
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-                     
+
                       <VideoModal
                         isLoading={isLoading}
                         selectedItemName={selectedItem.name}
@@ -1183,8 +1300,8 @@ useEffect(() => {
                             type: "VIDEO",
                             details: {
                               ...video.details,
-                              startTime: formatSecondsToHHMMSS(video.details.startTime),
-                              endTime: formatSecondsToHHMMSS(video.details.endTime),
+                              startTime: video.details.startTime,
+                              endTime: video.details.endTime,
                             }
                           };
                           if (
@@ -1202,9 +1319,9 @@ useEffect(() => {
                               },
                               body: formattedVideo,
                             }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+                              refetchVersion();
+                              refetchItems(); refetchItem()
+                            });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
                           }
@@ -1218,9 +1335,9 @@ useEffect(() => {
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
-         refetchVersion();
-    refetchItems();refetchItem()
-      });
+                                refetchVersion();
+                                refetchItems(); refetchItem()
+                              });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
                             }
@@ -1247,8 +1364,8 @@ useEffect(() => {
                           deleteItemAsync({
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                           }).then((res) => {
-                          refetchVersion();
-                          refetchItems();refetchItem()
+                            refetchVersion();
+                            refetchItems();
                           });
                           setSelectedEntity(null);
                         }}
@@ -1263,29 +1380,29 @@ useEffect(() => {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
                   <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
                 </div>
-                
+
                 {/* Animated Icon */}
                 <div className="relative z-10 mb-8">
                   <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
                     <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
                   </div>
                 </div>
-                
+
                 {/* ViBe Branded Heading */}
                 <h3 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-3 tracking-tight animate-fade-in">
                   Welcome to <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">ViBe</span>
                 </h3>
-                
+
                 {/* Subtitle */}
                 <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-2 animate-fade-in">
                   Ready to Edit Your Course
                 </p>
-                
+
                 {/* Animated AI tagline */}
                 <p className="mb-2 max-w-xl mx-auto text-sm md:text-base lg:text-lg font-medium bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-x">
                   Let AI help you build your course faster and smarter!
                 </p>
-                
+
                 {/* Animated message */}
                 <div className="h-12 mb-3 flex items-center justify-center">
                   <p
@@ -1297,7 +1414,7 @@ useEffect(() => {
                     {displayedMessage}
                   </p>
                 </div>
-                
+
                 {/* CTA Button */}
                 <Button
                   onClick={handleAddModule}
@@ -1306,7 +1423,7 @@ useEffect(() => {
                   <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
                   Add new module
                 </Button>
-                
+
                 {/* ViBe Features */}
                 <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-2 mb-2 md:mb-0">
@@ -1372,4 +1489,49 @@ useEffect(() => {
       </div>
     </SidebarProvider>
   );
+}
+
+
+type SuccessFlagEntry = {
+  flag: boolean;
+  message: string;
+};
+
+type ErrorFlagEntry = {
+  flag: boolean;
+  message?: string;
+  fallback: string;
+};
+
+export function useStatusToasts({
+  successFlags,
+  errorFlags,
+}: {
+  successFlags: Record<string, SuccessFlagEntry>;
+  errorFlags: Record<string, ErrorFlagEntry>;
+}) {
+  const prevSuccess = useRef<Record<string, boolean>>({});
+  const prevError = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Success toasts
+    Object.entries(successFlags).forEach(([key, { flag, message }]) => {
+      const wasPrev = prevSuccess.current[key];
+      if (!wasPrev && flag) {
+        toast.success(message);
+      }
+      prevSuccess.current[key] = flag;
+    });
+
+    // Error toasts
+    Object.entries(errorFlags).forEach(([key, { flag, message, fallback }]) => {
+      const wasPrev = prevError.current[key];
+      if (!wasPrev && flag) {
+        toast.error(fallback, {
+          description: message ?? "An unknown error occurred.",
+        });
+      }
+      prevError.current[key] = flag;
+    });
+  }, [successFlags, errorFlags]);
 }

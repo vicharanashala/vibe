@@ -24,6 +24,7 @@ import { appConfig } from '#root/config/app.js';
 import { ANOMALIES_TYPES } from '#root/modules/anomalies/types.js';
 import { CloudStorageService } from '#root/modules/anomalies/index.js';
 import { storageConfig } from '#root/config/storage.js';
+import { ObjectId } from 'mongodb';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -254,42 +255,96 @@ export class GenAIService extends BaseService {
     });
   }
 
-  async editSegmentMap(jobId: string, segmentMap: Array<number>, index: number): Promise<void> {
+  async editSegmentMap(
+    jobId: string,
+    segmentMap: Array<number>,
+    index?: number,
+  ): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
-      task.segmentation[index].segmentationMap = segmentMap;
-      const updatedTask = await this.genAIRepository.updateTaskData(jobId, task, session);
+
+      // ✅ Default to last index if not specified
+      const resolvedIndex =
+        index !== undefined ? index : task.segmentation.length - 1;
+
+      if (resolvedIndex < 0 || resolvedIndex >= task.segmentation.length) {
+        throw new BadRequestError(
+          `Invalid index: ${resolvedIndex}. Segmentation has ${task.segmentation.length} items.`,
+        );
+      }
+
+      task.segmentation[resolvedIndex].segmentationMap = segmentMap;
+
+      const updatedTask = await this.genAIRepository.updateTaskData(
+        jobId,
+        task,
+        session,
+      );
       if (!updatedTask) {
-        throw new InternalServerError(`Failed to update task for job ID ${jobId}`);
+        throw new InternalServerError(
+          `Failed to update task for job ID ${jobId}`,
+        );
       }
     });
   }
-  async editQuestionData(jobId: string, questionData: JSON, index: number): Promise<void> {
+
+  async editQuestionData(
+    jobId: string,
+    questionData: JSON,
+    index?: number,
+  ): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
-      const fileName = task.questionGeneration[index].fileName;
+
+      // ✅ Default to last index if not specified
+      const resolvedIndex =
+        index !== undefined ? index : task.questionGeneration.length - 1;
+
+      if (
+        resolvedIndex < 0 ||
+        resolvedIndex >= task.questionGeneration.length
+      ) {
+        throw new BadRequestError(
+          `Invalid index: ${resolvedIndex}. questionGeneration has ${task.questionGeneration.length} items.`,
+        );
+      }
+
+      const fileName = task.questionGeneration[resolvedIndex].fileName;
       let newFileName: string;
+
       if (/_updated(?:_\d+)?\.json$/.test(fileName)) {
-        newFileName = fileName.replace(/_updated(?:_(\d+))?\.json$/, (match, p1) => {
-          const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
-          return `_updated_${nextNum}.json`;
-        });
+        newFileName = fileName.replace(
+          /_updated(?:_(\d+))?\.json$/,
+          (match, p1) => {
+            const nextNum = p1 ? parseInt(p1, 10) + 1 : 1;
+            return `_updated_${nextNum}.json`;
+          },
+        );
       } else {
         newFileName = fileName.replace(/\.json$/, '_updated.json');
       }
+
       const data = JSON.stringify(questionData);
-      await this.storage.bucket(appConfig.firebase.storageBucket).file(newFileName).save(Buffer.from(data), { contentType: 'application/json', });
-      task.questionGeneration[index].fileName = newFileName;
-      task.questionGeneration[index].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+
+      await this.storage
+        .bucket(appConfig.firebase.storageBucket)
+        .file(newFileName)
+        .save(Buffer.from(data), { contentType: 'application/json' });
+
+      task.questionGeneration[resolvedIndex].fileName = newFileName;
+      task.questionGeneration[resolvedIndex].fileUrl = `https://storage.googleapis.com/${appConfig.firebase.storageBucket}/${newFileName}`;
+
       await this.genAIRepository.updateTaskData(jobId, task, session);
     });
   }
+
+
   async editTranscript(jobId: string, transcript: JSON, index: number): Promise<void> {
     return this._withTransaction(async session => {
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
@@ -420,7 +475,6 @@ export class GenAIService extends BaseService {
       if (!job) {
         throw new NotFoundError(`Job with ID ${jobId} not found`);
       }
-      console.log(jobId, usePrevious)
       const task = await this.genAIRepository.getTaskDataByJobId(jobId, session);
       if (!task) {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
@@ -455,14 +509,12 @@ export class GenAIService extends BaseService {
         jobState.segmentMap = task.segmentation[usePrevious ? usePrevious : task.segmentation.length - 1]?.segmentationMap;
       }
       if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED && job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED && job.jobStatus.segmentation === TaskStatus.COMPLETED && job.jobStatus.questionGeneration === TaskStatus.COMPLETED && job.jobStatus.uploadContent !== TaskStatus.PENDING) {
-        console.log("All previous tasks completed, setting current task to UPLOAD_CONTENT");
         jobState.currentTask = TaskType.UPLOAD_CONTENT
         jobState.taskStatus = job.jobStatus.uploadContent;
         jobState.parameters = job.uploadParameters;
         jobState.file = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.fileUrl;
         jobState.segmentMap = task.questionGeneration[usePrevious ? usePrevious : task.questionGeneration.length - 1]?.segmentMapUsed;
       }
-      console.log(jobState)
       if (jobState.currentTask !== TaskType.AUDIO_EXTRACTION && jobState.currentTask) {
         if (!(jobState.file || jobState.segmentMap)) {
           throw new BadRequestError(`No file URL found for the current task: ${jobState.currentTask}`);
@@ -589,8 +641,8 @@ export class GenAIService extends BaseService {
             const questionBank = new QuestionBank({
               title: questionBankName,
               description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}."`,
-              courseId: (jobState.parameters as UploadParameters).courseId,
-              courseVersionId: (jobState.parameters as UploadParameters).versionId,
+              courseId: new ObjectId((jobState.parameters as UploadParameters).courseId),
+              courseVersionId: new ObjectId((jobState.parameters as UploadParameters).versionId),
               questions: [], // Will be populated after creating questions
               tags: [`segment_${currentSegmentId}`, 'ai_generated'],
             });
@@ -611,7 +663,7 @@ export class GenAIService extends BaseService {
                   console.log(`Hint truncated for question in segment ${currentSegmentId}: Original length ${questionData.question.hint.length}, truncated to ${hint.length}`);
                 }
 
-                const questionnew = QuestionFactory.createQuestion({ question: questionData.question, solution: questionData.solution }, jobData.userId);
+                const questionnew = QuestionFactory.createQuestion({ question: questionData.question, solution: questionData.solution }, jobData.userId.toString());
 
                 const questionId = await this.questionService.create(questionnew);
                 createdQuestionIds.push(questionId);

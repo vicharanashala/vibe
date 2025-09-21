@@ -1,8 +1,12 @@
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
-import { ICourse, ICourseVersion, IEnrollment } from '#shared/interfaces/models.js';
-import { instanceToPlain } from 'class-transformer';
-import { injectable, inject } from 'inversify';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {
+  ICourse,
+  ICourseVersion,
+  IEnrollment,
+} from '#shared/interfaces/models.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
 import {
   Collection,
   MongoClient,
@@ -11,13 +15,13 @@ import {
   DeleteResult,
   UpdateResult,
 } from 'mongodb';
-import { NotFoundError, InternalServerError } from 'routing-controllers';
-import { MongoDatabase } from '../MongoDatabase.js';
-import { Course } from '#courses/classes/transformers/Course.js';
-import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
-import { ItemsGroup } from '#courses/classes/transformers/Item.js';
-import { ProgressRepository } from './ProgressRepository.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {Course} from '#courses/classes/transformers/Course.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import {ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {ProgressRepository} from './ProgressRepository.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -31,7 +35,7 @@ export class CourseRepository implements ICourseRepository {
     private db: MongoDatabase,
     @inject(USERS_TYPES.ProgressRepo)
     private progressRepo: ProgressRepository,
-  ) { }
+  ) {}
 
   private async init() {
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
@@ -41,7 +45,9 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
-    this.enrollmentCollection = await this.db.getCollection<IEnrollment>('enrollment');
+    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
+      'enrollment',
+    );
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -57,13 +63,13 @@ export class CourseRepository implements ICourseRepository {
     session?: ClientSession,
   ): Promise<Course | null> {
     await this.init();
-    const result = await this.courseCollection.insertOne(course, { session });
+    const result = await this.courseCollection.insertOne(course, {session});
     if (result.acknowledged) {
       const newCourse = await this.courseCollection.findOne(
         {
           _id: result.insertedId,
         },
-        { session },
+        {session},
       );
       return Object.assign(new Course(), newCourse) as Course;
     } else {
@@ -76,7 +82,7 @@ export class CourseRepository implements ICourseRepository {
       {
         _id: new ObjectId(id),
       },
-      { session },
+      {session},
     );
     if (course) {
       return Object.assign(new Course(), course) as Course;
@@ -92,11 +98,11 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     await this.read(id);
 
-    const { _id: _, ...fields } = course;
+    const {_id: _, ...fields} = course;
     const res = await this.courseCollection.findOneAndUpdate(
-      { _id: new ObjectId(id) },
-      { $set: fields },
-      { returnDocument: 'after', session },
+      {_id: new ObjectId(id)},
+      {$set: fields},
+      {returnDocument: 'after', session},
     );
 
     if (res) {
@@ -110,8 +116,8 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     // 1. Find the Course document to retrieve its list of version IDs
     const courseDoc = await this.courseCollection.findOne(
-      { _id: new ObjectId(courseId) },
-      { session },
+      {_id: new ObjectId(courseId)},
+      {session},
     );
     if (!courseDoc) {
       throw new NotFoundError('Course not found');
@@ -128,8 +134,8 @@ export class CourseRepository implements ICourseRepository {
     for (const versionId of versionIds) {
       // 2a. Fetch the raw CourseVersion document
       const rawVersion = await this.courseVersionCollection.findOne(
-        { _id: new ObjectId(versionId) },
-        { session },
+        {_id: new ObjectId(versionId)},
+        {session},
       );
       if (!rawVersion) {
         throw new NotFoundError(`CourseVersion with ID ${versionId} not found`);
@@ -152,14 +158,14 @@ export class CourseRepository implements ICourseRepository {
     }
 
     await this.enrollmentCollection.deleteMany(
-      { courseId: new ObjectId(courseId) },
-      { session }
+      {courseId: new ObjectId(courseId)},
+      {session},
     );
 
     // 3. Finally, delete the Course document itself
     const deleteCourseResult = await this.courseCollection.deleteOne(
-      { _id: new ObjectId(courseId) },
-      { session },
+      {_id: new ObjectId(courseId)},
+      {session},
     );
 
     if (deleteCourseResult.deletedCount !== 1) {
@@ -176,14 +182,14 @@ export class CourseRepository implements ICourseRepository {
     try {
       const result = await this.courseVersionCollection.insertOne(
         courseVersion,
-        { session },
+        {session},
       );
       if (result.acknowledged) {
         const newCourseVersion = await this.courseVersionCollection.findOne(
           {
             _id: result.insertedId,
           },
-          { session },
+          {session},
         );
 
         return instanceToPlain(
@@ -208,7 +214,7 @@ export class CourseRepository implements ICourseRepository {
         {
           _id: new ObjectId(versionId),
         },
-        { session },
+        {session},
       );
 
       // if (courseVersion === null) {
@@ -234,24 +240,28 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<ICourseVersion | null> {
     await this.init();
     try {
-      const { _id: _, ...fields } = courseVersion;
+      const {_id: _, ...fields} = courseVersion;
 
-      const isExistVersion = await this.courseVersionCollection.findOne({ _id: new ObjectId(versionId) });
+      const isExistVersion = await this.courseVersionCollection.findOne({
+        _id: new ObjectId(versionId),
+      });
 
       if (!isExistVersion)
-        throw new InternalServerError('Failed to update course version, version not founded!');
+        throw new InternalServerError(
+          'Failed to update course version, version not founded!',
+        );
 
       const result = await this.courseVersionCollection.updateOne(
-        { _id: new ObjectId(versionId) },
-        { $set: fields },
-        { session },
+        {_id: new ObjectId(versionId)},
+        {$set: fields},
+        {session},
       );
       // if (result.modifiedCount === 1) {
       const updatedCourseVersion = await this.courseVersionCollection.findOne(
         {
           _id: new ObjectId(versionId),
         },
-        { session },
+        {session},
       );
       return instanceToPlain(
         Object.assign(new CourseVersion(), updatedCourseVersion),
@@ -278,7 +288,7 @@ export class CourseRepository implements ICourseRepository {
         {
           _id: new ObjectId(versionId),
         },
-        { session },
+        {session},
       );
 
       if (versionDeleteResult.deletedCount !== 1) {
@@ -287,9 +297,9 @@ export class CourseRepository implements ICourseRepository {
 
       // 2. Remove courseVersionId from the course
       const courseUpdateResult = await this.courseCollection.updateOne(
-        { _id: new ObjectId(courseId) },
-        { $pull: { versions: versionId } },
-        { session },
+        {_id: new ObjectId(courseId)},
+        {$pull: {versions: new ObjectId(versionId)}},
+        {session},
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {
@@ -302,9 +312,9 @@ export class CourseRepository implements ICourseRepository {
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
         {
-          _id: { $in: itemGroupsIds },
+          _id: {$in: itemGroupsIds},
         },
-        { session },
+        {session},
       );
 
       if (itemGroupsIds.length && itemDeletionResult.deletedCount === 0) {
@@ -352,8 +362,8 @@ export class CourseRepository implements ICourseRepository {
         }
         const itemGroupId = section?.itemsGroupId;
         const items = await this.itemsGroupCollection.findOne(
-          { _id: new ObjectId(itemGroupId) },
-          { session },
+          {_id: new ObjectId(itemGroupId)},
+          {session},
         );
         if (items) {
           try {
@@ -374,7 +384,7 @@ export class CourseRepository implements ICourseRepository {
             {
               _id: itemGroupId,
             },
-            { session },
+            {session},
           );
 
           if (!itemDeletionResult.acknowledged) {
@@ -402,11 +412,10 @@ export class CourseRepository implements ICourseRepository {
 
       try {
         const updateResult = await this.courseVersionCollection.updateOne(
-          { _id: new ObjectId(versionId) },
-          { $set: { modules: updatedModules } },
-          { session },
+          {_id: new ObjectId(versionId)},
+          {$set: {modules: updatedModules}},
+          {session},
         );
-
 
         if (updateResult.modifiedCount !== 1) {
           throw new InternalServerError('Failed to update Section');
@@ -417,7 +426,6 @@ export class CourseRepository implements ICourseRepository {
         console.error('Error updating course version modules:', error);
         throw new InternalServerError('Database update failed: ' + error);
       }
-
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -447,7 +455,7 @@ export class CourseRepository implements ICourseRepository {
         {
           _id: versionObjectId,
         },
-        { session },
+        {session},
       );
 
       if (!courseVersion) {
@@ -472,8 +480,8 @@ export class CourseRepository implements ICourseRepository {
         // Get item ids from item groups before deletion and delete watch time by item id
         for (const itemGroupId of itemGroupsIds) {
           const items = await this.itemsGroupCollection.findOne(
-            { _id: itemGroupId },
-            { session },
+            {_id: itemGroupId},
+            {session},
           );
 
           if (items) {
@@ -489,9 +497,9 @@ export class CourseRepository implements ICourseRepository {
 
         const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
           {
-            _id: { $in: itemGroupsIds },
+            _id: {$in: itemGroupsIds},
           },
-          { session },
+          {session},
         );
 
         if (itemDeletionResult.deletedCount === 0) {
@@ -505,8 +513,8 @@ export class CourseRepository implements ICourseRepository {
       );
 
       const updateResult = await this.courseVersionCollection.updateOne(
-        { _id: versionObjectId },
-        { $set: { modules: updatedModules } },
+        {_id: versionObjectId},
+        {$set: {modules: updatedModules}},
       );
 
       if (updateResult.modifiedCount !== 1) {
@@ -532,12 +540,29 @@ export class CourseRepository implements ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null> {
     await this.init();
+
+    const idAsObjectId = ObjectId.isValid(itemGroupId) // temp
+      ? new ObjectId(itemGroupId)
+      : null;
+      
     const courseVersion = await this.courseVersionCollection.findOne(
       {
-        'modules.sections.itemsGroupId': itemGroupId,
+        $or: [
+          {'modules.sections.itemsGroupId': itemGroupId},
+          ...(idAsObjectId
+            ? [{'modules.sections.itemsGroupId': idAsObjectId}]
+            : []),
+        ],
       },
-      { session },
+      {session},
     );
+
+    // const courseVersion = await this.courseVersionCollection.findOne(
+    //   {
+    //     'modules.sections.itemsGroupId': itemGroupId,
+    //   },
+    //   {session},
+    // );
 
     if (!courseVersion) {
       return null;
@@ -551,7 +576,10 @@ export class CourseRepository implements ICourseRepository {
   async getAllCourses(session?: ClientSession): Promise<ICourse[]> {
     try {
       await this.init();
-      const query = this.courseCollection.find({}, { session });
+      const query = this.courseCollection.find(
+        {versions: {$exists: true, $ne: []}},
+        {session},
+      );
       return await query.toArray();
     } catch (error) {
       throw new InternalServerError(
@@ -566,7 +594,10 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<void> {
     await this.init();
     try {
-      const result = await this.courseVersionCollection.bulkWrite(bulkOperations, { session });
+      const result = await this.courseVersionCollection.bulkWrite(
+        bulkOperations,
+        {session},
+      );
       console.log(`Bulk update result: ${JSON.stringify(result)}`);
     } catch (error) {
       throw new InternalServerError(
@@ -574,5 +605,4 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-
 }

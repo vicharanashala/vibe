@@ -28,7 +28,8 @@ import {
   ListChecks,
   MessageSquareText,
   Workflow,
-  CircleChevronLeft
+  CircleChevronLeft,
+  Info
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -96,21 +97,46 @@ interface VideoData {
 
 type QuestionGenParams = {
   model: string;
-  SQL: number;
+  SOL: number;
   SML: number;
   NAT: number;
   DES: number;
+  BIN:number;
   prompt: string;
 };
 
 // Stepper icons
-
 const WORKFLOW_STEPS = [
-  { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
-  { key: 'transcriptGeneration', label: 'Transcription', icon: <FileText className="w-5 h-5" /> },
-  { key: 'segmentation', label: 'Segmentation', icon: <ListChecks className="w-5 h-5" /> },
-  { key: 'questionGeneration', label: 'Question Generation', icon: <MessageSquareText className="w-5 h-5" /> },
-  { key: 'uploadContent', label: 'Upload', icon: <UploadCloud className="w-5 h-5" /> },
+  {
+    key: 'audioExtraction',
+    label: 'Audio Extraction',
+    icon: <UploadCloud className="w-5 h-5" />,
+    explanation: "Extracts audio from uploaded files (video or audio) for further processing."
+  },
+  {
+    key: 'transcriptGeneration',
+    label: 'Transcription',
+    icon: <FileText className="w-5 h-5" />,
+    explanation: "Converts extracted audio into accurate text transcripts."
+  },
+  {
+    key: 'segmentation',
+    label: 'Segmentation',
+    icon: <ListChecks className="w-5 h-5" />,
+    explanation: "Breaks down the transcript into logical sections or chunks."
+  },
+  {
+    key: 'questionGeneration',
+    label: 'Question Generation',
+    icon: <MessageSquareText className="w-5 h-5" />,
+    explanation: "Automatically generates relevant questions from the segmented transcript."
+  },
+  {
+    key: 'uploadContent',
+    label: 'Upload',
+    icon: <UploadCloud className="w-5 h-5" />,
+    explanation: "Saves and uploads the processed content with questions for later use."
+  },
 ];
 
 const getStepStatus = (jobStatus: any, stepKey: string) => {
@@ -288,6 +314,16 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
 
 
+const formatTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) {
+    return "00:00";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
+
 export default function AISectionPage() {
   // AI Section workflow state
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -304,6 +340,7 @@ export default function AISectionPage() {
   const [expandedAccordionItems, setExpandedAccordionItems] = useState<string[]>([]);
   const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
+  const [currentUiStep, setCurrentUiStep] = useState(0);
 
   // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -340,10 +377,11 @@ export default function AISectionPage() {
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
     model: 'deepseek-r1:70b',
-    SQL: 1,
+    SOL: 1,
     SML: 0,
     NAT: 0,
     DES: 0,
+    BIN:0,
     prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
   });
 
@@ -452,7 +490,7 @@ export default function AISectionPage() {
       toast.error("Missing course or version information");
       return;
     }
-    
+
     setIsCreatingJob(true);
     try {
       const { jobId } = await aiSectionAPI.createJob({
@@ -466,6 +504,7 @@ export default function AISectionPage() {
       });
       setAiJobId(jobId);
       toast.success("AI job created successfully!");
+      setCurrentUiStep(1); // Move to the first step (transcription)
       // Do NOT start audio extraction here. Wait for user to click Transcription button.
     } catch (error) {
       toast.error("Failed to create AI job. Please try again.");
@@ -495,7 +534,7 @@ export default function AISectionPage() {
           setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
           await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
           setAiWorkflowStep('audio_extraction');
-          toast.success("Transcription restarted. Click Refresh to check status.");
+          toast.success("Transcription restarted");
           await handleRefreshStatus();
           return;
         }
@@ -504,7 +543,7 @@ export default function AISectionPage() {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
           setAiWorkflowStep('transcription');
-          toast.success("Transcription rerun started. Click Refresh to check status.");
+          toast.success("Transcription rerun started.");
           setTaskRuns(prev => ({
             ...prev,
             transcription: [...prev.transcription, {
@@ -521,7 +560,7 @@ export default function AISectionPage() {
         setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
-        toast.success("Audio extraction started. Click Refresh to check status.");
+        toast.success("Audio extraction started.");
         setTaskRuns(prev => ({
           ...prev,
           [task]: prev[task].map(run =>
@@ -542,7 +581,7 @@ export default function AISectionPage() {
             await aiSectionAPI.approveContinueTask(aiJobId);
             params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
             await aiSectionAPI.postJobTask(aiJobId, taskType, params, 0);
-            toast.success("Segmentation restarted. Click Refresh to check status.");
+            toast.success("Segmentation restarted.");
             await handleRefreshStatus();
             return;
           }
@@ -578,7 +617,7 @@ export default function AISectionPage() {
             setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
             params = { ...questionGenParams };
             await aiSectionAPI.postJobTask(aiJobId, taskType, params);
-            toast.success("Question generation restarted. Click Refresh to check status.");
+            toast.success("Question generation restarted.");
             await handleRefreshStatus();
             return;
           }
@@ -764,8 +803,8 @@ export default function AISectionPage() {
 
     const [localSegParams, setLocalSegParams] = useState(segParams);
 
-    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() =>
-      ["SQL", "SML", "NAT", "DES"],
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SOL" | "SML" | "NAT" | "DES">)[]>(() =>
+      ["SOL", "SML", "NAT", "DES"],
       [],);
 
     const segFields: { key: "lam" | "runs" | "noiseId", type: 'float' | "int" }[] = [
@@ -826,7 +865,15 @@ export default function AISectionPage() {
         {/* Show Start Transcription button for transcription task when audio extraction is completed */}
         {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && (
           <div className="mb-4">
-            <TooltipProvider>
+            <Button
+              onClick={handleStartTranscription}
+              variant="default"
+              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+              className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+            >
+              Start Transcription Task
+            </Button>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -856,7 +903,7 @@ export default function AISectionPage() {
                   )}
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
           </div>
         )}
         {/* Always show question generation parameter inputs for 'question' task */}
@@ -990,7 +1037,7 @@ export default function AISectionPage() {
                   if (!response.ok) {
                     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
                   }
-                  toast.success(`${title} restarted. Click Refresh to check status.`);
+                  toast.success(`${title} restarted.`);
                   await handleRefreshStatus();
                 } catch (error) {
                   setTaskRuns(prev => ({
@@ -1062,7 +1109,7 @@ export default function AISectionPage() {
                 try {
                   const params = rerunParams;
                   await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', params);
-                  toast.success('Transcription rerun started. Click Refresh to check status.');
+                  toast.success('Transcription rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     transcription: [
@@ -1096,7 +1143,7 @@ export default function AISectionPage() {
                   // const params = questionGenParams;
 
                   await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
-                  toast.success('Question generation rerun started. Click Refresh to check status.');
+                  toast.success('Question generation rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     question: [
@@ -1130,7 +1177,7 @@ export default function AISectionPage() {
 
                   const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
-                  toast.success('Segmentation rerun started. Click Refresh to check status.');
+                  toast.success('Segmentation rerun started.');
                   setTaskRuns(prev => ({
                     ...prev,
                     segmentation: [
@@ -1194,7 +1241,7 @@ export default function AISectionPage() {
               let readableParams: React.ReactNode = null;
               if (task === "question" && run.parameters && typeof run.parameters === 'object') {
                 const paramKeys = Object.keys(run.parameters);
-                const mainKeys = ["model", "SQL", "SML", "NAT", "DES"];
+                const mainKeys = ["model", "SOL", "SML", "NAT", "DES"];
                 const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
                 readableParams = (
                   <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
@@ -1781,7 +1828,7 @@ export default function AISectionPage() {
 
         if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
           setTimeout(() => {
-            setTaskRuns(prevTaskRuns => {
+            setTaskRuns((prevTaskRuns: any) => {
               const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
               if (lastLoadingIdx === -1) {
                 console.log('Live update: No loading transcription run found');
@@ -1794,7 +1841,7 @@ export default function AISectionPage() {
 
               const updatedTaskRuns = {
                 ...prevTaskRuns,
-                transcription: prevTaskRuns.transcription.map((run, idx) =>
+                transcription: prevTaskRuns.transcription.map((run: any, idx: number) =>
                   idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
                 ),
               };
@@ -1846,7 +1893,7 @@ export default function AISectionPage() {
         if (status.jobStatus?.transcriptGeneration === 'WAITING') {
           await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
           setAiWorkflowStep('transcription');
-          toast.success('Transcript generation started. Click Refresh to check status.');
+          toast.success('Transcript generation started.');
           await handleRefreshStatus();
         } else {
           toast.info('Transcript generation is not ready to start yet.');
@@ -1854,7 +1901,7 @@ export default function AISectionPage() {
       } else if (status.jobStatus?.transcriptGeneration === 'WAITING') {
         await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
         setAiWorkflowStep('transcription');
-        toast.success('Transcript generation started. Click Refresh to check status.');
+        toast.success('Transcript generation started.');
         await handleRefreshStatus();
       } else {
         toast.info('Transcript generation is not ready to start.');
@@ -2066,7 +2113,7 @@ export default function AISectionPage() {
                 {editChunks.map((chunk, idx) => (
                   <div key={idx} className="flex flex-col gap-1 border-b pb-2">
                     <div className="text-xs text-gray-400">
-                      Segment: {chunk.timestamp[0]}s - {chunk.timestamp[1]}s
+                      Segment: {formatTime(chunk.timestamp[0])} - {formatTime(chunk.timestamp[1])}
                     </div>
                     <textarea
                       className="w-full p-2 rounded border"
@@ -2129,6 +2176,51 @@ export default function AISectionPage() {
     const [editError, setEditError] = useState("");
     // Add state for transcriptChunks in the edit modal
     const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
+
+    const formatTime = (seconds: number): string => {
+      if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    const parseTimeToSeconds = (time: string): number => {
+      if (!time) return 0;
+      const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
+      if (cleaned.includes(':')) {
+        const [mStr, sStr] = cleaned.split(':');
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
+      }
+      if (cleaned.includes('.')) {
+        const [mStr, sStrRaw] = cleaned.split('.');
+        const sStr = (sStrRaw || '').slice(0, 2);
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        if (isNaN(m)) return 0;
+        if (isNaN(s)) return m * 60;
+        return m * 60 + s;
+      }
+      const sOnly = parseInt(cleaned, 10);
+      return isNaN(sOnly) ? 0 : sOnly;
+    };
+    const formatTimeInput = (value: string): string => {
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+      if (!digits) return '';
+      if (digits.length <= 2) return digits;
+      const minutes = digits.slice(0, -2);
+      const seconds = digits.slice(-2);
+      return `${minutes}:${seconds}`;
+    };
+    const formatTimeDot = (seconds: number): string => {
+      const mins = Math.floor(Math.max(0, seconds) / 60);
+      const secs = Math.floor(Math.max(0, seconds) % 60);
+      const mm = mins.toString().padStart(2, '0');
+      const ss = secs.toString().padStart(2, '0');
+      return `${mm}.${ss}`;
+    };
 
     const handleShowSegmentation = async () => {
       if (!aiJobId) return;
@@ -2201,7 +2293,12 @@ export default function AISectionPage() {
         if (!res.ok) throw new Error('Failed to fetch segmentation status');
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
-          setEditSegMap([...arr[0].segmentationMap]);
+          const normalized: number[] = (arr[0].segmentationMap as any[]).map((v: any) => {
+            if (typeof v === 'number') return parseTimeToSeconds(String(v));
+            if (typeof v === 'string') return parseTimeToSeconds(v);
+            return 0;
+          });
+          setEditSegMap(normalized);
           // Fetch transcript chunks
           const transcriptRes = await fetch(arr[0].transcriptFileUrl);
           if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
@@ -2222,8 +2319,13 @@ export default function AISectionPage() {
     };
 
     const handleEditSegChange = (idx: number, value: string) => {
+      const masked = formatTimeInput(value);
+      let seconds = parseTimeToSeconds(masked);
       const newMap = [...editSegMap];
-      newMap[idx] = parseFloat(value);
+      const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
+      const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
+      seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
+      newMap[idx] = Math.max(0, seconds);
       setEditSegMap(newMap);
     };
     const handleAddSeg = () => {
@@ -2244,7 +2346,8 @@ export default function AISectionPage() {
       setEditError("");
       try {
         // Use index 0 for the backend (fixes 500 error)
-        await editSegmentMap(aiJobId, editSegMap, 0);
+        const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
+        await editSegmentMap(aiJobId, payloadNumbers, 0);
         toast.success('Segment map updated successfully!');
         setEditModalOpen(false);
       } catch (e: any) {
@@ -2302,10 +2405,10 @@ export default function AISectionPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
                         <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={value}
+                          type="text"
+                          placeholder="0:00"
+                          maxLength={5}
+                          value={formatTime(value)}
                           onChange={e => handleEditSegChange(idx, e.target.value)}
                           className="w-24"
                         />
@@ -2398,7 +2501,7 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="w-full"
           >
             Accept This Run
           </Button>
@@ -2431,7 +2534,7 @@ export default function AISectionPage() {
       const hasQuestionRun = taskRuns.question && taskRuns.question.length > 0;
       const params = {
         model: questionGenParams.model,
-        SQL: Number(questionGenParams.SQL),
+        SOL: Number(questionGenParams.SOL),
         SML: Number(questionGenParams.SML),
         NAT: Number(questionGenParams.NAT),
         DES: Number(questionGenParams.DES),
@@ -2440,14 +2543,14 @@ export default function AISectionPage() {
       if (hasQuestionRun) {
         // Rerun logic
         await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', params);
-        toast.success('Question generation rerun started. Click Refresh to check status.');
+        toast.success('Question generation rerun started.');
       } else {
         // First run logic
         await aiSectionAPI.approveStartTask(aiJobId, {
           type: 'QUESTION_GENERATION',
           parameters: params
         });
-        toast.success('Question generation started. Click Refresh to check status.');
+        toast.success('Question generation started.');
       }
       setTaskRuns(prev => ({
         ...prev,
@@ -2771,67 +2874,67 @@ export default function AISectionPage() {
   // Render the AI workflow UI and the quiz question editor
   return (
     <>
-    <div className="mb-4">
+      <div className="mb-4">
         <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher/courses/view" })}>Back</Button>
-    </div>
-    <div className="max-w-6xl w-full mx-auto px-4">
-      {/* AI Section Workflow Inline */}
-      <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-3 text-primary">
-            Generate Section using AI
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Transform your YouTube content into interactive learning materials
-          </p>
-        </div>
-        {/* Stepper */}
-        <Stepper jobStatus={aiJobStatus} />
-        <div className="space-y-8">
-          <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
-            <div className="flex-1 w-full">
-              <Input
-                placeholder="YouTube URL"
-                value={youtubeUrl}
-                onChange={e => setYoutubeUrl(e.target.value)}
-                disabled={!!aiJobId}
-                className={`flex-1 w-full ${urlError ? 'border-red-500' : ''}`}
-              />
-              {urlError && (
-                <p className="text-red-500 text-sm mt-1">{urlError}</p>
-              )}
-            </div>
-            <Button
-              onClick={handleCreateJob}
-              disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
-              className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-            >
-              {isCreatingJob ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  Creating Job...
-                </>
-              ) : aiJobId ? (
-                "Job Created"
-              ) : (
-                "Create AI Job"
-              )}
-            </Button>
+      </div>
+      <div className="max-w-6xl w-full mx-auto px-4">
+        {/* AI Section Workflow Inline */}
+        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-3 text-primary">
+              Generate Section using AI
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Transform your YouTube content into interactive learning materials
+            </p>
           </div>
+          {/* Stepper */}
+          <Stepper jobStatus={aiJobStatus} />
+          <div className="space-y-8">
+            <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
+              <div className="flex-1 w-full">
+                <Input
+                  placeholder="YouTube URL"
+                  value={youtubeUrl}
+                  onChange={e => setYoutubeUrl(e.target.value)}
+                  disabled={!!aiJobId}
+                  className={`flex-1 w-full ${urlError ? 'border-red-500' : ''}`}
+                />
+                {urlError && (
+                  <p className="text-red-500 text-sm mt-1">{urlError}</p>
+                )}
+              </div>
+              <Button
+                onClick={handleCreateJob}
+                disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
+                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                {isCreatingJob ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Creating Job...
+                  </>
+                ) : aiJobId ? (
+                  "Job Created"
+                ) : (
+                  "Create AI Job"
+                )}
+              </Button>
+            </div>
 
-          {/* Navigation to ai workflow */}
-            <Link to="/teacher/ai-workflow">
+            {/* Navigation to ai workflow */}
+            {/* <Link to="/teacher/ai-workflow">
               <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
                 <Workflow className="w-5 h-5" />
                 Go to AI Workflow
               </Button>
-            </Link>
+            </Link> */}
 
-            
-          {aiJobId && (
-            <div className="space-y-6">
-              {/* Refresh button and status */}
-              {/* <div className="flex items-center gap-4 mb-2">
+
+            {aiJobId && (
+              <div className="space-y-6">
+                {/* Refresh button and status */}
+                {/* <div className="flex items-center gap-4 mb-2">
                  <Button 
                    onClick={handleRefreshStatus} 
                    variant="outline"
@@ -2842,105 +2945,170 @@ export default function AISectionPage() {
                 </div> */}
 
 
-              {/* Task Cards */}
-              <div className="space-y-8 mt-8">
-                {/* Transcription Section */}
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                  </div>
-                  <TaskAccordion
-                    task="transcription"
-                    title="Audio Extraction"
-                    jobStatus={aiJobStatus?.status}
-                    taskRuns={taskRuns}
-                    acceptedRuns={acceptedRuns}
-                    aiJobId={aiJobId}
-                    aiJobStatus={aiJobStatus}
-                    segParams={segParams}
-                    questionGenParams={questionGenParams}
-                    rerunParams={rerunParams}
-                    handleTask={handleTask}
-                    handleAcceptRun={handleAcceptRun}
-                    canRunTask={canRunTask}
-                    setTaskRuns={setTaskRuns}
-                    setQuestionGenParams={setQuestionGenParams}
-                    setSegParams={setSegParams}
-                    setRerunParams={setRerunParams}
-                    handleStartTranscription={handleStartTranscription}
-                    getStatusIcon={getStatusIcon}
-                    handleStopTask={handleStopTask}
-                    expandedAccordionItems={expandedAccordionItems}
-                    setExpandedAccordionItems={setExpandedAccordionItems}
-                  />
-                </div>
+                {/* Task Cards */}
+                <div className="space-y-8 mt-8">
+                  {/* Transcription Section */}
+                  {currentUiStep === 1 && (
+                    <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                        <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {(currentUiStep === 1 && aiJobStatus === null) &&
+                                <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                              }
+                              {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION") &&
+                                (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                                  <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+                                )
+                              }
+                              {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
+                                (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+                                  <span>Converts extracted audio into accurate text transcripts.</span>
+                                )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <TaskAccordion
+                        task="transcription"
+                        title="Audio Extraction"
+                        jobStatus={aiJobStatus?.status}
+                        taskRuns={taskRuns}
+                        acceptedRuns={acceptedRuns}
+                        aiJobId={aiJobId}
+                        aiJobStatus={aiJobStatus}
+                        segParams={segParams}
+                        questionGenParams={questionGenParams}
+                        rerunParams={rerunParams}
+                        handleTask={handleTask}
+                        handleAcceptRun={handleAcceptRun}
+                        canRunTask={canRunTask}
+                        setTaskRuns={setTaskRuns}
+                        setQuestionGenParams={setQuestionGenParams}
+                        setSegParams={setSegParams}
+                        setRerunParams={setRerunParams}
+                        handleStartTranscription={handleStartTranscription}
+                        getStatusIcon={getStatusIcon}
+                        handleStopTask={handleStopTask}
+                        expandedAccordionItems={expandedAccordionItems}
+                        setExpandedAccordionItems={setExpandedAccordionItems}
+                      />
+                      {acceptedRuns.transcription && (
+                        <div className="flex justify-end mt-4">
+                          <Button onClick={() => setCurrentUiStep(2)}>Next Step</Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                {/* Segmentation Section */}
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
-                  </div>
-                  <TaskAccordion
-                    task="segmentation"
-                    title="Segmentation"
-                    jobStatus={aiJobStatus?.status}
-                    taskRuns={taskRuns}
-                    acceptedRuns={acceptedRuns}
-                    aiJobId={aiJobId}
-                    aiJobStatus={aiJobStatus}
-                    segParams={segParams}
-                    questionGenParams={questionGenParams}
-                    rerunParams={rerunParams}
-                    handleTask={handleTask}
-                    handleAcceptRun={handleAcceptRun}
-                    canRunTask={canRunTask}
-                    setTaskRuns={setTaskRuns}
-                    setQuestionGenParams={setQuestionGenParams}
-                    setSegParams={setSegParams}
-                    setRerunParams={setRerunParams}
-                    handleStartTranscription={handleStartTranscription}
-                    getStatusIcon={getStatusIcon}
-                    handleStopTask={handleStopTask}
-                    expandedAccordionItems={expandedAccordionItems}
-                    setExpandedAccordionItems={setExpandedAccordionItems}
-                  />
-                </div>
-
-                {/* Question Generation Section */}
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
-                  </div>
-                  <TaskAccordion
-                    task="question"
-                    title="Question Generation"
-                    jobStatus={aiJobStatus?.status}
-                    taskRuns={taskRuns}
-                    acceptedRuns={acceptedRuns}
-                    aiJobId={aiJobId}
-                    aiJobStatus={aiJobStatus}
-                    segParams={segParams}
-                    questionGenParams={questionGenParams}
-                    rerunParams={rerunParams}
-                    handleTask={handleTask}
-                    handleAcceptRun={handleAcceptRun}
-                    canRunTask={canRunTask}
-                    setTaskRuns={setTaskRuns}
-                    setQuestionGenParams={setQuestionGenParams}
-                    setSegParams={setSegParams}
-                    setRerunParams={setRerunParams}
-                    handleStartTranscription={handleStartTranscription}
-                    getStatusIcon={getStatusIcon}
-                    handleStopTask={handleStopTask}
-                    expandedAccordionItems={expandedAccordionItems}
-                    setExpandedAccordionItems={setExpandedAccordionItems}
-                  />
-                </div>
-
-                {/* Upload Section */}
+                  {/* Segmentation Section */}
+                  {
+                    currentUiStep === 2 && (
+                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center gap-2 mb-4">
+                          <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <TaskAccordion
+                          task="segmentation"
+                          title="Segmentation"
+                          jobStatus={aiJobStatus?.status}
+                          taskRuns={taskRuns}
+                          acceptedRuns={acceptedRuns}
+                          aiJobId={aiJobId}
+                          aiJobStatus={aiJobStatus}
+                          segParams={segParams}
+                          questionGenParams={questionGenParams}
+                          rerunParams={rerunParams}
+                          handleTask={handleTask}
+                          handleAcceptRun={handleAcceptRun}
+                          canRunTask={canRunTask}
+                          setTaskRuns={setTaskRuns}
+                          setQuestionGenParams={setQuestionGenParams}
+                          setSegParams={setSegParams}
+                          setRerunParams={setRerunParams}
+                          handleStartTranscription={handleStartTranscription}
+                          getStatusIcon={getStatusIcon}
+                          handleStopTask={handleStopTask}
+                          expandedAccordionItems={expandedAccordionItems}
+                          setExpandedAccordionItems={setExpandedAccordionItems}
+                        />
+                        {acceptedRuns.segmentation && currentUiStep === 2 && (
+                          <div className="flex justify-end mt-4">
+                            <Button onClick={() => setCurrentUiStep(3)}>Next Step</Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  {/* Question Generation Section */}
+                  {
+                    currentUiStep === 3 && (
+                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center gap-2 mb-4">
+                          <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <TaskAccordion
+                          task="question"
+                          title="Question Generation"
+                          jobStatus={aiJobStatus?.status}
+                          taskRuns={taskRuns}
+                          acceptedRuns={acceptedRuns}
+                          aiJobId={aiJobId}
+                          aiJobStatus={aiJobStatus}
+                          segParams={segParams}
+                          questionGenParams={questionGenParams}
+                          rerunParams={rerunParams}
+                          handleTask={handleTask}
+                          handleAcceptRun={handleAcceptRun}
+                          canRunTask={canRunTask}
+                          setTaskRuns={setTaskRuns}
+                          setQuestionGenParams={setQuestionGenParams}
+                          setSegParams={setSegParams}
+                          setRerunParams={setRerunParams}
+                          handleStartTranscription={handleStartTranscription}
+                          getStatusIcon={getStatusIcon}
+                          handleStopTask={handleStopTask}
+                          expandedAccordionItems={expandedAccordionItems}
+                          setExpandedAccordionItems={setExpandedAccordionItems}
+                        />
+                        {acceptedRuns.question && (
+                          <div className="flex justify-end mt-4">
+                            <Button onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  {/* Upload Section */}
+                  {/* {
+                  currentUiStep === 4 && (
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -2971,37 +3139,160 @@ export default function AISectionPage() {
                     setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
+                  )} */}
 
-                {/* Upload Success Message - Show outside accordion when upload is completed */}
-                {taskRuns.upload.some(run => run.status === "done") && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
-                    <div className="flex items-center gap-3 mb-3">
-                      <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                      <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                  {
+                    currentUiStep === 4 && (
+                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                        <div className="flex items-center gap-2 mb-4">
+                          <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+
+                        {/* Simplified upload form */}
+                        <div className="flex flex-col gap-4 mb-4">
+                          <div className="flex flex-col">
+                            <label className="font-medium mb-1">Video Item Base Name</label>
+                            <Input
+                              value="video_item"
+                              readOnly
+                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                            />
+                          </div>
+
+                          <div className="flex flex-col">
+                            <label className="font-medium mb-1">Quiz Item Base Name</label>
+                            <Input
+                              value="quiz_item"
+                              readOnly
+                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                            />
+                          </div>
+
+                          <div className="flex flex-col">
+                            <label className="font-medium mb-1">Questions Per Quiz</label>
+                            <Input
+                              type="number"
+                              value={1}
+                              readOnly
+                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={async () => {
+                            if (!aiJobId) return;
+                            try {
+                              // Use the simplified parameters as shown in the image
+                              const params = {
+                                videoItemBaseName: "video_item",
+                                quizItemBaseName: "quiz_item",
+                                questionsPerQuiz: 1
+                              };
+
+                              setTaskRuns(prev => ({
+                                ...prev,
+                                upload: [...prev.upload, {
+                                  id: `run-${Date.now()}-${Math.random()}`,
+                                  timestamp: new Date(),
+                                  status: 'loading',
+                                  parameters: params
+                                }]
+                              }));
+
+                              await aiSectionAPI.postJobTask(aiJobId, 'UPLOAD_CONTENT', params);
+
+                              setTaskRuns(prev => ({
+                                ...prev,
+                                upload: prev.upload.map(run =>
+                                  run.status === 'loading' ? { ...run, status: 'done' } : run
+                                )
+                              }));
+
+                              toast.success('Section successfully uploaded to course!');
+                            } catch (error) {
+                              setTaskRuns(prev => ({
+                                ...prev,
+                                upload: prev.upload.map(run =>
+                                  run.status === 'loading' ? { ...run, status: 'failed' } : run
+                                )
+                              }));
+                              toast.error('Upload to course failed.');
+                            }
+                          }}
+                          disabled={!acceptedRuns.question || taskRuns.upload.some(r => r.status === "loading")}
+                          className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                        >
+                          Upload to Course
+                        </Button>
+
+                        {/* Upload Success Message */}
+                        {taskRuns.upload.some(run => run.status === "done") && (
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg mt-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                              <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                            </div>
+                            <p className="text-green-700 dark:text-green-300 mb-4">
+                              Your AI-generated section has been successfully uploaded to the course.
+                            </p>
+                            <Button
+                              onClick={() => {
+                                // Navigate back to the course view
+                                navigate({ to: "/teacher/courses/view" });
+                              }}
+                              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                            >
+                              <UploadCloud className="w-4 h-4 mr-2" />
+                              View Course
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  {/* Upload Success Message - Show outside accordion when upload is completed */}
+                  {/* {taskRuns.upload.some(run => run.status === "done") && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 rounded-xl p-6 shadow-lg">
+                      <div className="flex items-center gap-3 mb-3">
+                        <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                        <span className="font-semibold text-lg text-green-800 dark:text-green-200">Upload Successful!</span>
+                      </div>
+                      <p className="text-green-700 dark:text-green-300 mb-4">
+                        Your AI-generated section has been successfully uploaded to the course. The section is now available for students.
+                      </p>
+                      <Button
+                        onClick={() => {
+                          // Go back to the previous page (where user came from)
+                          window.history.back();
+                        }}
+                        className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
+                      >
+                        <UploadCloud className="w-4 h-4 mr-2" />
+                        View Generated Section
+                      </Button>
                     </div>
-                    <p className="text-green-700 dark:text-green-300 mb-4">
-                      Your AI-generated section has been successfully uploaded to the course. The section is now available for students.
-                    </p>
-                    <Button
-                      onClick={() => {
-                        // Go back to the previous page (where user came from)
-                        window.history.back();
-                      }}
-                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
-                    >
-                      <UploadCloud className="w-4 h-4 mr-2" />
-                      View Generated Section
-                    </Button>
-                  </div>
-                )}
+                  )} */}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+
       </div>
-
-
-    </div>
     </>
   );
 }

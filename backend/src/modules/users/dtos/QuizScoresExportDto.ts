@@ -1,0 +1,64 @@
+import { Expose, Type } from 'class-transformer';
+import { IsArray, IsNumber, IsString } from 'class-validator';
+
+export class StudentQuizScoreDto {
+  @Expose()
+  @IsString()
+  studentId: string;
+
+  @Expose()
+  @IsString()
+  name: string;
+
+  @Expose()
+  @IsString()
+  email: string;
+
+  @Expose()
+  @IsArray()
+  quizScores: Array<{
+    moduleId: string;
+    sectionId: string;
+    quizId: string;
+    quizName: string;
+    maxScore: number;
+    attempts: number;
+    questionScores: Array<{
+      questionId: string;
+      score: number;
+    }>;
+  }>;
+}
+
+export class QuizScoresMetadataDto {
+  @Expose()
+  @IsString()
+  courseId: string;
+
+  @Expose()
+  @IsString()
+  versionId: string;
+
+  @Expose()
+  @IsNumber()
+  totalStudents: number;
+
+  @Expose()
+  @IsNumber()
+  durationMs: number;
+
+  @Expose()
+  @IsString()
+  generatedAt: string;
+}
+
+export class QuizScoresExportResponseDto {
+  @Expose()
+  @Type(() => StudentQuizScoreDto)
+  @IsArray()
+  data: StudentQuizScoreDto[];
+
+  @Expose()
+  @Type(() => QuizScoresMetadataDto)
+  metadata: QuizScoresMetadataDto;
+}
