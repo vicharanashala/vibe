@@ -146,9 +146,10 @@ class ProgressRepository {
     );
 
     if (result?.deletedCount === 0) {
-      throw new Error(
+      console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
       );
+      return;
     }
   }
 
@@ -156,15 +157,111 @@ class ProgressRepository {
     userId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<void> {
+  ): Promise<{deletedCount: number; remainingCount: number}> {
     await this.init();
-    await this.watchTimeCollection.deleteMany(
+
+    const deleteResult = await this.watchTimeCollection.deleteMany(
       {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
       {session},
     );
+
+    const distinctItems = await this.watchTimeCollection.distinct(
+      'itemId',
+      {userId: new ObjectId(userId)},
+      {session},
+    );
+
+    return {
+      deletedCount: deleteResult.deletedCount ?? 0,
+      remainingCount: distinctItems.length,
+    };
+  }
+
+  async executeBulkAttemptDelete(
+    operations: Array<{deleteOne: {filter: any}}>,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    if (operations.length) {
+      await this.attemptCollection.bulkWrite(operations, {session});
+    }
+  }
+
+  async prepareBulkQuizOperations(
+    userId: string,
+    quizItemIds: string[],
+    maxAttemptsMap: Record<string, number>,
+    session?: ClientSession,
+  ): Promise<{
+    attemptDeletes: Array<{deleteOne: {filter: any}}>;
+    metricsUpdates: Array<{updateOne: {filter: any; update: any}}>;
+    submissionDeletes: string[];
+  }> {
+    await this.init();
+    const attemptDeletes: Array<{deleteOne: {filter: any}}> = [];
+    const metricsUpdates: Array<{updateOne: {filter: any; update: any}}> = [];
+    let submissionDeletes: string[] = [];
+
+    for (const quizIdRaw of quizItemIds) {
+      const quizIdStr = quizIdRaw.toString();
+      const quizIdObj = new ObjectId(quizIdStr);
+
+      const userIdStr = userId.toString();
+      const userIdObj = new ObjectId(userIdStr);
+      // 1. Fetch attempt having userId and quizId
+      const docsToDelete = await this.attemptCollection
+        .find(
+          {
+            userId: {$in: [userIdStr, userIdObj]},
+            quizId: {$in: [quizIdStr, quizIdObj]},
+          },
+          {session},
+        )
+        .project({_id: 1})
+        .toArray();
+
+      // 2. If no docs then no need to include in bulk operation
+      if (!docsToDelete.length) continue;
+
+      // 3. push to attempts which we want to delete
+      attemptDeletes.push({
+        deleteOne: {
+          filter: {
+            userId: {$in: [userIdStr, userIdObj]},
+            quizId: {$in: [quizIdStr, quizIdObj]},
+          },
+        },
+      });
+
+      // 4. push metrics reset options
+      metricsUpdates.push({
+        updateOne: {
+          filter: {
+            quizId: {$in: [quizIdStr, quizIdObj]},
+            userId: {$in: [userIdStr, userIdObj]},
+          },
+          update: {
+            $set: {
+              attempts: [],
+              latestAttemptId: null,
+              latestSubmissionResultId: null,
+              latestAttemptStatus: null,
+              skipCount: 0,
+              remainingAttempts: maxAttemptsMap[quizIdStr] || 0,
+            },
+          },
+        },
+      });
+      // 5. push attempt ids to delete realted submissions
+      submissionDeletes = submissionDeletes.concat(
+        docsToDelete.map(d => d._id.toString()),
+      );
+    }
+
+    return {attemptDeletes, metricsUpdates, submissionDeletes};
   }
 
   async deleteUserQuizAttemptsByCourseVersion(
@@ -203,6 +300,25 @@ class ProgressRepository {
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        session,
+      },
+    );
+  }
+
+  async deleteProgress(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.progressCollection.deleteOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -358,6 +474,7 @@ class ProgressRepository {
         session,
       },
     );
+
     return result;
   }
 
@@ -388,14 +505,16 @@ class ProgressRepository {
     session?: ClientSession,
   ) {
     await this.init();
-    const result = await this.watchTimeCollection.find(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-      },
-      {session},
-    ).toArray();
+    const result = await this.watchTimeCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .toArray();
 
     return result;
   }

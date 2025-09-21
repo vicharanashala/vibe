@@ -1,7 +1,7 @@
 import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {UpdateResult} from 'mongodb';
+import {ObjectId, UpdateResult} from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
@@ -47,7 +47,7 @@ export class SectionService extends BaseService {
       itemsGroup = await this.itemRepo.createItemsGroup(itemsGroup, session);
 
       //Assign ItemsGroup to Section
-      section.itemsGroupId = itemsGroup._id;
+      section.itemsGroupId = new ObjectId(itemsGroup._id);
 
       //Add Section to Module
       module.sections.push(section);

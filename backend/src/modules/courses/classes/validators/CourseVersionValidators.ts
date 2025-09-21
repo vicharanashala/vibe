@@ -160,11 +160,55 @@ class CreateCourseVersionResponse {
   version: Record<string, any>;
 }
 
+class UpdateCourseVersionParams {
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course to which the version belongs',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
+
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version to update',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+}
+
+class UpdateCourseVersionBody implements Partial<ICourseVersion> {
+  @JSONSchema({
+    title: 'Version Label',
+    description: 'The version label or identifier (e.g., v1.0, Fall 2025)',
+    example: 'v1.0',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  version: string;
+
+  @JSONSchema({
+    title: 'Version Description',
+    description: 'A brief description of the course version',
+    example: 'First release of the course',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  description: string;
+}
+
 export {
   CreateCourseVersionBody,
   CreateCourseVersionParams,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
+  UpdateCourseVersionParams,
+  UpdateCourseVersionBody,
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
@@ -175,6 +219,8 @@ export const COURSEVERSION_VALIDATORS = [
   CreateCourseVersionParams,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
+  UpdateCourseVersionParams,
+  UpdateCourseVersionBody,
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,

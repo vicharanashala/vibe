@@ -15,11 +15,68 @@ interface VideoModalProps {
     onClose: () => void;
     onSave: (video: Video) => void;
     onDelete?: () => void;
-    onEdit?: () => void; // Add this prop
+    onEdit?: () => void;
     item?: Video | null;
     action: "add" | "edit" | "view";
-    selectedItemName:string,
-    isLoading:boolean,
+    selectedItemName: string;
+    isLoading: boolean;
+}
+
+function formatTime(seconds: number): string {
+    if (isNaN(seconds) || seconds < 0) {
+        return "00:00:00";
+    }
+
+    const totalSeconds = Math.floor(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMins = mins.toString().padStart(2, "0");
+    const formattedSecs = secs.toString().padStart(2, "0");
+
+    return `${formattedHours}:${formattedMins}:${formattedSecs}`;
+}
+
+
+function parseTimeToSeconds(time: string | undefined): number {
+    if (!time || time.trim() === "") {
+        return 0;
+    }
+
+    const normalizedTime = time.trim();
+
+    const timeParts = normalizedTime.split(":");
+
+    if (timeParts.length === 3) {
+        // Format: HH:MM:SS
+        const [hours, minutes, seconds] = timeParts;
+
+        const h = Math.max(0, parseInt(hours, 10) || 0);
+        const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
+        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
+
+        return h * 3600 + m * 60 + s;
+    }
+
+    if (timeParts.length === 2) {
+        // Format: MM:SS
+        const [minutes, seconds] = timeParts;
+
+        const m = Math.max(0, parseInt(minutes, 10) || 0);
+        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
+
+        return m * 60 + s;
+    }
+
+    // Handle plain number (assume it's seconds)
+    if (!normalizedTime.includes(":")) {
+        const seconds = parseInt(normalizedTime, 10);
+        return isNaN(seconds) ? 0 : Math.max(0, seconds);
+    }
+
+    return 0;
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
@@ -40,24 +97,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
-    // Helper to convert "mm:ss.ms" or "hh:mm:ss.ms" to seconds
-    function parseTimeToSeconds(time: string | undefined): number {
-        if (!time) return 0;
-        // Match hh:mm:ss.ms or mm:ss.ms or ss.ms
-        const parts = time.split(":").map(Number);
-        if (parts.some(isNaN)) return 0;
-        if (parts.length === 3) {
-            // hh:mm:ss.ms
-            return parts[0] * 3600 + parts[1] * 60 + parts[2];
-        } else if (parts.length === 2) {
-            // mm:ss.ms
-            return parts[0] * 60 + parts[1];
-        } else if (parts.length === 1) {
-            // ss.ms
-            return parts[0];
-        }
-        return 0;
-    }
+    const [errors, setErrors] = useState({
+        startTime: "",
+        endTime: ""
+    });
 
     const [range, setRange] = useState<[number, number]>([
         item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
@@ -65,6 +108,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
     ]);
     const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details.URL+"?rel=0" || ""));
     const [points, setPoints] = useState<number>(item?.details.points ?? 0);
+    const [timeInputs, setTimeInputs] = useState({
+        start: item?.details.startTime || "0:00:00",
+        end: item?.details.endTime || "0:00:00",
+    });
 
     const playerRef = useRef<any>(null);
     const iframeRef = useRef<HTMLDivElement>(null);
@@ -86,6 +133,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setVideoId(id);
         if (!id) {
             setRange([0, 0]);
+            setTimeInputs({ start: "0:00:00", end: "0:00:00" });
         }
     }, [url]);
 
@@ -95,10 +143,20 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setDescription(item?.description || "");
         setUrl(item?.details.URL || "");
         setPoints(item?.details.points ?? 0);
+        
+        const startTime = item?.details.startTime || "0:00:00";
+        const endTime = item?.details.endTime || "0:00:00";
+        
         setRange([
-            item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
-            item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
+            parseTimeToSeconds(startTime),
+            parseTimeToSeconds(endTime),
         ]);
+        
+        setTimeInputs({
+            start: startTime,
+            end: endTime,
+        });
+        
         setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
         setPlayerReady(false);
         setDuration(0);
@@ -122,9 +180,27 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 onReady: (event: any) => {
                     const dur = event.target.getDuration();
                     setDuration(dur);
-                    setRange(prev =>
-                        prev[1] > 0 ? prev : [0, dur]
-                    );
+
+                    const currentEnd = parseTimeToSeconds(timeInputs.end);
+                    const newEnd = currentEnd > 0 ? Math.min(currentEnd, dur) : dur;
+                    
+                    const startSeconds = parseTimeToSeconds(timeInputs.start);
+                    
+                    setRange([startSeconds, newEnd]);
+                    
+                    const formattedEnd = formatTime(newEnd);
+                    
+                    setTimeInputs(prev => {
+                        const updated = {
+                            ...prev,
+                            end: formattedEnd
+                        };
+                        return updated;
+                    });
+                    
+                    validateTimeAgainstDuration(timeInputs.start, 'startTime', dur);
+                    validateTimeAgainstDuration(timeInputs.end, 'endTime', dur);
+                    
                     setPlayerReady(true);
                     setShowOverlay(false);
                 },
@@ -145,7 +221,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 playerRef.current = null;
             }
         };
-    }, [videoId]);
+    },[videoId]);
 
     // Poll current time
     useEffect(() => {
@@ -158,27 +234,91 @@ const VideoModal: React.FC<VideoModalProps> = ({
         return () => clearInterval(interval);
     }, [playerReady]);
 
-    // Seek video when start/end time is changed
-    const handleStartTimeChange = (value: string) => {
-        const start = parseFloat(value) || 0;
-        setRange(([_, end]) => {
-            // Ensure start < end
-            const newStart = Math.min(start, end - 0.1);
+    const validateTimeAgainstDuration = (timeValue: string, field: 'startTime' | 'endTime', maxDuration: number) => {
+        const seconds = parseTimeToSeconds(timeValue);
+        
+        if (seconds > maxDuration) {
+            setErrors(prev => ({
+                ...prev,
+                [field]: `Time exceeds video duration (${formatTime(maxDuration)})`
+            }));
+            return false;
+        } else {
+            setErrors(prev => ({
+                ...prev,
+                [field]: ""
+            }));
+            return true;
+        }
+    };
+
+   const formatTimeInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '').padStart(6, '0').slice(-6);
+
+    const hours = digits.slice(0, 2);
+    const minutes = digits.slice(2, 4);
+    const seconds = digits.slice(4, 6);
+
+    return `${hours}:${minutes}:${seconds}`;
+};
+
+
+    const validateTimeInput = (value: string, maxSeconds: number): number => {
+        if (!value) return 0;
+        const formattedValue = formatTimeInput(value);
+        let seconds = parseTimeToSeconds(formattedValue);
+        seconds = Math.min(seconds, maxSeconds);
+        return seconds;
+    };
+
+    const handleTimeInputChange = (type: 'start' | 'end', value: string) => {
+        const numericOnly = value.replace(/\D/g, '');
+
+    // Limit to 6 digits total (HHMMSS)
+    if (numericOnly.length > 6) return;
+        
+        
+        
+        setTimeInputs(prev => ({
+            ...prev,
+            [type]: value
+        }));
+        
+        
+    };
+
+  const handleTimeInputBlur = (type: 'start' | 'end') => {
+    const rawValue = timeInputs[type];
+
+    const formattedValue = formatTimeInput(rawValue); // pad to HH:mm:ss
+    const seconds = validateTimeInput(formattedValue, duration);
+    const field = type === 'start' ? 'startTime' : 'endTime';
+
+    // Update state with clean formatted value
+    setTimeInputs(prev => ({
+        ...prev,
+        [type]: formattedValue
+    }));
+
+    validateTimeAgainstDuration(formattedValue, field, duration);
+
+    // Update player range
+    if (type === 'start') {
+        setRange(prev => {
+            const newStart = Math.min(seconds, prev[1] - 1);
             if (playerRef.current && playerReady) {
                 playerRef.current.seekTo(newStart, true);
             }
-            return [newStart, end];
+            return [newStart, prev[1]];
         });
-    };
+    } else {
+        setRange(prev => {
+            const newEnd = Math.max(seconds, prev[0] + 1);
+            return [prev[0], newEnd];
+        });
+    }
+};
 
-    const handleEndTimeChange = (value: string) => {
-        const end = parseFloat(value) || 0;
-        setRange(([start, _]) => {
-            // Ensure end > start
-            const newEnd = Math.max(end, start + 0.1);
-            return [start, newEnd];
-        });
-    };
 
     // Only constrain playback to [start, end]
     useEffect(() => {
@@ -195,8 +335,22 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     }, [currentTime, range, playerReady]);
 
+    const hasErrors = () => {
+        return errors.startTime !== "" || errors.endTime !== "";
+    };
+
     // Handle Save
     const handleSave = () => {
+        const startSeconds = validateTimeInput(timeInputs.start, duration);
+        const endSeconds = validateTimeInput(timeInputs.end, duration);
+        
+        const startValid = validateTimeAgainstDuration(timeInputs.start, 'startTime', duration);
+        const endValid = validateTimeAgainstDuration(timeInputs.end, 'endTime', duration);
+        
+        if (!startValid || !endValid) {
+            return; 
+        }
+        
         const video: Video = {
             _id: item?._id || "",
             name,
@@ -204,11 +358,12 @@ const VideoModal: React.FC<VideoModalProps> = ({
             type: "VIDEO",
             details: {
                 URL: url,
-                startTime: range[0].toString(),
-                endTime: range[1].toString(),
+                startTime: formatTime(startSeconds),
+                endTime: formatTime(endSeconds),
                 points: points,
             },
         };
+        
         onSave(video);
     };
 
@@ -240,13 +395,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             >
                                 Edit
                             </Button>
-                            {/* <Button className="text-xs gap-1" variant="outline" size="sm">
-                <FlagTriangleRight className="h-4 w-4 mr-1" />
-                View Flags
-              </Button> */}
                         </span>
                         ) : null}
-                        {/* Remove Close button from here */}
                     </div>
                     <div className="space-y-4">
                         <Input
@@ -332,7 +482,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         fontSize: 15,
                                         zIndex: 11,
                                     }}>
-                                        Start: {range[0].toFixed(1)}s &nbsp; End: {range[1].toFixed(1)}s &nbsp; Current: {currentTime.toFixed(1)}s
+                                        Start: {timeInputs.start} &nbsp; End: {timeInputs.end} &nbsp; Current: {formatTime(currentTime)}
                                     </div>
                                 </div>
                                 {/* Start/End Time Inputs Below Video */}
@@ -347,37 +497,54 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         MozUserSelect: 'none',
                                         msUserSelect: 'none',
                                         flexShrink: 0,
-                                        // display: 'flex',
-                                        gap: '16px',
-                                        // alignItems: 'center',
-                                        // justifyContent: 'flex-start',
-                                        // position: 'relative',
                                     }}
-                                    className="md:flex items-center justify-start relative"
+                                    className="md:flex items-center justify-start relative gap-2"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <label className="font-medium mr-2">Start Time (s):</label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            max={range[1] - 0.1}
-                                            step={0.1}
-                                            value={range[0]}
-                                            onChange={e => handleStartTimeChange(e.target.value)}
-                                            disabled={!playerReady || action === "view"}
-                                            style={{ width: 100 }}
-                                        />
-                                        <label className="font-medium ml-4 mr-2">End Time (s):</label>
-                                        <Input
-                                            type="number"
-                                            min={range[0] + 0.1}
-                                            max={duration}
-                                            step={0.1}
-                                            value={range[1]}
-                                            onChange={e => handleEndTimeChange(e.target.value)}
-                                            disabled={!playerReady || action === "view"}
-                                            style={{ width: 100 }}
-                                        />
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <label className="font-medium mr-2">Start Time (mm:ss):</label>
+                                                    <div className="flex flex-col">
+                                                        <Input
+                                                            type="text"
+                                                            value={timeInputs.start}
+                                                            onChange={e => handleTimeInputChange('start', e.target.value)}
+                                                            onBlur={() => handleTimeInputBlur('start')}
+                                                            disabled={!playerReady || action === "view"}
+                                                            style={{ width: 100 }}
+                                                            placeholder="0:00"
+                                                            maxLength={5}
+                                                            className={errors.startTime ? "border-red-500" : ""}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {errors.startTime && (
+                                                    <span className="text-red-500 text-xs mt-1 absolute">{errors.startTime}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <label className="font-medium ml-4 mr-2">End Time (mm:ss):</label>
+                                                    <div className="flex flex-col">
+                                                        <Input
+                                                            type="text"
+                                                            value={timeInputs.end}
+                                                            onChange={e => handleTimeInputChange('end', e.target.value)}
+                                                            onBlur={() => handleTimeInputBlur('end')}
+                                                            disabled={!playerReady || action === "view"}
+                                                            style={{ width: 100 }}
+                                                            placeholder="0:00"
+                                                            maxLength={5}
+                                                            className={errors.endTime ? "border-red-500" : ""}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {errors.endTime && (
+                                                    <span className="text-red-500 text-xs mt-1">{errors.endTime}</span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                     {/* Go to Start/End Buttons */}
                                     <div className="mt-4 md:mt-0" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -437,7 +604,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 )}
                                 <Button
                                     onClick={handleSave}
-                                    disabled={!playerReady || !url}
+                                    disabled={!playerReady || !url || hasErrors()}
                                 >
                                     {action === "add" ? "Add Item " : "Update Item"}
                                 </Button>

@@ -7,6 +7,7 @@ import { IUserRepository } from '#root/shared/database/interfaces/IUserRepositor
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
+  EnrollmentStatus,
   ICourseVersion,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -19,6 +20,7 @@ import { BadRequestError, NotFoundError } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
 import { ProgressRepository } from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
+import { QuizScoresExportResponseDto, StudentQuizScoreDto } from '../dtos/QuizScoresExportDto.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -45,12 +47,13 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     role: EnrollmentRole,
     throughInvite: boolean = false,
+    session?: ClientSession,
   ) {
-    return this._withTransaction(async (session: ClientSession) => {
-      const user = await this.userRepo.findById(userId);
+    const execute = async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId, session);
       if (!user) throw new NotFoundError('User not found');
 
-      const course = await this.courseRepo.read(courseId);
+      const course = await this.courseRepo.read(courseId, session);
       if (!course) throw new NotFoundError('Course not found');
 
       const courseVersion = await this.courseRepo.readVersion(
@@ -67,48 +70,55 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        session,
       );
 
-      // If the user is already enrolled and not enrolling through an invite, throw an error
-      // This prevents duplicate enrollments unless it's through an invite
       if (existingEnrollment && !throughInvite) {
         throw new BadRequestError(
           'User is already enrolled in this course version',
         );
       }
-      // If the user is already enrolled through an invite, we will skip the enrollment creation
+
       if (existingEnrollment && throughInvite) {
         let status: InviteStatus = 'ALREADY_ENROLLED';
         return status;
       }
 
-      const enrollment = new Enrollment(userId, courseId, courseVersionId);
-
-      const createdEnrollment = await this.enrollmentRepo.createEnrollment({
+      const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         role: role,
-        status: 'ACTIVE',
+        status: 'ACTIVE' as EnrollmentStatus,
         enrollmentDate: new Date(),
         percentCompleted: 0,
-      });
+      };
 
-      const initialProgress = await this.initializeProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        courseVersion,
+      const createdEnrollment = await this.enrollmentRepo.createEnrollment(
+        enrollmentData,
         session,
       );
+      let initialProgress = null;
+      if (createdEnrollment.role == 'STUDENT') {
+        initialProgress = await this.initializeProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          courseVersion,
+          session,
+        );
+      }
 
       return {
         enrollment: createdEnrollment,
         progress: initialProgress,
         role: role,
       };
-    });
+    };
+    // If session provided, use it; otherwise wrap in a new transaction
+    return session ? execute(session) : this._withTransaction(execute);
   }
+
   async findEnrollment(
     userId: string,
     courseId: string,
@@ -146,27 +156,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    enrollment: Enrollment | null,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      const enrollment = await this.enrollmentRepo.findEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-      );
       if (!enrollment) {
         throw new NotFoundError('Enrollment not found');
       }
 
-      // Remove enrollment
-      await this.enrollmentRepo.deleteEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
-
-      // Remove progress
-      await this.enrollmentRepo.deleteProgress(
+      await this.progressService.unenrollUser(
         userId,
         courseId,
         courseVersionId,
@@ -181,7 +178,17 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-  async getEnrollments(
+  private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
+    return {
+      ...course,
+      versions:
+        course?.versions?.filter((versionId: string) =>
+          enrolledVersionIds.has(versionId.toString()),
+        ) || [],
+    };
+  }
+
+  public async getEnrollments(
     userId: string,
     skip: number,
     limit: number,
@@ -189,27 +196,70 @@ export class EnrollmentService extends BaseService {
     search: string,
   ): Promise<EnrollmentDataResponse[]> {
     return this._withTransaction(async (session: ClientSession) => {
-      const result = await this.enrollmentRepo.getEnrollments(
+      const enrollments = await this.enrollmentRepo.getBasicEnrollments(
         userId,
         skip,
         limit,
-        search,
         role,
+        search,
         session,
       );
-      return result.map(enrollment => {
-        const { userId, ...rest } = enrollment;
-        return {
-          ...rest,
-          _id: enrollment._id.toString(),
-          courseId: enrollment.courseId.toString(),
-          courseVersionId: enrollment.courseVersionId.toString(),
-          role: enrollment.role,
-          status: enrollment.status,
-          enrollmentDate: new Date(enrollment.enrollmentDate),
-          course: enrollment.course,
-        };
-      });
+
+      if (!enrollments.length) return [];
+
+      const enrolledVersionIds = new Set(
+        enrollments.map(e => e.courseVersionId.toString()),
+      );
+
+      if (role === 'STUDENT') {
+        const versionIds = Array.from(enrolledVersionIds).map(
+          id => new ObjectId(id),
+        );
+        const watchedKeys = enrollments.map(e => ({
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(e.courseId),
+          courseVersionId: new ObjectId(e.courseVersionId),
+        }));
+
+        const [contentCountsMap, watchedItemsMap] = await Promise.all([
+          this.enrollmentRepo.getContentCountsForVersions(versionIds),
+          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        ]);
+
+        return enrollments.map(enr => {
+          const versionIdStr = enr.courseVersionId.toString();
+          const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+
+          return {
+            _id: enr._id.toString(),
+            courseId: enr.courseId.toString(),
+            courseVersionId: versionIdStr,
+            role: enr.role,
+            status: enr.status,
+            enrollmentDate: new Date(enr.enrollmentDate),
+            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+            percentCompleted: enr.percentCompleted || 0,
+            contentCounts: contentCountsMap.get(versionIdStr) || {
+              totalItems: 0,
+              videos: 0,
+              quizzes: 0,
+              articles: 0,
+            },
+            completedItems: watchedItemsMap.get(watchedKey) || 0,
+          };
+        });
+      }
+
+      // Non-student
+      return enrollments.map(enr => ({
+        _id: enr._id.toString(),
+        courseId: enr.courseId.toString(),
+        courseVersionId: enr.courseVersionId.toString(),
+        role: enr.role,
+        status: enr.status,
+        enrollmentDate: new Date(enr.enrollmentDate),
+        course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+      }));
     });
   }
 
@@ -236,6 +286,7 @@ export class EnrollmentService extends BaseService {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
+    filter:string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -257,6 +308,7 @@ export class EnrollmentService extends BaseService {
           search,
           sortBy,
           sortOrder,
+          filter,
           session,
         );
 
@@ -275,6 +327,51 @@ export class EnrollmentService extends BaseService {
         session,
       );
     });
+  }
+
+  /**
+   * Get quiz scores for all students in a course version with optimized batching
+   * @param courseId Course ID
+   * @param versionId Course version ID
+   * @returns Promise with quiz scores data and metadata
+   * @throws {NotFoundError} When course or version is not found
+   * @throws {Error} When there's an error fetching quiz scores
+   */
+  async getQuizScoresForCourseVersion(
+    courseId: string,
+    versionId: string,
+  ): Promise<QuizScoresExportResponseDto> {
+    try {
+      // Verify course and version exist in a single transaction
+      const [course, version] = await Promise.all([
+        this.courseRepo.read(courseId),
+        this.courseRepo.readVersion(versionId)
+      ]);
+
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      if (!version) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      console.log(`Starting quiz scores export for course ${courseId}, version ${versionId}`);
+
+      // Get quiz scores from repository with batching
+      return await this.enrollmentRepo.getQuizScoresForCourseVersion(
+        courseId,
+        versionId,
+      );
+    } catch (error) {
+      console.error(`Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`, error);
+
+      // Rethrow with more context if it's not already a known error
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      throw new Error(`Failed to fetch quiz scores: ${error.message}`);
+    }
   }
 
   async countEnrollments(userId: string, role: EnrollmentRole) {
@@ -327,107 +424,48 @@ export class EnrollmentService extends BaseService {
     )[0];
 
     // Create progress record
-    return await this.enrollmentRepo.createProgress({
-      userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
-      currentModule: firstModule.moduleId,
-      currentSection: firstSection.sectionId,
-      currentItem: firstItem._id,
-      completed: false,
-    });
+    return await this.enrollmentRepo.createProgress(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        currentModule: firstModule.moduleId,
+        currentSection: firstSection.sectionId,
+        currentItem: firstItem._id,
+        completed: false,
+      },
+      session,
+    );
   }
 
-  // async bulkUpdateAllEnrollments(): Promise<void> {
-  //   return this._withTransaction(async session => {
-  //     const courses = await this.courseRepo.getAllCourses(session);
-  //     const courseVersionIds = courses.flatMap(course => course.versions);
+  async bulkUpdateAllEnrollments(
+    courseId?: string,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    const BATCH_SIZE = 5000;
 
-  //     const bulkOperations = [];
+    // 1. Get courses (all or specific one)
+    let courses = [];
+    if (courseId) {
+      console.log(`Processing enrollments for courseId: ${courseId}`);
+      const course = await this.courseRepo.read(courseId);
+      if (!course) {
+        throw new Error(`Course with id ${courseId} not found`);
+      }
+      courses = [course];
+    } else {
+      courses = await this.courseRepo.getAllCourses();
+    }
 
-  //     for (const courseVersionId of courseVersionIds) {
-  //       try {
-  //         const courseVersion = await this.courseRepo.readVersion(
-  //           courseVersionId as string,
-  //           session,
-  //         );
-  //         if (!courseVersion) continue;
-
-  //         // total items for this version
-  //         // const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-  //         //   courseVersion.courseId.toString(),
-  //         //   courseVersion._id.toString(),
-  //         //   session,
-  //         // );
-
-  //         // get all enrollments for this course version
-  //         const enrollments = await this.enrollmentRepo.getByCourseVersion(
-  //           courseVersion.courseId.toString(),
-  //           courseVersion._id.toString(),
-  //           session,
-  //         );
-
-  //         for (const enrollment of enrollments) {
-  //           try {
-  //             // const completedItems =
-  //             //   await this.progressService.getUserProgressPercentageWithoutTotal(
-  //             //     enrollment.userId.toString(),
-  //             //     courseVersion.courseId.toString(),
-  //             //     courseVersion._id.toString(),
-  //             //   );
-
-  //             // const percentCompleted = Math.round(
-  //             //   (totalItems > 0 ? completedItems / totalItems : 0) * 100,
-  //             // );
-  //             bulkOperations.push({
-  //               updateOne: {
-  //                 filter: { _id: new ObjectId(enrollment._id) },
-  //                 update: {
-  //                   $set: {
-  //                     // percentCompleted
-  //                     userId: enrollment.userId instanceof ObjectId ? enrollment.userId : new ObjectId(enrollment.userId)
-  //                   },
-  //                 },
-  //               },
-  //             });
-  //           } catch (err) {
-  //             console.error(
-  //               `Failed to compute progress for enrollment ${enrollment._id}`,
-  //               err,
-  //             );
-  //           }
-  //         }
-  //       } catch (error) {
-  //         console.error(
-  //           `Failed to process course version: ${courseVersionId}`,
-  //           error,
-  //         );
-  //       }
-  //     }
-
-  //     if (bulkOperations.length > 0) {
-  //       await this.enrollmentRepo.bulkUpdateEnrollments(
-  //         bulkOperations,
-  //         session,
-  //       );
-  //       console.log(`Bulk updated ${bulkOperations.length} enrollments`);
-  //     }
-  //   });
-  // }
-
-  async bulkUpdateAllEnrollments(): Promise<void> {
-    const BATCH_SIZE = 10;
-    const courses = await this.courseRepo.getAllCourses();
     const courseVersionIds = courses.flatMap(course => course.versions);
 
     const bulkOperations = [];
     let batchCount = 0;
+    let totalCount = 0;
+    let updatedCount = 0;
 
     for (const courseVersionId of courseVersionIds) {
       try {
-        const courseVersion = await this.courseRepo.readVersion(
-          courseVersionId as string,
-        );
+        const courseVersion = await this.courseRepo.readVersion(courseVersionId as string);
         if (!courseVersion) continue;
 
         const totalItems = await this.itemRepo.CalculateTotalItemsCount(
@@ -440,75 +478,61 @@ export class EnrollmentService extends BaseService {
           courseVersion._id.toString(),
         );
 
+        totalCount += enrollments.length;
+
         for (const enrollment of enrollments) {
           try {
-            const completedItems =
-              await this.progressService.getUserProgressPercentageWithoutTotal(
-                enrollment.userId.toString(),
-                courseVersion.courseId.toString(),
-                courseVersion._id.toString(),
-              );
+            const completedItems = await this.progressService.getUserProgressPercentageWithoutTotal(
+              enrollment.userId.toString(),
+              courseVersion.courseId.toString(),
+              courseVersion._id.toString(),
+            );
 
             const percentCompleted = Math.round(
               (totalItems > 0 ? completedItems / totalItems : 0) * 100,
             );
 
-            // const normalizedUserId =
-            //   enrollment.userId instanceof ObjectId
-            //     ? enrollment.userId
-            //     : new ObjectId(enrollment.userId);
-
             bulkOperations.push({
               updateOne: {
                 filter: { _id: new ObjectId(enrollment._id) },
-                update: {
-                  $set: {
-                    percentCompleted,
-                    // userId: normalizedUserId,
-                  },
-                },
+                update: { $set: { percentCompleted } },
               },
             });
 
             if (bulkOperations.length === BATCH_SIZE) {
               await this._withTransaction(async session => {
-                await this.enrollmentRepo.bulkUpdateEnrollments(
-                  bulkOperations,
-                  session,
-                );
-                console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
-                  } enrollments`,
-                );
-                bulkOperations.length = 0; // Clear the array
+                await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+                updatedCount += bulkOperations.length;
+                console.log(`✅ Batch ${++batchCount}: Updated ${bulkOperations.length} enrollments`);
+                bulkOperations.length = 0;
               });
             }
           } catch (err) {
-            console.error(
-              `Failed to process enrollment ${enrollment._id}`,
-              err,
-            );
+            console.error(`Failed to process enrollment ${enrollment._id}`, err);
           }
         }
       } catch (err) {
-        console.error(
-          `Failed to process course version ${courseVersionId}`,
-          err,
-        );
+        console.error(`Failed to process course version ${courseVersionId}`, err);
       }
     }
 
     // Process any remaining operations
     if (bulkOperations.length > 0) {
       await this._withTransaction(async session => {
-        await this.enrollmentRepo.bulkUpdateEnrollments(
-          bulkOperations,
-          session,
-        );
-        console.log(
-          `✅ Final batch: Updated ${bulkOperations.length} enrollments`,
-        );
+        await this.enrollmentRepo.bulkUpdateEnrollments(bulkOperations, session);
+        updatedCount += bulkOperations.length;
+        console.log(`✅ Final batch: Updated ${bulkOperations.length} enrollments`);
       });
     }
+
+    return { totalCount, updatedCount };
+  }
+
+
+
+  async addIndex(): Promise<void> {
+    await this._withTransaction(async session => {
+      await this.enrollmentRepo.addEnrollmentIndexes(session);
+    });
   }
 }

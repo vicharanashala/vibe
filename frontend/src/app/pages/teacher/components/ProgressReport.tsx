@@ -166,13 +166,13 @@ const ProgressReport: React.FC<ProgressReportProps> = ({
 
               return (
                 <View key={index} style={styles.tableRow} wrap={false}>
-                  <Text style={[styles.tableCell, { flex: 2 }]} wrap={false}>
-                    {typeof submission?.userId !== "string"
-                    ? `${submission.userId?.firstName?.substring(0, 12) ?? ''} ${submission.userId?.lastName?.substring(0, 12) ?? ''}`
+                  <Text style={[styles.tableCell, { flex: 1 }]} wrap={false}>
+                    {typeof submission?.userInfo !== "string"
+                    ? `${submission.userInfo?.firstName?.substring(0, 12) ?? ''} ${submission.userInfo?.lastName?.substring(0, 12) ?? ''}`
                     : "N/A"}
                   </Text>
-                  <Text style={{... styles.tableCell,  width: '150px', overflow: 'hidden', textOverflow: 'ellipsis'}} wrap={false}>
-                    {typeof submission?.userId !== "string" ? submission.userId?.email : "N/A"}
+                  <Text style={{... styles.tableCell,  width: '150px', overflow: 'hidden', textOverflow: 'ellipsis', flex: 2}} wrap={false}>
+                    {typeof submission?.userInfo !== "string" ? submission.userInfo?.email : "N/A"}
                   </Text>
                   <Text style={styles.tableCell} wrap={false}>
                     {submission?.gradingResult?.totalScore ?? 'N/A'}/

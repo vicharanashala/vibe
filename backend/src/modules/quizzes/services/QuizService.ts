@@ -18,7 +18,8 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import {GetQuizSubmissionsQuery} from '../classes/index.js';
+import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
+import {QuestionBankService} from './QuestionBankService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -30,6 +31,9 @@ class QuizService extends BaseService {
 
     @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
+
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    public readonly questionBankService: QuestionBankService,
 
     @inject(QUIZZES_TYPES.QuizRepo)
     public readonly quizRepo: QuizRepository,
@@ -46,7 +50,7 @@ class QuizService extends BaseService {
   addQuestionBank(quizId: string, questionBankRef: IQuestionBankRef) {
     return this._withTransaction(async session => {
       const questionBank = await this.questionBankRepo.getById(
-        questionBankRef.bankId,
+        questionBankRef.bankId.toString(),
         session,
       );
       if (!questionBank) {
@@ -56,16 +60,17 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
       }
-       if (!quiz.details.questionBankRefs) {
-          quiz.details.questionBankRefs = [];
-        }
+      if (!quiz.details.questionBankRefs) {
+        quiz.details.questionBankRefs = [];
+      }
       if (
         quiz.details.questionBankRefs.some(
-          qb => qb.bankId === questionBankRef.bankId,
+          qb => qb.bankId.toString() === questionBankRef.bankId.toString(),
         )
       ) {
         throw new Error('Question bank is already added to the quiz.');
       }
+      questionBankRef.bankId = new ObjectId(questionBankRef.bankId);
       quiz.details.questionBankRefs.push(questionBankRef);
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
@@ -81,18 +86,29 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
-        qb => qb.bankId === questionBankId,
+        qb => qb.bankId.toString() === questionBankId.toString(),
       );
       if (questionBankIndex === -1) {
         throw new NotFoundError('Question bank not found in quiz.');
       }
       quiz.details.questionBankRefs.splice(questionBankIndex, 1);
+
+      quiz.details.questionBankRefs.map((ref: QuestionBankRef) => {
+        return {
+          ...ref,
+          bankId: new ObjectId(ref.bankId),
+        };
+      });
+
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
         throw new InternalServerError(
           'Failed to remove question bank from quiz.',
         );
       }
+
+      await this.questionBankService.delete(questionBankId, session);
+
       return result;
     });
   }
@@ -106,16 +122,25 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
-        qb => qb.bankId === updatedQuestionBankRef.bankId,
+        qb => qb.bankId.toString() === updatedQuestionBankRef.bankId.toString(),
+      );
+      updatedQuestionBankRef.bankId = new ObjectId(
+        updatedQuestionBankRef.bankId,
       );
       if (questionBankIndex === -1) {
         throw new NotFoundError('Question bank not found in quiz.');
       }
       const existingQuestionBank =
         quiz.details.questionBankRefs[questionBankIndex];
+      // to confirm bankid always objectId
+      existingQuestionBank.bankId = new ObjectId(existingQuestionBank.bankId);
       quiz.details.questionBankRefs[questionBankIndex] = {
         ...existingQuestionBank,
-        ...updatedQuestionBankRef,
+        ...{
+          count: updatedQuestionBankRef.count,
+          difficulty: updatedQuestionBankRef.difficulty,
+          tags: updatedQuestionBankRef.tags,
+        },
       };
       const result = await this.quizRepo.updateQuiz(quiz, session);
       if (!result) {
@@ -135,17 +160,21 @@ class QuizService extends BaseService {
       const refs = quiz.details.questionBankRefs || [];
       const banks = await Promise.all(
         refs.map(async ref => {
-          const bank = await this.questionBankRepo.getById(ref.bankId, session);
+          const bank = await this.questionBankRepo.getById(
+            ref.bankId.toString(),
+            session,
+          );
           if (!bank) {
             return null;
           }
           return {
             ...ref,
+            bankId: ref.bankId.toString(),
             title: bank.title,
             description: bank.description,
             tags: bank.tags,
           };
-        })
+        }),
       );
       return banks.filter(Boolean);
     });
@@ -162,6 +191,12 @@ class QuizService extends BaseService {
       }
       metrics._id = metrics._id.toString();
       metrics.quizId = metrics.quizId.toString();
+      if (Array.isArray(metrics.attempts)) {
+        metrics.attempts = metrics.attempts.map(attempt => ({
+          ...attempt,
+          attemptId: attempt.attemptId.toString(),
+        }));
+      }
       return metrics;
     });
   }
@@ -203,11 +238,12 @@ class QuizService extends BaseService {
       return quiz;
     });
   }
-  getQuizAnalytics(quizId: string): Promise<{
+  async getQuizAnalytics(quizId: string): Promise<{
     totalAttempts: number;
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage: number;
   }> {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -215,40 +251,38 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
 
-      const totalAttempts = await this.attemptRepo.countAttempts(
-        quizId,
-        session,
-      );
-      const submissions = await this.submissionRepo.countByQuizId(
-        quizId,
-        session,
-      );
-      const passedSubmissions = await this.submissionRepo.countPassedByQuizId(
-        quizId,
-        session,
-      );
-      const averageScore = await this.submissionRepo.getAverageScoreByQuizId(
-        quizId,
-        session,
-      );
-
-      const passRate =
-        totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0;
+      // Run all analytics queries in parallel
+      const [
+        totalAttempts,
+        submissions,
+        passedSubmissions,
+        averageScore,
+        averagePercentage,
+      ] = await Promise.all([
+        this.attemptRepo.countAttempts(quizId, session),
+        this.submissionRepo.countByQuizId(quizId, session),
+        this.submissionRepo.countPassedByQuizId(quizId, session),
+        this.submissionRepo.getAverageScoreByQuizId(quizId, session),
+        this.submissionRepo.getAveragePercentageByQuizId(quizId, session),
+      ]);
 
       return {
         totalAttempts,
         submissions,
-        passRate,
+        passRate:
+          totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0,
         averageScore,
+        averagePercentage,
       };
     });
   }
-  getQuestionPerformanceStats(quizId: string): Promise<
+
+  async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
       correctRate: number;
       averageScore: number;
-      message?:string;
+      message?: string;
     }[]
   > {
     return this._withTransaction(async session => {
@@ -256,49 +290,44 @@ class QuizService extends BaseService {
         quizId,
         session,
       );
-      if (!submissions.data || submissions.data.length === 0) {
-        // throw new NotFoundError('No submissions found for quiz performance');
-        return [{
-          questionId: '',
-          correctRate: 0,
-          averageScore: 0,
-          message: 'No submissions found for quiz'
-        }]
+      if (!submissions.data?.length) {
+        return [
+          {
+            questionId: '',
+            correctRate: 0,
+            averageScore: 0,
+            message: 'No submissions found for quiz',
+          },
+        ];
       }
-      const statsMap = new Map<
+
+      const stats: Record<
         string,
         {correct: number; total: number; score: number}
-      >();
+      > = Object.create(null);
 
       for (const submission of submissions.data) {
-        const feedbacks: IQuestionAnswerFeedback[] =
-          submission.gradingResult?.overallFeedback ?? [];
+        for (const feedback of submission.gradingResult?.overallFeedback ??
+          []) {
+          const qid = feedback.questionId.toString();
+          if (!stats[qid]) stats[qid] = {correct: 0, total: 0, score: 0};
 
-        for (const feedback of feedbacks) {
-          const questionId = feedback.questionId.toString(); // normalize ObjectId to string
-          const stat = statsMap.get(questionId) || {
-            correct: 0,
-            total: 0,
-            score: 0,
-          };
-
-          stat.total += 1;
-          if (feedback.status === 'CORRECT') stat.correct += 1;
-          // You could also do partial credit for PARTIAL here if you want
-
-          stat.score += feedback.score ?? 0;
-
-          statsMap.set(questionId, stat);
+          stats[qid].total += 1;
+          if (feedback.status === 'CORRECT') stats[qid].correct += 1;
+          stats[qid].score += feedback.score ?? 0;
         }
       }
 
-      return Array.from(statsMap.entries()).map(([questionId, stat]) => ({
-        questionId,
-        correctRate: stat.total === 0 ? 0 : stat.correct / stat.total,
-        averageScore: stat.total === 0 ? 0 : stat.score / stat.total,
-      }));
+      return Object.entries(stats).map(
+        ([questionId, {correct, total, score}]) => ({
+          questionId,
+          correctRate: total ? correct / total : 0,
+          averageScore: total ? score / total : 0,
+        }),
+      );
     });
   }
+
   getQuizResults(quizId: string): Promise<
     Array<{
       studentId: string | ObjectId;
@@ -341,6 +370,10 @@ class QuizService extends BaseService {
         throw new NotFoundError('Submission does not exist.');
       }
       submission.gradingResult.totalScore = newScore;
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -372,6 +405,11 @@ class QuizService extends BaseService {
         ...submission.gradingResult,
         ...filteredGradingResult,
       };
+
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -408,6 +446,10 @@ class QuizService extends BaseService {
         throw new NotFoundError('Feedback for this question does not exist.');
       }
       submission.gradingResult.overallFeedback = feedbacks;
+      submission.attemptId = new ObjectId(submission.attemptId);
+      submission.quizId = new ObjectId(submission.quizId);
+      submission.userId = new ObjectId(submission.userId);
+
       const result = await this.submissionRepo.update(
         submissionId,
         submission,
@@ -434,13 +476,13 @@ class QuizService extends BaseService {
 
       for (const questionBankId of quesBankIds) {
         const questionBank = await this.questionBankRepo.getById(
-          questionBankId,
+          questionBankId.toString(),
           session,
         );
         if (!questionBank) {
           throw new NotFoundError('Question bank not found');
         }
-        const courseId = questionBank.courseId;
+        const courseId = questionBank.courseId.toString();
         const courseVersionId = questionBank.courseVersionId;
         if (!courseId && !courseVersionId) {
           throw new Error(
@@ -452,7 +494,7 @@ class QuizService extends BaseService {
             courseMap[courseId] = new Set();
           }
           if (courseVersionId) {
-            courseMap[courseId].add(courseVersionId);
+            courseMap[courseId].add(courseVersionId.toString());
           }
         }
       }
@@ -476,7 +518,7 @@ class QuizService extends BaseService {
           totalCount: 0,
           currentPage: query.currentPage || 1,
           totalPages: 0,
-          message: 'No submissions found for quiz'
+          message: 'No submissions found for quiz',
         };
       }
       // Convert _id to string for each submission
@@ -484,7 +526,7 @@ class QuizService extends BaseService {
       //   ...sub,
       //   _id: sub._id.toString(),
       // }));
-      return submissions
+      return submissions;
     });
   }
 

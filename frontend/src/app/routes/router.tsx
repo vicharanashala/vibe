@@ -35,6 +35,7 @@ import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
+import CourseInstructors from '../pages/teacher/course-instructors'
 
 
 // Root route with error and notFound handling
@@ -45,7 +46,7 @@ const rootRoute = new RootRoute({
     console.error('Router error:', error);
     // reload page on error
     setTimeout(() => {
-      window.location.reload();
+      // window.location.reload();
     }, 1000);
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -217,6 +218,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollments,
 });
 
+// Teacher Course Instructors route
+const teacherCourseInstructorsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/instructors',
+  component: CourseInstructors,
+});
+
 // Teacher Course Flags route
 const teacherCourseFlagsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -342,6 +350,7 @@ const routeTree = rootRoute.addChildren([
     teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
+    teacherCourseInstructorsRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

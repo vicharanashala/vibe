@@ -261,9 +261,14 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       await refetchQuestion();
       toast.success("Question has been updated successfully.");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update question:', error);
-      toast.error("Failed to update the question. Please try again.");
+      
+      if (error?.name === 'ForbiddenError') {
+        toast.error("You don't have permission to edit this question. Only admins or the question creator can edit it.");
+      } else {
+        toast.error("Failed to update the question. Please try again.");
+      }
     }
   };
 

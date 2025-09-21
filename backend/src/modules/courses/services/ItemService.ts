@@ -1,34 +1,40 @@
-import { injectable, inject } from 'inversify';
-import { ClientSession } from 'mongodb';
-import { NotFoundError, InternalServerError } from 'routing-controllers';
-import { COURSES_TYPES } from '#courses/types.js';
-import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {COURSES_TYPES} from '#courses/types.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
 } from '#courses/classes/transformers/Item.js';
-import { Section } from '#courses/classes/transformers/Section.js';
+import {Section} from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
 } from '#courses/classes/validators/ItemValidators.js';
-import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { Module } from '#courses/classes/transformers/Module.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {Module} from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
   ICourseVersion,
   ItemType,
   ProgressRepository,
 } from '#root/shared/index.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {
+  AttemptRepository,
+  QuizRepository,
+  UserQuizMetricsRepository,
+} from '#root/modules/quizzes/repositories/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -43,6 +49,12 @@ export class ItemService extends BaseService {
     private readonly progressService: ProgressService,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
+    private userQuizMetricsRepository: UserQuizMetricsRepository,
+    @inject(QUIZZES_TYPES.QuizRepo)
+    private quizRepository: QuizRepository,
+    @inject(QUIZZES_TYPES.AttemptRepo)
+    private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -77,7 +89,6 @@ export class ItemService extends BaseService {
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
-
     const itemsGroup = await this.itemRepo.readItemsGroup(
       section.itemsGroupId.toString(),
       session,
@@ -88,13 +99,13 @@ export class ItemService extends BaseService {
       );
     }
 
-    return { version, module, section, itemsGroup };
+    return {version, module, section, itemsGroup};
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: { updatedAt: Date },
-    section: { updatedAt: Date },
+    module: {updatedAt: Date},
+    section: {updatedAt: Date},
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -117,24 +128,37 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
-      //Step 1: Fetch and validate parent entities (version, module, section) and the itemsGroup.
-
-      const { version, module, section, itemsGroup } =
+      // Step 1: Fetch and validate parent entities
+      const {version, module, section, itemsGroup} =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
           sectionId,
           session,
         );
-
-      //Step 2: Create a new item instance in memory.
+      // Step 2: Create a new item instance
       const item = new ItemBase(body, itemsGroup.items);
 
-      //Step 3: Store the item-specific details in the repository.
-      const createdItemDetailsPersistenceResult =
-        await this.itemRepo.createItem(item.itemDetails, session);
+      const courseId = version.courseId.toString();
 
-      // Step 3a: Check if the item-specific details were successfully created.
+      // Step 3: Run multiple async operations in parallel
+      const [
+        createdItemDetailsPersistenceResult,
+        totalItemsCountIfNeeded,
+        enrollments,
+      ] = await Promise.all([
+        this.itemRepo.createItem(item.itemDetails, session),
+        version.totalItems
+          ? Promise.resolve(null)
+          : this.itemRepo.CalculateTotalItemsCount(
+              courseId,
+              version._id.toString(),
+              session,
+            ),
+        this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
+      ]);
+
+      // Step 3a: Validate creation
       if (!createdItemDetailsPersistenceResult) {
         throw new InternalServerError(
           'Persistence of item-specific details failed in the repository.',
@@ -142,57 +166,42 @@ export class ItemService extends BaseService {
       }
       createdItemDetailsPersistenceResult._id =
         createdItemDetailsPersistenceResult._id.toString();
-      if (version.totalItems) {
-        version.totalItems += 1; // Increment the total items count in the version.
-      } else {
-        version.totalItems = Math.max(
-          await this.itemRepo.CalculateTotalItemsCount(
-            version.courseId.toString(),
-            version._id.toString(),
-            session,
-          ),
-          1,
-        );
-      }
 
-      const courseId = version.courseId.toString();
+      // Step 3b: Update totalItems
+      version.totalItems = version.totalItems
+        ? version.totalItems + 1
+        : Math.max(totalItemsCountIfNeeded || 0, 1);
 
-      //Step 4: Update the progress percent in enrollment doc
-      const enrollments = await this.enrollmentRepo.getByCourseVersion(
-        courseId,
-        versionId,
-        session,
-      );
-
+      // Step 4: Update enrollment progress in bulk
       await this.progressService.updateEnrollmentProgressPercentBulk(
         enrollments,
         courseId,
         versionId,
         version.totalItems,
         session,
-
       );
 
-
-      //Step 5: Create a new ItemDB instance to represent the item in the itemsGroup.
-      const newItemDB = new ItemRef(item); // ItemDB transforms/wraps the ItemBase instance for storage.
-      newItemDB._id = newItemDB._id.toString();
+      // Step 5: Add item to itemsGroup
+      const newItemDB = new ItemRef(item);
+      // newItemDB._id = newItemDB._id.toString();
       itemsGroup.items.push(newItemDB);
+      itemsGroup.sectionId = new ObjectId(itemsGroup.sectionId);
 
-      //Step 5: Save the modified 'itemsGroup' (now containing the new item) back to the database.
+      // Step 5b: Persist updated itemsGroup
       const updatedItemsGroupResult = await this.itemRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
         itemsGroup,
         session,
       );
 
-      //Step 6: Update the 'updatedAt' timestamps for the modified section, module, and version.
+      // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
         version,
         module,
         section,
         session,
       );
+
       return {
         itemsGroup: updatedItemsGroupResult,
         version: updatedVersion,
@@ -206,7 +215,7 @@ export class ItemService extends BaseService {
     moduleId: string,
     sectionId: string,
   ): Promise<ItemRef[]> {
-    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
+    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
@@ -226,88 +235,183 @@ export class ItemService extends BaseService {
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
-      const version = await this.courseRepo.readVersion(versionId, session);
+      // 🔄 Run version and item fetch in parallel
+      const [version, item] = await Promise.all([
+        this.courseRepo.readVersion(versionId, session),
+        this.itemRepo.readItem(versionId, itemId, session),
+      ]);
+
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-      const item = await this.itemRepo.readItem(versionId, itemId, session);
       if (!item)
         throw new NotFoundError(
           `Item ${itemId} not found in version ${versionId}.`,
         );
+
       if (item.type !== body.type) {
         throw new InternalServerError(
           `Item type mismatch: expected ${item.type}, got ${body.type}.`,
         );
       }
+
+      // ✅ Update item first
       const result = await this.itemRepo.updateItem(itemId, body, session);
+
+      // 🔄 Run metrics update (if QUIZ) and version update in parallel
       version.updatedAt = new Date();
-      const updatedVersion = await this.courseRepo.updateVersion(
-        versionId,
-        version,
-      );
+
+      const promises: Promise<any>[] = [
+        this.courseRepo.updateVersion(versionId, version),
+      ];
+
+      if (body.type === 'QUIZ') {
+        promises.push(this.bulkUpdateEnrolledUserQuizMetrics(itemId, result));
+      }
+
+      const [updatedVersion] = await Promise.all(promises);
+
       if (!updatedVersion) {
         throw new InternalServerError(
           'Failed to update version after item update',
         );
       }
+
       result._id = result._id.toString();
       return result;
     });
   }
 
+  async bulkUpdateEnrolledUserQuizMetrics(
+    quizId: string,
+    quiz: any,
+  ): Promise<{updatedCount: number; totalCount: number}> {
+    const BATCH_SIZE = 5000;
+    const bulkOperations: any[] = [];
+    let batchCount = 0;
+    let updatedCount = 0;
+
+    // Step 1: Get all user_quiz_metrics records
+    const metrics = await this.userQuizMetricsRepository.getByQuizId(quizId);
+
+    const totalCount = metrics.length; // total records
+    console.log(
+      `🔹 Found ${totalCount} user_quiz_metrics records for quiz ${quizId}`,
+    );
+    for (const metric of metrics) {
+      try {
+        if (metric.userId && metric.quizId) {
+          // Step 2: Find latest attempt for this (userId, quizId)
+
+          const attemptCount = await this.attemptRepository.countUserAttempts(
+            metric.quizId.toString(),
+            metric.userId.toString(),
+          );
+
+          if (!quiz && !quiz.details && !attemptCount) continue;
+
+          // Step 3: Add to bulk operations
+          bulkOperations.push({
+            updateOne: {
+              filter: {_id: new ObjectId(metric._id)},
+              update: {
+                $set: {
+                  // latestAttemptId: latestAttempt?._id.toString(),
+                  // latestAttemptStatus: 'ATTEMPTED',
+                  remainingAttempts: quiz.details.maxAttempts - attemptCount,
+                },
+              },
+            },
+          });
+
+          // Increment updated count
+          updatedCount++;
+
+          // Step 4: Commit in batches
+          if (bulkOperations.length === BATCH_SIZE) {
+            await this._withTransaction(async session => {
+              await this.userQuizMetricsRepository.executeBulkMetricsReset(
+                bulkOperations,
+                session,
+              );
+              console.log(
+                `✅ Batch ${++batchCount}: Updated ${
+                  bulkOperations.length
+                } user_quiz_metrics`,
+              );
+              bulkOperations.length = 0;
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to update metric ${metric._id}`, err);
+      }
+    }
+
+    // Step 5: Final flush
+    if (bulkOperations.length > 0) {
+      await this._withTransaction(async session => {
+        await this.userQuizMetricsRepository.executeBulkMetricsReset(
+          bulkOperations,
+          session,
+        );
+        console.log(
+          `✅ Final batch: Updated ${bulkOperations.length} user_quiz_metrics`,
+        );
+      });
+    }
+
+    console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
+    return {updatedCount, totalCount};
+  }
+
   public async deleteItem(itemsGroupId: string, itemId: string) {
     return this._withTransaction(async session => {
       try {
+        // Step 1: Delete item
         const deleted = await this.itemRepo.deleteItem(
           itemsGroupId,
           itemId,
           session,
         );
         if (!deleted) throw new InternalServerError('Item deletion failed');
+
+        // Step 2: Fetch version
         const version = await this.findVersion(itemsGroupId);
-        // if (version.totalItems) {
-        //   version.totalItems -= 1;
-        // } else {
-        version.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-          version.courseId.toString(),
-          version._id.toString(),
-          session,
-        );
-        // }
-        await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
-        const versionId = version._id.toString();
+
         const courseId = version.courseId.toString();
-        // To update the progress percent in enrollment doc
-        const enrollments = await this.enrollmentRepo.getByCourseVersion(
+        const versionId = version._id.toString();
+
+        // Step 3: Run in parallel: count total items, delete watch time, get enrollments
+        const [totalItems, _, enrollments] = await Promise.all([
+          this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
+          this.progressRepo.deleteWatchTimeByItemId(itemId, session),
+          this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
+        ]);
+
+        version.totalItems = totalItems;
+
+        // Step 4: Update progress for all users in parallel
+        await this.progressService.updateEnrollmentProgressPercentBulk(
+          enrollments,
           courseId,
           versionId,
+          version.totalItems,
           session,
         );
-        for (const enrollment of enrollments) {
-          const userId = enrollment?.userId?.toString();
-          // helper to update progress
-          await this.progressService.updateEnrollmentProgressPercent(
-            userId,
-            courseId,
-            versionId,
-            session,
-            false,
-            version.totalItems
-          );
-        }
 
+        // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
-          version._id.toString(),
+          versionId,
           version,
           session,
         );
-
         if (!updatedVersion) {
           throw new InternalServerError(
             'Failed to update version after item deletion',
           );
         }
+
         deleted._id = deleted._id.toString();
-        return { deletedItemId: itemId, itemsGroup: deleted };
+        return {deletedItemId: itemId, itemsGroup: deleted};
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -324,7 +428,7 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const { afterItemId, beforeItemId } = body;
+      const {afterItemId, beforeItemId} = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
@@ -356,6 +460,12 @@ export class ItemService extends BaseService {
       module.updatedAt = new Date();
       version.updatedAt = new Date();
 
+      itemsGroup.items = itemsGroup.items.map(item => ({
+        ...item,
+        _id: new ObjectId(item._id.toString()),
+      }));
+      itemsGroup.sectionId = new ObjectId(itemsGroup.sectionId);
+
       const updatedItemsGroup = await this.itemRepo.updateItemsGroup(
         section.itemsGroupId.toString(),
         itemsGroup,
@@ -366,7 +476,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
+      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
     });
   }
 

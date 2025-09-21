@@ -38,51 +38,52 @@ class QuestionService extends BaseService {
     super(database);
   }
 
-  private async _getQuestionBanksByQuestionId() { }
 
   private async _getQuestionSkipCount(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
     try {
+      // Step 1: get bank IDs linked to this question
       const questionBanks = await this.questionBankRepository.getQuestionBanksByQuestionId(
         questionId,
         session,
       );
 
-      if (!questionBanks || questionBanks.length === 0) {
-        return 0;
-      }
+      if (!questionBanks?.length) return 0;
 
-      const questionBankIds = questionBanks.map(bank => bank._id?.toString()).filter(Boolean);
+      const questionBankIds = questionBanks
+        .map(bank => bank._id?.toString())
+        .filter((id): id is string => Boolean(id));
 
-      if (questionBankIds.length === 0) {
-        return 0;
-      }
+      if (!questionBankIds.length) return 0;
 
-      let totalSkipCount = 0;
+      // Step 2: find all quizzes that allow skip & reference these banks
+      const quizzes = await this.quizRepository.findSkipAllowedQuizzes(
+        questionBankIds,
+        session,
+      );
 
-      const allMetrics = await this.userQuizMetricsRepository.getAll(session);
+      if (!quizzes?.length) return 0;
 
-      for (const metric of allMetrics) {
+      const quizIds = quizzes.map(q => q._id);
 
-        const quiz = await this.quizRepository.getById(metric.quizId.toString(), session);
-        if (quiz && quiz.details.allowSkip) {
-          const hasQuestion = quiz.details.questionBankRefs.some(ref =>
-            questionBankIds.includes(ref.bankId)
-          );
-          if (hasQuestion) {
-            totalSkipCount += metric.skipCount || 0;
-          }
-        }
-      }
+      // Step 3: get all userQuizMetrics for those quizzes
+      const metrics = await this.userQuizMetricsRepository.getByQuizIds(quizIds, session);
+
+      // Step 4: sum skip counts
+      const totalSkipCount = metrics.reduce(
+        (sum, m) => sum + (m.skipCount || 0),
+        0,
+      );
 
       return totalSkipCount;
     } catch (error) {
-      console.error('Error calculating question skip count:', error);
+      console.error("Error calculating question skip count:", error);
       return 0;
     }
   }
+
 
   public async create(question: BaseQuestion): Promise<string> {
     return this._withTransaction(async session => {
@@ -120,7 +121,7 @@ class QuestionService extends BaseService {
 
       const questionProcessor = new QuestionProcessor(question);
       const rendered = questionProcessor.render(parameterMap) as IQuestionRenderView;
-    
+
       return {
         ...rendered,
         attemptCount,
@@ -146,7 +147,7 @@ class QuestionService extends BaseService {
           `Cannot change question type from ${question.type} to ${updatedQuestion.type}`,
         );
       }
-      const {_id, ...questionData} = updatedQuestion;
+      const { _id, ...questionData } = updatedQuestion;
       const updated = await this.questionRepository.update(
         questionId,
         questionData,
@@ -225,11 +226,11 @@ class QuestionService extends BaseService {
       // Update the flagged question status and resolvedBy
       await this.questionRepository.updateFlaggedQuestion(
         flagId,
-        {status, resolvedBy: userId, resolvedAt: new Date()},
+        { status, resolvedBy: userId, resolvedAt: new Date() },
         session,
       );
     });
   }
 }
 
-export {QuestionService};
+export { QuestionService };

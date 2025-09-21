@@ -1,4 +1,4 @@
-import { useState,  useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,12 +15,28 @@ export default function StudentCourses() {
   const [activeTab, setActiveTab] = useState("enrolled");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("")
-  
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (searchQuery !== debouncedSearch) {
+      setIsSearching(true);
+    }
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setIsSearching(false);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery, debouncedSearch]);
+
   // Get the current user from auth store
   const { isAuthenticated, token } = useAuthStore();
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
-    currentPage, 10, !!token, searchQuery
+    currentPage, 2, !!token, debouncedSearch
   );
 
   const enrollments = enrollmentsData?.enrollments || [];
@@ -29,11 +45,11 @@ export default function StudentCourses() {
   const totalDocuments = enrollmentsData?.totalDocuments || 0;
   // Filter enrollments based on completion status
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => !enrollment.completed);
+    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.completed);
+    return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
   }, [enrollments]);
 
   // Update current page when API response changes
@@ -54,8 +70,8 @@ export default function StudentCourses() {
     setCurrentPage(1); // Reset to first page when changing tabs
   };
 
-  const renderEnrollmentCard = (enrollment: Record<string, unknown>, index: number) => {
-    return <CourseCard enrollment={enrollment} index={index} variant="dashboard" />;
+  const renderEnrollmentCard = (enrollment: any, index: number, isLoading: boolean) => {
+    return <CourseCard enrollment={enrollment} index={index} isLoading={isLoading} variant="dashboard" />;
   };
 
   // Add authentication check at the beginning of the render
@@ -99,33 +115,33 @@ export default function StudentCourses() {
          
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-          <div className="relative flex-1 max-w-md">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search courses..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-              />
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search courses..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                />
+              </div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground">
+                <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
+              </div>
             </div>
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground">
-              <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
-            </div>
-          </div>
-          <TabsList>
-            <TabsTrigger value="enrolled">
-              Enrolled ({isLoading ? "..." : activeEnrollments.length})
-            </TabsTrigger>
-            <TabsTrigger value="available">Available</TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed ({isLoading ? "..." : completedEnrollments.length})
-            </TabsTrigger>
-          </TabsList>
+            <TabsList>
+              <TabsTrigger value="enrolled">
+                Enrolled ({isLoading ? "..." : activeEnrollments.length})
+              </TabsTrigger>
+              <TabsTrigger value="available">Available</TabsTrigger>
+              <TabsTrigger value="completed">
+                Completed ({isLoading ? "..." : completedEnrollments.length})
+              </TabsTrigger>
+            </TabsList>
           </div>
           <TabsContent value="enrolled" className="space-y-4">
-            {isLoading ? (
+            {isLoading || isSearching ? (
               <div className="space-y-2">
                 {Array.from({ length: 4 }, (_, i) => (
                   <Card key={i}>
@@ -141,8 +157,8 @@ export default function StudentCourses() {
             ) : activeEnrollments.length > 0 ? (
               <>
                 <div className="space-y-2">
-                  {activeEnrollments.map((enrollment, index) => 
-                    renderEnrollmentCard(enrollment, index)
+                  {activeEnrollments.map((enrollment, index) =>
+                    renderEnrollmentCard(enrollment, index, isLoading)
                   )}
                 </div>
                 <Pagination
@@ -185,8 +201,8 @@ export default function StudentCourses() {
               </div>
             ) : completedEnrollments.length > 0 ? (
               <div className="space-y-2">
-                {completedEnrollments.map((enrollment, index) => 
-                  renderEnrollmentCard(enrollment, index)
+                {completedEnrollments.map((enrollment, index) =>
+                  renderEnrollmentCard(enrollment, index, isLoading)
                 )}
               </div>
             ) : (

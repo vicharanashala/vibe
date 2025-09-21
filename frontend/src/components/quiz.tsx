@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion } from "lucide-react";
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -61,6 +62,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [showHint, setShowHint] = useState(false);
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
   const [dontStart, setDontStart] = useState(false);
+  const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
+  const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -377,6 +380,75 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     itemStartedRef.current = false;
   }, [currentCourse, stopItem, attemptId]);
 
+  // Handle empty quiz without attempting to start it
+  const handleEmptyQuiz = useCallback(async () => {
+    try {
+      console.log('Handling empty quiz - bypassing quiz attempt completely');
+      
+      // Set empty quiz states
+      setIsEmptyQuiz(true);
+      setQuizStarted(true);
+      setQuizCompleted(true);
+      setQuizPassed?.(1);
+      
+      // Start progress tracking
+      await handleSendStartItem();
+      
+      setTimeout(() => {
+        handleStopItem(true); 
+        
+        // Displaying  a Toast Message
+        toast.info('No questions available in this quiz. Moving to next item...');
+        
+        setTimeout(() => {
+          if (onNext) {
+            onNext();
+          } else {
+            console.warn('No onNext handler available for empty quiz navigation');
+          }
+        }, 1500);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error handling empty quiz:', error);
+      toast.error('Error processing empty quiz. Please try refreshing.');
+    }
+  }, [handleSendStartItem, handleStopItem, setQuizPassed, onNext]);
+
+  // Handle empty quiz after quiz attempt was already made
+  const handleEmptyQuizAfterAttempt = useCallback(async () => {
+    try {
+      console.log('Handling empty quiz after attempt - completing quiz and navigating');
+      
+      // Set empty quiz states
+      setIsEmptyQuiz(true);
+      setQuizStarted(true);
+      setQuizCompleted(true);
+      setQuizPassed?.(1);
+      
+      // We already have an attempt ID, so the item tracking should already be started
+      // Just mark it as completed with skip
+      setTimeout(() => {
+        handleStopItem(true); 
+
+        // Displaying  a Toast Message
+        toast.info('No questions available in this quiz. Moving to next item...');
+        
+        setTimeout(() => {
+          if (onNext) {
+            onNext();
+          } else {
+            console.warn('No onNext handler available for empty quiz navigation');
+          }
+        }, 1500);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error handling empty quiz after attempt:', error);
+      toast.error('Error processing empty quiz. Please try refreshing.');
+    }
+  }, [handleStopItem, setQuizPassed, onNext]);
+
   // ===== QUIZ LIFECYCLE FUNCTIONS =====
   const startQuiz = useCallback(async () => {
     // Prevent multiple attempts for the same quiz
@@ -395,7 +467,29 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // Create new quiz attempt
       const response = await attemptQuiz({
         params: { path: { quizId: processedQuizId } }
-      });
+      }) as CreateAttemptResponse | { message: string };
+
+      // Check if we got a message about no attempts left 
+      if ('message' in response) {
+        console.log('Quiz attempt failed with message:', response.message);
+        toast.error(response.message);
+        
+        // Instead of showing UI, properly mark the quiz as completed with skip
+        setQuizCompleted(true);
+        setQuizPassed?.(1);
+        
+        // Start tracking item first so we can stop it with isSkipped
+        await handleSendStartItem();
+        
+        // Mark the quiz as skipped in the progress system
+        setTimeout(() => {
+          handleStopItem(true); // isSkipped = true
+        }, 500);
+        
+        // Set flag to show completion UI
+        setNoAttemptsLeft(true);
+        return;
+      }
       
       const currentAttemptId = response.attemptId;
       setAttemptId?.(currentAttemptId);
@@ -404,10 +498,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
       setQuizQuestions(convertedQuestions);
       
-      // Reset quiz state
+      // Check if quiz is empty (no questions available)
+      if (convertedQuestions.length === 0) {
+        console.log('Empty quiz detected after attempt - no questions returned');
+        // Handle empty quiz with completion and navigation
+        await handleEmptyQuizAfterAttempt();
+        return;
+      }
+      
+      // Reset quiz state for non-empty quizzes
       setAnswers({});
       setQuizStarted(true);
       setCurrentQuestionIndex(0);
+      setIsEmptyQuiz(false);
       
       // Set timer for first question if available
       if (convertedQuestions.length > 0 && convertedQuestions[0]?.timeLimit) {
@@ -563,6 +666,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setSubmissionResults(null);
     setShowHint(false);
     setTimeLeft(0);
+    setIsEmptyQuiz(false);
+    setNoAttemptsLeft(false);
     // Reset the attempt flag so quiz can be started again
     quizAttemptedRef.current = false;
   }, [setAttemptId]);
@@ -597,13 +702,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== EFFECTS =====
 
-  useEffect(()=> {
-    if(attemptError && attemptError.includes("No available attempts") ){
-      onNext?.();
-      return;
-    }
-  },[attemptError, currentQuestion])
-
   // Reset state when quiz ID changes
   useEffect(() => {
     resetQuiz();
@@ -623,6 +721,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setSubmissionResults(null);
       setShowHint(false);
       setTimeLeft(0);
+      setIsEmptyQuiz(false);
+      setNoAttemptsLeft(false);
       quizAttemptedRef.current = false;
     }}, [rewindVid]);
 
@@ -655,13 +755,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setShowHint(false);
   }, [currentQuestionIndex]);
 
-  // Auto-start quiz for NO_DEADLINE type
+  // Auto-start quiz for NO_DEADLINE type, but first check if quiz is empty
   useEffect(() => {
-    if (!quizStarted && !quizCompleted && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
-      startQuiz();
+    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
+      // Check if quiz has any question banks first to detect empty quizzes early
+      if (!questionBankRefs || questionBankRefs.length === 0) {
+        console.log('Empty quiz detected early - no question banks');
+        handleEmptyQuiz();
+      } else {
+        startQuiz();
+      }
       setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, quizQuestions.length, isPending, dontStart]);
+  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
 
 
   useEffect(() => {
@@ -672,8 +778,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // Handle quiz completion for NO_DEADLINE type
   useEffect(() => {
-    if (quizCompleted && quizType === 'NO_DEADLINE') {
+    if (quizCompleted && quizType === 'NO_DEADLINE' && !isEmptyQuiz) {
       setQuizCompleted(false);
+      
+      // For no attempts left, always proceed to next (since we marked it as passed)
+      if (noAttemptsLeft) {
+        setQuizPassed?.(1);
+        setTimeout(() => onNext?.(), 1000);
+        return;
+      }
+      
+      // For regular completion, check grading status
       if (submissionResults?.gradingStatus !== "FAILED") {
         setQuizPassed?.(1);
         onNext?.();
@@ -682,7 +797,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         onPrevVideo?.();
       }
     }
-  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo]);
+  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz]);
+
+
 
   // Cleanup effect
   useEffect(() => {
@@ -693,6 +810,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // }
     };
   }, [handleStopItem]);
+
+  // Early detection for empty quizzes (all types)
+  useEffect(() => {
+    if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
+      if (!questionBankRefs || questionBankRefs.length === 0) {
+        console.log('Empty quiz detected early via questionBankRefs - quiz has no question banks');
+        quizAttemptedRef.current = true; // Prevent other start attempts
+        handleEmptyQuiz();
+      }
+    }
+  }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
 
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
@@ -707,6 +835,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }), [handleStopItem, resetQuiz]);
 
   // ===== RENDER LOGIC =====
+
+
   // Quiz not started
   if (!quizStarted) {
     // console.log("QUIZTYPE:", quizType);
@@ -869,6 +999,50 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // Quiz completed
   if (quizCompleted) {
+    // Special handling for empty quiz
+    if (isEmptyQuiz) {
+      return (
+        <Card className="mx-auto">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
+              <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-semibold text-foreground">Quiz Skipped</h3>
+              <p className="text-muted-foreground text-lg">
+                No questions available in this quiz. Moving to next item...
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    // Special handling for no attempts left
+    if (noAttemptsLeft) {
+      return (
+        <Card className="mx-auto">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
+              <p className="text-muted-foreground text-lg">
+                No attempts remaining for this quiz. Moving to next item...
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    
     return (
       <Card className="mx-auto">
         <CardHeader className="text-center">
@@ -1050,6 +1224,31 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 )}
               </Button>
             )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty quiz detected
+  if (isEmptyQuiz && quizStarted) {
+    return (
+      <Card className="mx-auto">
+        <CardContent className="p-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-2xl font-semibold text-foreground">No Questions Found</h3>
+            <p className="text-muted-foreground text-lg">
+              This quiz doesn't contain any questions at the moment.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              You'll be automatically moved to the next item in a few seconds...
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
           </div>
         </CardContent>
       </Card>
