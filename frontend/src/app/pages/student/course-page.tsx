@@ -1205,7 +1205,7 @@ export default function CoursePage() {
                   }
                 }}
                 anomalies={anomalies}
-                readyTodetect={readyToDetect}
+                readyToDetect={readyToDetect}
                 setReadyToDetect={setReadyToDetect}
                 setAnomalies={setAnomalies}
                 rewindVid={rewindVid}
