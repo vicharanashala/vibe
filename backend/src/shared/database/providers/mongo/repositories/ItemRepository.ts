@@ -270,7 +270,7 @@ export class ItemRepository implements IItemRepository {
         $set: {
           name: item.name,
           description: item.description,
-          details: item.details,
+          details: item?.details,
         },
       },
       {returnDocument: 'after', session},
@@ -302,7 +302,7 @@ export class ItemRepository implements IItemRepository {
         `Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`,
       );
     }
-    // If the item is a video, delete it from the video collection
+    // Delete the item from the appropriate collection based on its type
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
       await this.videoCollection.deleteOne(
         {_id: new ObjectId(itemId)},
@@ -315,6 +315,11 @@ export class ItemRepository implements IItemRepository {
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
       await this.blogCollection.deleteOne(
+        {_id: new ObjectId(itemId)},
+        {session},
+      );
+    } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
+      await this.projectCollection.deleteOne(
         {_id: new ObjectId(itemId)},
         {session},
       );

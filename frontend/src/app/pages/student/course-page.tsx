@@ -43,6 +43,7 @@ import { StudentProctoringSettings } from "@/types/video.types";
 import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
+import ItemContainer from "@/components/Item-container";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {

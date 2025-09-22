@@ -39,9 +39,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
-import InstructorProjectItem from "./components/instructor/InstructorProjectItem";
-import ProjectItemModal from "./components/ProjectItemModal";
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton";
+import ProjectItem from "./components/ProjectItem";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -138,6 +137,10 @@ export default function TeacherCoursePage() {
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
+  // Controlled state for ProjectItem edit mode
+  const [projectEditName, setProjectEditName] = useState<string>('');
+  const [projectEditDescription, setProjectEditDescription] = useState<string>('');
+
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -162,6 +165,14 @@ export default function TeacherCoursePage() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  // Sync controlled state with selectedItemData for PROJECT edit
+  useEffect(() => {
+    if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
+      setProjectEditName(selectedItemData?.item?.name || '');
+      setProjectEditDescription(selectedItemData?.item?.description || '');
+    }
+  }, [selectedEntity, selectedItemData]);
 
   const selectedQuizId = selectedEntity?.type === 'item' && selectedEntity?.data?.type === 'QUIZ' ? selectedEntity.data._id : null;
 
@@ -196,6 +207,7 @@ export default function TeacherCoursePage() {
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
   const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+  const { mutateAsync: updateCourseItemAsync } = useUpdateCourseItem();
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
@@ -782,15 +794,27 @@ export default function TeacherCoursePage() {
 
                                                       setSelectedItem({ id: item._id, name: label });
 
+                                                      // Patch: For PROJECT, ensure name/description are always present at root
+                                                      let patchedItem = item;
+                                                      if (item.type === 'PROJECT') {
+                                                        const details = item.details || {};
+                                                        const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
+                                                        const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
+                                                        patchedItem = {
+                                                          ...item,
+                                                          name,
+                                                          description
+                                                        };
+                                                      }
                                                       setSelectedEntity({
                                                         type: "item",
-                                                        data: item,
+                                                        data: patchedItem,
                                                         parentIds: {
                                                           moduleId: module.moduleId,
                                                           sectionId: section.sectionId,
                                                           itemsGroupId: section.itemsGroupId,
                                                         },
-                                                      })
+                                                      });
                                                     }
                                                     }
                                                   >
@@ -814,7 +838,7 @@ export default function TeacherCoursePage() {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               </Reorder.Item>
-                                            ))}
+                                           ))}
                                           <div className="ml-6 mt-2">
 
                                             <select
@@ -866,12 +890,37 @@ export default function TeacherCoursePage() {
 
                                                   } 
                                                   else if(type === "project"){
-                                                    setShowAddProjectModal({
-                                                      moduleId: module.moduleId,
-                                                      sectionId: section.sectionId,
-                                                      initialValues: {
-                                                        name: `Project 1`,
+                                                    createItemAsync({
+                                                      params: {
+                                                        path: {
+                                                          versionId: versionId!,
+                                                          moduleId: module.moduleId,
+                                                          sectionId: section.sectionId,
+                                                        },
+                                                      },
+                                                      body: {
+                                                        type: "PROJECT",
+                                                        name: `Project name`,
                                                         description: `Project description`
+                                                      },
+                                                    })
+                                                    .then((created) => {
+                                                      const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                      const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+                                                      if (newItem && newItem._id) {
+                                                        setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                        setSelectedEntity({
+                                                          type: "item",
+                                                          data: newItem,
+                                                          parentIds: {
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemsGroupId,
+                                                          },
+                                                        });
+                                                      } else {
+                                                        refetchVersion();
+                                                        refetchItems();
                                                       }
                                                     });
                                                   }
@@ -1421,53 +1470,37 @@ export default function TeacherCoursePage() {
                       />
                     )}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
-                      <InstructorProjectItem
-                        item={{
-                          ...selectedEntity.data,
-                          projectDetails: (selectedEntity.data as any).projectDetails || {}
-                        }}
-                        onSave={(data) => {
-                          if (
-                            selectedEntity.parentIds?.moduleId &&
-                            selectedEntity.parentIds?.sectionId &&
-                            selectedEntity.data?._id &&
-                            versionId
-                          ) {
-                            updateItemAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  moduleId: selectedEntity.parentIds.moduleId,
-                                  sectionId: selectedEntity.parentIds.sectionId,
-                                  itemId: selectedEntity.data._id
-                                }
-                              },
-                              body: {
-                                name: data.name,
-                                description: data.description || "",
-                                type: 'PROJECT'
-                              }
-                            })
-                            .then(() => {
+                      <ProjectItem
+                        mode="edit"
+                        name={projectEditName}
+                        description={projectEditDescription}
+                        onNameChange={setProjectEditName}
+                        onDescriptionChange={setProjectEditDescription}
+                        onSave={async () => {
+                          const projectId = selectedEntity.data._id;
+                          const name = projectEditName;
+                          const description = projectEditDescription;
+                          if (projectId && versionId) {
+                            try {
+                              await updateCourseItemAsync({
+                                params: { path: { versionId, itemId: projectId } },
+                                body: { name, description, type: 'PROJECT' }
+                              });
                               refetchVersion();
                               refetchItems();
                               refetchItem();
                               toast.success("Project updated successfully");
-                            })
-                            .catch(error => {
-                              console.error("Error updating project:", error);
-                              toast.error("Failed to update project: " + (error.message || 'Unknown error'));
-                            });
+                            } catch (err) {
+                              toast.error('Failed to update project: ' + (err?.message || 'Unknown error'));
+                            }
                           }
                         }}
                         onDelete={async () => {
-                          if (
-                            selectedEntity.parentIds?.sectionId &&
-                            selectedEntity.data?._id
-                          ) {
+                          const projectId = selectedEntity.data._id;
+                          if (selectedEntity.parentIds?.itemsGroupId && projectId) {
                             if (window.confirm("Are you sure you want to delete this item?")) {
                               await deleteItemAsync({
-                                params: { path: { itemsGroupId: selectedEntity.parentIds.sectionId, itemId: selectedEntity.data._id } }
+                                params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
                               refetchVersion();
                               refetchItems();
@@ -1477,11 +1510,9 @@ export default function TeacherCoursePage() {
                             }
                           }
                         }}
-                        onCancel={() => {
-                          // Reset to original data
+                        onClose={() => {
                           refetchItem();
                         }}
-                        isInstructor={true}
                       />
                     )}
                   </div>
@@ -1594,41 +1625,6 @@ export default function TeacherCoursePage() {
           </div>
         )}
 
-        {/* Add Project Modal */}
-        {showAddProjectModal && (
-          <ProjectItemModal
-            open={!!showAddProjectModal}
-            mode="add"
-            initialValues={showAddProjectModal.initialValues || { name: 'Project 1', description: 'Project description' }}
-            onClose={() => setShowAddProjectModal(null)}
-            onSave={({ name, description }) => {
-              if (!showAddProjectModal) return;
-              createItemAsync({
-                params: {
-                  path: {
-                    versionId: versionId!,
-                    moduleId: showAddProjectModal.moduleId,
-                    sectionId: showAddProjectModal.sectionId,
-                  },
-                },
-                body: {
-                  type: "PROJECT",
-                  name,
-                  description,
-                },
-              })
-                .then(() => {
-                  setShowAddProjectModal(null);
-                  refetchVersion();
-                  refetchItems();
-                  toast.success("Project created successfully");
-                })
-                .catch((error) => {
-                  toast.error("Failed to create project: " + (error.message || "Unknown error"));
-                });
-            }}
-          />
-        )}
 
         {/* Add Quiz Modal */}
         <QuizWizardModal
