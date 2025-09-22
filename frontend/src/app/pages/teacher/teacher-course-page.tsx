@@ -34,6 +34,7 @@ import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
+import EnhancedBlogEditor from "./components/enhanced-blog-editor";
 import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
@@ -1517,6 +1518,32 @@ export default function TeacherCoursePage() {
                         }}
                         onClose={() => {
                           refetchItem();
+                        }}
+                      />
+                    )}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "BLOG" && courseId && versionId && (
+                      <EnhancedBlogEditor
+                        isLoading={isLoading}
+                        selectedItemName={selectedItem.name}
+                        blogId={selectedEntity.data._id}
+                        moduleId={selectedEntity.parentIds?.moduleId || ""}
+                        sectionId={selectedEntity.parentIds?.sectionId || ""}
+                        courseId={courseId}
+                        courseVersionId={versionId}
+                        details={selectedItemData}
+                        onRefetch={() => {
+                          refetchVersion();
+                          refetchItems();
+                          refetchItem();
+                        }}
+                        onDelete={() => {
+                          deleteItemAsync({
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                          }).then((res) => {
+                            refetchVersion();
+                            refetchItems();
+                          });
+                          setSelectedEntity(null);
                         }}
                       />
                     )}
