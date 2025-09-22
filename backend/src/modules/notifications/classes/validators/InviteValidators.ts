@@ -144,7 +144,8 @@ export type InviteStatus =
   | 'PENDING'
   | 'CANCELLED'
   | 'EMAIL_FAILED'
-  | 'ALREADY_ENROLLED';
+  | 'ALREADY_ENROLLED'
+  | 'EXPIRED';
 
 class InviteResult {
   @JSONSchema({
