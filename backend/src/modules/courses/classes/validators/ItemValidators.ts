@@ -29,6 +29,7 @@ import {
   IBaseItem,
   ItemType,
   ID,
+  IProjectDetails,
 } from '#root/shared/interfaces/models.js';
 import { OnlyOneId } from './customValidators.js';
 
@@ -239,6 +240,32 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
+
+// Add this class to fix the missin g reference error
+class ProjectDetailsPayloadValidator implements IProjectDetails {
+  @JSONSchema({
+    title: 'Project Title',
+    description: 'Title of the project',
+    example: 'Build a REST API',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @JSONSchema({
+    title: 'Project Description',
+    description: 'Description of the project',
+    example: 'Create a RESTful API using Node.js and Express.',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  description: string;
+}
+
+
+
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     description: 'Title of the item',
@@ -283,7 +310,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -361,10 +388,10 @@ class UpdateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
-    description: 'Type of the item: VIDEO, BLOG, or QUIZ',
+    description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -374,6 +401,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Details specific to video items',
     type: 'object',
   })
+  @ValidateIf(o => o.type !== ItemType.PROJECT)
   @IsNotEmpty()
   @ValidateNested()
   @Type(o => {
@@ -386,11 +414,13 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return BlogDetailsPayloadValidator;
       case ItemType.QUIZ:
         return QuizDetailsPayloadValidator;
+      case ItemType.PROJECT:
+        return ProjectDetailsPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
   })
-  details: VideoDetailsPayloadValidator | BlogDetailsPayloadValidator | QuizDetailsPayloadValidator;
+  details?: VideoDetailsPayloadValidator | BlogDetailsPayloadValidator | QuizDetailsPayloadValidator | ProjectDetailsPayloadValidator;
 }
 
 class MoveItemBody {
