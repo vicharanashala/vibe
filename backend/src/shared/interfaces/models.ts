@@ -278,7 +278,12 @@ export interface IBaseItem {
   description: string;
   type: ItemType;
   order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
+  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+}
+
+// Add minimal IProjectItemDetails interface for PROJECT type
+export interface IProjectDetails {
+  // Add fields as needed for project items, or leave empty if none
 }
 
 export interface IVideoDetails {

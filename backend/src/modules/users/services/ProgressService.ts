@@ -909,8 +909,8 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Item not found in Course Version');
       }
 
-      // Get WatchTime of the item if VIDEO or BLOG item
-      if (item.type !== 'QUIZ') {
+      // Only require watch time for VIDEO or BLOG items
+      if (item.type === 'VIDEO' || item.type === 'BLOG') {
         const watchTime = await this.progressRepository.getWatchTimeById(
           watchItemId,
           session,
@@ -924,7 +924,7 @@ class ProgressService extends BaseService {
             'Watch time is not valid, the user did not watch the item long enough',
           );
         }
-      } else if (!isSkipped) {
+      } else if (item.type === 'QUIZ' && !isSkipped) {
         // Verify if the user has submitted the QUIZ
         const submittedQuiz = await this.submissionRepository.get(
           itemId,

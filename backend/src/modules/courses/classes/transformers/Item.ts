@@ -128,11 +128,15 @@ class ProjectItem {
   @Expose()
   type: ItemType = ItemType.PROJECT;
 
-  constructor(name: string, description: string, _id: ID) {
+  details?: any;
+  constructor(name: string, description: string, _id: ID, details?: any) {
     this._id = _id;
     this.type = ItemType.PROJECT;
     this.name = name;
     this.description = description;
+    if (details) {
+      this.details = details;
+    }
   }
 }
 
@@ -183,7 +187,14 @@ class ItemBase {
           );
           break;
         case ItemType.PROJECT:
-          this.itemDetails = new ProjectItem(itemBody.name, itemBody.description, this.itemId);
+          // For PROJECT, prefer details.name/description if present (for consistency with validation)
+          let pname = itemBody.name;
+          let pdesc = itemBody.description;
+          if (itemBody.details && (itemBody.details.name || itemBody.details.description)) {
+            pname = itemBody.details.name || pname;
+            pdesc = itemBody.details.description || pdesc;
+          }
+          this.itemDetails = new ProjectItem(pname, pdesc, this.itemId, itemBody.details);
           break;
         default:
           break;
