@@ -11,6 +11,7 @@ import {
   Authorized,
   CurrentUser,
   QueryParams,
+  Req,
 } from 'routing-controllers';
 import {injectable, inject} from 'inversify';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -31,6 +32,7 @@ import {appConfig} from '#root/config/app.js';
 import {inviteRedirectTemplate} from '../redirectTemplate.js';
 import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
 import {subject} from '@casl/ability';
+import { EnrollmentRole } from '#root/shared/index.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -96,6 +98,38 @@ export class InviteController {
     return new InviteResponse(results);
   }
 
+  //new route for Link creation
+
+  @Authorized()
+  @Post('/courses/:courseId/versions/:versionId/bulk')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Generate bulk invite link',
+    description: 'Generates a link that allows multiple students to join a course version within 1 week.',
+  })
+  async generateInviteLink( 
+    @Params() params: CourseAndVersionId,
+    @Body() body: { role: EnrollmentRole },
+    @Ability(getInviteAbility) { ability },
+  ) {
+    const { courseId, versionId } = params;
+    const { role } = body;
+
+    const roleSpecificSubject = subject('Invite', {
+      courseId,
+      versionId,
+      targetRole: role,
+    });
+
+    if (!ability.can(InviteActions.Create, roleSpecificSubject)) {
+      throw new ForbiddenError(`You do not have permission to invite users with role ${role}`);
+    }
+
+    const link = await this.inviteService.generateLink(courseId, versionId, role);
+    return { link };
+  }
+
+  
   @Get('/:inviteId')
   @HttpCode(200)
   @ContentType('html')
@@ -113,10 +147,14 @@ export class InviteController {
     description: 'Invite processed successfully',
     statusCode: 200,
   })
-  async processInvites(@Params() params: InviteIdParams): Promise<string> {
+  async processInvites(@Params() params: InviteIdParams,@Req() req: any,): Promise<string> {
     const {inviteId} = params;
     const result = await this.inviteService.processInvite(inviteId);
-    return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
+    if(result.isBulk){
+      req.session.bulkInviteId=inviteId
+    }
+    return inviteRedirectTemplate(result.message, appConfig.origins[0]);
+    // return inviteRedirectTemplate(result.message, appConfig.origin);
   }
 
   @Authorized()
