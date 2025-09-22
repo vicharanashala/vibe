@@ -1425,11 +1425,11 @@ export interface components {
             beforeItemId?: string;
             /**
              * Item Type
-             * @description Type of the item: VIDEO, BLOG, or QUIZ
+             * @description Type of the item: VIDEO, BLOG, QUIZ, or PROJECT
              * @example VIDEO
              * @enum {string}
              */
-            type: "VIDEO" | "QUIZ" | "BLOG";
+            type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
             /**
              * Video Details
              * @description Details specific to video items
