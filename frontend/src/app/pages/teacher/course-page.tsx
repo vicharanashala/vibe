@@ -1121,22 +1121,54 @@ function VersionCard({
             {/* Version Header - Always Visible */}
             <div className="flex flex-col md:flex-row items-start justify-between gap-4">
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-3">
-                  <h4 className="font-semibold text-foreground">{version.version}</h4>
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
-                    Version
-                  </Badge>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
-                      <BookOpen className="h-3 w-3" />
-                      <span>{(version as any).modules?.length || 0} Modules</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h4 className="font-semibold text-foreground">{version.version}</h4>
+                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
+                      Version
+                    </Badge>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                        <BookOpen className="h-3 w-3" />
+                        <span>{(version as any).modules?.length || 0} Modules</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                        <FileText className="h-3 w-3" />
+                        <span>
+                          {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
-                      <FileText className="h-3 w-3" />
-                      <span>
-                        {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
-                      </span>
-                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={startEditingVersion}
+                      className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                      disabled={updateVersionMutation.isPending}
+                    >
+                      {updateVersionMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Edit3 className="h-3 w-3 mr-1" />
+                      )}
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={deleteVersion}
+                      className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
+                      disabled={deleteVersionMutation.isPending}
+                    >
+                      {deleteVersionMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3 mr-1" />
+                      )}
+                      Delete
+                    </Button>
                   </div>
                 </div>
 
@@ -1229,20 +1261,6 @@ function VersionCard({
                   </div>
                 )}
               <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
-                <Button
-                variant="outline"
-                size="sm"
-                onClick={startEditingVersion}
-                className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                disabled={updateVersionMutation.isPending}
-              >
-                {updateVersionMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Edit3 className="h-3 w-3 mr-1" />
-                )}
-                Edit
-              </Button>
 
                 <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
@@ -1301,20 +1319,6 @@ function VersionCard({
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
-                </Button>
-                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={deleteVersion}
-                  className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                  disabled={deleteVersionMutation.isPending}
-                >
-                  {deleteVersionMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 mr-1" />
-                  )}
-                  Delete
                 </Button>
               </div>
             </div>
