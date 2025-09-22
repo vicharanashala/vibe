@@ -121,6 +121,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
       onSave();
     }
   };
+  console.log('hai')
 
   const handleFieldChange = (field: keyof QuizSettingsForm, value: any) => {
     setQuizSettingsForm({ ...quizSettingsForm, [field]: value });
