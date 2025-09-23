@@ -1,17 +1,12 @@
-import {ItemRepository} from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
 import {ClientSession, ObjectId} from 'mongodb';
-import {
-  getFromContainer,
-  NotFoundError,
-  BadRequestError,
-} from 'routing-controllers';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
 import {Item, Module, Section} from '../classes/index.js';
-
-const itemRepo = getFromContainer(ItemRepository);
+import {IItemRepository} from '#root/shared/index.js';
 
 export const cloneModules = async (
   existingModules: Module[],
   versionId: string,
+  itemRepo: IItemRepository,
   session?: ClientSession,
 ): Promise<Module[]> => {
   //1 Validate inputs
@@ -27,12 +22,12 @@ export const cloneModules = async (
 
   //3 Iterate over each module
   for (const module of existingModules) {
-    const newModuleId = new ObjectId();
+    const newModuleId = new ObjectId().toString();
     const newSections: Section[] = [];
 
     //4 Iterate over each section inside the module
     for (const section of module.sections) {
-      const newSectionId = new ObjectId();
+      const newSectionId = new ObjectId().toString();
 
       //5 Read old item group for this section
       if (!section.itemsGroupId) {
@@ -49,6 +44,7 @@ export const cloneModules = async (
       //6 Fetch full item documents for all items inside the item group
       const fullItems: Item[] = [];
       for (const itemRef of oldItemGroup.items) {
+        console.log("Item Ref: ", itemRef);
         const itemDoc = await itemRepo.readItem(
           versionId,
           itemRef._id.toString(),
