@@ -16,7 +16,12 @@ import {
   BadRequestError,
 } from 'routing-controllers';
 import {Course, Module} from '../classes/index.js';
-import {EnrollmentRole, ICourse, ICourseVersion} from '#root/shared/index.js';
+import {
+  EnrollmentRole,
+  ICourse,
+  ICourseVersion,
+  IItemRepository,
+} from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {COURSES_TYPES} from '../types.js';
@@ -37,6 +42,8 @@ export class CourseVersionService extends BaseService {
     private readonly sectionService: SectionService,
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -209,7 +216,7 @@ export class CourseVersionService extends BaseService {
         const existingVersion = await this.courseRepo.readVersion(
           courseVersionId,
           session,
-        ); 
+        );
         if (!existingVersion) {
           throw new NotFoundError(
             `Course version ${courseVersionId} not found`,
@@ -270,9 +277,12 @@ export class CourseVersionService extends BaseService {
           throw new BadRequestError('Existing version modules are invalid');
         }
         const newVersionIdStr = newCourseVersion._id.toString();
+        const itemRepo = this.itemRepo;
+
         const newModules = await cloneModules(
           currentModules,
-          newVersionIdStr,
+          courseVersionId,
+          itemRepo,
           session,
         );
         await this.courseRepo.addModulesToVersion(

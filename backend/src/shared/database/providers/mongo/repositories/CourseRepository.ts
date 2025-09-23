@@ -23,7 +23,7 @@ import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
-import { Module } from '#root/modules/courses/classes/index.js';
+import {Module} from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -320,10 +320,17 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to delete course version');
       }
 
+      console.log('VersionId: ', versionId);
       // 2. Remove courseVersionId from the course
       const courseUpdateResult = await this.courseCollection.updateOne(
         {_id: new ObjectId(courseId)},
-        {$pull: {versions: new ObjectId(versionId)}},
+        {
+          $pull: {
+            versions: {
+              $in: [new ObjectId(versionId) as any, versionId],
+            },
+          },
+        },
         {session},
       );
 
