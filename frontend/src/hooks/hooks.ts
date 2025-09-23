@@ -1176,7 +1176,7 @@ export function useUserProgress(courseId: string, courseVersionId: string): {
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}/", {
+  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}", {
     params: { path: { courseId, courseVersionId } }
   }, { enabled: !!courseId && !!courseVersionId }
   );
