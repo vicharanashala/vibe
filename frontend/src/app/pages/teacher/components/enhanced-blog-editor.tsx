@@ -95,6 +95,8 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [originalForm, setOriginalForm] = useState<BlogFormData | null>(null);
   const [blogForm, setBlogForm] = useState<BlogFormData>({
     name: '',
     description: '',
@@ -338,13 +340,19 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       const item = details.item;
       const blogData = item.blogDetails || item.details || {};
       
-      setBlogForm({
+      const newFormData = {
         name: item.name || '',
         description: item.description || '',
         content: blogData.content || '',
         points: blogData.points || '2.0',
         estimatedReadTimeInMinutes: blogData.estimatedReadTimeInMinutes || 0,
-      });
+      };
+      
+      setBlogForm(newFormData);
+      
+      if (!isEditMode) {
+        setOriginalForm(newFormData);
+      }
 
       if (blogData.content) {
         try {
@@ -378,6 +386,27 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     }
   }, [isEditing, editor]);
 
+  const handleEdit = () => {
+    setOriginalForm({ ...blogForm });
+    setIsEditMode(true);
+  };
+
+  const handleCancel = () => {
+    if (originalForm) {
+      setBlogForm(originalForm);
+      if (originalForm.content) {
+        try {
+          const deserializedValue = markdown.deserialize(editor, originalForm.content);
+          setEditorValue(deserializedValue);
+          editor.setEditorValue(deserializedValue);
+        } catch (error) {
+          console.error('Error reverting editor content:', error);
+        }
+      }
+    }
+    setIsEditMode(false);
+  };
+
   const handleSave = async () => {
     if (!blogId || !courseVersionId) {
       toast.error('Missing required data for saving');
@@ -386,6 +415,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
 
     setIsSaving(true);
     try {
+      setOriginalForm(null);
       const editorData = editor.getEditorValue();
       const markdownContent = markdown.serialize(editor, editorData);
 
@@ -415,7 +445,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       }
 
       toast.success('Blog article saved successfully!');
-      setIsEditing(false);
+      setIsEditMode(false);
     } catch (error) {
       console.error('Error saving blog:', error);
       toast.error('Failed to save blog article');
@@ -432,6 +462,8 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
   };
 
   const handleContentChange = (value: YooptaContentValue) => {
+    if (!isEditMode) return;
+    
     setEditorValue(value);
     const markdownContent = markdown.serialize(editor, value);
     const readTime = calculateReadTime(markdownContent);
@@ -477,17 +509,46 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                onClick={handleSave}
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-              >
-                <Edit className="h-4 w-4" />
-                Update Article
-              </Button>
+              {isEditMode ? (
+                <>
+                  <Button
+                    onClick={handleSave}
+                    className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleCancel}
+                    variant="outline"
+                    className="ml-2"
+                    disabled={isSaving}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleEdit}
+                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Update Article
+                </Button>
+              )}
               <Button
                 onClick={onDelete}
                 variant="outline"
-                className="border-border bg-background"
+                className="border-border bg-background ml-2"
+                disabled={isEditMode}
               >
                 <X className="h-3 w-3 mr-1" />
                 Delete Article
@@ -507,6 +568,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 value={blogForm.name}
                 onChange={(e) => setBlogForm(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter blog title"
+                disabled={!isEditMode}
               />
             </div>
             <div className="space-y-2">
@@ -519,6 +581,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 value={blogForm.points}
                 onChange={(e) => setBlogForm(prev => ({ ...prev, points: e.target.value }))}
                 placeholder="2.0"
+                disabled={!isEditMode}
               />
             </div>
           </div>
@@ -531,6 +594,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
               onChange={(e) => setBlogForm(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Enter blog description"
               rows={3}
+              disabled={!isEditMode}             
             />
           </div>
 
@@ -540,20 +604,21 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
             <Label>Content *</Label>
             <div className="border border-border rounded-lg overflow-hidden">
               <div 
-                className="min-h-[200px] max-h-[400px] overflow-y-auto yoopta-editor-container"
+                className={`min-h-[200px] max-h-[400px] overflow-y-auto yoopta-editor-container ${!isEditMode ? 'pointer-events-none' : ''}`}
                 data-yoopta-editor="true"
               >
                 <YooptaEditor
-                  key={`editor-${blogId}`}
+                  key={`editor-${blogId}-${isEditMode}`}
                   width="100%"
                   value={editorValue}
                   editor={editor}
                   plugins={plugins}
                   marks={MARKS}
                   autoFocus={false}
-                  tools={TOOLS}
+                  tools={isEditMode ? TOOLS : {}}
                   onChange={handleContentChange}
-                  className="prose prose-sm max-w-none dark:prose-invert p-4 min-h-[200px] text-foreground"
+                  className={`prose prose-sm max-w-none dark:prose-invert p-4 min-h-[200px] text-foreground ${!isEditMode ? 'opacity-80' : ''}`}
+                  readOnly={!isEditMode}
                 />
               </div>
             </div>
