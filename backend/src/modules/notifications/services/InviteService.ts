@@ -635,6 +635,34 @@ export class InviteService extends BaseService {
     return invitesWithCourse;
   }
 
+  async findPendingInvitesByUserId(userId: string): Promise<InviteResult[]> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const invites = await this.inviteRepo.findPendingInvitesByEmail(user.email);
+
+    const invitesWithCourse = await Promise.all(
+      invites.map(async invite => {
+        const course = await this.courseRepo.read(invite.courseId.toString());
+
+        return new InviteResult(
+          invite._id,
+          invite.email,
+          invite.inviteStatus,
+          invite.role,
+          invite.acceptedAt,
+          invite.courseId,
+          invite.courseVersionId,
+          course,
+        );
+      }),
+    );
+
+    return invitesWithCourse;
+  }
+
   async findInviteById(inviteId: string): Promise<InviteResult> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
