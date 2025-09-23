@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -20,9 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles,
-  X
+import { 
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
+  X,FolderKanban
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -39,7 +39,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
-
+import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton";
+import ProjectItem from "./components/ProjectItem";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -47,13 +48,15 @@ const getItemIcon = (type: string) => {
     case "BLOG": return <FileText className="h-3 w-3" />;
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
+      case "PROJECT": 
+      return <FolderKanban className="h-3 w-3" />;
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -72,7 +75,7 @@ export default function TeacherCoursePage() {
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
 
-  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
+  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);  
   // Animated text for empty state
   const aiMessages = [
     "ViBe allows you to add sections in your course module using AI",
@@ -84,7 +87,14 @@ export default function TeacherCoursePage() {
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
   const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
-
+  
+  // State for project modal
+  const [showAddProjectModal, setShowAddProjectModal] = useState<{
+    moduleId: string;
+    sectionId: string;
+  } | null>(null);
+  
+  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
   const [errors, setErrors] = useState({
     title: "",
     description: "",
@@ -129,6 +139,17 @@ export default function TeacherCoursePage() {
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
+  // Check if a project already exists in any section
+  const hasExistingProject = useMemo(() => {
+    return Object.values(sectionItems).some(items => 
+      items.some(item => item.type === 'PROJECT')
+    );
+  }, [sectionItems]);
+
+  // Controlled state for ProjectItem edit mode
+  const [projectEditName, setProjectEditName] = useState<string>('');
+  const [projectEditDescription, setProjectEditDescription] = useState<string>('');
+
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -153,6 +174,14 @@ export default function TeacherCoursePage() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  // Sync controlled state with selectedItemData for PROJECT edit
+  useEffect(() => {
+    if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
+      setProjectEditName(selectedItemData?.item?.name || '');
+      setProjectEditDescription(selectedItemData?.item?.description || '');
+    }
+  }, [selectedEntity, selectedItemData]);
 
   const selectedQuizId = selectedEntity?.type === 'item' && selectedEntity?.data?.type === 'QUIZ' ? selectedEntity.data._id : null;
 
@@ -187,6 +216,7 @@ export default function TeacherCoursePage() {
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
   const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+  const { mutateAsync: updateCourseItemAsync } = useUpdateCourseItem();
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
@@ -359,6 +389,8 @@ export default function TeacherCoursePage() {
         return `Quiz ${index}`;
       case "BLOG":
         return `Article ${index}`;
+      case "PROJECT":
+        return `Project ${index}`;
       default:
         return "Unknown";
     }
@@ -400,14 +432,19 @@ export default function TeacherCoursePage() {
     });
   };
 
-  // Add Item (now only for article/quiz, video handled via modal)
+  // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
-    const typeMap: Record<string, "VIDEO" | "QUIZ" | "BLOG"> = {
+    
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+    const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
-      article: "BLOG"
+      article: "BLOG",
+      project: "PROJECT"
     };
+
+    // Handle video items
     if (type === "VIDEO" && videoData) {
       createItemAsync({
         params: { path: { versionId, moduleId, sectionId } },
@@ -461,6 +498,25 @@ export default function TeacherCoursePage() {
         refetchVersion();
       });
     }
+    if (type === "project") {
+      createItem.mutate({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {
+          type: typeMap[type], name: `New ${typeMap[type]}`,
+          description: "Project description"
+        }
+      })
+      .then(() => {
+        refetchVersion();
+        refetchItems();
+        toast.success("Project created successfully");
+      })
+      .catch((error) => {
+        console.error("Error creating project:", error);
+        toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
+      });
+      return;
+    }
   };
 
   const navigate = useNavigate();
@@ -473,7 +529,7 @@ export default function TeacherCoursePage() {
 
   // Move module
   const handleMoveModule = (moduleId: string, versionId?: string) => {
-
+    
     const newList = pendingOrder.current;
     const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
 
@@ -482,22 +538,22 @@ export default function TeacherCoursePage() {
 
 
     if (versionId && moduleId) {
-      moveModuleAsync({
-        params: {
-          path: {
-            versionId,
-            moduleId,
-          },
+    moveModuleAsync({
+      params: {
+        path: {
+          versionId,
+          moduleId,
         },
-        body: {
-          ...(before
+      },
+      body: {
+        ...(before
             ? { beforeModuleId: before?.moduleId || "" }
             : { afterModuleId: after?.moduleId || "" }),
 
 
-        },
+      },
       }).then((res) => {
-        refetchVersion();
+      refetchVersion();
       })
     }
   }
@@ -752,15 +808,27 @@ export default function TeacherCoursePage() {
 
                                                       setSelectedItem({ id: item._id, name: label });
 
+                                                      // Patch: For PROJECT, ensure name/description are always present at root
+                                                      let patchedItem = item;
+                                                      if (item.type === 'PROJECT') {
+                                                        const details = item.details || {};
+                                                        const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
+                                                        const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
+                                                        patchedItem = {
+                                                          ...item,
+                                                          name,
+                                                          description
+                                                        };
+                                                      }
                                                       setSelectedEntity({
                                                         type: "item",
-                                                        data: item,
+                                                        data: patchedItem,
                                                         parentIds: {
                                                           moduleId: module.moduleId,
                                                           sectionId: section.sectionId,
                                                           itemsGroupId: section.itemsGroupId,
                                                         },
-                                                      })
+                                                      });
                                                     }
                                                     }
                                                   >
@@ -784,7 +852,7 @@ export default function TeacherCoursePage() {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               </Reorder.Item>
-                                            ))}
+                                           ))}
                                           <div className="ml-6 mt-2">
 
                                             <select
@@ -833,7 +901,44 @@ export default function TeacherCoursePage() {
 
                                                     setQuizWizardOpen(true);
 
-                                                  } else {
+
+                                                  } 
+                                                  else if(type === "project"){
+                                                    createItemAsync({
+                                                      params: {
+                                                        path: {
+                                                          versionId: versionId!,
+                                                          moduleId: module.moduleId,
+                                                          sectionId: section.sectionId,
+                                                        },
+                                                      },
+                                                      body: {
+                                                        type: "PROJECT",
+                                                        name: `Project name`,
+                                                        description: `Project description`
+                                                      },
+                                                    })
+                                                    .then((created) => {
+                                                      const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                      const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+                                                      if (newItem && newItem._id) {
+                                                        setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                        setSelectedEntity({
+                                                          type: "item",
+                                                          data: newItem,
+                                                          parentIds: {
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemsGroupId,
+                                                          },
+                                                        });
+                                                      } else {
+                                                        refetchVersion();
+                                                        refetchItems();
+                                                      }
+                                                    });
+                                                  }
+                                                  else {
 
                                                     handleAddItem(module.moduleId, section.sectionId, type);
 
@@ -854,6 +959,14 @@ export default function TeacherCoursePage() {
                                               <option value="VIDEO">Video</option>
 
                                               <option value="quiz">Quiz</option>
+
+                                              <option 
+                                                value="project" 
+                                                disabled={hasExistingProject}
+                                                className={hasExistingProject ? 'text-gray-400' : ''}
+                                              >
+                                                {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                              </option>
 
                                             </select>
                                             <TooltipProvider>
@@ -1376,6 +1489,52 @@ export default function TeacherCoursePage() {
                         }}
                       />
                     )}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
+                      <ProjectItem
+                        mode="edit"
+                        name={projectEditName}
+                        description={projectEditDescription}
+                        onNameChange={setProjectEditName}
+                        onDescriptionChange={setProjectEditDescription}
+                        onSave={async () => {
+                          const projectId = selectedEntity.data._id;
+                          const name = projectEditName;
+                          const description = projectEditDescription;
+                          if (projectId && versionId) {
+                            try {
+                              await updateCourseItemAsync({
+                                params: { path: { versionId, itemId: projectId } },
+                                body: { name, description, type: 'PROJECT' }
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              toast.success("Project updated successfully");
+                            } catch (err) {
+                              toast.error('Failed to update project: ' + (err?.message || 'Unknown error'));
+                            }
+                          }
+                        }}
+                        onDelete={async () => {
+                          const projectId = selectedEntity.data._id;
+                          if (selectedEntity.parentIds?.itemsGroupId && projectId) {
+                            if (window.confirm("Are you sure you want to delete this item?")) {
+                              await deleteItemAsync({
+                                params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              setSelectedEntity(null);
+                              toast.success("Project deleted successfully");
+                            }
+                          }
+                        }}
+                        onClose={() => {
+                          refetchItem();
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1485,6 +1644,7 @@ export default function TeacherCoursePage() {
             />
           </div>
         )}
+
 
         {/* Add Quiz Modal */}
         <QuizWizardModal

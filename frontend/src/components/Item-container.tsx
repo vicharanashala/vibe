@@ -1,10 +1,10 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
 import Quiz from './quiz';
-import { questionBankRef } from '@/types/quiz.types';
 import Article from './article';
+import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
-import type { Item, ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
+import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 
 
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled}, ref) => {
@@ -78,6 +78,21 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
           tags={item.details?.tags || []}
           points={item.details?.points || ''}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
+        />;
+
+      case 'project':
+        return <ProjectItem
+          item={{
+            _id: item._id,
+            name: item.name,
+            type: 'PROJECT',
+            description: item.details?.description || item.description || ''
+          }}
+          onSave={() => {}} // Not used in student view
+          onCancel={() => {}} // Not used in student view
+          isInstructor={false}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
