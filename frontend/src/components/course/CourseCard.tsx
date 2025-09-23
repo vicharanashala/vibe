@@ -1,12 +1,16 @@
-import { Clock, FileText } from "lucide-react";
+import { Clock, FileText, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useCourseById, useUserProgressPercentage } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
@@ -17,10 +21,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
+  const article = contentCounts.articles || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
@@ -46,6 +52,20 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       },
     ]);
   }
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'N/A';
+    }
+  };
 
   const handleContinue = () => {
     console.log("Setting course store:", {
@@ -135,7 +155,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <h3 className="font-medium text-lg mb-auto">
             {enrollment?.course?.name || `Course ${index + 1}`}
           </h3>
-          <span className="text-muted-foreground mb-1 text-sm">{enrollment?.course?.description}</span>
           <p className="text-xs text-muted-foreground mb-3">
             {isCompleted
               ? 'Course completed!'
@@ -143,7 +162,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 ? 'Start your learning journey'
                 : 'Continue Learning'}
           </p>
-          <div className="mt-auto">
+          <div className="mt-auto flex gap-2">
             <Button
               variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
               className={progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"}
@@ -151,6 +170,92 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             >
               {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
+            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">View Details</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Course Details</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="flex-1 pr-4 -mr-4">
+                  <div className="space-y-6 py-2">
+                    <div>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Course Name</p>
+                          <p>{enrollment?.course?.name || 'N/A'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Version</p>
+                          <p>{enrollment?.courseVersion?.name || 'N/A'}</p>
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                          <p className="text-sm font-medium text-muted-foreground">Description</p>
+                          <p className="text-sm">{enrollment?.course?.description || 'No description available'}</p>
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                          <p className="text-sm font-medium text-muted-foreground">Version Description</p>
+                          <p className="text-sm">{enrollment?.courseVersion?.description || 'No version description available'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold">Content Summary</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Contents</p>
+                          <p className="text-xl font-semibold">{totalLessons}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Videos</p>
+                          <p className="text-xl font-semibold">{videoCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Quizzes</p>
+                          <p className="text-xl font-semibold">{quizCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Articles</p>
+                          <p className="text-xl font-semibold">{article}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold">Enrollment Details</h3>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Enrolled On</p>
+                          <p>{enrollment?.enrollmentDate ? formatDate(enrollment.enrollmentDate as string) : 'N/A'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Status</p>
+                          <div className="flex items-center gap-1">
+                            {isCompleted ? (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                <span>Completed</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="h-4 w-4 text-yellow-500" />
+                                <span>In Progress</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>
