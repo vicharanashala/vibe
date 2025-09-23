@@ -554,7 +554,7 @@ export function useCourseById(id: string, enabled?: boolean): {
   };
 }
 
-// PUT /courses/{id}
+// PATCH /courses/{id}
 export function useUpdateCourse(): {
   mutate: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => void,
   mutateAsync: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => Promise<components['schemas']['CourseDataResponse']>,
@@ -567,7 +567,7 @@ export function useUpdateCourse(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/courses/{id}");
+  const result = api.useMutation("patch", "/courses/{id}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Course update failed') : null
@@ -663,7 +663,7 @@ export function useDeleteCourseVersion(): {
   };
 }
 
-// PUT /courses/{courseId}/versions/{versionId}
+// PATCH /courses/{courseId}/versions/{versionId}
 export function useUpdateCourseVersion(): {
   mutate: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
@@ -676,7 +676,7 @@ export function useUpdateCourseVersion(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/courses/{courseId}/versions/{versionId}" as any);
+  const result = api.useMutation("patch", "/courses/{courseId}/versions/{versionId}" as any);
   return {
     ...result,
     error: result.error ? (result.error.message || 'Course version update failed') : null
@@ -2409,7 +2409,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
-    averagePercentage:number;
+    averagePercentage: number;
   } | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2417,7 +2417,7 @@ export function useQuizAnalytics(quizId: string): {
 } {
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/analytics", {
     params: { path: { quizId } }
-  }, {  enabled: !!quizId});
+  }, { enabled: !!quizId });
 
   return {
     data: result.data,

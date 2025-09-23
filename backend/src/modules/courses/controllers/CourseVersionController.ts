@@ -13,6 +13,7 @@ import {
   InternalServerError,
   ForbiddenError,
   Authorized,
+  Patch,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -145,7 +146,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized()
-  @Put('/:courseId/versions/:versionId', {transformResponse: true})
+  @Patch('/:courseId/versions/:versionId', { transformResponse: true })
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version updated successfully',
   })

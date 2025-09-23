@@ -12,10 +12,10 @@ import {
   CurrentUser,
   QueryParams,
 } from 'routing-controllers';
-import {injectable, inject} from 'inversify';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {InviteService} from '../services/InviteService.js';
+import { injectable, inject } from 'inversify';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { InviteService } from '../services/InviteService.js';
 import {
   CourseAndVersionId,
   InviteBody,
@@ -24,13 +24,13 @@ import {
   InviteResponse,
   InviteResult,
 } from '../classes/validators/InviteValidators.js';
-import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
-import {NOTIFICATIONS_TYPES} from '../types.js';
-import {MessageResponse} from '../classes/index.js';
-import {appConfig} from '#root/config/app.js';
-import {inviteRedirectTemplate} from '../redirectTemplate.js';
-import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
-import {subject} from '@casl/ability';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { NOTIFICATIONS_TYPES } from '../types.js';
+import { MessageResponse } from '../classes/index.js';
+import { appConfig } from '#root/config/app.js';
+import { inviteRedirectTemplate } from '../redirectTemplate.js';
+import { InviteActions, getInviteAbility } from '../abilities/inviteAbilities.js';
+import { subject } from '@casl/ability';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -40,13 +40,13 @@ import {subject} from '@casl/ability';
 @OpenAPI({
   tags: ['Invites'],
 })
-@JsonController('/notifications/invite', {transformResponse: true})
+@JsonController('/notifications/invite', { transformResponse: true })
 @injectable()
 export class InviteController {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteService)
     private readonly inviteService: InviteService,
-  ) {}
+  ) { }
 
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId')
@@ -66,10 +66,10 @@ export class InviteController {
   async inviteUsers(
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) {ability},
+    @Ability(getInviteAbility) { ability },
   ) {
-    const {courseId, versionId} = params;
-    const {inviteData} = body;
+    const { courseId, versionId } = params;
+    const { inviteData } = body;
 
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
@@ -114,7 +114,7 @@ export class InviteController {
     statusCode: 200,
   })
   async processInvites(@Params() params: InviteIdParams): Promise<string> {
-    const {inviteId} = params;
+    const { inviteId } = params;
     const result = await this.inviteService.processInvite(inviteId);
     return inviteRedirectTemplate(result.message, appConfig.frontendUrl);
   }
@@ -133,13 +133,13 @@ export class InviteController {
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
     @QueryParams() query: InviteQueryParams,
-    @Ability(getInviteAbility) {ability},
+    @Ability(getInviteAbility) { ability },
   ): Promise<InviteResponse> {
-    const {courseId, versionId} = params;
-    const {inviteStatus, currentPage, limit, search, sort} = query;
+    const { courseId, versionId } = params;
+    const { inviteStatus, currentPage, limit, search, sort } = query;
 
     // Build subject context first
-    const inviteContext = {courseId, versionId};
+    const inviteContext = { courseId, versionId };
     const inviteSubject = subject('Invite', inviteContext);
 
     if (!ability.can(InviteActions.View, inviteSubject)) {
@@ -148,7 +148,7 @@ export class InviteController {
       );
     }
 
-    const {invites, totalDocuments, totalPages} =
+    const { invites, totalDocuments, totalPages } =
       await this.inviteService.findInvitesForCourse(
         courseId,
         versionId,
@@ -165,18 +165,18 @@ export class InviteController {
   @Get('/')
   @HttpCode(200)
   @OpenAPI({
-    summary: 'Get Invites for a User',
-    description: 'Retrieve all invites for a specific User.',
+    summary: 'Get Pending invites for a User',
+    description: 'Retrieve all pending invites for a specific User.',
   })
   @ResponseSchema(InviteResponse, {
-    description: 'List of invites for the User',
+    description: 'List of pending invites for the User',
     statusCode: 200,
   })
   async getInvitesForUser(
-    @Ability(getInviteAbility) {ability},
-    @CurrentUser() user: {_id: string},
+    @Ability(getInviteAbility) { ability },
+    @CurrentUser() user: { _id: string },
   ): Promise<InviteResponse> {
-    const invites = await this.inviteService.findInvitesByUserId(user._id);
+    const invites = await this.inviteService.findPendingInvitesByUserId(user._id);
     return new InviteResponse(invites);
   }
 
@@ -192,9 +192,9 @@ export class InviteController {
   })
   async resendInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) {ability},
+    @Ability(getInviteAbility) { ability },
   ): Promise<MessageResponse> {
-    const {inviteId} = params;
+    const { inviteId } = params;
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
     const inviteSubject = subject('Invite', {
@@ -223,9 +223,9 @@ export class InviteController {
   })
   async cancelInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) {ability},
+    @Ability(getInviteAbility) { ability },
   ): Promise<MessageResponse> {
-    const {inviteId} = params;
+    const { inviteId } = params;
 
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
