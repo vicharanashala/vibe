@@ -338,24 +338,37 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const hasErrors = () => {
         return errors.startTime !== "" || errors.endTime !== "";
     };
-    const [errorList,setErrorList]=useState<{name: string,description: string,url: string}>({name:"",description:"",url: ""})
-   const nameRequired: string="Video name is required"
-   const descriptionRequired: string="Video description is required"
-   const urlRequired: string="Video url is reqired"
+    const [errorList,setErrorList]=useState({name:"",description:"",url: ""})
+    const errorMessages={
+        name:"Video name is required",
+        description:"Video description is required",
+        url:"Video url is reqired"
+    }
+   const [skipIntialRender, setSkipIntialRender] = useState(true)
     useEffect(()=>{
-        if(name!==''){ errorList.name="" }
-         if(description!==''){ errorList.description=""}
-         if(url!==''){ errorList.url=""}
-        setErrorList({...errorList})
+     if (skipIntialRender) {};
+     if (!skipIntialRender){
+        setErrorList({
+            name:name?"":errorMessages.name,
+            description: description ? "" : errorMessages.description,
+            url: url ? "" : errorMessages.url,
+
+        })
+    }
          },[name,description,url])
     // Handle Save
     const handleSave = () => {
-        if(name==""){errorList.name=nameRequired}
-        if(description ==""){ errorList.description=descriptionRequired}
-        if(url ===""){ errorList.url=urlRequired}
-        setErrorList(errorList)
+        setSkipIntialRender(false)
+        const newErrors={
+            name:name?"":errorMessages.name,
+            description:description?"":errorMessages.description,
+            url: url ? "" : errorMessages.url,
+        }
+        setErrorList(newErrors)
+        const isValid = Object.values(newErrors).every((err) => err === "");
+      
 
-    if(name !=='' && description!==""&&url!=="")
+    if(isValid)
        {
         const startSeconds = validateTimeInput(timeInputs.start, duration);
         const endSeconds = validateTimeInput(timeInputs.end, duration);
