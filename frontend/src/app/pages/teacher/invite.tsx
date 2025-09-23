@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import {
   UserPlus,
@@ -57,6 +57,7 @@ export default function InvitePage() {
 
   // filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
@@ -73,7 +74,7 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), searchQuery, 
+  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
       currentPage, 15, inviteStatus, sort);
 
   // Add course version data hook to check structure
@@ -82,6 +83,14 @@ export default function InvitePage() {
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Function to check if course has required structure for progress initialization
   const hasRequiredStructure = () => {

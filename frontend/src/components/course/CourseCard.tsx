@@ -135,6 +135,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <h3 className="font-medium text-lg mb-auto">
             {enrollment?.course?.name || `Course ${index + 1}`}
           </h3>
+          <span className="text-muted-foreground mb-1 text-sm">{enrollment?.course?.description}</span>
           <p className="text-xs text-muted-foreground mb-3">
             {isCompleted
               ? 'Course completed!'
