@@ -346,7 +346,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
     }
    const [skipIntialRender, setSkipIntialRender] = useState(true)
     useEffect(()=>{
-     if (skipIntialRender) {};
      if (!skipIntialRender){
         setErrorList({
             name:name?"":errorMessages.name,
