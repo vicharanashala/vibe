@@ -31,6 +31,7 @@ import {
   RotateCcw,
   FlagTriangleRight,
   User,
+  Copy,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -48,7 +49,8 @@ import {
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
-  useEditProctoringSettings
+  useEditProctoringSettings,
+  useCopyCourseVersion
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
 import { useCourseStore } from "@/store/course-store"
@@ -61,6 +63,7 @@ import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { formatDateTime } from "@/utils/utils"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
+import { toast } from "sonner"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -923,6 +926,9 @@ function VersionCard({
   // Add update version hook
   const updateVersionMutation = useUpdateCourseVersion()
 
+  // To copy a entire course version
+  const {mutateAsync: copyEntireCourseVersion, isPending: copyVersionIsPending } = useCopyCourseVersion()
+
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
@@ -1090,6 +1096,21 @@ function VersionCard({
     })
   }
 
+
+  const handleCopy = async () => {
+    try {
+      if(!courseId || !selectedVersionId){
+        toast.error("Failed to find course or version id, try agian!") 
+        return;
+      }
+      await copyEntireCourseVersion({params: { path: { courseId, courseVersionId: selectedVersionId } }});
+      toast.success("Version successfully copied")
+    } catch (error) {
+      toast.error("Failed to copy course")
+    }
+  }
+
+
   if (versionLoading) {
     return (
       <div className="relative">
@@ -1143,6 +1164,20 @@ function VersionCard({
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopy} 
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    disabled={copyVersionIsPending}
+                  >
+                    {copyVersionIsPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Copy className="h-3 w-3 mr-1" />
+                    )}
+                    Copy
+                  </Button>
                     <Button
                       variant="outline"
                       size="sm"

@@ -201,9 +201,24 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
   @IsString()
   description: string;
 }
+class CopyCourseVersionParams {
+  @IsString()
+  @JSONSchema({description: 'The ID of the course'})
+  courseId!: string;
 
+  @IsString()
+  @JSONSchema({description: 'The ID of the version to copy'})
+  versionId!: string;
+}
+class CopyCourseVersionResponse {
+  @IsString()
+  @JSONSchema({description: 'Success message'})
+  message!: string;
+}
 export {
   CreateCourseVersionBody,
+  CopyCourseVersionResponse,
+  CopyCourseVersionParams,
   CreateCourseVersionParams,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
@@ -216,6 +231,8 @@ export {
 
 export const COURSEVERSION_VALIDATORS = [
   CreateCourseVersionBody,
+  CopyCourseVersionResponse,
+  CopyCourseVersionParams,
   CreateCourseVersionParams,
   ReadCourseVersionParams,
   DeleteCourseVersionParams,
@@ -224,4 +241,4 @@ export const COURSEVERSION_VALIDATORS = [
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
-] 
+];

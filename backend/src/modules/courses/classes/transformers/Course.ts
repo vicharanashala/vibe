@@ -98,9 +98,13 @@ class Course implements ICourse {
     if (courseBody) {
       this.name = courseBody.name;
       this.description = courseBody.description;
+      this.versions = Array.isArray(courseBody.versions)
+        ? courseBody.versions
+        : [];
+    } else {
+      this.versions = [];
     }
 
-    this.versions = [];
     this.instructors = [];
     this.createdAt = new Date();
     this.updatedAt = new Date();
