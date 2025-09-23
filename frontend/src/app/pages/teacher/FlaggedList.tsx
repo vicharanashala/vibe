@@ -173,23 +173,20 @@ export default function FlaggedList() {
     }
   };
 
-
   // Loading state
-  if (courseLoading || reportLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-8">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading course data...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
+  // if (courseLoading || reportLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-background">
+  //       <div className="container mx-auto py-8">
+  //         <div className="flex items-center justify-center py-12">
+  //           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+  //           <span className="ml-2 text-muted-foreground">Loading course data...</span>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   )
   // Error state
-  if (courseError || reportError || !course || !version) {
+  if (courseError || !course || !version) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -268,17 +265,6 @@ export default function FlaggedList() {
         <Card className="border-0 shadow-lg overflow-hidden">
 
           <CardContent className="p-0">
-            {reports.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                  <Users className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <p className="text-foreground text-xl font-semibold mb-2">No Flags found</p>
-                <p className="text-muted-foreground">
-                  {"No students have reported this entity in this course version"}
-                </p>
-              </div>
-            ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -309,7 +295,29 @@ export default function FlaggedList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reports.map((report: any) => (<>
+                  {reportLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <span className="text-muted-foreground">Loading flags...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : reports.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                          <Users className="h-10 w-10 text-muted-foreground" />
+                        </div>
+                        <p className="text-foreground text-xl font-semibold mb-2">No Flags found</p>
+                        <p className="text-muted-foreground">
+                          {"No students have reported this entity in this course version"}
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    reports.map((report: any) => (
                       <TableRow
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -371,25 +379,30 @@ export default function FlaggedList() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setIsUpdatingStatus(true)
                                   setUpdateStatusModalOpen(true);
                                   setSelectedReport({ id: report._id, status: report.latestStatus });
-                                }
-                                }
+                                }}
                                 className="text-blue-600 hover:text-blue-500 hover:bg-transparent dark:hover:bg-transparent transition-all duration-200 cursor-pointer pointer-events-auto"
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Update Status
                               </Button>
-
                             </div>
                           }
                         </TableCell>
-
                       </TableRow>
-                      <TableRow>
-                        {selectedFlagData && selectedReport?.id === report._id && (
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                        {selectedFlagData && selectedReport && (
                           <Dialog open={!isUpdatingStatus && !!selectedFlagData} onOpenChange={() => setSelectedReport(null)}>
                             <DialogContent className="sm:max-w-3xl max-h-[85vh]">
                               <DialogHeader className="pb-4">
@@ -545,14 +558,6 @@ export default function FlaggedList() {
                           </Dialog>
                         )
                         }
-                      </TableRow></>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
         {selectedReport?.id &&
           <FlagModal
             open={updateStatusModalOpen}
