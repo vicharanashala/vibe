@@ -1143,6 +1143,15 @@ function VersionCard({
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                  {/* Project Submissions Download Button */}
+                {courseId && versionId && (
+                  <React.Suspense fallback={null}>
+                    {/** Dynamically import to avoid circular deps if any, or just import at top if not needed */}
+                    {(() => {
+                      return <ProjectSubmissionsDownloadButton courseId={courseId} versionId={versionId} />;
+                    })()}
+                  </React.Suspense>
+                )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -1265,15 +1274,7 @@ function VersionCard({
 
               <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
                 
-                {/* Project Submissions Download Button */}
-                {courseId && versionId && (
-                  <React.Suspense fallback={null}>
-                    {/** Dynamically import to avoid circular deps if any, or just import at top if not needed */}
-                    {(() => {
-                      return <ProjectSubmissionsDownloadButton courseId={courseId} versionId={versionId} />;
-                    })()}
-                  </React.Suspense>
-                )}
+               
 
                 <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
