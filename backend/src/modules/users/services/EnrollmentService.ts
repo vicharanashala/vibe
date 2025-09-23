@@ -103,7 +103,6 @@ export class EnrollmentService extends BaseService {
         enrollmentData,
         session,
       );
-      console.log("createdEnrollment ",createdEnrollment)
       let initialProgress = null;
       if (createdEnrollment.role == 'STUDENT') {
         initialProgress = await this.initializeProgress(
