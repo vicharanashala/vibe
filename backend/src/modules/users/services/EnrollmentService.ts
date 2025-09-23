@@ -584,6 +584,7 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         session,
       );
+      console.log('Course version: ', courseVersion, courseId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',

@@ -1104,9 +1104,13 @@ function VersionCard({
         return;
       }
       await copyEntireCourseVersion({params: { path: { courseId, courseVersionId: selectedVersionId } }});
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/users/enrollments"],
+        exact: false, 
+      });
       toast.success("Version successfully copied")
     } catch (error) {
-      toast.error("Failed to copy course")
+      toast.error("Failed to copy version")
     }
   }
 

@@ -41,7 +41,7 @@ import {subject} from '@casl/ability';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {response} from 'express';
-import { CourseActions } from '../abilities/courseAbilities.js';
+import {CourseActions} from '../abilities/courseAbilities.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -297,8 +297,7 @@ Accessible to:
     }
 
     return {
-      message: `Version with ID ${versionId} has been copied successfully.`,
+      message: `Version copied successfully.`,
     };
   }
-
 }

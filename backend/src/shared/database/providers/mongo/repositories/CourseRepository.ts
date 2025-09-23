@@ -4,6 +4,7 @@ import {
   ICourse,
   ICourseVersion,
   IEnrollment,
+  IModule,
 } from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
@@ -22,6 +23,7 @@ import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import { Module } from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -204,6 +206,29 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
+
+  async addModulesToVersion(
+    courseVersionId: string,
+    newModules: Module[],
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.courseVersionCollection.findOneAndUpdate(
+        {_id: new ObjectId(courseVersionId)},
+        {
+          $set: {
+            modules: newModules,
+          },
+        },
+        {session},
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to add module to course version.\n More Details: ' + error,
+      );
+    }
+  }
+
   async readVersion(
     versionId: string,
     session?: ClientSession,
@@ -544,7 +569,7 @@ export class CourseRepository implements ICourseRepository {
     const idAsObjectId = ObjectId.isValid(itemGroupId) // temp
       ? new ObjectId(itemGroupId)
       : null;
-      
+
     const courseVersion = await this.courseVersionCollection.findOne(
       {
         $or: [
@@ -603,6 +628,29 @@ export class CourseRepository implements ICourseRepository {
       throw new InternalServerError(
         'Failed to bulk update course versions.\n More Details: ' + error,
       );
+    }
+  }
+
+  async addNewCourseVersionToCourse(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    try {
+      const result = await this.courseCollection.findOneAndUpdate(
+        {_id: new ObjectId(courseId)},
+        {$push: {versions: new ObjectId(versionId)}},
+        {session},
+      );
+
+      if (!result) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to add new course version:', error);
+      throw new InternalServerError(`Failed to add new course version`);
     }
   }
 }
