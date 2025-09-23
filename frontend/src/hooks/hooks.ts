@@ -1,3 +1,4 @@
+
 /*
 This file is Exports hooks for OpenAPI endpoints using the api client.
 It is most certain that this file is not bugged.
@@ -520,7 +521,7 @@ export async function useProcessInvites(inviteId: string): Promise<{
     throw new Error(`Failed to update settings: ${res.status}`);
   }
 
-
+  
   return {
     data: null,
     isLoading: isLoading,
@@ -2642,4 +2643,77 @@ export function useUpdateReportStatus(): {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to update status') : null
   };
+}
+
+// Project submission types
+export interface SubmitProjectBody {
+  projectId: string;
+  courseId: string;
+  versionId: string;
+  moduleId: string;
+  sectionId: string;
+  watchItemId: string;
+  submissionURL: string;
+  comment?: string;
+}
+
+export interface ProjectSubmissionResponse {
+  message: string;
+}
+
+// POST /project/
+export function useSubmitProject(): {
+  mutate: (variables: { body: SubmitProjectBody }) => void,
+  mutateAsync: (variables: { body: SubmitProjectBody }) => Promise<ProjectSubmissionResponse>,
+  data: ProjectSubmissionResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/project/" as any);
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to submit project') : null
+  };
+}
+
+// Custom hook to fetch project submissions for a course version
+export interface ProjectSubmissionUserInfo {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  submissionURL: string;
+}
+
+export interface ProjectSubmissionsResponse {
+  course: { name: string };
+  courseVersion: { name: string };
+  userInfo: ProjectSubmissionUserInfo[];
+}
+
+export function useProjectSubmissions(courseId: string, versionId: string): {
+  data: ProjectSubmissionsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/project/course/{courseId}/version/{versionId}/submissions",
+    {
+      params: { path: { courseId, versionId } }
+    },
+    { enabled: !!courseId && !!versionId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
+    refetch: result.refetch
+  };
+
 }

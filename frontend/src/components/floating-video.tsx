@@ -388,7 +388,7 @@ const lastCalledRef = useRef<number>(0);
   useEffect(() => {
     const interval = setInterval(() => {
        if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
-   setAnomalies(null)   }let newPenaltyPoints = 0;
+   }let newPenaltyPoints = 0;
       let newPenaltyType = "";
       setAnomalies(['']);
 
@@ -458,7 +458,7 @@ const lastCalledRef = useRef<number>(0);
         // Reset contiguous anomaly points when no anomalies are detected
         if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
-    }, 1000); // Update every second
+    }, 100); // Update every second
 
     return () => clearInterval(interval);
   }, [readyToDetect,

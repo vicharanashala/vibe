@@ -1,4 +1,4 @@
-import { Progress } from '#users/classes/transformers/Progress.js';
+import {Progress} from '#users/classes/transformers/Progress.js';
 import {
   GetUserProgressParams,
   StartItemParams,
@@ -16,9 +16,9 @@ import {
   CompletedProgressResponse,
   WatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
-import { ProgressService } from '#users/services/ProgressService.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
+import {ProgressService} from '#users/services/ProgressService.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Get,
@@ -33,18 +33,21 @@ import {
   ForbiddenError,
   Authorized,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
-import { ProgressActions, getProgressAbility } from '../abilities/progressAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
-import { QuizService } from '#root/modules/quizzes/services/index.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
+import {
+  ProgressActions,
+  getProgressAbility,
+} from '../abilities/progressAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {QuizService} from '#root/modules/quizzes/services/index.js';
 
 @OpenAPI({
   tags: ['Progress'],
 })
-@JsonController('/users', { transformResponse: true })
+@JsonController('/users', {transformResponse: true})
 @injectable()
 class ProgressController {
   constructor(
@@ -53,11 +56,12 @@ class ProgressController {
 
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Get user progress in a course version',
-    description: 'Retrieves the progress of a user in a specific course version.',
+    description:
+      'Retrieves the progress of a user in a specific course version.',
   })
   @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/')
@@ -73,17 +77,19 @@ class ProgressController {
     @Params() params: GetUserProgressParams,
     @Ability(getProgressAbility) {ability, user},
   ): Promise<Progress> {
-    const { courseId, versionId } = params;
+    const {courseId, versionId} = params;
     const userId = user._id.toString();
-    
+
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError('You do not have permission to view this progress');
+      throw new ForbiddenError(
+        'You do not have permission to view this progress',
+      );
     }
-    
+
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
@@ -95,7 +101,8 @@ class ProgressController {
 
   @OpenAPI({
     summary: 'Get %age progress in a course version',
-    description: 'Retrieves the progress of a user in a specific course version.',
+    description:
+      'Retrieves the progress of a user in a specific course version.',
   })
   @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/percentage')
@@ -111,17 +118,19 @@ class ProgressController {
     @Params() params: GetUserProgressParams,
     @Ability(getProgressAbility) {ability, user},
   ): Promise<CompletedProgressResponse> {
-    const { courseId, versionId } = params;
+    const {courseId, versionId} = params;
     const userId = user._id.toString();
-    
+
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError('You do not have permission to view this progress');
+      throw new ForbiddenError(
+        'You do not have permission to view this progress',
+      );
     }
-    
+
     const progress = await this.progressService.getUserProgressPercentage(
       userId,
       courseId,
@@ -146,24 +155,27 @@ class ProgressController {
     statusCode: 404,
   })
   @ResponseSchema(BadRequestError, {
-    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
+    description:
+      'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
   })
   async startItem(
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
-    @Ability(getProgressAbility) {ability, user}
+    @Ability(getProgressAbility) {ability, user},
   ): Promise<StartItemResponse> {
-    const { courseId, versionId } = params;
-    const { itemId, moduleId, sectionId } = body;
+    const {courseId, versionId} = params;
+    const {itemId, moduleId, sectionId} = body;
     const userId = user._id.toString();
-    
+
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.Modify, progressResource)) {
-      throw new ForbiddenError('You do not have permission to modify this progress');
+      throw new ForbiddenError(
+        'You do not have permission to modify this progress',
+      );
     }
     const watchItemId: string = await this.progressService.startItem(
       userId,
@@ -191,7 +203,8 @@ class ProgressController {
     statusCode: 404,
   })
   @ResponseSchema(BadRequestError, {
-    description: 'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
+    description:
+      'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
   })
   @ResponseSchema(InternalServerError, {
@@ -201,20 +214,23 @@ class ProgressController {
   async stopItem(
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
-    @Ability(getProgressAbility) {ability, user}
+    @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
-    const { courseId, versionId } = params;
-    const { itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped } = body;
+    const {courseId, versionId} = params;
+    const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
+      body;
     const userId = user._id.toString();
-    
+
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.Modify, progressResource)) {
-      throw new ForbiddenError('You do not have permission to modify this progress');
+      throw new ForbiddenError(
+        'You do not have permission to modify this progress',
+      );
     }
-    
+
     await this.progressService.stopItem(
       userId,
       courseId,
@@ -234,7 +250,7 @@ class ProgressController {
       itemId,
       watchItemId,
       attemptId,
-      isSkipped
+      isSkipped,
     );
   }
 
@@ -260,17 +276,19 @@ If none are provided, resets to the beginning of the course.`,
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
-    @Ability(getProgressAbility) {ability}
+    @Ability(getProgressAbility) {ability},
   ): Promise<void> {
-    const { userId, courseId, versionId } = params;
-    const { moduleId, sectionId, itemId } = body;
-    
+    const {userId, courseId, versionId} = params;
+    const {moduleId, sectionId, itemId} = body;
+
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
-    
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.Modify, progressResource)) {
-      throw new ForbiddenError('You do not have permission to modify this progress');
+      throw new ForbiddenError(
+        'You do not have permission to modify this progress',
+      );
     }
 
     // Check if only moduleId is provided
@@ -324,7 +342,9 @@ If none are provided, resets to the beginning of the course.`,
     description: `Gets the User Watch Time for the given Item Id`,
   })
   @Authorized()
-  @Get('/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type')
+  @Get(
+    '/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type',
+  )
   @HttpCode(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -336,15 +356,17 @@ If none are provided, resets to the beginning of the course.`,
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
-    @Ability(getProgressAbility) {ability}
+    @Ability(getProgressAbility) {ability},
   ): Promise<WatchTimeResponse> {
-    const { userId, courseId, versionId, itemId, type } = params;
+    const {userId, courseId, versionId, itemId, type} = params;
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', { userId, courseId, versionId });
+    const progressResource = subject('Progress', {userId, courseId, versionId});
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError('You do not have permission to view this progress');
+      throw new ForbiddenError(
+        'You do not have permission to view this progress',
+      );
     }
 
     const watchTime = await this.progressService.getWatchTime(
@@ -352,12 +374,15 @@ If none are provided, resets to the beginning of the course.`,
       itemId,
       courseId,
       versionId,
-    )
+    );
 
-    if (type === 'QUIZ'){
-      const quizMetrics = await this.quizService.getUserMetricsForQuiz(userId, itemId);
+    if (type === 'QUIZ') {
+      const quizMetrics = await this.quizService.getUserMetricsForQuiz(
+        userId,
+        itemId,
+      );
       if (quizMetrics) {
-        return {watchTime, quizMetrics}
+        return {watchTime, quizMetrics};
       }
     }
 
@@ -371,11 +396,15 @@ If none are provided, resets to the beginning of the course.`,
   @Authorized()
   @Get('/watchtime/total')
   @HttpCode(200)
-  async getTotalWatchtimeOfUser(@Ability(getProgressAbility) {user}): Promise<number> {
+  async getTotalWatchtimeOfUser(
+    @Ability(getProgressAbility) {user},
+  ): Promise<number> {
     const userId = user._id.toString();
-    
-    const totalWatchTime = await this.progressService.getTotalWatchtimeOfUser(userId);
+
+    const totalWatchTime = await this.progressService.getTotalWatchtimeOfUser(
+      userId,
+    );
     return totalWatchTime;
   }
 }
-export { ProgressController };
+export {ProgressController};
