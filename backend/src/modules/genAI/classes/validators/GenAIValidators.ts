@@ -125,6 +125,16 @@ class QuestionGenerationParameters {
   DES?: number;
 
   @JSONSchema({
+    title: 'BIN Number',
+    description: 'Number of binary questions to be generated',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  BIN?: number;
+
+  @JSONSchema({
     title: 'Prompt',
     description: 'Prompt to use for question generation',
     example: "Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead",
