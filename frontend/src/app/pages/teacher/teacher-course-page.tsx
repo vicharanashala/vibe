@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
-  X
+  X,FolderKanban
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -48,6 +48,8 @@ const getItemIcon = (type: string) => {
     case "BLOG": return <FileText className="h-3 w-3" />;
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
+      case "PROJECT": 
+      return <FolderKanban className="h-3 w-3" />;
     default: return null;
   }
 };
