@@ -20,6 +20,7 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -596,6 +597,28 @@ export function useDeleteCourse(): {
 
 
 // Course Version hooks
+
+//generate link
+
+export function useGenerateLink(): {
+  mutate: (variables: { params: { path: { courseId: string, versionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } } }) => Promise<{ link: string }>,
+  data: { link: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{versionId}/bulk");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to generate link') : null
+  };
+}
 
 // POST /courses/{id}/versions
 export function useCreateCourseVersion(): {

@@ -25,6 +25,7 @@ import {
   BarChart3,
   RotateCcw,
   FlagTriangleRight,
+  Link,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -41,7 +42,8 @@ import {
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
-  useEditProctoringSettings
+  useEditProctoringSettings,
+  useGenerateLink
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
 import { useCourseStore } from "@/store/course-store"
@@ -881,7 +883,9 @@ function VersionCard({
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
   const { setCurrentAnomaly } = useAnomalyStore();
-
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState('');
+  const generateLinkMutation = useGenerateLink();
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
@@ -988,6 +992,20 @@ function VersionCard({
     })
   }
 
+  const handleGenerateLink = async () => {
+    try {
+      const result = await generateLinkMutation.mutateAsync({
+        params: { path: { courseId: courseId, versionId: selectedVersionId } },
+      });
+      setGeneratedLink(result.link); 
+      setShowLinkModal(true);
+      toast.success('Link generated successfully!');
+    } catch (error) {
+      console.error('Failed to generate link:', error);
+      toast.error('Failed to generate link. Please try again.');
+    }
+  };
+
   if (versionLoading) {
     return (
       <div className="relative">
@@ -1066,6 +1084,20 @@ function VersionCard({
                   Send Invites
                 </Button>
                 <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGenerateLink}
+          className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+          disabled={generateLinkMutation.isPending}
+        >
+          {generateLinkMutation.isPending ? (
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          ) : (
+            <Link className="h-3 w-3 mr-1" /> 
+          )}
+          Generate Link
+        </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={viewCourse}
@@ -1110,9 +1142,93 @@ function VersionCard({
               courseVersionId={versionId}
               isNew={false}
             />
+
+            <LinkModal
+        open={showLinkModal}
+        onClose={() => {
+          setShowLinkModal(false);
+          setGeneratedLink(''); // Optional: Clear link on close
+        }}
+        link={generatedLink}
+      />
           </div>
         </CardContent>
       </Card>
     </div>
   )
+}
+
+
+// Added modal for link.
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Copy } from "lucide-react"; // Import Copy icon (or use Clipboard if preferred)
+
+interface LinkModalProps {
+  open: boolean;
+  onClose: () => void;
+  link: string;
+}
+
+export function LinkModal({ open, onClose, link }: LinkModalProps) {
+  const copyLink = async () => {
+    if (navigator.clipboard && link) {
+      try {
+        await navigator.clipboard.writeText(link);
+        toast.success("Link copied to clipboard!");
+      } catch (error) {
+        console.error("Failed to copy link:", error);
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
+
+  if (!link) return null; // Safety: Don't render if no link
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-background text-foreground max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold text-center">
+            Generated Invitation Link
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Share this unique link with your students to enroll them in the course.
+          </p>
+
+          <div className="p-3 bg-muted rounded-md border">
+            <div className="flex items-center justify-between">
+              <code className="text-sm font-mono break-all flex-1 min-w-0">
+                {link}
+              </code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={copyLink}
+                className="ml-2 h-8 w-8 p-0"
+                title="Copy link"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
