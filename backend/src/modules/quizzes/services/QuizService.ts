@@ -280,7 +280,7 @@ class QuizService extends BaseService {
   async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
-      correctRate: number;
+      correctRate: number; 
       averageScore: number;
       message?: string;
     }[]
