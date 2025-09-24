@@ -204,20 +204,20 @@ export class EnrollmentController {
   })
   async getUserEnrollments(
     @QueryParams() query: EnrollmentFilterQuery,
-    @Ability(getEnrollmentAbility) { user },@Req() req: any,
+    @Ability(getEnrollmentAbility) { user }, @Req() req: any,
   ): Promise<EnrollmentResponse> {
     const { page, limit, search = "", role } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-    console.log("session on the dashboard ",req.session)
-    if(req.session.bulkInviteId){
-      console.log("bulk id in session dashboard ",req.session.bulkInviteId)
-      let result =await this.enrollmentService.processBulkInvite(userId,req.session.bulkInviteId)
-      console.log("result after enrollment ",result)
+    console.log("session on the dashboard ", req.session)
+    if (req.session.bulkInviteId) {
+      console.log("bulk id in session dashboard ", req.session.bulkInviteId)
+      let result = await this.enrollmentService.processBulkInvite(userId, req.session.bulkInviteId)
+      console.log("result after enrollment ", result)
       delete req.session.bulkInviteId
       await new Promise<void>((resolve, reject) => {
-    req.session.save(err => err ? reject(err) : resolve());
-  });
+        req.session.save(err => err ? reject(err) : resolve());
+      });
     }
     const enrollments = await this.enrollmentService.getEnrollments(
       userId,
@@ -339,7 +339,7 @@ export class EnrollmentController {
       sortOrder = 'desc',
       filter
     } = query;
-    console.log("query",query)
+
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
