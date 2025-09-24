@@ -29,6 +29,7 @@ import {ModuleService} from './ModuleService.js';
 import {SectionService} from './SectionService.js';
 import {ItemService} from './ItemService.js';
 import {cloneModules} from '../utils/cloneModules.js';
+import {getCopyCourseName} from '../utils/getCopyCourseName.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -236,7 +237,7 @@ export class CourseVersionService extends BaseService {
           );
         }
         const newCourseData: ICourse = {
-          name: `${existingCourse.name} (Copy)`,
+          name: getCopyCourseName(existingCourse.name),
           description: existingCourse.description,
           instructors: existingCourse.instructors,
           versions: [],
