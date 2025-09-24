@@ -1098,25 +1098,31 @@ function VersionCard({
     })
   }
 
-
-  const handleCopy = async () => {
-    try {
-      if(!courseId || !selectedVersionId){
-        toast.error("Failed to find course or version id, try agian!") 
-        return;
-      }
-      await copyEntireCourseVersion({params: { path: { courseId, courseVersionId: selectedVersionId } }});
-      queryClient.invalidateQueries({
-        queryKey: ["get", "/users/enrollments"],
-        exact: false, 
-      });
-      toast.success("Version successfully copied")
-    } catch (error) {
-      toast.error("Failed to copy version")
-    } finally {
+    const handleCopy = async () => {
+      try {
+        if (!courseId || !selectedVersionId) {
+          toast.error('Failed to find course or version id, try agian!');
+          return;
+        }
+        await copyEntireCourseVersion({
+          params: {path: {courseId, courseVersionId: selectedVersionId}},
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['get', '/users/enrollments'],
+          exact: false,
+        });
+        toast.success('Version successfully copied');
+      } catch (error: any) {
+        console.log('Error: ', error);
+        if (error?.name === 'ForbiddenError') {
+          toast.error('Only administrators can copy this course version');
+        } else {
+          toast.error('Failed to copy version');
+        }
+      } finally {
         setIsCopyModalOpen(false);
-    }
-  }
+      }
+    };
 
 
   if (versionLoading) {
@@ -1150,7 +1156,7 @@ function VersionCard({
         onClose={() => setIsCopyModalOpen(false)}
         onConfirm={handleCopy}
         title="Copy Course"
-        description="This will create a copy of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the copied version independently."
+        description="This will create a copy of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the copied version independently. Note: Only administrators can use this feature."
         confirmText="Copy"
         cancelText="Cancel"
         isDestructive={false} 
