@@ -36,7 +36,6 @@ export class ItemRepository implements IItemRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
-
     this.videoCollection = await this.db.getCollection<VideoItem>('videos');
     this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
     this.blogCollection = await this.db.getCollection<BlogItem>('blogs');
@@ -180,9 +179,50 @@ export class ItemRepository implements IItemRepository {
     return createdItem as Item;
   }
 
+  async createItems(items: Item[], session?: ClientSession): Promise<Item[]> {
+    await this.init();
+    const createdItems: Item[] = [];
+
+    for (const item of items) {
+      let collection: Collection<any> = null;
+
+      switch (item.type) {
+        case ItemType.VIDEO:
+          collection = this.videoCollection;
+          break;
+        case ItemType.QUIZ:
+          collection = this.quizCollection;
+          break;
+        case ItemType.BLOG:
+          collection = this.blogCollection;
+          break;
+        case ItemType.PROJECT:
+          collection = this.projectCollection;
+          break;
+        default:
+          throw new Error(`Unsupported item type: ${item.type}`);
+      }
+
+      const result = await collection.insertOne(item, {session});
+      if (!result.insertedId) {
+        throw new Error(`Failed to insert item of type ${item.type}`);
+      }
+
+      const createdItem = await collection.findOne(
+        {_id: result.insertedId},
+        {session},
+      );
+      if (!createdItem)
+        throw new Error(`Failed to fetch inserted item of type ${item.type}`);
+      createdItems.push(createdItem);
+    }
+    return createdItems;
+  }
+
   async readItem(
     courseVersionId: string,
     itemId: string,
+    session?: ClientSession,
   ): Promise<Item | null> {
     await this.init();
 
