@@ -22,19 +22,36 @@ import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 const app = express();
 
 app.use(loggingHandler);
+// app.use(
+//   session({
+//     secret: process.env.SESSION_SECRET, 
+//     resave: false,
+//     saveUninitialized: true,
+//     cookie: {
+//       secure: NODE_ENV === 'production',
+//       httpOnly:true, 
+//       maxAge: 7 * 24 * 60 * 60 * 1000,
+//       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
+//     },
+//   }),
+// );
+
+app.set("trust proxy", 1); 
+ 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET, 
+    secret: process.env.SESSION_SECRET!,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
-      secure: NODE_ENV === 'production',
-      httpOnly:true, 
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: NODE_ENV !== 'development', // true in staging + production
       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
     },
-  }),
+  })
 );
+
 
 const {controllers, validators} = await loadAppModules(appConfig.module.toLowerCase());
 
