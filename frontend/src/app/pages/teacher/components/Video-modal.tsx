@@ -338,9 +338,37 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const hasErrors = () => {
         return errors.startTime !== "" || errors.endTime !== "";
     };
+    const [errorList,setErrorList]=useState({name:"",description:"",url: ""})
+    const errorMessages={
+        name:"Video name is required",
+        description:"Video description is required",
+        url:"Video url is reqired"
+    }
+   const [skipIntialRender, setSkipIntialRender] = useState(true)
+    useEffect(()=>{
+     if (!skipIntialRender){
+        setErrorList({
+            name:name?"":errorMessages.name,
+            description: description ? "" : errorMessages.description,
+            url: url ? "" : errorMessages.url,
 
+        })
+    }
+         },[name,description,url])
     // Handle Save
     const handleSave = () => {
+        setSkipIntialRender(false)
+        const newErrors={
+            name:name?"":errorMessages.name,
+            description:description?"":errorMessages.description,
+            url: url ? "" : errorMessages.url,
+        }
+        setErrorList(newErrors)
+        const isValid = Object.values(newErrors).every((err) => err === "");
+      
+
+    if(isValid)
+       {
         const startSeconds = validateTimeInput(timeInputs.start, duration);
         const endSeconds = validateTimeInput(timeInputs.end, duration);
         
@@ -365,6 +393,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
         };
         
         onSave(video);
+    }
     };
 
     // Overlay click handler
@@ -405,12 +434,18 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             onChange={e => setName(e.target.value)}
                             disabled={action === "view"}
                         />
+                        {errorList.name && (
+                  <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
+                )}
                         <Input
                             placeholder="Paste YouTube video URL *"
                             value={url}
                             onChange={e => setUrl(e.target.value)}
                             disabled={action === "view"}
                         />
+                        {errorList.url && (
+                  <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                )}
                         <textarea
                             placeholder="Description *"
                             value={description}
@@ -419,6 +454,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             rows={3}
                             className="w-full rounded border px-3 py-2 text-sm"
                         />
+                        {errorList.description && (
+                  <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
+                )}
                         {videoId && (
                             <div
                                 style={{
