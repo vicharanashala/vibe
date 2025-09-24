@@ -150,8 +150,11 @@ export class InviteController {
   async processInvites(@Params() params: InviteIdParams,@Req() req: any,): Promise<string> {
     const {inviteId} = params;
     const result = await this.inviteService.processInvite(inviteId);
+    console.log("result from processInvite ",result)
     if(result.isBulk){
+      console.log("setting session on process")
       req.session.bulkInviteId=inviteId
+      console.log("session added ",req.session.bulkInviteId)
     }
     return inviteRedirectTemplate(result.message, appConfig.origins[0]);
     // return inviteRedirectTemplate(result.message, appConfig.origin);
