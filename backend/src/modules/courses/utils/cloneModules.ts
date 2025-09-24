@@ -44,7 +44,6 @@ export const cloneModules = async (
       //6 Fetch full item documents for all items inside the item group
       const fullItems: Item[] = [];
       for (const itemRef of oldItemGroup.items) {
-        console.log("Item Ref: ", itemRef);
         const itemDoc = await itemRepo.readItem(
           versionId,
           itemRef._id.toString(),

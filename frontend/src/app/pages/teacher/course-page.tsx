@@ -64,6 +64,7 @@ import { useAnomalyStore } from "@/store/anomaly-store"
 import { formatDateTime } from "@/utils/utils"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
 import { toast } from "sonner"
+import ConfirmationModal from "./components/confirmation-modal"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -914,6 +915,7 @@ function VersionCard({
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
   const { setCurrentAnomaly } = useAnomalyStore();
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
   // Edit state variables 
   const [editingVersion, setEditingVersion] = useState(false)
@@ -1050,7 +1052,7 @@ function VersionCard({
       watchItemId: null,
     })
     navigate({
-      to: "/teacher/courses/flags/list",
+      to: "/teacher/courses/flags/list" as any,
     })
   }
   const viewAnomalies = () => {
@@ -1063,7 +1065,7 @@ function VersionCard({
       watchItemId: null
     });
     navigate({
-      to: "/teacher/courses/anomalies/list"
+      to: "/teacher/courses/anomalies/list" as any
     });
   }
   const sendInvites = () => {
@@ -1111,6 +1113,8 @@ function VersionCard({
       toast.success("Version successfully copied")
     } catch (error) {
       toast.error("Failed to copy version")
+    } finally {
+        setIsCopyModalOpen(false);
     }
   }
 
@@ -1141,6 +1145,17 @@ function VersionCard({
 
   return (
     <div className="relative group">
+      <ConfirmationModal
+        isOpen={isCopyModalOpen}
+        onClose={() => setIsCopyModalOpen(false)}
+        onConfirm={handleCopy}
+        title="Copy Course"
+        description="This will create a copy of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the copied version independently."
+        confirmText="Copy"
+        cancelText="Cancel"
+        isDestructive={false} 
+        isLoading={copyVersionIsPending}
+      />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
         <CardContent className="p-4">
@@ -1171,7 +1186,7 @@ function VersionCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleCopy} 
+                    onClick={() => setIsCopyModalOpen(true)} 
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                     disabled={copyVersionIsPending}
                   >
