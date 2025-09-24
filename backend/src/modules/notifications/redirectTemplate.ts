@@ -1,4 +1,5 @@
 export function inviteRedirectTemplate(message: string, redirectUrl: string): string {
+  console.log("redirect Url recieved",redirectUrl)
   return `
     <html>
       <head>

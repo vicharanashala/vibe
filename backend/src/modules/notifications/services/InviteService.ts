@@ -15,6 +15,8 @@ import {
   EnrollmentRole,
   ICourseVersion,
   ICourse,
+  InviteType,
+  InviteStatusType,
 } from '#shared/interfaces/models.js';
 import { NOTIFICATIONS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -30,6 +32,7 @@ import {
 } from '#root/shared/index.js';
 import { ObjectId } from 'mongodb';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import crypto from 'crypto';
 
 @injectable()
 export class InviteService extends BaseService {
@@ -363,16 +366,19 @@ export class InviteService extends BaseService {
             courseVersionId,
           ))
           : false;
-
-        const invite = new Invite(
-          email,
-          new ObjectId(courseId),
-          new ObjectId(courseVersionId),
+        const invite = new Invite({
+          email: email,
+          courseId: new ObjectId(courseId),
+          courseVersionId
+            : new ObjectId(courseVersionId),
           role,
           isAlreadyEnrolled,
           isNewUser,
-          oneWeekFromNow,
-        );
+          expiresAt: oneWeekFromNow,
+          type: InviteType.SINGLE
+        });
+
+
 
         return this.inviteRepo.create(invite, session);
       });
@@ -414,10 +420,31 @@ export class InviteService extends BaseService {
   }
 
 
-  async processInvite(inviteId: string): Promise<{ message: string }> {
+  // New function for Link creation
+  async generateLink(courseId: string, courseVersionId: string, role: EnrollmentRole): Promise<string> {
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const invite = new Invite({
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      role,
+      expiresAt,
+      type: InviteType.BULK,
+    });
+    const InviteId = await this.inviteRepo.create(invite)
+    return `${appConfig.url}/api/notifications/invite/${InviteId}`;
+  }
+
+  async processInvite(inviteId: string): Promise<{ message: string; isBulk?: boolean }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
+    }
+    if (invite.type === InviteType.BULK) {
+      return {
+        message: 'Processing Your Invite...',
+        isBulk: true
+      }
     }
 
     if (invite.inviteStatus === 'CANCELLED') {
@@ -472,7 +499,7 @@ export class InviteService extends BaseService {
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');
       }
-      if (result == 'ALREADY_ENROLLED') {
+      if (result.status === "ALREADY_ENROLLED") {
         return {
           message: 'You are already enrolled in this course.',
         };
