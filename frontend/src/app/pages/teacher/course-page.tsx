@@ -1133,9 +1133,9 @@ function VersionCard({
       } catch (error: any) {
         console.log('Error: ', error);
         if (error?.name === 'ForbiddenError') {
-          toast.error('Only administrators can copy this course version');
+          toast.error('Only administrators can clone this course version');
         } else {
-          toast.error('Failed to copy version');
+          toast.error('Failed to clone version');
         }
       } finally {
         setIsCopyModalOpen(false);
@@ -1173,13 +1173,13 @@ function VersionCard({
         isOpen={isCopyModalOpen}
         onClose={() => setIsCopyModalOpen(false)}
         onConfirm={handleCopy}
-        title="Copy Course"
-        description="This will create a copy of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the copied version independently. Note: Only administrators can use this feature."
-        confirmText="Copy"
+        title="Clone Course"
+        description="This will create a clone of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the cloned version independently. Note: Only administrators can use this feature."
+        confirmText="Clone"
         cancelText="Cancel"
         isDestructive={false} 
         isLoading={copyVersionIsPending}
-        loadingText="Copying..."
+        loadingText="Cloning..."
       />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
@@ -1220,7 +1220,7 @@ function VersionCard({
                     ) : (
                       <Copy className="h-3 w-3 mr-1" />
                     )}
-                    Copy
+                   Clone 
                   </Button>
                     <Button
                       variant="outline"
