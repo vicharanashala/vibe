@@ -1155,7 +1155,7 @@ function VersionCard({
         cancelText="Cancel"
         isDestructive={false} 
         isLoading={copyVersionIsPending}
-        lodingText="Copying..."
+        loadingText="Copying..."
       />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
