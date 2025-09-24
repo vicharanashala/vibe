@@ -5,6 +5,7 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { InternalServerError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { Invite } from '#root/modules/notifications/index.js';
+import { InviteType } from '#root/shared/interfaces/models.js';
 
 @injectable()
 export class InviteRepository {
@@ -26,13 +27,26 @@ export class InviteRepository {
 
   async create(invite: Invite, session?: ClientSession): Promise<string> {
     await this.init();
-
     try {
+      if (invite.type === InviteType.BULK) {
+        invite.usedCount = 0
+      }
       const result = await this.inviteCollection.insertOne(invite, { session });
+      const invitee = await this.inviteCollection.findOne({ _id: result.insertedId })
       return result.insertedId.toString();
     } catch {
       throw new InternalServerError('Failed to create invite');
     }
+  }
+
+  async incrementUsedCount(inviteId: string, session?: ClientSession): Promise<void> {
+    await this.init()
+    // const result = await this.inviteCollection.updateOne(
+    //   {_id: new ObjectId(inviteId)},{$inc:{usedCount:1}},{session})
+  }
+
+  async all() {
+    return this.inviteCollection.find()
   }
 
   async findInviteById(
@@ -50,6 +64,7 @@ export class InviteRepository {
       ...invite,
       courseId: invite.courseId?.toString(),
       courseVersionId: invite.courseVersionId?.toString(),
+      usedCount: invite.usedCount || 0
     };
   }
 

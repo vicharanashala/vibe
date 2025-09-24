@@ -37,6 +37,7 @@ import {
   Authorized,
   QueryParams,
   Patch,
+  Req,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -203,13 +204,18 @@ export class EnrollmentController {
   })
   async getUserEnrollments(
     @QueryParams() query: EnrollmentFilterQuery,
-    @Ability(getEnrollmentAbility) { user },
+    @Ability(getEnrollmentAbility) { user },@Req() req: any,
   ): Promise<EnrollmentResponse> {
-
     const { page, limit, search = "", role } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-
+    if(req.session.bulkInviteId){
+      await this.enrollmentService.processBulkInvite(userId,req.session.bulkInviteId)
+      delete req.session.bulkInviteId
+      await new Promise<void>((resolve, reject) => {
+    req.session.save(err => err ? reject(err) : resolve());
+  });
+    }
     const enrollments = await this.enrollmentService.getEnrollments(
       userId,
       skip,

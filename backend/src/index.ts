@@ -6,6 +6,7 @@ await import('./instrument.js');
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session'
 import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
 import {appConfig} from './config/app.js';
 import {loggingHandler} from './shared/middleware/loggingHandler.js';
@@ -21,6 +22,19 @@ import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 const app = express();
 
 app.use(loggingHandler);
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET, 
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: NODE_ENV === 'production',
+      httpOnly:true, 
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
+    },
+  }),
+);
 
 const {controllers, validators} = await loadAppModules(appConfig.module.toLowerCase());
 

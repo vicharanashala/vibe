@@ -16,9 +16,9 @@ import { Enrollment } from '#users/classes/transformers/Enrollment.js';
 import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
+import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
-import { ProgressRepository } from '#root/shared/index.js';
+import { InviteRepository, ProgressRepository } from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
 import { QuizScoresExportResponseDto, StudentQuizScoreDto } from '../dtos/QuizScoresExportDto.js';
 
@@ -33,6 +33,8 @@ export class EnrollmentService extends BaseService {
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+    @inject(GLOBAL_TYPES.InviteRepo)
+    private readonly inviteRepo:InviteRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
@@ -73,15 +75,18 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      if (existingEnrollment && !throughInvite) {
-        throw new BadRequestError(
-          'User is already enrolled in this course version',
-        );
-      }
+      // if (existingEnrollment && !throughInvite) {
+      //   throw new BadRequestError(
+      //     'User is already enrolled in this course version',
+      //   );
+      // }
 
       if (existingEnrollment && throughInvite) {
-        let status: InviteStatus = 'ALREADY_ENROLLED';
-        return status;
+         return { status: 'ALREADY_ENROLLED' as InviteStatus };
+      }
+
+      if (existingEnrollment && !throughInvite) {
+        throw new BadRequestError('User is already enrolled in this course version');
       }
 
       const enrollmentData = {
@@ -110,6 +115,7 @@ export class EnrollmentService extends BaseService {
       }
 
       return {
+        status:"ENROLLED" as const,
         enrollment: createdEnrollment,
         progress: initialProgress,
         role: role,
@@ -379,6 +385,21 @@ export class EnrollmentService extends BaseService {
       const result = await this.enrollmentRepo.countEnrollments(userId, role);
       return result;
     });
+  }
+
+  async processBulkInvite(userId:string,inviteId:string):Promise<void>{
+    const invite = await this.inviteRepo.findInviteById(inviteId)
+    if(!invite){
+      throw new Error("Bulk Invite Not Found")
+    }
+    const result = await this.enrollUser(userId,invite.courseId.toString(),invite.courseVersionId.toString(),invite.role,true)
+    if(!result){
+      throw  new InternalServerError("Failed to enroll user from Bulk Invite")
+    }
+    if(result.status==="ENROLLED"){
+      invite.usedCount = (invite.usedCount || 0 ) + 1
+      await this.inviteRepo.updateInvite(inviteId,invite)
+    }
   }
 
   /**
