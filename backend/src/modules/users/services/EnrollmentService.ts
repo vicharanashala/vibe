@@ -393,6 +393,7 @@ export class EnrollmentService extends BaseService {
       throw new Error("Bulk Invite Not Found")
     }
     const result = await this.enrollUser(userId,invite.courseId.toString(),invite.courseVersionId.toString(),invite.role,true)
+    
     if(!result){
       throw  new InternalServerError("Failed to enroll user from Bulk Invite")
     }
