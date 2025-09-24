@@ -1,6 +1,6 @@
 import { AnomalyController } from './controllers/AnomalyController.js';
 import { anomaliesContainerModule } from './container.js';
-import { sharedContainerModule } from '#root/container.js';
+// import { sharedContainerModule } from '#root/container.js';
 import { Container, ContainerModule } from 'inversify';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { useContainer } from 'class-validator';
@@ -13,7 +13,7 @@ export const anomaliesModuleControllers: Function[] = [
 // Export container modules for loadAppModules
 export const anomaliesContainerModules: ContainerModule[] = [
   anomaliesContainerModule,
-  sharedContainerModule,
+  // sharedContainerModule,
 ]
 
 // This sets up Inversify bindings for the anomaly module
