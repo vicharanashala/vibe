@@ -274,16 +274,18 @@ Accessible to:
       throw new BadRequestError('Version ID is required');
     }
 
-    const courseVersionSubject = subject('CourseVersion', {
-      courseId,
-      versionId,
-    });
+    // const courseVersionSubject = subject('CourseVersion', {
+    //   courseId,
+    //   versionId,
+    // });
 
-    if (!ability.can(CourseActions.Create, courseVersionSubject)) {
+    if (!ability.can(CourseVersionActions.Create, 'CourseVersion')) {
       throw new ForbiddenError(
         'You do not have permission to copy this course version',
       );
     }
+
+
 
     const newVersion = await this.courseVersionService.copyCourseVersion(
       courseId,
