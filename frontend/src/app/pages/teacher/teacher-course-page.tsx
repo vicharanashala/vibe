@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -139,6 +139,13 @@ export default function TeacherCoursePage() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+
+  // Check if a project already exists in any section
+  const hasExistingProject = useMemo(() => {
+    return Object.values(sectionItems).some(items => 
+      items.some(item => item.type === 'PROJECT')
+    );
+  }, [sectionItems]);
 
   // Controlled state for ProjectItem edit mode
   const [projectEditName, setProjectEditName] = useState<string>('');
@@ -954,7 +961,13 @@ export default function TeacherCoursePage() {
 
                                               <option value="quiz">Quiz</option>
 
-                                              <option value="project">Project</option>
+                                              <option 
+                                                value="project" 
+                                                disabled={hasExistingProject}
+                                                className={hasExistingProject ? 'text-gray-400' : ''}
+                                              >
+                                                {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                              </option>
 
                                             </select>
                                             <TooltipProvider>
