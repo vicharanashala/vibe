@@ -1,4 +1,5 @@
 import {ParameterMap} from '#quizzes/question-processing/index.js';
+import { ID } from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
@@ -34,7 +35,7 @@ export type Answer =
   | IDESAnswer;
 
 interface IQuestionAnswer {
-  questionId: string;
+  questionId: ID;
   answer: Answer;
 }
 

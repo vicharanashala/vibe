@@ -50,6 +50,11 @@ class AttemptRepository {
       ...result,
       userId: result.userId?.toString(),
       quizId: result.quizId?.toString(),
+      answers:
+        result.answers?.map((ans: any) => ({
+          ...ans,
+          questionId: ans.questionId?.toString(),
+        })) ?? [],
     };
   }
   async countAttempts(

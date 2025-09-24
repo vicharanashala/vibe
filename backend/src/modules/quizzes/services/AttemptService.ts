@@ -141,7 +141,7 @@ class AttemptService extends BaseService {
 
     for (const answer of answers) {
       const question = await this.questionService.getById(
-        answer.questionId,
+        answer.questionId.toString(),
         true,
       );
 
@@ -244,7 +244,7 @@ class AttemptService extends BaseService {
         session,
       );
 
-      const attemptObjectId =  new ObjectId(attemptId)
+      const attemptObjectId = new ObjectId(attemptId);
 
       //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
@@ -307,7 +307,11 @@ class AttemptService extends BaseService {
       const userObjectId = new ObjectId(userId);
       const attemptObjectId = new ObjectId(attemptId);
       if (!isSkipped) {
-        const submission = new Submission(quizObjectId, userObjectId, attemptObjectId);
+        const submission = new Submission(
+          quizObjectId,
+          userObjectId,
+          attemptObjectId,
+        );
         const submissionId = await this.submissionRepository.create(
           submission,
           session,
@@ -318,10 +322,11 @@ class AttemptService extends BaseService {
         metrics.latestAttemptStatus = 'SUBMITTED';
 
         metrics.latestAttemptId = new ObjectId(metrics.latestAttemptId);
-        metrics.latestSubmissionResultId = new ObjectId(metrics.latestSubmissionResultId);
+        metrics.latestSubmissionResultId = new ObjectId(
+          metrics.latestSubmissionResultId,
+        );
         metrics.quizId = new ObjectId(metrics.quizId);
         metrics.userId = new ObjectId(metrics.userId);
-        
 
         const gradingResult = await this._grade(
           attemptId,
@@ -406,9 +411,15 @@ class AttemptService extends BaseService {
           'Attempt does not belong to the user or quiz',
         );
       }
+      const updatedAnswer = answers.map(answer => {
+        return {
+          ...answer,
+          questionId: new ObjectId(answer.questionId),
+        };
+      });
       //3. Update the attempt with the answers or isSkipped
       if (isSkipped) attempt.isSkipped = isSkipped;
-      else attempt.answers = answers;
+      else attempt.answers = updatedAnswer;
 
       attempt.updatedAt = new Date();
       attempt.userId = new ObjectId(attempt.userId);
