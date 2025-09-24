@@ -19,7 +19,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const navigate = useNavigate();
 
   const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number } || {};
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number;project?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
@@ -27,6 +27,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const videoCount: number = contentCounts.videos || 0;
   const quizCount: number = contentCounts.quizzes || 0;
   const articleCount: number = contentCounts.articles || 0;
+  const projectCount: number = contentCounts.project || 0;
 
 
   // Find if this courseVersionId is already in completion
@@ -99,7 +100,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <span>Content</span>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
-                    {videoCount} videos , {quizCount} quizzes , {articleCount} articles
+                    {videoCount} videos , {quizCount} quizzes , {articleCount} articles , {projectCount} project
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-1 sm:mb-0">
