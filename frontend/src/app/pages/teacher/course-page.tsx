@@ -32,6 +32,7 @@ import {
   FlagTriangleRight,
   User,
   Link,
+  Copy,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -50,7 +51,8 @@ import {
   useCourseById,
   useCourseVersionById,
   useEditProctoringSettings,
-  useGenerateLink
+  useGenerateLink,
+  useCopyCourseVersion
 } from "@/hooks/hooks"
 import { useAuthStore } from "@/store/auth-store"
 import { useCourseStore } from "@/store/course-store"
@@ -63,6 +65,8 @@ import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { formatDateTime } from "@/utils/utils"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
+import { toast } from "sonner"
+import ConfirmationModal from "./components/confirmation-modal"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -913,6 +917,7 @@ function VersionCard({
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
   const { setCurrentAnomaly } = useAnomalyStore();
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
   // Edit state variables 
   const [editingVersion, setEditingVersion] = useState(false)
@@ -928,6 +933,9 @@ function VersionCard({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const generateLinkMutation = useGenerateLink();
+  // To copy a entire course version
+  const {mutateAsync: copyEntireCourseVersion, isPending: copyVersionIsPending } = useCopyCourseVersion()
+
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
@@ -1049,7 +1057,7 @@ function VersionCard({
       watchItemId: null,
     })
     navigate({
-      to: "/teacher/courses/flags/list",
+      to: "/teacher/courses/flags/list" as any,
     })
   }
   const viewAnomalies = () => {
@@ -1062,7 +1070,7 @@ function VersionCard({
       watchItemId: null
     });
     navigate({
-      to: "/teacher/courses/anomalies/list"
+      to: "/teacher/courses/anomalies/list" as any
     });
   }
   const sendInvites = () => {
@@ -1108,6 +1116,32 @@ function VersionCard({
       toast.error('Failed to generate link. Please try again.');
     }
   };
+    const handleCopy = async () => {
+      try {
+        if (!courseId || !selectedVersionId) {
+          toast.error('Failed to find course or version id, try agian!');
+          return;
+        }
+        await copyEntireCourseVersion({
+          params: {path: {courseId, courseVersionId: selectedVersionId}},
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['get', '/users/enrollments'],
+          exact: false,
+        });
+        toast.success('Version successfully copied');
+      } catch (error: any) {
+        console.log('Error: ', error);
+        if (error?.name === 'ForbiddenError') {
+          toast.error('Only administrators can copy this course version');
+        } else {
+          toast.error('Failed to copy version');
+        }
+      } finally {
+        setIsCopyModalOpen(false);
+      }
+    };
+
 
   if (versionLoading) {
     return (
@@ -1135,6 +1169,18 @@ function VersionCard({
 
   return (
     <div className="relative group">
+      <ConfirmationModal
+        isOpen={isCopyModalOpen}
+        onClose={() => setIsCopyModalOpen(false)}
+        onConfirm={handleCopy}
+        title="Copy Course"
+        description="This will create a copy of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the copied version independently. Note: Only administrators can use this feature."
+        confirmText="Copy"
+        cancelText="Cancel"
+        isDestructive={false} 
+        isLoading={copyVersionIsPending}
+        loadingText="Copying..."
+      />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
         <CardContent className="p-4">
@@ -1162,15 +1208,20 @@ function VersionCard({
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
-                  {/* Project Submissions Download Button */}
-                {courseId && versionId && (
-                  <React.Suspense fallback={null}>
-                    {/** Dynamically import to avoid circular deps if any, or just import at top if not needed */}
-                    {(() => {
-                      return <ProjectSubmissionsDownloadButton courseId={courseId} versionId={versionId} />;
-                    })()}
-                  </React.Suspense>
-                )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCopyModalOpen(true)} 
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    disabled={copyVersionIsPending}
+                  >
+                    {copyVersionIsPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Copy className="h-3 w-3 mr-1" />
+                    )}
+                    Copy
+                  </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1414,8 +1465,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { Copy } from "lucide-react"; // Import Copy icon (or use Clipboard if preferred)
+
 
 interface LinkModalProps {
   open: boolean;

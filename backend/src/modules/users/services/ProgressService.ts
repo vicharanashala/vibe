@@ -31,6 +31,8 @@ import {
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
 import {EnrollmentRepository} from '#root/shared/index.js';
+import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
+import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -58,6 +60,9 @@ class ProgressService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepo: QuizRepository,
+
+    @inject(PROJECTS_TYPES.projectSubmissionRepository)
+    private projectSubmissionRepo: IProjectSubmissionRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
@@ -943,6 +948,17 @@ class ProgressService extends BaseService {
           throw new BadRequestError(
             'Quiz not passed, user cannot proceed to the next item',
           );
+        }
+      } else if (item.type === 'PROJECT') {
+        // Verify if the user has submitted the PROJECT
+        const projectSubmission = await this.projectSubmissionRepo.getByUser(
+          userId,
+          courseVersionId,
+          session,
+        );
+
+        if (!projectSubmission || projectSubmission.projectId.toString() !== itemId) {
+          throw new BadRequestError('Project submission is required before marking as complete');
         }
       }
       // Get the course version

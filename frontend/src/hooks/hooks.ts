@@ -2740,3 +2740,29 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
   };
 
 }
+
+// POST (copy course version)
+export function useCopyCourseVersion(): {
+  mutate: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => void,
+  mutateAsync: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => Promise<{ message: string }>,
+  data: { message: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: "idle" | "pending" | "success" | "error";
+} {
+  const result = api.useMutation(
+    "post",
+    "/courses/{courseId}/version/{courseVersionId}/copy" as any
+  );
+
+  return {
+    ...result,
+    error: result.error ? (result.error.message || "Failed to copy course version") : null,
+  };
+}
+
+
