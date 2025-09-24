@@ -35,3 +35,4 @@ export const appConfig = {
     sendDefaultPii: true,
   },
 };
+console.log(appConfig.url)

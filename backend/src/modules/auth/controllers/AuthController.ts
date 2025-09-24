@@ -46,8 +46,10 @@ export class AuthController {
   @Post('/signup')
   @HttpCode(201)
   @OnUndefined(201)
-  async signup(@Body() body: SignUpBody) {
+  async signup(@Body() body: SignUpBody,@Req() req:any) {
     const acknowledgedInvites = await this.authService.signup(body);
+    console.log("Acknowledged ",acknowledgedInvites)
+    req.session.userId = acknowledgedInvites
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -62,6 +64,7 @@ export class AuthController {
   @HttpCode(201)
   async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);
+    console.log("Acknoelde google ",acknowledgedInvites)
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -104,9 +107,12 @@ export class AuthController {
         returnSecureToken: true
       })
     });
-
+    console.log("Data ",data)
     const result = await data.json();
+    console.log("result login ",result)
 
+  // ✅ fetch your app user from DB
+  // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;
   }
 }
