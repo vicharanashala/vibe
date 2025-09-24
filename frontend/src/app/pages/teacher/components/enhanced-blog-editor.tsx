@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,40 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
 
   const editor = useMemo(() => createYooptaEditor(), []);
   const [editorValue, setEditorValue] = useState<YooptaContentValue>();
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  const focusEditor = () => {
+    if (!editor || !isEditMode) return;
+    
+    try {
+      const editorElement = editorContainerRef.current?.querySelector('[data-yoopta-editor] [contenteditable="true"]') as HTMLElement;
+      if (editorElement) {
+        editorElement.focus();
+        
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          const range = document.createRange();
+          range.selectNodeContents(editorElement);
+          range.collapse(false);
+          selection.addRange(range);
+        }
+      }
+    } catch (error) {
+      console.error('Error focusing editor:', error);
+    }
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (!isEditMode) return;
+    
+    if (e.target === e.currentTarget || 
+        (e.target as Element).classList.contains('yoopta-editor-container')) {
+      e.preventDefault();
+      e.stopPropagation();
+      focusEditor();
+    }
+  };
 
   useEffect(() => {
     if (editor && !editorValue) {
@@ -279,6 +313,15 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
         .dark .yoopta-editor::placeholder {
           color: #6b7280 !important;
         }
+
+        /* Make the entire editor container clickable */
+        .yoopta-editor-container {
+          cursor: text;
+        }
+        
+        .yoopta-editor-container:not(.edit-mode) {
+          cursor: default;
+        }
       `;
       
       const existingStyle = document.getElementById('yoopta-dark-mode-styles');
@@ -389,6 +432,9 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
   const handleEdit = () => {
     setOriginalForm({ ...blogForm });
     setIsEditMode(true);
+    setTimeout(() => {
+      focusEditor();
+    }, 100);
   };
 
   const handleCancel = () => {
@@ -604,8 +650,10 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
             <Label>Content *</Label>
             <div className="border border-border rounded-lg overflow-hidden">
               <div 
-                className={`min-h-[200px] max-h-[400px] overflow-y-auto yoopta-editor-container ${!isEditMode ? 'pointer-events-none' : ''}`}
+                ref={editorContainerRef}
+                className={` overflow-y-auto yoopta-editor-container ${isEditMode ? 'cursor-text edit-mode' : 'pointer-events-none'}`}
                 data-yoopta-editor="true"
+                onClick={handleContainerClick}
               >
                 <YooptaEditor
                   key={`editor-${blogId}-${isEditMode}`}
@@ -617,7 +665,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                   autoFocus={false}
                   tools={isEditMode ? TOOLS : {}}
                   onChange={handleContentChange}
-                  className={`prose prose-sm max-w-none dark:prose-invert p-4 min-h-[200px] text-foreground ${!isEditMode ? 'opacity-80' : ''}`}
+                  className={`prose prose-sm max-w-none dark:prose-invert p-4 text-foreground ${!isEditMode ? 'opacity-80' : ''}`}
                   readOnly={!isEditMode}
                 />
               </div>
