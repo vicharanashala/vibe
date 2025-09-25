@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Mail, User, Shield, Pencil } from "lucide-react"
+import React, { useState } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Clock, Award } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { useEditUser } from "@/hooks/hooks"
+import { useEditUser, useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
+import { Skeleton } from "@/components/ui/skeleton"
+import { bufferToHex } from "@/utils/helpers"
 
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
@@ -23,6 +25,39 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     logout();
     navigate({ to: "/auth" });
   };
+
+  // Fetch user data and statistics
+  const { token } = useAuthStore();
+  const { data: enrollmentsData, isLoading: enrollmentsLoading } = useUserEnrollments(1, 100, !!token);
+  const { data: watchtimeData, isLoading: watchtimeLoading } = useWatchtimeTotal();
+
+  // Calculate statistics
+  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+  
+  const enrollments = enrollmentsData?.enrollments || [];
+  
+  // Calculate progress exactly like the dashboard
+  const totalProgress = React.useMemo(() => {
+    if (enrollments.length === 0) return 0;
+    
+    // Filter out the course that's being excluded in the dashboard
+    const filteredEnrollments = enrollments.filter(
+      enrollment => bufferToHex(enrollment.courseVersionId as string) !== '689b1075013a8bec5112625d'
+    );
+    
+    // Calculate total completed items and total items across all enrollments
+    const { totalCompleted, totalItems } = filteredEnrollments.reduce((acc, enrollment) => {
+      const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
+      const total = enrollment.contentCounts?.totalItems || 0;
+      return {
+        totalCompleted: acc.totalCompleted + completed,
+        totalItems: acc.totalItems + (total > 0 ? total : 1) // Avoid division by zero
+      };
+    }, { totalCompleted: 0, totalItems: 0 });
+    
+    // Calculate overall progress percentage
+    return Math.round((totalCompleted / totalItems) * 100) || 0;
+  }, [enrollments]);
 
   // Fallback data if user is not available
   const firstName = user?.name?.split(" ")[0] || ""
@@ -237,23 +272,48 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               <CardDescription>Your progress and achievements</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">3</div>
-                  <p className="text-sm text-muted-foreground">Courses Enrolled</p>
+                  {/* Enrolled Courses */}
+                  {enrollmentsLoading ? (
+                    <Skeleton className="h-8 w-12 mx-auto mb-1" />
+                  ) : (
+                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
+                      <BookOpen className="h-4 w-4" />
+                      {totalEnrollments}
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">Enrolled Courses</p>
                 </div>
+                {/* Study Time */}
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">45</div>
-                  <p className="text-sm text-muted-foreground">Lessons Completed</p>
+                  {watchtimeLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
+                  ) : (
+                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {(watchtimeData / 3600 || 0).toFixed(2)}h
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">Study Time</p>
                 </div>
+                
+                {/* Overall Progress */}
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">72%</div>
-                  <p className="text-sm text-muted-foreground">Average Progress</p>
+                  {enrollmentsLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
+                  ) : (
+                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
+                      <Award className="h-4 w-4" />
+                      {totalProgress}%
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">Overall Progress</p>
                 </div>
-                <div className="text-center">
+                {/* <div className="text-center">
                   <div className="text-2xl font-bold text-primary">7</div>
                   <p className="text-sm text-muted-foreground">Day Streak</p>
-                </div>
+                </div> */}
               </div>
             </CardContent>
           </Card>
