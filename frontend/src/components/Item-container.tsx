@@ -80,8 +80,6 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           points={item.details?.points || ''}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
-          title={item.name}
-          description={item.description}
         />;
 
       case 'project':
