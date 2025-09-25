@@ -1,3 +1,4 @@
+
 /*
 This file is Exports hooks for OpenAPI endpoints using the api client.
 It is most certain that this file is not bugged.
@@ -521,7 +522,7 @@ export async function useProcessInvites(inviteId: string): Promise<{
     throw new Error(`Failed to update settings: ${res.status}`);
   }
 
-
+  
   return {
     data: null,
     isLoading: isLoading,
@@ -554,7 +555,7 @@ export function useCourseById(id: string, enabled?: boolean): {
   };
 }
 
-// PUT /courses/{id}
+// PATCH /courses/{id}
 export function useUpdateCourse(): {
   mutate: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => void,
   mutateAsync: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => Promise<components['schemas']['CourseDataResponse']>,
@@ -567,7 +568,7 @@ export function useUpdateCourse(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/courses/{id}");
+  const result = api.useMutation("patch", "/courses/{id}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Course update failed') : null
@@ -682,6 +683,26 @@ export function useDeleteCourseVersion(): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Course version deletion failed') : null
+  };
+}
+
+// PATCH /courses/{courseId}/versions/{versionId}
+export function useUpdateCourseVersion(): {
+  mutate: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['CreateCourseVersionBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
+  data: components['schemas']['CourseVersionDataResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/courses/{courseId}/versions/{versionId}" as any);
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Course version update failed') : null
   };
 }
 
@@ -1140,7 +1161,8 @@ export function useCourseVersionEnrollments(
   search: string = "",
   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
-  enabled: boolean = true
+  enabled: boolean = true,
+  filter: 'STUDENT' | 'OTHER'
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1153,7 +1175,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder },
+        query: { page, limit, search, sortBy, sortOrder, filter },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -1177,7 +1199,7 @@ export function useUserProgress(courseId: string, courseVersionId: string): {
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}/", {
+  const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}", {
     params: { path: { courseId, courseVersionId } }
   }, { enabled: !!courseId && !!courseVersionId }
   );
@@ -2410,6 +2432,7 @@ export function useQuizAnalytics(quizId: string): {
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage: number;
   } | undefined,
   isLoading: boolean,
   error: string | null,
@@ -2644,3 +2667,102 @@ export function useUpdateReportStatus(): {
     error: result.error ? (result?.error?.message || 'Failed to update status') : null
   };
 }
+
+// Project submission types
+export interface SubmitProjectBody {
+  projectId: string;
+  courseId: string;
+  versionId: string;
+  moduleId: string;
+  sectionId: string;
+  watchItemId: string;
+  submissionURL: string;
+  comment?: string;
+}
+
+export interface ProjectSubmissionResponse {
+  message: string;
+}
+
+// POST /project/
+export function useSubmitProject(): {
+  mutate: (variables: { body: SubmitProjectBody }) => void,
+  mutateAsync: (variables: { body: SubmitProjectBody }) => Promise<ProjectSubmissionResponse>,
+  data: ProjectSubmissionResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/project/" as any);
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to submit project') : null
+  };
+}
+
+// Custom hook to fetch project submissions for a course version
+export interface ProjectSubmissionUserInfo {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  submissionURL: string;
+}
+
+export interface ProjectSubmissionsResponse {
+  course: { name: string };
+  courseVersion: { name: string };
+  userInfo: ProjectSubmissionUserInfo[];
+}
+
+export function useProjectSubmissions(courseId: string, versionId: string): {
+  data: ProjectSubmissionsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/project/course/{courseId}/version/{versionId}/submissions",
+    {
+      params: { path: { courseId, versionId } }
+    },
+    { enabled: !!courseId && !!versionId }
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
+    refetch: result.refetch
+  };
+
+}
+
+// POST (copy course version)
+export function useCopyCourseVersion(): {
+  mutate: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => void,
+  mutateAsync: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => Promise<{ message: string }>,
+  data: { message: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: "idle" | "pending" | "success" | "error";
+} {
+  const result = api.useMutation(
+    "post",
+    "/courses/{courseId}/version/{courseVersionId}/copy" as any
+  );
+
+  return {
+    ...result,
+    error: result.error ? (result.error.message || "Failed to copy course version") : null,
+  };
+}
+
+

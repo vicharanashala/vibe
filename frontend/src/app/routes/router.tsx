@@ -219,6 +219,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollments,
 });
 
+// Teacher Course Instructors route
+const teacherCourseInstructorsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/instructors',
+  component: CourseInstructors,
+});
+
 // Teacher Course Flags route
 const teacherCourseFlagsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
